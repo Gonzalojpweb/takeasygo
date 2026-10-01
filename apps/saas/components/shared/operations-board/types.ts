@@ -41,19 +41,25 @@ export interface BoardLocationConfig {
 }
 
 // ─── Render Props ───────────────────────────────────────────
-/** Alerta de popup para el detector de pedidos programados (T-lead). */
+/** Alerta de popup de atención (pedido nuevo o programado en T-lead). */
 export interface OrderAlertItem {
   id: string
   title: string
   description?: string
+  /** Título del header del popup. Default: '¡Es hora de prepararlo!'. */
+  headline?: string
+  /** Subtítulo del header del popup. Default: 'Pedido programado alcanzó el tiempo de impresión'. */
+  subline?: string
 }
 
-/** Config del detector de pedidos programados que alcanzan el T-lead. */
+/** Config del detector de popup: pedidos nuevos + programados que alcanzan el T-lead. */
 export interface ScheduledAlertConfig<T extends BoardItem> {
   /** Momento ISO en que el item alcanza el T-lead (printNotBefore). null = no programado. */
   getPrintNotBefore: (item: T) => string | null | undefined
-  /** Contenido del popup para un item vencido. */
+  /** Contenido del popup para un item vencido (T-lead de impresión). */
   buildAlert: (item: T) => OrderAlertItem
+  /** Contenido del popup cuando entra un item NUEVO al board (cualquier tipo). Default: buildAlert. */
+  buildNewAlert?: (item: T) => OrderAlertItem
 }
 export interface BoardCardRenderProps<T extends BoardItem> {
   item: T
@@ -110,8 +116,8 @@ export interface OperationsBoardProps<T extends BoardItem> {
   soundSrc?: string
   /** Auto-select an item by _id on mount (e.g. from notification action button). */
   autoSelectId?: string | null
-  /** Habilita el popup centrado de atención para items programados que alcanzan el T-lead. */
+  /** Habilita el popup centrado de atención: cualquier pedido nuevo + programados en T-lead. */
   enableAttentionPopup?: boolean
-  /** Config del detector T-lead (requiere enableAttentionPopup). */
+  /** Config del detector del popup (requiere enableAttentionPopup). */
   scheduledAlertConfig?: ScheduledAlertConfig<T>
 }

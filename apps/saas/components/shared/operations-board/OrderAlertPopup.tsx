@@ -21,8 +21,10 @@ interface OrderAlertPopupProps {
 }
 
 /**
- * OrderAlertPopup — alerta total estilo Rappi/PedidosYa para pedidos
- * programados que alcanzan el T-lead de impresión.
+ * OrderAlertPopup — alerta total estilo Rappi/PedidosYa:
+ * - Pedidos NUEVOS al board (cualquier tipo: transferencia, MP, efectivo,
+ *   inmediato o programado) — headline '¡Nuevo pedido!'.
+ * - Pedidos programados que alcanzan el T-lead de impresión.
  *
  * - Popup modal centrado con backdrop (spring de entrada).
  * - Sacudida `animate-nudge` + puño `knock-fist-anim` (se desactivan con
@@ -77,7 +79,7 @@ export function OrderAlertPopup({ queue, soundEnabled = true, onAttend, onDismis
     const interval = setInterval(() => {
       flip = !flip
       document.title = flip
-        ? `🔔 (${queue.length}) ¡Pedido programado por atender!`
+        ? `🔔 (${queue.length}) ¡Pedido por atender!`
         : originalTitleRef.current ?? ''
     }, 1500)
     return () => clearInterval(interval)
@@ -127,7 +129,7 @@ export function OrderAlertPopup({ queue, soundEnabled = true, onAttend, onDismis
           <motion.div
             role="alertdialog"
             aria-modal="true"
-            aria-label="Pedido programado por atender"
+            aria-label={current.headline ?? 'Pedido programado por atender'}
             initial={{ opacity: 0, scale: 0.88, y: 24 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: 12 }}
@@ -144,10 +146,10 @@ export function OrderAlertPopup({ queue, soundEnabled = true, onAttend, onDismis
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-1.5 text-[13px] font-extrabold uppercase tracking-wide">
                     <BellRing size={14} />
-                    ¡Es hora de prepararlo!
+                    {current.headline ?? '¡Es hora de prepararlo!'}
                   </p>
                   <p className="truncate text-[12.5px] font-medium text-white/90">
-                    Pedido programado alcanzó el tiempo de impresión
+                    {current.subline ?? 'Pedido programado alcanzó el tiempo de impresión'}
                   </p>
                 </div>
                 {queue.length > 1 && (
