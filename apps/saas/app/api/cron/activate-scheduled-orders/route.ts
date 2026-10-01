@@ -1,8 +1,11 @@
 /**
  * Cron Job: Activar pedidos programados
  *
- * Se ejecuta cada 5 minutos para activar pedidos cuya hora programada llegó.
- * También marca como expirados los pedidos que pasaron la ventana de gracia.
+ * Se ejecuta una vez al día (el plan Hobby de Vercel solo permite crons
+ * diarios). Pasa scheduledStatus de pending_schedule → active cuando llegó
+ * la hora programada, y marca como expirados los que pasaron la ventana de
+ * gracia. Solo bookkeeping de estados: NO imprime ni notifica — la
+ * impresión se gatea por tiempo en GET /print-jobs (poll del agente).
  *
  * URL: /api/cron/activate-scheduled-orders
  * Método: GET (con header Authorization: Bearer CRON_SECRET)

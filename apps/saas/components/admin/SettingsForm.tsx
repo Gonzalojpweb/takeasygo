@@ -211,6 +211,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
     minAdvanceMinutes: number
     slotDurationMinutes: number
     maxOrdersPerSlot: number
+    printBeforePickupMinutes: number
   }
   const [scheduledOrdersMap, setScheduledOrdersMap] = useState<Record<string, ScheduledOrdersConfig>>(
     Object.fromEntries(locations.map((l: any) => [
@@ -221,6 +222,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
         minAdvanceMinutes: l.scheduledOrdersConfig?.minAdvanceMinutes ?? 30,
         slotDurationMinutes: l.scheduledOrdersConfig?.slotDurationMinutes ?? 15,
         maxOrdersPerSlot: l.scheduledOrdersConfig?.maxOrdersPerSlot ?? 10,
+        printBeforePickupMinutes: l.scheduledOrdersConfig?.printBeforePickupMinutes ?? 30,
       },
     ]))
   )
@@ -1676,6 +1678,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
                                   />
                                   <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">0 = sin límite</p>
                                 </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                  Imprimir con anticipación (min)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  max={180}
+                                  value={scheduledOrdersMap[loc._id]?.printBeforePickupMinutes ?? 30}
+                                  onChange={e => setScheduledOrdersMap(prev => ({
+                                    ...prev,
+                                    [loc._id]: { ...prev[loc._id], printBeforePickupMinutes: Number(e.target.value) }
+                                  }))}
+                                  className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
+                                />
+                                <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">
+                                  Minutos antes del retiro en que se imprime el ticket
+                                </p>
                               </div>
                             </div>
                           )}

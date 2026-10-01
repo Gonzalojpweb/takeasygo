@@ -12,6 +12,7 @@ import type { Types } from 'mongoose'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
 import { safeDecrypt } from '@/lib/crypto'
+import { resolvePrintLeadMinutes, getPrintNotBefore } from '@/lib/printing/printTiming'
 
 export default async function OrdersPage() {
   const session = await auth()
@@ -56,7 +57,12 @@ export default async function OrdersPage() {
   const locations = await Location.find({ tenantId }).lean()
 
   const locationMap = Object.fromEntries(
-    locations.map((l: any) => [l._id.toString(), { name: l.name, lat: l.geo?.coordinates?.[1], lng: l.geo?.coordinates?.[0] }])
+    locations.map((l: any) => [l._id.toString(), {
+      name: l.name,
+      lat: l.geo?.coordinates?.[1],
+      lng: l.geo?.coordinates?.[0],
+      printLeadMinutes: resolvePrintLeadMinutes(l.scheduledOrdersConfig),
+    }])
   )
 
   const serializedLocations = JSON.parse(JSON.stringify(locations)).map((l: any) => ({
@@ -77,6 +83,12 @@ export default async function OrdersPage() {
     locationName: locationMap[o.locationId?.toString()]?.name || 'Sede',
     locationLat: locationMap[o.locationId?.toString()]?.lat ?? null,
     locationLng: locationMap[o.locationId?.toString()]?.lng ?? null,
+    // Momento en que el pedido programado pasa a ser imprimible/accionable
+    // (T-lead). Server-side para que el cliente no calcule con la config.
+    printNotBefore: getPrintNotBefore(
+      o,
+      locationMap[o.locationId?.toString()]?.printLeadMinutes
+    )?.toISOString() ?? null,
   }))
 
   // Recent ratings for admin toast (piggyback on board refresh)

@@ -22,6 +22,8 @@ interface OrderItem extends BoardItem {
   locationLng?: number | null
   orderTiming?: string
   scheduledPickupAt?: string
+  /** T-lead serializado server-side (ISO) — null si no es programado. */
+  printNotBefore?: string | null
   deliveryAddress?: any
   items?: any[]
   notes?: string
@@ -43,6 +45,20 @@ const ORDER_COLUMNS: BoardColumnDef[] = [
 
 const ACTIVE_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 const ALERT_STATUSES = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed']
+
+// Config del popup de atención T-lead: dispara al alcanzar printNotBefore
+// (serializado server-side), solo para pedidos programados con hora.
+const SCHEDULED_ALERT_CONFIG = {
+  getPrintNotBefore: (item: OrderItem) =>
+    item.orderTiming === 'scheduled' ? item.printNotBefore ?? null : null,
+  buildAlert: (item: OrderItem) => ({
+    id: item._id,
+    title: `Pedido #${item.orderNumber} · ${item.customer.name}`,
+    description: item.scheduledPickupAt
+      ? `Retiro ${new Date(item.scheduledPickupAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} — toca preparar e imprimir`
+      : 'Toca preparar e imprimir',
+  }),
+}
 
 interface RecentRating {
   _id: string
@@ -153,6 +169,8 @@ export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [],
         description: items.map(o => `#${o.orderNumber} · ${o.customer.name}`).join(' — '),
       })}
       autoSelectId={autoAttendId}
+      enableAttentionPopup
+      scheduledAlertConfig={SCHEDULED_ALERT_CONFIG}
     />
   )
 }

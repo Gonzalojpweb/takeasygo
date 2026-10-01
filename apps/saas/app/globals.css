@@ -55,6 +55,8 @@
   --animate-pulse: pulse var(--duration) ease-out infinite;
   --animate-pulse-ripple: pulse-ripple var(--duration) cubic-bezier(0.16, 1, 0.3, 1) infinite;
   --animate-gradient: gradient 3s ease infinite;
+  --animate-nudge: nudge-shake 0.7s ease-in-out 2;
+  --animate-knock-fist: knock-fist 1.4s ease-in-out 1 both;
   @keyframes shimmer-slide {
   to {
     transform: translate(calc(100cqw - 100%), 0);
@@ -696,6 +698,45 @@ html.lenis body {
   0%, 100% { transform: rotate(0deg); }
   25% { transform: rotate(-5deg); }
   75% { transform: rotate(5deg); }
+}
+
+/* ── Messenger nudge — sacudida horizontal de la ventana/popup ──────────── */
+@keyframes nudge-shake {
+  0%, 100% { transform: translateX(0); }
+  10% { transform: translateX(-10px) rotate(-0.5deg); }
+  20% { transform: translateX(10px) rotate(0.5deg); }
+  30% { transform: translateX(-9px) rotate(-0.4deg); }
+  40% { transform: translateX(9px) rotate(0.4deg); }
+  50% { transform: translateX(-6px); }
+  60% { transform: translateX(6px); }
+  70% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+  90% { transform: translateX(-1px); }
+}
+
+/* ── Puño tocando la puerta — 3 golpes sincronizados con useKnockSound ──── */
+@keyframes knock-fist {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  /* golpe 1 */
+  8%   { transform: translate(14px, -6px) rotate(-8deg); }
+  14%  { transform: translate(0, 0) rotate(0deg); }
+  /* golpe 2 */
+  30%  { transform: translate(14px, -6px) rotate(-8deg); }
+  36%  { transform: translate(0, 0) rotate(0deg); }
+  /* golpe 3 */
+  52%  { transform: translate(14px, -6px) rotate(-8deg); }
+  58%  { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* ── Accesibilidad: sin shake ni puño, pero popup + sonido se mantienen ── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-nudge {
+    animation: none !important;
+  }
+  .animate-knock-fist {
+    animation: none !important;
+  }
 }
 
 @keyframes draw-check {

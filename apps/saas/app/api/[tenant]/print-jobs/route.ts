@@ -6,6 +6,7 @@ import Location from '@/models/Location'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
+import { resolvePrintLeadMinutes } from '@/lib/printing/printTiming'
 
 const MAX_ATTEMPTS = 3
 
@@ -91,16 +92,31 @@ export async function GET(
       // ── Formato NUEVO: jobs pre-renderizados ────────────────────────
       const printerIds = printers.map((p: any) => p._id.toString())
 
+      // ── Gate T-lead: pedidos programados no se entregan antes de
+      //    scheduledPickupAt − printBeforePickupMinutes (default 30 min).
+      //    El job ya existe (se generó al confirmar); solo retrasamos la
+      //    entrega. Confirmación tardía (T-lead ya vencido) → imprime ya.
+      const leadMinutes = resolvePrintLeadMinutes(location.scheduledOrdersConfig)
+      const printDueAt = new Date(Date.now() + leadMinutes * 60_000)
+
       const orders = await Order.find({
         tenantId: tenant._id,
         locationId,
         deletedAt: null,
         status: { $in: ['confirmed', 'preparing', 'ready'] },
         $or: [
-          // Formato nuevo: printJobs con pending/error
-          { printJobs: { $elemMatch: { printerId: { $in: printerIds }, status: { $in: ['pending', 'error'] } } } },
-          // Fallback: órdenes viejas sin printJobs (printed=false)
-          { printed: false, printJobs: { $size: 0 } },
+          { orderTiming: { $ne: 'scheduled' } },
+          { scheduledPickupAt: { $lte: printDueAt } },
+        ],
+        $and: [
+          {
+            $or: [
+              // Formato nuevo: printJobs con pending/error
+              { printJobs: { $elemMatch: { printerId: { $in: printerIds }, status: { $in: ['pending', 'error'] } } } },
+              // Fallback: órdenes viejas sin printJobs (printed=false)
+              { printed: false, printJobs: { $size: 0 } },
+            ],
+          },
         ],
       }).lean()
 
@@ -130,12 +146,20 @@ export async function GET(
       return NextResponse.json({ jobs, printers, preCloseJobs, pollInterval })
     } else {
       // ── Formato VIEJO: orders + printers (decrypt en cada poll) ─────
+      // Mismo gate T-lead que la rama nueva.
+      const leadMinutes = resolvePrintLeadMinutes(location.scheduledOrdersConfig)
+      const printDueAt = new Date(Date.now() + leadMinutes * 60_000)
+
       const orders = await Order.find({
         tenantId: tenant._id,
         locationId,
         deletedAt: null,
         printed: false,
         status: { $in: ['confirmed', 'preparing', 'ready'] },
+        $or: [
+          { orderTiming: { $ne: 'scheduled' } },
+          { scheduledPickupAt: { $lte: printDueAt } },
+        ],
       })
         .select('orderNumber items total customer notes status payment createdAt locationId orderTiming scheduledPickupAt scheduledStatus orderMode deliveryAddress promoSlug promoCode promoCreatedBy discountAmount')
         .lean()
