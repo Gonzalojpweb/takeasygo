@@ -10,9 +10,11 @@
 
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Order from '@/models/Order'
 import { ComplianceAlertModel } from '@takeasygo/db/models/compliance-alert'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { findStaleAlerts, resolveAlerts } from '@/lib/compliance-alerts'
 
 export async function GET(
   request: NextRequest,
@@ -46,10 +48,38 @@ export async function GET(
       .sort({ level: -1, triggeredAt: -1 })
       .lean()
 
+    // ── Auto-sanear: nada escribía resolvedAt, así que las alertas de pedidos
+    // ya atendidos (o cancelados/borrados) quedaban abiertas para siempre y el
+    // banner volvía tras cada recarga. Acá se cierran en cada lectura, lo que
+    // además limpia al instante las alertas históricas de producción.
+    let activeAlerts = alerts
+    if (alerts.length > 0) {
+      const orderIds = [...new Set(alerts.map((a) => a.orderId.toString()))]
+      const orders = await Order.find({ _id: { $in: orderIds } })
+        .select('status')
+        .lean()
+
+      const statusById = new Map<string, string>(
+        orders
+          .filter((o): o is typeof o & { status: string } => typeof o.status === 'string')
+          .map((o) => [o._id.toString(), o.status])
+      )
+
+      const stale = findStaleAlerts(alerts, statusById)
+      if (stale.length) {
+        await resolveAlerts(
+          stale.map((a) => a._id),
+          { resolvedBy: 'system', resolution: 'status_change' }
+        )
+        const staleIds = new Set(stale.map((a) => a._id.toString()))
+        activeAlerts = alerts.filter((a) => !staleIds.has(a._id.toString()))
+      }
+    }
+
     // Determine blocked locations (any location with L3 alerts)
     const blockedLocations = [
       ...new Set(
-        alerts
+        activeAlerts
           .filter((a) => a.level === 3)
           .map((a) => a.locationId.toString())
       ),
@@ -58,7 +88,7 @@ export async function GET(
     // Determine locations with L2 alerts (for banner)
     const warningLocations = [
       ...new Set(
-        alerts
+        activeAlerts
           .filter((a) => a.level === 2)
           .map((a) => a.locationId.toString())
       ),
@@ -72,7 +102,7 @@ export async function GET(
       hasLevel2,
       blockedLocations,
       warningLocations,
-      alerts: alerts.map((a) => ({
+      alerts: activeAlerts.map((a) => ({
         _id: a._id.toString(),
         orderId: a.orderId.toString(),
         orderNumber: a.orderNumber,
@@ -83,7 +113,7 @@ export async function GET(
         triggeredAt: a.triggeredAt,
         clientConfirmed: a.clientConfirmed,
       })),
-      total: alerts.length,
+      total: activeAlerts.length,
     })
   } catch (error) {
     console.error('[compliance/status] Error:', error)

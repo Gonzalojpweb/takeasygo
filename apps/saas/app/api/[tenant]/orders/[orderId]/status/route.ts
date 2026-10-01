@@ -18,6 +18,7 @@ import { crearViajeOnDemand, cancelarViaje, RapiboyError } from '@/lib/rapiboy/c
 import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
+import { resolveOrderAlerts } from '@/lib/compliance-alerts'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -414,6 +415,11 @@ export async function PATCH(
     }
 
     await order.save()
+
+    // Compliance: cerrar las alertas SLA cuyo objetivo este movimiento ya cumplió
+    // (no bloqueante: /compliance/status igual las sanea en cada lectura).
+    resolveOrderAlerts(order._id, status)
+      .catch((err) => console.error('[status] compliance resolve error (non-blocking):', err))
 
     // M3: Track order status change (MongoDB)
     captureOrderStatusChanged({
