@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import CustomizationSheet from '@/components/menu/CustomizationSheet'
+import ReadOnlyCustomizationGroups from '@/components/menu/ReadOnlyCustomizationGroups'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureMenuOpened, captureDishViewed, capturePromotionApplied } from '@/lib/tia/events'
 import LocationBar from '@/components/menu/LocationBar'
@@ -69,6 +70,8 @@ const UI = {
     terms: 'Términos y Condiciones',
     privacy: 'Política de Privacidad',
     translating: 'Traduciendo...',
+    variantsSection: 'Variantes',
+    customSection: 'Personalización',
   },
   en: {
     featuredTitle: 'Featured Dishes',
@@ -83,6 +86,8 @@ const UI = {
     terms: 'Terms & Conditions',
     privacy: 'Privacy Policy',
     translating: 'Translating...',
+    variantsSection: 'Variants',
+    customSection: 'Customization',
   },
 }
 
@@ -174,10 +179,26 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
   const featuredItems = categories
     .flatMap((c: any) => [
-      ...(c.items ?? []),
-      ...(c.subcategories ?? []).flatMap((s: any) => s.items ?? [])
+      ...(c.items ?? []).map((i) => ({ ...i, _catGroups: c.customizationGroups ?? [] })),
+      ...(c.subcategories ?? []).flatMap((s: any) =>
+        (s.items ?? []).map((i) => ({ ...i, _catGroups: c.customizationGroups ?? [] }))
+      ),
     ])
     .filter((i: any) => i.isFeatured)
+
+  // ── Modal de detalle de plato (solo lectura, dine-in no se compra) ──
+  // Mergea los grupos de personalización igual que el menú takeaway:
+  // grupos heredados de la categoría + grupos propios del ítem.
+  function openDishInfo(item, catGroups?) {
+    setModalItem({
+      ...item,
+      _displayGroups: [
+        ...(item._catGroups ?? []),
+        ...(catGroups ?? []),
+        ...(item.customizationGroups ?? []),
+      ],
+    })
+  }
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
@@ -638,7 +659,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                 isGrid ? 'flex flex-col' : 'flex items-start gap-3',
                               )}
                               style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                              onClick={() => item.imageUrl && setModalItem(item)}
+                              onClick={() => openDishInfo(item, cat.customizationGroups)}
                             >
                               {item.imageUrl ? (
                                 <div
@@ -713,7 +734,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                   isGrid ? 'flex flex-col' : 'flex items-start gap-3',
                                 )}
                                 style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                                onClick={() => item.imageUrl && setModalItem(item)}
+                                onClick={() => openDishInfo(item, cat.customizationGroups)}
                               >
                                 {item.imageUrl ? (
                                   <div
@@ -778,7 +799,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                           isGrid ? 'flex flex-col' : 'flex items-start gap-3',
                         )}
                         style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                        onClick={() => item.imageUrl && setModalItem(item)}
+                        onClick={() => openDishInfo(item, cat.customizationGroups)}
                       >
                         {item.imageUrl ? (
                           <div
@@ -854,7 +875,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {featuredItems.slice(0, 8).map((item: any) => (
-                <button key={item._id} onClick={() => setModalItem(item)} className="rounded-xl overflow-hidden aspect-square relative group">
+                <button key={item._id} onClick={() => openDishInfo(item)} className="rounded-xl overflow-hidden aspect-square relative group">
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
@@ -1040,63 +1061,113 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
         </div>
       </footer>
 
-      {/* ── Image modal ───────────────────────────────────── */}
-      {modalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
-          onClick={() => setModalItem(null)}>
-          <div className="max-w-sm w-full rounded-2xl overflow-hidden"
-            style={{ backgroundColor: cardBg }}
-            onClick={e => e.stopPropagation()}>
-            {modalItem.imageUrl && (
-              <img src={modalItem.imageUrl} alt={tn(modalItem, 'name', locale)} className="w-full aspect-square object-cover" />
-            )}
-            <div className="p-4">
-              <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{tn(modalItem, 'name', locale)}</p>
-              {modalItem.description && (
-                <p className="text-sm mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
-              )}
-              <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
-                ${(() => {
-                  const hasVariants = (modalItem.variants ?? []).length > 0
-                  if (hasVariants) {
-                    const prices = modalItem.variants.map((v: any) => v.price)
-                    const minPrice = Math.min(...prices)
-                    const maxPrice = Math.max(...prices)
-                    return minPrice === maxPrice
-                      ? toPesos(minPrice).toLocaleString('es-AR')
-                      : `${toPesos(minPrice).toLocaleString('es-AR')} - ${toPesos(maxPrice).toLocaleString('es-AR')}`
-                  }
-                  return toPesos(modalItem.price).toLocaleString('es-AR')
-                })()}
-              </p>
-              {modalItem.variants && modalItem.variants.length > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  {modalItem.variants.map((v: any) => (
-                    <div key={v.name} className="flex items-center justify-between text-sm px-2 py-1 rounded-lg"
-                      style={{ backgroundColor: branding.primaryColor + '10' }}>
-                      <span style={{ color: text }}>{v.name}</span>
-                      <span className="font-semibold" style={{ color: branding.primaryColor }}>
-                        ${toPesos(v.price).toLocaleString('es-AR')}
-                      </span>
+      {/* ── Dish detail modal (solo lectura — dine-in no se compra) ── */}
+      {modalItem && (() => {
+        const disabledVariantNames: string[] = modalItem.disabledVariantNames ?? []
+        const visibleVariants = (modalItem.variants ?? []).filter(
+          (v) => !disabledVariantNames.includes(v.name)
+        )
+        const displayGroups = modalItem._displayGroups ?? []
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}
+            onClick={() => setModalItem(null)}>
+            <div className="max-w-sm w-full max-h-[85vh] flex flex-col rounded-2xl overflow-hidden"
+              style={{ backgroundColor: cardBg }}
+              onClick={e => e.stopPropagation()}>
+              <div className="overflow-y-auto overscroll-contain">
+                {modalItem.imageUrl && (
+                  <img src={modalItem.imageUrl} alt={tn(modalItem, 'name', locale)} className="w-full aspect-square object-cover" />
+                )}
+                <div className="p-4">
+                  <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{tn(modalItem, 'name', locale)}</p>
+                  {modalItem.description && (
+                    <p className="text-sm mt-1" style={{ color: mutedText }}>{tn(modalItem, 'description', locale)}</p>
+                  )}
+                  <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
+                    ${(() => {
+                      if (visibleVariants.length > 0) {
+                        const prices = visibleVariants.map((v) => v.price)
+                        const minPrice = Math.min(...prices)
+                        const maxPrice = Math.max(...prices)
+                        return minPrice === maxPrice
+                          ? toPesos(minPrice).toLocaleString('es-AR')
+                          : `${toPesos(minPrice).toLocaleString('es-AR')} - ${toPesos(maxPrice).toLocaleString('es-AR')}`
+                      }
+                      return toPesos(modalItem.price).toLocaleString('es-AR')
+                    })()}
+                  </p>
+
+                  {/* Variantes (solo lectura) */}
+                  {visibleVariants.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: branding.primaryColor }}>
+                        {t.variantsSection}
+                      </p>
+                      <div className="space-y-1.5">
+                        {visibleVariants.map((v) => (
+                          <div key={v.name}>
+                            <div className="flex items-center justify-between text-sm px-2 py-1 rounded-lg"
+                              style={{ backgroundColor: branding.primaryColor + '10' }}>
+                              <span style={{ color: text }}>{v.name}</span>
+                              <span className="font-semibold" style={{ color: branding.primaryColor }}>
+                                ${toPesos(v.price).toLocaleString('es-AR')}
+                              </span>
+                            </div>
+                            {!!v.customizationGroups?.length && (
+                              <div className="ml-3 mt-1.5 pl-3 border-l-2 space-y-1"
+                                style={{ borderColor: branding.primaryColor + '30' }}>
+                                <ReadOnlyCustomizationGroups
+                                  groups={v.customizationGroups}
+                                  disabledGroupIds={modalItem.disabledGroupIds}
+                                  disabledOptionIds={modalItem.disabledOptionIds}
+                                  primaryColor={branding.primaryColor}
+                                  textColor={text}
+                                  mutedText={mutedText}
+                                  optionImageRegistry={menu.optionImageRegistry}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Personalizaciones del plato (solo lectura) */}
+                  {displayGroups.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: branding.primaryColor }}>
+                        {t.customSection}
+                      </p>
+                      <ReadOnlyCustomizationGroups
+                        groups={displayGroups}
+                        disabledGroupIds={modalItem.disabledGroupIds}
+                        disabledOptionIds={modalItem.disabledOptionIds}
+                        primaryColor={branding.primaryColor}
+                        textColor={text}
+                        mutedText={mutedText}
+                        optionImageRegistry={menu.optionImageRegistry}
+                      />
+                    </div>
+                  )}
+
+                  {modalItem.tags?.length > 0 && (
+                    <div className="flex gap-1.5 mt-4 flex-wrap">
+                      {modalItem.tags.map((tag: string) => (
+                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
+                          style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-              {modalItem.tags?.length > 0 && (
-                <div className="flex gap-1.5 mt-3 flex-wrap">
-                  {modalItem.tags.map((tag: string) => (
-                    <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
-                      style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── Promo quantity input ── */}
       {promoQtyInput && (() => {
