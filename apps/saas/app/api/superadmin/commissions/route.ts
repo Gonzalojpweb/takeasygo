@@ -188,6 +188,13 @@ export async function POST(request: NextRequest) {
     { $inc: { 'commissionBalance.transfer': -amountCollected } }
   )
 
+  // Limpiar el flag de idempotencia en las órdenes saldadas — si luego se cancelan,
+  // no deben revertir un balance que ya fue cobrado.
+  await Order.updateMany(
+    { _id: { $in: orders.map(o => o._id) } },
+    { $set: { 'payment.commissionBalanceAdded': false } }
+  )
+
   return NextResponse.json({
     settlement: {
       _id: settlement._id.toString(),
