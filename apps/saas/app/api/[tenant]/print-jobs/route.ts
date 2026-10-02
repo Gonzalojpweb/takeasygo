@@ -96,6 +96,7 @@ export async function GET(
       //    scheduledPickupAt − printBeforePickupMinutes (default 30 min).
       //    El job ya existe (se generó al confirmar); solo retrasamos la
       //    entrega. Confirmación tardía (T-lead ya vencido) → imprime ya.
+      //    Excepción: jobs de reimpresión (isReprint) se entregan ya.
       const leadMinutes = resolvePrintLeadMinutes(location.scheduledOrdersConfig)
       const printDueAt = new Date(Date.now() + leadMinutes * 60_000)
 
@@ -103,12 +104,31 @@ export async function GET(
         tenantId: tenant._id,
         locationId,
         deletedAt: null,
-        status: { $in: ['confirmed', 'preparing', 'ready'] },
-        $or: [
-          { orderTiming: { $ne: 'scheduled' } },
-          { scheduledPickupAt: { $lte: printDueAt } },
-        ],
         $and: [
+          {
+            $or: [
+              // (a) Flujo automático: solo estados activos + gate T-lead
+              {
+                status: { $in: ['confirmed', 'preparing', 'ready'] },
+                $or: [
+                  { orderTiming: { $ne: 'scheduled' } },
+                  { scheduledPickupAt: { $lte: printDueAt } },
+                ],
+              },
+              // (b) Reimpresión explícita del admin (isReprint): cualquier
+              //     estado del pedido y sin gate T-lead — el admin pidió
+              //     imprimir ahora.
+              {
+                printJobs: {
+                  $elemMatch: {
+                    isReprint: true,
+                    printerId: { $in: printerIds },
+                    status: { $in: ['pending', 'error'] },
+                  },
+                },
+              },
+            ],
+          },
           {
             $or: [
               // Formato nuevo: printJobs con pending/error

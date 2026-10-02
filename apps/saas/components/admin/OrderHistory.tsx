@@ -13,9 +13,19 @@ import {
   Clock,
   Truck,
   ChefHat,
+  Printer,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 
 const inputCls =
@@ -48,6 +58,7 @@ interface OrderSummary {
   payment: { status: string; method: string }
   printed: boolean
   createdAt: string
+  locationId: string
   locationName: string
   orderMode?: string
   deliveryAddress?: {
@@ -56,6 +67,24 @@ interface OrderSummary {
     apt?: string
     city: string
   }
+}
+
+interface PrinterOption {
+  _id: string
+  name: string
+  roles: string[]
+  isActive: boolean
+}
+
+function roleLabel(role: string): string {
+  if (role === 'kitchen') return 'Cocina'
+  if (role === 'bar') return 'Barra'
+  if (role === 'cashier') return 'Caja'
+  return role
+}
+
+function roleIcon(role: string): React.ElementType {
+  return role === 'cashier' ? ShoppingBag : ChefHat
 }
 
 interface HistoryResponse {
@@ -110,6 +139,78 @@ export default function OrderHistory({
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [q, setQ] = useState('')
+
+  // ── Reimpresión con selección de impresora ──────────────────────────────
+  const [reprintOrder, setReprintOrder] = useState<OrderSummary | null>(null)
+  const [reprintPrinters, setReprintPrinters] = useState<PrinterOption[]>([])
+  const [printersLoading, setPrintersLoading] = useState(false)
+  const [selectedPrinterId, setSelectedPrinterId] = useState('')
+  const [selectedRole, setSelectedRole] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const openReprint = async (order: OrderSummary) => {
+    if (!order.locationId) {
+      toast.error('Este pedido no tiene sede asignada')
+      return
+    }
+    setReprintOrder(order)
+    setSelectedPrinterId('')
+    setSelectedRole('')
+    setReprintPrinters([])
+    setPrintersLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/printers?locationId=${order.locationId}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const active: PrinterOption[] = (data.printers ?? [])
+        .filter((p: PrinterOption) => p.isActive !== false)
+        .map((p: PrinterOption) => ({ _id: p._id, name: p.name, roles: p.roles ?? [], isActive: p.isActive }))
+      setReprintPrinters(active)
+      // Autoseleccionar si hay una sola impresora con un solo tipo de ticket
+      if (active.length === 1 && active[0].roles.length === 1) {
+        setSelectedPrinterId(active[0]._id)
+        setSelectedRole(active[0].roles[0])
+      }
+    } catch {
+      toast.error('No se pudieron cargar las impresoras')
+    } finally {
+      setPrintersLoading(false)
+    }
+  }
+
+  const closeReprint = () => {
+    if (submitting) return
+    setReprintOrder(null)
+  }
+
+  const selectPrinter = (printer: PrinterOption) => {
+    setSelectedPrinterId(printer._id)
+    setSelectedRole(printer.roles.length === 1 ? printer.roles[0] : '')
+  }
+
+  const submitReprint = async () => {
+    if (!reprintOrder || !selectedPrinterId || !selectedRole || submitting) return
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${reprintOrder._id}/reprint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ printerId: selectedPrinterId, role: selectedRole }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        toast.error(data?.error || 'Error al reimprimir')
+        return
+      }
+      const printerName = reprintPrinters.find(p => p._id === selectedPrinterId)?.name
+      toast.success(`Reimprimiendo en ${printerName} (${roleLabel(selectedRole)})...`)
+      setReprintOrder(null)
+    } catch {
+      toast.error('Error al reimprimir')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   // Sync with context
   useEffect(() => {
@@ -243,12 +344,13 @@ export default function OrderHistory({
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Pago</th>
                 <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Total</th>
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground">Fecha</th>
+                <th className="text-right px-4 py-3 font-semibold text-muted-foreground">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-12 text-muted-foreground">
                     <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
                     Cargando...
                   </td>
@@ -256,7 +358,7 @@ export default function OrderHistory({
               )}
               {!loading && (!data || data.orders.length === 0) && (
                 <tr>
-                  <td colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <td colSpan={9} className="text-center py-12 text-muted-foreground">
                     <ShoppingBag size={32} className="mx-auto mb-3 opacity-30" />
                     No se encontraron pedidos con esos filtros.
                   </td>
@@ -313,6 +415,17 @@ export default function OrderHistory({
                       <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
                         {fmtDate(order.createdAt)}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          title="Reimprimir ticket"
+                          onClick={() => openReprint(order)}
+                        >
+                          <Printer size={15} />
+                        </Button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -349,6 +462,124 @@ export default function OrderHistory({
           )}
         </div>
       )}
+
+      {/* ── Dialog de reimpresión: elegir impresora + tipo de ticket ────── */}
+      <Dialog open={!!reprintOrder} onOpenChange={open => !open && closeReprint()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Printer size={18} />
+              Reimprimir pedido #{reprintOrder?.orderNumber}
+            </DialogTitle>
+            <DialogDescription>
+              Elegí la impresora y el tipo de ticket para reimprimir. La sede del pedido es{' '}
+              <span className="font-medium text-foreground">{reprintOrder?.locationName}</span>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {printersLoading && (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
+              Cargando impresoras...
+            </div>
+          )}
+
+          {!printersLoading && reprintPrinters.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <Printer size={28} className="mx-auto mb-2 opacity-30" />
+              Esta sede no tiene impresoras activas.
+            </div>
+          )}
+
+          {!printersLoading && reprintPrinters.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Impresora
+              </p>
+              <div className="grid gap-2">
+                {reprintPrinters.map(printer => {
+                  const isSelected = selectedPrinterId === printer._id
+                  const SingleRoleIcon =
+                    printer.roles.length === 1 ? roleIcon(printer.roles[0]) : ChefHat
+                  return (
+                    <div
+                      key={printer._id}
+                      className={`rounded-xl border p-3 transition-colors ${
+                        isSelected ? 'border-primary bg-primary/5' : 'border-border/60'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectPrinter(printer)}
+                        className="flex w-full items-center gap-2 text-left"
+                      >
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                            isSelected ? 'border-primary' : 'border-muted-foreground/40'
+                          }`}
+                        >
+                          {isSelected && <span className="h-2 w-2 rounded-full bg-primary" />}
+                        </span>
+                        <span className="text-sm font-medium text-foreground">{printer.name}</span>
+                        <span className="ml-auto text-xs text-muted-foreground">
+                          {printer.roles.map(roleLabel).join(' · ')}
+                        </span>
+                      </button>
+
+                      {isSelected && printer.roles.length > 1 && (
+                        <div className="mt-3 flex flex-wrap gap-2 border-t border-border/50 pt-3">
+                          <span className="w-full text-xs text-muted-foreground">Tipo de ticket:</span>
+                          {printer.roles.map(role => {
+                            const RoleTypeIcon = roleIcon(role)
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                onClick={() => setSelectedRole(role)}
+                                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                                  selectedRole === role
+                                    ? 'border-primary bg-primary/10 text-primary'
+                                    : 'border-border/60 text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                <RoleTypeIcon size={13} />
+                                {roleLabel(role)}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {isSelected && printer.roles.length === 1 && (
+                        <div className="mt-3 flex items-center gap-1.5 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+                          <SingleRoleIcon size={13} />
+                          Tipo de ticket: {roleLabel(printer.roles[0])}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeReprint} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={submitReprint}
+              disabled={submitting || printersLoading || !selectedPrinterId || !selectedRole}
+            >
+              {submitting ? (
+                <RefreshCw size={15} className="mr-2 animate-spin" />
+              ) : (
+                <Printer size={15} className="mr-2" />
+              )}
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

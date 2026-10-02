@@ -85,6 +85,11 @@ export interface IPrintJob {
   attempts: number
   lastError: string | null
   printedAt: Date | null
+  /**
+   * true cuando el job fue generado por una reimpresión explícita del admin.
+   * El agente los entrega sin importar el estado del pedido ni el gate T-lead.
+   */
+  isReprint?: boolean
 }
 
 export interface IStatusTimestamps {
@@ -668,6 +673,7 @@ const OrderSchema = new Schema(
         attempts: { type: Number, default: 0 },
         lastError: { type: String, default: null },
         printedAt: { type: Date, default: null },
+        isReprint: { type: Boolean, default: false },
       }],
       default: [],
     },
