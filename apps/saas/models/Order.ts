@@ -225,6 +225,9 @@ export interface IOrder extends Document {
     // ── Rapiboy surplus ────────────────────────────────────────────────
     /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
     rapiboySurplus: number
+    // ── Idempotencia de comisión ───────────────────────────────────────
+    /** true si el platformFeeAmount ya fue sumado a tenant.commissionBalance.transfer. Evita doble incremento. */
+    commissionBalanceAdded: boolean
   }
   notes: string
   /** Token bearer del endpoint de tracking. Se envía por header x-tracking-token, nunca por query string. */
@@ -633,6 +636,9 @@ const OrderSchema = new Schema(
       // ── Rapiboy surplus ──────────────────────────────────────────
       /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
       rapiboySurplus: { type: Number, default: 0, min: 0 },
+      // ── Idempotencia de comisión ─────────────────────────────────
+      /** true si platformFeeAmount ya fue sumado a tenant.commissionBalance.transfer. Evita doble incremento. */
+      commissionBalanceAdded: { type: Boolean, default: false },
     },
     notes: { type: String, default: '', trim: true },
     trackingToken: { type: String, default: null, index: true },

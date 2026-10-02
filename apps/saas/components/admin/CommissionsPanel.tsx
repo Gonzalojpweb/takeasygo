@@ -197,6 +197,8 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
   const balance = status?.balance ?? 0
   const overThreshold = status?.overThreshold ?? false
   const pendingAmount = data?.pending ?? 0
+  // El botón "Pagar" solo cobra comisiones de transferencia (la ruta pay filtra por method=transfer)
+  const transferPending = data?.breakdown?.find(b => b.method === 'transfer')?.amount ?? 0
 
   return (
     <div className="space-y-6">
@@ -266,7 +268,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
           />
         </div>
 
-        {pendingAmount > 0 && (
+        {transferPending > 0 && (
           <Button
             onClick={handlePay}
             disabled={paying}
@@ -277,7 +279,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
             ) : (
               <CreditCard size={16} />
             )}
-            Pagar comisiones
+            Pagar comisiones (${fmt(transferPending)})
             <ArrowRight size={14} />
           </Button>
         )}
