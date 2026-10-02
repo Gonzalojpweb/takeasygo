@@ -6,7 +6,8 @@ import type { Types } from 'mongoose'
 // ============================================================================
 // buildPrintPayload
 // ============================================================================
-// Corre UNA vez, cuando la orden pasa a 'confirmed'. Desencripta PII una
+// Genera los printJobs pre-renderizados. Corre al confirmar la orden y también
+// en cada reimpresión (con options.isReprint = true). Desencripta PII una
 // sola vez y renderiza un Buffer ESC/POS por cada impresora+rol que
 // corresponda. Retorna un array de IPrintJob listos para guardar en Order.
 // ============================================================================
@@ -63,8 +64,15 @@ interface OrderForPrint {
 
 export async function buildPrintPayload(
   order: OrderForPrint,
-  activePrinters: PrinterDoc[]
+  activePrinters: PrinterDoc[],
+  options: {
+    /** Limita la generación a un solo rol (ej. reimpresión selectiva a Cocina) */
+    onlyRole?: string
+    /** Marca los jobs generados como reimpresión explícita del admin */
+    isReprint?: boolean
+  } = {}
 ): Promise<IPrintJob[]> {
+  const { onlyRole, isReprint = false } = options
   // Desencriptar PII una sola vez
   const customer: DecryptedCustomer = order.customer
     ? {
@@ -85,6 +93,7 @@ export async function buildPrintPayload(
 
   for (const printer of activePrinters) {
     for (const role of printer.roles || []) {
+      if (onlyRole && role !== onlyRole) continue
       // Verificar si hay items para este rol
       const hasItemsForRole = (orderData.items || []).some(
         (it: any) => it.printRole === role || it.printRole === 'both' || role === 'cashier'
@@ -103,6 +112,7 @@ export async function buildPrintPayload(
         attempts: 0,
         lastError: null,
         printedAt: null,
+        ...(isReprint ? { isReprint: true } : {}),
       })
     }
   }
