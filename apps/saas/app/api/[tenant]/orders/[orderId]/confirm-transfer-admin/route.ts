@@ -8,6 +8,7 @@ import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { incrementCommissionBalance } from '@/lib/commission-balance'
 
 export async function PATCH(
   request: NextRequest,
@@ -80,16 +81,9 @@ export async function PATCH(
       onOrderConfirmed(order).catch(() => {})
     }
 
-    // ── Acumular comisión en balance del tenant ────────────────────────
+    // ── Acumular comisión en balance del tenant (idempotente vía flag) ──
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
-    // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
-    const commissionAmount = order.payment?.platformFeeAmount || 0
-    if (commissionAmount > 0) {
-      await Tenant.updateOne(
-        { _id: tenant._id },
-        { $inc: { 'commissionBalance.transfer': commissionAmount } }
-      )
-    }
+    await incrementCommissionBalance(order._id, tenant._id, order.payment?.platformFeeAmount || 0)
 
     // ── Lealtad: procesar deducción de rewards y acreditar puntos ──────
     if (order.customer?.phoneHash) {

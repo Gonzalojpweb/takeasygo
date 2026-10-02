@@ -19,6 +19,7 @@ import { notifySyncLayerStatus } from '@/lib/sync-layer'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
 import { resolveOrderAlerts } from '@/lib/compliance-alerts'
+import { incrementCommissionBalance, revertCommissionBalance } from '@/lib/commission-balance'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -354,14 +355,8 @@ export async function PATCH(
       if (status === 'cancelled') {
         order.cancelledBy = 'admin'
 
-        // Reconciliación: revertir commissionBalance si se calculó comisión (idempotente)
-        const commissionAmount = order.payment?.platformFeeAmount || 0
-        if (commissionAmount > 0) {
-          await Tenant.updateOne(
-            { _id: tenant._id },
-            { $inc: { 'commissionBalance.transfer': -commissionAmount } }
-          )
-        }
+        // Reconciliación: revertir commissionBalance si se incrementó (idempotente vía flag)
+        await revertCommissionBalance(order._id, tenant._id, order.payment?.platformFeeAmount || 0)
 
         // Revertir reward redemptions (loyalty points, store stock)
         await revertRewardRedemptions(order, tenant)
@@ -430,16 +425,16 @@ export async function PATCH(
     })
 
     // ── Acumular comisión por transferencia en balance del tenant ──────
+    // Idempotente: el flag payment.commissionBalanceAdded garantiza 1 solo incremento por orden.
+    // Solo si payment.status === 'approved' (consistente con la query de Pendiente Período).
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
-    // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
-    if (status === 'confirmed' && previousStatus !== 'confirmed' && order.payment?.method === 'transfer') {
-      const commissionAmount = order.payment?.platformFeeAmount || 0
-      if (commissionAmount > 0) {
-        await Tenant.updateOne(
-          { _id: tenant._id },
-          { $inc: { 'commissionBalance.transfer': commissionAmount } }
-        )
-      }
+    if (
+      status === 'confirmed' &&
+      previousStatus !== 'confirmed' &&
+      order.payment?.method === 'transfer' &&
+      order.payment?.status === 'approved'
+    ) {
+      await incrementCommissionBalance(order._id, tenant._id, order.payment?.platformFeeAmount || 0)
     }
 
     // ── Hidden Rewards: consumir claims al confirmar la orden (idempotente) ──

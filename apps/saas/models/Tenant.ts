@@ -352,7 +352,7 @@ export interface ITenant extends Document {
   commissionBalance: {
     transfer: number
   }
-  /** Umbral de notificación de comisiones (en centavos). null = usar global */
+  /** Umbral de notificación de comisiones (en pesos). null = usar global */
   commissionThreshold?: number | null
 }
 
