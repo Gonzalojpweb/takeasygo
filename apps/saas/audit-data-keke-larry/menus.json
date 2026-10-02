@@ -1,0 +1,2666 @@
+[
+  {
+    "_id": "69f8c0cdd3fcc97fd64beca7",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "categories": [
+      {
+        "nameTranslations": {
+          "en": "Burgas"
+        },
+        "descriptionTranslations": {
+          "en": "Old School, Full Sabor. All combos come with chips"
+        },
+        "printRole": "kitchen",
+        "isBusinessAvailable": true,
+        "name": "Burgas",
+        "description": "Old School, Full Sabor. Todos los combos vienen con papas",
+        "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407638/takeasygo/kekelarry/trgnuxzzl4xhdx4wqhkb.png",
+        "isAvailable": true,
+        "sortOrder": 0,
+        "items": [
+          {
+            "nameTranslations": {
+              "en": "SAINTLUNA"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, BACON, SECRET MAY, CRESCENT BREAD"
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a9f26956e271336fcc1ebc8"
+            },
+            "name": "SAINTLUNA",
+            "description": "FAT SMASH, CHEDDAR, BACON, MAYO SECRET, PAN DE MEDIALUNA",
+            "price": 2000000,
+            "takeawayPrice": 2000000,
+            "businessPrice": null,
+            "originalPrice": 2000000,
+            "takeawayOriginalPrice": 2000000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781910804/takeasygo/kekelarry/vheiljqcvchlm13b0whf.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": true,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 2000000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26956e271336fcc1ebc6"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2200000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26956e271336fcc1ebc7"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a9f26956e271336fcc1ebb7",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f26956e271336fcc1ebb8",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebb9",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a9f26956e271336fcc1ebba",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f26956e271336fcc1ebbb",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebbc",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebbd",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebbe",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebbf",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc0",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc1",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc2",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc3",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc4",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26956e271336fcc1ebc5",
+                    "name": "Tomáte",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a35cefe56b0c07901da671d"
+          },
+          {
+            "nameTranslations": {
+              "en": "ACRI"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR"
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a9f267b6e271336fcc1e994"
+            },
+            "name": "ACRI",
+            "description": "FAT SMASH, CHEDDAR",
+            "price": 1600000,
+            "businessPrice": null,
+            "originalPrice": 1400000,
+            "likesCount": 1,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407653/takeasygo/kekelarry/i2bel9usmno7zjptb5no.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": true,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1600000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f267b6e271336fcc1e991"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 1800000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f267b6e271336fcc1e992"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Triple",
+                "price": 0,
+                "takeawayPrice": 2100000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f267b6e271336fcc1e993"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a9f267b6e271336fcc1e982",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a9f267b6e271336fcc1e983",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e984",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a9f267b6e271336fcc1e985",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f267b6e271336fcc1e986",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e987",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e988",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e989",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98a",
+                    "name": "Extra Cheddar y Carne",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98b",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98c",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98d",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98e",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e98f",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f267b6e271336fcc1e990",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f93c"
+          },
+          {
+            "nameTranslations": {
+              "en": "Tyron"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR & BACON"
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a9f26a56e271336fcc1edf9"
+            },
+            "likesCount": 0,
+            "name": "TYRON",
+            "description": "FAT SMASH, CHEDDAR Y BACON",
+            "price": 1700000,
+            "businessPrice": null,
+            "originalPrice": 1500000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407791/takeasygo/kekelarry/zsywd410rnsaqfq4rr7l.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": true,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1700000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26a56e271336fcc1edf7"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 1900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26a56e271336fcc1edf8"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a9f26a56e271336fcc1ede8",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a9f26a56e271336fcc1ede9",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edea",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a9f26a56e271336fcc1edeb",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f26a56e271336fcc1edec",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1eded",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edee",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edef",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf0",
+                    "name": "Extra Cheddar y Carne",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf1",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf2",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf3",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf4",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf5",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26a56e271336fcc1edf6",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f94e"
+          },
+          {
+            "nameTranslations": {
+              "en": "MOMO SAMP"
+            },
+            "descriptionTranslations": {
+              "en": "CHICKEN SMASH, CHEDDAR & SAUCE OF CHOICE"
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 30,
+              "title": "OLE, AGARRALA!",
+              "description": "20",
+              "maxClaims": 8,
+              "remainingClaims": 8,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8f13cb8b0e368c8bd162a7"
+            },
+            "likesCount": 0,
+            "name": "MOMO SAMP",
+            "description": "SMASH DE POLLO, CHEDDAR Y SALSA A ELECCIÓN",
+            "price": 1650000,
+            "businessPrice": null,
+            "originalPrice": 1500000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779408380/takeasygo/kekelarry/ka4a8gj9f1wjtmxk85xh.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1650000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f13cb8b0e368c8bd162a5"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 1850000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f13cb8b0e368c8bd162a6"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a8f13cb8b0e368c8bd16296",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd16297",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd16298",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a8f13cb8b0e368c8bd16299",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629a",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629b",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629c",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629d",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629e",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd1629f",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd162a0",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd162a1",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd162a2",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd162a3",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13cb8b0e368c8bd162a4",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f95f"
+          },
+          {
+            "nameTranslations": {
+              "en": "LARRY MOB"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, DAMBO CHEESE, EGG"
+            },
+            "hiddenReward": null,
+            "likesCount": 1,
+            "name": "LARRY MOB",
+            "description": "FAT SMASH, QUESO DAMBO, HUEVO",
+            "price": 1700000,
+            "businessPrice": null,
+            "originalPrice": 1500000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781911347/takeasygo/kekelarry/lry9qut17qpzwzefmwyl.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1700000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb2e59d427f236e2003db"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 1900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb2e59d427f236e2003dc"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a7fb2e59d427f236e2003cc",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a7fb2e59d427f236e2003cd",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003ce",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a7fb2e59d427f236e2003cf",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d0",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d1",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d2",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d3",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d4",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d5",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d6",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d7",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d8",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003d9",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb2e59d427f236e2003da",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f970"
+          },
+          {
+            "nameTranslations": {
+              "en": "ZEBALLON CRISPY"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, CRISPY ONION & KEKE SAUCE"
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a9f26c16e271336fcc1f045"
+            },
+            "likesCount": 0,
+            "name": "ZEBALLON CRISPY",
+            "description": "FAT SMASH, CHEDDAR, CEBOLLA CRISPY Y SALSA KEKE",
+            "price": 1900000,
+            "businessPrice": null,
+            "originalPrice": 1700000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407944/takeasygo/kekelarry/gsitcaogeaowe4hg5gga.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26c16e271336fcc1f043"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2100000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26c16e271336fcc1f044"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a9f26c16e271336fcc1f034",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a9f26c16e271336fcc1f035",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f036",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a9f26c16e271336fcc1f037",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f26c16e271336fcc1f038",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f039",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03a",
+                    "name": "Extra Cheddar y Carne",
+                    "extraPrice": 350000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03b",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03c",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03d",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03e",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f03f",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f040",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f041",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26c16e271336fcc1f042",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f981"
+          },
+          {
+            "nameTranslations": {
+              "en": "DUKING"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, PROVOLETA, MUSTARD AND BACON"
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "DUKING",
+            "description": "FAT SMASH, CHEDDAR, PROVOLETA, MOSTAZA Y BACON",
+            "price": 1900000,
+            "businessPrice": null,
+            "originalPrice": 1720000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407423/takeasygo/kekelarry/npkjgrjzxhfmfzuesisf.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb31d9d427f236e2007fd"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2100000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb31d9d427f236e2007fe"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a7fb31d9d427f236e2007ee",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a7fb31d9d427f236e2007ef",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f0",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a7fb31d9d427f236e2007f1",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f2",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f3",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f4",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f5",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f6",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f7",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f8",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007f9",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007fa",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007fb",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb31d9d427f236e2007fc",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f992"
+          },
+          {
+            "nameTranslations": {
+              "en": "JEEZY"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, MK SAUCE, BRUNOISE ONION AND CUCUMBERS"
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "JEEZY",
+            "description": "FAT SMASH, CHEDDAR, SALSA MK, CEBOLLA BRUNOISE Y PEPINOS",
+            "price": 1800000,
+            "businessPrice": null,
+            "originalPrice": 1630000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407832/takeasygo/kekelarry/uyx34zftckxsmtxgjy6m.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1800000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb3949d427f236e201041"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2000000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb3949d427f236e201042"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a7fb3949d427f236e201032",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a7fb3949d427f236e201033",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e201034",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a7fb3949d427f236e201035",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a7fb3949d427f236e201036",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e201037",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e201038",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e201039",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103a",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103b",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103c",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103d",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103e",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e20103f",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3949d427f236e201040",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f9a3"
+          },
+          {
+            "nameTranslations": {
+              "en": "YSIBOOM"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, EXTRA BACON & BBQ"
+            },
+            "name": "YSIBOOM",
+            "description": "FAT SMASH, CHEDDAR, EXTRA BACON Y BARBACOA",
+            "price": 1900000,
+            "businessPrice": null,
+            "originalPrice": 1700000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779408248/takeasygo/kekelarry/wpi8ivhjc0gqs0fr1vpq.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f11a7a6c26f9b0e658ebd"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2100000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f11a7a6c26f9b0e658ebe"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a8f11a7a6c26f9b0e658eae",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eaf",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb0",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a8f11a7a6c26f9b0e658eb1",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb2",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb3",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb4",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb5",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb6",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb7",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb8",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eb9",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658eba",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658ebb",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f11a7a6c26f9b0e658ebc",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 30,
+              "title": "LA GANASTE CHE",
+              "description": "SOLO POR HOY",
+              "maxClaims": 5,
+              "remainingClaims": 5,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8f11a7a6c26f9b0e658ebf"
+            },
+            "_id": "6a0f97e8759b08387148f9c5"
+          },
+          {
+            "nameTranslations": {
+              "en": "KHEBURGER"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, LETTUCE, TOMATO, CUCUMBERS AND KEKE SAUCE"
+            },
+            "name": "KHEBURGER",
+            "description": "FAT SMASH, CHEDDAR, LECHUGA, TOMATE, PEPINOS Y SALSA KEKE",
+            "price": 1800000,
+            "businessPrice": null,
+            "originalPrice": 1600000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779407565/takeasygo/kekelarry/aqq93oqjlnb8y5ielxek.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": true,
+            "suggestWith": [],
+            "variants": [
+              {
+                "name": "Simple",
+                "nameTranslations": {
+                  "en": ""
+                },
+                "price": 0,
+                "takeawayPrice": 1800000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26e56e271336fcc1f297"
+              },
+              {
+                "name": "Doble",
+                "nameTranslations": {
+                  "en": ""
+                },
+                "price": 0,
+                "takeawayPrice": 2000000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a9f26e56e271336fcc1f298"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a9f26e56e271336fcc1f288",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a9f26e56e271336fcc1f289",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f28a",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a9f26e56e271336fcc1f28b",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a9f26e56e271336fcc1f28c",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f28d",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f28e",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f28f",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f290",
+                    "name": "Extra Cheddar y Carne",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f291",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f292",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f293",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f294",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f295",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a9f26e56e271336fcc1f296",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a9f26e56e271336fcc1f299"
+            },
+            "_id": "6a0f97e8759b08387148f9b4"
+          },
+          {
+            "nameTranslations": {
+              "en": "RABREK"
+            },
+            "descriptionTranslations": {
+              "en": "FAT SMASH, CHEDDAR, CARAMELIZED ONION & BBQ"
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "RABREK",
+            "description": "FAT SMASH, CHEDDAR, CEBOLLA CARAMELIZADA Y BARBACOA",
+            "price": 1800000,
+            "businessPrice": null,
+            "originalPrice": 1650000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779408026/takeasygo/kekelarry/ubzop3z8lry0w8dp514b.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Simple",
+                "price": 0,
+                "takeawayPrice": 1800000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb3779d427f236e200e30"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Doble",
+                "price": 0,
+                "takeawayPrice": 2050000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a7fb3779d427f236e200e31"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a7fb3779d427f236e200e21",
+                "name": "Tipo de Carne",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a7fb3779d427f236e200e22",
+                    "name": "Carne",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e23",
+                    "name": "Notco",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              },
+              {
+                "_id": "6a7fb3779d427f236e200e24",
+                "name": "Extras",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a7fb3779d427f236e200e25",
+                    "name": "Papas Sazonadas",
+                    "extraPrice": 100000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e26",
+                    "name": "Lechuga",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e27",
+                    "name": "Bacon",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e28",
+                    "name": "Provoleta",
+                    "extraPrice": 250000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e29",
+                    "name": "Pepinos",
+                    "extraPrice": 80000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2a",
+                    "name": "Huevo",
+                    "extraPrice": 120000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2b",
+                    "name": "Cebolla Caramelizada",
+                    "extraPrice": 90000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2c",
+                    "name": "Extra Carne y Cheddar",
+                    "extraPrice": 375000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2d",
+                    "name": "Extra Dambo",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2e",
+                    "name": "Extra Cheddar",
+                    "extraPrice": 150000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a7fb3779d427f236e200e2f",
+                    "name": "Tomate",
+                    "extraPrice": 75000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f9d6"
+          }
+        ],
+        "customizationGroups": [],
+        "availabilityMode": "always",
+        "availabilitySchedule": [],
+        "_id": "6a0f97e8759b08387148f93b"
+      },
+      {
+        "nameTranslations": {
+          "en": "Potatoes "
+        },
+        "descriptionTranslations": {
+          "en": "Crispy and golden"
+        },
+        "printRole": "kitchen",
+        "isBusinessAvailable": true,
+        "name": "Papas",
+        "description": "Crocantes y doradas",
+        "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782174746/takeasygo/kekelarry/qivbeag2wgvjz3sa2iyx.png",
+        "isAvailable": true,
+        "sortOrder": 1,
+        "items": [
+          {
+            "nameTranslations": {
+              "en": "POTATO WEDGE"
+            },
+            "descriptionTranslations": {
+              "en": "POTATOES SEASONED WITH SPICES - SPECIAL A DORITOS FLAVOUR"
+            },
+            "name": "PAPAS SAZONADAS",
+            "description": "PAPAS SAZONADAS CON ESPECIES -  SABOR ESPECIAL A DORITOS",
+            "price": 600000,
+            "takeawayPrice": 600000,
+            "businessPrice": null,
+            "originalPrice": 600000,
+            "takeawayOriginalPrice": 600000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1787694328/takeasygo/kekelarry/ko3dqujcb0nkliu6epcm.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": true,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Chicas",
+                "price": 0,
+                "takeawayPrice": 600000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0eeab1cca2ad10d09129"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Medianas",
+                "price": 0,
+                "takeawayPrice": 950000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0eeab1cca2ad10d0912a"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Grandes",
+                "price": 0,
+                "takeawayPrice": 1300000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0eeab1cca2ad10d0912b"
+              }
+            ],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8e0eeab1cca2ad10d0912c"
+            },
+            "_id": "6a8e0d43adcb5da24e98dce2"
+          },
+          {
+            "nameTranslations": {
+              "en": "Classic Potatoes"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "name": "Papas Clásicas",
+            "description": "",
+            "price": 500000,
+            "businessPrice": null,
+            "originalPrice": 500000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782174746/takeasygo/kekelarry/dcylgmuedlvlwttn5pzz.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Chicas",
+                "price": 500000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0d5db1cca2ad10d08a90"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Medianas",
+                "price": 850000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0d5db1cca2ad10d08a91"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Grandes",
+                "price": 1200000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8e0d5db1cca2ad10d08a92"
+              }
+            ],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 0,
+              "title": "",
+              "description": "",
+              "maxClaims": 0,
+              "remainingClaims": 0,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8e0d5db1cca2ad10d08a93"
+            },
+            "_id": "6a0f97e8759b08387148f9e8"
+          },
+          {
+            "nameTranslations": {
+              "en": "Papas Crew"
+            },
+            "descriptionTranslations": {
+              "en": "Potatoes with cheddar and crispy bacon"
+            },
+            "name": "Papas Crew",
+            "description": "Papas con cheddar y panceta crocante",
+            "price": 900000,
+            "businessPrice": null,
+            "originalPrice": 900000,
+            "likesCount": 0,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782175015/takeasygo/kekelarry/adqtaiuxl0d57t1vjdnm.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Chicas",
+                "price": 900000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a39d574f05bdc5e66e51030"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Medianas",
+                "price": 1300000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a39d574f05bdc5e66e51031"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "Grandes",
+                "price": 1600000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a39d574f05bdc5e66e51032"
+              }
+            ],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "hiddenReward": null,
+            "_id": "6a0f97e8759b08387148f9ec"
+          }
+        ],
+        "customizationGroups": [],
+        "availabilityMode": "always",
+        "availabilitySchedule": [],
+        "_id": "6a0f97e8759b08387148f9e7"
+      },
+      {
+        "nameTranslations": {
+          "en": "Denver Nuggets"
+        },
+        "descriptionTranslations": {
+          "en": "Crunchy pieces"
+        },
+        "printRole": "kitchen",
+        "isBusinessAvailable": false,
+        "name": "Nuggets",
+        "description": "Piezas crujientes",
+        "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782176355/takeasygo/kekelarry/z336afhsifq5lbvgwrpp.png",
+        "isAvailable": true,
+        "sortOrder": 2,
+        "items": [
+          {
+            "nameTranslations": {
+              "en": "BarderiTo$"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 50,
+              "title": "ES TUY AHORA",
+              "description": "30",
+              "maxClaims": 5,
+              "remainingClaims": 5,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8f13af8b0e368c8bd16026"
+            },
+            "likesCount": 0,
+            "businessPrice": null,
+            "isBusinessAvailable": false,
+            "isTakeawayAvailable": true,
+            "name": "BarderiTo$",
+            "description": "",
+            "price": 850000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782176375/takeasygo/kekelarry/eicyvc30lgqgukyd33ai.png",
+            "isAvailable": true,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "x6",
+                "price": 850000,
+                "takeawayPrice": 850000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f13af8b0e368c8bd16024"
+              },
+              {
+                "nameTranslations": {
+                  "en": ""
+                },
+                "name": "x12",
+                "price": 1500000,
+                "takeawayPrice": 1500000,
+                "businessPrice": null,
+                "customizationGroups": [],
+                "_id": "6a8f13af8b0e368c8bd16025"
+              }
+            ],
+            "customizationGroups": [
+              {
+                "_id": "6a8f13af8b0e368c8bd1601d",
+                "name": "Salsas",
+                "type": "single",
+                "required": true,
+                "options": [
+                  {
+                    "_id": "6a8f13af8b0e368c8bd1601e",
+                    "name": "Mayo Secret",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13af8b0e368c8bd1601f",
+                    "name": "Salsa MK",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13af8b0e368c8bd16020",
+                    "name": "Salsa Keke",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13af8b0e368c8bd16021",
+                    "name": "Barbacoa",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13af8b0e368c8bd16022",
+                    "name": "Miel Spicy",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8f13af8b0e368c8bd16023",
+                    "name": "Salsa Larry",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f9f1",
+            "originalPrice": 850000
+          }
+        ],
+        "customizationGroups": [],
+        "availabilityMode": "always",
+        "availabilitySchedule": [],
+        "_id": "6a0f97e8759b08387148f9f0"
+      },
+      {
+        "nameTranslations": {
+          "en": "Empanadas"
+        },
+        "descriptionTranslations": {
+          "en": ""
+        },
+        "printRole": "kitchen",
+        "isBusinessAvailable": false,
+        "name": "Empanadas",
+        "description": "",
+        "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779408944/takeasygo/kekelarry/umm9uzstbviktj7qelyz.png",
+        "isAvailable": true,
+        "sortOrder": 3,
+        "items": [
+          {
+            "nameTranslations": {
+              "en": "Polyamok"
+            },
+            "descriptionTranslations": {
+              "en": "3 cheese empanadas"
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "businessPrice": null,
+            "isBusinessAvailable": false,
+            "isTakeawayAvailable": true,
+            "name": "Poliamok",
+            "description": "3 empanadas de cheese",
+            "price": 1250000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779408951/takeasygo/kekelarry/crqzlnnyijjr6zthzzjh.png",
+            "isAvailable": true,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [
+              {
+                "_id": "6a8247fc734aa7b2e4754b8f",
+                "name": "Salsas",
+                "type": "multiple",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b90",
+                    "name": "Mayo Secret",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b91",
+                    "name": "Salsa MK",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b92",
+                    "name": "Salsa Keke",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b93",
+                    "name": "Barbacoa",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b94",
+                    "name": "Miel Spicy",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a8247fc734aa7b2e4754b95",
+                    "name": "Salsa Larry",
+                    "extraPrice": 125000,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148f9fc",
+            "originalPrice": 1050000
+          }
+        ],
+        "customizationGroups": [],
+        "availabilityMode": "always",
+        "availabilitySchedule": [],
+        "_id": "6a0f97e8759b08387148f9fb"
+      },
+      {
+        "nameTranslations": {
+          "en": "Drinks"
+        },
+        "descriptionTranslations": {
+          "en": "Refresh Zone"
+        },
+        "printRole": "kitchen",
+        "isBusinessAvailable": false,
+        "name": "Bebidas",
+        "description": "Refresh Zone",
+        "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1779409276/takeasygo/kekelarry/rltuscj0mbvzhndjxxug.png",
+        "isAvailable": true,
+        "sortOrder": 4,
+        "items": [
+          {
+            "nameTranslations": {
+              "en": "7Up"
+            },
+            "descriptionTranslations": {
+              "en": "Common or Zero"
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "7UP",
+            "description": "Común o Zero",
+            "price": 350000,
+            "businessPrice": null,
+            "originalPrice": 350000,
+            "takeawayOriginalPrice": 350000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998470/takeasygo/kekelarry/pcbhckwj3qgt7hnjqu0j.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [
+              {
+                "_id": "6a6fc8ba8f6ba1eea7c13b01",
+                "name": "TIPO",
+                "type": "single",
+                "required": false,
+                "options": [
+                  {
+                    "_id": "6a6fc8ba8f6ba1eea7c13b02",
+                    "name": "Común",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  },
+                  {
+                    "_id": "6a6fc8ba8f6ba1eea7c13b03",
+                    "name": "Zero",
+                    "extraPrice": 0,
+                    "imageUrl": "",
+                    "subGroups": []
+                  }
+                ],
+                "priceRule": "sum"
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a371cb3130acbd5b72c6730",
+            "takeawayPrice": 350000
+          },
+          {
+            "nameTranslations": {
+              "en": "Pepsi "
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "Pepsi",
+            "description": "",
+            "price": 350000,
+            "businessPrice": null,
+            "originalPrice": 350000,
+            "takeawayOriginalPrice": 350000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998389/takeasygo/kekelarry/omfzj49xilxrcqnod8iz.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [
+              {
+                "priceRule": "sum",
+                "_id": "6a37237d6437fc4dc197dfdf",
+                "name": "TIPO",
+                "type": "single",
+                "required": false,
+                "options": [
+                  {
+                    "imageUrl": "",
+                    "_id": "6a37237d6437fc4dc197dfe0",
+                    "name": "Común",
+                    "extraPrice": 0,
+                    "subGroups": []
+                  },
+                  {
+                    "imageUrl": "",
+                    "_id": "6a37237d6437fc4dc197dfe1",
+                    "name": "Zero",
+                    "extraPrice": 0,
+                    "subGroups": []
+                  }
+                ]
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a371d4e543537d466aa5cd0"
+          },
+          {
+            "nameTranslations": {
+              "en": "Mirinda"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "Mirinda",
+            "description": "",
+            "price": 350000,
+            "businessPrice": null,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998581/takeasygo/kekelarry/guh3xufbm4lizertd5po.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148fa07",
+            "originalPrice": 350000
+          },
+          {
+            "nameTranslations": {
+              "en": "Water"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "Agua",
+            "description": "",
+            "price": 350000,
+            "businessPrice": null,
+            "originalPrice": 350000,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998768/takeasygo/kekelarry/q59hwktivj2zho4grgww.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [
+              {
+                "priceRule": "sum",
+                "_id": "6a3724b5d4c62c4f36c63264",
+                "name": "TIPO",
+                "type": "single",
+                "required": false,
+                "options": [
+                  {
+                    "imageUrl": "",
+                    "_id": "6a3724b5d4c62c4f36c63265",
+                    "name": "SIN GAS",
+                    "extraPrice": 0,
+                    "subGroups": []
+                  },
+                  {
+                    "imageUrl": "",
+                    "_id": "6a3724b5d4c62c4f36c63266",
+                    "name": "CO GAS",
+                    "extraPrice": 0,
+                    "subGroups": []
+                  }
+                ]
+              }
+            ],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148fa08"
+          },
+          {
+            "nameTranslations": {
+              "en": "Andes Rubia"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": null,
+            "likesCount": 0,
+            "name": "Andes Rubia",
+            "description": "",
+            "price": 350000,
+            "businessPrice": null,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998630/takeasygo/kekelarry/q8rfh93zezh4jao334dq.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148fa0b",
+            "originalPrice": 350000
+          },
+          {
+            "nameTranslations": {
+              "en": "Stella Artois"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 20,
+              "title": "LA GANASTE VOS",
+              "description": "",
+              "maxClaims": 5,
+              "remainingClaims": 5,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8f160a2d6b75a62a0b0a8b"
+            },
+            "likesCount": 0,
+            "name": "Stella Artois",
+            "description": "",
+            "price": 550000,
+            "businessPrice": null,
+            "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1781998686/takeasygo/kekelarry/p6u9sfa2ngfuxmkbwkzc.png",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148fa0c",
+            "originalPrice": 550000
+          },
+          {
+            "nameTranslations": {
+              "en": "0 % Alcohol*"
+            },
+            "descriptionTranslations": {
+              "en": ""
+            },
+            "hiddenReward": {
+              "enabled": false,
+              "discountPercentage": 20,
+              "title": "lA TENES",
+              "description": "",
+              "maxClaims": 8,
+              "remainingClaims": 8,
+              "scheduledStart": null,
+              "scheduledEnd": null,
+              "claimExpiryDays": 30,
+              "_id": "6a8f161c2d6b75a62a0b0cd7"
+            },
+            "likesCount": 0,
+            "name": "0% Alcohol",
+            "description": "",
+            "price": 550000,
+            "businessPrice": null,
+            "imageUrl": "",
+            "isAvailable": true,
+            "isTakeawayAvailable": true,
+            "isBusinessAvailable": false,
+            "tags": [],
+            "isFeatured": false,
+            "suggestWith": [],
+            "variants": [],
+            "customizationGroups": [],
+            "availabilityMode": "always",
+            "availabilitySchedule": [],
+            "_id": "6a0f97e8759b08387148fa0d",
+            "originalPrice": 550000
+          }
+        ],
+        "customizationGroups": [],
+        "availabilityMode": "always",
+        "availabilitySchedule": [],
+        "_id": "6a0f97e8759b08387148fa04"
+      }
+    ],
+    "isActive": true,
+    "createdAt": "2026-05-04T15:52:45.972Z",
+    "updatedAt": "2026-09-07T21:04:37.954Z",
+    "__v": 272,
+    "optionImageRegistry": {
+      "Tomate": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103313/takeasygo/kekelarry/uc4tyiddfetltfikpm8u.png",
+      "Lechuga": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782102992/takeasygo/kekelarry/bgqblgoi3hfhryx5zq3s.png",
+      "Bacon": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103023/takeasygo/kekelarry/egaswja55rgtnwiu9rer.png",
+      "Cebolla Caramelizada": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103694/takeasygo/kekelarry/pj03on9xkwgmqkubukgz.png",
+      "Pepinos": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103948/takeasygo/kekelarry/gndupfhymffggqlhridh.png",
+      "Extra Cheddar": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103152/takeasygo/kekelarry/dfg4grucwapceqhkmkif.png",
+      "Huevo": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103469/takeasygo/kekelarry/vmfptixsduzbtpnlc6ig.png",
+      "Extra Dambo": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103490/takeasygo/kekelarry/aapwzp0nvf7qxo9ygnwq.png",
+      "Extra Carne y Cheddar": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103517/takeasygo/kekelarry/s6xiguwwiup5wubarajq.png",
+      "Provoleta": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782103571/takeasygo/kekelarry/l25a2gxswhfgiu6xobil.png",
+      "Mayo Secret": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177783/takeasygo/kekelarry/ksbxi0ccsqgcd9mjkm0w.png",
+      "Salsa MK": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177812/takeasygo/kekelarry/ich2eyxgeaxokyjclogr.png",
+      "Salsa Keke": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177821/takeasygo/kekelarry/cqhrw3vxtqpix607hmob.png",
+      "Barbacoa": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177833/takeasygo/kekelarry/wq7wyzvhf0z2txaa7p3h.png",
+      "Miel Spicy": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177848/takeasygo/kekelarry/pwafol1pvdlm9rqcpe1p.png",
+      "Salsa Larry": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1782177872/takeasygo/kekelarry/kor4dwiclotutfttlhhf.png",
+      "Papas Sazonadas": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1786753456/takeasygo/kekelarry/db50hmm3kfmlotwec678.png"
+    }
+  }
+]

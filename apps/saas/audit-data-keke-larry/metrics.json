@@ -1,0 +1,202 @@
+{
+  "sales": {
+    "_id": null,
+    "totalOrders": 234,
+    "totalRevenue": 1135709007,
+    "avgTicket": 4853457.294871795,
+    "minDate": "2026-06-19T23:33:39.828Z",
+    "maxDate": "2026-10-02T15:03:33.751Z"
+  },
+  "products": [
+    {
+      "_id": "6a0f97e8759b08387148f94e",
+      "name": "TYRON",
+      "categoryName": "Burgas",
+      "totalQuantity": 94,
+      "totalRevenue": 180300000,
+      "orderCount": 86
+    },
+    {
+      "_id": "6a0f97e8759b08387148f981",
+      "name": "ZEBALLON CRISPY",
+      "categoryName": "Burgas",
+      "totalQuantity": 75,
+      "totalRevenue": 158165000,
+      "orderCount": 69
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9b4",
+      "name": "KHEBURGER",
+      "categoryName": "Burgas",
+      "totalQuantity": 66,
+      "totalRevenue": 130200000,
+      "orderCount": 63
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9c5",
+      "name": "YSIBOOM",
+      "categoryName": "Burgas",
+      "totalQuantity": 48,
+      "totalRevenue": 103680000,
+      "orderCount": 43
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9a3",
+      "name": "JEEZY",
+      "categoryName": "Burgas",
+      "totalQuantity": 47,
+      "totalRevenue": 95725000,
+      "orderCount": 46
+    },
+    {
+      "_id": "6a0f97e8759b08387148f93c",
+      "name": "ACRI",
+      "categoryName": "Burgas",
+      "totalQuantity": 45,
+      "totalRevenue": 82735000,
+      "orderCount": 40
+    },
+    {
+      "_id": null,
+      "name": "🍔 2 RABREK DOBLES",
+      "categoryName": "",
+      "totalQuantity": 14,
+      "totalRevenue": 62540000,
+      "orderCount": 13
+    },
+    {
+      "_id": "6a0f97e8759b08387148f992",
+      "name": "DUKING",
+      "categoryName": "Burgas",
+      "totalQuantity": 28,
+      "totalRevenue": 60040000,
+      "orderCount": 26
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9d6",
+      "name": "RABREK",
+      "categoryName": "Burgas",
+      "totalQuantity": 29,
+      "totalRevenue": 59015000,
+      "orderCount": 28
+    },
+    {
+      "_id": "6a35cefe56b0c07901da671d",
+      "name": "SAINTLUNA",
+      "categoryName": "Burgas",
+      "totalQuantity": 20,
+      "totalRevenue": 43400000,
+      "orderCount": 19
+    },
+    {
+      "_id": "6a0f97e8759b08387148f970",
+      "name": "LARRY MOB",
+      "categoryName": "Burgas",
+      "totalQuantity": 16,
+      "totalRevenue": 31100000,
+      "orderCount": 16
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9f1",
+      "name": "BarderiTo$",
+      "categoryName": "Nuggets",
+      "totalQuantity": 18,
+      "totalRevenue": 19975000,
+      "orderCount": 18
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9ec",
+      "name": "Papas Crew",
+      "categoryName": "Papas",
+      "totalQuantity": 11,
+      "totalRevenue": 13000000,
+      "orderCount": 11
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9e8",
+      "name": "Papas Clásicas",
+      "categoryName": "Papas",
+      "totalQuantity": 17,
+      "totalRevenue": 11600000,
+      "orderCount": 16
+    },
+    {
+      "_id": "6a0f97e8759b08387148f95f",
+      "name": "MOMO SAMP",
+      "categoryName": "Burgas",
+      "totalQuantity": 5,
+      "totalRevenue": 10670000,
+      "orderCount": 5
+    },
+    {
+      "_id": "6a371d4e543537d466aa5cd0",
+      "name": "Pepsi",
+      "categoryName": "Bebidas",
+      "totalQuantity": 15,
+      "totalRevenue": 5250000,
+      "orderCount": 11
+    },
+    {
+      "_id": "6a8e0d43adcb5da24e98dce2",
+      "name": "PAPAS SAZONADAS",
+      "categoryName": "Papas",
+      "totalQuantity": 7,
+      "totalRevenue": 4900000,
+      "orderCount": 6
+    },
+    {
+      "_id": "6a0f97e8759b08387148f9fc",
+      "name": "Poliamok",
+      "categoryName": "Empanadas",
+      "totalQuantity": 3,
+      "totalRevenue": 3675000,
+      "orderCount": 3
+    },
+    {
+      "_id": "6a371cb3130acbd5b72c6730",
+      "name": "7UP",
+      "categoryName": "Bebidas",
+      "totalQuantity": 4,
+      "totalRevenue": 1400000,
+      "orderCount": 3
+    },
+    {
+      "_id": "6a0f97e8759b08387148fa0b",
+      "name": "Andes Rubia",
+      "categoryName": "Bebidas",
+      "totalQuantity": 2,
+      "totalRevenue": 700000,
+      "orderCount": 1
+    },
+    {
+      "_id": "6a0f97e8759b08387148fa07",
+      "name": "Mirinda",
+      "categoryName": "Bebidas",
+      "totalQuantity": 2,
+      "totalRevenue": 700000,
+      "orderCount": 1
+    },
+    {
+      "_id": "6a0f97e8759b08387148fa0a",
+      "name": "Zero",
+      "categoryName": "Bebidas",
+      "totalQuantity": 1,
+      "totalRevenue": 350000,
+      "orderCount": 1
+    }
+  ],
+  "customers": {
+    "_id": null,
+    "uniqueCustomers": 167,
+    "totalCustomerRevenue": 1135709007,
+    "avgCustomerRevenue": 6800652.736526947,
+    "repeatCustomers": 37
+  },
+  "loyalty": {
+    "_id": null,
+    "totalMembers": 115,
+    "totalPoints": 362115,
+    "totalRedemptions": 1,
+    "totalPointsSpent": 12990
+  }
+}

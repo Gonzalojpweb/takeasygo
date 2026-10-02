@@ -1,0 +1,656 @@
+[
+  {
+    "_id": "6a7262585716c64ef3fa7a3c",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 3 ZEBALLON DOBLES",
+    "description": "🍔 3 ZEBALLON DOBLES",
+    "shortDescription": "HOY COMÉS COMO REY.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785881103/takeasygo/kekelarry/hvt9ucq08s0riry67uud.png",
+    "price": 5900000,
+    "originalPrice": 6300000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": true,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#D71920",
+      "textColor": "#F7F4F1",
+      "accentColor": "#FFC107",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 5,
+    "slots": [
+      {
+        "name": "BURGA",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f981"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f981",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-04T22:06:16.371Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a72616876663a587a151410",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 2 LARRY MOB",
+    "description": "SE VA RÁPIDO.\nAPROVECHÁ.",
+    "shortDescription": "HOY VALE LA PENA.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785880832/takeasygo/kekelarry/mdjyerzsnjth62ullpol.jpg",
+    "price": 3500000,
+    "originalPrice": 3800000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": false,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFC107",
+      "textColor": "#D71920",
+      "accentColor": "#FFFFFF",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "classic"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 1,
+    "slots": [
+      {
+        "name": "BURGA",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f970"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f970",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-04T22:02:16.766Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a666a2550d125e48d2b51a4",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "loyalty",
+    "title": "LA DATA BUENA PASA POR EL CLUB.",
+    "description": "Te vamos a hacer ahorrar.",
+    "shortDescription": "NO TE VAMOS A SPAMEAR, VOS CONFÍA E INSTALÁ LA APP EN TU CELU AHORA!",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785096711/takeasygo/kekelarry/u9nleqpqodtccwfvowtw.jpg",
+    "price": 0,
+    "originalPrice": null,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "ENTRAR ES GRATIS.",
+    "ctaLink": "",
+    "visibility": "both",
+    "isActive": true,
+    "isFeatured": true,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#D71920",
+      "textColor": "#ffffff",
+      "accentColor": "#FFC107",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 4,
+    "slots": [],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-07-26T20:12:21.901Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a63ec3fc6b59ae29ab4cb12",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 2 DUKING DOBLES",
+    "description": "ESTO VUELA.\nCAÉ.",
+    "shortDescription": "LA CALLE PIDIÓ PROMO.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1784933352/takeasygo/kekelarry/ywlmiytvpcpy7nmrlxvv.jpg",
+    "price": 4000000,
+    "originalPrice": 4200000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "both",
+    "isActive": true,
+    "isFeatured": true,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFC107",
+      "textColor": "#D71920",
+      "accentColor": "#f7f4f1",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "minimal"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 9,
+    "slots": [
+      {
+        "name": "BURGAS",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f992"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f992",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": false,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-07-24T22:50:39.442Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a63ed0129ead1819a56c146",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 3 TYRON",
+    "description": "SI SABÉS, SABÉS.",
+    "shortDescription": "HOY O NUNCA.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1784933552/takeasygo/kekelarry/zvfaqh38lx7rlthsllzv.jpg",
+    "price": 5350000,
+    "originalPrice": 5700000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": false,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#D71920",
+      "accentColor": "#FFC107",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 8,
+    "slots": [
+      {
+        "name": "BURGAS",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f94e"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f94e",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-07-24T22:53:53.449Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a63ed872943becfc9808b5b",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 ACR1 + TYRON + BEBIDAS",
+    "description": "¿QUÉ ESPERÁS?",
+    "shortDescription": "PROMO BURGA + BEBIDAS",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1784933700/takeasygo/kekelarry/i5pimfhwv7c7akln5uuo.jpg",
+    "price": 3650000,
+    "originalPrice": 4000000,
+    "currency": "USD",
+    "conditions": "SOLO BURGAS SIMPLES EN ESTA PROMO",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": true,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#D71920",
+      "textColor": "#111111",
+      "accentColor": "#FFC107",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 7,
+    "slots": [
+      {
+        "name": "BURGAS",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f94e"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f94e",
+            "disabledVariantNames": [
+              "Doble"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [
+      {
+        "name": "SIMPLES",
+        "type": "single",
+        "required": true,
+        "options": []
+      }
+    ],
+    "createdAt": "2026-07-24T22:56:07.685Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a72606aefee744ab219500a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 3 YSIBOOM",
+    "description": "NO DUERMAS.\nPEDILA.",
+    "shortDescription": "SI SABÉS, SABÉS.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1785880443/takeasygo/kekelarry/z2jb60fm1mjl6qjh6c9o.jpg",
+    "price": 6000000,
+    "originalPrice": 6300000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": false,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#D71920",
+      "accentColor": "#FFC107",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "minimal"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 6,
+    "slots": [
+      {
+        "name": "BURGAS",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f9c5"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f9c5",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-04T21:58:02.008Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a77ac368bdca86616e8b4c7",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 2 JEEZY SIMPLES — $34.000",
+    "description": "ESTÁ REGALADO. \nMETELE.",
+    "shortDescription": "HASTA AGOTAR STOCK.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1786227738/takeasygo/kekelarry/dprghhapkasuh8msupg6.png",
+    "price": 3400000,
+    "originalPrice": 3600000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "both",
+    "isActive": true,
+    "isFeatured": false,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFFFFF",
+      "textColor": "#FFC107",
+      "accentColor": "#D71920",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 0,
+    "slots": [
+      {
+        "name": "BURGA",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f9a3"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f9a3",
+            "disabledVariantNames": [
+              "Doble"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-08T22:22:46.748Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a77ad56712a5c9f405d2779",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "🍔 2 RABREK DOBLES",
+    "description": "DESPUÉS NO LLORES.\n\nPEDILA.",
+    "shortDescription": "LA DATA ES ESTA.",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1786228020/takeasygo/kekelarry/g4fwwkgjkucsc5vst656.png",
+    "price": 3850000,
+    "originalPrice": 4100000,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": true,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#FFC107",
+      "textColor": "#D71920",
+      "accentColor": "#FFFFFF",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "minimal"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 2,
+    "slots": [
+      {
+        "name": "BURGA",
+        "categoryIds": [
+          "6a0f97e8759b08387148f93b"
+        ],
+        "itemIds": [
+          "6a0f97e8759b08387148f9d6"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a0f97e8759b08387148f9d6",
+            "disabledVariantNames": [
+              "Simple"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-08T22:27:34.362Z",
+    "updatedAt": "2026-08-28T05:07:51.770Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8e0bc8e35d0958582707f2",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "scope": "tenant",
+    "targetTenants": [],
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "type": "sale",
+    "title": "LAS MAS PEDIDAS. YA LO SABES!",
+    "description": "",
+    "shortDescription": "PAPAS SAZONADAS",
+    "imageUrl": "https://res.cloudinary.com/dt6iu9m9f/image/upload/v1787693921/takeasygo/kekelarry/z4yxyxoa7qkqdj0nqj9q.png",
+    "price": 600000,
+    "originalPrice": null,
+    "currency": "USD",
+    "conditions": "",
+    "details": "",
+    "ctaText": "",
+    "ctaLink": "",
+    "visibility": "takeaway",
+    "isActive": true,
+    "isFeatured": false,
+    "scheduledStart": null,
+    "scheduledEnd": null,
+    "activeTimeStart": "",
+    "activeTimeEnd": "",
+    "customStyles": {
+      "backgroundColor": "#ce0909",
+      "textColor": "#f7f4f1",
+      "accentColor": "#ddb546",
+      "badgeColor": "#f14722",
+      "borderRadius": "12px",
+      "cardStyle": "modern"
+    },
+    "maxRedemptions": null,
+    "redemptionsCount": 0,
+    "sortOrder": 10,
+    "slots": [
+      {
+        "name": "PAPAS",
+        "categoryIds": [
+          "6a0f97e8759b08387148f9e7"
+        ],
+        "itemIds": [
+          "6a8e0d43adcb5da24e98dce2"
+        ],
+        "requiredQuantity": 1,
+        "customizationMode": "variant",
+        "allowCustomization": null,
+        "overrideCustomizationGroups": [],
+        "itemOverrides": [
+          {
+            "itemId": "6a8e0d43adcb5da24e98dce2",
+            "disabledVariantNames": [
+              "Medianas",
+              "Grandes"
+            ],
+            "disabledGroupIds": [],
+            "disabledOptionIds": []
+          }
+        ]
+      }
+    ],
+    "allowCustomization": true,
+    "overrideCustomizationGroups": [],
+    "createdAt": "2026-08-25T21:40:24.496Z",
+    "updatedAt": "2026-08-28T05:05:24.501Z",
+    "__v": 0
+  }
+]

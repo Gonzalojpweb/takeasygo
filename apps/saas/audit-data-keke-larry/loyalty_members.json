@@ -1,0 +1,6233 @@
+[
+  {
+    "_id": "6a41b1dd9547c63402112910",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Ramiro Tarnofsky",
+    "phone": "+54 1131745474",
+    "email": "ramirotarnofsky@gmail.com",
+    "birthDate": "1997-03-20T00:00:00.000Z",
+    "phoneHash": "bf1782bf92894cdfc7a25164d587d46f95fdb5ab924fd30a1451ef00b02b0ad7",
+    "status": "active",
+    "joinedAt": "2026-06-28T23:44:29.951Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3890233,
+      "lastOrderAt": "2026-09-14T00:36:27.679Z",
+      "updatedAt": "2026-09-14T00:36:27.679Z"
+    },
+    "loyalty": {
+      "points": 2113,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-T9P3-HR4M-25OD",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-06-28T23:49:48.012Z",
+      "lastSyncAt": "2026-09-14T00:36:42.257Z",
+      "publicId": "TGO-T9P3-HR4M-25OD"
+    },
+    "notes": "",
+    "createdAt": "2026-06-28T23:44:29.953Z",
+    "updatedAt": "2026-09-14T00:36:42.257Z",
+    "__v": 0,
+    "userImpact": {
+      "commercesSupported": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-09-14T00:34:34.315Z",
+      "nearbyPurchases": 1
+    }
+  },
+  {
+    "_id": "6a45a9341f39be9698fbaec6",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a45a9341f39be9698fbaec3",
+    "name": "Ailen",
+    "phone": "+54 1178219140",
+    "email": "ailumamani16@gmail.com",
+    "birthDate": null,
+    "phoneHash": "de38fd3b57d50caa5e56147c7b0456f03bb4f601c55c7b66e0d0864094dc6f4c",
+    "status": "active",
+    "joinedAt": "2026-07-01T23:56:36.640Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-E7YL-Q71Y-FDNK"
+    },
+    "notes": "",
+    "createdAt": "2026-07-01T23:56:36.642Z",
+    "updatedAt": "2026-07-01T23:56:36.642Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a45acc0597abb2a55993d3d",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Joaquin",
+    "phone": "+54 1167976963",
+    "email": "jalmiron00@gmail.com",
+    "birthDate": "2000-04-13T00:00:00.000Z",
+    "phoneHash": "a1967d6ed9b6b54cf6b2bbc1eae70327201d573fe87da79192ed2d709a3f122c",
+    "status": "active",
+    "joinedAt": "2026-07-02T00:11:44.741Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4140000,
+      "lastOrderAt": "2026-07-02T00:12:16.072Z",
+      "updatedAt": "2026-07-02T00:12:16.072Z"
+    },
+    "loyalty": {
+      "points": 2386,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-1IQV-801N-46QP",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-07-02T00:12:38.423Z",
+      "lastSyncAt": null,
+      "publicId": "TGO-1IQV-801N-46QP"
+    },
+    "notes": "",
+    "createdAt": "2026-07-02T00:11:44.742Z",
+    "updatedAt": "2026-07-02T00:12:38.423Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a46d886de20eb43ff5ae4e0",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a46d885de20eb43ff5ae4dd",
+    "name": "Milagros Salguero",
+    "phone": "+54 1176031584",
+    "email": "roseanneloml8@gmail.com",
+    "birthDate": null,
+    "phoneHash": "54e838cc2e0501ce43933b246dc9b3f0107c552a8db4f4f9a495aec050b56c8d",
+    "status": "active",
+    "joinedAt": "2026-07-02T21:30:46.061Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4000000,
+      "lastOrderAt": "2026-07-05T01:22:13.516Z",
+      "updatedAt": "2026-07-05T01:22:13.516Z"
+    },
+    "loyalty": {
+      "points": 2141,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-DBOH-34VU-3FBN",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-07-05T01:22:25.110Z",
+      "lastSyncAt": null,
+      "publicId": "TGO-DBOH-34VU-3FBN"
+    },
+    "notes": "",
+    "createdAt": "2026-07-02T21:30:46.063Z",
+    "updatedAt": "2026-07-05T01:22:25.110Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4b036afd6cb1002c5cbf99",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Joaquin",
+    "phone": "+54 1131915099",
+    "email": "charogheredia@airbnb.com",
+    "birthDate": "2002-12-03T00:00:00.000Z",
+    "phoneHash": "0173ab4616a0e06f73f50622e14fb55217222490ca7d579db489c0da0ca130cf",
+    "status": "active",
+    "joinedAt": "2026-07-06T01:22:50.431Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3800000,
+      "lastOrderAt": "2026-07-06T01:26:34.669Z",
+      "updatedAt": "2026-07-06T01:26:34.669Z"
+    },
+    "loyalty": {
+      "points": 2285,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-45V8-YA7I-GCL5"
+    },
+    "notes": "",
+    "createdAt": "2026-07-06T01:22:50.433Z",
+    "updatedAt": "2026-07-06T01:26:34.670Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a502c1f9c8c2b3736057f2e",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Erica lin",
+    "phone": "+54 3786400995",
+    "email": "ericalin668@gmail.com",
+    "birthDate": "2004-10-24T00:00:00.000Z",
+    "phoneHash": "5f6cb4e83e4e808f9d99547b46d20cd7e056bb1e9698a5ba63c631519eacaa35",
+    "status": "active",
+    "joinedAt": "2026-07-09T23:17:51.320Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 4747400,
+      "lastOrderAt": "2026-07-09T23:18:34.877Z",
+      "updatedAt": "2026-07-09T23:18:34.877Z"
+    },
+    "loyalty": {
+      "points": 2572,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-SCB1-X4JO-CN8L"
+    },
+    "notes": "",
+    "createdAt": "2026-07-09T23:17:51.321Z",
+    "updatedAt": "2026-07-09T23:18:34.877Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a542450f7bebca7932c8bfd",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "francisco H",
+    "phone": "+54 1158008782",
+    "email": "francisco.hollmann@gmail.com",
+    "birthDate": null,
+    "phoneHash": "a7dbdbdf100ce36e8b23079805e543f441925f20bbe64e9f2ad8e1b01dab1e8a",
+    "status": "active",
+    "joinedAt": "2026-07-12T23:33:36.727Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-WR40-Q8T8-X2VF"
+    },
+    "notes": "",
+    "createdAt": "2026-07-12T23:33:36.728Z",
+    "updatedAt": "2026-07-12T23:33:36.728Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a581b69fd6b5a0e34e46383",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Axel Geslin",
+    "phone": "+54 1161729622",
+    "email": "axelges9@gmail.com",
+    "birthDate": "2002-04-09T00:00:00.000Z",
+    "phoneHash": "b9653b179691b06af05830ba4adb149b0deb9ea11a1cb8f2e9d760db2029be01",
+    "status": "active",
+    "joinedAt": "2026-07-15T23:44:41.928Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 13588000,
+      "lastOrderAt": "2026-08-29T00:07:11.974Z",
+      "updatedAt": "2026-08-29T00:07:11.974Z"
+    },
+    "loyalty": {
+      "points": 7202,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-S08G-BDZO-C7AP"
+    },
+    "notes": "",
+    "createdAt": "2026-07-15T23:44:41.932Z",
+    "updatedAt": "2026-08-29T00:07:11.974Z",
+    "__v": 0,
+    "userImpact": {
+      "commercesSupported": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-08-29T00:06:03.004Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-22T00:23:41.089Z",
+          "_id": "6a88ec0dd5280e97323793f7"
+        }
+      ]
+    },
+    "userId": "6a9221bdeae48c48f2bd70b7"
+  },
+  {
+    "_id": "6a598ad53f6fa410584ad456",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "maxiparlagreco@gmail.com",
+    "phone": "+54 1163770569",
+    "email": "maxiparlagreco@gmail.com",
+    "birthDate": "1998-11-10T00:00:00.000Z",
+    "phoneHash": "337bf7d0f2bddbb0889b4eb2080c44b67e12134f38aaae6b183e05fede324ed8",
+    "status": "active",
+    "joinedAt": "2026-07-17T01:52:21.279Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 7200000,
+      "lastOrderAt": "2026-09-03T02:08:23.801Z",
+      "updatedAt": "2026-09-03T02:08:23.801Z"
+    },
+    "loyalty": {
+      "points": 4240,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-66U4-XZWY-4JXB"
+    },
+    "notes": "",
+    "createdAt": "2026-07-17T01:52:21.280Z",
+    "updatedAt": "2026-09-03T02:08:23.801Z",
+    "__v": 0,
+    "userImpact": {
+      "commercesSupported": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-09-03T02:05:38.247Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-03T02:05:38.484Z",
+          "_id": "6a98d5f29c842ef0081d97f1"
+        }
+      ]
+    }
+  },
+  {
+    "_id": "6a655d563395408e6e19bdb5",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "valentina",
+    "phone": "+54 1154984950",
+    "email": "camillivalentina95@gmail.com",
+    "birthDate": null,
+    "phoneHash": "0f490d5e36792d5bc0709e839804ba0020bf4e30d474afbe5ea52bf7feb985ee",
+    "status": "active",
+    "joinedAt": "2026-07-26T01:05:26.325Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2000000,
+      "lastOrderAt": "2026-07-26T01:06:40.285Z",
+      "updatedAt": "2026-07-26T01:06:40.285Z"
+    },
+    "loyalty": {
+      "points": 1250,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-SR57-ZSGE-NHU9"
+    },
+    "notes": "",
+    "createdAt": "2026-07-26T01:05:26.326Z",
+    "updatedAt": "2026-07-26T01:06:40.285Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a67e937b02f35f44791c357",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a483ed8a9b715b3759ac5a4",
+    "name": "santino prada",
+    "phone": null,
+    "email": "tatuprada@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-27T23:26:47.355Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-1C9G-L8MJ-0Y9M"
+    },
+    "notes": "",
+    "createdAt": "2026-07-27T23:26:47.357Z",
+    "updatedAt": "2026-07-27T23:26:47.357Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a683f9c14f91c180ae453d9",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "699bed5aa9b8cdcebb9357ae",
+    "name": "Gonzalo Palomo",
+    "phone": null,
+    "email": "pgonzalojose@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-28T05:35:24.309Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-JZEO-56E8-72OV"
+    },
+    "notes": "",
+    "createdAt": "2026-07-28T05:35:24.314Z",
+    "updatedAt": "2026-07-28T05:35:24.314Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6bda90dadfb331ef194e28",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Kendry",
+    "phone": "+56 998092358",
+    "email": "kendryfbo@gmail.com",
+    "birthDate": "1987-12-05T00:00:00.000Z",
+    "phoneHash": "2a8441af11e43ce80b0f98cd092034cd5549e6a2c567c5ca0b9d568f2f39cef9",
+    "status": "active",
+    "joinedAt": "2026-07-30T23:13:20.271Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-HJ6L-YCEP-YXNX"
+    },
+    "notes": "",
+    "createdAt": "2026-07-30T23:13:20.274Z",
+    "updatedAt": "2026-07-30T23:13:20.274Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a73d8e7c0679255ed4f5dba",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Agustina",
+    "phone": "+54 1154235229",
+    "email": "agusvargas@live.com.ar",
+    "birthDate": "1992-06-18T00:00:00.000Z",
+    "phoneHash": "c10cba1cf9c34124bacde9c08dd9f73b9b7fb7138fc6d1a0c64335a33f02f37b",
+    "status": "active",
+    "joinedAt": "2026-08-06T00:44:23.548Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 4,
+      "totalSpent": 9538720,
+      "lastOrderAt": "2026-09-26T01:43:08.733Z",
+      "updatedAt": "2026-09-26T01:43:08.733Z"
+    },
+    "loyalty": {
+      "points": 5075,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 3,
+      "nearbyPurchases": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-26T01:41:27.398Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-23T02:07:13.919Z",
+          "_id": "6a8a55d1e91cae3797775870"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-A78C-RNQM-S1L1"
+    },
+    "notes": "",
+    "createdAt": "2026-08-06T00:44:23.550Z",
+    "updatedAt": "2026-09-26T01:43:08.733Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a3f12abfa9c1d204ab93541",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Santiago Tedesco",
+    "phone": "+54 1150998215",
+    "email": "santitedescocurti@gmail.com",
+    "birthDate": "1999-01-01T00:00:00.000Z",
+    "phoneHash": "c44a9bdb75d573809583df1a33aaed538e8d4339c54f7e85d32af5594bb408e1",
+    "status": "active",
+    "joinedAt": "2026-06-27T00:00:43.140Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 7,
+      "totalSpent": 25882304,
+      "lastOrderAt": "2026-09-21T02:45:02.355Z",
+      "updatedAt": "2026-09-21T02:45:02.355Z"
+    },
+    "loyalty": {
+      "points": 14588,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-Z5EU-9638-XPOY",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-06-27T00:01:48.172Z",
+      "lastSyncAt": "2026-09-21T02:45:02.736Z",
+      "publicId": "TGO-Z5EU-9638-XPOY"
+    },
+    "notes": "",
+    "createdAt": "2026-06-27T00:00:43.142Z",
+    "updatedAt": "2026-09-21T02:45:02.737Z",
+    "__v": 0,
+    "lastRewardAdvanceAttemptedAt": "2026-08-20T01:09:08.616Z",
+    "lastRewardAdvanceAttemptedBy": "superadmin",
+    "userImpact": {
+      "commercesSupported": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-09-20T00:16:57.556Z",
+      "nearbyPurchases": 1,
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-20T00:16:57.791Z",
+          "_id": "6aaf25f9b98c1a1ebabee3bc"
+        }
+      ]
+    }
+  },
+  {
+    "_id": "6a3f173f1f4637f98153f2ac",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Luciana Gabilondo",
+    "phone": "+54 1127636659",
+    "email": "luciana.gabilondo@gmail.com",
+    "birthDate": "2001-02-20T00:00:00.000Z",
+    "phoneHash": "0428888e3b1db6c04e67bc00dae1f728b7f25ab46a3edfa4b4e8bc1cbb718ec5",
+    "status": "active",
+    "joinedAt": "2026-06-27T00:20:15.891Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4085000,
+      "lastOrderAt": "2026-06-27T00:20:46.550Z",
+      "updatedAt": "2026-06-27T00:20:46.550Z"
+    },
+    "loyalty": {
+      "points": 2316,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-YWHQ-QKVI-W466"
+    },
+    "notes": "",
+    "createdAt": "2026-06-27T00:20:15.893Z",
+    "updatedAt": "2026-06-27T00:20:46.551Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4139a6537486c3914d96ed",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a4139a5537486c3914d96e6",
+    "name": "Leandro Rossi",
+    "phone": "+54 541165975242",
+    "email": "leandro.rossi.arg@gmail.com",
+    "birthDate": null,
+    "phoneHash": "4abb5a2017c36541d431c4bdfefc30cb91eb6881e956bfad4934731f324c9853",
+    "status": "active",
+    "joinedAt": "2026-06-28T15:11:34.209Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-9IO7-A7TG-P8WT"
+    },
+    "notes": "",
+    "createdAt": "2026-06-28T15:11:34.211Z",
+    "updatedAt": "2026-06-28T15:11:34.211Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4452fe31c1705c73c65d11",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Martina",
+    "phone": "+54 1127091180",
+    "email": "martuimbroisi@gmail.com",
+    "birthDate": null,
+    "phoneHash": "5f15d2c74c65fe6078c54c96bc6ac20329baf49734c923e25b85882705723d22",
+    "status": "active",
+    "joinedAt": "2026-06-30T23:36:30.221Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4500000,
+      "lastOrderAt": "2026-06-30T23:37:27.222Z",
+      "updatedAt": "2026-06-30T23:37:27.222Z"
+    },
+    "loyalty": {
+      "points": 2429,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-AUMW-U6HJ-FFTQ",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-06-30T23:37:44.819Z",
+      "lastSyncAt": null,
+      "publicId": "TGO-AUMW-U6HJ-FFTQ"
+    },
+    "notes": "",
+    "createdAt": "2026-06-30T23:36:30.223Z",
+    "updatedAt": "2026-06-30T23:37:44.819Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a45b13c967c2dc8fe4dbaee",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a45b132a9b715b375922d86",
+    "name": "Usuario",
+    "phone": null,
+    "email": "maxifmendez@hotmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-02T00:30:52.868Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-6D83-YKDW-GXAT"
+    },
+    "notes": "",
+    "createdAt": "2026-07-02T00:30:52.870Z",
+    "updatedAt": "2026-07-02T00:30:52.870Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a469fd90479e0c0ac270ad1",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a469fd80479e0c0ac270acc",
+    "name": "santino prada",
+    "phone": "+54 1161650418",
+    "email": "taruprada@gmail.com",
+    "birthDate": null,
+    "phoneHash": "4c9067f27306b70dfb1469664d6bcbaf70f1d98b5736088a8ba6d246eb76b211",
+    "status": "active",
+    "joinedAt": "2026-07-02T17:28:57.058Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-6M1R-K8IJ-OD05"
+    },
+    "notes": "",
+    "createdAt": "2026-07-02T17:28:57.060Z",
+    "updatedAt": "2026-07-02T17:28:57.060Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4989f42234e602b07cdfe6",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a4989f32234e602b07cdfdd",
+    "name": "Carolina de Luca",
+    "phone": "+54 1134987898",
+    "email": "carobdeluca@gmail.com",
+    "birthDate": null,
+    "phoneHash": "dbee9e3968d07dda68ae3ce578ba4caec2a3bc6978fd28fdeeaacd96040c5f1f",
+    "status": "active",
+    "joinedAt": "2026-07-04T22:32:20.157Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-PF36-EUTE-WBOP"
+    },
+    "notes": "",
+    "createdAt": "2026-07-04T22:32:20.158Z",
+    "updatedAt": "2026-07-04T22:32:20.158Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4998fcc831ff645c8ff93e",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Jesus",
+    "phone": "+54 1127531612",
+    "email": "jesusmpds18@gmail.com",
+    "birthDate": "1995-09-01T00:00:00.000Z",
+    "phoneHash": "5daafbe8e802415a45b712c7ea17678a71785916541ba2a798f2ec119847070f",
+    "status": "active",
+    "joinedAt": "2026-07-04T23:36:28.640Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4300000,
+      "lastOrderAt": "2026-07-04T23:37:04.542Z",
+      "updatedAt": "2026-07-04T23:37:04.542Z"
+    },
+    "loyalty": {
+      "points": 2314,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-8LBF-PDDT-1IEC",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-07-04T23:37:38.869Z",
+      "lastSyncAt": null,
+      "publicId": "TGO-8LBF-PDDT-1IEC"
+    },
+    "notes": "",
+    "createdAt": "2026-07-04T23:36:28.643Z",
+    "updatedAt": "2026-07-05T00:40:54.325Z",
+    "__v": 0,
+    "userId": "6a49a814a9b715b3759f4499"
+  },
+  {
+    "_id": "6a4af9421b6062a878093525",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a4af935ca3e904f42cd6018",
+    "name": "Juani Cespedes",
+    "phone": null,
+    "email": "juanign4@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-06T00:39:30.629Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-2PS8-MOXZ-IZSB"
+    },
+    "notes": "",
+    "createdAt": "2026-07-06T00:39:30.630Z",
+    "updatedAt": "2026-07-06T00:39:30.630Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4af96c1b6062a878093722",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Lucila Zaga",
+    "phone": "+54 1155089241",
+    "email": "zagalucila@gmail.com",
+    "birthDate": null,
+    "phoneHash": "13d35df0d4ce98794c68816584fe4226cc2b6c7321f86a56862cfcc7611777b5",
+    "status": "active",
+    "joinedAt": "2026-07-06T00:40:12.194Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3950000,
+      "lastOrderAt": "2026-07-06T00:42:23.550Z",
+      "updatedAt": "2026-07-06T00:42:23.550Z"
+    },
+    "loyalty": {
+      "points": 2371,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": "3388000000023127023.LoyaltyObject_TGO-UZOU-HAG9-0V16",
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": "2026-07-06T00:42:38.669Z",
+      "lastSyncAt": null,
+      "publicId": "TGO-UZOU-HAG9-0V16"
+    },
+    "notes": "",
+    "createdAt": "2026-07-06T00:40:12.195Z",
+    "updatedAt": "2026-07-06T00:42:38.670Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a5f9871adc84133b05c4717",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a5f986c5d4cbca7888f83ed",
+    "name": "teikarr",
+    "phone": null,
+    "email": "cristianramos92639@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-21T16:04:01.597Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-IKP6-MN1C-AQNU"
+    },
+    "notes": "",
+    "createdAt": "2026-07-21T16:04:01.599Z",
+    "updatedAt": "2026-07-21T16:04:01.599Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a63fdbce30d51acb6fe4bb7",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "patricio",
+    "phone": "+54 91122513099",
+    "email": "pato.lauria@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "ac47f50df181df7f0f078defbd69097ed7ff035ec0e8c4c5c73685dbd7ce3047",
+    "status": "active",
+    "joinedAt": "2026-07-25T00:05:16.628Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 7980000,
+      "lastOrderAt": "2026-07-25T00:33:08.674Z",
+      "updatedAt": "2026-07-25T00:33:08.674Z"
+    },
+    "loyalty": {
+      "points": 4528,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-TU43-DVJZ-X1BU"
+    },
+    "notes": "",
+    "createdAt": "2026-07-25T00:05:16.629Z",
+    "updatedAt": "2026-07-25T00:33:08.675Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a66a438914f220c8ae8158a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a66a434be4934971d324d96",
+    "name": "Usuario",
+    "phone": null,
+    "email": "gisev@hotmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-27T00:20:08.922Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-V2A5-D63H-ZBUK"
+    },
+    "notes": "",
+    "createdAt": "2026-07-27T00:20:08.923Z",
+    "updatedAt": "2026-07-27T00:20:08.923Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a68dbe232b4404cf4f4ac0d",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a68dbe232b4404cf4f4ac08",
+    "name": "Lourdes Ferreyra",
+    "phone": "+54 3541239452",
+    "email": "ferreyralourdes.a@gmail.com",
+    "birthDate": null,
+    "phoneHash": "86e6549b7b58311cab9d5e12c0306c3a6c9b62e2652fc91f09739062c950ba63",
+    "status": "active",
+    "joinedAt": "2026-07-28T16:42:10.468Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-9N9Z-83X3-OE5A"
+    },
+    "notes": "",
+    "createdAt": "2026-07-28T16:42:10.470Z",
+    "updatedAt": "2026-07-28T16:42:10.470Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a693848aa29086d51233c8b",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Milagros Baldassare",
+    "phone": "+54 541151398456",
+    "email": "baldassaremilagros@gmail.com",
+    "birthDate": "1996-04-06T00:00:00.000Z",
+    "phoneHash": "a5555135f579ee6740ff49c25382ea444591bb41371228cdf52afd3b900a3750",
+    "status": "active",
+    "joinedAt": "2026-07-28T23:16:24.436Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3922200,
+      "lastOrderAt": "2026-07-28T23:47:48.159Z",
+      "updatedAt": "2026-07-28T23:47:48.159Z"
+    },
+    "loyalty": {
+      "points": 2256,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-PZ2U-OYDN-KEK2"
+    },
+    "notes": "",
+    "createdAt": "2026-07-28T23:16:24.441Z",
+    "updatedAt": "2026-07-28T23:47:48.160Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a73cad96803e43ebc991c9b",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a73cad378d73a2f30f6dadb",
+    "name": "María Gómez Belcastro",
+    "phone": null,
+    "email": "mariagbel06@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-08-05T23:44:25.603Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 11450000,
+      "lastOrderAt": "2026-08-15T01:05:11.814Z",
+      "updatedAt": "2026-08-15T01:05:11.814Z"
+    },
+    "loyalty": {
+      "points": 6469,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-RQRK-LLAR-U3PG"
+    },
+    "notes": "",
+    "createdAt": "2026-08-05T23:44:25.606Z",
+    "updatedAt": "2026-08-15T01:05:11.814Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7525b292c7bee6cff18b2f",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "userId": "6a7520821d788477cbd18e51",
+    "name": "Lucila Maria Vega",
+    "phone": "+54 1155611411",
+    "email": "vegalucilamaria@gmail.com",
+    "birthDate": "1996-05-20T00:00:00.000Z",
+    "phoneHash": "d835ea197d3f69317b592b2a81e4b1f00179a88c02753cca48989570a5ab7ee6",
+    "status": "active",
+    "joinedAt": "2026-08-07T00:24:18.260Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4047900,
+      "lastOrderAt": "2026-08-07T00:26:28.988Z",
+      "updatedAt": "2026-08-07T00:26:28.988Z"
+    },
+    "loyalty": {
+      "points": 2199,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-07T00:24:19.479Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-DUIP-KWX4-YEBO"
+    },
+    "notes": "",
+    "createdAt": "2026-08-07T00:24:18.262Z",
+    "updatedAt": "2026-08-07T00:26:28.988Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a40522d18a2edaa5f7903d0",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a40522d18a2edaa5f7903c2",
+    "name": "Lisandro balbiani",
+    "phone": "+54 2",
+    "email": "libalbiani@gmail.com",
+    "birthDate": null,
+    "phoneHash": "2d86377d4cc3e6c85bab00dd407f8c5b657c239c6af3109de6cdf4d418aa2d89",
+    "status": "active",
+    "joinedAt": "2026-06-27T22:43:57.263Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 8991000,
+      "lastOrderAt": "2026-08-03T00:23:46.959Z",
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 5219,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": "2026-08-03T00:23:47.197Z",
+      "publicId": "TGO-U7YC-CKRJ-7U3L"
+    },
+    "notes": "",
+    "createdAt": "2026-06-27T22:43:57.263Z",
+    "updatedAt": "2026-08-03T00:23:47.197Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a41b3b9d4821f5da0e90d17",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Antonella rojo",
+    "phone": "+54 1153257428",
+    "email": "antorojo12@gmail.com",
+    "birthDate": null,
+    "phoneHash": "a6e96b40a8d2a280cbae9b9b3f5e78ca00166d40979df266abe106a450d330e5",
+    "status": "active",
+    "joinedAt": "2026-06-28T23:52:25.807Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3465000,
+      "lastOrderAt": "2026-06-28T23:53:14.101Z",
+      "updatedAt": "2026-06-28T23:53:14.101Z"
+    },
+    "loyalty": {
+      "points": 1998,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-FCK9-3ZQD-1M9B"
+    },
+    "notes": "",
+    "createdAt": "2026-06-28T23:52:25.809Z",
+    "updatedAt": "2026-06-28T23:53:14.102Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a459cb2f399f0c1089560e6",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a459cb2f399f0c1089560df",
+    "name": "Eva Ferrer",
+    "phone": "+54 1132099672",
+    "email": "evvaferrer@gmail.com",
+    "birthDate": null,
+    "phoneHash": "03aa020f255996e71d67d837390ce3ff2b471ee580c585c4fc22036b6213c83c",
+    "status": "active",
+    "joinedAt": "2026-07-01T23:03:14.383Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 5865516,
+      "lastOrderAt": "2026-08-18T23:26:36.665Z",
+      "updatedAt": "2026-08-18T23:26:36.665Z"
+    },
+    "loyalty": {
+      "points": 3033,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-ZW4L-99XD-VEGG"
+    },
+    "notes": "",
+    "createdAt": "2026-07-01T23:03:14.385Z",
+    "updatedAt": "2026-08-18T23:26:36.666Z",
+    "__v": 0,
+    "userImpact": {
+      "commercesSupported": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-08-18T23:25:54.238Z",
+      "nearbyPurchases": 2,
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-16T00:04:47.515Z",
+          "_id": "6a80fe9ff771a291aeaefa72"
+        }
+      ]
+    }
+  },
+  {
+    "_id": "6a4866cd32aa484c21e1e0c4",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Nicolás",
+    "phone": "+54 1156393600",
+    "email": "nicferar@gmail.com",
+    "birthDate": "1995-10-24T00:00:00.000Z",
+    "phoneHash": "af854dc77e403bd50a728ca0514fabcdaf4b6f8af4a857f07e3db4e6a6cba8b0",
+    "status": "active",
+    "joinedAt": "2026-07-04T01:50:05.199Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 4,
+      "totalSpent": 13250000,
+      "lastOrderAt": "2026-09-05T00:46:01.423Z",
+      "updatedAt": "2026-09-05T00:46:01.423Z"
+    },
+    "loyalty": {
+      "points": 7417,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-2ELA-BXLZ-N2KZ"
+    },
+    "notes": "",
+    "createdAt": "2026-07-04T01:50:05.201Z",
+    "updatedAt": "2026-09-05T00:46:01.424Z",
+    "__v": 0,
+    "userId": "6a4af386ca3e904f42cd4f99",
+    "userImpact": {
+      "commercesSupported": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-09-05T00:44:59.832Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-05T00:45:00.075Z",
+          "_id": "6a9b660c724e9fb81cf6a628"
+        }
+      ]
+    }
+  },
+  {
+    "_id": "6a4af2899d122dc1f013d8fe",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a4af2899d122dc1f013d8f8",
+    "name": "Gustavo José de la aceña",
+    "phone": "+54 1141899106",
+    "email": "gus98dla@gmail.com",
+    "birthDate": null,
+    "phoneHash": "81b88e0f1957e972fb5e3d7034bccb972f11367dc8802ded649086155176e55e",
+    "status": "active",
+    "joinedAt": "2026-07-06T00:10:49.423Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 5,
+      "totalSpent": 20996019,
+      "lastOrderAt": "2026-08-28T01:20:04.889Z",
+      "updatedAt": "2026-08-28T01:20:04.889Z"
+    },
+    "loyalty": {
+      "points": 12068,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": "2026-08-14T05:02:34.577Z",
+      "publicId": "TGO-OQMB-XNWI-C3ZK"
+    },
+    "notes": "",
+    "createdAt": "2026-07-06T00:10:49.425Z",
+    "updatedAt": "2026-09-30T22:58:31.974Z",
+    "__v": 0,
+    "userImpact": {
+      "commercesSupported": 4,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "lastImpactAt": "2026-08-28T23:38:35.155Z",
+      "nearbyPurchases": 3,
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-13T00:22:21.249Z",
+          "_id": "6a7d0e3d81bf45ee1fa902ec"
+        }
+      ]
+    },
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:58:31.974Z",
+    "lastRewardAdvanceAttemptedBy": "admin"
+  },
+  {
+    "_id": "6a4efef99170c190eb5de3af",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Nahuel",
+    "phone": "+54 2944571666",
+    "email": "tnahuel00@yahoo.com.ar",
+    "birthDate": null,
+    "phoneHash": "b6e5abab6295c123939ced5e14e9cb64435930ef8da984f31f9d07ad11455e8a",
+    "status": "active",
+    "joinedAt": "2026-07-09T01:52:57.278Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 8254300,
+      "lastOrderAt": "2026-08-02T00:33:07.665Z",
+      "updatedAt": "2026-08-02T00:33:07.665Z"
+    },
+    "loyalty": {
+      "points": 4470,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-K260-N20W-77ES"
+    },
+    "notes": "",
+    "createdAt": "2026-07-09T01:52:57.283Z",
+    "updatedAt": "2026-08-02T00:33:07.666Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a52964685fa96e3803db368",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a52964685fa96e3803db365",
+    "name": "Martin Avilés",
+    "phone": "+54 1157470878",
+    "email": "martin.aviles1269@gmail.com",
+    "birthDate": null,
+    "phoneHash": "e04924d912a7b0af3b762bc1f8bca10f72c761ba620a545debc939c87076bb3d",
+    "status": "active",
+    "joinedAt": "2026-07-11T19:15:18.855Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-8IMJ-CZPA-1QXP"
+    },
+    "notes": "",
+    "createdAt": "2026-07-11T19:15:18.857Z",
+    "updatedAt": "2026-07-11T19:15:18.857Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a582186fd0f53f8d72e165a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Santiago",
+    "phone": "+54 91144181692",
+    "email": "scasir97@gmail.com",
+    "birthDate": "1997-05-20T00:00:00.000Z",
+    "phoneHash": "6c77ee9e04e446005610f5f806d760e9120ad78344b389487080ae9c463038e1",
+    "status": "active",
+    "joinedAt": "2026-07-16T00:10:46.183Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-C2C2-J0NL-XKRV"
+    },
+    "notes": "",
+    "createdAt": "2026-07-16T00:10:46.184Z",
+    "updatedAt": "2026-07-16T00:10:46.184Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a64016461e02dd84433dfd5",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a6401427591636aac4f21a8",
+    "name": "Cecilia",
+    "phone": null,
+    "email": "ceci.s.feng@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-25T00:20:52.189Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3900000,
+      "lastOrderAt": "2026-09-05T23:58:07.602Z",
+      "updatedAt": "2026-09-05T23:58:07.602Z"
+    },
+    "loyalty": {
+      "points": 2243,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-PT45-6OI2-KMHA"
+    },
+    "notes": "",
+    "createdAt": "2026-07-25T00:20:52.191Z",
+    "updatedAt": "2026-09-05T23:58:07.603Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6be5a3679a264979c2dd76",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Agustin",
+    "phone": "+54 1154022189",
+    "email": "agustinpoblete98@gmail.com",
+    "birthDate": "1998-12-22T00:00:00.000Z",
+    "phoneHash": "8872f65be635fa1fb311f424ded917f0320fb0ddf875c5402239ea08d397876d",
+    "status": "active",
+    "joinedAt": "2026-07-31T00:00:35.772Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5993100,
+      "lastOrderAt": "2026-07-31T00:01:25.279Z",
+      "updatedAt": "2026-07-31T00:01:25.279Z"
+    },
+    "loyalty": {
+      "points": 3378,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-OZ89-M7QM-E58A"
+    },
+    "notes": "",
+    "createdAt": "2026-07-31T00:00:35.775Z",
+    "updatedAt": "2026-07-31T00:01:25.280Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6e86571ff6a8e7ce7c3b55",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a6e86561ff6a8e7ce7c3b52",
+    "name": "Aranza Maria Puyana Camacho",
+    "phone": "+54 1167971712",
+    "email": "aranza.puyana@gmail.com",
+    "birthDate": null,
+    "phoneHash": "9d32517cf6b868822b37d50003ab7df0135002ae205418213e88a5fb35a39582",
+    "status": "active",
+    "joinedAt": "2026-08-01T23:50:47.241Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-O8PY-OG1M-7YOA"
+    },
+    "notes": "",
+    "createdAt": "2026-08-01T23:50:47.243Z",
+    "updatedAt": "2026-08-01T23:50:47.243Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a728ead6477843a2584bb65",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Abril",
+    "phone": "+54 1137987294",
+    "email": "fenzafabril@gmail.com",
+    "birthDate": null,
+    "phoneHash": "bad1b157a8eeaee252cbd45afb53e7ab186782f3c3611e676df7e7638bddbbac",
+    "status": "active",
+    "joinedAt": "2026-08-05T01:15:25.262Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 8105657,
+      "lastOrderAt": "2026-08-27T02:18:39.215Z",
+      "updatedAt": "2026-08-27T02:18:39.215Z"
+    },
+    "loyalty": {
+      "points": 4413,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-27T01:02:45.839Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-27T01:02:46.085Z",
+          "_id": "6a8f8cb653a77d8815609955"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-4S0Q-4PRO-CZ3D"
+    },
+    "notes": "",
+    "createdAt": "2026-08-05T01:15:25.266Z",
+    "updatedAt": "2026-08-27T02:18:39.215Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a41a33b34455734091f9748",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a41a33a34455734091f9743",
+    "name": "Valentina tata",
+    "phone": "+54 1161927921",
+    "email": "valentinatata04@gmail.com",
+    "birthDate": null,
+    "phoneHash": "e95125315e0bd12ccbd176b5fef61185f6073be03e7da101eb6c536112498c53",
+    "status": "active",
+    "joinedAt": "2026-06-28T22:42:03.008Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-NIOR-C3XR-UOWS"
+    },
+    "notes": "",
+    "createdAt": "2026-06-28T22:42:03.010Z",
+    "updatedAt": "2026-06-28T22:42:03.010Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a41bdaa46511f54da7f06cb",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "fidel guarc",
+    "phone": "+54 3329530200",
+    "email": "fidelguarc10@gmail.com",
+    "birthDate": "1997-05-16T00:00:00.000Z",
+    "phoneHash": "3db4dcbe0538182fa93059586c1be00095be584b1d45ee7fc21ca87e868f1ef3",
+    "status": "active",
+    "joinedAt": "2026-06-29T00:34:50.849Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4565000,
+      "lastOrderAt": "2026-06-29T00:35:18.702Z",
+      "updatedAt": "2026-06-29T00:35:18.702Z"
+    },
+    "loyalty": {
+      "points": 2630,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-2ADQ-IQDI-Y3VE"
+    },
+    "notes": "",
+    "createdAt": "2026-06-29T00:34:50.852Z",
+    "updatedAt": "2026-06-29T00:35:18.703Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a41c908da62ea9112f5e542",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a41c907da62ea9112f5e53b",
+    "name": "Bianca Bressan",
+    "phone": "+54 1140514266",
+    "email": "bianbre03@gmail.com",
+    "birthDate": null,
+    "phoneHash": "17f71f282fa9107ea9d6d9617acf714424869922b27834b19488c367042e065b",
+    "status": "active",
+    "joinedAt": "2026-06-29T01:23:20.139Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-48MU-3OJN-OX65"
+    },
+    "notes": "",
+    "createdAt": "2026-06-29T01:23:20.140Z",
+    "updatedAt": "2026-06-29T01:23:20.140Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a4afb30d8986fe2d2bc8f2f",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a4af935ca3e904f42cd6018",
+    "name": "Juani Cespedes",
+    "phone": "+54 3412262367",
+    "email": "juanign4@gmail.com",
+    "birthDate": "2000-08-18T00:00:00.000Z",
+    "phoneHash": "83b4dab1959c786c7a930ef4004ed27d789acab5bb4dd34f73bc1aa0eddd9843",
+    "status": "active",
+    "joinedAt": "2026-07-06T00:47:44.476Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-EEBW-MUR3-U4CP"
+    },
+    "notes": "",
+    "createdAt": "2026-07-06T00:47:44.477Z",
+    "updatedAt": "2026-07-06T00:47:44.477Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a616e08ca2337c1616a11ec",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a616e07ca2337c1616a11e8",
+    "name": "Florencia aurelio",
+    "phone": "+54 1140557801",
+    "email": "flor.aurelio@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "3bcb0d0ab30b668e7ea286477fcc3ae30e47e12cfd288fd885306928f7fd3221",
+    "status": "active",
+    "joinedAt": "2026-07-23T01:27:36.196Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-XAUG-HODY-L1PL"
+    },
+    "notes": "",
+    "createdAt": "2026-07-23T01:27:36.198Z",
+    "updatedAt": "2026-07-23T01:27:36.198Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6a13bf3a37fc969146733a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a6a13b9be4934971d3c6cab",
+    "name": "Brian cas Aguilar",
+    "phone": null,
+    "email": "briancasaguilar@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-29T14:52:47.433Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 941300,
+      "lastOrderAt": "2026-07-29T18:10:06.370Z",
+      "updatedAt": "2026-07-29T18:10:06.370Z"
+    },
+    "loyalty": {
+      "points": 518,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-KKOO-BBNR-ERZR"
+    },
+    "notes": "",
+    "createdAt": "2026-07-29T14:52:47.435Z",
+    "updatedAt": "2026-07-29T18:10:06.370Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6d2fde1497785f95e72a18",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "userId": "6a6d2fdabe4934971d4686aa",
+    "name": "Alfredo Del Corro",
+    "phone": null,
+    "email": "alfredodelcorro@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-07-31T23:29:34.885Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-IH7C-51CK-8P9U"
+    },
+    "notes": "",
+    "createdAt": "2026-07-31T23:29:34.886Z",
+    "updatedAt": "2026-07-31T23:29:34.886Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6d437244de6a6d0fc98f27",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Ignacio",
+    "phone": "+54 1137958595",
+    "email": "ignacioestrada2812@gmail.com",
+    "birthDate": "2004-12-28T00:00:00.000Z",
+    "phoneHash": "15130f15a8a9ffaba4b7cb52ae6af75161c6fdec48199b187e2a739b14dd0ac0",
+    "status": "active",
+    "joinedAt": "2026-08-01T00:53:06.345Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 8615000,
+      "lastOrderAt": "2026-08-01T00:53:57.683Z",
+      "updatedAt": "2026-08-01T00:53:57.683Z"
+    },
+    "loyalty": {
+      "points": 4939,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-O05H-A49J-6HTG"
+    },
+    "notes": "",
+    "createdAt": "2026-08-01T00:53:06.349Z",
+    "updatedAt": "2026-08-01T00:53:57.684Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a6e7d2d63c3432089e69f47",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "name": "Franco Vignapiano",
+    "phone": "+54 01164900467",
+    "email": "vignapianofranco@gmail.com",
+    "birthDate": null,
+    "phoneHash": "05cf1ebd7388d1cfb5e74cd4e59b13aceed89c00e76bd517bf753a2e1165b319",
+    "status": "active",
+    "joinedAt": "2026-08-01T23:11:41.833Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2838819,
+      "lastOrderAt": "2026-09-11T23:31:19.189Z",
+      "updatedAt": "2026-09-11T23:31:19.189Z"
+    },
+    "loyalty": {
+      "points": 1538,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-11T23:30:35.069Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-L44J-M6JI-G7OE"
+    },
+    "notes": "",
+    "createdAt": "2026-08-01T23:11:41.835Z",
+    "updatedAt": "2026-09-11T23:31:19.189Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a726fce5f9ca5b2639fa88c",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Tomas Garais",
+    "phone": "+54 1128862466",
+    "email": "garaistomas2@gmail.com",
+    "birthDate": "2002-10-14T00:00:00.000Z",
+    "phoneHash": "81e14c460338dd026baadaa4cc3455a01f68efd729b13647df0146033989d806",
+    "status": "active",
+    "joinedAt": "2026-08-04T23:03:42.341Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 16075000,
+      "lastOrderAt": "2026-08-14T04:58:09.437Z",
+      "updatedAt": "2026-08-04T23:05:05.755Z"
+    },
+    "loyalty": {
+      "points": 9691,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": "2026-08-14T04:58:09.673Z",
+      "publicId": "TGO-WYP5-U6YG-BWNS"
+    },
+    "notes": "",
+    "createdAt": "2026-08-04T23:03:42.346Z",
+    "updatedAt": "2026-09-30T22:58:16.951Z",
+    "__v": 0,
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:58:16.951Z",
+    "lastRewardAdvanceAttemptedBy": "admin"
+  },
+  {
+    "_id": "6a7520831d788477cbd18e54",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a7520821d788477cbd18e51",
+    "name": "Lucila Maria Vega",
+    "phone": "+54 11556111411",
+    "email": "vegalucilamaria@gmail.com",
+    "birthDate": null,
+    "phoneHash": "8f1811299ff8288b00000c56401490191872cfd7dde8e7388181a40924d45b71",
+    "status": "active",
+    "joinedAt": "2026-08-07T00:02:11.150Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-QNWV-0E2K-EII1"
+    },
+    "notes": "",
+    "createdAt": "2026-08-07T00:02:11.152Z",
+    "updatedAt": "2026-08-07T00:02:11.152Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a766964210ffa5a607aa751",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Cristian",
+    "phone": "+54 1121759620",
+    "email": "cristianbking@gmail.com",
+    "birthDate": null,
+    "phoneHash": "68c29543b109c4850ab759879286cf45e1b4cc0c29d6c44ff37c832fa75d0de5",
+    "status": "active",
+    "joinedAt": "2026-08-07T23:25:24.217Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4400000,
+      "lastOrderAt": "2026-08-07T23:27:27.919Z",
+      "updatedAt": "2026-08-07T23:27:27.919Z"
+    },
+    "loyalty": {
+      "points": 2458,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-07T23:25:25.306Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-0T3B-05K2-5P9K"
+    },
+    "notes": "",
+    "createdAt": "2026-08-07T23:25:24.219Z",
+    "updatedAt": "2026-08-07T23:27:27.919Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a767882bc36c090ee5ec185",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Micaelq",
+    "phone": "+54 01135647783",
+    "email": "muzzillomicaela@gmail.com",
+    "birthDate": null,
+    "phoneHash": "67f6990b69ec31e17386cd761cb79e0bfb431d32a6f8bf5dddd05be9247a5b69",
+    "status": "active",
+    "joinedAt": "2026-08-08T00:29:54.436Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 11025000,
+      "lastOrderAt": "2026-08-08T00:30:33.053Z",
+      "updatedAt": "2026-08-08T00:30:33.053Z"
+    },
+    "loyalty": {
+      "points": 3608,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-08T00:29:55.594Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-BCU1-LWS6-CFZI"
+    },
+    "notes": "",
+    "createdAt": "2026-08-08T00:29:54.438Z",
+    "updatedAt": "2026-08-08T00:30:33.054Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7682ce83cb985aa40febb3",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Micaela",
+    "phone": "+54 1167005826",
+    "email": "micamignone97@gmail.com",
+    "birthDate": "1997-08-01T00:00:00.000Z",
+    "phoneHash": "08d1ae561a6b011ad3e289492665d4a550c96ef7959f970585b3c7a10ed05909",
+    "status": "active",
+    "joinedAt": "2026-08-08T01:13:50.648Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3990000,
+      "lastOrderAt": "2026-08-08T01:15:04.029Z",
+      "updatedAt": "2026-08-08T01:15:04.029Z"
+    },
+    "loyalty": {
+      "points": 2394,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-08T01:13:51.662Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-ERCX-NJ4S-WC4L"
+    },
+    "notes": "",
+    "createdAt": "2026-08-08T01:13:50.649Z",
+    "updatedAt": "2026-08-08T01:15:04.030Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7686685fdf16fe0d3a34c7",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Manuel",
+    "phone": "+54 1168248100",
+    "email": "manufiandrino@gmail.com",
+    "birthDate": "2001-04-25T00:00:00.000Z",
+    "phoneHash": "bde66245068135e84106a50cdc4494c6d18c8edc8509de87ec1899efce574ee9",
+    "status": "active",
+    "joinedAt": "2026-08-08T01:29:12.127Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2207970,
+      "lastOrderAt": "2026-08-08T01:30:58.953Z",
+      "updatedAt": "2026-08-08T01:30:58.953Z"
+    },
+    "loyalty": {
+      "points": 1308,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-08T01:29:13.645Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-4RFT-GUMW-46IR"
+    },
+    "notes": "",
+    "createdAt": "2026-08-08T01:29:12.129Z",
+    "updatedAt": "2026-09-06T23:08:08.933Z",
+    "__v": 0,
+    "userId": "6a9df256ed93960b8af3600a"
+  },
+  {
+    "_id": "6a77b7656a001ec32266175a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Micaela",
+    "phone": "+54 1136296283",
+    "email": "micaelasaieg@hotmail.com",
+    "birthDate": "1993-05-27T00:00:00.000Z",
+    "phoneHash": "7ec71ab3864c67871455b4d5e1c6e995dea0acdcbc4d0c477bf93918e87555d0",
+    "status": "active",
+    "joinedAt": "2026-08-08T23:10:29.860Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4967932,
+      "lastOrderAt": "2026-08-21T23:02:43.428Z",
+      "updatedAt": "2026-08-21T23:02:43.428Z"
+    },
+    "loyalty": {
+      "points": 2673,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-08T23:10:30.989Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-8DBW-Y247-WV1T"
+    },
+    "notes": "",
+    "createdAt": "2026-08-08T23:10:29.865Z",
+    "updatedAt": "2026-08-21T23:02:43.429Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a77c0254785fc7a50601dee",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Mariana",
+    "phone": "+54 541121620253",
+    "email": "marianapor@hotmail.com",
+    "birthDate": "1982-10-25T00:00:00.000Z",
+    "phoneHash": "0ecb9f11b7dd5b8b9ec0571cb53dc5fcea475dc212dea3fbca1176a631b6840c",
+    "status": "active",
+    "joinedAt": "2026-08-08T23:47:49.440Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 11415940,
+      "lastOrderAt": "2026-08-15T00:06:23.636Z",
+      "updatedAt": "2026-08-15T00:06:23.636Z"
+    },
+    "loyalty": {
+      "points": 6311,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-15T00:04:48.710Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-15T00:04:48.944Z",
+          "_id": "6a7fad20314436ff7c65fb7e"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-23XC-R5WM-ITMA"
+    },
+    "notes": "",
+    "createdAt": "2026-08-08T23:47:49.443Z",
+    "updatedAt": "2026-08-15T00:06:23.637Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a77ce1cee3702c1d61553a2",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a77ce1cee3702c1d615539d",
+    "name": "Lucio Castelnuovo",
+    "phone": "+54 1562203896",
+    "email": "luciocas.1998@gmail.com",
+    "birthDate": null,
+    "phoneHash": "926f23b7b5d1c0e6d34dd7fce2f67faa4a42ba604bd14d88ad3d67922a508ad6",
+    "status": "active",
+    "joinedAt": "2026-08-09T00:47:24.538Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-V49Q-1UD6-EA54"
+    },
+    "notes": "",
+    "createdAt": "2026-08-09T00:47:24.540Z",
+    "updatedAt": "2026-08-09T00:47:24.540Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7900165507ceedb9fd2c9f",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a1105046904154eb77a3800",
+    "name": "Gonzalo test",
+    "phone": "+54 1160019734",
+    "email": "gonzalo@gmai.com",
+    "birthDate": null,
+    "phoneHash": "5c5b0abb8f10a15b40d8904fc06b0968ce4b20271988d1a8841cdb2b01aaf440",
+    "status": "active",
+    "joinedAt": "2026-08-09T22:32:54.104Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 2075000,
+      "lastOrderAt": "2026-08-09T23:07:42.864Z",
+      "updatedAt": "2026-08-09T23:07:42.864Z"
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 1,
+      "totalPointsSpent": 12990,
+      "lastRedemptionAt": "2026-08-09T22:38:07.520Z"
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-09T22:38:05.283Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-09T22:38:05.519Z",
+          "_id": "6a79014d48e3c169aaf4f14d"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": "2026-08-09T22:34:11.685Z",
+      "publicId": "TGO-IGA5-FKOT-3QWM"
+    },
+    "notes": "",
+    "createdAt": "2026-08-09T22:32:54.106Z",
+    "updatedAt": "2026-08-09T23:07:47.733Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7934f7506b01865a488443",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "gaby",
+    "phone": "+54 1124597691",
+    "email": "gabygomezalmeida@gmail.com",
+    "birthDate": "1992-12-06T00:00:00.000Z",
+    "phoneHash": "bd67c0f0012c04d0517819c5b7757f775129f92caf5c11a61a444c962cc10652",
+    "status": "active",
+    "joinedAt": "2026-08-10T02:18:31.706Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 14489900,
+      "lastOrderAt": "2026-08-25T16:48:12.934Z",
+      "updatedAt": "2026-08-25T16:48:12.934Z"
+    },
+    "loyalty": {
+      "points": 8111,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-25T16:47:08.610Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-25T16:47:08.847Z",
+          "_id": "6a8dc70c42a92fd3c19aa5ff"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-3WPF-QZ6W-MZ3Q"
+    },
+    "notes": "",
+    "createdAt": "2026-08-10T02:18:31.709Z",
+    "updatedAt": "2026-08-25T16:48:12.935Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7bb963c0eaed37f2e1f4c3",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Rodrigo",
+    "phone": "+54 1165571106",
+    "email": "rodrigo.polanco@hotmail.com.ar",
+    "birthDate": "1992-06-11T00:00:00.000Z",
+    "phoneHash": "74f403ad9c780b334b7efc541f534d93f3733ac1eb315b76603f4a42d8001faf",
+    "status": "active",
+    "joinedAt": "2026-08-12T00:08:03.856Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2313112,
+      "lastOrderAt": "2026-08-12T00:09:44.463Z",
+      "updatedAt": "2026-08-12T00:09:44.463Z"
+    },
+    "loyalty": {
+      "points": 1365,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-12T00:08:04.887Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-XEHH-9KPI-TEA9"
+    },
+    "notes": "",
+    "createdAt": "2026-08-12T00:08:03.862Z",
+    "updatedAt": "2026-08-12T00:09:44.464Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7cfcf198adbe7036e56187",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Clarisa",
+    "phone": "+54 3426156863",
+    "email": "m.clarisa.lopez@gmail.com",
+    "birthDate": "1989-04-15T00:00:00.000Z",
+    "phoneHash": "bdcef3161576b59a558714990b276536e64b2f5be15c27c69633494f323b51fc",
+    "status": "active",
+    "joinedAt": "2026-08-12T23:08:33.490Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 11539271,
+      "lastOrderAt": "2026-09-10T23:55:11.019Z",
+      "updatedAt": "2026-09-10T23:55:11.019Z"
+    },
+    "loyalty": {
+      "points": 6181,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-10T23:18:24.512Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-10T23:18:24.756Z",
+          "_id": "6aa33ac04bc90e37054079de"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-EH0D-E0AW-SO77"
+    },
+    "notes": "",
+    "createdAt": "2026-08-12T23:08:33.492Z",
+    "updatedAt": "2026-09-10T23:55:11.019Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7de06e9a24ddfc184c35cf",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Juan Malnero Superno",
+    "phone": "+54 2325422412",
+    "email": "juanmalnero48@gmail.com",
+    "birthDate": "2007-10-17T00:00:00.000Z",
+    "phoneHash": "cc30c3d748a6d1ffc86181f443d4e0f457caceda7d4c3bbd6c5d7091efc2357d",
+    "status": "active",
+    "joinedAt": "2026-08-13T15:19:10.010Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 21050000,
+      "lastOrderAt": "2026-08-13T15:34:07.385Z",
+      "updatedAt": "2026-08-13T15:34:07.385Z"
+    },
+    "loyalty": {
+      "points": 12204,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-13T15:19:11.102Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-5HFH-Z7B4-G8Z7"
+    },
+    "notes": "",
+    "createdAt": "2026-08-13T15:19:10.013Z",
+    "updatedAt": "2026-09-30T22:58:01.841Z",
+    "__v": 0,
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:58:01.841Z",
+    "lastRewardAdvanceAttemptedBy": "admin"
+  },
+  {
+    "_id": "6a7e56cc7f6b32d2a68cd2ef",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Sebi",
+    "phone": "+54 1169756308",
+    "email": "sebiracki95@gmail.com",
+    "birthDate": null,
+    "phoneHash": "ef946d4f8d28271037656fa6f2f00e90a6f3ca146fdc1b75da5a8ba7e65f5d50",
+    "status": "active",
+    "joinedAt": "2026-08-13T23:44:12.090Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3932289,
+      "lastOrderAt": "2026-08-13T23:44:57.927Z",
+      "updatedAt": "2026-08-13T23:44:57.927Z"
+    },
+    "loyalty": {
+      "points": 2136,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-13T23:44:13.235Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-Y238-CEGJ-W1EG"
+    },
+    "notes": "",
+    "createdAt": "2026-08-13T23:44:12.093Z",
+    "updatedAt": "2026-08-13T23:44:57.927Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7e63cd332e11ece3ce5c34",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Sara Albertinsky",
+    "phone": "+54 1169236710",
+    "email": "s.albertinsky29@gmail.com",
+    "birthDate": null,
+    "phoneHash": "7d28ff9f20ebc13658e8cd4096e0b17226de317065526e671ba43ddcae6f7430",
+    "status": "active",
+    "joinedAt": "2026-08-14T00:39:41.547Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 4,
+      "totalSpent": 16075000,
+      "lastOrderAt": "2026-09-07T00:14:40.008Z",
+      "updatedAt": "2026-09-07T00:14:40.008Z"
+    },
+    "loyalty": {
+      "points": 9343,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 3,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-07T00:13:59.065Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-04T01:31:21.029Z",
+          "_id": "6a9a1f69b2ea8dafd29453dd"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-SPXG-JIDE-ZWPS"
+    },
+    "notes": "",
+    "createdAt": "2026-08-14T00:39:41.550Z",
+    "updatedAt": "2026-09-24T21:29:55.280Z",
+    "__v": 0,
+    "userId": "6ab596516bf2ab8e5e9a5b60"
+  },
+  {
+    "_id": "6a7f3138c11e9b4de8c3ed41",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "fatima",
+    "phone": "+54 1136690524",
+    "email": "marketing@asesoresmadero.com",
+    "birthDate": "2000-01-18T00:00:00.000Z",
+    "phoneHash": "7c41875f821bece1dddd029b25a52ccf458422435b67160ce66e3375076d8519",
+    "status": "active",
+    "joinedAt": "2026-08-14T15:16:08.615Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 18290000,
+      "lastOrderAt": "2026-08-14T15:17:09.254Z",
+      "updatedAt": "2026-08-14T15:17:09.254Z"
+    },
+    "loyalty": {
+      "points": 10617,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:57:48.717Z",
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-14T15:16:09.726Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-0IKU-FNX3-UUO5"
+    },
+    "notes": "",
+    "createdAt": "2026-08-14T15:16:08.617Z",
+    "updatedAt": "2026-09-30T22:57:48.717Z",
+    "__v": 0,
+    "lastRewardAdvanceAttemptedBy": "admin",
+    "userId": "6a86f3ab86cd69a560451dce"
+  },
+  {
+    "_id": "6a7fa9f17dc12e8bc25241d2",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a7fa9ec86cd69a56023d87b",
+    "name": "Usuario",
+    "phone": null,
+    "email": "juancruz97@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-08-14T23:51:13.858Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 3800000,
+      "lastOrderAt": "2026-08-15T00:04:03.282Z",
+      "updatedAt": "2026-08-15T00:04:03.282Z"
+    },
+    "loyalty": {
+      "points": 2185,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-868W-EG1S-5HIB"
+    },
+    "notes": "",
+    "createdAt": "2026-08-14T23:51:13.860Z",
+    "updatedAt": "2026-08-15T00:04:03.282Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a7fbb12dc9d8293432f8e17",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "María Gómez Belcastro",
+    "phone": "+54 3794321266",
+    "email": "mariagbel06@gmail.com",
+    "birthDate": "2006-05-05T00:00:00.000Z",
+    "phoneHash": "6e1617d187af20018724951b77c7fb168496963d129862e7e33d0ac318e3362e",
+    "status": "active",
+    "joinedAt": "2026-08-15T01:04:18.956Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 18019221,
+      "lastOrderAt": "2026-09-07T00:06:42.342Z",
+      "updatedAt": "2026-09-07T00:06:42.342Z"
+    },
+    "loyalty": {
+      "points": 9933,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:57:05.446Z",
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 5,
+      "nearbyPurchases": 5,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-28T00:21:03.739Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-07T00:05:25.055Z",
+          "_id": "6a9dffc5e75b12445c73f612"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-UY5M-E6BT-QCNH"
+    },
+    "notes": "",
+    "createdAt": "2026-08-15T01:04:18.958Z",
+    "updatedAt": "2026-09-30T22:57:05.446Z",
+    "__v": 0,
+    "lastRewardAdvanceAttemptedBy": "admin"
+  },
+  {
+    "_id": "6a81068b3993290b95089fb4",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Nicole",
+    "phone": "+54 91135082014",
+    "email": "mindlinnicole@gmail.com",
+    "birthDate": "2000-09-07T00:00:00.000Z",
+    "phoneHash": "70b37978b4c0f37a55ede8b4d34b354c4198f1ad21a5f3b2f9d24a19a4656b79",
+    "status": "active",
+    "joinedAt": "2026-08-16T00:38:35.277Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 12700000,
+      "lastOrderAt": "2026-08-16T00:39:00.819Z",
+      "updatedAt": "2026-08-16T00:39:00.819Z"
+    },
+    "loyalty": {
+      "points": 7403,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-16T00:38:36.363Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-RX3T-NWPF-GWQ9"
+    },
+    "notes": "",
+    "createdAt": "2026-08-16T00:38:35.279Z",
+    "updatedAt": "2026-08-16T00:39:00.819Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8108cab0d93b77d86d0096",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Valentina anid",
+    "phone": "+54 1162192921",
+    "email": "valentina.anid@gmail.com",
+    "birthDate": "2001-12-13T00:00:00.000Z",
+    "phoneHash": "579706dedcd988cf08d87d66b5f28847ba338c0488f7fc362e5a0deae12a3dc2",
+    "status": "active",
+    "joinedAt": "2026-08-16T00:48:10.911Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5227250,
+      "lastOrderAt": "2026-08-16T00:48:29.473Z",
+      "updatedAt": "2026-08-16T00:48:29.473Z"
+    },
+    "loyalty": {
+      "points": 2946,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-16T00:48:12.026Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-SMCO-VIU3-UPR3"
+    },
+    "notes": "",
+    "createdAt": "2026-08-16T00:48:10.912Z",
+    "updatedAt": "2026-08-16T00:48:29.474Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8112bb5dbad321fd2e53dd",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Pablo grimald",
+    "phone": "+54 1155649903",
+    "email": "pablo.grimald@gmail.com",
+    "birthDate": null,
+    "phoneHash": "462a869b465bff8b0684653d0b244ded831d4434118a47f3741ed2a0bdf959ba",
+    "status": "active",
+    "joinedAt": "2026-08-16T01:30:35.635Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4205657,
+      "lastOrderAt": "2026-08-16T01:31:22.262Z",
+      "updatedAt": "2026-08-16T01:31:22.262Z"
+    },
+    "loyalty": {
+      "points": 2285,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-16T01:30:36.774Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-WDDN-06AM-OS8T"
+    },
+    "notes": "",
+    "createdAt": "2026-08-16T01:30:35.638Z",
+    "updatedAt": "2026-08-16T01:31:22.264Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8232d28362dfa9d8dcf1a5",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a8232d28362dfa9d8dcf1a1",
+    "name": "Maia Hirz",
+    "phone": "+54 1140814972",
+    "email": "maiahirz@outlook.com",
+    "birthDate": null,
+    "phoneHash": "cb96165ce93dbb6166a6e6e19fa625c808a6be6da388a75b86c743f317c9ef3c",
+    "status": "active",
+    "joinedAt": "2026-08-16T21:59:46.569Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-QPNT-I30D-0D6Y"
+    },
+    "notes": "",
+    "createdAt": "2026-08-16T21:59:46.572Z",
+    "updatedAt": "2026-08-16T21:59:46.572Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a86361a471b0be6c203960c",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a863619471b0be6c2039609",
+    "name": "Hernán Pérez Peña",
+    "phone": "+54 1167279480",
+    "email": "hernan.pp@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "e34c061908243365c1aed024c4a9a633cbaeb3228e52cc54a922a23db6128d49",
+    "status": "active",
+    "joinedAt": "2026-08-19T23:02:50.164Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-B3Q2-C0IQ-JW14"
+    },
+    "notes": "",
+    "createdAt": "2026-08-19T23:02:50.166Z",
+    "updatedAt": "2026-08-19T23:02:50.166Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a863ba3471b0be6c203a46a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Pedro Gil",
+    "phone": "+54 1127355609",
+    "email": "pedrogil114@gmail.com",
+    "birthDate": "1988-07-19T00:00:00.000Z",
+    "phoneHash": "7cf4c973aa7f6cc47688dec5621a22d9f145d2f2db63bf3216c4ae3e6ff3173b",
+    "status": "active",
+    "joinedAt": "2026-08-19T23:26:27.101Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 8306173,
+      "lastOrderAt": "2026-08-20T23:02:03.546Z",
+      "updatedAt": "2026-08-20T23:02:03.546Z"
+    },
+    "loyalty": {
+      "points": 4355,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-20T23:01:26.597Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-08-20T23:01:26.836Z",
+          "_id": "6a878746ae3b90f672c6a1ca"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-YFY8-NUK5-RYPA"
+    },
+    "notes": "",
+    "createdAt": "2026-08-19T23:26:27.102Z",
+    "updatedAt": "2026-08-20T23:02:03.547Z",
+    "__v": 0,
+    "userId": "6a8783df86cd69a56046b747"
+  },
+  {
+    "_id": "6a864c4395ce313cd7d11790",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Mercedes",
+    "phone": "+54 1136525830",
+    "email": "tomercedes46@gmail.com",
+    "birthDate": "1999-09-23T00:00:00.000Z",
+    "phoneHash": "3e836297ed3d864adeaf4a3112733bff53532e07dbc2938c25c45c860705a8d6",
+    "status": "active",
+    "joinedAt": "2026-08-20T00:37:23.326Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2076543,
+      "lastOrderAt": "2026-08-20T00:38:29.716Z",
+      "updatedAt": "2026-08-20T00:38:29.716Z"
+    },
+    "loyalty": {
+      "points": 1236,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-20T00:37:24.399Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-GFB8-FIOP-NQY9"
+    },
+    "notes": "",
+    "createdAt": "2026-08-20T00:37:23.329Z",
+    "updatedAt": "2026-08-27T01:08:07.512Z",
+    "__v": 0,
+    "userId": "6a8f8d61eae48c48f2b342d5"
+  },
+  {
+    "_id": "6a879f85538cda526850e67f",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6a879f85538cda526850e67c",
+    "name": "Matías Lora",
+    "phone": "+54 3834300184",
+    "email": "matilora22@gmail.com",
+    "birthDate": null,
+    "phoneHash": "cf1bd4a8c36d97d495fe7b6b556b5f10821f18fb623d4fce70d1749891f6d5a4",
+    "status": "active",
+    "joinedAt": "2026-08-21T00:44:53.322Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4731364,
+      "lastOrderAt": "2026-08-21T23:03:25.536Z",
+      "updatedAt": "2026-08-21T23:03:25.536Z"
+    },
+    "loyalty": {
+      "points": 2544,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-21T00:48:47.110Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-4BZ4-GEDN-3IF1"
+    },
+    "notes": "",
+    "createdAt": "2026-08-21T00:44:53.324Z",
+    "updatedAt": "2026-08-21T23:03:25.536Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a88e1fdd3d5fe7fc8328e91",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Luciana Elsener",
+    "phone": "+54 1134350304",
+    "email": "lelsener@hotmail.com.ar",
+    "birthDate": null,
+    "phoneHash": "df38b77ca1f2f980e1f05c99d90c22680e83a68b95b107136f89c77c395ced10",
+    "status": "active",
+    "joinedAt": "2026-08-21T23:40:45.005Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 16971597,
+      "lastOrderAt": "2026-08-21T23:41:46.554Z",
+      "updatedAt": "2026-08-21T23:41:46.554Z"
+    },
+    "loyalty": {
+      "points": 9501,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-21T23:40:45.968Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-NNP9-Z59X-W6SP"
+    },
+    "notes": "",
+    "createdAt": "2026-08-21T23:40:45.007Z",
+    "updatedAt": "2026-08-21T23:41:46.555Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8b8dc12fc49e50327732c6",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Luz magnin",
+    "phone": "+54 5491167112901",
+    "email": "magninlu@gmail.com",
+    "birthDate": null,
+    "phoneHash": "152a46ab9c432abd3a479f0b5785f0b6ebe49945e61bf9e7a1d2d7b1e51113ad",
+    "status": "active",
+    "joinedAt": "2026-08-24T00:18:09.415Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 5,
+      "totalSpent": 19871730,
+      "lastOrderAt": "2026-09-27T23:24:12.523Z",
+      "updatedAt": "2026-09-27T23:24:12.523Z"
+    },
+    "loyalty": {
+      "points": 10969,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:56:55.409Z",
+    "lastRewardAdvanceAttemptedBy": "admin",
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 5,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-27T23:22:54.694Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-07T00:19:36.394Z",
+          "_id": "6a9e0318f34fbce41a812292"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-Z4YJ-YIV5-C2DN"
+    },
+    "notes": "",
+    "createdAt": "2026-08-24T00:18:09.417Z",
+    "updatedAt": "2026-09-30T22:56:55.410Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8e300545d7bb4b2c9ff914",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Michela",
+    "phone": "+54 1131128274",
+    "email": "michelamoretta@hotmail.com",
+    "birthDate": "2001-08-17T00:00:00.000Z",
+    "phoneHash": "864abe4c60b3af444a67d2119c2fc7f80df9fe643f898e157161652b5ce386b2",
+    "status": "active",
+    "joinedAt": "2026-08-26T00:15:01.989Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 18673116,
+      "lastOrderAt": "2026-09-30T00:35:15.551Z",
+      "updatedAt": "2026-09-30T00:35:15.551Z"
+    },
+    "loyalty": {
+      "points": 10054,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": "2026-09-30T22:55:23.493Z",
+    "lastRewardAdvanceAttemptedBy": "admin",
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-30T00:34:04.267Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-30T00:34:04.503Z",
+          "_id": "6abc58fcb61f3dec352fed36"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-JVLG-8UHL-SKVA"
+    },
+    "notes": "",
+    "createdAt": "2026-08-26T00:15:01.992Z",
+    "updatedAt": "2026-09-30T22:55:23.494Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8f71ee558a4906ee244644",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Catalina Álvarez",
+    "phone": "+54 1168749191",
+    "email": "alvarezcatasm@gmail.com",
+    "birthDate": "1999-10-13T00:00:00.000Z",
+    "phoneHash": "358a94dea11ff5099ea2ff2b1de17b8eca3a1a17dd2bbaefcf5211103a026bdc",
+    "status": "active",
+    "joinedAt": "2026-08-26T23:08:30.561Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4466000,
+      "lastOrderAt": "2026-08-26T23:10:22.677Z",
+      "updatedAt": "2026-08-26T23:10:22.677Z"
+    },
+    "loyalty": {
+      "points": 2486,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-26T23:08:31.717Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-8N2A-HM5Q-U0JY"
+    },
+    "notes": "",
+    "createdAt": "2026-08-26T23:08:30.564Z",
+    "updatedAt": "2026-08-26T23:10:22.678Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a8f81b17db4e701bf25f369",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Julieta",
+    "phone": "+54 2995704719",
+    "email": "juliicaputo@gmail.com",
+    "birthDate": null,
+    "phoneHash": "440d9698f4de9c7bda1e791a751f08c90808d2d480e3b0e8c3be871388a2a7b9",
+    "status": "active",
+    "joinedAt": "2026-08-27T00:15:45.554Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4100516,
+      "lastOrderAt": "2026-08-27T01:35:28.891Z",
+      "updatedAt": "2026-08-27T01:35:28.891Z"
+    },
+    "loyalty": {
+      "points": 2343,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-27T00:15:46.600Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-88UV-N7LN-0KZ7"
+    },
+    "notes": "",
+    "createdAt": "2026-08-27T00:15:45.556Z",
+    "updatedAt": "2026-08-27T01:35:28.891Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a90cec0f55d6ef2548a73ba",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Pablo",
+    "phone": "+54 1158188943",
+    "email": "iglesiapablod@gmail.com",
+    "birthDate": "1992-03-17T00:00:00.000Z",
+    "phoneHash": "9b521619444def08fc0a885e4920015a0bc32d546f25c7d070548a6f1237e6b8",
+    "status": "active",
+    "joinedAt": "2026-08-27T23:56:48.010Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4968425,
+      "lastOrderAt": "2026-08-28T00:02:44.200Z",
+      "updatedAt": "2026-08-28T00:02:44.200Z"
+    },
+    "loyalty": {
+      "points": 2742,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-27T23:56:49.101Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-X9NL-JTRO-UIBH"
+    },
+    "notes": "",
+    "createdAt": "2026-08-27T23:56:48.012Z",
+    "updatedAt": "2026-08-28T00:02:44.201Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a921cd858207bce6c24f1e9",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Victoria",
+    "phone": "+54 1159240699",
+    "email": "vickyargentina@msn.com",
+    "birthDate": null,
+    "phoneHash": "22763fb51fbc00695ad7c1026fc09d58eddad2810428fb9429706072dc453bc7",
+    "status": "active",
+    "joinedAt": "2026-08-28T23:42:16.035Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 3900000,
+      "lastOrderAt": "2026-08-28T23:42:43.910Z",
+      "updatedAt": "2026-08-28T23:42:43.910Z"
+    },
+    "loyalty": {
+      "points": 2343,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-28T23:42:17.035Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-GNFD-JLUS-OSWB"
+    },
+    "notes": "",
+    "createdAt": "2026-08-28T23:42:16.037Z",
+    "updatedAt": "2026-08-28T23:42:43.910Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a92312bf7b8dc40a712b34d",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "tomas",
+    "phone": "+54 1130078755",
+    "email": "tomasblasutig@gmail.com",
+    "birthDate": null,
+    "phoneHash": "bb6cec878b0fd1adaf3daaa4ec07696b3f029ffdcaba0b0c903bb7f15d68b66e",
+    "status": "active",
+    "joinedAt": "2026-08-29T01:08:59.941Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2283750,
+      "lastOrderAt": "2026-08-29T01:09:40.652Z",
+      "updatedAt": "2026-08-29T01:09:40.652Z"
+    },
+    "loyalty": {
+      "points": 1250,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-29T01:09:01.080Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-8XQK-FI2T-JZIJ"
+    },
+    "notes": "",
+    "createdAt": "2026-08-29T01:08:59.943Z",
+    "updatedAt": "2026-08-29T01:09:40.653Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a936cd52ee12cdc580ae811",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "wendorff.michelle@gmail.com",
+    "phone": "+54 1168988948",
+    "email": "wendorff.michelle@gmail.com",
+    "birthDate": null,
+    "phoneHash": "11b98174f4864ccdf9f2be72380556f6f7ad55fb7b3d68bd391fb8468f195f94",
+    "status": "active",
+    "joinedAt": "2026-08-29T23:35:49.427Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 7596468,
+      "lastOrderAt": "2026-10-01T23:30:53.393Z",
+      "updatedAt": "2026-10-01T23:30:53.393Z"
+    },
+    "loyalty": {
+      "points": 3910,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 3,
+      "nearbyPurchases": 3,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-10-01T23:30:16.451Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-05T23:25:50.055Z",
+          "_id": "6a9ca4fe6317276062ebff99"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-9NKN-XROC-TX1Y"
+    },
+    "notes": "",
+    "createdAt": "2026-08-29T23:35:49.429Z",
+    "updatedAt": "2026-10-01T23:30:53.393Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a936ffed10c13a4f64a7bc2",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Maia",
+    "phone": "+54 1156628434",
+    "email": "maiakolodny@gmail.com",
+    "birthDate": null,
+    "phoneHash": "11b367dd2ecbdb933f11b66dc0ec3271d66d07dff055feacdd12654978592fdd",
+    "status": "active",
+    "joinedAt": "2026-08-29T23:49:18.501Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2207625,
+      "lastOrderAt": "2026-08-29T23:49:39.032Z",
+      "updatedAt": "2026-08-29T23:49:39.032Z"
+    },
+    "loyalty": {
+      "points": 1178,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-29T23:49:19.583Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-E7ZV-H09Q-VJNS"
+    },
+    "notes": "",
+    "createdAt": "2026-08-29T23:49:18.502Z",
+    "updatedAt": "2026-08-29T23:49:39.032Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a937db647941a204b3315a3",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Javier",
+    "phone": "+54 1138129352",
+    "email": "javier.galban20@gmail.com",
+    "birthDate": "1993-02-10T00:00:00.000Z",
+    "phoneHash": "2728850b6998105a3fb5f1c1899ca96cb88a2fed4e960590a85d90585a94de04",
+    "status": "active",
+    "joinedAt": "2026-08-30T00:47:50.534Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 9147308,
+      "lastOrderAt": "2026-09-02T00:11:19.360Z",
+      "updatedAt": "2026-09-02T00:11:19.360Z"
+    },
+    "loyalty": {
+      "points": 4873,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 3,
+      "nearbyPurchases": 2,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-16T01:10:13.050Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-02T00:10:25.483Z",
+          "_id": "6a976971b1e065f0a0b91b86"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-BB2O-R4XC-KVW5"
+    },
+    "notes": "",
+    "createdAt": "2026-08-30T00:47:50.536Z",
+    "updatedAt": "2026-09-16T01:10:13.050Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a93836b8f293575c014e6f1",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Ignacio Pavioni",
+    "phone": "+54 1135086068",
+    "email": "pavioni.ignacio@gmail.com",
+    "birthDate": "1998-10-28T00:00:00.000Z",
+    "phoneHash": "bb6ec0ee115ee70c6f330d27d4b0096f1bfc8a1af549ccb5865683ba2a1fab08",
+    "status": "active",
+    "joinedAt": "2026-08-30T01:12:11.499Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 11260000,
+      "lastOrderAt": "2026-08-30T01:13:47.335Z",
+      "updatedAt": "2026-08-30T01:13:47.335Z"
+    },
+    "loyalty": {
+      "points": 6575,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-30T01:12:12.512Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-NBKL-AGXE-C8OO"
+    },
+    "notes": "",
+    "createdAt": "2026-08-30T01:12:11.501Z",
+    "updatedAt": "2026-08-30T01:13:47.335Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a94e5d4678c559a090e96fe",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Fermín Zaldúa",
+    "phone": "+54 02284534496",
+    "email": "ferzaldua01@gmail.com",
+    "birthDate": "1997-08-26T00:00:00.000Z",
+    "phoneHash": "dfa91d6b3c18c10d357d3c6bf85fc9812c4d0b81ba97e913094fdae19eeee422",
+    "status": "active",
+    "joinedAt": "2026-08-31T02:24:20.038Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 6207970,
+      "lastOrderAt": "2026-08-31T02:25:21.060Z",
+      "updatedAt": "2026-08-31T02:25:21.060Z"
+    },
+    "loyalty": {
+      "points": 3608,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-08-31T02:24:21.052Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-GJOX-EFJA-O4K7"
+    },
+    "notes": "",
+    "createdAt": "2026-08-31T02:24:20.041Z",
+    "updatedAt": "2026-08-31T02:25:21.060Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9771dfe706b35926532ede",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Agustin",
+    "phone": "+54 5491132453185",
+    "email": "agus.alastra21@gmail.com",
+    "birthDate": "2001-07-23T00:00:00.000Z",
+    "phoneHash": "723a112528f2f121a58cca383044ba6bb36a9d3f51672bd6f9f306f3c310e81d",
+    "status": "active",
+    "joinedAt": "2026-09-02T00:46:23.544Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 6000000,
+      "lastOrderAt": "2026-09-02T01:10:52.259Z",
+      "updatedAt": "2026-09-02T01:10:52.259Z"
+    },
+    "loyalty": {
+      "points": 3550,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-02T01:10:06.660Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-OPZB-ZE04-C7OP"
+    },
+    "notes": "",
+    "createdAt": "2026-09-02T00:46:23.549Z",
+    "updatedAt": "2026-09-02T01:10:52.259Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a98d135c3512891efd4ac6e",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Franco",
+    "phone": "+54 1126443971",
+    "email": "cornejofranco912@gmail.com",
+    "birthDate": null,
+    "phoneHash": "6886b91d719373ecf909bcd73a87ce567e4814b719c31bef9cea9f0adfdd01a9",
+    "status": "active",
+    "joinedAt": "2026-09-03T01:45:25.225Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 6600000,
+      "lastOrderAt": "2026-09-03T01:48:39.533Z",
+      "updatedAt": "2026-09-03T01:48:39.533Z"
+    },
+    "loyalty": {
+      "points": 3895,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-03T01:45:26.630Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-OO31-ADUJ-INWW"
+    },
+    "notes": "",
+    "createdAt": "2026-09-03T01:45:25.227Z",
+    "updatedAt": "2026-09-03T01:48:39.533Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a99f7c7480ac1c4f1ed57b5",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Flor",
+    "phone": "+54 1161475466",
+    "email": "florencia.zincosky@gmail.com",
+    "birthDate": null,
+    "phoneHash": "67f781392ef55f621ee963730f023e07a793522f35be902412056518ae0c9480",
+    "status": "active",
+    "joinedAt": "2026-09-03T22:42:15.656Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2000000,
+      "lastOrderAt": "2026-09-03T22:46:42.235Z",
+      "updatedAt": "2026-09-03T22:46:42.235Z"
+    },
+    "loyalty": {
+      "points": 1250,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-03T22:42:16.737Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-YI8C-54KY-0OT0"
+    },
+    "notes": "",
+    "createdAt": "2026-09-03T22:42:15.658Z",
+    "updatedAt": "2026-09-03T22:46:42.235Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a99ff35bd30b7c53ad4c1b6",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "nianya",
+    "phone": "+54 1157458193",
+    "email": "corito.8@gmail.com",
+    "birthDate": null,
+    "phoneHash": "8b63beda889f3d0a3d7025a442bf266934cf131149d2db5d9e3c21e72113750a",
+    "status": "active",
+    "joinedAt": "2026-09-03T23:13:57.423Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 3,
+      "totalSpent": 7909500,
+      "lastOrderAt": "2026-09-20T02:36:12.346Z",
+      "updatedAt": "2026-09-20T02:36:12.346Z"
+    },
+    "loyalty": {
+      "points": 4153,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 3,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-20T02:33:00.578Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-13T00:15:08.154Z",
+          "_id": "6aa5eb0cdefab2dfcb43b5b1"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-ERAH-AYFM-RDP3"
+    },
+    "notes": "",
+    "createdAt": "2026-09-03T23:13:57.424Z",
+    "updatedAt": "2026-09-20T02:36:12.346Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9b6d3f35045c8c1c4e7170",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Nacho",
+    "phone": "+54 1122459185",
+    "email": "nachitoandereggen@gmail.com",
+    "birthDate": null,
+    "phoneHash": "6b72b6b283245921cd5d7eeb6754657e82b4a3ffc1beea0492d81c75b0355014",
+    "status": "active",
+    "joinedAt": "2026-09-05T01:15:43.988Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5887920,
+      "lastOrderAt": "2026-09-05T01:16:42.679Z",
+      "updatedAt": "2026-09-05T01:16:42.679Z"
+    },
+    "loyalty": {
+      "points": 3205,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-05T01:15:45.117Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-B480-R369-Y1KG"
+    },
+    "notes": "",
+    "createdAt": "2026-09-05T01:15:43.991Z",
+    "updatedAt": "2026-09-05T01:16:42.679Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9cac3e0e810fbd63139bd8",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "userId": "6a6401427591636aac4f21a8",
+    "name": "Cecilia",
+    "phone": "+54 1122525066",
+    "email": "ceci.s.feng@gmail.com",
+    "birthDate": null,
+    "phoneHash": "0a3b49a0c38705f4786e978451c30448c50037297cd9b8b285dd4358436c9ec3",
+    "status": "active",
+    "joinedAt": "2026-09-05T23:56:46.053Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-05T23:56:47.168Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-FLZ1-32XV-782C"
+    },
+    "notes": "",
+    "createdAt": "2026-09-05T23:56:46.055Z",
+    "updatedAt": "2026-09-05T23:56:47.168Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a9cadd0727e5fe332f1db41",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Jose",
+    "phone": "+54 1132074484",
+    "email": "joseantoniovaz@gmail.com",
+    "birthDate": "1972-05-07T00:00:00.000Z",
+    "phoneHash": "ff79eaf8ebe60a71bde045fd50fe9fb409ac9e8e2c5eb05ffa64e7162f35b76b",
+    "status": "active",
+    "joinedAt": "2026-09-06T00:03:28.338Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4783935,
+      "lastOrderAt": "2026-09-06T00:04:32.367Z",
+      "updatedAt": "2026-09-06T00:04:32.367Z"
+    },
+    "loyalty": {
+      "points": 2601,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-06T00:03:29.425Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-P3KK-3J0G-MYQM"
+    },
+    "notes": "",
+    "createdAt": "2026-09-06T00:03:28.339Z",
+    "updatedAt": "2026-09-06T00:04:32.367Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa098bbe618b925396b72f8",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6aa098bbe618b925396b72f4",
+    "name": "Lucio González Calderón",
+    "phone": "+54 1159927326",
+    "email": "luciogonzalezc@gmail.com",
+    "birthDate": null,
+    "phoneHash": "b27cd0f3ae1f2539cf0d12072ac4a7fc86210ca26a03c4121c19a7f84eb52181",
+    "status": "active",
+    "joinedAt": "2026-09-08T23:22:35.384Z",
+    "source": "promotion",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 100,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-IWR1-2NNA-02VP"
+    },
+    "notes": "",
+    "createdAt": "2026-09-08T23:22:35.386Z",
+    "updatedAt": "2026-09-08T23:22:35.386Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa495d98f278973e9c786f3",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "katja furgiuele",
+    "phone": "+54 1135119414",
+    "email": "katu.furgiuele@gmail.com",
+    "birthDate": "1998-09-27T00:00:00.000Z",
+    "phoneHash": "9380fbc1d1f805877e9fa3b633fd344f8fede97a796ce67c0a36b9bd84944dc0",
+    "status": "active",
+    "joinedAt": "2026-09-11T23:59:21.961Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5924600,
+      "lastOrderAt": "2026-09-12T00:04:36.856Z",
+      "updatedAt": "2026-09-12T00:04:36.856Z"
+    },
+    "loyalty": {
+      "points": 3343,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-11T23:59:23.072Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-EKUO-Q33L-VOS0"
+    },
+    "notes": "",
+    "createdAt": "2026-09-11T23:59:21.963Z",
+    "updatedAt": "2026-09-12T00:04:36.856Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa5d0172252a6e1ef2e8021",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Emma",
+    "phone": "+54 1126370134",
+    "email": "emmaoviedoortodoncia@gmail.com",
+    "birthDate": "1999-10-09T00:00:00.000Z",
+    "phoneHash": "faa0e8bc38be7b4cbd24c3d272759ba4f63887293e546c2b2fec399b7eb7f97f",
+    "status": "active",
+    "joinedAt": "2026-09-12T22:20:07.645Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 7850000,
+      "lastOrderAt": "2026-09-21T01:07:16.056Z",
+      "updatedAt": "2026-09-21T01:07:16.056Z"
+    },
+    "loyalty": {
+      "points": 4614,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 2,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-21T01:04:56.804Z",
+      "badges": [
+        {
+          "id": "primer_impacto",
+          "unlockedAt": "2026-09-21T01:04:57.074Z",
+          "_id": "6ab082b980fa787f65acf96c"
+        }
+      ]
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-IA4R-5A0T-UUCK"
+    },
+    "notes": "",
+    "createdAt": "2026-09-12T22:20:07.648Z",
+    "updatedAt": "2026-09-21T01:07:16.057Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa71de1d4f76f3dec144899",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Morena",
+    "phone": "+54 91125617687",
+    "email": "morenacasoy19@gmail.com",
+    "birthDate": null,
+    "phoneHash": "c9bc1811c9983d2654e488cb31435e901232bf48207b85f4b8fce22e90408142",
+    "status": "active",
+    "joinedAt": "2026-09-13T22:04:17.873Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 5823047,
+      "lastOrderAt": "2026-09-14T00:15:51.132Z",
+      "updatedAt": "2026-09-14T00:15:51.132Z"
+    },
+    "loyalty": {
+      "points": 3254,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-13T22:04:18.947Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-DSYC-8NA3-0BKX"
+    },
+    "notes": "",
+    "createdAt": "2026-09-13T22:04:17.875Z",
+    "updatedAt": "2026-09-14T00:15:51.132Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aac72956c7a546e946945a7",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Mauricio Davico",
+    "phone": "+54 93446370991",
+    "email": "mauridavico@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "fac53c97440ceee96b0abe4d367619c450a82ca3435f8fb4beff8d3e419aab97",
+    "status": "active",
+    "joinedAt": "2026-09-17T23:07:01.018Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5388498,
+      "lastOrderAt": "2026-09-17T23:08:59.151Z",
+      "updatedAt": "2026-09-17T23:08:59.151Z"
+    },
+    "loyalty": {
+      "points": 2932,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-17T23:07:02.146Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-VG8P-IJOP-388R"
+    },
+    "notes": "",
+    "createdAt": "2026-09-17T23:07:01.019Z",
+    "updatedAt": "2026-09-17T23:08:59.151Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aade18b4bb37ef8191e41fa",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Nicolás",
+    "phone": "+54 1172349204",
+    "email": "nicoogalvan.ng@gmail.com",
+    "birthDate": "2000-03-01T00:00:00.000Z",
+    "phoneHash": "fc9a88016dfa3290b92ce0327e6551c1d68b35b5599bef5fc622e44ba64a9875",
+    "status": "active",
+    "joinedAt": "2026-09-19T01:12:43.513Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 6390000,
+      "lastOrderAt": "2026-09-19T01:15:18.392Z",
+      "updatedAt": "2026-09-19T01:15:18.392Z"
+    },
+    "loyalty": {
+      "points": 3550,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-19T01:12:44.619Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-65YQ-O2UZ-5XRE"
+    },
+    "notes": "",
+    "createdAt": "2026-09-19T01:12:43.515Z",
+    "updatedAt": "2026-09-19T01:15:18.392Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaf1888275cae18cbcaf73c",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Luciana Tarzia",
+    "phone": "+54 1122540905",
+    "email": "luli.tarzia@gmail.com",
+    "birthDate": "1997-10-23T00:00:00.000Z",
+    "phoneHash": "dea65453865be13a69470519e52e49d2b3af92ec1af3db03e5367af683296176",
+    "status": "active",
+    "joinedAt": "2026-09-19T23:19:36.947Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4307000,
+      "lastOrderAt": "2026-09-19T23:23:40.263Z",
+      "updatedAt": "2026-09-19T23:23:40.263Z"
+    },
+    "loyalty": {
+      "points": 2285,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-19T23:19:38.107Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-OOV0-GYOR-R59C"
+    },
+    "notes": "",
+    "createdAt": "2026-09-19T23:19:36.948Z",
+    "updatedAt": "2026-09-19T23:23:40.263Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aaf340f994a797c051e5eae",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Nicolás",
+    "phone": "+54 1166521286",
+    "email": "nico.gati@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "5ae627020f76d9ac6e8f2e4beb0966dcc8757388607568230ee94f4841286520",
+    "status": "active",
+    "joinedAt": "2026-09-20T01:17:03.827Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2200000,
+      "lastOrderAt": "2026-09-20T01:18:22.915Z",
+      "updatedAt": "2026-09-20T01:18:22.915Z"
+    },
+    "loyalty": {
+      "points": 1365,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-20T01:17:04.800Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-DBYU-LE4G-QSXM"
+    },
+    "notes": "",
+    "createdAt": "2026-09-20T01:17:03.829Z",
+    "updatedAt": "2026-09-20T01:18:22.916Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab067d755d4642915c4196e",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6ab067d36bf2ab8e5e895732",
+    "name": "ilan alfici",
+    "phone": null,
+    "email": "ialfici@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-09-20T23:10:15.830Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-ZO1G-MK20-KA9Q"
+    },
+    "notes": "",
+    "createdAt": "2026-09-20T23:10:15.832Z",
+    "updatedAt": "2026-09-20T23:10:15.832Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab0717e9a62f8617882ca49",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": null,
+    "userId": "6ab0717a6bf2ab8e5e89700a",
+    "name": "Cesare Francesco Arriaga",
+    "phone": null,
+    "email": "arriaga.francesco@gmail.com",
+    "birthDate": null,
+    "phoneHash": null,
+    "status": "active",
+    "joinedAt": "2026-09-20T23:51:26.821Z",
+    "source": "explore",
+    "cache": {
+      "totalOrders": 0,
+      "totalSpent": 0,
+      "lastOrderAt": null,
+      "updatedAt": null
+    },
+    "loyalty": {
+      "points": 0,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 0,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 0,
+      "discoveredBusinessesList": [],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": null,
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-MLBE-31Z8-4DIM"
+    },
+    "notes": "",
+    "createdAt": "2026-09-20T23:51:26.824Z",
+    "updatedAt": "2026-09-20T23:51:26.824Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab075191a479680f060c841",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Gonzalo",
+    "phone": "+54 1169300277",
+    "email": "gonzfalcon98@gmail.com",
+    "birthDate": "1998-06-23T00:00:00.000Z",
+    "phoneHash": "0beacb0313a91a6f9f63a6f35f6f918300f8299252af6fe48c3f2af385bc61d7",
+    "status": "active",
+    "joinedAt": "2026-09-21T00:06:49.735Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 10500000,
+      "lastOrderAt": "2026-09-21T00:07:14.769Z",
+      "updatedAt": "2026-09-21T00:07:14.769Z"
+    },
+    "loyalty": {
+      "points": 6138,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-21T00:06:50.792Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-NM8G-31AD-QWZR"
+    },
+    "notes": "",
+    "createdAt": "2026-09-21T00:06:49.739Z",
+    "updatedAt": "2026-09-21T00:07:14.769Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab084744a72d796bd5abbb2",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Mateo Rivas",
+    "phone": "+54 1156400185",
+    "email": "mateohope244@gmail.com",
+    "birthDate": "2007-10-06T00:00:00.000Z",
+    "phoneHash": "df3a5e7f5dd0bdec1c8c0aba43a5cfeb8efed23bc3e16448c028d340b20fb06a",
+    "status": "active",
+    "joinedAt": "2026-09-21T01:12:20.843Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 5340000,
+      "lastOrderAt": "2026-09-21T01:16:48.728Z",
+      "updatedAt": "2026-09-21T01:16:48.728Z"
+    },
+    "loyalty": {
+      "points": 3171,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-21T01:12:21.814Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-PZF4-04VI-Y5HT"
+    },
+    "notes": "",
+    "createdAt": "2026-09-21T01:12:20.845Z",
+    "updatedAt": "2026-09-21T01:16:48.728Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab30e103aefaab4cfe5759a",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Sofía",
+    "phone": "+54 1162102313",
+    "email": "sofiavignapiano@hotmail.com",
+    "birthDate": null,
+    "phoneHash": "bc25bfd76432c55a9aedb892d4fcd59bf1daaf9607ef3a5f074cf11ed59e0d73",
+    "status": "active",
+    "joinedAt": "2026-09-22T23:24:00.938Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 2,
+      "totalSpent": 5638819,
+      "lastOrderAt": "2026-09-23T00:05:48.214Z",
+      "updatedAt": "2026-09-23T00:05:48.214Z"
+    },
+    "loyalty": {
+      "points": 2889,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-22T23:24:02.050Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-6LJE-15WB-AG5A"
+    },
+    "notes": "",
+    "createdAt": "2026-09-22T23:24:00.940Z",
+    "updatedAt": "2026-09-23T00:05:48.215Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab5b0e60d7bcdbe87c2d3ac",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Kerlis Aguado",
+    "phone": "+54 1154635604",
+    "email": "kerlis.aguado26@gmail.com",
+    "birthDate": "1998-03-26T00:00:00.000Z",
+    "phoneHash": "54a34a64991edc31f32ea4e95e5401c645e3124c6d47360e83d39314339f45da",
+    "status": "active",
+    "joinedAt": "2026-09-24T23:23:18.307Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 4941647,
+      "lastOrderAt": "2026-09-24T23:25:08.037Z",
+      "updatedAt": "2026-09-24T23:25:08.037Z"
+    },
+    "loyalty": {
+      "points": 2803,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-24T23:23:19.398Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-QMK0-LHW7-YYZ1"
+    },
+    "notes": "",
+    "createdAt": "2026-09-24T23:23:18.313Z",
+    "updatedAt": "2026-09-24T23:25:08.037Z",
+    "__v": 0
+  },
+  {
+    "_id": "6ab9bf1254f2be347d91b52e",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "BASI",
+    "phone": "+54 01154003971",
+    "email": "sofi1213@yahoo.com.ar",
+    "birthDate": null,
+    "phoneHash": "15dffffdcc142df6f606b051000fd93424c07ada5b81f90a3acc1b9ac77b9716",
+    "status": "active",
+    "joinedAt": "2026-09-28T01:12:50.354Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 2230000,
+      "lastOrderAt": "2026-09-28T01:13:14.596Z",
+      "updatedAt": "2026-09-28T01:13:14.596Z"
+    },
+    "loyalty": {
+      "points": 1250,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 1,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-09-28T01:12:51.524Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-OOL7-GOAD-2W3S"
+    },
+    "notes": "",
+    "createdAt": "2026-09-28T01:12:50.356Z",
+    "updatedAt": "2026-09-28T01:13:14.596Z",
+    "__v": 0
+  },
+  {
+    "_id": "6abda6ef9c5654e53d567347",
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "locationId": "69f8c0cdd3fcc97fd64bec9d",
+    "name": "Sol",
+    "phone": "+54 1131875509",
+    "email": "mariasolmobilia@gmail.com",
+    "birthDate": null,
+    "phoneHash": "e042669c5eb8ce391171f29937f9f14debb2020c301eab8bbf5fe91c04d3b1ee",
+    "status": "active",
+    "joinedAt": "2026-10-01T00:18:55.120Z",
+    "source": "checkout",
+    "cache": {
+      "totalOrders": 1,
+      "totalSpent": 15035223,
+      "lastOrderAt": "2026-10-01T00:19:43.784Z",
+      "updatedAt": "2026-10-01T00:19:43.784Z"
+    },
+    "loyalty": {
+      "points": 8150,
+      "tier": "none"
+    },
+    "sosConfig": {
+      "maxSosAllowed": 100,
+      "hasPendingSos": false,
+      "sosUsed": 0
+    },
+    "lastRewardAdvanceAttemptedAt": null,
+    "lastRewardAdvanceAttemptedBy": null,
+    "tokenVersion": 1,
+    "deviceFingerprints": [],
+    "store": {
+      "totalRedemptions": 0,
+      "totalPointsSpent": 0,
+      "lastRedemptionAt": null
+    },
+    "userImpact": {
+      "commercesSupported": 1,
+      "nearbyPurchases": 0,
+      "discoveredBusinesses": 1,
+      "discoveredBusinessesList": [
+        "69f8c0cdd3fcc97fd64bec9d"
+      ],
+      "discoveredNeighborhoods": [],
+      "lastImpactAt": "2026-10-01T00:18:56.231Z",
+      "badges": []
+    },
+    "wallet": {
+      "googleObjectId": null,
+      "appleDeviceLibraryIdentifier": null,
+      "pushToken": null,
+      "installedAt": null,
+      "lastSyncAt": null,
+      "publicId": "TGO-SGS2-DG5F-5US9"
+    },
+    "notes": "",
+    "createdAt": "2026-10-01T00:18:55.121Z",
+    "updatedAt": "2026-10-01T00:19:43.785Z",
+    "__v": 0
+  }
+]
