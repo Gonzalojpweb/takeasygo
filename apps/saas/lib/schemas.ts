@@ -115,6 +115,15 @@ export const resetPasswordSchema = z.object({
 
 export const createPaymentPreferenceSchema = z.object({
   orderId: objectIdSchema,
+  /**
+   * `true` = la preferencia se está reintentando desde el flujo de emergencia
+   * (el cliente ya creó el pedido y el pago falló). En ese contexto la orden
+   * NO se cancela si la preferencia falla: el cliente conserva el pedido y
+   * puede elegir otro método (efectivo/transferencia).
+   *
+   * Omitirlo (o `false`) mantiene el rollback de creación inicial sin cambios.
+   */
+  retry: z.boolean().optional().default(false),
 })
 
 // ── Visit logging (menú público) ────────────────────────────────────────────
