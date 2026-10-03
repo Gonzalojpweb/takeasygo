@@ -682,10 +682,14 @@ async function handleSubmit(e: React.FormEvent) {
       captureRewardAdvanceAccepted(missingPoints)
     }
 
-    sessionStorage.removeItem(`cart_${tenantSlug}`)
+    // NOTA: el carrito NO se limpia acá. Se limpia recién cuando la preferencia
+    // de pago está creada (o se navega a tracking). Si create-preference falla,
+    // el rollback cancela la orden y el cliente necesita el carrito para
+    // reintentar — limpiarlo antes lo dejaba sin nada.
 
     // Transferencia: no redirigir a pasarela, mostrar datos bancarios en tracking
     if (selectedPaymentMethod === 'transfer') {
+      sessionStorage.removeItem(`cart_${tenantSlug}`)
       router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       return
     }
@@ -694,6 +698,7 @@ async function handleSubmit(e: React.FormEvent) {
     const skipPayment = mode === 'business' && businessInfo?.paymentMode === 'deferred'
 
     if (skipPayment) {
+      sessionStorage.removeItem(`cart_${tenantSlug}`)
       router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       return
     }
@@ -720,6 +725,7 @@ async function handleSubmit(e: React.FormEvent) {
         }))
       } catch {}
 
+      sessionStorage.removeItem(`cart_${tenantSlug}`)
       setRedirectingToMp(true)
       setTimeout(() => {
         window.location.href = url
@@ -730,7 +736,12 @@ async function handleSubmit(e: React.FormEvent) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderId: order._id }),
       })
-      if (!prefRes.ok) throw new Error('Error al crear el pago')
+      if (!prefRes.ok) {
+        const errData = await prefRes.json().catch(() => null)
+        // El servidor hizo rollback de la orden (queda cancelada, no zombie)
+        // y el carrito sigue intacto: el cliente puede reintentar de una.
+        throw new Error(errData?.error || 'No se pudo iniciar el pago. Revisá la configuración de la cuenta.')
+      }
       const { sandboxInitPoint, initPoint } = await prefRes.json()
 
       const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
@@ -744,6 +755,7 @@ async function handleSubmit(e: React.FormEvent) {
         }))
       } catch {}
 
+      sessionStorage.removeItem(`cart_${tenantSlug}`)
       setRedirectingToMp(true)
       setTimeout(() => {
         window.location.href = redirectUrl

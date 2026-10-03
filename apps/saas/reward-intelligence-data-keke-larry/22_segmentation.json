@@ -1,0 +1,3443 @@
+[
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "AT_RISK",
+    "healthScore": {
+      "total": 67,
+      "components": {
+        "frequency": 100,
+        "recency": 25,
+        "ltv": 85.9349593495935,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 75
+      },
+      "calculatedAt": "2026-09-18T04:47:02.822Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "high_potential",
+      "dormant",
+      "at_risk"
+    ],
+    "orderCount": 3,
+    "totalSpent": 11200000,
+    "lastOrderAt": "2026-08-15T00:04:48.096Z",
+    "updatedAt": "2026-09-18T04:47:03.172Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "DORMANT",
+    "healthScore": {
+      "total": 60,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 77.46067415730337,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-07T04:46:13.803Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "dormant"
+    ],
+    "orderCount": 2,
+    "totalSpent": 7730000,
+    "lastOrderAt": "2026-08-03T00:58:45.716Z",
+    "updatedAt": "2026-09-07T04:46:14.157Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "DORMANT",
+    "healthScore": {
+      "total": 68,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 95.31496062992126,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:47:17.980Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "dormant"
+    ],
+    "orderCount": 2,
+    "totalSpent": 16075000,
+    "lastOrderAt": "2026-08-04T23:03:42.927Z",
+    "updatedAt": "2026-09-18T04:47:18.331Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "HIGH_POTENTIAL",
+    "healthScore": {
+      "total": 63,
+      "components": {
+        "frequency": 100,
+        "recency": 25,
+        "ltv": 62.84440842787683,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 75
+      },
+      "calculatedAt": "2026-09-18T04:45:17.427Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer",
+      "high_potential"
+    ],
+    "orderCount": 3,
+    "totalSpent": 5665000,
+    "lastOrderAt": "2026-08-18T23:25:53.629Z",
+    "updatedAt": "2026-09-18T04:45:17.778Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "HIGH_POTENTIAL",
+    "healthScore": {
+      "total": 65,
+      "components": {
+        "frequency": 100,
+        "recency": 25,
+        "ltv": 84.10569105691057,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 75
+      },
+      "calculatedAt": "2026-09-19T04:46:33.260Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "high_potential"
+    ],
+    "orderCount": 3,
+    "totalSpent": 10525000,
+    "lastOrderAt": "2026-09-05T00:44:59.339Z",
+    "updatedAt": "2026-09-19T04:46:33.610Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 55.889830508474574,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:58.949Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4745000,
+    "lastOrderAt": "2026-06-22T02:36:08.459Z",
+    "updatedAt": "2026-09-13T04:33:59.299Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 44.50757575757576,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:23.763Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3645000,
+    "lastOrderAt": "2026-06-24T14:44:53.904Z",
+    "updatedAt": "2026-09-18T04:47:24.112Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50.040518638573744,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:31.800Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4085000,
+    "lastOrderAt": "2026-06-27T00:20:16.289Z",
+    "updatedAt": "2026-09-18T04:47:32.151Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-18T04:47:36.618Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-18T04:47:36.966Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 64,
+      "components": {
+        "frequency": 100,
+        "recency": 25,
+        "ltv": 49.621212121212125,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:19.062Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4050000,
+    "lastOrderAt": "2026-07-02T00:46:26.266Z",
+    "updatedAt": "2026-09-18T04:45:19.176Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 54.36440677966102,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:44:32.548Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4565000,
+    "lastOrderAt": "2026-06-29T00:34:51.236Z",
+    "updatedAt": "2026-09-07T04:44:32.903Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-18T04:46:39.224Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-18T04:46:39.571Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 51.78282009724473,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:25.970Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4300000,
+    "lastOrderAt": "2026-07-04T23:36:29.026Z",
+    "updatedAt": "2026-09-18T04:45:26.319Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 74,
+      "components": {
+        "frequency": 100,
+        "recency": 32,
+        "ltv": 100,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 80
+      },
+      "calculatedAt": "2026-09-07T04:45:14.596Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 4,
+    "totalSpent": 29100000,
+    "lastOrderAt": "2026-08-28T23:38:34.548Z",
+    "updatedAt": "2026-09-07T04:45:14.950Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:39.719Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 350000,
+    "lastOrderAt": "2026-07-13T01:32:58.601Z",
+    "updatedAt": "2026-09-07T04:45:40.071Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:47.871Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 2077000,
+    "lastOrderAt": "2026-07-13T05:01:51.199Z",
+    "updatedAt": "2026-09-18T04:47:48.221Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 68,
+      "components": {
+        "frequency": 100,
+        "recency": 32,
+        "ltv": 93.4934497816594,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 75
+      },
+      "calculatedAt": "2026-09-07T04:45:42.039Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 3,
+    "totalSpent": 13450000,
+    "lastOrderAt": "2026-08-29T00:06:02.294Z",
+    "updatedAt": "2026-09-07T04:45:42.390Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 35,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 50.25423728813559,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:46.120Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4080000,
+    "lastOrderAt": "2026-07-16T00:24:27.294Z",
+    "updatedAt": "2026-09-07T04:45:46.472Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:51.121Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 1950000,
+    "lastOrderAt": "2026-07-17T00:50:09.883Z",
+    "updatedAt": "2026-09-18T04:47:51.470Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 36,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 55.08474576271186,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:57.855Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4650000,
+    "lastOrderAt": "2026-07-23T02:35:16.675Z",
+    "updatedAt": "2026-09-07T04:45:58.208Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 41,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 79.02439024390245,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:59.053Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 8650000,
+    "lastOrderAt": "2026-07-24T08:34:29.754Z",
+    "updatedAt": "2026-09-18T04:46:59.401Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 48,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 53.88978930307942,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:07.443Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4560000,
+    "lastOrderAt": "2026-07-26T01:05:03.455Z",
+    "updatedAt": "2026-09-18T04:47:07.813Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 42,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:41.941Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-07-26T01:05:26.835Z",
+    "updatedAt": "2026-09-18T04:45:42.292Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 44,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 33.207070707070706,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:09.652Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2750000,
+    "lastOrderAt": "2026-07-30T00:03:33.863Z",
+    "updatedAt": "2026-09-18T04:47:10.003Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 56.35593220338983,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:25.256Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4800000,
+    "lastOrderAt": "2026-08-01T23:11:42.331Z",
+    "updatedAt": "2026-09-07T04:47:25.607Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 48,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:44.496Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4050000,
+    "lastOrderAt": "2026-08-05T23:51:03.648Z",
+    "updatedAt": "2026-09-07T04:47:44.847Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 49,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 77.02247191011236,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:46.527Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal"
+    ],
+    "orderCount": 1,
+    "totalSpent": 7600000,
+    "lastOrderAt": "2026-08-06T00:03:46.516Z",
+    "updatedAt": "2026-09-07T04:47:46.880Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 46,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 47.43589743589744,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:52.372Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3850000,
+    "lastOrderAt": "2026-08-07T00:24:18.760Z",
+    "updatedAt": "2026-09-13T04:33:52.720Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 55,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 77.69662921348315,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:54.127Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 7800000,
+    "lastOrderAt": "2026-08-07T00:33:59.799Z",
+    "updatedAt": "2026-09-13T04:33:54.478Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 90,
+        "recency": 26.785714285714285,
+        "ltv": 58.898305084745765,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-13T04:33:56.221Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth"
+    ],
+    "orderCount": 2,
+    "totalSpent": 5100000,
+    "lastOrderAt": "2026-08-30T22:56:27.757Z",
+    "updatedAt": "2026-09-13T04:33:56.569Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 47,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.401515151515156,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:20.251Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3795000,
+    "lastOrderAt": "2026-06-21T00:39:20.263Z",
+    "updatedAt": "2026-09-18T04:47:20.599Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 56,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 77.59550561797752,
+        "engagement": 96.66666666666667,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:44:13.493Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 7770000,
+    "lastOrderAt": "2026-06-24T23:35:46.207Z",
+    "updatedAt": "2026-09-07T04:44:13.847Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 34,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 42.67676767676768,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:25.481Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 3500000,
+    "lastOrderAt": "2026-06-26T23:29:23.279Z",
+    "updatedAt": "2026-09-18T04:47:25.831Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 15,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-06-30T04:10:00.020Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-06-30T04:10:00.136Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 52,
+      "components": {
+        "frequency": 50,
+        "recency": 42.85714285714286,
+        "ltv": 75,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:46:29.205Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal"
+    ],
+    "orderCount": 2,
+    "totalSpent": 7165000,
+    "lastOrderAt": "2026-09-14T00:34:33.709Z",
+    "updatedAt": "2026-09-18T04:46:29.555Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 45,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 42.234848484848484,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:33.459Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3465000,
+    "lastOrderAt": "2026-06-28T23:52:26.178Z",
+    "updatedAt": "2026-09-18T04:46:33.809Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-07T04:44:47.716Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-07T04:44:48.068Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 44,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 33.83838383838384,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:43.167Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2800000,
+    "lastOrderAt": "2026-07-02T15:01:45.836Z",
+    "updatedAt": "2026-09-18T04:46:43.514Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 52,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 59.110169491525426,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:03.418Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 5125000,
+    "lastOrderAt": "2026-07-04T23:55:21.505Z",
+    "updatedAt": "2026-09-07T04:45:03.772Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 48.358585858585855,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:44.170Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3950000,
+    "lastOrderAt": "2026-07-06T00:40:12.558Z",
+    "updatedAt": "2026-09-18T04:47:44.522Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 40,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 59.32203389830509,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:23.407Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 5150000,
+    "lastOrderAt": "2026-07-06T00:47:44.844Z",
+    "updatedAt": "2026-09-07T04:45:23.760Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 61,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 77.26287262872629,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:45:34.920Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "dormant"
+    ],
+    "orderCount": 2,
+    "totalSpent": 8000000,
+    "lastOrderAt": "2026-08-02T00:28:34.407Z",
+    "updatedAt": "2026-09-18T04:45:35.272Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 46,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 28.156565656565657,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:51.437Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2350000,
+    "lastOrderAt": "2026-07-09T23:17:51.838Z",
+    "updatedAt": "2026-09-18T04:46:51.785Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 53.646677471636956,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:53.442Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4530000,
+    "lastOrderAt": "2026-07-12T23:33:37.263Z",
+    "updatedAt": "2026-09-18T04:46:53.792Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-17T04:09:47.188Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 100,
+    "lastOrderAt": "2026-07-13T03:10:37.825Z",
+    "updatedAt": "2026-07-17T04:09:47.537Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-17T04:09:51.032Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 2700,
+    "lastOrderAt": "2026-07-13T03:34:39.205Z",
+    "updatedAt": "2026-07-17T04:09:51.380Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-17T04:09:53.539Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 100,
+    "lastOrderAt": "2026-07-13T03:36:58.742Z",
+    "updatedAt": "2026-07-17T04:09:53.889Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 56.969205834683954,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:37.851Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4940000,
+    "lastOrderAt": "2026-07-18T00:23:39.702Z",
+    "updatedAt": "2026-09-18T04:45:38.201Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 54.01134521880065,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:39.890Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4575000,
+    "lastOrderAt": "2026-07-23T23:14:14.013Z",
+    "updatedAt": "2026-09-18T04:45:40.241Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 33,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:43.721Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-07-30T23:13:20.800Z",
+    "updatedAt": "2026-09-18T04:45:44.073Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 59,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 72.85251215559157,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:45:45.721Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer",
+      "dormant"
+    ],
+    "orderCount": 2,
+    "totalSpent": 6900000,
+    "lastOrderAt": "2026-08-16T00:52:35.332Z",
+    "updatedAt": "2026-09-18T04:45:46.071Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 52.66949152542373,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:07.702Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4365000,
+    "lastOrderAt": "2026-08-01T00:53:06.884Z",
+    "updatedAt": "2026-09-07T04:47:08.054Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 47,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.794871794871796,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:09.225Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3800000,
+    "lastOrderAt": "2026-08-01T01:09:18.292Z",
+    "updatedAt": "2026-09-07T04:47:09.576Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 44,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 51.271186440677965,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:47:33.644Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4200000,
+    "lastOrderAt": "2026-08-02T00:24:53.882Z",
+    "updatedAt": "2026-09-07T04:47:33.994Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-07T04:08:55.277Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 350000,
+    "lastOrderAt": "2026-06-18T19:48:29.282Z",
+    "updatedAt": "2026-07-07T04:08:55.628Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:11.158Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 1500000,
+    "lastOrderAt": "2026-06-19T16:10:36.909Z",
+    "updatedAt": "2026-09-18T04:46:11.508Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 56,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 78.95663956639567,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:13.568Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 8625000,
+    "lastOrderAt": "2026-06-21T01:16:10.047Z",
+    "updatedAt": "2026-09-18T04:46:13.918Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 58,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 78.6178861788618,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-19T04:46:31.042Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 2,
+    "totalSpent": 8500000,
+    "lastOrderAt": "2026-08-17T00:04:27.780Z",
+    "updatedAt": "2026-09-19T04:46:31.394Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 83.18428184281842,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:18.594Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal"
+    ],
+    "orderCount": 1,
+    "totalSpent": 10185000,
+    "lastOrderAt": "2026-06-20T23:49:27.806Z",
+    "updatedAt": "2026-09-18T04:46:18.944Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 34,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:21.991Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 2045000,
+    "lastOrderAt": "2026-06-20T00:09:42.377Z",
+    "updatedAt": "2026-09-18T04:47:22.342Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 47,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 49.55808080808081,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-19T04:47:53.171Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4045000,
+    "lastOrderAt": "2026-06-25T23:41:33.991Z",
+    "updatedAt": "2026-09-19T04:47:53.543Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 54,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 68.96272285251216,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:29.817Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 6420000,
+    "lastOrderAt": "2026-06-27T00:00:43.547Z",
+    "updatedAt": "2026-09-18T04:47:30.167Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-07T04:44:26.313Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-07T04:44:26.666Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 53.403565640194486,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:14.481Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4500000,
+    "lastOrderAt": "2026-06-30T23:36:30.648Z",
+    "updatedAt": "2026-09-18T04:45:14.833Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:46.430Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-07-02T15:33:09.829Z",
+    "updatedAt": "2026-09-18T04:46:46.781Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 35,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 49.30555555555556,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:48.166Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4025000,
+    "lastOrderAt": "2026-07-04T23:43:17.051Z",
+    "updatedAt": "2026-09-18T04:46:48.514Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 46,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.794871794871796,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:24.572Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3800000,
+    "lastOrderAt": "2026-07-06T01:22:50.831Z",
+    "updatedAt": "2026-09-07T04:45:24.925Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-17T04:09:42.206Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 100,
+    "lastOrderAt": "2026-07-13T02:25:51.670Z",
+    "updatedAt": "2026-07-17T04:09:42.554Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:55.117Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 1800000,
+    "lastOrderAt": "2026-07-15T23:49:42.766Z",
+    "updatedAt": "2026-09-18T04:46:55.465Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 38,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 50.52674230145867,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:49.574Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4145000,
+    "lastOrderAt": "2026-07-16T00:10:46.683Z",
+    "updatedAt": "2026-09-18T04:47:49.924Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 64,
+      "components": {
+        "frequency": 90,
+        "recency": 42,
+        "ltv": 75.67415730337079,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-07T04:45:48.537Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 2,
+    "totalSpent": 7200000,
+    "lastOrderAt": "2026-09-03T02:05:37.751Z",
+    "updatedAt": "2026-09-07T04:45:48.888Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 53,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 61.02106969205835,
+        "engagement": 96.66666666666667,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:52.764Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 5440000,
+    "lastOrderAt": "2026-07-18T01:14:59.867Z",
+    "updatedAt": "2026-09-18T04:47:53.117Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 59,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 93.4061135371179,
+        "engagement": 96.66666666666667,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:42.304Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 13400000,
+    "lastOrderAt": "2026-07-25T00:05:11.872Z",
+    "updatedAt": "2026-09-13T04:33:42.654Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:00.871Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4080000,
+    "lastOrderAt": "2026-07-25T00:05:17.142Z",
+    "updatedAt": "2026-09-18T04:47:01.222Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 54,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 80.40650406504065,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:05.344Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 9160000,
+    "lastOrderAt": "2026-07-26T00:15:46.101Z",
+    "updatedAt": "2026-09-18T04:47:05.696Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 57,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 80.66292134831461,
+        "engagement": 96.66666666666667,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:46.105Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 8680000,
+    "lastOrderAt": "2026-07-31T23:34:52.601Z",
+    "updatedAt": "2026-09-13T04:33:46.456Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 41,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 79.17977528089888,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-13T04:33:48.131Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 8240000,
+    "lastOrderAt": "2026-08-01T23:11:16.630Z",
+    "updatedAt": "2026-09-13T04:33:48.479Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-18T04:46:06.918Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-18T04:46:07.268Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 52,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 53.813559322033896,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-07T04:47:48.690Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth"
+    ],
+    "orderCount": 2,
+    "totalSpent": 4500000,
+    "lastOrderAt": "2026-08-23T02:07:13.071Z",
+    "updatedAt": "2026-09-07T04:47:49.040Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 57,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 75.09485094850949,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:46:16.392Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 2,
+    "totalSpent": 7200000,
+    "lastOrderAt": "2026-08-15T00:02:35.326Z",
+    "updatedAt": "2026-09-18T04:46:16.742Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:21.977Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2045000,
+    "lastOrderAt": "2026-06-20T23:48:48.335Z",
+    "updatedAt": "2026-09-18T04:46:22.328Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25.63131313131313,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:24.628Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2150000,
+    "lastOrderAt": "2026-06-26T23:18:00.561Z",
+    "updatedAt": "2026-09-18T04:46:24.977Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:37.461Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 1900000,
+    "lastOrderAt": "2026-06-29T00:06:00.272Z",
+    "updatedAt": "2026-09-18T04:46:37.811Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 56,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 67.9902755267423,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:46:40.872Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 6300000,
+    "lastOrderAt": "2026-07-01T23:36:49.987Z",
+    "updatedAt": "2026-09-18T04:46:41.224Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50.486223662884925,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:38.940Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4140000,
+    "lastOrderAt": "2026-07-02T00:11:45.107Z",
+    "updatedAt": "2026-09-18T04:47:39.295Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 47,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 48.98989898989899,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:45:22.113Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4000000,
+    "lastOrderAt": "2026-07-05T01:21:26.171Z",
+    "updatedAt": "2026-09-18T04:45:22.464Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-18T04:47:40.923Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-18T04:47:41.272Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 48,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 48.98989898989899,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:46:49.746Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 2,
+    "totalSpent": 4000000,
+    "lastOrderAt": "2026-08-08T00:53:21.825Z",
+    "updatedAt": "2026-09-18T04:46:50.096Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:42.516Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-07-06T00:25:06.522Z",
+    "updatedAt": "2026-09-18T04:47:42.866Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 47,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.15384615384615,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:45:19.697Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3750000,
+    "lastOrderAt": "2026-07-06T00:29:58.564Z",
+    "updatedAt": "2026-09-07T04:45:20.051Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 40,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 73.66288492706644,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:45.981Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 7000000,
+    "lastOrderAt": "2026-07-09T02:40:00.360Z",
+    "updatedAt": "2026-09-18T04:47:46.330Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-07T04:45:36.476Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-07T04:45:36.827Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 30,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-07-16T04:13:44.690Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 1000,
+    "lastOrderAt": "2026-07-13T04:58:26.938Z",
+    "updatedAt": "2026-07-16T04:13:45.053Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-18T04:46:57.249Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-18T04:46:57.599Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:46:03.595Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2100000,
+    "lastOrderAt": "2026-07-25T00:02:16.038Z",
+    "updatedAt": "2026-09-07T04:46:03.946Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-13T04:33:44.502Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-13T04:33:44.852Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.15384615384615,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:46:22.380Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3750000,
+    "lastOrderAt": "2026-07-28T23:16:24.955Z",
+    "updatedAt": "2026-09-07T04:46:22.731Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 52,
+      "components": {
+        "frequency": 90,
+        "recency": 35.714285714285715,
+        "ltv": 59.27876823338735,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-18T04:47:12.315Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth"
+    ],
+    "orderCount": 2,
+    "totalSpent": 5225000,
+    "lastOrderAt": "2026-09-09T23:51:54.438Z",
+    "updatedAt": "2026-09-18T04:47:12.665Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 57,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 83.67977528089888,
+        "engagement": 96.66666666666667,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-07T04:46:27.838Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 9575000,
+    "lastOrderAt": "2026-07-30T15:56:15.023Z",
+    "updatedAt": "2026-09-07T04:46:28.189Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 53,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 63.12803889789303,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:14.311Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 5700000,
+    "lastOrderAt": "2026-07-31T00:00:36.301Z",
+    "updatedAt": "2026-09-18T04:47:14.661Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 42,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 85.25745257452574,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-18T04:47:16.266Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 10950000,
+    "lastOrderAt": "2026-08-02T00:42:44.486Z",
+    "updatedAt": "2026-09-18T04:47:16.615Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 61,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 78.03370786516854,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-13T04:33:49.627Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 2,
+    "totalSpent": 7900000,
+    "lastOrderAt": "2026-08-27T01:02:45.192Z",
+    "updatedAt": "2026-09-13T04:33:49.978Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 75,
+      "components": {
+        "frequency": 100,
+        "recency": 46.42857142857143,
+        "ltv": 90.39370078740157,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 80
+      },
+      "calculatedAt": "2026-09-18T04:46:08.951Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer",
+      "recovered"
+    ],
+    "orderCount": 4,
+    "totalSpent": 12950000,
+    "lastOrderAt": "2026-09-16T01:10:12.535Z",
+    "updatedAt": "2026-09-18T04:46:09.302Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 68,
+      "components": {
+        "frequency": 90,
+        "recency": 25,
+        "ltv": 98.90829694323145,
+        "engagement": 96.66666666666667,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-06T04:47:49.933Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 2,
+    "totalSpent": 16550000,
+    "lastOrderAt": "2026-08-21T23:40:45.495Z",
+    "updatedAt": "2026-09-06T04:47:50.287Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 53,
+      "components": {
+        "frequency": 90,
+        "recency": 34,
+        "ltv": 48.07692307692308,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 66.66666666666666
+      },
+      "calculatedAt": "2026-09-06T04:47:51.578Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 2,
+    "totalSpent": 3900000,
+    "lastOrderAt": "2026-08-28T23:42:16.562Z",
+    "updatedAt": "2026-09-06T04:47:51.931Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 52.96610169491525,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-06T04:47:52.986Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4400000,
+    "lastOrderAt": "2026-08-07T23:25:24.717Z",
+    "updatedAt": "2026-09-06T04:47:53.342Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 57,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 69.49152542372882,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-06T04:33:43.564Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 6350000,
+    "lastOrderAt": "2026-08-08T00:29:54.989Z",
+    "updatedAt": "2026-09-06T04:33:43.919Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 49.23973644196654,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-06T04:33:45.733Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3990000,
+    "lastOrderAt": "2026-08-08T01:13:51.165Z",
+    "updatedAt": "2026-09-06T04:33:46.085Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 42,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25.291434363912824,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-06T04:33:47.549Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2100000,
+    "lastOrderAt": "2026-08-08T01:29:13.130Z",
+    "updatedAt": "2026-09-06T04:33:47.905Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 52,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 55.72033898305085,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-09-06T04:33:51.720Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4725000,
+    "lastOrderAt": "2026-08-08T23:10:30.385Z",
+    "updatedAt": "2026-09-06T04:33:52.075Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-09-06T04:33:53.742Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-09-06T04:33:54.097Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:40.719Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-08-09T02:35:09.301Z",
+    "updatedAt": "2026-08-23T04:39:41.070Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 36,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 54.34782608695652,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:43.262Z"
+    },
+    "signals": [],
+    "orderCount": 1,
+    "totalSpent": 4400000,
+    "lastOrderAt": "2026-08-09T23:28:14.001Z",
+    "updatedAt": "2026-08-23T04:39:43.624Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 42,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25.29901196047842,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:44.950Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2100000,
+    "lastOrderAt": "2026-08-10T02:18:32.211Z",
+    "updatedAt": "2026-08-23T04:39:45.300Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 28.87415496619865,
+        "engagement": 75,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:46.671Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2375000,
+    "lastOrderAt": "2026-08-11T23:12:42.422Z",
+    "updatedAt": "2026-08-23T04:39:47.033Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 42,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 26.599063962558503,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:48.594Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2200000,
+    "lastOrderAt": "2026-08-12T00:08:04.375Z",
+    "updatedAt": "2026-08-23T04:39:48.944Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 58,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 74.45652173913044,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:50.279Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 6250000,
+    "lastOrderAt": "2026-08-12T23:08:34.015Z",
+    "updatedAt": "2026-08-23T04:39:50.642Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:52.922Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 1800000,
+    "lastOrderAt": "2026-08-12T23:26:53.590Z",
+    "updatedAt": "2026-08-23T04:39:53.273Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 44,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50.54347826086956,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:54.657Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4050000,
+    "lastOrderAt": "2026-08-12T23:57:09.839Z",
+    "updatedAt": "2026-08-23T04:39:55.020Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 64,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:56.550Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 21050000,
+    "lastOrderAt": "2026-08-13T15:19:10.578Z",
+    "updatedAt": "2026-08-23T04:39:56.902Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 46,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 46.619864794591784,
+        "engagement": 50,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:39:58.805Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3740000,
+    "lastOrderAt": "2026-08-13T23:44:12.616Z",
+    "updatedAt": "2026-08-23T04:39:59.168Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 48.69994799791992,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:00.672Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3900000,
+    "lastOrderAt": "2026-08-14T00:39:42.049Z",
+    "updatedAt": "2026-08-23T04:40:01.024Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:03.089Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-08-14T01:54:43.932Z",
+    "updatedAt": "2026-08-23T04:40:03.453Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 50,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 49.34997399895996,
+        "engagement": 90,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:08.701Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3950000,
+    "lastOrderAt": "2026-08-14T02:03:55.673Z",
+    "updatedAt": "2026-08-23T04:40:09.052Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 64,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 100,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:11.800Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 18290000,
+    "lastOrderAt": "2026-08-14T15:16:09.181Z",
+    "updatedAt": "2026-08-23T04:40:12.164Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 62,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 90.44642857142857,
+        "engagement": 96.66666666666667,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:14.917Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 11450000,
+    "lastOrderAt": "2026-08-15T01:04:19.459Z",
+    "updatedAt": "2026-08-23T04:40:15.268Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 48.049921996879874,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:17.920Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 3850000,
+    "lastOrderAt": "2026-08-15T15:36:05.358Z",
+    "updatedAt": "2026-08-23T04:40:18.283Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 61,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 92.67857142857143,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:19.927Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "highly_loyal",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 12700000,
+    "lastOrderAt": "2026-08-16T00:38:35.857Z",
+    "updatedAt": "2026-08-23T04:40:20.278Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 55,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 62.5,
+        "engagement": 90,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:23.267Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 5150000,
+    "lastOrderAt": "2026-08-16T00:48:11.420Z",
+    "updatedAt": "2026-08-23T04:40:23.632Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 51,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 50,
+        "engagement": 75,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-23T04:40:26.147Z"
+    },
+    "signals": [
+      "highly_frequent",
+      "spending_growth",
+      "explorer"
+    ],
+    "orderCount": 1,
+    "totalSpent": 4000000,
+    "lastOrderAt": "2026-08-16T01:30:36.151Z",
+    "updatedAt": "2026-08-23T04:40:26.500Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 18,
+      "components": {
+        "frequency": 25,
+        "recency": 0,
+        "ltv": 25,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 0
+      },
+      "calculatedAt": "2026-08-23T04:40:29.750Z"
+    },
+    "signals": [],
+    "orderCount": 0,
+    "totalSpent": 0,
+    "lastOrderAt": null,
+    "updatedAt": "2026-08-23T04:40:30.112Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 27.899115964638586,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-19T04:32:28.359Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2300000,
+    "lastOrderAt": "2026-08-16T23:03:11.341Z",
+    "updatedAt": "2026-08-19T04:32:28.713Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 25,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-19T04:32:30.186Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2000000,
+    "lastOrderAt": "2026-08-16T23:52:57.314Z",
+    "updatedAt": "2026-08-19T04:32:30.536Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "NEW",
+    "healthScore": {
+      "total": 39,
+      "components": {
+        "frequency": 50,
+        "recency": 25,
+        "ltv": 27.899115964638586,
+        "engagement": 50,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 100
+      },
+      "calculatedAt": "2026-08-18T04:44:02.729Z"
+    },
+    "signals": [
+      "highly_frequent"
+    ],
+    "orderCount": 1,
+    "totalSpent": 2300000,
+    "lastOrderAt": "2026-08-17T02:07:27.581Z",
+    "updatedAt": "2026-08-18T04:44:03.085Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 76.47058823529412
+      },
+      "calculatedAt": "2026-07-29T04:28:55.386Z"
+    },
+    "signals": [
+      "recovered"
+    ],
+    "orderCount": 13,
+    "totalSpent": 56158400,
+    "lastOrderAt": "2026-07-28T00:05:52.183Z",
+    "updatedAt": "2026-07-29T04:28:55.745Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 77.77777777777779
+      },
+      "calculatedAt": "2026-07-13T04:42:54.877Z"
+    },
+    "signals": [
+      "recovered"
+    ],
+    "orderCount": 14,
+    "totalSpent": 19936200,
+    "lastOrderAt": "2026-07-13T03:11:29.395Z",
+    "updatedAt": "2026-07-13T04:42:55.230Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 76.19047619047619
+      },
+      "calculatedAt": "2026-07-16T04:12:03.896Z"
+    },
+    "signals": [
+      "recovered"
+    ],
+    "orderCount": 16,
+    "totalSpent": 22136600,
+    "lastOrderAt": "2026-07-14T02:06:34.611Z",
+    "updatedAt": "2026-07-16T04:12:04.246Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 78.26086956521739
+      },
+      "calculatedAt": "2026-07-17T04:08:20.321Z"
+    },
+    "signals": [
+      "recovered"
+    ],
+    "orderCount": 18,
+    "totalSpent": 28036600,
+    "lastOrderAt": "2026-07-17T01:04:59.753Z",
+    "updatedAt": "2026-07-17T04:08:20.668Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 43,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 0,
+        "rewards": 25,
+        "conversion": 75.75757575757575
+      },
+      "calculatedAt": "2026-07-18T04:05:24.822Z"
+    },
+    "signals": [
+      "recovered"
+    ],
+    "orderCount": 25,
+    "totalSpent": 38688600,
+    "lastOrderAt": "2026-07-18T02:00:19.089Z",
+    "updatedAt": "2026-07-18T04:05:25.175Z"
+  },
+  {
+    "tenantId": "69f8bf6ad3fcc97fd64bec87",
+    "segment": "VIP",
+    "healthScore": {
+      "total": 46,
+      "components": {
+        "frequency": 25,
+        "recency": 25,
+        "ltv": 100,
+        "engagement": 25,
+        "club": 30,
+        "rewards": 25,
+        "conversion": 77.27272727272727
+      },
+      "calculatedAt": "2026-09-02T04:47:10.749Z"
+    },
+    "signals": [],
+    "orderCount": 17,
+    "totalSpent": 70395300,
+    "lastOrderAt": "2026-08-24T21:53:19.119Z",
+    "updatedAt": "2026-09-02T04:47:11.102Z"
+  }
+]
