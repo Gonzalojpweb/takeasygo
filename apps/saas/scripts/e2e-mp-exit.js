@@ -22,7 +22,9 @@ for (const f of ['.env.local', '.env']) {
 }
 
 const SLUG = 'e2e-mp-test'
-const BASE = `http://localhost:3100`
+// Configurable para correr contra un server distinto del de desarrollo
+// (por ejemplo, uno apuntando a una Mongo local).
+const BASE = process.env.E2E_BASE || `http://localhost:3100`
 const results = []
 
 function check(name, ok, detail) {

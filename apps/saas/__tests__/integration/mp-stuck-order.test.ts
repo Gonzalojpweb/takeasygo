@@ -281,3 +281,69 @@ describe('Flujo completo: varado → salida', () => {
     expect(active).toHaveLength(0)
   })
 })
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ESCENARIO 4 — Reintento desde el flujo de emergencia
+   Misma causa externa (credenciales MP rotas), pero acá el cliente YA tiene el
+   pedido. Cancelarlo lo haría perder la venta y tendría que rearmar todo, así
+   que el reintento NO hace rollback: la orden sigue viva y la UI de reintento
+   vuelve a aparecer para que elija efectivo o transferencia.
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('create-preference con retry:true → SIN rollback', () => {
+  const retryReq = (orderId: string, retry: boolean) =>
+    new NextRequest(`http://localhost/api/${SLUG}/payments/create-preference`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, retry }),
+    }) as any
+
+  it('el pedido sigue en awaiting_payment cuando la preferencia vuelve a fallar', async () => {
+    const order = await makeStuckOrder()
+    const res = await createPreference(
+      retryReq(order._id.toString(), true),
+      params()
+    )
+
+    expect(res.status).toBe(500)
+    const after = await Order.findById(order._id)
+    expect(after!.status).toBe('awaiting_payment')
+    expect(after!.payment.status).toBe('pending')
+    expect(after!.payment.mercadopagoId).toBeFalsy()
+  })
+
+  it('la orden NO se cuenta como activa-cancelada: el pedido sigue existiendo', async () => {
+    const order = await makeStuckOrder()
+    await createPreference(retryReq(order._id.toString(), true), params())
+
+    const stillThere = await Order.findById(order._id)
+    expect(stillThere).not.toBeNull()
+    expect(stillThere!.cancelledBy).toBeFalsy()
+  })
+
+  it('sin el flag de retry el rollback de creación inicial sigue cancelando', async () => {
+    const order = await makeStuckOrder()
+    const res = await createPreference(retryReq(order._id.toString(), false), params())
+
+    expect(res.status).toBe(500)
+    const after = await Order.findById(order._id)
+    expect(after!.status).toBe('cancelled')
+  })
+
+  it('si la preferencia sí se crea, la orden queda lista para el pago', async () => {
+    mpCreateMock.mockResolvedValue({
+      id: 'pref-nueva-123',
+      init_point: 'https://mp.test/init',
+      sandbox_init_point: 'https://mp.test/sandbox',
+    })
+    const order = await makeStuckOrder()
+    const res = await createPreference(retryReq(order._id.toString(), true), params())
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.preferenceId).toBe('pref-nueva-123')
+
+    const after = await Order.findById(order._id)
+    expect(after!.status).toBe('awaiting_payment')
+    expect(after!.payment.mercadopagoId).toBe('pref-nueva-123')
+  })
+})

@@ -42,7 +42,7 @@ import PushSubscription from '@/models/PushSubscription'
 import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
-import { pushOrderToSyncLayer, confirmOrderPaymentCore } from '@/lib/sync-layer'
+import { registerCashSale, syncOrderAfterStatusSet } from '@/lib/order-side-effects'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 
@@ -1839,64 +1839,20 @@ export async function POST(
     }
 
     // ── Pago en efectivo: push + registrar venta en caja ────────────────
-    // El pedido entra en confirmed directo. Se notifica al admin y se
-    // registra la venta vía confirmOrderPaymentCore (misma vía que MP/transfer).
+    // El pedido entra en confirmed directo. Los efectos viven en
+    // lib/order-side-effects.ts, que es el MISMO camino que usa
+    // change-payment-method → cash. No duplicar estas llamadas acá.
     if (paymentMethod === 'cash') {
-      setImmediate(async () => {
-        try {
-          await sendAdminPushNotification(
-            tenant._id.toString(),
-            tenant.plan ?? 'trial',
-            tenant.name,
-            tenantSlug,
-            order.orderNumber,
-            pricing.finalTotal,
-            customerName
-          )
-        } catch (err) {
-          console.error('[orders] Admin push error (cash):', (err as Error)?.message)
-        }
-      })
-
-      setImmediate(async () => {
-        try {
-          await confirmOrderPaymentCore(order, tenant)
-        } catch (err) {
-          console.error(
-            `[orders] CRITICAL: confirmOrderPaymentCore FAILED for cash order ${order.orderNumber} ` +
-            `(orderId: ${order._id}). Cash sale was NOT registered. Manual reconciliation required.`,
-            err
-          )
-        }
-      })
+      await registerCashSale({ order, tenant, tenantSlug, customerName })
     }
 
-    // ── Bridge al Sync Layer (solo si POS habilitado) ──────────────
-    if (tenant.features?.posEnabled && (order.status === 'confirmed' || order.status === 'awaiting_payment')) {
-      pushOrderToSyncLayer({
-        tenantId: tenant._id.toString(),
-        externalOrderId: order._id.toString(),
-        locationId: body.locationId,
-        items: resolvedItems.map((i: any) => ({
-          productId: i.menuItemId?.toString() ?? undefined,
-          name: i.name,
-          quantity: i.quantity,
-          unitPrice: i.price,
-          total: i.subtotal,
-        })),
-        total: pricing.finalTotal,
-        baseTotal: pricing.baseTotal,
-        surchargeAmount: pricing.surchargeAmount,
-        notes: order.notes || undefined,
-        paymentMethod: order.payment?.method ?? 'mercadopago',
-      })
-    }
-
-    // ── Generar print jobs si la orden se creó directamente como confirmed ──
-    if (order.status === 'confirmed') {
-      const { onOrderConfirmed } = await import('@/lib/printing')
-      onOrderConfirmed(order).catch(() => {})
-    }
+    // ── Bridge al POS + print jobs, según status ───────────────────────
+    await syncOrderAfterStatusSet({
+      order,
+      tenant,
+      items: resolvedItems,
+      locationId: body.locationId,
+    })
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {
