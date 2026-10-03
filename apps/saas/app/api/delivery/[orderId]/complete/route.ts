@@ -90,6 +90,9 @@ export async function POST(
     codeAttempts.delete(rateKey)
 
     order.status = 'delivered'
+    if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
+      order.payment.status = 'approved'
+    }
     if (order.deliveryConfirmation) {
       order.deliveryConfirmation.status = 'completed'
       order.deliveryConfirmation.completedAt = new Date()

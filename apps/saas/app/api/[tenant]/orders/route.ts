@@ -1660,6 +1660,7 @@ export async function POST(
         ...encryptedCustomer,
         ...(pickupLocation && { pickupLocation }),
       },
+      'payment.status': paymentMethod === 'cash' ? 'approved' : 'pending',
       'payment.method': paymentMethod,
       'payment.baseTotal': pricing.baseTotal,
       'payment.surchargePercent': pricing.surchargePercent,
