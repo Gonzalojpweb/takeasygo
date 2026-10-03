@@ -110,6 +110,13 @@ export async function PATCH(
     const previousStatus = order.status
     order.status = status
 
+    // Pedidos en efectivo: el cobro se confirma al avanzar el estado (cash se
+    // cobra contra entrega). Promover pending → approved para órdenes creadas
+    // antes del fix y como salvaguarda.
+    if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
+      order.payment.status = 'approved'
+    }
+
     if (status === 'ready' && order.orderMode === 'delivery') {
       // Verificar si Rapiboy está habilitado para esta sede
       const location = await Location.findById(order.locationId)

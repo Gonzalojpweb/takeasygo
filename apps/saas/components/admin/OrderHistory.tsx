@@ -14,6 +14,16 @@ import {
   Truck,
   ChefHat,
   Printer,
+  Eye,
+  FileText,
+  User,
+  MapPin,
+  Wallet,
+  CreditCard,
+  BadgePercent,
+  Star,
+  Gift,
+  Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -42,6 +52,38 @@ function fmtDate(iso: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(iso))
+}
+
+function fmtMoney(cents: number | undefined | null): string {
+  if (cents == null) return '0'
+  return toPesos(cents).toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })
+}
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: 'Efectivo',
+  transfer: 'Transferencia',
+  mercadopago: 'MercadoPago',
+  kripton: 'Kripton',
+  deferred: 'Corporativo (crédito)',
+}
+
+const ORDER_MODE_LABEL: Record<string, string> = {
+  delivery: 'Delivery',
+  takeaway: 'Take Away',
+  'dine-in': 'En el local',
+  corporate: 'Corporativo',
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{title}</h4>
+      {children}
+    </div>
+  )
 }
 
 interface LocationRef {
@@ -139,6 +181,33 @@ export default function OrderHistory({
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [q, setQ] = useState('')
+
+  // ── Detalle de pedido ──────────────────────────────────────────────
+  const [detailOrder, setDetailOrder] = useState<OrderSummary | null>(null)
+  const [detail, setDetail] = useState<any | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+
+  const openDetail = async (order: OrderSummary) => {
+    setDetailOrder(order)
+    setDetail(null)
+    setDetailLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${order._id}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setDetail(data.order)
+    } catch {
+      toast.error('No se pudo cargar el detalle del pedido')
+      setDetailOrder(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
+  const closeDetail = () => {
+    setDetailOrder(null)
+    setDetail(null)
+  }
 
   // ── Reimpresión con selección de impresora ──────────────────────────────
   const [reprintOrder, setReprintOrder] = useState<OrderSummary | null>(null)
@@ -371,7 +440,8 @@ export default function OrderHistory({
                   return (
                     <tr
                       key={order._id}
-                      className="border-b border-border/50 hover:bg-muted/20 transition-colors"
+                      onClick={() => openDetail(order)}
+                      className="border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer"
                     >
                       <td className="px-4 py-3 font-mono text-xs text-foreground font-bold">
                         {order.orderNumber}
@@ -416,15 +486,26 @@ export default function OrderHistory({
                         {fmtDate(order.createdAt)}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                          title="Reimprimir ticket"
-                          onClick={() => openReprint(order)}
-                        >
-                          <Printer size={15} />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            title="Ver detalle"
+                            onClick={e => { e.stopPropagation(); openDetail(order) }}
+                          >
+                            <Eye size={15} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            title="Reimprimir ticket"
+                            onClick={e => { e.stopPropagation(); openReprint(order) }}
+                          >
+                            <Printer size={15} />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -576,6 +657,269 @@ export default function OrderHistory({
                 <Printer size={15} className="mr-2" />
               )}
               Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog de detalle del pedido ──────────────────────────────── */}
+      <Dialog open={!!detailOrder} onOpenChange={open => !open && closeDetail()}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText size={18} />
+              Pedido #{detailOrder?.orderNumber}
+            </DialogTitle>
+            <DialogDescription>
+              {fmtDate(detailOrder?.createdAt ?? '')} · {detailOrder?.locationName}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailLoading && (
+            <div className="py-10 text-center text-sm text-muted-foreground">
+              <RefreshCw size={20} className="animate-spin mx-auto mb-2" />
+              Cargando detalle...
+            </div>
+          )}
+
+          {!detailLoading && detail && (
+            <div className="space-y-5">
+              {/* Estado */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={`text-xs px-2 py-0.5 ${STATUS_CONFIG[detail.status]?.color ?? ''}`}>
+                  {STATUS_CONFIG[detail.status]?.icon && (() => {
+                    const I = STATUS_CONFIG[detail.status].icon
+                    return <I size={12} className="mr-1 inline" />
+                  })()}
+                  {STATUS_CONFIG[detail.status]?.label ?? detail.status}
+                </Badge>
+                <Badge variant="outline" className="text-xs px-2 py-0.5 uppercase">
+                  {ORDER_MODE_LABEL[detail.orderMode] ?? detail.orderMode}
+                </Badge>
+              </div>
+
+              {/* Cliente */}
+              <DetailSection title="Cliente">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    <User size={15} className="text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      {detail.customer?.name || '—'}
+                    </p>
+                    {detail.customer?.phone && (
+                      <p className="text-xs text-muted-foreground">{detail.customer.phone}</p>
+                    )}
+                    {detail.customer?.email && (
+                      <p className="text-xs text-muted-foreground truncate">{detail.customer.email}</p>
+                    )}
+                  </div>
+                </div>
+              </DetailSection>
+
+              {/* Entrega */}
+              {detail.orderMode === 'delivery' && detail.deliveryAddress && (
+                <DetailSection title="Entrega">
+                  <div className="flex items-start gap-2">
+                    <MapPin size={12} className="text-muted-foreground mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-foreground leading-relaxed">
+                        {detail.deliveryAddress.street} {detail.deliveryAddress.number}
+                        {detail.deliveryAddress.apt ? `, ${detail.deliveryAddress.apt}` : ''}
+                      </p>
+                      {detail.deliveryAddress.city && (
+                        <p className="text-[11px] text-muted-foreground/70">{detail.deliveryAddress.city}</p>
+                      )}
+                      {detail.deliveryDistance != null && (
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">
+                          {detail.deliveryDistance.toFixed(1)} km
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </DetailSection>
+              )}
+
+              {/* Productos */}
+              {detail.items?.length > 0 && (
+                <DetailSection title={`Productos (${detail.items.length})`}>
+                  <div className="space-y-3">
+                    {detail.items.map((it: any, i: number) => (
+                      <div key={i}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground">
+                              {it.quantity}x {it.name}
+                            </p>
+                            {it.selectedVariant && (
+                              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                                Variante: {it.selectedVariant.name}
+                              </p>
+                            )}
+                            {it.customizations?.length > 0 && (
+                              <div className="mt-0.5 space-y-0.5">
+                                {it.customizations.map((cg: any, ci: number) => (
+                                  <p key={ci} className="text-[10px] text-muted-foreground/60">
+                                    <span className="font-medium">{cg.groupName}:</span>{' '}
+                                    {cg.selectedOptions?.map((o: any) => o.name).join(', ')}
+                                  </p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-xs font-bold text-foreground tabular-nums shrink-0 text-right">
+                            ${fmtMoney(it.subtotal)}
+                          </span>
+                        </div>
+                        {i < detail.items.length - 1 && <div className="h-px bg-border/30 mt-3" />}
+                      </div>
+                    ))}
+                  </div>
+                </DetailSection>
+              )}
+
+              {/* Canje de puntos */}
+              {detail.rewardItems?.length > 0 && (
+                <DetailSection title="Premios canjeados">
+                  <div className="space-y-1">
+                    {detail.rewardItems.map((r: any, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-xs text-foreground">
+                        <Gift size={12} className="text-muted-foreground shrink-0" />
+                        <span>{r.storeItemName}</span>
+                        <span className="ml-auto text-muted-foreground">{r.pointsCost} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </DetailSection>
+              )}
+
+              {/* Notas */}
+              {detail.notes && (
+                <DetailSection title="Notas">
+                  <div className="rounded-lg bg-muted/50 border border-border/60 px-3 py-2.5">
+                    <p className="text-xs text-foreground leading-relaxed">{detail.notes}</p>
+                  </div>
+                </DetailSection>
+              )}
+
+              {/* Desglose */}
+              <DetailSection title="Desglose">
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Subtotal</span>
+                    <span className="tabular-nums text-foreground">${fmtMoney(detail.subtotal)}</span>
+                  </div>
+                  {(detail.discountAmount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-emerald-600">
+                        <BadgePercent size={12} />
+                        Descuento{detail.promoCode ? ` (${detail.promoCode})` : ''}
+                      </span>
+                      <span className="tabular-nums text-emerald-600">
+                        -${fmtMoney(detail.discountAmount)}
+                      </span>
+                    </div>
+                  )}
+                  {(detail.loyaltyDiscountAmount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-amber-600">
+                        <Star size={12} />
+                        Puntos de fidelidad ({detail.loyaltyPointsUsed} pts)
+                      </span>
+                      <span className="tabular-nums text-amber-600">
+                        -${fmtMoney(detail.loyaltyDiscountAmount)}
+                      </span>
+                    </div>
+                  )}
+                  {detail.orderMode === 'delivery' && (detail.deliveryCost ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Truck size={12} />
+                        Envío
+                      </span>
+                      <span className="tabular-nums text-foreground">${fmtMoney(detail.deliveryCost)}</span>
+                    </div>
+                  )}
+                  {(detail.payment?.surchargeAmount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        Costos operativos
+                        {detail.payment.surchargePercent
+                          ? ` (${detail.payment.surchargePercent.toFixed(1)}%)`
+                          : ''}
+                      </span>
+                      <span className="tabular-nums text-amber-600">
+                        +${fmtMoney(detail.payment.surchargeAmount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="h-px bg-border/60 my-2" />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-bold text-foreground">Total</span>
+                    <span className="text-sm font-black text-foreground tabular-nums">
+                      ${fmtMoney(detail.total)}
+                    </span>
+                  </div>
+                </div>
+              </DetailSection>
+
+              {/* Pago */}
+              <DetailSection title="Pago">
+                <div className="rounded-lg border border-border/60 px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      {detail.payment?.method === 'cash' ? (
+                        <Wallet size={12} />
+                      ) : (
+                        <CreditCard size={12} />
+                      )}
+                      Método
+                    </span>
+                    <span className="font-semibold text-foreground">
+                      {PAYMENT_METHOD_LABEL[detail.payment?.method] ?? detail.payment?.method ?? '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted-foreground">Estado</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] px-2 py-0 ${
+                        detail.payment?.status === 'approved'
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                          : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                      }`}
+                    >
+                      {PAYMENT_STATUS[detail.payment?.status] ?? detail.payment?.status ?? '—'}
+                    </Badge>
+                  </div>
+                  {detail.payment?.baseTotal > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">Precio de carta</span>
+                      <span className="tabular-nums text-muted-foreground">
+                        ${fmtMoney(detail.payment.baseTotal)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </DetailSection>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDetail}>
+              Cerrar
+            </Button>
+            <Button
+              onClick={() => {
+                const order = detailOrder
+                closeDetail()
+                if (order) openReprint(order)
+              }}
+              disabled={!detailOrder}
+            >
+              <Printer size={15} className="mr-2" />
+              Reimprimir
             </Button>
           </DialogFooter>
         </DialogContent>

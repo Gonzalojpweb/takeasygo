@@ -149,6 +149,14 @@ describe('toSaasOrder', () => {
     expect(draft.status).toBe('pending')
     expect(draft.orderNumber).toMatch(/^DEM-\d{6}-\d{4}$/)
     expect(draft.customer.name.length).toBeGreaterThan(0) // required no vacío
+    // Efectivo se cobra contra entrega → nace aprobado
+    expect(draft.payment.method).toBe('cash')
+    expect(draft.payment.status).toBe('approved')
+  })
+
+  it('método de pago no-efectivo nace pendiente', () => {
+    const draft = toSaasOrder(validOrder({ paymentMethod: 'transfer' }), CTX)
+    expect(draft.payment.method).toBe('transfer')
     expect(draft.payment.status).toBe('pending')
   })
 

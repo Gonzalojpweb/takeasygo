@@ -104,6 +104,12 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     audit.from = from
     audit.to = to
 
+    // El doc real tiene `payment` (schema Order) aunque PosOrderDoc no lo declara.
+    const payment = (current as unknown as { payment?: { method?: string; status?: string } }).payment
+    if (payment?.method === 'cash' && payment.status === 'pending') {
+      update['payment.status'] = 'approved'
+    }
+
     Object.assign(update, statusTimestampsFor(to))
   }
 

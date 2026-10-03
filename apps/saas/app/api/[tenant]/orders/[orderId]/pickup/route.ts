@@ -32,6 +32,9 @@ export async function PATCH(
 
     order.status = 'delivered'
     order.statusTimestamps.deliveredAt = new Date()
+    if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
+      order.payment.status = 'approved'
+    }
     await order.save()
 
     return NextResponse.json({ order })
