@@ -23,6 +23,12 @@ function getDefaultDates() {
   }
 }
 
+/** Parsea "YYYY-MM-DD" como fecha LOCAL (no UTC) para que format() no muestre el día anterior. */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1)
+}
+
 function fmt(n: number) {
   return n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -244,7 +250,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
             </p>
           )}
           <p className="text-[10px] text-muted-foreground mt-1">
-            {format(new Date(from), 'dd/MM/yyyy', { locale: es })} – {format(new Date(to), 'dd/MM/yyyy', { locale: es })}
+            {format(parseLocalDate(from), 'dd/MM/yyyy', { locale: es })} – {format(parseLocalDate(to), 'dd/MM/yyyy', { locale: es })}
           </p>
         </Card>
       </div>
