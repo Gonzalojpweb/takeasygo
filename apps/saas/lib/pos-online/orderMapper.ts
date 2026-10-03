@@ -278,7 +278,7 @@ export function toSaasOrder(input: PosOrderInput, ctx: PosOrderWriteContext): Sa
       email: '',
     },
     payment: {
-      status: 'pending',
+      status: (input.paymentMethod ?? 'cash') === 'cash' ? 'approved' : 'pending',
       method: input.paymentMethod ?? 'cash',
       baseTotal: subtotal,
       surchargePercent: 0,
