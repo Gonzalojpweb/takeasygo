@@ -44,14 +44,16 @@ const inputCls =
 const selectCls =
   'h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring'
 
-function fmtDate(iso: string) {
+function fmtDate(iso: string | undefined | null): string {
+  const d = new Date(iso ?? '')
+  if (Number.isNaN(d.getTime())) return '—'
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(iso))
+  }).format(d)
 }
 
 function fmtMoney(cents: number | undefined | null): string {

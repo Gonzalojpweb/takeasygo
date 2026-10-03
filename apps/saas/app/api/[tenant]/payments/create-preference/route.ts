@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { revertRewardRedemptions } from '@/lib/loyalty'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
 
@@ -189,28 +190,58 @@ if (!success) {
       await order.save()
     }
 
-    const result = await preference.create({
-      body: {
-        items: mpItems,
-        payer: {
-          name:  safeDecrypt(order.customer.name),
-          email: safeDecrypt(order.customer.email) || 'cliente@menuplatform.com',
-        },
-        back_urls: {
-          success: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,
-          failure: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
-          pending: `${baseUrl}/${tenantSlug}/order-pending/${order.orderNumber}`,
-        },
-        ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
-        external_reference: safeRef,
-        notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}?account=${account.accountId}`,
-        // Marketplace split — only when OAuth authorized
-        ...(marketplaceFee !== undefined ? {
-          marketplace: 'takeasygo',
-          marketplace_fee: toPesos(marketplaceFee),
-        } : {}),
+    // ── Crear preferencia, con rollback si falla ────────────────────────────
+    // La orden YA existe (se creó antes, en POST /orders). Si la preferencia
+    // no se crea, no hay init_point → el cliente nunca puede llegar a MP ni
+    // pagar. Dejarla en awaiting_payment la volvería un zombie: el 409
+    // ACTIVE_ORDER_EXISTS bloquearía un re-pedido y no habría webhook que la
+    // resuelva. Por eso se cancela acá mismo.
+    //
+    // Nota de seguridad: si `preference.create` lanza, MP no devolvió id ni
+    // init_point, o sea que no existe preferencia que el cliente pueda pagar.
+    // No hay cobro posible → cancelar no implica reembolso.
+    let result: { id?: string | null; init_point?: string | null; sandbox_init_point?: string | null }
+    try {
+      result = await preference.create({
+        body: {
+          items: mpItems,
+          payer: {
+            name:  safeDecrypt(order.customer.name),
+            email: safeDecrypt(order.customer.email) || 'cliente@menuplatform.com',
+          },
+          back_urls: {
+            success: `${baseUrl}/${tenantSlug}/order-success/${order.orderNumber}`,
+            failure: `${baseUrl}/${tenantSlug}/order-failure/${order.orderNumber}`,
+            pending: `${baseUrl}/${tenantSlug}/order-pending/${order.orderNumber}`,
+          },
+          ...(baseUrl.startsWith('https://') ? { auto_return: 'approved' as const } : {}),
+          external_reference: safeRef,
+          notification_url: `${baseUrl}/api/webhooks/mercadopago/${tenantSlug}?account=${account.accountId}`,
+          // Marketplace split — only when OAuth authorized
+          ...(marketplaceFee !== undefined ? {
+            marketplace: 'takeasygo',
+            marketplace_fee: toPesos(marketplaceFee),
+          } : {}),
+        }
+      })
+    } catch (prefError: any) {
+      if (order.status === 'awaiting_payment') {
+        order.status = 'cancelled'
+        order.statusTimestamps.cancelledAt = new Date()
+        order.cancelledBy = 'client'
+        if (order.payment?.status === 'pending') order.payment.status = 'cancelled'
+        try {
+          await revertRewardRedemptions(order, tenant)
+          await order.save()
+          console.warn(
+            `[create-preference] rollback: orden ${order.orderNumber} cancelada — falló la preferencia MP`
+          )
+        } catch (rollbackErr) {
+          console.error('[create-preference] rollback falló:', rollbackErr)
+        }
       }
-    })
+      throw prefError
+    }
 
     // Guardar el preference ID (mpAccountId ya se guardó antes de preference.create)
     order.payment.mercadopagoId = result.id || null

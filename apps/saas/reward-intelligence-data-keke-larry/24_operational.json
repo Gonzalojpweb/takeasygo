@@ -1,0 +1,4227 @@
+{
+  "inventory": {
+    "skus": 0,
+    "recipes": 0,
+    "ledger": 0
+  },
+  "reservations": [
+    {
+      "_id": "6a15568789720e0c8413c43a",
+      "tenantId": "69f8bf6ad3fcc97fd64bec87",
+      "locationId": "69f8c0cdd3fcc97fd64bec9d",
+      "reservationNumber": "R0001",
+      "date": "2026-05-26",
+      "time": "14:00",
+      "partySize": 2,
+      "name": "e23c23735d22407c4d5b0cd3f81a001c:77c116687399f276bdac2ee2cfbf5c06:10e01eb3",
+      "phone": "56fcce431ea2ac8e65758fd9e49ac5e1:ae157a82d184e6fd53be156d340ae2a8:654ed22e3a335b44ebb5c1160a91",
+      "email": "palomo@gmail.com",
+      "notes": "",
+      "clientToken": null,
+      "status": "seated",
+      "payment": {
+        "amount": 0,
+        "status": "approved",
+        "mercadopagoId": null,
+        "preferenceId": null
+      },
+      "notifications": {
+        "confirmationSent": false,
+        "reminderSent": false,
+        "cancellationSent": false
+      },
+      "createdAt": "2026-05-26T08:15:03.854Z",
+      "updatedAt": "2026-05-26T08:29:46.158Z",
+      "__v": 0
+    },
+    {
+      "_id": "6a155a3d231714f41110f7bc",
+      "tenantId": "69f8bf6ad3fcc97fd64bec87",
+      "locationId": "69f8c0cdd3fcc97fd64bec9d",
+      "reservationNumber": "R0003",
+      "date": "2026-05-26",
+      "time": "19:00",
+      "partySize": 4,
+      "name": "19e82a38278cf2a63b035561dc5db061:10b96d8cfeb22205c69d5cf65a404ee8:b7b9727e4a",
+      "phone": "902ac5c8e7d7d6daf58ee70c57cd0691:ce372388e102e1973448f5d28a49f65c:b62d211b2a9010e631ef",
+      "email": "pepe@gmail.com",
+      "notes": "afuera oita",
+      "clientToken": null,
+      "status": "confirmed",
+      "payment": {
+        "amount": 0,
+        "status": "approved",
+        "mercadopagoId": null,
+        "preferenceId": null
+      },
+      "notifications": {
+        "confirmationSent": false,
+        "reminderSent": false,
+        "cancellationSent": false
+      },
+      "createdAt": "2026-05-26T08:30:53.631Z",
+      "updatedAt": "2026-05-26T08:31:02.678Z",
+      "__v": 0
+    },
+    {
+      "_id": "6a1558f6231714f41110f6cf",
+      "tenantId": "69f8bf6ad3fcc97fd64bec87",
+      "locationId": "69f8c0cdd3fcc97fd64bec9d",
+      "reservationNumber": "R0002",
+      "date": "2026-05-26",
+      "time": "16:00",
+      "partySize": 3,
+      "name": "11beef27782a6f0c76e85bcb7bc08b94:fc60838f2c214feb52bb53bc43d86dff:bc270b1b",
+      "phone": "222b058a83035809515f33e41a447708:a1beb1736db4318fe43d650d05cd3e3c:152e3cc998c869aae5afd54907",
+      "email": "pepe@gmail.com",
+      "notes": "afuera oite",
+      "clientToken": null,
+      "status": "seated",
+      "payment": {
+        "amount": 0,
+        "status": "approved",
+        "mercadopagoId": null,
+        "preferenceId": null
+      },
+      "notifications": {
+        "confirmationSent": false,
+        "reminderSent": false,
+        "cancellationSent": false
+      },
+      "createdAt": "2026-05-26T08:25:26.348Z",
+      "updatedAt": "2026-05-26T08:29:50.235Z",
+      "__v": 0
+    }
+  ],
+  "statusTimestamps": [
+    {
+      "_id": "6a35da46b36982b777e5040d",
+      "orderNumber": "KEK-260620-4129",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-20T00:11:15.900Z",
+        "readyAt": "2026-06-20T00:43:26.637Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-20T01:06:31.016Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-20T00:09:42.377Z"
+    },
+    {
+      "_id": "6a373b5a8db7ea0f277a4775",
+      "orderNumber": "KEK-260621-9110",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-21T01:17:53.260Z",
+        "readyAt": "2026-06-21T01:48:05.399Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-21T02:26:57.465Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-21T01:16:10.047Z"
+    },
+    {
+      "_id": "6a3c69d2cc5ebbadca00c488",
+      "orderNumber": "KEK-260624-8409",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-24T23:36:33.356Z",
+        "readyAt": "2026-06-24T23:54:43.122Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-25T00:06:52.376Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-24T23:35:46.207Z"
+    },
+    {
+      "_id": "6a4452fe31c1705c73c65d25",
+      "orderNumber": "KEK-260630-4837",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-30T23:37:34.573Z",
+        "readyAt": "2026-07-01T00:01:04.371Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T00:17:37.304Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-30T23:36:30.648Z"
+    },
+    {
+      "_id": "6a45a491f080c07b25ea78c0",
+      "orderNumber": "KEK-260701-5301",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-01T23:37:42.375Z",
+        "readyAt": "2026-07-02T00:14:29.839Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T01:31:04.277Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-01T23:36:49.987Z"
+    },
+    {
+      "_id": "6a470f12ac51dcbfbaf0ed7d",
+      "orderNumber": "KEK-260703-8233",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-03T01:24:33.576Z",
+        "readyAt": "2026-07-03T01:36:52.466Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-03T14:55:19.400Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-03T01:23:30.442Z"
+    },
+    {
+      "_id": "6a499a9509414918516100bd",
+      "orderNumber": "KEK-260704-3004",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-04T23:43:17.051Z"
+    },
+    {
+      "_id": "6a499d6960446a1acf315d9f",
+      "orderNumber": "KEK-260704-5052",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-04T23:56:14.146Z",
+        "readyAt": "2026-07-05T00:58:40.013Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-05T01:09:29.818Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-04T23:55:21.505Z"
+    },
+    {
+      "_id": "6a49aabe7f2e21a243c1c8e4",
+      "orderNumber": "KEK-260705-4852",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-05T00:53:02.122Z",
+        "readyAt": "2026-07-05T01:07:27.195Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-05T01:13:41.470Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-05T00:52:14.358Z"
+    },
+    {
+      "_id": "6a4af5e2cc59c5674d0e77b4",
+      "orderNumber": "KEK-260706-3604",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-06T00:25:56.269Z",
+        "readyAt": "2026-07-06T00:52:14.005Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-06T00:59:33.386Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-06T00:25:06.522Z"
+    },
+    {
+      "_id": "6a4af96c1b6062a87809372b",
+      "orderNumber": "KEK-260706-3612",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-06T00:42:48.448Z",
+        "readyAt": "2026-07-06T00:59:29.472Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-06T01:13:03.929Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-06T00:40:12.558Z"
+    },
+    {
+      "_id": "6a4f0a0074e6c5d8c890d1b6",
+      "orderNumber": "KEK-260709-8978",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-09T02:40:00.360Z"
+    },
+    {
+      "_id": "6a502c1f9c8c2b3736057f34",
+      "orderNumber": "KEK-260709-9124",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-09T23:42:23.859Z",
+        "readyAt": "2026-07-09T23:57:57.129Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-10T00:33:35.030Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-09T23:17:51.838Z"
+    },
+    {
+      "_id": "6a582186fd0f53f8d72e1661",
+      "orderNumber": "KEK-260716-2147",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-16T00:10:46.683Z"
+    },
+    {
+      "_id": "6a3732b8531bd8f13eea39f6",
+      "orderNumber": "KEK-260621-4568",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-21T00:41:30.120Z",
+        "readyAt": "2026-06-21T01:21:46.423Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-21T02:03:03.466Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-21T00:39:20.263Z"
+    },
+    {
+      "_id": "6a3dbcadf2319ac2fd37d496",
+      "orderNumber": "KEK-260625-5522",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-25T23:43:14.762Z",
+        "readyAt": "2026-06-26T01:02:37.452Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-26T01:02:40.760Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-25T23:41:33.991Z"
+    },
+    {
+      "_id": "6a3f0b5381ece61bef2b9bba",
+      "orderNumber": "KEK-260626-2122",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-26T23:29:23.279Z"
+    },
+    {
+      "_id": "6a45b4e2e86583fc0bf0251a",
+      "orderNumber": "KEK-260702-1659",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-02T00:46:26.266Z"
+    },
+    {
+      "_id": "6a467d59de2364d0a1e5ad61",
+      "orderNumber": "KEK-260702-9465",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-02T15:29:30.493Z",
+        "readyAt": "2026-07-02T15:29:34.398Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T15:51:04.405Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-02T15:01:45.836Z"
+    },
+    {
+      "_id": "6a4998fdc831ff645c8ff944",
+      "orderNumber": "KEK-260704-5612",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-04T23:40:54.265Z",
+        "readyAt": "2026-07-04T23:54:19.383Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-05T00:21:37.842Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-04T23:36:29.026Z"
+    },
+    {
+      "_id": "6a4afb30d8986fe2d2bc8f33",
+      "orderNumber": "KEK-260706-5691",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-06T00:47:44.844Z"
+    },
+    {
+      "_id": "6a35da50b36982b777e505d3",
+      "orderNumber": "KEK-260620-7056",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-20T00:11:13.588Z",
+        "readyAt": "2026-06-20T00:43:33.151Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-20T01:06:50.133Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-20T00:09:52.177Z"
+    },
+    {
+      "_id": "6a372bfcc5cfba1939c9e09c",
+      "orderNumber": "KEK-260621-5204",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-21T00:11:35.326Z",
+        "readyAt": "2026-06-21T00:54:22.228Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-21T00:54:37.970Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-21T00:10:36.662Z"
+    },
+    {
+      "_id": "6a387b2c9092cd564e9cdb71",
+      "orderNumber": "KEK-260622-8072",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-22T00:05:25.523Z",
+        "readyAt": "2026-06-22T00:41:15.016Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-22T01:10:02.006Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-22T00:00:44.496Z"
+    },
+    {
+      "_id": "6a3f08a8be485843b1b7fab3",
+      "orderNumber": "KEK-260626-7328",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-26T23:29:44.176Z",
+        "readyAt": "2026-06-26T23:32:42.891Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-26T23:39:43.591Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-26T23:18:00.561Z"
+    },
+    {
+      "_id": "6a3f12abfa9c1d204ab9354a",
+      "orderNumber": "KEK-260627-6534",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-27T00:15:25.462Z",
+        "readyAt": "2026-06-27T01:08:43.139Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-27T01:08:47.027Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-27T00:00:43.547Z"
+    },
+    {
+      "_id": "6a3f17401f4637f98153f2ca",
+      "orderNumber": "KEK-260627-1668",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-27T00:28:08.539Z",
+        "readyAt": "2026-06-27T00:31:10.006Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-27T01:08:48.451Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-27T00:20:16.289Z"
+    },
+    {
+      "_id": "6a41b6e818fce255e5f528db",
+      "orderNumber": "KEK-260629-9337",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-29T00:07:49.578Z",
+        "readyAt": "2026-06-29T00:15:22.166Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-29T00:22:28.319Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-29T00:06:00.272Z"
+    },
+    {
+      "_id": "6a41bdab46511f54da7f06d2",
+      "orderNumber": "KEK-260629-1471",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-29T00:36:30.010Z",
+        "readyAt": "2026-06-29T00:49:39.005Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-29T01:10:47.972Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-29T00:34:51.236Z"
+    },
+    {
+      "_id": "6a459d87f7c7faf6ddfe765e",
+      "orderNumber": "KEK-260701-7054",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-01T23:12:08.719Z",
+        "readyAt": "2026-07-01T23:38:21.615Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T00:17:32.660Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-01T23:06:47.201Z"
+    },
+    {
+      "_id": "6a4684b55a62bd44279c536f",
+      "orderNumber": "KEK-260702-4700",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-02T15:33:52.960Z",
+        "readyAt": "2026-07-02T16:01:52.817Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T22:58:27.900Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-02T15:33:09.829Z"
+    },
+    {
+      "_id": "6a4866cd32aa484c21e1e0c9",
+      "orderNumber": "KEK-260704-8733",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-04T01:51:29.575Z",
+        "readyAt": "2026-07-04T01:59:56.016Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-04T02:03:04.193Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-04T01:50:05.581Z"
+    },
+    {
+      "_id": "6a581b6afd6b5a0e34e4638a",
+      "orderNumber": "KEK-260715-9551",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-16T00:12:01.339Z",
+        "preparingAt": "2026-07-16T00:19:26.644Z",
+        "readyAt": "2026-07-16T01:57:01.728Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-16T01:57:24.941Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-15T23:44:42.473Z"
+    },
+    {
+      "_id": "6a581c96fd6b5a0e34e468dc",
+      "orderNumber": "KEK-260715-7813",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-16T00:12:48.456Z",
+        "preparingAt": "2026-07-16T02:11:47.255Z",
+        "readyAt": "2026-07-16T03:24:35.907Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-16T03:24:38.535Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-15T23:49:42.766Z"
+    },
+    {
+      "_id": "6a5824bb5b8566b8761c92c5",
+      "orderNumber": "KEK-260716-8517",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-16T00:24:27.294Z"
+    },
+    {
+      "_id": "6a5ac78b946bc093fcbabf3d",
+      "orderNumber": "KEK-260718-1575",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-18T01:52:12.892Z",
+        "preparingAt": "2026-07-18T01:54:16.680Z",
+        "readyAt": "2026-07-18T01:54:45.367Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-18T01:55:02.965Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-18T00:23:39.702Z"
+    },
+    {
+      "_id": "6a35d1d3502271df8bf1b8d1",
+      "orderNumber": "KEK-260619-5524",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-19T23:34:38.390Z",
+        "readyAt": "2026-06-19T23:49:09.833Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-19T23:50:38.225Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-19T23:33:39.828Z"
+    },
+    {
+      "_id": "6a3726e07c4f0ee38326e708",
+      "orderNumber": "KEK-260620-5218",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-20T23:50:31.746Z",
+        "readyAt": "2026-06-21T00:54:31.943Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-21T01:07:19.957Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-20T23:48:48.335Z"
+    },
+    {
+      "_id": "6a3727077c4f0ee38326eae2",
+      "orderNumber": "KEK-260620-4045",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-20T23:50:33.869Z",
+        "readyAt": "2026-06-21T00:54:24.204Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-21T01:04:20.639Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-20T23:49:27.806Z"
+    },
+    {
+      "_id": "6a387bd8523d267010f0b53b",
+      "orderNumber": "KEK-260622-7558",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-22T00:05:28.653Z",
+        "readyAt": "2026-06-22T00:20:53.796Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-22T00:28:04.933Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-22T00:03:36.553Z"
+    },
+    {
+      "_id": "6a389f9842a0cb39b009746c",
+      "orderNumber": "KEK-260622-2197",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-22T02:37:14.322Z",
+        "readyAt": "2026-06-22T02:45:55.027Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-23T16:16:59.568Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-22T02:36:08.459Z"
+    },
+    {
+      "_id": "6a3bed6564677749920c604a",
+      "orderNumber": "KEK-260624-9248",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-24T15:15:33.562Z",
+        "readyAt": "2026-06-24T15:15:40.946Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-24T15:56:01.384Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-24T14:44:53.904Z"
+    },
+    {
+      "_id": "6a41b1de9547c63402112914",
+      "orderNumber": "KEK-260628-3751",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-28T23:44:30.334Z"
+    },
+    {
+      "_id": "6a41b3bad4821f5da0e90d1c",
+      "orderNumber": "KEK-260628-7995",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-06-28T23:54:13.147Z",
+        "readyAt": "2026-06-29T00:07:39.076Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-06-29T00:25:02.543Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-06-28T23:52:26.178Z"
+    },
+    {
+      "_id": "6a45acc1597abb2a55993d42",
+      "orderNumber": "KEK-260702-9603",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-02T00:16:08.057Z",
+        "readyAt": "2026-07-02T00:46:45.766Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-02T01:31:03.415Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-02T00:11:45.107Z"
+    },
+    {
+      "_id": "6a49b196aae40ccf1c574dfb",
+      "orderNumber": "KEK-260705-8882",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-05T01:22:34.977Z",
+        "readyAt": "2026-07-05T01:51:05.443Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-05T02:57:01.267Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-05T01:21:26.171Z"
+    },
+    {
+      "_id": "6a4af706cc59c5674d0e7f5e",
+      "orderNumber": "KEK-260706-9130",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-06T00:30:38.670Z",
+        "readyAt": "2026-07-06T00:52:19.488Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-06T01:12:31.952Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-06T00:29:58.564Z"
+    },
+    {
+      "_id": "6a4b036afd6cb1002c5cbfa3",
+      "orderNumber": "KEK-260706-2167",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-06T01:23:48.990Z",
+        "readyAt": "2026-07-06T01:30:53.591Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-06T01:53:34.202Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-06T01:22:50.831Z"
+    },
+    {
+      "_id": "6a4efef99170c190eb5de3c5",
+      "orderNumber": "KEK-260709-7420",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-09T02:11:44.458Z",
+        "readyAt": "2026-07-09T02:13:51.777Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-09T02:23:14.424Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-09T01:52:57.801Z"
+    },
+    {
+      "_id": "6a598ad53f6fa410584ad45f",
+      "orderNumber": "KEK-260717-2004",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-17T01:53:21.472Z",
+        "preparingAt": "2026-07-17T01:53:50.643Z",
+        "readyAt": "2026-07-17T02:02:06.433Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-17T02:34:10.269Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-17T01:52:21.783Z"
+    },
+    {
+      "_id": "6a5ad393d3446ce8ea259072",
+      "orderNumber": "KEK-260718-4726",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-18T01:51:34.224Z",
+        "preparingAt": "2026-07-18T01:54:20.421Z",
+        "readyAt": "2026-07-18T01:54:24.228Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-18T01:54:38.998Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-18T01:14:59.867Z"
+    },
+    {
+      "_id": "6a63fd081086bf10cc21c536",
+      "orderNumber": "KEK-260725-7139",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-25T00:04:43.849Z",
+        "readyAt": "2026-07-25T00:34:14.330Z",
+        "enRutaAt": "2026-07-25T00:37:38.715Z",
+        "arrivedAt": "2026-07-25T01:10:14.986Z",
+        "deliveredAt": "2026-07-25T01:10:17.494Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-25T00:02:16.038Z"
+    },
+    {
+      "_id": "6a63fdb7e30d51acb6fe4a69",
+      "orderNumber": "KEK-260725-7011",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-25T00:06:09.242Z",
+        "readyAt": "2026-07-25T00:34:07.030Z",
+        "enRutaAt": "2026-07-25T00:37:43.353Z",
+        "arrivedAt": "2026-07-25T01:09:58.526Z",
+        "deliveredAt": "2026-07-25T01:10:01.623Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-25T00:05:11.872Z"
+    },
+    {
+      "_id": "6a6a1def1529004ca7d73224",
+      "orderNumber": "KEK-260729-3620",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-29T18:09:48.377Z",
+        "readyAt": "2026-07-29T18:09:51.539Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-29T18:09:54.590Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-29T15:36:15.471Z"
+    },
+    {
+      "_id": "6a6a9ecbe744d79030c31e6d",
+      "orderNumber": "KEK-260730-5785",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-30T00:49:10.218Z",
+        "preparingAt": "2026-07-30T00:49:43.636Z",
+        "readyAt": "2026-07-30T01:33:13.662Z",
+        "enRutaAt": "2026-07-30T01:42:20.330Z",
+        "arrivedAt": "2026-07-30T02:03:17.421Z",
+        "deliveredAt": "2026-07-30T02:03:20.871Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-30T00:46:03.021Z"
+    },
+    {
+      "_id": "6a6bda90dadfb331ef194e31",
+      "orderNumber": "KEK-260730-1500",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-30T23:13:20.800Z"
+    },
+    {
+      "_id": "6a6be5a4679a264979c2dd8e",
+      "orderNumber": "KEK-260731-6599",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-31T00:01:35.683Z",
+        "readyAt": "2026-07-31T00:35:11.879Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-31T01:39:04.556Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-31T00:00:36.301Z"
+    },
+    {
+      "_id": "6a6e9284d0e46510417f982a",
+      "orderNumber": "KEK-260802-3531",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-02T00:42:44.486Z"
+    },
+    {
+      "_id": "6a6e94f94a205398730bfe35",
+      "orderNumber": "KEK-260802-5174",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-02T00:54:02.410Z",
+        "preparingAt": "2026-08-02T00:54:06.199Z",
+        "readyAt": "2026-08-02T01:40:07.647Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-02T01:40:11.375Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-02T00:53:13.477Z"
+    },
+    {
+      "_id": "6a728ead6477843a2584bb6c",
+      "orderNumber": "KEK-260805-1286",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-05T01:16:23.781Z",
+        "preparingAt": "2026-08-05T01:16:44.117Z",
+        "readyAt": "2026-08-05T01:36:39.950Z",
+        "enRutaAt": "2026-08-05T01:36:43.180Z",
+        "arrivedAt": "2026-08-05T01:40:54.644Z",
+        "deliveredAt": "2026-08-05T01:43:49.007Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-05T02:07:23.895Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-05T01:15:25.803Z"
+    },
+    {
+      "_id": "6a73cf62c49f308db9f39f80",
+      "orderNumber": "KEK-260806-6069",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-06T00:04:51.319Z",
+        "readyAt": "2026-08-06T00:51:55.620Z",
+        "enRutaAt": "2026-08-06T00:51:59.152Z",
+        "arrivedAt": "2026-08-06T01:08:15.517Z",
+        "deliveredAt": "2026-08-21T23:02:37.900Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-06T00:03:46.516Z"
+    },
+    {
+      "_id": "6a7511189a4a7d17a02e748b",
+      "orderNumber": "KEK-260806-2069",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-06T23:02:32.633Z",
+        "readyAt": "2026-08-06T23:34:25.511Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-06T23:39:46.013Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-06T22:56:24.227Z"
+    },
+    {
+      "_id": "6a6551b2392bcb9bef6ddb3b",
+      "orderNumber": "KEK-260726-7463",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-26T00:16:57.627Z",
+        "readyAt": "2026-07-26T00:32:04.392Z",
+        "enRutaAt": "2026-07-26T00:32:07.897Z",
+        "arrivedAt": "2026-07-26T01:40:51.281Z",
+        "deliveredAt": "2026-07-26T01:40:55.119Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-26T00:15:46.101Z"
+    },
+    {
+      "_id": "6a655d2c3395408e6e19ba56",
+      "orderNumber": "KEK-260726-4940",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-26T01:06:35.472Z",
+        "preparingAt": "2026-07-26T01:07:27.196Z",
+        "readyAt": "2026-07-26T01:38:17.863Z",
+        "enRutaAt": "2026-07-26T01:38:33.209Z",
+        "arrivedAt": "2026-07-26T02:28:27.940Z",
+        "deliveredAt": "2026-08-21T23:02:28.374Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-26T01:04:44.299Z"
+    },
+    {
+      "_id": "6a655d3f3395408e6e19bbef",
+      "orderNumber": "KEK-260726-8254",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-26T01:05:40.335Z",
+        "preparingAt": "2026-07-26T01:07:07.753Z",
+        "readyAt": "2026-07-26T01:38:23.038Z",
+        "enRutaAt": "2026-07-26T01:38:27.825Z",
+        "arrivedAt": "2026-07-26T02:28:30.683Z",
+        "deliveredAt": "2026-08-21T23:02:33.177Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-26T01:05:03.455Z"
+    },
+    {
+      "_id": "6a693848aa29086d51233c93",
+      "orderNumber": "KEK-260728-4990",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-28T23:18:38.228Z",
+        "readyAt": "2026-07-28T23:32:00.328Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-28T23:47:44.093Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-28T23:16:24.955Z"
+    },
+    {
+      "_id": "6a6e7d14f3d6e96d7fd22c25",
+      "orderNumber": "KEK-260801-3421",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-01T23:11:16.630Z"
+    },
+    {
+      "_id": "6a6e8f32c78455a077604b6b",
+      "orderNumber": "KEK-260802-2990",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-02T00:33:15.276Z",
+        "readyAt": "2026-08-02T01:11:24.643Z",
+        "enRutaAt": "2026-08-02T01:11:34.530Z",
+        "arrivedAt": "2026-08-02T01:30:48.205Z",
+        "deliveredAt": "2026-08-02T01:30:52.138Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-02T00:28:34.407Z"
+    },
+    {
+      "_id": "6a6fc1973ab07b4d42f529c1",
+      "orderNumber": "KEK-260802-9195",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-02T22:15:51.346Z"
+    },
+    {
+      "_id": "6a726fce5f9ca5b2639fa89d",
+      "orderNumber": "KEK-260804-3815",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-04T23:05:05.392Z",
+        "preparingAt": "2026-08-04T23:05:58.719Z",
+        "readyAt": "2026-08-04T23:36:04.559Z",
+        "enRutaAt": "2026-08-04T23:38:19.926Z",
+        "arrivedAt": "2026-08-05T00:09:49.030Z",
+        "deliveredAt": "2026-08-05T00:09:58.971Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-04T23:53:05.506Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-04T23:03:42.927Z"
+    },
+    {
+      "_id": "6a73cc6789db979ad456c02d",
+      "orderNumber": "KEK-260805-4445",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-05T23:52:49.747Z",
+        "readyAt": "2026-08-06T00:09:01.920Z",
+        "enRutaAt": "2026-08-06T00:09:04.936Z",
+        "arrivedAt": "2026-08-06T01:01:30.345Z",
+        "deliveredAt": "2026-08-06T01:01:32.985Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-05T23:51:03.648Z"
+    },
+    {
+      "_id": "6a6a94d558b5de70e8397fc0",
+      "orderNumber": "KEK-260730-9238",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-30T00:06:40.392Z",
+        "preparingAt": "2026-07-30T00:12:52.069Z",
+        "readyAt": "2026-07-30T00:47:35.794Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-30T01:33:25.228Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-30T00:03:33.863Z"
+    },
+    {
+      "_id": "6a6b741f95094fbd6619322d",
+      "orderNumber": "KEK-260730-9322",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-30T15:57:15.441Z",
+        "readyAt": "2026-07-30T17:54:06.128Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-30T17:54:08.867Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-30T15:56:15.023Z"
+    },
+    {
+      "_id": "6a6d2e2f1497785f95e72973",
+      "orderNumber": "KEK-260731-4930",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-31T23:23:20.576Z",
+        "preparingAt": "2026-07-31T23:23:26.567Z",
+        "readyAt": "2026-07-31T23:35:49.465Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-01T00:05:28.345Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-31T23:22:23.952Z"
+    },
+    {
+      "_id": "6a6d437244de6a6d0fc98f2e",
+      "orderNumber": "KEK-260801-9711",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-01T00:53:57.324Z",
+        "preparingAt": "2026-08-01T00:54:01.462Z",
+        "readyAt": "2026-08-01T01:32:45.042Z",
+        "enRutaAt": "2026-08-01T01:32:48.823Z",
+        "arrivedAt": "2026-08-01T02:04:24.690Z",
+        "deliveredAt": "2026-08-01T02:04:31.922Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-01T00:53:06.884Z"
+    },
+    {
+      "_id": "6a6e8e55fe0a5ede2d3756d1",
+      "orderNumber": "KEK-260802-9401",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-02T00:27:12.064Z",
+        "readyAt": "2026-08-02T01:20:09.308Z",
+        "enRutaAt": "2026-08-02T01:22:09.729Z",
+        "arrivedAt": "2026-08-02T01:22:14.922Z",
+        "deliveredAt": "2026-08-02T01:22:18.875Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-02T00:24:53.882Z"
+    },
+    {
+      "_id": "6a73d8e8c0679255ed4f5dce",
+      "orderNumber": "KEK-260806-4174",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-06T00:45:08.212Z",
+        "readyAt": "2026-08-06T00:53:40.040Z",
+        "enRutaAt": "2026-08-06T00:53:43.658Z",
+        "arrivedAt": "2026-08-06T01:01:19.883Z",
+        "deliveredAt": "2026-08-06T01:01:24.774Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-06T00:44:24.050Z"
+    },
+    {
+      "_id": "6a7525b292c7bee6cff18b35",
+      "orderNumber": "KEK-260807-4211",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-07T00:25:46.216Z",
+        "readyAt": "2026-08-07T00:42:56.772Z",
+        "enRutaAt": "2026-08-07T00:43:00.585Z",
+        "arrivedAt": "2026-08-07T01:19:15.550Z",
+        "deliveredAt": "2026-08-07T01:19:18.360Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T00:24:18.760Z"
+    },
+    {
+      "_id": "6a7527f75eb2830a4aadf242",
+      "orderNumber": "KEK-260807-3310",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-07T00:35:32.910Z",
+        "preparingAt": "2026-08-07T00:36:16.864Z",
+        "readyAt": "2026-08-07T00:50:45.637Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-07T01:08:35.850Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-07T01:26:33.024Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T00:33:59.799Z"
+    },
+    {
+      "_id": "6a62a046a502dcf5211899a8",
+      "orderNumber": "KEK-260723-6092",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-23T23:20:31.731Z",
+        "readyAt": "2026-07-23T23:52:40.011Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-23T23:52:42.718Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-23T23:14:14.013Z"
+    },
+    {
+      "_id": "6a63fdbde30d51acb6fe4bbc",
+      "orderNumber": "KEK-260725-7105",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-25T00:07:22.696Z",
+        "preparingAt": "2026-07-25T00:07:26.751Z",
+        "readyAt": "2026-07-25T00:36:48.625Z",
+        "enRutaAt": "2026-07-25T00:37:47.778Z",
+        "arrivedAt": "2026-07-25T01:09:44.061Z",
+        "deliveredAt": "2026-07-25T01:09:53.608Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-25T00:05:17.142Z"
+    },
+    {
+      "_id": "6a6402cb61e02dd84433e4c9",
+      "orderNumber": "KEK-260725-8502",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-25T00:28:12.230Z",
+        "preparingAt": "2026-07-25T00:28:15.546Z",
+        "readyAt": "2026-07-25T00:45:07.000Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-25T00:50:53.509Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-25T00:26:51.733Z"
+    },
+    {
+      "_id": "6a6549514fb9e3acf69bb93c",
+      "orderNumber": "KEK-260725-2918",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-25T23:43:14.933Z",
+        "preparingAt": "2026-07-25T23:43:46.240Z",
+        "readyAt": "2026-07-25T23:51:51.173Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-26T00:22:23.466Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-25T23:40:01.218Z"
+    },
+    {
+      "_id": "6a655d563395408e6e19bdbc",
+      "orderNumber": "KEK-260726-9318",
+      "statusTimestamps": {
+        "confirmedAt": "2026-07-26T01:06:39.930Z",
+        "preparingAt": "2026-07-26T01:06:55.440Z",
+        "readyAt": "2026-07-26T01:27:01.526Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-07-26T01:27:05.906Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-26T01:05:26.835Z"
+    },
+    {
+      "_id": "6a6d311c333860cf394c96c4",
+      "orderNumber": "KEK-260731-7562",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-31T23:35:43.948Z",
+        "readyAt": "2026-08-01T00:05:02.802Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-01T00:05:07.485Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-31T23:34:52.601Z"
+    },
+    {
+      "_id": "6a6d3271ba05bc4b755c2c93",
+      "orderNumber": "KEK-260731-4520",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-07-31T23:41:44.576Z",
+        "readyAt": "2026-08-01T00:04:57.238Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-01T00:20:00.532Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-07-31T23:40:33.813Z"
+    },
+    {
+      "_id": "6a6d473e1219e9de27582ae5",
+      "orderNumber": "KEK-260801-6693",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-01T01:10:12.090Z",
+        "readyAt": "2026-08-01T01:27:32.980Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-01T01:27:37.567Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-01T01:09:18.292Z"
+    },
+    {
+      "_id": "6a6e7d2e63c3432089e69f4d",
+      "orderNumber": "KEK-260801-4921",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-01T23:11:42.331Z"
+    },
+    {
+      "_id": "6a6fe7c5c85b39e2bca4531a",
+      "orderNumber": "KEK-260803-5089",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-03T01:02:20.021Z",
+        "preparingAt": "2026-08-03T01:02:23.752Z",
+        "readyAt": "2026-08-03T01:26:43.390Z",
+        "enRutaAt": "2026-08-03T01:26:49.219Z",
+        "arrivedAt": "2026-08-06T01:25:13.014Z",
+        "deliveredAt": "2026-08-06T01:25:15.880Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-03T01:50:20.136Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-03T00:58:45.716Z"
+    },
+    {
+      "_id": "6a752dd60d3edb753b1d6a21",
+      "orderNumber": "KEK-260807-6116",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-07T01:08:25.819Z",
+        "readyAt": "2026-08-07T01:08:29.786Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-07T01:14:49.968Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T00:59:02.769Z"
+    },
+    {
+      "_id": "6a7666623a3781535484a178",
+      "orderNumber": "KEK-260807-1066",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-07T23:15:59.898Z",
+        "preparingAt": "2026-08-07T23:16:11.175Z",
+        "readyAt": "2026-08-07T23:41:26.434Z",
+        "enRutaAt": "2026-08-07T23:43:36.030Z",
+        "arrivedAt": "2026-08-08T02:04:23.971Z",
+        "deliveredAt": "2026-08-08T02:04:26.531Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T00:05:00.014Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T23:12:34.180Z"
+    },
+    {
+      "_id": "6a76683e992b6778031d9de0",
+      "orderNumber": "KEK-260807-3073",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-07T23:21:28.940Z",
+        "preparingAt": "2026-08-07T23:21:39.967Z",
+        "readyAt": "2026-08-07T23:36:36.841Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-07T23:52:30.738Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T00:10:29.054Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T23:20:30.362Z"
+    },
+    {
+      "_id": "6a766964210ffa5a607aa759",
+      "orderNumber": "KEK-260807-3949",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-07T23:27:27.560Z",
+        "preparingAt": "2026-08-07T23:27:31.618Z",
+        "readyAt": "2026-08-07T23:52:24.368Z",
+        "enRutaAt": "2026-08-07T23:52:28.026Z",
+        "arrivedAt": "2026-08-08T02:04:30.070Z",
+        "deliveredAt": "2026-08-08T02:04:32.345Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T00:16:27.675Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-07T23:25:24.717Z"
+    },
+    {
+      "_id": "6a7675b99aef8f908e48c069",
+      "orderNumber": "KEK-260808-8390",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T00:19:32.059Z",
+        "preparingAt": "2026-08-08T00:19:35.864Z",
+        "readyAt": "2026-08-08T00:44:33.208Z",
+        "enRutaAt": "2026-08-08T00:44:36.535Z",
+        "arrivedAt": "2026-08-08T02:03:28.629Z",
+        "deliveredAt": "2026-08-08T02:03:34.087Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T01:06:32.175Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T00:18:01.834Z"
+    },
+    {
+      "_id": "6a767882bc36c090ee5ec18b",
+      "orderNumber": "KEK-260808-1001",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T00:30:32.680Z",
+        "preparingAt": "2026-08-08T00:30:36.063Z",
+        "readyAt": "2026-08-08T00:54:00.684Z",
+        "enRutaAt": "2026-08-08T01:05:50.584Z",
+        "arrivedAt": "2026-08-08T02:03:13.170Z",
+        "deliveredAt": "2026-08-08T02:03:18.161Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T01:17:32.794Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T00:29:54.989Z"
+    },
+    {
+      "_id": "6a767da2e182fc170360185b",
+      "orderNumber": "KEK-260808-6937",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T00:52:48.559Z",
+        "preparingAt": "2026-08-08T00:52:52.568Z",
+        "readyAt": "2026-08-08T01:27:29.040Z",
+        "enRutaAt": "2026-08-08T01:27:34.464Z",
+        "arrivedAt": "2026-08-08T02:02:45.266Z",
+        "deliveredAt": "2026-08-08T02:02:49.951Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T01:39:48.675Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T00:51:46.612Z"
+    },
+    {
+      "_id": "6a767e01eb7b4319cf0c4372",
+      "orderNumber": "KEK-260808-4530",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-08T00:54:04.855Z",
+        "readyAt": "2026-08-08T01:11:39.371Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-08T01:27:07.165Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T00:53:21.825Z"
+    },
+    {
+      "_id": "6a7682cf83cb985aa40febc5",
+      "orderNumber": "KEK-260808-4299",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T01:15:03.673Z",
+        "preparingAt": "2026-08-08T01:15:08.341Z",
+        "readyAt": "2026-08-08T01:32:42.796Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-08T01:37:13.393Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-08T02:02:03.788Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T01:13:51.165Z"
+    },
+    {
+      "_id": "6a7686695fdf16fe0d3a34eb",
+      "orderNumber": "KEK-260808-8757",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-08T01:31:12.497Z",
+        "readyAt": "2026-08-08T01:50:16.072Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-08T02:09:28.596Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T01:29:13.130Z"
+    },
+    {
+      "_id": "6a77b7666a001ec322661761",
+      "orderNumber": "KEK-260808-2204",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T23:26:28.270Z",
+        "preparingAt": "2026-08-09T00:00:44.659Z",
+        "readyAt": "2026-08-09T00:00:47.681Z",
+        "enRutaAt": "2026-08-09T00:00:51.106Z",
+        "arrivedAt": "2026-08-09T00:00:54.239Z",
+        "deliveredAt": "2026-08-21T23:02:42.596Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T23:10:30.385Z"
+    },
+    {
+      "_id": "6a77c0254785fc7a50601df3",
+      "orderNumber": "KEK-260808-8206",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-08T23:50:51.721Z",
+        "preparingAt": "2026-08-08T23:50:57.472Z",
+        "readyAt": "2026-08-09T00:00:23.180Z",
+        "enRutaAt": "2026-08-09T00:00:38.998Z",
+        "arrivedAt": "2026-08-09T00:16:17.720Z",
+        "deliveredAt": "2026-08-09T00:16:23.355Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-09T00:37:51.837Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-08T23:47:49.935Z"
+    },
+    {
+      "_id": "6a77e75d4e7b9690ae47be15",
+      "orderNumber": "KEK-260809-5712",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-09T02:36:26.685Z",
+        "preparingAt": "2026-08-09T02:36:30.275Z",
+        "readyAt": "2026-08-09T03:35:56.068Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-09T03:35:59.447Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-09T03:23:26.802Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-09T02:35:09.301Z"
+    },
+    {
+      "_id": "6a791cb1f46e09a1fbea5d3a",
+      "orderNumber": "KEK-260810-7487",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-10T00:36:19.440Z",
+        "readyAt": "2026-08-10T00:50:31.327Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-10T00:57:43.521Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-10T00:34:57.478Z"
+    },
+    {
+      "_id": "6a7934f8506b01865a488448",
+      "orderNumber": "KEK-260810-5217",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-10T02:20:41.282Z",
+        "readyAt": "2026-08-11T23:34:53.238Z",
+        "enRutaAt": "2026-08-11T23:34:56.301Z",
+        "arrivedAt": "2026-08-12T02:12:11.638Z",
+        "deliveredAt": "2026-08-21T23:02:47.111Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-10T02:18:32.211Z"
+    },
+    {
+      "_id": "6a7bac6a33110fb2c5ba8cbe",
+      "orderNumber": "KEK-260811-3873",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-11T23:16:06.853Z",
+        "preparingAt": "2026-08-11T23:35:25.668Z",
+        "readyAt": "2026-08-11T23:35:28.816Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-11T23:35:31.837Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-12T00:03:06.967Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-11T23:12:42.422Z"
+    },
+    {
+      "_id": "6a7bb964c0eaed37f2e1f4d0",
+      "orderNumber": "KEK-260812-5040",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-12T00:13:53.269Z",
+        "readyAt": "2026-08-12T00:19:57.456Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-12T00:24:43.947Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-12T00:08:04.375Z"
+    },
+    {
+      "_id": "6a7cfcf298adbe7036e5618e",
+      "orderNumber": "KEK-260812-7300",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-12T23:09:48.489Z",
+        "readyAt": "2026-08-12T23:32:15.124Z",
+        "enRutaAt": "2026-08-12T23:43:08.096Z",
+        "arrivedAt": "2026-08-13T00:15:45.298Z",
+        "deliveredAt": "2026-08-21T23:02:53.014Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-12T23:08:34.015Z"
+    },
+    {
+      "_id": "6a7d013db85479384a573b8e",
+      "orderNumber": "KEK-260812-9571",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-12T23:28:40.712Z",
+        "preparingAt": "2026-08-12T23:31:02.479Z",
+        "readyAt": "2026-08-12T23:38:24.031Z",
+        "enRutaAt": "2026-08-12T23:41:11.577Z",
+        "arrivedAt": "2026-08-12T23:57:42.219Z",
+        "deliveredAt": "2026-08-12T23:57:46.215Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-13T00:15:40.826Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-12T23:26:53.590Z"
+    },
+    {
+      "_id": "6a7d08550ddd4bfa2f6320e0",
+      "orderNumber": "KEK-260812-4130",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-12T23:59:25.462Z",
+        "preparingAt": "2026-08-13T00:03:13.920Z",
+        "readyAt": "2026-08-13T00:19:09.562Z",
+        "enRutaAt": "2026-08-13T00:20:48.828Z",
+        "arrivedAt": "2026-08-13T01:08:28.436Z",
+        "deliveredAt": "2026-08-21T23:02:57.853Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-13T00:46:25.577Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-12T23:57:09.839Z"
+    },
+    {
+      "_id": "6a7d0e3c81bf45ee1fa902e2",
+      "orderNumber": "KEK-260813-4314",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-13T00:25:02.948Z",
+        "readyAt": "2026-08-13T00:35:22.895Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-13T01:08:19.697Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-13T00:22:20.535Z"
+    },
+    {
+      "_id": "6a7de06e9a24ddfc184c35da",
+      "orderNumber": "KEK-260813-5906",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-13T15:34:07.014Z",
+        "preparingAt": "2026-08-13T15:34:13.062Z",
+        "readyAt": "2026-08-13T16:21:15.030Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-13T16:21:18.402Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-13T16:21:07.127Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-13T15:19:10.578Z"
+    },
+    {
+      "_id": "6a7e56cc7f6b32d2a68cd2f4",
+      "orderNumber": "KEK-260813-1960",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-13T23:46:28.638Z",
+        "readyAt": "2026-08-14T00:35:20.048Z",
+        "enRutaAt": "2026-08-14T00:35:23.493Z",
+        "arrivedAt": "2026-08-14T00:35:26.719Z",
+        "deliveredAt": "2026-08-21T23:03:03.942Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-13T23:44:12.616Z"
+    },
+    {
+      "_id": "6a7e61668a87b62dac30fdd9",
+      "orderNumber": "KEK-260814-8902",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-14T00:29:52.893Z",
+        "preparingAt": "2026-08-14T00:30:01.709Z",
+        "readyAt": "2026-08-14T00:54:32.136Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-14T01:00:46.690Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-14T01:16:53.013Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-14T00:29:26.517Z"
+    },
+    {
+      "_id": "6a7e63ce332e11ece3ce5c41",
+      "orderNumber": "KEK-260814-6831",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-14T00:39:56.273Z",
+        "preparingAt": "2026-08-14T01:00:39.213Z",
+        "readyAt": "2026-08-14T01:00:42.491Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-14T01:30:50.908Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-14T01:26:56.396Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-14T00:39:42.049Z"
+    },
+    {
+      "_id": "6a7e75633ae2ca590f1d768b",
+      "orderNumber": "KEK-260814-8950",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-14T01:55:56.983Z",
+        "readyAt": "2026-08-14T02:14:07.212Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-14T02:14:14.202Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-14T01:54:43.932Z"
+    },
+    {
+      "_id": "6a7e778b777b43944a2176e1",
+      "orderNumber": "KEK-260814-4249",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-14T02:04:35.228Z",
+        "preparingAt": "2026-08-14T02:07:24.318Z",
+        "readyAt": "2026-08-14T02:14:18.269Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-14T02:14:20.934Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-14T02:51:35.372Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-14T02:03:55.673Z"
+    },
+    {
+      "_id": "6a7f3139c11e9b4de8c3ed4d",
+      "orderNumber": "KEK-260814-6612",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-14T15:17:08.827Z",
+        "preparingAt": "2026-08-14T15:17:14.761Z",
+        "readyAt": "2026-08-14T15:54:51.798Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-14T16:00:59.641Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-14T16:04:08.995Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-14T15:16:09.181Z"
+    },
+    {
+      "_id": "6a7fac9b5424eb98104b5c43",
+      "orderNumber": "KEK-260815-8967",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-15T00:04:02.921Z",
+        "preparingAt": "2026-08-15T00:04:08.740Z",
+        "readyAt": "2026-08-15T00:23:30.775Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-15T00:36:34.637Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-15T00:51:03.036Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-15T00:02:35.326Z"
+    },
+    {
+      "_id": "6a7fad20314436ff7c65fb6e",
+      "orderNumber": "KEK-260815-6901",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-15T00:06:24.553Z",
+        "readyAt": "2026-08-15T00:23:35.244Z",
+        "enRutaAt": "2026-08-15T00:29:07.365Z",
+        "arrivedAt": "2026-08-15T01:00:04.893Z",
+        "deliveredAt": "2026-08-15T01:00:08.592Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-15T00:04:48.096Z"
+    },
+    {
+      "_id": "6a7fbb13dc9d8293432f8e1c",
+      "orderNumber": "KEK-260815-9423",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-15T01:05:11.457Z",
+        "preparingAt": "2026-08-15T01:05:15.297Z",
+        "readyAt": "2026-08-15T01:39:18.846Z",
+        "enRutaAt": "2026-08-15T01:39:23.791Z",
+        "arrivedAt": "2026-08-15T02:10:59.403Z",
+        "deliveredAt": "2026-08-15T02:59:12.711Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-15T01:38:11.572Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-15T01:04:19.459Z"
+    },
+    {
+      "_id": "6a808765ac37549e6caee945",
+      "orderNumber": "KEK-260815-3349",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-15T15:41:59.727Z",
+        "preparingAt": "2026-08-15T17:40:37.005Z",
+        "readyAt": "2026-08-15T17:40:41.110Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-15T17:40:45.129Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-15T16:14:59.844Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-15T15:36:05.358Z"
+    },
+    {
+      "_id": "6a80fe9ef771a291aeaefa64",
+      "orderNumber": "KEK-260816-6620",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-16T00:05:44.273Z",
+        "readyAt": "2026-08-16T00:32:02.995Z",
+        "enRutaAt": "2026-08-16T00:32:07.660Z",
+        "arrivedAt": "2026-08-16T00:32:10.855Z",
+        "deliveredAt": "2026-08-21T23:03:08.790Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T00:04:46.660Z"
+    },
+    {
+      "_id": "6a81068b3993290b95089fdb",
+      "orderNumber": "KEK-260816-2739",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-16T00:39:00.454Z",
+        "preparingAt": "2026-08-16T00:43:54.687Z",
+        "readyAt": "2026-08-16T01:01:18.773Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-16T01:08:35.791Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-16T01:21:00.571Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T00:38:35.857Z"
+    },
+    {
+      "_id": "6a8108cbb0d93b77d86d009b",
+      "orderNumber": "KEK-260816-6438",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-16T00:48:29.114Z",
+        "preparingAt": "2026-08-16T00:50:17.460Z",
+        "readyAt": "2026-08-16T01:16:58.897Z",
+        "enRutaAt": "2026-08-16T01:17:02.782Z",
+        "arrivedAt": "2026-08-16T01:31:29.906Z",
+        "deliveredAt": "2026-08-21T23:03:13.856Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-16T01:30:29.230Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T00:48:11.420Z"
+    },
+    {
+      "_id": "6a8109d3d3ff659018b1acd5",
+      "orderNumber": "KEK-260816-4133",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-16T00:53:58.179Z",
+        "readyAt": "2026-08-16T01:14:12.856Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-16T02:53:52.887Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T00:52:35.332Z"
+    },
+    {
+      "_id": "6a8112bc5dbad321fd2e53e4",
+      "orderNumber": "KEK-260816-6288",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-16T01:31:36.392Z",
+        "readyAt": "2026-08-16T01:42:54.401Z",
+        "enRutaAt": "2026-08-16T01:42:58.685Z",
+        "arrivedAt": "2026-08-16T02:53:48.830Z",
+        "deliveredAt": "2026-08-21T23:03:19.505Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T01:30:36.151Z"
+    },
+    {
+      "_id": "6a8241afc819135b1a35a250",
+      "orderNumber": "KEK-260816-9405",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-16T23:04:36.308Z",
+        "readyAt": "2026-08-16T23:13:06.721Z",
+        "enRutaAt": "2026-08-16T23:13:10.793Z",
+        "arrivedAt": "2026-08-16T23:33:21.243Z",
+        "deliveredAt": "2026-08-16T23:33:25.682Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T23:03:11.341Z"
+    },
+    {
+      "_id": "6a824d59579fda9e10a4bc09",
+      "orderNumber": "KEK-260816-8549",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-16T23:57:43.410Z",
+        "readyAt": "2026-08-17T00:08:52.830Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-17T00:46:55.141Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-16T23:52:57.314Z"
+    },
+    {
+      "_id": "6a82500b36261085ff2c4fe7",
+      "orderNumber": "KEK-260817-9583",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-17T00:05:58.668Z",
+        "preparingAt": "2026-08-17T00:06:08.398Z",
+        "readyAt": "2026-08-17T00:18:50.094Z",
+        "enRutaAt": "2026-08-17T00:18:56.791Z",
+        "arrivedAt": "2026-08-17T01:12:26.221Z",
+        "deliveredAt": "2026-08-17T01:12:30.242Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-17T00:47:58.785Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-17T00:04:27.780Z"
+    },
+    {
+      "_id": "6a826cdff151c74b388909ea",
+      "orderNumber": "KEK-260817-6780",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-17T02:29:54.210Z",
+        "readyAt": "2026-08-17T02:30:00.372Z",
+        "enRutaAt": "2026-08-18T14:28:53.799Z",
+        "arrivedAt": "2026-08-18T14:28:57.422Z",
+        "deliveredAt": "2026-08-18T14:29:01.247Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-17T02:07:27.581Z"
+    },
+    {
+      "_id": "6a84ea01b2cb51239080b47b",
+      "orderNumber": "KEK-260818-3510",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-18T23:29:47.260Z",
+        "readyAt": "2026-08-19T00:30:40.728Z",
+        "enRutaAt": "2026-08-19T00:30:44.225Z",
+        "arrivedAt": "2026-08-19T00:30:47.675Z",
+        "deliveredAt": "2026-08-19T00:30:51.731Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-18T23:25:53.629Z"
+    },
+    {
+      "_id": "6a863ba3471b0be6c203a46f",
+      "orderNumber": "KEK-260819-2378",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-19T23:30:47.311Z",
+        "readyAt": "2026-08-19T23:49:56.983Z",
+        "enRutaAt": "2026-08-19T23:50:01.855Z",
+        "arrivedAt": "2026-08-20T00:06:53.037Z",
+        "deliveredAt": "2026-08-20T00:06:56.343Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-19T23:26:27.599Z"
+    },
+    {
+      "_id": "6a864c4395ce313cd7d1179a",
+      "orderNumber": "KEK-260820-7228",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-20T00:54:24.472Z",
+        "readyAt": "2026-08-20T00:54:32.281Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-20T01:10:33.686Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-20T00:37:23.880Z"
+    },
+    {
+      "_id": "6a87a06e538cda526850e9be",
+      "orderNumber": "KEK-260821-8411",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-21T00:50:34.102Z",
+        "readyAt": "2026-08-21T01:02:23.274Z",
+        "enRutaAt": "2026-08-21T01:02:26.671Z",
+        "arrivedAt": "2026-08-21T01:27:08.404Z",
+        "deliveredAt": "2026-08-21T23:03:24.587Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-21T00:48:46.511Z"
+    },
+    {
+      "_id": "6a87a30fe99d8ef0ac19b810",
+      "orderNumber": "KEK-260821-1995",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-21T01:01:00.741Z",
+        "readyAt": "2026-08-21T01:27:05.511Z",
+        "enRutaAt": "2026-08-21T01:31:41.029Z",
+        "arrivedAt": "2026-08-21T02:01:46.864Z",
+        "deliveredAt": "2026-08-21T23:03:29.880Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-21T00:59:59.137Z"
+    },
+    {
+      "_id": "6a88d9029db7fedf63e1cd12",
+      "orderNumber": "KEK-260821-1360",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-21T23:07:16.659Z",
+        "readyAt": "2026-08-21T23:16:46.650Z",
+        "enRutaAt": "2026-08-21T23:16:51.282Z",
+        "arrivedAt": "2026-08-21T23:42:13.361Z",
+        "deliveredAt": "2026-08-21T23:42:17.902Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-21T23:02:26.317Z"
+    },
+    {
+      "_id": "6a88e1fdd3d5fe7fc8328e9c",
+      "orderNumber": "KEK-260821-6551",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-21T23:41:57.633Z",
+        "readyAt": "2026-08-22T00:15:07.492Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-22T01:02:27.995Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-21T23:40:45.495Z"
+    },
+    {
+      "_id": "6a88ec0cd5280e97323793d7",
+      "orderNumber": "KEK-260822-2303",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-22T00:25:50.704Z",
+        "preparingAt": "2026-08-22T00:25:54.536Z",
+        "readyAt": "2026-08-22T00:41:02.418Z",
+        "enRutaAt": "2026-08-22T00:41:07.055Z",
+        "arrivedAt": "2026-08-22T01:02:25.144Z",
+        "deliveredAt": "2026-08-22T01:02:33.256Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-22T01:11:50.819Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-22T00:23:40.243Z"
+    },
+    {
+      "_id": "6a8a55d1e91cae3797775862",
+      "orderNumber": "KEK-260823-5415",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-23T02:10:11.139Z",
+        "preparingAt": "2026-08-23T02:10:24.557Z",
+        "readyAt": "2026-08-23T02:25:29.063Z",
+        "enRutaAt": "2026-08-23T02:25:33.126Z",
+        "arrivedAt": "2026-08-23T02:25:39.239Z",
+        "deliveredAt": "2026-08-23T02:25:42.421Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-23T02:56:11.269Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-23T02:07:13.071Z"
+    },
+    {
+      "_id": "6a8b839ad9723e28a95cc5c6",
+      "orderNumber": "KEK-260823-4527",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-23T23:35:55.031Z",
+        "readyAt": "2026-08-24T00:05:11.125Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-24T00:16:52.576Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-23T23:34:50.461Z"
+    },
+    {
+      "_id": "6a8b8dc22fc49e50327732cb",
+      "orderNumber": "KEK-260824-8973",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-24T00:19:19.114Z",
+        "readyAt": "2026-08-24T00:27:57.338Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-24T00:40:09.424Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-24T00:18:10.105Z"
+    },
+    {
+      "_id": "6a8b901e02f89767f79abaef",
+      "orderNumber": "KEK-260824-2426",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-24T00:29:14.288Z",
+        "readyAt": "2026-08-24T00:37:13.302Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-24T00:44:38.686Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-24T00:28:14.844Z"
+    },
+    {
+      "_id": "6a8dc70c42a92fd3c19aa5f3",
+      "orderNumber": "KEK-260825-8243",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-25T16:48:57.705Z",
+        "readyAt": "2026-08-25T17:23:58.954Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-25T17:30:03.689Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-25T16:47:08.090Z"
+    },
+    {
+      "_id": "6a8e300645d7bb4b2c9ff919",
+      "orderNumber": "KEK-260826-5565",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-26T00:16:31.771Z",
+        "readyAt": "2026-08-26T00:46:40.028Z",
+        "enRutaAt": "2026-08-26T00:53:44.485Z",
+        "arrivedAt": "2026-08-26T02:02:04.555Z",
+        "deliveredAt": "2026-08-26T02:02:09.210Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-26T00:15:02.504Z"
+    },
+    {
+      "_id": "6a8f71ef558a4906ee244658",
+      "orderNumber": "KEK-260826-1245",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-26T23:10:22.204Z",
+        "preparingAt": "2026-08-26T23:10:41.403Z",
+        "readyAt": "2026-08-26T23:18:19.484Z",
+        "enRutaAt": "2026-08-26T23:18:24.620Z",
+        "arrivedAt": "2026-08-26T23:50:29.279Z",
+        "deliveredAt": "2026-08-26T23:53:31.857Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-26T23:58:22.318Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-26T23:08:31.103Z"
+    },
+    {
+      "_id": "6a8f7f7fd596b1f1ad0cfc03",
+      "orderNumber": "KEK-260827-5894",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-27T00:08:55.877Z",
+        "readyAt": "2026-08-27T00:20:24.241Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-27T00:20:35.440Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T00:06:23.459Z"
+    },
+    {
+      "_id": "6a8f81b27db4e701bf25f375",
+      "orderNumber": "KEK-260827-8546",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-27T01:35:22.872Z",
+        "readyAt": "2026-08-27T01:35:25.793Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-27T01:35:28.623Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T00:15:46.087Z"
+    },
+    {
+      "_id": "6a8f8cb553a77d8815609946",
+      "orderNumber": "KEK-260827-1302",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-27T01:22:50.180Z",
+        "readyAt": "2026-08-27T01:35:15.076Z",
+        "enRutaAt": "2026-08-27T01:35:19.399Z",
+        "arrivedAt": "2026-08-27T02:18:26.691Z",
+        "deliveredAt": "2026-08-27T02:18:38.975Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T01:02:45.192Z"
+    },
+    {
+      "_id": "6a8f8e337db4e701bf2615ae",
+      "orderNumber": "KEK-260827-4165",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-27T01:11:12.480Z",
+        "preparingAt": "2026-08-27T01:11:19.932Z",
+        "readyAt": "2026-08-27T01:32:53.874Z",
+        "enRutaAt": "2026-08-27T01:33:24.035Z",
+        "arrivedAt": "2026-08-27T02:18:31.268Z",
+        "deliveredAt": "2026-08-27T02:18:35.297Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-27T01:59:12.598Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T01:09:07.650Z"
+    },
+    {
+      "_id": "6a90bf5135086caaf9127b02",
+      "orderNumber": "KEK-260827-3522",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-27T22:53:36.112Z",
+        "preparingAt": "2026-08-27T23:08:15.036Z",
+        "readyAt": "2026-08-27T23:08:18.314Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-27T23:25:22.442Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-27T23:41:36.227Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T22:50:57.198Z"
+    },
+    {
+      "_id": "6a90ce1aded8f0880064a324",
+      "orderNumber": "KEK-260827-9077",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-27T23:55:50.240Z",
+        "readyAt": "2026-08-28T00:54:15.636Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-28T01:44:10.051Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T23:54:02.834Z"
+    },
+    {
+      "_id": "6a90cec0f55d6ef2548a73bf",
+      "orderNumber": "KEK-260827-9201",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-28T00:02:43.715Z",
+        "preparingAt": "2026-08-28T00:02:51.245Z",
+        "readyAt": "2026-08-28T00:54:17.863Z",
+        "enRutaAt": "2026-08-28T00:54:23.962Z",
+        "arrivedAt": "2026-08-28T01:44:20.000Z",
+        "deliveredAt": "2026-08-28T01:44:22.779Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-28T00:50:43.831Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-27T23:56:48.508Z"
+    },
+    {
+      "_id": "6a90e213cacc8d3e9b67815e",
+      "orderNumber": "KEK-260828-8491",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-28T01:20:13.811Z",
+        "readyAt": "2026-08-28T01:44:07.162Z",
+        "enRutaAt": "2026-08-28T01:50:22.819Z",
+        "arrivedAt": "2026-08-28T01:50:27.477Z",
+        "deliveredAt": "2026-08-28T01:50:30.738Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-28T01:19:15.586Z"
+    },
+    {
+      "_id": "6a921bfa2cf45e01474c5130",
+      "orderNumber": "KEK-260828-8669",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-28T23:38:34.548Z"
+    },
+    {
+      "_id": "6a921c412cf45e01474c5524",
+      "orderNumber": "KEK-260828-7579",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-28T23:40:52.334Z",
+        "preparingAt": "2026-08-28T23:41:25.969Z",
+        "readyAt": "2026-08-29T00:02:53.715Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-29T00:14:38.534Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-29T00:28:52.597Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-28T23:39:45.937Z"
+    },
+    {
+      "_id": "6a921cd858207bce6c24f1f1",
+      "orderNumber": "KEK-260828-2426",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-28T23:42:43.431Z",
+        "preparingAt": "2026-08-29T00:02:46.452Z",
+        "readyAt": "2026-08-29T00:02:56.703Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-29T00:14:41.601Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-29T00:30:43.546Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-28T23:42:16.562Z"
+    },
+    {
+      "_id": "6a92226af767f143a928c506",
+      "orderNumber": "KEK-260829-5573",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-29T00:07:11.362Z",
+        "preparingAt": "2026-08-29T00:07:25.525Z",
+        "readyAt": "2026-08-29T01:21:14.382Z",
+        "enRutaAt": "2026-08-29T01:21:40.123Z",
+        "arrivedAt": "2026-08-29T01:21:45.475Z",
+        "deliveredAt": "2026-08-29T02:10:01.827Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-29T00:55:11.476Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-29T00:06:02.294Z"
+    },
+    {
+      "_id": "6a92312cf7b8dc40a712b35f",
+      "orderNumber": "KEK-260829-7654",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-29T01:09:40.050Z",
+        "preparingAt": "2026-08-29T01:09:44.393Z",
+        "readyAt": "2026-08-29T02:10:07.956Z",
+        "enRutaAt": "2026-08-29T02:47:30.078Z",
+        "arrivedAt": "2026-08-29T02:47:33.190Z",
+        "deliveredAt": "2026-08-29T02:47:36.145Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-29T01:55:40.166Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-29T01:09:00.453Z"
+    },
+    {
+      "_id": "6a9310f8c9f52b6e14e9d6a4",
+      "orderNumber": "KEK-260829-7314",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-29T17:05:58.990Z",
+        "readyAt": "2026-08-29T17:15:52.478Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-29T23:40:28.400Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-29T17:03:52.859Z"
+    },
+    {
+      "_id": "6a936cd52ee12cdc580ae825",
+      "orderNumber": "KEK-260829-3778",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-29T23:37:17.978Z",
+        "readyAt": "2026-08-29T23:55:49.200Z",
+        "enRutaAt": "2026-08-29T23:55:56.304Z",
+        "arrivedAt": "2026-08-30T00:42:54.703Z",
+        "deliveredAt": "2026-08-30T00:43:01.901Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-29T23:35:49.949Z"
+    },
+    {
+      "_id": "6a936ffed10c13a4f64a7bc7",
+      "orderNumber": "KEK-260829-9232",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-29T23:49:38.416Z",
+        "preparingAt": "2026-08-29T23:55:46.255Z",
+        "readyAt": "2026-08-30T00:09:59.238Z",
+        "enRutaAt": "2026-08-30T00:10:03.916Z",
+        "arrivedAt": "2026-08-30T00:42:42.755Z",
+        "deliveredAt": "2026-08-30T00:43:10.365Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-30T00:35:38.533Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-29T23:49:18.997Z"
+    },
+    {
+      "_id": "6a937db747941a204b3315a8",
+      "orderNumber": "KEK-260830-3485",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-30T00:49:30.518Z",
+        "readyAt": "2026-08-30T01:28:03.066Z",
+        "enRutaAt": "2026-08-30T01:28:10.035Z",
+        "arrivedAt": "2026-08-30T01:28:19.081Z",
+        "deliveredAt": "2026-08-30T01:28:22.875Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T00:47:51.033Z"
+    },
+    {
+      "_id": "6a93836c8f293575c014e6f9",
+      "orderNumber": "KEK-260830-4824",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-30T01:13:46.848Z",
+        "preparingAt": "2026-08-30T01:13:51.924Z",
+        "readyAt": "2026-08-30T01:28:06.896Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-30T02:43:42.839Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-30T01:59:46.964Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T01:12:12.012Z"
+    },
+    {
+      "_id": "6a94b51b891d250d91af3328",
+      "orderNumber": "KEK-260830-9040",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-30T22:57:24.116Z",
+        "readyAt": "2026-08-30T23:44:07.859Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-30T23:44:11.764Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T22:56:27.757Z"
+    },
+    {
+      "_id": "6a94c12cc54b4de7b41e77bc",
+      "orderNumber": "KEK-260830-7669",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": "2026-08-30T23:48:33.034Z",
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T23:47:56.915Z"
+    },
+    {
+      "_id": "6a94c195fef2eca4533a9bc2",
+      "orderNumber": "KEK-260830-8300",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-30T23:56:03.436Z",
+        "preparingAt": "2026-08-30T23:56:16.966Z",
+        "readyAt": "2026-08-31T00:30:13.782Z",
+        "enRutaAt": "2026-08-31T00:30:17.733Z",
+        "arrivedAt": "2026-08-31T01:12:31.784Z",
+        "deliveredAt": "2026-08-31T01:12:41.844Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-31T00:42:03.652Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T23:49:41.111Z"
+    },
+    {
+      "_id": "6a94c1c4516f370cfff0e506",
+      "orderNumber": "KEK-260830-6654",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-30T23:52:51.221Z",
+        "preparingAt": "2026-08-30T23:52:55.419Z",
+        "readyAt": "2026-08-31T00:15:57.555Z",
+        "enRutaAt": "2026-08-31T00:30:06.810Z",
+        "arrivedAt": "2026-08-31T00:30:10.828Z",
+        "deliveredAt": "2026-08-31T01:12:33.744Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-31T00:38:51.337Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T23:50:28.036Z"
+    },
+    {
+      "_id": "6a94c36b9e7412ddf315d66b",
+      "orderNumber": "KEK-260830-3329",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-30T23:59:37.957Z",
+        "preparingAt": "2026-08-31T00:01:23.829Z",
+        "readyAt": "2026-08-31T00:38:41.242Z",
+        "enRutaAt": "2026-08-31T00:38:44.856Z",
+        "arrivedAt": "2026-08-31T01:12:26.802Z",
+        "deliveredAt": "2026-08-31T01:12:36.797Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-31T00:45:38.074Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-30T23:57:31.906Z"
+    },
+    {
+      "_id": "6a94dbafe07624f3c9a26804",
+      "orderNumber": "KEK-260831-6321",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-08-31T01:42:08.473Z",
+        "readyAt": "2026-08-31T01:48:40.954Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-01T23:19:02.596Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-31T01:41:03.805Z"
+    },
+    {
+      "_id": "6a94e5d4678c559a090e9705",
+      "orderNumber": "KEK-260831-5985",
+      "statusTimestamps": {
+        "confirmedAt": "2026-08-31T02:25:20.578Z",
+        "preparingAt": "2026-08-31T02:25:24.312Z",
+        "readyAt": "2026-08-31T02:40:36.386Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-08-31T02:40:39.369Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-08-31T03:11:20.694Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-08-31T02:24:20.567Z"
+    },
+    {
+      "_id": "6a976970b1e065f0a0b91b76",
+      "orderNumber": "KEK-260902-4526",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-02T00:11:35.634Z",
+        "readyAt": "2026-09-02T00:16:07.512Z",
+        "enRutaAt": "2026-09-02T00:21:01.243Z",
+        "arrivedAt": "2026-09-02T00:44:38.972Z",
+        "deliveredAt": "2026-09-02T01:55:25.613Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-02T00:10:24.624Z"
+    },
+    {
+      "_id": "6a97776e3479c1172eda59c6",
+      "orderNumber": "KEK-260902-7026",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-02T01:10:51.774Z",
+        "preparingAt": "2026-09-02T01:11:45.122Z",
+        "readyAt": "2026-09-02T02:02:43.801Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-02T02:25:23.510Z",
+        "cancelledAt": null,
+        "estimatedReadyAt": "2026-09-02T01:54:51.890Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-02T01:10:06.165Z"
+    },
+    {
+      "_id": "6a98bd2b79600bf52bf6d4f6",
+      "orderNumber": "KEK-260903-7286",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-03T00:36:45.512Z",
+        "readyAt": "2026-09-03T00:39:45.634Z",
+        "enRutaAt": "2026-09-03T00:39:49.783Z",
+        "arrivedAt": "2026-09-03T00:58:11.097Z",
+        "deliveredAt": "2026-09-03T00:58:14.928Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-03T00:19:55.674Z"
+    },
+    {
+      "_id": "6a98d135c3512891efd4ac92",
+      "orderNumber": "KEK-260903-7233",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-03T01:48:38.855Z",
+        "preparingAt": "2026-09-03T01:53:21.622Z",
+        "readyAt": "2026-09-03T01:56:37.065Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-03T02:02:16.641Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-03T02:32:39.049Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-03T01:45:25.868Z"
+    },
+    {
+      "_id": "6a98d5f19c842ef0081d97e5",
+      "orderNumber": "KEK-260903-2485",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-03T02:08:23.321Z",
+        "preparingAt": "2026-09-03T02:16:23.191Z",
+        "readyAt": "2026-09-03T02:16:27.585Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-03T02:18:23.237Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-03T02:52:23.436Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-03T02:05:37.751Z"
+    },
+    {
+      "_id": "6a99f7c8480ac1c4f1ed57bd",
+      "orderNumber": "KEK-260903-2056",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-03T22:46:41.763Z",
+        "preparingAt": "2026-09-03T22:50:03.514Z",
+        "readyAt": "2026-09-03T22:54:50.256Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-03T23:17:00.203Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-03T23:30:41.877Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-03T22:42:16.211Z"
+    },
+    {
+      "_id": "6a99ff35bd30b7c53ad4c1bb",
+      "orderNumber": "KEK-260903-4633",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-03T23:16:54.197Z",
+        "preparingAt": "2026-09-03T23:17:03.094Z",
+        "readyAt": "2026-09-03T23:26:53.073Z",
+        "enRutaAt": "2026-09-03T23:33:28.516Z",
+        "arrivedAt": "2026-09-04T00:00:54.404Z",
+        "deliveredAt": "2026-09-04T00:25:29.710Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-04T00:00:54.311Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-03T23:13:57.923Z"
+    },
+    {
+      "_id": "6a9a1f68b2ea8dafd29453cd",
+      "orderNumber": "KEK-260904-2374",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-04T01:33:04.892Z",
+        "preparingAt": "2026-09-04T01:33:16.708Z",
+        "readyAt": "2026-09-04T02:04:00.074Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-04T22:50:09.376Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-04T02:15:05.006Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-04T01:31:20.290Z"
+    },
+    {
+      "_id": "6a9b54f31df539c92e2179ed",
+      "orderNumber": "KEK-260904-5140",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-05T04:11:23.756Z",
+        "readyAt": "2026-09-05T04:11:24.596Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-05T04:11:25.614Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-04T23:32:03.429Z"
+    },
+    {
+      "_id": "6a9b660b724e9fb81cf6a61c",
+      "orderNumber": "KEK-260905-1045",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-05T00:46:00.942Z",
+        "preparingAt": "2026-09-05T04:11:40.520Z",
+        "readyAt": "2026-09-05T04:11:40.559Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-05T04:11:41.116Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-05T01:28:01.057Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-05T00:44:59.339Z"
+    },
+    {
+      "_id": "6a9b6655724e9fb81cf6aadb",
+      "orderNumber": "KEK-260905-4873",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-05T04:11:57.632Z",
+        "readyAt": "2026-09-05T04:11:58.074Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-05T04:11:58.800Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-05T00:46:13.779Z"
+    },
+    {
+      "_id": "6a9b6d4035045c8c1c4e7179",
+      "orderNumber": "KEK-260905-4489",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-05T04:12:23.173Z",
+        "readyAt": "2026-09-05T04:12:24.817Z",
+        "enRutaAt": "2026-09-05T02:18:57.162Z",
+        "arrivedAt": "2026-09-05T02:19:00.241Z",
+        "deliveredAt": "2026-09-05T04:12:26.387Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-05T01:15:44.501Z"
+    },
+    {
+      "_id": "6a9ca4fd6317276062ebff8a",
+      "orderNumber": "KEK-260905-8841",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-05T23:27:43.233Z",
+        "readyAt": "2026-09-05T23:38:53.931Z",
+        "enRutaAt": "2026-09-05T23:38:58.607Z",
+        "arrivedAt": "2026-09-06T00:51:27.338Z",
+        "deliveredAt": "2026-09-06T00:51:36.964Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-05T23:25:49.230Z"
+    },
+    {
+      "_id": "6a9cac3e0e810fbd63139bde",
+      "orderNumber": "KEK-260905-8390",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-05T23:58:07.117Z",
+        "preparingAt": "2026-09-05T23:58:29.406Z",
+        "readyAt": "2026-09-06T00:20:51.110Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-06T00:29:54.654Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-06T00:48:07.233Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-05T23:56:46.562Z"
+    },
+    {
+      "_id": "6a9cadd0727e5fe332f1db46",
+      "orderNumber": "KEK-260906-7461",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-06T00:05:28.166Z",
+        "readyAt": "2026-09-06T00:23:27.699Z",
+        "enRutaAt": "2026-09-06T00:23:31.654Z",
+        "arrivedAt": "2026-09-06T00:51:25.768Z",
+        "deliveredAt": "2026-09-06T00:51:35.453Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-06T00:03:28.829Z"
+    },
+    {
+      "_id": "6a9cb04768be097099d17fe4",
+      "orderNumber": "KEK-260906-5135",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-06T00:15:13.432Z",
+        "preparingAt": "2026-09-06T00:15:48.896Z",
+        "readyAt": "2026-09-06T00:51:17.307Z",
+        "enRutaAt": "2026-09-06T00:51:39.342Z",
+        "arrivedAt": "2026-09-06T00:51:43.669Z",
+        "deliveredAt": "2026-09-06T00:56:42.284Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-06T01:05:13.553Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-06T00:13:59.336Z"
+    },
+    {
+      "_id": "6a9cbc5652c9acf6e73d8e3b",
+      "orderNumber": "KEK-260906-4489",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-06T01:06:12.222Z",
+        "preparingAt": "2026-09-06T01:06:16.923Z",
+        "readyAt": "2026-09-06T01:17:51.408Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-06T01:22:20.082Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-06T01:56:12.338Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-06T01:05:26.321Z"
+    },
+    {
+      "_id": "6a9df6e281d660fecf373b14",
+      "orderNumber": "KEK-260906-4796",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-06T23:48:44.180Z",
+        "readyAt": "2026-09-06T23:48:48.322Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-07T00:09:51.712Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-06T23:27:30.417Z"
+    },
+    {
+      "_id": "6a9dffc4e75b12445c73f5f0",
+      "orderNumber": "KEK-260907-2620",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-07T00:08:04.722Z",
+        "readyAt": "2026-09-07T00:33:18.526Z",
+        "enRutaAt": "2026-09-07T00:33:21.939Z",
+        "arrivedAt": "2026-09-07T00:33:25.335Z",
+        "deliveredAt": "2026-09-09T01:35:17.487Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-07T00:05:24.205Z"
+    },
+    {
+      "_id": "6a9e01c625f50c31fb4d71db",
+      "orderNumber": "KEK-260907-1950",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-07T00:14:39.521Z",
+        "preparingAt": "2026-09-07T00:55:49.225Z",
+        "readyAt": "2026-09-07T01:03:04.114Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-07T01:10:29.789Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-07T01:04:39.637Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-07T00:13:58.590Z"
+    },
+    {
+      "_id": "6a9e0228f34fbce41a811fb9",
+      "orderNumber": "KEK-260907-4516",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-07T00:16:36.618Z",
+        "preparingAt": "2026-09-07T00:16:40.713Z",
+        "readyAt": "2026-09-07T00:33:12.754Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-07T00:33:16.003Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-07T01:06:36.733Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-07T00:15:36.198Z"
+    },
+    {
+      "_id": "6a9e0317f34fbce41a812288",
+      "orderNumber": "KEK-260907-4846",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-07T00:21:09.593Z",
+        "readyAt": "2026-09-07T00:41:01.391Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-07T01:02:41.612Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-07T00:19:35.678Z"
+    },
+    {
+      "_id": "6a9e07439a9b4f3525aa16d6",
+      "orderNumber": "KEK-260907-6192",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-07T00:39:52.411Z",
+        "preparingAt": "2026-09-07T00:40:21.601Z",
+        "readyAt": "2026-09-07T01:08:34.135Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-07T01:08:37.485Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-07T01:29:52.527Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-07T00:37:23.675Z"
+    },
+    {
+      "_id": "6aa095c098287885adf5203b",
+      "orderNumber": "KEK-260908-8616",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-08T23:11:22.207Z",
+        "preparingAt": "2026-09-08T23:11:29.462Z",
+        "readyAt": "2026-09-08T23:24:42.638Z",
+        "enRutaAt": "2026-09-08T23:33:08.717Z",
+        "arrivedAt": "2026-09-09T01:35:06.207Z",
+        "deliveredAt": "2026-09-09T01:35:09.465Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-09T00:01:22.321Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-08T23:09:52.806Z"
+    },
+    {
+      "_id": "6aa09d1915d4d0e1a80afb56",
+      "orderNumber": "KEK-260908-7355",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-08T23:42:55.910Z",
+        "readyAt": "2026-09-08T23:50:38.644Z",
+        "enRutaAt": "2026-09-08T23:51:18.571Z",
+        "arrivedAt": "2026-09-09T00:10:34.569Z",
+        "deliveredAt": "2026-09-09T01:34:45.871Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-08T23:41:13.946Z"
+    },
+    {
+      "_id": "6aa1f11af1a8834f48dc245b",
+      "orderNumber": "KEK-260909-5831",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-09T23:54:13.162Z",
+        "preparingAt": "2026-09-09T23:54:18.808Z",
+        "readyAt": "2026-09-10T00:21:14.836Z",
+        "enRutaAt": "2026-09-10T00:21:19.006Z",
+        "arrivedAt": "2026-09-10T01:04:43.641Z",
+        "deliveredAt": "2026-09-10T01:04:47.498Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-10T00:44:13.469Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-09T23:51:54.438Z"
+    },
+    {
+      "_id": "6aa20d8800a76297ece7c904",
+      "orderNumber": "KEK-260910-1786",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-10T01:56:07.016Z",
+        "preparingAt": "2026-09-10T01:56:14.352Z",
+        "readyAt": "2026-09-10T02:15:48.752Z",
+        "enRutaAt": "2026-09-10T02:16:32.317Z",
+        "arrivedAt": "2026-09-10T02:43:35.645Z",
+        "deliveredAt": "2026-09-10T02:44:04.087Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-10T02:46:07.131Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-10T01:53:12.269Z"
+    },
+    {
+      "_id": "6aa33abf4bc90e37054079cc",
+      "orderNumber": "KEK-260910-5844",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-12T03:27:13.104Z",
+        "readyAt": "2026-09-12T03:27:13.295Z",
+        "enRutaAt": "2026-09-10T23:54:46.485Z",
+        "arrivedAt": "2026-09-10T23:54:50.591Z",
+        "deliveredAt": "2026-09-12T03:27:14.353Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-10T23:18:23.869Z"
+    },
+    {
+      "_id": "6aa48f1a8f278973e9c7836e",
+      "orderNumber": "KEK-260911-8335",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-12T03:27:51.020Z",
+        "readyAt": "2026-09-12T03:27:51.804Z",
+        "enRutaAt": "2026-09-12T00:44:03.979Z",
+        "arrivedAt": "2026-09-12T00:44:07.370Z",
+        "deliveredAt": "2026-09-12T03:27:52.558Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-11T23:30:34.470Z"
+    },
+    {
+      "_id": "6aa495da8f278973e9c786f8",
+      "orderNumber": "KEK-260911-2060",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-12T00:04:36.129Z",
+        "preparingAt": "2026-09-12T03:28:12.262Z",
+        "readyAt": "2026-09-12T03:28:12.801Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-12T03:28:13.470Z",
+        "cancelledAt": "2026-09-12T00:08:23.755Z",
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-12T00:54:36.249Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-11T23:59:22.479Z"
+    },
+    {
+      "_id": "6aa49ed1ade71385cf5f5e34",
+      "orderNumber": "KEK-260912-5063",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-12T00:41:17.297Z",
+        "preparingAt": "2026-09-12T03:28:17.484Z",
+        "readyAt": "2026-09-12T03:28:17.629Z",
+        "enRutaAt": "2026-09-12T01:23:34.817Z",
+        "arrivedAt": "2026-09-12T02:12:17.669Z",
+        "deliveredAt": "2026-09-12T03:28:17.804Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-12T01:31:17.416Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-12T00:37:37.032Z"
+    },
+    {
+      "_id": "6aa4a9874082c0080d876c9e",
+      "orderNumber": "KEK-260912-7620",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-12T01:24:51.294Z",
+        "preparingAt": "2026-09-12T03:28:32.690Z",
+        "readyAt": "2026-09-12T03:28:34.808Z",
+        "enRutaAt": "2026-09-12T01:53:02.948Z",
+        "arrivedAt": "2026-09-12T01:53:07.595Z",
+        "deliveredAt": "2026-09-12T03:28:35.858Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-12T02:14:51.408Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-12T01:23:19.825Z"
+    },
+    {
+      "_id": "6aa5d0182252a6e1ef2e802c",
+      "orderNumber": "KEK-260912-6348",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-12T22:39:04.286Z",
+        "preparingAt": "2026-09-12T22:39:40.171Z",
+        "readyAt": "2026-09-12T22:52:12.883Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-12T23:27:53.161Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-12T23:29:04.563Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-12T22:20:08.156Z"
+    },
+    {
+      "_id": "6aa5da5933aa01ea60a42278",
+      "orderNumber": "KEK-260912-8627",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-12T23:05:05.633Z",
+        "preparingAt": "2026-09-12T23:05:09.490Z",
+        "readyAt": "2026-09-12T23:27:58.993Z",
+        "enRutaAt": "2026-09-12T23:28:04.750Z",
+        "arrivedAt": "2026-09-13T00:58:51.791Z",
+        "deliveredAt": "2026-09-13T00:58:55.143Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-12T23:55:05.767Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-12T23:03:53.119Z"
+    },
+    {
+      "_id": "6aa5eb0bdefab2dfcb43b59f",
+      "orderNumber": "KEK-260913-5810",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-13T00:19:10.475Z",
+        "preparingAt": "2026-09-13T00:19:20.552Z",
+        "readyAt": "2026-09-13T00:37:28.071Z",
+        "enRutaAt": "2026-09-13T00:37:31.747Z",
+        "arrivedAt": "2026-09-13T00:59:09.083Z",
+        "deliveredAt": "2026-09-16T00:21:56.943Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-13T01:09:10.590Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-13T00:15:07.308Z"
+    },
+    {
+      "_id": "6aa71de2d4f76f3dec1448a6",
+      "orderNumber": "KEK-260913-4823",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-13T22:23:14.919Z",
+        "preparingAt": "2026-09-13T23:33:45.026Z",
+        "readyAt": "2026-09-13T23:33:48.205Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-13T23:33:52.167Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-13T23:13:15.033Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-13T22:04:18.431Z"
+    },
+    {
+      "_id": "6aa72cbcd4f76f3dec1462e5",
+      "orderNumber": "KEK-260913-8492",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-13T23:08:56.913Z",
+        "readyAt": "2026-09-13T23:41:30.793Z",
+        "enRutaAt": "2026-09-13T23:41:43.673Z",
+        "arrivedAt": "2026-09-14T00:36:41.589Z",
+        "deliveredAt": "2026-09-14T00:36:45.565Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-13T23:07:40.431Z"
+    },
+    {
+      "_id": "6aa7411971b32857016f87e7",
+      "orderNumber": "KEK-260914-7462",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-14T00:37:33.629Z",
+        "readyAt": "2026-09-14T00:57:50.206Z",
+        "enRutaAt": "2026-09-14T00:57:54.194Z",
+        "arrivedAt": "2026-09-14T00:57:57.270Z",
+        "deliveredAt": "2026-09-14T00:58:00.452Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-14T00:34:33.709Z"
+    },
+    {
+      "_id": "6aab21e17ca6d85703fe6d97",
+      "orderNumber": "KEK-260916-7144",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-16T23:28:14.844Z",
+        "readyAt": "2026-09-16T23:42:21.342Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-16T23:42:25.107Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-16T23:10:25.495Z"
+    },
+    {
+      "_id": "6aac72956c7a546e946945ac",
+      "orderNumber": "KEK-260917-6962",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-17T23:09:03.364Z",
+        "readyAt": "2026-09-17T23:28:30.802Z",
+        "enRutaAt": "2026-09-17T23:28:38.544Z",
+        "arrivedAt": "2026-09-17T23:37:55.211Z",
+        "deliveredAt": "2026-09-17T23:38:00.887Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-17T23:07:01.543Z"
+    },
+    {
+      "_id": "6aadc6e6aa09e8db5642d1aa",
+      "orderNumber": "KEK-260918-4838",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-18T23:33:35.843Z",
+        "readyAt": "2026-09-18T23:40:44.390Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-18T23:44:59.897Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-18T23:19:02.424Z"
+    },
+    {
+      "_id": "6aadcdca2511d63ca6bcf795",
+      "orderNumber": "KEK-260918-6851",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-18T23:53:37.567Z",
+        "readyAt": "2026-09-19T00:08:59.722Z",
+        "enRutaAt": "2026-09-19T00:09:04.141Z",
+        "arrivedAt": "2026-09-19T00:35:14.331Z",
+        "deliveredAt": "2026-09-19T00:35:18.155Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-18T23:48:26.430Z"
+    },
+    {
+      "_id": "6aadda24408368e470775f48",
+      "orderNumber": "KEK-260919-4181",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-19T00:42:40.036Z",
+        "readyAt": "2026-09-19T01:21:30.320Z",
+        "enRutaAt": "2026-09-19T01:21:37.649Z",
+        "arrivedAt": "2026-09-19T02:01:03.894Z",
+        "deliveredAt": "2026-09-19T02:01:07.108Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T00:41:08.877Z"
+    },
+    {
+      "_id": "6aaddaf95036e69c0eaa4eec",
+      "orderNumber": "KEK-260919-4102",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T00:44:41.994Z"
+    },
+    {
+      "_id": "6aaddc165036e69c0eaa6005",
+      "orderNumber": "KEK-260919-3957",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-19T00:56:43.104Z",
+        "preparingAt": "2026-09-19T00:56:50.304Z",
+        "readyAt": "2026-09-19T01:21:27.791Z",
+        "enRutaAt": "2026-09-19T01:21:35.041Z",
+        "arrivedAt": "2026-09-19T02:00:55.099Z",
+        "deliveredAt": "2026-09-19T02:00:58.316Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-19T01:45:43.218Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T00:49:26.583Z"
+    },
+    {
+      "_id": "6aade18c4bb37ef8191e41ff",
+      "orderNumber": "KEK-260919-2458",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-19T01:15:17.799Z",
+        "preparingAt": "2026-09-19T01:21:41.071Z",
+        "readyAt": "2026-09-19T01:38:01.094Z",
+        "enRutaAt": "2026-09-19T02:01:13.209Z",
+        "arrivedAt": "2026-09-19T02:44:17.782Z",
+        "deliveredAt": "2026-09-19T02:46:29.602Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-19T02:04:17.913Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T01:12:44.020Z"
+    },
+    {
+      "_id": "6aadf23146736c1068995eb9",
+      "orderNumber": "KEK-260919-4243",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-19T02:29:27.910Z",
+        "readyAt": "2026-09-19T02:41:23.444Z",
+        "enRutaAt": "2026-09-19T02:46:23.096Z",
+        "arrivedAt": "2026-09-19T02:49:49.488Z",
+        "deliveredAt": "2026-09-19T02:49:53.301Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T02:23:45.169Z"
+    },
+    {
+      "_id": "6aaf1889275cae18cbcaf750",
+      "orderNumber": "KEK-260919-9800",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-19T23:23:39.501Z",
+        "preparingAt": "2026-09-19T23:24:46.075Z",
+        "readyAt": "2026-09-20T01:00:44.415Z",
+        "enRutaAt": "2026-09-20T01:32:11.043Z",
+        "arrivedAt": "2026-09-21T02:45:04.357Z",
+        "deliveredAt": "2026-09-21T02:45:07.763Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-20T00:12:39.634Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-19T23:19:37.523Z"
+    },
+    {
+      "_id": "6aaf25f8b98c1a1ebabee3ac",
+      "orderNumber": "KEK-260920-1945",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-20T00:18:06.618Z",
+        "readyAt": "2026-09-20T01:00:38.301Z",
+        "enRutaAt": "2026-09-20T01:32:07.335Z",
+        "arrivedAt": "2026-09-21T02:44:56.952Z",
+        "deliveredAt": "2026-09-21T02:45:00.526Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-20T00:16:56.967Z"
+    },
+    {
+      "_id": "6aaf2e0b27643f05bf10c3c0",
+      "orderNumber": "KEK-260920-8552",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-20T01:23:32.384Z",
+        "readyAt": "2026-09-20T01:32:19.115Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-20T01:32:22.177Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-20T00:51:23.843Z"
+    },
+    {
+      "_id": "6aaf2e8827643f05bf10c6da",
+      "orderNumber": "KEK-260920-5046",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-20T00:58:20.561Z",
+        "readyAt": "2026-09-20T01:32:05.296Z",
+        "enRutaAt": "2026-09-20T01:32:13.674Z",
+        "arrivedAt": "2026-09-20T01:32:16.344Z",
+        "deliveredAt": "2026-09-21T02:43:18.602Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-20T00:53:28.052Z"
+    },
+    {
+      "_id": "6aaf3410994a797c051e5eb8",
+      "orderNumber": "KEK-260920-8873",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-20T01:18:22.432Z",
+        "preparingAt": "2026-09-20T01:18:33.098Z",
+        "readyAt": "2026-09-20T01:59:40.322Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-20T01:59:44.418Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-20T02:07:22.548Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-20T01:17:04.317Z"
+    },
+    {
+      "_id": "6aaf45db366e8f89a557c3f8",
+      "orderNumber": "KEK-260920-7988",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-20T02:36:11.755Z",
+        "preparingAt": "2026-09-21T01:10:08.459Z",
+        "readyAt": "2026-09-21T01:10:12.268Z",
+        "enRutaAt": "2026-09-21T01:10:16.440Z",
+        "arrivedAt": "2026-09-21T01:10:20.026Z",
+        "deliveredAt": "2026-09-21T01:10:23.483Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-20T03:25:11.869Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-20T02:32:59.981Z"
+    },
+    {
+      "_id": "6ab0751a1a479680f060c84c",
+      "orderNumber": "KEK-260921-3109",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-21T00:07:14.290Z",
+        "preparingAt": "2026-09-21T00:07:18.175Z",
+        "readyAt": "2026-09-21T00:42:28.901Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-21T00:42:33.238Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-21T00:56:14.406Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-21T00:06:50.279Z"
+    },
+    {
+      "_id": "6ab082b880fa787f65acf95c",
+      "orderNumber": "KEK-260921-4425",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-21T01:07:15.192Z",
+        "preparingAt": "2026-09-21T01:07:28.964Z",
+        "readyAt": "2026-09-21T01:27:14.851Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-21T01:32:20.369Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-21T01:56:15.501Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-21T01:04:56.314Z"
+    },
+    {
+      "_id": "6ab084754a72d796bd5abbb8",
+      "orderNumber": "KEK-260921-6581",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-21T01:16:48.252Z",
+        "preparingAt": "2026-09-21T01:16:54.099Z",
+        "readyAt": "2026-09-21T01:39:43.150Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-21T01:57:09.513Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-21T02:05:48.366Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-21T01:12:21.343Z"
+    },
+    {
+      "_id": "6ab30e113aefaab4cfe575a3",
+      "orderNumber": "KEK-260922-4316",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-22T23:30:54.983Z",
+        "readyAt": "2026-09-22T23:39:27.553Z",
+        "enRutaAt": "2026-09-22T23:39:33.834Z",
+        "arrivedAt": "2026-09-23T00:05:39.141Z",
+        "deliveredAt": "2026-09-23T00:05:42.789Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-22T23:24:01.435Z"
+    },
+    {
+      "_id": "6ab3132975ff81fbd5ca9a39",
+      "orderNumber": "KEK-260922-8910",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-22T23:47:09.478Z",
+        "readyAt": "2026-09-23T00:08:35.999Z",
+        "enRutaAt": "2026-09-23T00:26:10.598Z",
+        "arrivedAt": "2026-09-23T00:26:15.906Z",
+        "deliveredAt": "2026-09-23T00:54:23.223Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-22T23:45:45.902Z"
+    },
+    {
+      "_id": "6ab476bf4a70c6db7ee2f095",
+      "orderNumber": "KEK-260924-6918",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-24T01:02:55.693Z"
+    },
+    {
+      "_id": "6ab5b0e60d7bcdbe87c2d3c8",
+      "orderNumber": "KEK-260924-2699",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-24T23:26:50.714Z",
+        "readyAt": "2026-09-24T23:55:01.731Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-24T23:58:35.766Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-24T23:23:18.880Z"
+    },
+    {
+      "_id": "6ab7021794d26164423c6c54",
+      "orderNumber": "KEK-260925-9085",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-25T23:23:07.118Z",
+        "preparingAt": "2026-09-25T23:23:13.606Z",
+        "readyAt": "2026-09-25T23:45:22.023Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-25T23:46:21.120Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-26T00:12:07.232Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-25T23:21:59.657Z"
+    },
+    {
+      "_id": "6ab71f3ca02e6afa006c5d8c",
+      "orderNumber": "KEK-260926-9843",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-26T01:30:04.593Z",
+        "readyAt": "2026-09-26T01:44:03.819Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-26T01:44:08.727Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T01:26:20.259Z"
+    },
+    {
+      "_id": "6ab722c6a02e6afa006c62a1",
+      "orderNumber": "KEK-260926-6882",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-26T01:44:14.393Z",
+        "readyAt": "2026-09-26T01:56:02.332Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-26T01:57:35.268Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T01:41:26.886Z"
+    },
+    {
+      "_id": "6ab8560a5cdcabecc2147422",
+      "orderNumber": "KEK-260926-1925",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-26T23:34:29.550Z",
+        "preparingAt": "2026-09-26T23:34:35.027Z",
+        "readyAt": "2026-09-27T00:04:42.003Z",
+        "enRutaAt": "2026-09-27T00:04:46.441Z",
+        "arrivedAt": "2026-09-27T00:27:42.192Z",
+        "deliveredAt": "2026-09-27T00:27:47.175Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-27T00:23:29.664Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T23:32:26.347Z"
+    },
+    {
+      "_id": "6ab85a771124363387800d27",
+      "orderNumber": "KEK-260926-1745",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-26T23:52:44.758Z",
+        "readyAt": "2026-09-27T00:21:15.410Z",
+        "enRutaAt": "2026-09-27T00:21:18.951Z",
+        "arrivedAt": "2026-09-27T03:21:58.868Z",
+        "deliveredAt": "2026-09-27T03:22:02.802Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T23:51:19.729Z"
+    },
+    {
+      "_id": "6ab85abf1124363387801211",
+      "orderNumber": "KEK-260926-3788",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-26T23:53:56.634Z",
+        "readyAt": "2026-09-27T00:21:08.424Z",
+        "enRutaAt": "2026-09-27T00:21:12.214Z",
+        "arrivedAt": "2026-09-27T03:21:36.658Z",
+        "deliveredAt": "2026-09-27T03:21:42.455Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T23:52:31.766Z"
+    },
+    {
+      "_id": "6ab85c20967f5a424ff708e9",
+      "orderNumber": "KEK-260926-3966",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-27T00:00:18.766Z",
+        "preparingAt": "2026-09-27T00:00:30.758Z",
+        "readyAt": "2026-09-27T00:20:06.163Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-27T00:49:58.973Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-27T00:49:18.882Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-26T23:58:24.140Z"
+    },
+    {
+      "_id": "6ab867e0e628cdff3c211b54",
+      "orderNumber": "KEK-260927-4456",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-27T00:49:45.923Z",
+        "readyAt": "2026-09-27T00:50:15.531Z",
+        "enRutaAt": "2026-09-27T01:08:47.934Z",
+        "arrivedAt": "2026-09-27T03:21:48.804Z",
+        "deliveredAt": "2026-09-27T03:21:52.681Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-27T00:48:32.911Z"
+    },
+    {
+      "_id": "6ab9a50e60a4b3cc6a163bed",
+      "orderNumber": "KEK-260927-2498",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-27T23:23:50.990Z",
+        "readyAt": "2026-09-27T23:44:47.297Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-27T23:58:03.361Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-27T23:21:50.825Z"
+    },
+    {
+      "_id": "6ab9a54e8d5967def43a3ec8",
+      "orderNumber": "KEK-260927-7297",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-27T23:24:01.329Z",
+        "readyAt": "2026-09-27T23:47:30.512Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-09-27T23:58:10.184Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-27T23:22:54.220Z"
+    },
+    {
+      "_id": "6ab9b2ef6c01a400b040151e",
+      "orderNumber": "KEK-260928-1803",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": null,
+        "readyAt": null,
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": null,
+        "cancelledAt": "2026-09-28T00:21:42.817Z",
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-28T00:21:03.053Z"
+    },
+    {
+      "_id": "6ab9bf1254f2be347d91b538",
+      "orderNumber": "KEK-260928-2127",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-28T01:13:14.002Z",
+        "preparingAt": "2026-09-28T01:13:30.482Z",
+        "readyAt": "2026-09-28T01:36:22.659Z",
+        "enRutaAt": "2026-09-28T01:36:26.661Z",
+        "arrivedAt": "2026-09-28T01:51:31.232Z",
+        "deliveredAt": "2026-09-28T01:51:36.234Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-28T02:02:14.116Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-28T01:12:50.914Z"
+    },
+    {
+      "_id": "6abc58fbb61f3dec352fed12",
+      "orderNumber": "KEK-260930-2858",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-09-30T00:35:24.845Z",
+        "readyAt": "2026-09-30T00:59:41.995Z",
+        "enRutaAt": "2026-09-30T00:59:45.716Z",
+        "arrivedAt": "2026-09-30T01:06:38.830Z",
+        "deliveredAt": "2026-09-30T01:39:04.294Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-30T00:34:03.673Z"
+    },
+    {
+      "_id": "6abc64c3edb2f662c03cc79f",
+      "orderNumber": "KEK-260930-6939",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-30T01:25:01.682Z",
+        "preparingAt": "2026-09-30T01:25:06.944Z",
+        "readyAt": "2026-09-30T01:48:16.952Z",
+        "enRutaAt": "2026-09-30T01:48:42.844Z",
+        "arrivedAt": "2026-09-30T02:08:09.916Z",
+        "deliveredAt": "2026-09-30T02:12:50.672Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-09-30T02:14:01.798Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-30T01:24:19.190Z"
+    },
+    {
+      "_id": "6abd9be8c1f5b8936bbba893",
+      "orderNumber": "KEK-260930-9310",
+      "statusTimestamps": {
+        "confirmedAt": "2026-09-30T23:33:28.569Z",
+        "preparingAt": "2026-09-30T23:54:13.313Z",
+        "readyAt": "2026-10-01T00:17:11.570Z",
+        "enRutaAt": "2026-10-01T00:21:49.345Z",
+        "arrivedAt": "2026-10-01T00:53:56.405Z",
+        "deliveredAt": "2026-10-01T00:54:00.192Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-10-01T00:24:28.683Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-09-30T23:31:52.095Z"
+    },
+    {
+      "_id": "6abda6ef9c5654e53d567362",
+      "orderNumber": "KEK-261001-1448",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-10-01T00:55:17.136Z",
+        "readyAt": "2026-10-01T01:07:09.058Z",
+        "enRutaAt": "2026-10-01T01:10:34.635Z",
+        "arrivedAt": "2026-10-01T01:27:12.753Z",
+        "deliveredAt": "2026-10-01T02:12:30.780Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-01T00:18:55.636Z"
+    },
+    {
+      "_id": "6abeed077578c92a881333c2",
+      "orderNumber": "KEK-261001-4582",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-10-01T23:32:08.275Z",
+        "readyAt": "2026-10-01T23:41:46.679Z",
+        "enRutaAt": "2026-10-02T00:36:37.758Z",
+        "arrivedAt": "2026-10-02T00:37:14.685Z",
+        "deliveredAt": "2026-10-02T00:37:18.809Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-01T23:30:15.815Z"
+    },
+    {
+      "_id": "6abefc5c0990b1af39a66493",
+      "orderNumber": "KEK-261002-6266",
+      "statusTimestamps": {
+        "confirmedAt": "2026-10-02T00:36:32.631Z",
+        "preparingAt": "2026-10-02T00:37:32.065Z",
+        "readyAt": "2026-10-02T00:47:39.203Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-10-02T00:47:43.160Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-10-02T01:27:32.759Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-02T00:35:40.034Z"
+    },
+    {
+      "_id": "6abfc7c54df3a7c9e6cf2e5a",
+      "orderNumber": "KEK-261002-1637",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-10-02T16:40:28.085Z",
+        "readyAt": "2026-10-02T16:40:31.888Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-10-02T16:40:36.028Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-02T15:03:33.751Z"
+    },
+    {
+      "_id": "6ac03fae7330c52694f7cf19",
+      "orderNumber": "KEK-261002-4081",
+      "statusTimestamps": {
+        "confirmedAt": "2026-10-02T23:37:25.519Z",
+        "preparingAt": "2026-10-02T23:38:07.760Z",
+        "readyAt": "2026-10-02T23:46:30.884Z",
+        "enRutaAt": "2026-10-03T00:06:55.093Z",
+        "arrivedAt": "2026-10-03T00:06:59.027Z",
+        "deliveredAt": "2026-10-03T00:07:02.806Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-10-03T00:26:25.633Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-02T23:35:10.887Z"
+    },
+    {
+      "_id": "6ac04efb8e8e5c4cc324f677",
+      "orderNumber": "KEK-261003-9880",
+      "statusTimestamps": {
+        "confirmedAt": "2026-10-03T00:46:10.031Z",
+        "preparingAt": "2026-10-03T00:46:28.937Z",
+        "readyAt": "2026-10-03T01:10:40.532Z",
+        "enRutaAt": "2026-10-03T01:10:44.127Z",
+        "arrivedAt": "2026-10-03T01:35:36.953Z",
+        "deliveredAt": "2026-10-03T01:35:41.037Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": "2026-10-03T01:35:10.151Z",
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-03T00:40:27.929Z"
+    },
+    {
+      "_id": "6ac05668a7217e0486f39d5e",
+      "orderNumber": "KEK-261003-1210",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-10-03T01:13:53.982Z",
+        "readyAt": "2026-10-03T01:31:49.444Z",
+        "enRutaAt": null,
+        "arrivedAt": null,
+        "deliveredAt": "2026-10-03T01:35:19.078Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-03T01:12:08.464Z"
+    },
+    {
+      "_id": "6ac05e23a6e7d78f75af2f86",
+      "orderNumber": "KEK-261003-5577",
+      "statusTimestamps": {
+        "confirmedAt": null,
+        "preparingAt": "2026-10-03T01:46:29.582Z",
+        "readyAt": "2026-10-03T02:04:09.692Z",
+        "enRutaAt": "2026-10-03T02:04:30.478Z",
+        "arrivedAt": "2026-10-03T02:42:21.609Z",
+        "deliveredAt": "2026-10-03T02:42:25.192Z",
+        "cancelledAt": null,
+        "cancelledBy": null,
+        "estimatedReadyAt": null,
+        "customerEstimatedReadyAt": null
+      },
+      "createdAt": "2026-10-03T01:45:07.179Z"
+    }
+  ]
+}
