@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import CancelAwaitingPaymentButton from '@/components/orders/CancelAwaitingPaymentButton'
+import PaymentMethodRetry from '@/components/orders/PaymentMethodRetry'
 import { parseMpReturnOutcome, parseMpStatusDetail, mpStatusDetailMessage } from '@/lib/mp-return'
 
 interface Props {
@@ -57,8 +58,8 @@ export default async function OrderPendingPage({ params, searchParams }: Props) 
 
         {canExit && (
           <p className="text-xs opacity-70 mb-5">
-            Tu pedido <strong>#{orderNumber}</strong> no fue cobrado. Podés cancelarlo
-            y volver a empezar cuando quieras.
+            Tu pedido <strong>#{orderNumber}</strong> no fue cobrado. Podés pagarlo con
+            otro método o cancelarlo y volver a empezar cuando quieras.
           </p>
         )}
 
@@ -69,14 +70,28 @@ export default async function OrderPendingPage({ params, searchParams }: Props) 
           </button>
         </Link>
         {canExit && (
-          <CancelAwaitingPaymentButton
-            tenantSlug={tenantSlug}
-            orderId={order._id.toString()}
-            trackingToken={order.trackingToken ?? null}
-            label="Cancelar pedido"
-            className="w-full py-4 rounded-2xl font-bold border-2 mt-3 opacity-70 hover:opacity-100 transition-opacity"
-            style={{ borderColor: branding.textColor + '40', color: branding.textColor }}
-          />
+          <>
+            {/* Reintentar/cambiar el método conserva el pedido; cancelar es la
+                última instancia porque obliga a rearmar el carrito. */}
+            <div className="mt-3 mb-2">
+              <PaymentMethodRetry
+                tenantSlug={tenantSlug}
+                orderId={order._id.toString()}
+                orderNumber={orderNumber}
+                trackingToken={order.trackingToken ?? null}
+                primaryColor={branding.primaryColor}
+                textColor={branding.textColor}
+              />
+            </div>
+            <CancelAwaitingPaymentButton
+              tenantSlug={tenantSlug}
+              orderId={order._id.toString()}
+              trackingToken={order.trackingToken ?? null}
+              label="Cancelar pedido"
+              className="w-full py-4 rounded-2xl font-bold border-2 mt-2 opacity-70 hover:opacity-100 transition-opacity"
+              style={{ borderColor: branding.textColor + '40', color: branding.textColor }}
+            />
+          </>
         )}
         <Link href={`/${tenantSlug}`}>
           <button className="w-full py-3 rounded-2xl font-bold text-sm mt-3 opacity-50 hover:opacity-80 transition-opacity">

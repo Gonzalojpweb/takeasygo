@@ -18,6 +18,7 @@ import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import { captureHiddenRewardRedeemed } from '@/lib/tia/events'
 import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
 import RedProximityBanner from './RedProximityBanner'
+import PaymentMethodRetry from '@/components/orders/PaymentMethodRetry'
 
 // Map tracking statuses to Living City System face expressions
 const TRACKING_TO_LCS_EXPRESSION: Record<string, LcsFaceExpression> = {
@@ -847,7 +848,7 @@ export default function OrderTracker({
               <p className="text-xs mt-1 leading-relaxed" style={{ opacity: 0.6 }}>
                 {paymentMethod === 'transfer'
                   ? 'Si no vas a transferir, cancelá el pedido para liberarlo.'
-                  : 'Ningún pago se acreditó. Podés cancelarlo y volver a pedir cuando quieras.'}
+                  : 'Ningún pago se acreditó. Podés reintentar con otro método o cancelarlo y volver a pedir cuando quieras.'}
               </p>
               {paymentMethod !== 'transfer' && mpReturnOutcome === 'rejected' && (
                 <p className="text-xs mt-2 font-semibold" style={{ color: primaryColor }}>
@@ -857,6 +858,21 @@ export default function OrderTracker({
               )}
             </div>
           </div>
+
+          {/* Segunda salida: cambiar el método de pago conservando el pedido.
+              Va por encima de cancelar porque cancelar obliga a rearmar el
+              carrito desde cero. El botón de cancelar queda como última
+              instancia, abajo. */}
+          <PaymentMethodRetry
+            tenantSlug={tenantSlug}
+            orderId={orderId}
+            orderNumber={orderNumber}
+            trackingToken={trackingToken}
+            primaryColor={primaryColor}
+            textColor={textColor}
+            onChanged={poll}
+          />
+
           <div className="flex gap-3">
             <button
               onClick={handleCancelAwaiting}

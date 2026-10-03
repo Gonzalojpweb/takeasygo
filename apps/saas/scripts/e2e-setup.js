@@ -84,6 +84,24 @@ async function run() {
         oauthExpiresAt: null,
       },
     ],
+    // ── Métodos de pago que NO dependen de MP ────────────────────────────
+    // El deliverable 2 existe justamente para cuando MP está caído. Con el
+    // tenant sin esto, efectivo y transferencia ni siquiera aparecen en el
+    // catálogo y no se puede probar la salida de emergencia.
+    cash: { enabled: true, discountPercent: 0 },
+    transfer: {
+      enabled: true,
+      alias: 'e2e.alias.prueba',
+      cbu: '0000000000000000000000',
+      holderName: 'E2E Test',
+    },
+    features: { cashPaymentEnabledBySuperadmin: true },
+    paymentMethodsVisibility: {
+      mercadopago: true,
+      kripton: false,
+      transfer: true,
+      cash: true,
+    },
   })
 
   await db.collection('locations').insertOne({
