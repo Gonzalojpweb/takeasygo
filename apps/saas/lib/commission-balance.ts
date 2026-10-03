@@ -1,5 +1,8 @@
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import type { Types } from 'mongoose'
+
+type IdInput = Types.ObjectId | string
 
 /**
  * Incrementa tenant.commissionBalance.transfer de forma idempotente.
@@ -11,8 +14,8 @@ import Tenant from '@/models/Tenant'
  * Retorna true si el incremento se aplicó, false si ya estaba aplicado.
  */
 export async function incrementCommissionBalance(
-  orderId: unknown,
-  tenantId: unknown,
+  orderId: IdInput,
+  tenantId: IdInput,
   amount: number,
 ): Promise<boolean> {
   if (amount <= 0) return false
@@ -40,8 +43,8 @@ export async function incrementCommissionBalance(
  * Solo revierte si el flag estaba activo (es decir, si realmente se incrementó).
  */
 export async function revertCommissionBalance(
-  orderId: unknown,
-  tenantId: unknown,
+  orderId: IdInput,
+  tenantId: IdInput,
   amount: number,
 ): Promise<boolean> {
   if (amount <= 0) return false
