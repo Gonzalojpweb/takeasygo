@@ -17,9 +17,15 @@ export async function GET(request: NextRequest) {
   const fromParam = searchParams.get('from')
   const toParam = searchParams.get('to')
 
+  // Parse "YYYY-MM-DD" as local date (new Date("YYYY-MM-DD") parses as UTC, causing off-by-one)
+  const parseLocal = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number)
+    return new Date(y, (m ?? 1) - 1, d ?? 1)
+  }
+
   const now = new Date()
-  const from = fromParam ? new Date(fromParam) : new Date(now.getFullYear(), now.getMonth(), 1)
-  const to = toParam ? new Date(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+  const from = fromParam ? parseLocal(fromParam) : new Date(now.getFullYear(), now.getMonth(), 1)
+  const to = toParam ? parseLocal(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
   // Get all tenants
   const tenants = await Tenant.find({ isActive: true, status: 'active' }).select('name slug').lean()
