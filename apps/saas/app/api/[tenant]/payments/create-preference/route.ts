@@ -33,7 +33,7 @@ if (!success) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'orderId inválido' }, { status: 400 })
     }
-    const { orderId } = parsed.data
+    const { orderId, retry } = parsed.data
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
@@ -197,6 +197,14 @@ if (!success) {
     // ACTIVE_ORDER_EXISTS bloquearía un re-pedido y no habría webhook que la
     // resuelva. Por eso se cancela acá mismo.
     //
+    // EXCEPCIÓN — reintento desde el flujo de emergencia (`retry: true`):
+    // ahí el cliente YA tiene el pedido creado y visible en el tracking. Cancelar
+    // le haría perderlo y tendría que rearmar todo, y encima MP/Kripton pueden
+    // seguir fallando por una causa externa (credenciales, red). Se mantiene
+    // `awaiting_payment` para que la UI de reintento vuelva a ofrecerse y pueda
+    // elegir efectivo o transferencia, que no dependen de MP.
+    // La creación inicial NO pasa por acá: sigue cancelando igual que siempre.
+    //
     // Nota de seguridad: si `preference.create` lanza, MP no devolvió id ni
     // init_point, o sea que no existe preferencia que el cliente pueda pagar.
     // No hay cobro posible → cancelar no implica reembolso.
@@ -225,7 +233,14 @@ if (!success) {
         }
       })
     } catch (prefError: any) {
-      if (order.status === 'awaiting_payment') {
+      if (retry) {
+        // Reintento en el flujo de emergencia: la orden se queda en
+        // awaiting_payment a propósito. No hay rollback, no hay cancelación.
+        console.warn(
+          `[create-preference] retry sin rollback: orden ${order.orderNumber} sigue en ` +
+          `${order.status} — el cliente puede elegir otro método. Motivo: ${prefError?.message ?? prefError}`
+        )
+      } else if (order.status === 'awaiting_payment') {
         order.status = 'cancelled'
         order.statusTimestamps.cancelledAt = new Date()
         order.cancelledBy = 'client'

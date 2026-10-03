@@ -339,6 +339,34 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     }))
     dispatch({ type: 'SET_CART', cart: cartWithType })
 
+    // ── Re-armado desde un pedido cancelado ──────────────────────────────
+    // Un cliente que cancela un pedido varado vuelve al checkout con su
+    // pedido ya reconstruido. `cart-restore` deja el carrito en la clave de
+    // arriba (el camino normal de este efecto no cambia) y además los datos
+    // del cliente y el paso de destino. Se aplican UNA vez y se borran: si
+    // el cliente sigue avanzando y vuelve atrás, no se le reimpone.
+    const restoredForm = sessionStorage.getItem(`checkoutForm_${tenantSlug}`)
+    if (restoredForm) {
+      try {
+        dispatch({ type: 'SET_FORM', form: JSON.parse(restoredForm) })
+      } catch {
+        /* payload corrupto: se ignora y el cliente lo carga de nuevo */
+      }
+      sessionStorage.removeItem(`checkoutForm_${tenantSlug}`)
+    }
+
+    const rawStep = sessionStorage.getItem(`checkoutStep_${tenantSlug}`)
+    // Texto plano ('pay'); se toleran las comillas del formato JSON heredado.
+    const restoredStep = rawStep?.replace(/^"|"$/g, '')
+    if (restoredStep === 'pay') {
+      // El índice del último paso, no un número fijo: si mañana el checkout
+      // agrega un paso, esto sigue apuntando a "Pago".
+      dispatch({ type: 'SET_STEP', step: stepsMap.takeaway.length - 1 })
+    }
+    if (restoredStep) {
+      sessionStorage.removeItem(`checkoutStep_${tenantSlug}`)
+    }
+
     const hints = sessionStorage.getItem('upsellHints')
     if (hints) {
       dispatch({ type: 'SET_UPSERT_HINTS', hints: JSON.parse(hints) })
