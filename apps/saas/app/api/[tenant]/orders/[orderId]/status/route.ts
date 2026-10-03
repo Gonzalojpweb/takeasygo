@@ -20,6 +20,7 @@ import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
 import { resolveOrderAlerts } from '@/lib/compliance-alerts'
 import { incrementCommissionBalance, revertCommissionBalance } from '@/lib/commission-balance'
+import { allowedTransitionsFrom } from '@/lib/order-transitions'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -27,18 +28,6 @@ webpush.setVapidDetails(
   process.env.VAPID_PUBLIC_KEY!,
   process.env.VAPID_PRIVATE_KEY!
 )
-
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  pending:    ['confirmed', 'cancelled'],
-  awaiting_confirmation: ['confirmed', 'cancelled'],
-  confirmed:  ['preparing', 'cancelled'],
-  preparing:  ['ready'],
-  ready:      ['en_ruta', 'delivered'],
-  en_ruta:    ['arrived'],
-  arrived:    ['delivered'],
-  delivered:  [],
-  cancelled:  [],
-}
 
 // Mapeo de status → campo de timestamp (para analytics de TPP)
 const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTimestamps> = {
@@ -99,7 +88,7 @@ export async function PATCH(
       )
     }
 
-    const allowedTransitions = VALID_TRANSITIONS[order.status]
+    const allowedTransitions = allowedTransitionsFrom(order.status)
     if (!isInternalAuth(request) && !allowedTransitions.includes(status)) {
       return NextResponse.json(
         { error: `No se puede pasar de "${order.status}" a "${status}"` },

@@ -204,7 +204,10 @@ export default function CheckoutPaymentFooter() {
         captureRewardAdvanceAccepted(missingPoints)
       }
 
-      sessionStorage.removeItem(`cart_${tenantSlug}`)
+      // NOTA: el carrito NO se limpia acá. Se limpia recién cuando el pago está
+      // iniciado (preferencia creada o navegación a tracking). Si create-preference
+      // falla, el rollback cancela la orden y el cliente necesita el carrito
+      // intacto para reintentar — limpiarlo antes lo dejaba sin nada.
 
       // Save customer identity for personalization (cosmetic only, never source of truth)
       try {
@@ -228,6 +231,7 @@ export default function CheckoutPaymentFooter() {
           }))
         } catch {}
 
+        sessionStorage.removeItem(`cart_${tenantSlug}`)
         router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       } else if (selectedPaymentMethod === 'cash') {
         try {
@@ -239,6 +243,7 @@ export default function CheckoutPaymentFooter() {
           }))
         } catch {}
 
+        sessionStorage.removeItem(`cart_${tenantSlug}`)
         router.push(`/${tenantSlug}/tracking/${order.orderNumber}`)
       } else if (kriptonEnabled && selectedPaymentMethod === 'kripton') {
         const prefRes = await fetch(`/api/${tenantSlug}/payments/create-kripton-preference`, {
@@ -261,6 +266,7 @@ export default function CheckoutPaymentFooter() {
           }))
         } catch {}
 
+        sessionStorage.removeItem(`cart_${tenantSlug}`)
         dispatch({ type: 'SET_REDIRECTING', redirecting: true })
         setTimeout(() => { window.location.href = url }, 120)
       } else {
@@ -269,7 +275,12 @@ export default function CheckoutPaymentFooter() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orderId: order._id }),
         })
-        if (!prefRes.ok) throw new Error('Error al crear el pago')
+        if (!prefRes.ok) {
+          const errData = await prefRes.json().catch(() => null)
+          // El servidor hizo rollback de la orden (queda cancelada, no zombie)
+          // y el carrito sigue intacto: el cliente puede reintentar de una.
+          throw new Error(errData?.error || 'No se pudo iniciar el pago. Revisá la configuración de la cuenta.')
+        }
         const { sandboxInitPoint, initPoint } = await prefRes.json()
 
         const redirectUrl = process.env.NODE_ENV === 'development' ? sandboxInitPoint : initPoint
@@ -283,6 +294,7 @@ export default function CheckoutPaymentFooter() {
           }))
         } catch {}
 
+        sessionStorage.removeItem(`cart_${tenantSlug}`)
         dispatch({ type: 'SET_REDIRECTING', redirecting: true })
         setTimeout(() => { window.location.href = redirectUrl }, 120)
       }
