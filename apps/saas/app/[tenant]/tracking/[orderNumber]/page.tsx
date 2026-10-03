@@ -9,6 +9,7 @@ import TrackingAnalytics from '@/components/tracking/TrackingAnalytics'
 import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
 import { safeDecrypt } from '@/lib/crypto'
+import { parseMpReturnOutcome, parseMpStatusDetail } from '@/lib/mp-return'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -170,6 +171,8 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             menuItemId: item.menuItemId?.toString(),
           }))}
           orderTotal={order.total}
+          mpReturnOutcome={parseMpReturnOutcome(resolvedSearchParams)}
+          mpStatusDetail={parseMpStatusDetail(resolvedSearchParams) ?? null}
         />
 
         {/* Live tracking badge */}

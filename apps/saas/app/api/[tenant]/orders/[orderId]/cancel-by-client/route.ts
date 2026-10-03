@@ -6,6 +6,31 @@ import { rateLimit } from '@/lib/rateLimit'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
 import { NextRequest, NextResponse } from 'next/server'
 
+/**
+ * POST /api/[tenant]/orders/[orderId]/cancel-by-client
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ * ⚠️  ESTE ENDPOINT NO ACEPTA MERCADOPAGO — Y NO HAY QUE AGREGARLO
+ * ══════════════════════════════════════════════════════════════════════════
+ * Si `payment.method === 'mercadopago'` el cobro ya puede haberse acreditado
+ * (webhook `approved`). Cancelar acá SOLO cambia el estado de la orden: NO
+ * devuelve la plata. Reembolsar a MP requiere llamar a la API de reembolsos
+ * de MercadoPago con el `payment_id` real — es otra operación, con otros
+ * permisos y otros efectos.
+ *
+ * Por eso este endpoint se limita a transferencia/efectivo (donde no hay
+ * cobro automático que revertir).
+ *
+ * NO FUSIONAR con `cancel-awaiting/route.ts`: ese endpoint opera sobre
+ * pedidos en `awaiting_payment` que NUNCA llegaron a cobrarse, así que ahí
+ * sí es seguro cancelar sin reembolso. Si se unifican los dos se
+ * reintroduce el bug de pedidos de MP cancelados sin devolver el dinero.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Para un pedido MP varado en `awaiting_payment` (nunca cobrado) la salida
+ * válida es `cancel-awaiting`, no este.
+ */
+
 const CANCELLATION_WINDOW_MS = 180_000 // 3 minutos
 
 const CANCELLABLE_BY_TRANSFER = ['pending', 'awaiting_confirmation']

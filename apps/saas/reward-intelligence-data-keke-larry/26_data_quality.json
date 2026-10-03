@@ -1,0 +1,24 @@
+{
+  "totalOrders": 253,
+  "totalEvents": 15508,
+  "totalMembers": 116,
+  "issues": [
+    {
+      "severity": "high",
+      "entity": "orders",
+      "issue": "Orders without customer phoneHash",
+      "affectedRecords": 13,
+      "percentage": 5.138339920948617,
+      "impact": "No se puede vincular a perfil de cliente"
+    },
+    {
+      "severity": "low",
+      "entity": "orders",
+      "issue": "Cancelled orders",
+      "affectedRecords": 15,
+      "percentage": 5.928853754940711,
+      "impact": "No generan revenue ni puntos"
+    }
+  ],
+  "overallScore": 90
+}

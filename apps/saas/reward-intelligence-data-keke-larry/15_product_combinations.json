@@ -1,0 +1,963 @@
+{
+  "pairs": [
+    {
+      "pair": "KHEBURGER + TYRON",
+      "count": 29,
+      "uniqueCustomers": 16,
+      "revenue": 341433620,
+      "avgTicket": 11773573.103448275
+    },
+    {
+      "pair": "TYRON + ZEBALLON CRISPY",
+      "count": 25,
+      "uniqueCustomers": 18,
+      "revenue": 271482539,
+      "avgTicket": 10859301.56
+    },
+    {
+      "pair": "KHEBURGER + ZEBALLON CRISPY",
+      "count": 23,
+      "uniqueCustomers": 12,
+      "revenue": 297182866,
+      "avgTicket": 12920994.173913043
+    },
+    {
+      "pair": "ACRI + TYRON",
+      "count": 18,
+      "uniqueCustomers": 11,
+      "revenue": 196616243,
+      "avgTicket": 10923124.611111112
+    },
+    {
+      "pair": "KHEBURGER + KHEBURGER",
+      "count": 16,
+      "uniqueCustomers": 9,
+      "revenue": 211842422,
+      "avgTicket": 13240151.375
+    },
+    {
+      "pair": "ACRI + KHEBURGER",
+      "count": 16,
+      "uniqueCustomers": 6,
+      "revenue": 217900534,
+      "avgTicket": 13618783.375
+    },
+    {
+      "pair": "JEEZY + KHEBURGER",
+      "count": 12,
+      "uniqueCustomers": 6,
+      "revenue": 92200635,
+      "avgTicket": 7683386.25
+    },
+    {
+      "pair": "YSIBOOM + ZEBALLON CRISPY",
+      "count": 11,
+      "uniqueCustomers": 7,
+      "revenue": 96701531,
+      "avgTicket": 8791048.272727273
+    },
+    {
+      "pair": "JEEZY + RABREK",
+      "count": 10,
+      "uniqueCustomers": 6,
+      "revenue": 93207844,
+      "avgTicket": 9320784.4
+    },
+    {
+      "pair": "KHEBURGER + YSIBOOM",
+      "count": 10,
+      "uniqueCustomers": 6,
+      "revenue": 92017281,
+      "avgTicket": 9201728.1
+    },
+    {
+      "pair": "KHEBURGER + Papas Clásicas",
+      "count": 9,
+      "uniqueCustomers": 4,
+      "revenue": 122662644,
+      "avgTicket": 13629182.666666666
+    },
+    {
+      "pair": "TYRON + TYRON",
+      "count": 9,
+      "uniqueCustomers": 9,
+      "revenue": 78739221,
+      "avgTicket": 8748802.333333334
+    },
+    {
+      "pair": "ZEBALLON CRISPY + ZEBALLON CRISPY",
+      "count": 8,
+      "uniqueCustomers": 8,
+      "revenue": 81299947,
+      "avgTicket": 10162493.375
+    },
+    {
+      "pair": "TYRON + YSIBOOM",
+      "count": 8,
+      "uniqueCustomers": 6,
+      "revenue": 39605690,
+      "avgTicket": 4950711.25
+    },
+    {
+      "pair": "ACRI + ZEBALLON CRISPY",
+      "count": 8,
+      "uniqueCustomers": 4,
+      "revenue": 123327750,
+      "avgTicket": 15415968.75
+    },
+    {
+      "pair": "JEEZY + JEEZY",
+      "count": 8,
+      "uniqueCustomers": 5,
+      "revenue": 65755501,
+      "avgTicket": 8219437.625
+    },
+    {
+      "pair": "DUKING + ZEBALLON CRISPY",
+      "count": 8,
+      "uniqueCustomers": 6,
+      "revenue": 92059325,
+      "avgTicket": 11507415.625
+    },
+    {
+      "pair": "BarderiTo$ + YSIBOOM",
+      "count": 8,
+      "uniqueCustomers": 5,
+      "revenue": 68136849,
+      "avgTicket": 8517106.125
+    },
+    {
+      "pair": "JEEZY + ZEBALLON CRISPY",
+      "count": 7,
+      "uniqueCustomers": 6,
+      "revenue": 59327432,
+      "avgTicket": 8475347.42857143
+    },
+    {
+      "pair": "RABREK + ZEBALLON CRISPY",
+      "count": 7,
+      "uniqueCustomers": 7,
+      "revenue": 41176339,
+      "avgTicket": 5882334.142857143
+    },
+    {
+      "pair": "DUKING + KHEBURGER",
+      "count": 7,
+      "uniqueCustomers": 3,
+      "revenue": 104387020,
+      "avgTicket": 14912431.42857143
+    },
+    {
+      "pair": "BarderiTo$ + DUKING",
+      "count": 7,
+      "uniqueCustomers": 4,
+      "revenue": 61951513,
+      "avgTicket": 8850216.142857144
+    },
+    {
+      "pair": "ACRI + YSIBOOM",
+      "count": 7,
+      "uniqueCustomers": 4,
+      "revenue": 47193345,
+      "avgTicket": 6741906.428571428
+    },
+    {
+      "pair": "KHEBURGER + RABREK",
+      "count": 7,
+      "uniqueCustomers": 4,
+      "revenue": 73477456,
+      "avgTicket": 10496779.42857143
+    },
+    {
+      "pair": "DUKING + TYRON",
+      "count": 7,
+      "uniqueCustomers": 4,
+      "revenue": 80398194,
+      "avgTicket": 11485456.285714285
+    },
+    {
+      "pair": "DUKING + JEEZY",
+      "count": 6,
+      "uniqueCustomers": 4,
+      "revenue": 34525831,
+      "avgTicket": 5754305.166666667
+    },
+    {
+      "pair": "Papas Clásicas + ZEBALLON CRISPY",
+      "count": 6,
+      "uniqueCustomers": 4,
+      "revenue": 62737678,
+      "avgTicket": 10456279.666666666
+    },
+    {
+      "pair": "SAINTLUNA + ZEBALLON CRISPY",
+      "count": 6,
+      "uniqueCustomers": 5,
+      "revenue": 42994930,
+      "avgTicket": 7165821.666666667
+    },
+    {
+      "pair": "Pepsi + TYRON",
+      "count": 6,
+      "uniqueCustomers": 4,
+      "revenue": 19905607,
+      "avgTicket": 3317601.1666666665
+    },
+    {
+      "pair": "SAINTLUNA + TYRON",
+      "count": 6,
+      "uniqueCustomers": 5,
+      "revenue": 35773000,
+      "avgTicket": 5962166.666666667
+    },
+    {
+      "pair": "JEEZY + YSIBOOM",
+      "count": 6,
+      "uniqueCustomers": 4,
+      "revenue": 48621462,
+      "avgTicket": 8103577
+    },
+    {
+      "pair": "KHEBURGER + LARRY MOB",
+      "count": 6,
+      "uniqueCustomers": 3,
+      "revenue": 46187200,
+      "avgTicket": 7697866.666666667
+    },
+    {
+      "pair": "Papas Clásicas + YSIBOOM",
+      "count": 5,
+      "uniqueCustomers": 5,
+      "revenue": 26151200,
+      "avgTicket": 5230240
+    },
+    {
+      "pair": "Papas Crew + TYRON",
+      "count": 5,
+      "uniqueCustomers": 4,
+      "revenue": 44173237,
+      "avgTicket": 8834647.4
+    },
+    {
+      "pair": "Papas Clásicas + TYRON",
+      "count": 5,
+      "uniqueCustomers": 4,
+      "revenue": 64863759,
+      "avgTicket": 12972751.8
+    },
+    {
+      "pair": "LARRY MOB + TYRON",
+      "count": 5,
+      "uniqueCustomers": 4,
+      "revenue": 28210120,
+      "avgTicket": 5642024
+    },
+    {
+      "pair": "ACRI + LARRY MOB",
+      "count": 5,
+      "uniqueCustomers": 3,
+      "revenue": 49572020,
+      "avgTicket": 9914404
+    },
+    {
+      "pair": "BarderiTo$ + ZEBALLON CRISPY",
+      "count": 5,
+      "uniqueCustomers": 5,
+      "revenue": 43959131,
+      "avgTicket": 8791826.2
+    },
+    {
+      "pair": "ACRI + ACRI",
+      "count": 5,
+      "uniqueCustomers": 5,
+      "revenue": 49486653,
+      "avgTicket": 9897330.6
+    },
+    {
+      "pair": "LARRY MOB + YSIBOOM",
+      "count": 5,
+      "uniqueCustomers": 3,
+      "revenue": 43547599,
+      "avgTicket": 8709519.8
+    },
+    {
+      "pair": "DUKING + YSIBOOM",
+      "count": 5,
+      "uniqueCustomers": 4,
+      "revenue": 49182733,
+      "avgTicket": 9836546.6
+    },
+    {
+      "pair": "JEEZY + TYRON",
+      "count": 4,
+      "uniqueCustomers": 4,
+      "revenue": 28295000,
+      "avgTicket": 7073750
+    },
+    {
+      "pair": "RABREK + YSIBOOM",
+      "count": 4,
+      "uniqueCustomers": 4,
+      "revenue": 26622021,
+      "avgTicket": 6655505.25
+    },
+    {
+      "pair": "BarderiTo$ + TYRON",
+      "count": 4,
+      "uniqueCustomers": 4,
+      "revenue": 30210350,
+      "avgTicket": 7552587.5
+    },
+    {
+      "pair": "BarderiTo$ + KHEBURGER",
+      "count": 4,
+      "uniqueCustomers": 3,
+      "revenue": 22135181,
+      "avgTicket": 5533795.25
+    },
+    {
+      "pair": "ACRI + DUKING",
+      "count": 4,
+      "uniqueCustomers": 3,
+      "revenue": 25902520,
+      "avgTicket": 6475630
+    },
+    {
+      "pair": "LARRY MOB + Papas Clásicas",
+      "count": 4,
+      "uniqueCustomers": 1,
+      "revenue": 36505200,
+      "avgTicket": 9126300
+    },
+    {
+      "pair": "LARRY MOB + LARRY MOB",
+      "count": 4,
+      "uniqueCustomers": 2,
+      "revenue": 42743100,
+      "avgTicket": 10685775
+    },
+    {
+      "pair": "ACRI + Papas Clásicas",
+      "count": 4,
+      "uniqueCustomers": 3,
+      "revenue": 61919111,
+      "avgTicket": 15479777.75
+    },
+    {
+      "pair": "ACRI + RABREK",
+      "count": 4,
+      "uniqueCustomers": 3,
+      "revenue": 39742932,
+      "avgTicket": 9935733
+    },
+    {
+      "pair": "ACRI + JEEZY",
+      "count": 4,
+      "uniqueCustomers": 2,
+      "revenue": 31855657,
+      "avgTicket": 7963914.25
+    },
+    {
+      "pair": "RABREK + TYRON",
+      "count": 4,
+      "uniqueCustomers": 3,
+      "revenue": 35716000,
+      "avgTicket": 8929000
+    },
+    {
+      "pair": "7UP + KHEBURGER",
+      "count": 4,
+      "uniqueCustomers": 1,
+      "revenue": 59510044,
+      "avgTicket": 14877511
+    },
+    {
+      "pair": "BarderiTo$ + LARRY MOB",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 26877600,
+      "avgTicket": 8959200
+    },
+    {
+      "pair": "Papas Crew + ZEBALLON CRISPY",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 33155600,
+      "avgTicket": 11051866.666666666
+    },
+    {
+      "pair": "RABREK + RABREK",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 22473116,
+      "avgTicket": 7491038.666666667
+    },
+    {
+      "pair": "Papas Crew + RABREK",
+      "count": 3,
+      "uniqueCustomers": 3,
+      "revenue": 14729205,
+      "avgTicket": 4909735
+    },
+    {
+      "pair": "YSIBOOM + YSIBOOM",
+      "count": 3,
+      "uniqueCustomers": 3,
+      "revenue": 29070191,
+      "avgTicket": 9690063.666666666
+    },
+    {
+      "pair": "DUKING + DUKING",
+      "count": 3,
+      "uniqueCustomers": 3,
+      "revenue": 32904697,
+      "avgTicket": 10968232.333333334
+    },
+    {
+      "pair": "DUKING + RABREK",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 25193656,
+      "avgTicket": 8397885.333333334
+    },
+    {
+      "pair": "BarderiTo$ + JEEZY",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 19734322,
+      "avgTicket": 6578107.333333333
+    },
+    {
+      "pair": "JEEZY + SAINTLUNA",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 21074875,
+      "avgTicket": 7024958.333333333
+    },
+    {
+      "pair": "Papas Clásicas + RABREK",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 15517678,
+      "avgTicket": 5172559.333333333
+    },
+    {
+      "pair": "ACRI + Papas Crew",
+      "count": 3,
+      "uniqueCustomers": 3,
+      "revenue": 14967637,
+      "avgTicket": 4989212.333333333
+    },
+    {
+      "pair": "Pepsi + ZEBALLON CRISPY",
+      "count": 3,
+      "uniqueCustomers": 3,
+      "revenue": 22797881,
+      "avgTicket": 7599293.666666667
+    },
+    {
+      "pair": "JEEZY + Pepsi",
+      "count": 3,
+      "uniqueCustomers": 2,
+      "revenue": 15526996,
+      "avgTicket": 5175665.333333333
+    },
+    {
+      "pair": "Papas Crew + YSIBOOM",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 10380000,
+      "avgTicket": 5190000
+    },
+    {
+      "pair": "JEEZY + Papas Clásicas",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 11364600,
+      "avgTicket": 5682300
+    },
+    {
+      "pair": "JEEZY + Papas Crew",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 11354205,
+      "avgTicket": 5677102.5
+    },
+    {
+      "pair": "DUKING + LARRY MOB",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 18489128,
+      "avgTicket": 9244564
+    },
+    {
+      "pair": "BarderiTo$ + Papas Clásicas",
+      "count": 2,
+      "uniqueCustomers": 1,
+      "revenue": 18252600,
+      "avgTicket": 9126300
+    },
+    {
+      "pair": "Papas Clásicas + Papas Clásicas",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 15697639,
+      "avgTicket": 7848819.5
+    },
+    {
+      "pair": "DUKING + SAINTLUNA",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 18874000,
+      "avgTicket": 9437000
+    },
+    {
+      "pair": "BarderiTo$ + SAINTLUNA",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20198000,
+      "avgTicket": 10099000
+    },
+    {
+      "pair": "ACRI + BarderiTo$",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 9417354,
+      "avgTicket": 4708677
+    },
+    {
+      "pair": "KHEBURGER + 🍔 2 DUKING DOBLES",
+      "count": 2,
+      "uniqueCustomers": 1,
+      "revenue": 36580000,
+      "avgTicket": 18290000
+    },
+    {
+      "pair": "DUKING + 🍔 2 DUKING DOBLES",
+      "count": 2,
+      "uniqueCustomers": 1,
+      "revenue": 36580000,
+      "avgTicket": 18290000
+    },
+    {
+      "pair": "LARRY MOB + RABREK",
+      "count": 2,
+      "uniqueCustomers": 1,
+      "revenue": 16843656,
+      "avgTicket": 8421828
+    },
+    {
+      "pair": "SAINTLUNA + YSIBOOM",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 13022986,
+      "avgTicket": 6511493
+    },
+    {
+      "pair": "7UP + TYRON",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 19597261,
+      "avgTicket": 9798630.5
+    },
+    {
+      "pair": "JEEZY + PAPAS SAZONADAS",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 8924600,
+      "avgTicket": 4462300
+    },
+    {
+      "pair": "Poliamok + YSIBOOM",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "Pepsi + YSIBOOM",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "DUKING + Poliamok",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "DUKING + Pepsi",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "Poliamok + ZEBALLON CRISPY",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "BarderiTo$ + Poliamok",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "Pepsi + Poliamok",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "BarderiTo$ + Pepsi",
+      "count": 2,
+      "uniqueCustomers": 2,
+      "revenue": 20111131,
+      "avgTicket": 10055565.5
+    },
+    {
+      "pair": "JEEZY + Zero",
+      "count": 1,
+      "uniqueCustomers": 0,
+      "revenue": 2295000,
+      "avgTicket": 2295000
+    },
+    {
+      "pair": "LARRY MOB + 🔥 PROMO 3x2 TYRON DOBLE 🔥",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 8625000,
+      "avgTicket": 8625000
+    },
+    {
+      "pair": "BarderiTo$ + 🔥 PROMO 3x2 TYRON DOBLE 🔥",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 8625000,
+      "avgTicket": 8625000
+    },
+    {
+      "pair": "KHEBURGER + Pepsi",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 2373700,
+      "avgTicket": 2373700
+    },
+    {
+      "pair": "Papas Clásicas + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 5440000,
+      "avgTicket": 5440000
+    },
+    {
+      "pair": "KHEBURGER + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 14015300,
+      "avgTicket": 14015300
+    },
+    {
+      "pair": "Poliamok + SAINTLUNA",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 3417100,
+      "avgTicket": 3417100
+    },
+    {
+      "pair": "BarderiTo$ + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 3950000,
+      "avgTicket": 3950000
+    },
+    {
+      "pair": "TYRON + 🍔 2 DUKING DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 18290000,
+      "avgTicket": 18290000
+    },
+    {
+      "pair": "ZEBALLON CRISPY + 🍔 2 DUKING DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 18290000,
+      "avgTicket": 18290000
+    },
+    {
+      "pair": "7UP + ZEBALLON CRISPY",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 5151930,
+      "avgTicket": 5151930
+    },
+    {
+      "pair": "7UP + SAINTLUNA",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 5151930,
+      "avgTicket": 5151930
+    },
+    {
+      "pair": "KHEBURGER + SAINTLUNA",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 8074861,
+      "avgTicket": 8074861
+    },
+    {
+      "pair": "BarderiTo$ + BarderiTo$",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 8989591,
+      "avgTicket": 8989591
+    },
+    {
+      "pair": "7UP + YSIBOOM",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 4719750,
+      "avgTicket": 4719750
+    },
+    {
+      "pair": "Andes Rubia + YSIBOOM",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6600000,
+      "avgTicket": 6600000
+    },
+    {
+      "pair": "BarderiTo$ + RABREK",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6600000,
+      "avgTicket": 6600000
+    },
+    {
+      "pair": "Andes Rubia + RABREK",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6600000,
+      "avgTicket": 6600000
+    },
+    {
+      "pair": "Andes Rubia + BarderiTo$",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6600000,
+      "avgTicket": 6600000
+    },
+    {
+      "pair": "SAINTLUNA + SAINTLUNA",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6800000,
+      "avgTicket": 6800000
+    },
+    {
+      "pair": "PAPAS SAZONADAS + RABREK",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 4967932,
+      "avgTicket": 4967932
+    },
+    {
+      "pair": "ACRI + PAPAS SAZONADAS",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 4967932,
+      "avgTicket": 4967932
+    },
+    {
+      "pair": "MOMO SAMP + Papas Clásicas",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 2838819,
+      "avgTicket": 2838819
+    },
+    {
+      "pair": "PAPAS SAZONADAS + Papas Clásicas",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 5924600,
+      "avgTicket": 5924600
+    },
+    {
+      "pair": "PAPAS SAZONADAS + YSIBOOM",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 5924600,
+      "avgTicket": 5924600
+    },
+    {
+      "pair": "BarderiTo$ + PAPAS SAZONADAS",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 3650000,
+      "avgTicket": 3650000
+    },
+    {
+      "pair": "PAPAS SAZONADAS + ZEBALLON CRISPY",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 3650000,
+      "avgTicket": 3650000
+    },
+    {
+      "pair": "KHEBURGER + PAPAS SAZONADAS",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 2838819,
+      "avgTicket": 2838819
+    },
+    {
+      "pair": "🍔 3 TYRON + 🍔 3 YSIBOOM",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 18452319,
+      "avgTicket": 18452319
+    },
+    {
+      "pair": "MOMO SAMP + ZEBALLON CRISPY",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6250000,
+      "avgTicket": 6250000
+    },
+    {
+      "pair": "DUKING + MOMO SAMP",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 6250000,
+      "avgTicket": 6250000
+    },
+    {
+      "pair": "PAPAS SAZONADAS + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Mirinda + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "MOMO SAMP + Papas Crew",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Papas Crew + 🍔 2 RABREK DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Papas Crew + 🍔 3 TYRON",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Mirinda + PAPAS SAZONADAS",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "MOMO SAMP + PAPAS SAZONADAS",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "PAPAS SAZONADAS + 🍔 2 RABREK DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "PAPAS SAZONADAS + 🍔 3 TYRON",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "MOMO SAMP + Mirinda",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Mirinda + 🍔 2 RABREK DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "Mirinda + 🍔 3 TYRON",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "MOMO SAMP + 🍔 2 RABREK DOBLES",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "MOMO SAMP + 🍔 3 TYRON",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "🍔 2 RABREK DOBLES + 🍔 3 TYRON",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 15035223,
+      "avgTicket": 15035223
+    },
+    {
+      "pair": "7UP + ACRI",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 14877511,
+      "avgTicket": 14877511
+    },
+    {
+      "pair": "7UP + Papas Clásicas",
+      "count": 1,
+      "uniqueCustomers": 1,
+      "revenue": 14877511,
+      "avgTicket": 14877511
+    }
+  ]
+}

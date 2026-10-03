@@ -107,6 +107,11 @@ interface Props {
   initialReviewUrl?: string | null
   orderItems: { _id: string; name: string; quantity: number; subtotal?: number; menuItemId?: string }[]
   orderTotal: number
+  // ── Retorno de MercadoPago (?status=... en la query string) ──────────────
+  // Se pasa desde la página de tracking cuando el cliente volvió del checkout
+  // de MP con un resultado. Sirve para mostrar el motivo real del rechazo.
+  mpReturnOutcome?: string | null
+  mpStatusDetail?: string | null
 }
 
 function formatCountdown(target: string): string {
@@ -193,6 +198,8 @@ export default function OrderTracker({
   initialReviewUrl = null,
   orderItems,
   orderTotal,
+  mpReturnOutcome = null,
+  mpStatusDetail = null,
 }: Props) {
   const [status, setStatus]               = useState(initialStatus)
   const [confirmedAt, setConfirmedAt]     = useState<string | null>(null)
@@ -230,6 +237,8 @@ export default function OrderTracker({
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
   const redeemedFiredRef = useRef(false)
   const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
+  // ── Salida de emergencia para pedidos varados en awaiting_payment ─────
+  const [exitLoading, setExitLoading] = useState(false)
 
   const whatsAppLink = whatsAppPhone && paymentMethod === 'transfer'
     ? buildWhatsAppLink(whatsAppPhone, {
@@ -324,6 +333,34 @@ export default function OrderTracker({
   }, [tenantSlug, orderId, playNotification])
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
+
+  /**
+   * Salida de emergencia: cancela un pedido varado en `awaiting_payment`.
+   * Necesaria porque cuando MercadoPago falla en SU propio checkout no hay
+   * webhook ni back_url utilizable, y el cliente queda sin ninguna acción.
+   * El pedido nunca se cobró → no hay reembolso pendiente.
+   */
+  const handleCancelAwaiting = useCallback(async () => {
+    if (!trackingToken) return
+    if (!confirm('¿Cancelar este pedido? No fue cobrado, así que no hay reembolso pendiente.')) return
+    setExitLoading(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/cancel-awaiting`, {
+        method: 'POST',
+        headers: { 'x-tracking-token': trackingToken },
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'No se pudo cancelar el pedido')
+      }
+      toast.success('Pedido cancelado')
+      setStatus('cancelled')
+    } catch (err: any) {
+      toast.error(err.message || 'No se pudo cancelar el pedido')
+    } finally {
+      setExitLoading(false)
+    }
+  }, [tenantSlug, orderId, trackingToken])
 
   const poll = useCallback(async () => {
     try {
@@ -787,9 +824,60 @@ export default function OrderTracker({
         </div>
       )}
 
+      {/* ── SALIDA DE EMERGENCIA: pedido varado en "esperando pago" ─────────
+          Cuando MercadoPago falla en su propio checkout no se crea el payment,
+          así que no hay webhook ni back_url utilizable: el tracking se quedaba
+          en "Esperando pago" sin ninguna acción y el cliente no tenía forma de
+          salir (ni cancelar, ni reintentar, ni pedir de nuevo por el 409).
+          Se calcula on-read en cada carga/polling — NO depende del cron diario. */}
+      {status === 'awaiting_payment' && trackingToken && (
+        <div className="mb-6 rounded-2xl border-2 p-5 space-y-4"
+          style={{ borderColor: primaryColor + '40', backgroundColor: primaryColor + '08' }}>
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+              style={{ backgroundColor: primaryColor + '15' }}>
+              <span className="text-base">💳</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm" style={{ color: textColor }}>
+                {paymentMethod === 'transfer'
+                  ? '¿No vas a realizar la transferencia?'
+                  : 'Tu pedido sigue sin pagar'}
+              </p>
+              <p className="text-xs mt-1 leading-relaxed" style={{ opacity: 0.6 }}>
+                {paymentMethod === 'transfer'
+                  ? 'Si no vas a transferir, cancelá el pedido para liberarlo.'
+                  : 'Ningún pago se acreditó. Podés cancelarlo y volver a pedir cuando quieras.'}
+              </p>
+              {paymentMethod !== 'transfer' && mpReturnOutcome === 'rejected' && (
+                <p className="text-xs mt-2 font-semibold" style={{ color: primaryColor }}>
+                  MercadoPago rechazó el pago
+                  {mpStatusDetail ? ` (${mpStatusDetail})` : ''}.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleCancelAwaiting}
+              disabled={exitLoading}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm text-red-600 bg-red-50 hover:bg-red-100 transition-colors border border-red-200 disabled:opacity-50"
+            >
+              {exitLoading ? 'Cancelando...' : 'Cancelar pedido'}
+            </button>
+            <a
+              href={`/${tenantSlug}`}
+              className="flex-1 py-3 rounded-2xl font-bold text-sm text-center transition-colors border"
+              style={{ borderColor: primaryColor + '40', color: primaryColor }}
+            >
+              Volver al menú
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Mensaje de cancelación cerrada */}
-      {cancellationClosed && (
-        <div className="mb-8 rounded-2xl p-5 border"
+      {cancellationClosed && (        <div className="mb-8 rounded-2xl p-5 border"
           style={{ backgroundColor: primaryColor + '08', borderColor: primaryColor + '25' }}>
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
