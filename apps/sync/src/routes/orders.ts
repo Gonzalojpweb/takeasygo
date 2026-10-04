@@ -7,7 +7,7 @@ import {
   updateOrderStatus,
 } from "../services/order-translator"
 import { SyncOrderModel } from "@takeasygo/db"
-import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
+import { enqueueOrderCreated, removePendingOrder, voidsOfflineTimeout } from "../queues/order-queue"
 import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 import { enqueueComplianceChecks, cancelComplianceJobs } from "../queues/compliance-queue"
@@ -278,9 +278,17 @@ export function ordersRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+      const syncId = syncOrder?._id?.toString() ?? orderId
+
+      // Un status que avanza el ciclo invalida el timeout offline del pedido
+      // (jobId = _id del SyncLayer): sin esto, el job seguía vivo y emitía
+      // order:cancelled por timeout sobre un pedido ya operativo.
+      if (voidsOfflineTimeout(status)) {
+        await removePendingOrder(orderQueue, syncId)
+      }
 
       const statusEvent = {
-        orderId,
+        orderId: syncId,
         tenantId: auth.tenantId,
         locationId: syncOrder?.locationId,
         externalStatus: status,
@@ -340,8 +348,6 @@ export function ordersRouter(
         return
       }
 
-      await removePendingOrder(orderQueue, orderId)
-
       const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId: auth.tenantId,
@@ -350,9 +356,13 @@ export function ordersRouter(
           { externalOrderId: orderId },
         ],
       }).lean()
+      // Eventos de socket y timeout offline se identifican por el _id del
+      // SyncLayer (Dexie id en el POS), no por el parámetro del caller.
+      const syncId = syncOrder?._id?.toString() ?? orderId
+      await removePendingOrder(orderQueue, syncId)
 
       const confirmedEvent = {
-        orderId,
+        orderId: syncId,
         tenantId: auth.tenantId,
         locationId: syncOrder?.locationId,
         timestamp: new Date().toISOString(),
@@ -364,7 +374,7 @@ export function ordersRouter(
 
       // Also emit order:status_updated for POS UI
       const statusEvent = {
-        orderId,
+        orderId: syncId,
         tenantId: auth.tenantId,
         locationId: syncOrder?.locationId,
         externalStatus: "confirmed",

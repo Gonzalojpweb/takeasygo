@@ -41,6 +41,12 @@ vi.mock('@/lib/rateLimit', () => ({
   rateLimit: vi.fn().mockResolvedValue({ success: true, remaining: 0 }),
 }))
 
+// cancel-awaiting notifica al SyncLayer vía order-side-effects, que importa
+// @/lib/push — sin mock, setVapidDetails revienta al importar (sin claves VAPID en test).
+vi.mock('@/lib/push', () => ({
+  sendAdminPushNotification: vi.fn().mockResolvedValue(undefined),
+}))
+
 import { POST as cancelAwaiting } from '@/app/api/[tenant]/orders/[orderId]/cancel-awaiting/route'
 import { POST as createPreference } from '@/app/api/[tenant]/payments/create-preference/route'
 

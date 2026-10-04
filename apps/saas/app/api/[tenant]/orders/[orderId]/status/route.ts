@@ -15,7 +15,7 @@ import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustm
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { cotizarEnvio, isRapiboyEnabled, recotizarParaReady } from '@/lib/delivery/cotizar'
 import { crearViajeOnDemand, cancelarViaje, RapiboyError } from '@/lib/rapiboy/client'
-import { notifySyncLayerStatus } from '@/lib/sync-layer'
+import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
 import { resolveOrderAlerts } from '@/lib/compliance-alerts'
@@ -472,12 +472,10 @@ export async function PATCH(
     }
 
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)
-    // skipForward: true prevents SyncLayer from forwarding back to SaaS (avoids loop)
-    if (order.externalOrderId) {
-      notifySyncLayerStatus(tenant._id.toString(), orderId, status).catch((err) =>
-        console.error('[status] SyncLayer notify error (non-blocking):', err)
-      )
-    }
+    // Puerta única (maybeNotifySyncLayerStatus): tenant con POS habilitado y
+    // orden no creada por el POS (esas no existen en SyncLayer). skipForward
+    // en el notify evita el loop SaaS → Sync → SaaS.
+    maybeNotifySyncLayerStatus({ order, tenant })
 
     // ── Push notification al cliente cuando el pedido está listo ──────────────
     if (status === 'ready' && (order as any).clientToken) {

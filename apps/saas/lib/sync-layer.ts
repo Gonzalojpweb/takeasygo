@@ -270,6 +270,12 @@ export async function notifySyncLayerStatus(
     })
 
     if (!res.ok) {
+      if (res.status === 404) {
+        // La orden nunca fue pusheada al Sync (p.ej. creada en efectivo sin
+        // pasar por confirmed/awaiting_payment): no es error, se omite.
+        console.warn(`[sync-layer] notify status: order ${orderId} not in SyncLayer (skipped)`)
+        return
+      }
       const text = await res.text().catch(() => "unknown")
       console.error(`[sync-layer] notify status POST ${target}/api/v1/internal/orders/${orderId}/status -> ${res.status}: ${text}`)
       return

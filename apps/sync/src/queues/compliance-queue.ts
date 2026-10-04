@@ -61,9 +61,29 @@ export async function cancelComplianceJobs(
 ): Promise<void> {
   const jobIdBase = `compliance:${orderId}:${fromStatus}`
   for (const level of ["L1", "L2", "L3"]) {
-    const job = await queue.getJob(`${jobIdBase}:${level}`)
-    if (job && (await job.isWaiting())) {
-      await job.remove()
+    // Estos jobs SIEMPRE se encolan con delay: viven en 'delayed', no en
+    // 'wait' — isWaiting() nunca era true y la cancelación no borraba nada,
+    // disparando alertas SLA de transiciones que la orden ya superó.
+    // Nunca lanza: un Redis caído no rompe el flujo que llama.
+    try {
+      const job = await queue.getJob(`${jobIdBase}:${level}`)
+      if (!job) continue
+      // cast a string: los tipos de BullMQ omiten 'paused' aunque en runtime
+      // un job de cola pausada reporta esa lista.
+      const state = (await job.getState()) as string
+      if (
+        state === "waiting" ||
+        state === "paused" ||
+        state === "delayed" ||
+        state === "prioritized"
+      ) {
+        await job.remove()
+      }
+    } catch (err) {
+      console.warn(
+        `[compliance-queue] cancelComplianceJobs(${jobIdBase}:${level}) skipped:`,
+        err instanceof Error ? err.message : err
+      )
     }
   }
 }
