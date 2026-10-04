@@ -25,7 +25,7 @@ export default function BoardColumn<T extends BoardItem>({
 }: BoardColumnProps<T>) {
   return (
     <div className={items.length > 0
-    ? "flex flex-col min-w-[260px] w-[300px] md:min-w-[320px] md:w-[340px] lg:min-w-[360px] lg:w-[380px] xl:min-w-[380px] xl:w-[400px] h-full"
+    ? "flex flex-col min-w-[240px] w-[280px] md:min-w-[300px] md:w-[320px] lg:min-w-[340px] lg:w-[360px] xl:min-w-[360px] xl:w-[380px] h-full"
     : "flex flex-col min-w-[160px] w-[190px] md:min-w-[180px] md:w-[210px] h-full"
   }>
       {/* Column header */}
