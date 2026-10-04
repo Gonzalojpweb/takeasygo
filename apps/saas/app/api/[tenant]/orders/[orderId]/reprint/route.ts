@@ -132,6 +132,10 @@ export async function POST(
       order.printJobs = []
     }
 
+    // Reimpresión general = ya se mandó todo a todas: la impresión en cocina
+    // diferida queda saldada (no dejar el flag huérfano en pedidos cash).
+    order.kitchenPrintDeferred = false
+
     await order.save()
 
     return NextResponse.json({ ok: true, jobs: order.printJobs.length })

@@ -12,12 +12,13 @@ import PlatformConfig from '@/models/PlatformConfig'
 /**
  * Evidencia de que el camino de efectivo NO está bifurcado.
  *
- * `confirmOrderPaymentCore` solo puede alcanzarse a través de `registerCashSale`
- * (lib/order-side-effects.ts). Estos tests mockean el módulo de sync-layer y
- * verifican que el endpoint de emergencia lo dispara, y un test de nivel fuente
- * verifica que el checkout normal y el endpoint de emergencia llaman a la MISMA
- * función. Si alguien agrega una segunda implementación en un endpoint, el test
- * de fuente falla.
+ * `confirmOrderPaymentCore` (venta en caja + CIS) solo puede alcanzarse a
+ * través de `registerCashSaleOnDelivery` (lib/order-side-effects.ts) — y eso
+ * recién cuando el pedido se ENTREGA. El aviso al admin a creación pasa por
+ * `notifyCashOrderCreated`, que es el MISMO punto de entrada para el checkout
+ * normal y el endpoint de emergencia. Estos tests mockean el módulo de
+ * sync-layer y verifican ambas cosas, y un test de nivel fuente verifica que
+ * nadie agregue una segunda implementación.
  */
 const confirmOrderPaymentCoreMock = vi.fn().mockResolvedValue(undefined)
 const notifySyncLayerStatusMock = vi.fn().mockResolvedValue(undefined)
@@ -232,10 +233,10 @@ describe('change-payment-method — guardas', () => {
 })
 
 /* ══════════════════════════════════════════════════════════════════════════
-   EFECTIVO — reutiliza confirmOrderPaymentCore, sin bifurcación.
+   EFECTIVO — confirmed + pending (cobra contra entrega), sin bifurcación.
    ══════════════════════════════════════════════════════════════════════════ */
 describe('change-payment-method → efectivo', () => {
-  it('confirma el pedido al instante (confirmed/approved), igual que el checkout normal', async () => {
+  it('confirma el pedido al instante (confirmed) con el cobro pendiente hasta delivered', async () => {
     const order = await makeStuckOrder()
     const res = await changePaymentMethod(
       postReq(order._id.toString(), { method: 'cash' }, { 'x-tracking-token': TRACKING_TOKEN }),
@@ -245,12 +246,12 @@ describe('change-payment-method → efectivo', () => {
 
     const after = await Order.findById(order._id)
     expect(after!.status).toBe('confirmed')
-    expect(after!.payment.status).toBe('approved')
+    expect(after!.payment.status).toBe('pending')
     expect(after!.payment.method).toBe('cash')
     expect(after!.statusTimestamps.confirmedAt).toBeTruthy()
   })
 
-  it('registra la venta en caja vía confirmOrderPaymentCore (evidencia de camino único)', async () => {
+  it('NO registra la venta en caja al cambiarse: eso recién ocurre al ENTREGAR', async () => {
     const order = await makeStuckOrder()
     await changePaymentMethod(
       postReq(order._id.toString(), { method: 'cash' }, { 'x-tracking-token': TRACKING_TOKEN }),
@@ -258,10 +259,7 @@ describe('change-payment-method → efectivo', () => {
     )
     await flush()
 
-    expect(confirmOrderPaymentCoreMock).toHaveBeenCalledTimes(1)
-    const [orderArg, tenantArg] = confirmOrderPaymentCoreMock.mock.calls[0]
-    expect(orderArg._id.toString()).toBe(order._id.toString())
-    expect(tenantArg._id.toString()).toBe(tenant._id.toString())
+    expect(confirmOrderPaymentCoreMock).not.toHaveBeenCalled()
   })
 
   it('notifica al admin y dispara los print jobs, como el checkout normal', async () => {
@@ -672,22 +670,25 @@ describe('cambio de método — los descuentos aplicados se conservan', () => {
 describe('El camino de efectivo no está bifurcado', () => {
   const read = (p: string) => readFileSync(resolve(process.cwd(), p), 'utf8')
 
-  it('el checkout normal llama a registerCashSale, no a confirmOrderPaymentCore directo', () => {
+  it('el checkout normal avisa al admin vía notifyCashOrderCreated, sin confirmOrderPaymentCore directo', () => {
     const src = read('app/api/[tenant]/orders/route.ts')
     expect(src).toContain("from '@/lib/order-side-effects'")
-    expect(src).toContain('registerCashSale(')
+    expect(src).toContain('notifyCashOrderCreated(')
     // La llamada directa a la función interna queda prohibida acá.
     expect(src).not.toMatch(/await confirmOrderPaymentCore\(/)
+    // La venta en caja no se registra a creación — solo al entregar.
+    expect(src).not.toMatch(/registerCashSaleOnDelivery\(/)
   })
 
-  it('el flujo de emergencia llama a la MISMA registerCashSale', () => {
+  it('el flujo de emergencia llama al MISMO notifyCashOrderCreated', () => {
     const src = read('app/api/[tenant]/orders/[orderId]/change-payment-method/route.ts')
     expect(src).toContain("from '@/lib/order-side-effects'")
-    expect(src).toContain('registerCashSale(')
+    expect(src).toContain('notifyCashOrderCreated(')
     expect(src).not.toMatch(/await confirmOrderPaymentCore\(/)
+    expect(src).not.toMatch(/registerCashSaleOnDelivery\(/)
   })
 
-  it('registerCashSale es el único lugar que llama a confirmOrderPaymentCore', () => {
+  it('registerCashSaleOnDelivery es el único lugar que llama a confirmOrderPaymentCore', () => {
     const src = read('lib/order-side-effects.ts')
     const calls = src.match(/await confirmOrderPaymentCore\(/g) || []
     expect(calls).toHaveLength(1)

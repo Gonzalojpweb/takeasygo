@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { Types } from 'mongoose'
 import Order from '@/models/Order'
 import Table from '@/models/Table'
 import { logAudit } from '@/lib/audit'
@@ -79,6 +80,9 @@ export const PATCH = posRoute(async (ctx, { id }) => {
 
   const update: Record<string, unknown> = {}
   const audit: Record<string, unknown> = {}
+  let from: PosOrderStatusValue | undefined
+  let to: PosOrderStatusValue | undefined
+  let cashSaleToRegister = false
 
   if (notes !== undefined) {
     if (typeof notes !== 'string' || notes.length > 2000) {
@@ -92,8 +96,8 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     if (typeof nextStatus !== 'string' || !STATUSES.has(nextStatus)) {
       throw PosError.validation('Estado desconocido')
     }
-    const from = current.status as PosOrderStatusValue
-    const to = nextStatus as PosOrderStatusValue
+    from = current.status as PosOrderStatusValue
+    to = nextStatus as PosOrderStatusValue
 
     if (!isValidOrderTransition(from, to)) {
       // El POS no reimplementa el grafo: recibe los destinos legales.
@@ -106,8 +110,16 @@ export const PATCH = posRoute(async (ctx, { id }) => {
 
     // El doc real tiene `payment` (schema Order) aunque PosOrderDoc no lo declara.
     const payment = (current as unknown as { payment?: { method?: string; status?: string } }).payment
-    if (payment?.method === 'cash' && payment.status === 'pending') {
+    // Cobro en efectivo: pending → approved SOLO al entregar. El POS no
+    // "cobra" cuando mueve la orden a preparación/cocina. La venta en caja
+    // se registra después del update, en el mismo momento.
+    if (
+      to === 'delivered' &&
+      payment?.method === 'cash' &&
+      payment.status === 'pending'
+    ) {
       update['payment.status'] = 'approved'
+      cashSaleToRegister = true
     }
 
     Object.assign(update, statusTimestampsFor(to))
@@ -133,6 +145,33 @@ export const PATCH = posRoute(async (ctx, { id }) => {
       'La orden cambió de estado mientras se procesaba la petición',
       `posId=${posId}`
     )
+  }
+
+  // Cobro en efectivo concretado al entregar: registrar venta en caja + CIS
+  // (fire-and-forget; deduplica por orderId+tenantId si otro camino también
+  // registró).
+  if (cashSaleToRegister) {
+    const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
+    registerCashSaleOnDelivery({
+      order: updated as unknown as import('@/models/Order').IOrder,
+      tenant: { _id: ctx.tenantId as unknown as Types.ObjectId },
+    })
+  }
+
+  // Impresión en cocina diferida (flujo cash): el POS no tiene modal de
+  // cajero, así que al entrar a preparing se imprime por defecto; al
+  // cancelar solo se limpia el flag (sin comanda nueva).
+  if ((to === 'preparing' && from === 'confirmed') || to === 'cancelled') {
+    const fullOrder = await Order.findOne({
+      tenantId: ctx.tenantId,
+      locationId: ctx.locationId,
+      posId,
+    })
+    if (fullOrder) {
+      const { settleDeferredKitchenPrint } = await import('@/lib/printing')
+      await settleDeferredKitchenPrint(fullOrder, { print: to !== 'cancelled' })
+      await fullOrder.save()
+    }
   }
 
   if (

@@ -238,6 +238,12 @@ export interface IOrder extends Document {
   printed: boolean
   printLog: IPrintLogEntry[]
   printJobs: IPrintJob[]
+  /**
+   * Efectivo + impresora BARRA: la comanda se imprimió primero en la barra y
+   * la impresión en cocina queda diferida hasta que el cajero decida al pasar
+   * a preparación (modal Sí/No). false = sin diferimiento (flujo normal).
+   */
+  kitchenPrintDeferred: boolean
   statusTimestamps: IStatusTimestamps
   // ── Sincronización con POS (FUDO / BISTROSOFT) ─────────────────────────────
   posSync: {
@@ -646,6 +652,8 @@ const OrderSchema = new Schema(
     // Token del dispositivo consumer para enviar push cuando el pedido esté listo
     clientToken: { type: String, default: null, index: true },
     printed: { type: Boolean, default: false },
+    // Efectivo con impresora BARRA: cocina diferida hasta confirmación del cajero
+    kitchenPrintDeferred: { type: Boolean, default: false },
     statusTimestamps: {
       confirmedAt:      { type: Date, default: null },
       preparingAt:      { type: Date, default: null },

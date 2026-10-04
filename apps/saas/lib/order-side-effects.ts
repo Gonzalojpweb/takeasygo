@@ -9,21 +9,27 @@ import type { ITenant } from '@/models/Tenant'
  *
  * ── POR QUÉ ───────────────────────────────────────────────────────────────────
  * Un pedido en efectivo creado desde el checkout normal y un pedido que cambió a
- * efectivo desde el flujo de emergencia tienen que registrar EXACTAMENTE la
- * misma venta en caja. Si cada endpoint tuviera su propia copia de estas
- * llamadas, el día que una cambie la otra quedaría desincronizada y una venta en
- * efectivo no aparecería en el reporte de caja.
+ * efectivo desde el flujo de emergencia tienen que recibir EXACTAMENTE los
+ * mismos efectos. Si cada endpoint tuviera su propia copia de estas llamadas,
+ * el día que una cambie la otra quedaría desincronizada.
  *
  * Puntos de entrada (a propósito):
  *   1. `POST /api/[tenant]/orders` con `payment.method === 'cash'` (checkout normal)
  *   2. `POST /api/[tenant]/orders/[orderId]/change-payment-method` → `cash` (emergencia)
  *
  * ── SEMÁNTICA DE EFECTIVO (no inventar otra) ──────────────────────────────────
- * Un pedido de efectivo normal queda `confirmed` + `payment.status: 'approved'`
- * AL INSTANTE. NO espera a que el cajero confirme: la confirmación del cajero es
- * para transferencia. El cajero cobra en el momento de la entrega.
- * Eso significa que este camino debe correr las mismas llamadas que el checkout
- * normal, sin importar desde qué endpoint venga.
+ * Un pedido de efectivo queda `confirmed` + `payment.status: 'pending'` AL
+ * INSTANTE: el cliente aún no pagó. El cobro se confirma recién cuando el
+ * pedido se marca ENTREGADO (pending → approved en delivered), que es cuando
+ * el cajero cobra en mano. En ese momento se registra la venta en caja
+ * (`registerCashSaleOnDelivery`), de modo que caja y estado de pago cambian
+ * juntos y un pedido cancelado antes de entregar nunca deja venta fantasma.
+ * El push al admin sí es a creación: el cajero necesita ver llegar el pedido.
+ *
+ * Si después de entregado el cliente no paga en la realidad, el cajero usa el
+ * flujo existente de ajuste de caja (`POST /[tenant]/cash-adjustment`, type
+ * `cash_order_not_collected` → `payment.cashAdjustmentApplied = true`) para
+ * excluirlo de los reportes — misma cadena que ya existía.
  */
 
 export interface OrderEffectItem {
@@ -35,12 +41,12 @@ export interface OrderEffectItem {
 }
 
 /**
- * Efectos EXCLUSIVOS de efectivo: aviso al admin + registro de la venta en caja.
- *
- * Fire-and-forget (setImmediate) igual que en el checkout normal: el pedido ya
- * está guardado y confirmado; un fallo acá no debe tumbar la respuesta.
+ * Aviso al admin cuando SE CREA un pedido en efectivo (checkout o cambio de
+ * método de pago). Fire-and-forget (setImmediate): el pedido ya está guardado;
+ * un fallo acá no debe tumbar la respuesta. La venta en caja NO se registra
+ * acá — eso pasa al entregar (registerCashSaleOnDelivery).
  */
-export async function registerCashSale(args: {
+export async function notifyCashOrderCreated(args: {
   order: IOrder
   tenant: ITenant
   tenantSlug: string
@@ -63,13 +69,30 @@ export async function registerCashSale(args: {
       console.error('[order-side-effects] Admin push error (cash):', (err as Error)?.message)
     }
   })
+}
+
+/**
+ * Registra la venta en caja + evento CIS de un pedido en efectivo RECIÉN
+ * ENTREGADO (único momento en que el cobro se considera concretado).
+ *
+ * Se llama SOLO cuando payment.status pasa pending → approved en delivered
+ * (status route, pickup, delivery/complete, POS), lo que la hace idempotente
+ * por construcción; además notifyCashSale deduplica por (orderId, tenantId).
+ *
+ * Fire-and-forget: la confirmación del pedido no depende de este registro.
+ */
+export async function registerCashSaleOnDelivery(args: {
+  order: IOrder
+  tenant: { _id: ITenant['_id'] }
+}): Promise<void> {
+  const { order, tenant } = args
 
   setImmediate(async () => {
     try {
       await confirmOrderPaymentCore(order, tenant)
     } catch (err) {
       console.error(
-        `[order-side-effects] CRITICAL: confirmOrderPaymentCore FAILED for cash order ${order.orderNumber} ` +
+        `[order-side-effects] CRITICAL: confirmOrderPaymentCore FAILED for delivered cash order ${order.orderNumber} ` +
           `(orderId: ${order._id}). Cash sale was NOT registered. Manual reconciliation required.`,
         err
       )
@@ -108,7 +131,8 @@ export async function applyStatusTransitionSideEffects(args: {
  * habilitado) e impresión de tickets (solo `confirmed`).
  *
  * Corre para cualquier método, no solo efectivo — por eso está aparte de
- * `registerCashSale`. En la creación de pedidos aplica a cash, deferred,
+ * los efectos de efectivo (`notifyCashOrderCreated` / `registerCashSaleOnDelivery`).
+ * En la creación de pedidos aplica a cash, deferred,
  * transferencia, MP y Kripton; al cambiar de método en el flujo de emergencia
  * aplica al nuevo status.
  */

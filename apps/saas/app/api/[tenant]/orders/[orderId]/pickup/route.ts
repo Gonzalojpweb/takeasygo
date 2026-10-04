@@ -32,10 +32,18 @@ export async function PATCH(
 
     order.status = 'delivered'
     order.statusTimestamps.deliveredAt = new Date()
+    let cashSaleToRegister = false
     if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
       order.payment.status = 'approved'
+      cashSaleToRegister = true
     }
     await order.save()
+
+    // Cobro en efectivo concretado al retirar: registrar venta en caja + CIS.
+    if (cashSaleToRegister) {
+      const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
+      registerCashSaleOnDelivery({ order, tenant })
+    }
 
     return NextResponse.json({ order })
   } catch (error) {

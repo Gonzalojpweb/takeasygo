@@ -70,9 +70,16 @@ export async function buildPrintPayload(
     onlyRole?: string
     /** Marca los jobs generados como reimpresión explícita del admin */
     isReprint?: boolean
+    /**
+     * Fuerza UN ticket completo por impresora (todos los items, sin filtro de
+     * rol). Solo para el pase BARRA de efectivo: si el pedido no tiene items
+     * que matcheen los roles de la BARRA, igual tiene que llegar un ticket —
+     * el cajero no puede perder la vista previa del pedido.
+     */
+    forceAllItems?: boolean
   } = {}
 ): Promise<IPrintJob[]> {
-  const { onlyRole, isReprint = false } = options
+  const { onlyRole, isReprint = false, forceAllItems = false } = options
   // Desencriptar PII una sola vez
   const customer: DecryptedCustomer = order.customer
     ? {
@@ -90,6 +97,34 @@ export async function buildPrintPayload(
   }
 
   const printJobs: IPrintJob[] = []
+
+  // ── Ticket resumen forzado: UN job por impresora, todos los items ────
+  if (forceAllItems) {
+    for (const printer of activePrinters) {
+      // Preferir el rol BARRA (encabezado "BARRA / BEBIDAS"); si no lo tiene,
+      // usar el primero configurado.
+      const role = (printer.roles || []).includes('bar')
+        ? 'bar'
+        : printer.roles?.[0]
+      if (!role) continue
+
+      const buffer = renderOrderTicket(orderData, printer, role, { forceAllItems: true })
+      if (!buffer) continue
+
+      printJobs.push({
+        printerId: printer._id,
+        printerName: printer.name,
+        role,
+        payload: buffer.toString('base64'),
+        status: 'pending',
+        attempts: 0,
+        lastError: null,
+        printedAt: null,
+        ...(isReprint ? { isReprint: true } : {}),
+      })
+    }
+    return printJobs
+  }
 
   for (const printer of activePrinters) {
     for (const role of printer.roles || []) {
