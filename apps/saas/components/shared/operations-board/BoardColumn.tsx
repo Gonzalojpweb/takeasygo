@@ -24,7 +24,10 @@ export default function BoardColumn<T extends BoardItem>({
   renderCard,
 }: BoardColumnProps<T>) {
   return (
-    <div className="flex flex-col min-w-[220px] w-[240px] md:min-w-[260px] md:w-[280px] h-full">
+    <div className={items.length > 0
+    ? "flex flex-col min-w-[260px] w-[300px] lg:min-w-[320px] lg:w-[340px] xl:min-w-[340px] xl:w-[360px] h-full"
+    : "flex flex-col min-w-[220px] w-[240px] md:min-w-[260px] md:w-[280px] h-full"
+  }>
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2.5 mb-2">
         <div className="flex items-center gap-2">
