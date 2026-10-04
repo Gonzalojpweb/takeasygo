@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { revertRewardRedemptions } from '@/lib/loyalty'
+import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { rateLimit } from '@/lib/rateLimit'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -86,6 +87,9 @@ export async function POST(
     }
     await revertRewardRedemptions(order, tenant)
     await order.save()
+
+    // SyncLayer: el POS Online suelta el pedido que esperaba pago
+    maybeNotifySyncLayerStatus({ order, tenant })
 
     return NextResponse.json({ ok: true })
   } catch (error) {

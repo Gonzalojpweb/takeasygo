@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
+import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
@@ -411,6 +412,13 @@ export async function POST(
             }
 
             await order.save({ session })
+
+            // SyncLayer: si el pago se rechazó/canceló, el POS Online debe
+            // soltar el pedido que estaba esperando confirmación (el confirm
+            // aprobado ya lo hace vía confirmOrderPayment).
+            if (['rejected', 'cancelled'].includes(paymentData.status!)) {
+              setImmediate(() => maybeNotifySyncLayerStatus({ order, tenant }))
+            }
 
             // Consumir hidden reward claims (idempotente)
             if (paymentData.status === 'approved' && order.status === 'confirmed') {
