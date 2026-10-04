@@ -280,6 +280,7 @@ export async function notifySyncLayerStatus(
       console.error(`[sync-layer] notify status POST ${target}/api/v1/internal/orders/${orderId}/status -> ${res.status}: ${text}`)
       return
     }
+    console.log(`[sync-layer] notify status ok: ${orderId} -> ${status}`)
   } catch (err) {
     console.error(`[sync-layer] notify status error -> ${target}/api/v1/internal/orders/${orderId}/status:`, err)
   }
