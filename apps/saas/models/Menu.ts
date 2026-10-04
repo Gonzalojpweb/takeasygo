@@ -132,7 +132,11 @@ export interface IMenuCategory {
   items: IMenuItem[]  // items directos (cuando no hay subcategorías)
   subcategories?: IMenuSubCategory[]  // subcategorías opcionales
   printRole?: 'kitchen' | 'bar' | 'both'
-  customizationGroups?: ICustomizationGroup[]   // grupos heredados por todos los items de la categoría
+  customizationGroups?: ICustomizationGroup[]
+  /** Grupos globales ocultos (ids o nombres). No se muestran en el menú público. */
+  disabledGroupIds?: string[]
+  /** Opciones de grupos globales ocultas (ids o nombres). No se muestran en el menú público. */
+  disabledOptionIds?: string[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
@@ -387,6 +391,8 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     default: 'kitchen',
   },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
+  disabledGroupIds: { type: [String], default: [] },
+  disabledOptionIds: { type: [String], default: [] },
   nameTranslations: {
     en: { type: String, default: '' },
   },

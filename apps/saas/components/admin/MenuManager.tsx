@@ -180,6 +180,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [editingCategoryName, setEditingCategoryName] = useState('')
   const [editingCategoryDescription, setEditingCategoryDescription] = useState('')
   const [editingCategoryGroups, setEditingCategoryGroups] = useState<CustomizationGroupForm[]>([])
+  const [editingCategoryDisabledGroupIds, setEditingCategoryDisabledGroupIds] = useState<string[]>([])
+  const [editingCategoryDisabledOptionIds, setEditingCategoryDisabledOptionIds] = useState<string[]>([])
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
   const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
   const [editingCategoryBusinessAvail, setEditingCategoryBusinessAvail] = useState(false)
@@ -491,6 +493,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           isBusinessAvailable: editingCategoryBusinessAvail,
           printRole: editingCategoryPrintRole,
           customizationGroups: serializeGroups(editingCategoryGroups),
+          disabledGroupIds: editingCategoryDisabledGroupIds,
+          disabledOptionIds: editingCategoryDisabledOptionIds,
           availabilityMode: editingCategoryAvailMode,
           availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
         }),
@@ -1308,6 +1312,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   setEditingCategoryName(category.name)
                                   setEditingCategoryDescription(category.description ?? '')
                                   setEditingCategoryGroups(deserializeGroups(category.customizationGroups ?? []))
+                                  setEditingCategoryDisabledGroupIds(category.disabledGroupIds ?? [])
+                                  setEditingCategoryDisabledOptionIds(category.disabledOptionIds ?? [])
                                   setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
                                   setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
                                   setEditingCategoryBusinessAvail(category.isBusinessAvailable ?? false)
@@ -1518,11 +1524,27 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 )}
                                 <div className="space-y-4">
                                   {editingCategoryGroups.map((cg, cgi) => (
-                                    <div key={cgi} className="p-4 bg-muted/20 rounded-2xl border border-border/60 relative group/cg">
+                                    <div key={cgi} className={cn("p-4 bg-muted/20 rounded-2xl border border-border/60 relative group/cg", cg.name && editingCategoryDisabledGroupIds.includes(cg.name) && "opacity-60")}>
+                                      <button
+                                        type="button"
+                                        title={editingCategoryDisabledGroupIds.includes(cg.name) ? 'Mostrar grupo' : 'Ocultar grupo'}
+                                        className={cn(
+                                          "absolute -top-2 -right-8 w-6 h-6 rounded-full bg-white border border-border shadow-sm flex items-center justify-center transition-all z-10",
+                                          editingCategoryDisabledGroupIds.includes(cg.name)
+                                            ? "text-amber-500 hover:text-amber-600 border-amber-300"
+                                            : "text-muted-foreground hover:text-foreground opacity-0 group-hover/cg:opacity-100"
+                                        )}
+                                        onClick={() => {
+                                          if (!cg.name?.trim()) return
+                                          setEditingCategoryDisabledGroupIds(prev => prev.includes(cg.name) ? prev.filter(n => n !== cg.name) : [...prev, cg.name])
+                                        }}
+                                      >
+                                        {editingCategoryDisabledGroupIds.includes(cg.name) ? <EyeOff size={11} /> : <Eye size={11} />}
+                                      </button>
                                       <button
                                         type="button"
                                         onClick={() => setEditingCategoryGroups(prev => prev.filter((_, i) => i !== cgi))}
-                                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/cg:opacity-100 transition-all flex items-center justify-center"
+                                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-white border border-border text-muted-foreground hover:text-destructive hover:border-destructive shadow-sm opacity-0 group-hover/cg:opacity-100 transition-all flex items-center justify-center z-10"
                                       >
                                         <X size={11} strokeWidth={3} />
                                       </button>
@@ -1586,7 +1608,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                       {/* Opciones del grupo */}
                                       <div className="space-y-2 pl-2 border-l-2 border-border/40">
                                         {cg.options.map((opt, oi) => (
-                                          <div key={oi} className="flex items-center gap-2 group/cgopt">
+                                          <div key={oi} className={cn("flex items-center gap-2 group/cgopt", opt.name && editingCategoryDisabledOptionIds.includes(opt.name) && "opacity-50")}>
                                             <input
                                               className="flex-1 bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-lg px-3 py-2 outline-none transition-all"
                                               placeholder="Ej: Agua"
@@ -1631,6 +1653,22 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               ) : (
                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-muted-foreground"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                                               )}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              title={editingCategoryDisabledOptionIds.includes(opt.name) ? 'Mostrar opción' : 'Ocultar opción'}
+                                              className={cn(
+                                                "w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all",
+                                                editingCategoryDisabledOptionIds.includes(opt.name)
+                                                  ? "text-amber-500"
+                                                  : "text-muted-foreground hover:text-foreground"
+                                              )}
+                                              onClick={() => {
+                                                if (!opt.name?.trim()) return
+                                                setEditingCategoryDisabledOptionIds(prev => prev.includes(opt.name) ? prev.filter(n => n !== opt.name) : [...prev, opt.name])
+                                              }}
+                                            >
+                                              {editingCategoryDisabledOptionIds.includes(opt.name) ? <EyeOff size={13} /> : <Eye size={13} />}
                                             </button>
                                             <button
                                               type="button"
