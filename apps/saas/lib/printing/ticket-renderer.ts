@@ -137,7 +137,8 @@ function renderCustomizations(
 export function renderOrderTicket(
   order: OrderDoc,
   printer: PrinterDoc,
-  role: string
+  role: string,
+  options: { forceAllItems?: boolean } = {}
 ): Buffer | null {
   const allItems = order.items || []
 
@@ -157,8 +158,12 @@ export function renderOrderTicket(
   const settings: PrintSettings = { ...defaults, ...(printer.printSettings?.[role] || {}) }
 
   // Filtrar items por rol
+  // forceAllItems: ignora el filtro por rol e imprime el pedido COMPLETO
+  // (ticket resumen para la BARRA cuando los items no matchean su rol).
   let itemsToPrint: OrderItem[]
-  if (role === 'cashier') {
+  if (options.forceAllItems) {
+    itemsToPrint = allItems
+  } else if (role === 'cashier') {
     itemsToPrint = allItems
   } else if (role === 'kitchen') {
     itemsToPrint = allItems.filter(i => !i.printRole || i.printRole === 'kitchen' || i.printRole === 'both')

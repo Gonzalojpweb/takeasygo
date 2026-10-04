@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Loader2, X } from 'lucide-react'
+import { ArrowRight, Loader2, Printer, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
 
@@ -32,12 +32,15 @@ interface Props {
   compact?: boolean
   posSyncStatus?: string
   paymentMethod?: string
+  /** Flujo cash: la comanda de cocina sigue pendiente de decisión del cajero. */
+  kitchenPrintDeferred?: boolean
 }
 
-export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, orderMode, compact, posSyncStatus, paymentMethod }: Props) {
+export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, orderMode, compact, posSyncStatus, paymentMethod, kitchenPrintDeferred }: Props) {
   const [loading, setLoading] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  const [showKitchenModal, setShowKitchenModal] = useState(false)
   const router = useRouter()
   const posLocked = posSyncStatus === 'synced'
 
@@ -52,7 +55,23 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
 
   const canCancel = CANCELLABLE_STATUSES.includes(currentStatus)
 
-  async function handleAdvance() {
+  // Pedido cash que salió solo a la BARRA: al pasar a preparación, el cajero
+  // decide si la comanda va a cocina ahora (o no imprime nada).
+  const needsKitchenDecision =
+    paymentMethod === 'cash' &&
+    kitchenPrintDeferred &&
+    currentStatus === 'confirmed' &&
+    next?.value === 'preparing'
+
+  function onAdvanceClick() {
+    if (needsKitchenDecision) {
+      setShowKitchenModal(true)
+      return
+    }
+    handleAdvance()
+  }
+
+  async function handleAdvance(printKitchen?: boolean) {
     setLoading(true)
     try {
       const isTransferConfirmLocal = paymentMethod === 'transfer' &&
@@ -63,7 +82,12 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
       const res = await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: next!.value }),
+        body: JSON.stringify({
+          status: next!.value,
+          // Solo viaja la decisión cuando el modal la tomó; las demás
+          // transiciones no tocan la impresión diferida.
+          ...(printKitchen !== undefined ? { printKitchen } : {}),
+        }),
       })
 
       if (!res.ok) {
@@ -80,6 +104,7 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
       } else {
         toast.success(`Pedido actualizado a "${next!.label}"`)
       }
+      setShowKitchenModal(false)
       router.refresh()
     } catch (err: any) {
       toast.error(err?.message || 'No se pudo actualizar el pedido')
@@ -122,7 +147,7 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
               next.color,
               posLocked && "opacity-40"
             )}
-            onClick={handleAdvance}
+            onClick={onAdvanceClick}
             disabled={loading || posLocked}
           >
             {loading ? (
@@ -157,6 +182,59 @@ export default function OrderStatusButton({ orderId, currentStatus, tenantSlug, 
           <div className="bg-zinc-900 text-white text-[10px] rounded-lg px-3 py-2 whitespace-nowrap shadow-xl border border-white/10">
             Gestionado por {posSyncStatus === 'synced' ? 'el POS' : posSyncStatus} — usar panel del POS
           </div>
+        </div>
+      )}
+
+      {/* Modal: decisión de impresión en cocina (pedidos en efectivo) */}
+      {showKitchenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          />
+          <motion.div
+            className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 space-y-4"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          >
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
+                <Printer size={24} className="text-amber-600" />
+              </div>
+              <h3 className="font-bold text-lg">¿Imprimir comanda en cocina?</h3>
+              <p className="text-sm opacity-60">
+                El pedido en efectivo ya se envió a la <strong>BARRA</strong>. ¿Se imprime
+                también la comanda en cocina al empezar la preparación?
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
+                onClick={() => handleAdvance(true)}
+                disabled={loading}
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sí, imprimir en cocina'}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full font-bold rounded-xl"
+                onClick={() => handleAdvance(false)}
+                disabled={loading}
+              >
+                No, pasar sin imprimir
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full font-bold rounded-xl"
+                onClick={() => setShowKitchenModal(false)}
+                disabled={loading}
+              >
+                Volver
+              </Button>
+            </div>
+          </motion.div>
         </div>
       )}
 

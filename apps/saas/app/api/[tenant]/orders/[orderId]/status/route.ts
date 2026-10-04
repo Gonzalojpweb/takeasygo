@@ -66,7 +66,7 @@ export async function PATCH(
       if (authError) return authError
     }
 
-    const { status } = await request.json()
+    const { status, printKitchen } = await request.json()
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
@@ -99,11 +99,19 @@ export async function PATCH(
     const previousStatus = order.status
     order.status = status
 
-    // Pedidos en efectivo: el cobro se confirma al avanzar el estado (cash se
-    // cobra contra entrega). Promover pending → approved para órdenes creadas
-    // antes del fix y como salvaguarda.
-    if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
+    // Cobro en efectivo: pending → approved SOLO al entregar. La venta en caja
+    // se registra en el mismo momento (post-save), así caja y estado de pago
+    // cambian juntos. La salvaguarda NO aplica a otros estados: preparando o
+    // listo todavía no es cobro (y un pedido cancelado nunca debe quedar
+    // approved — eso dejaba venta fantasma en los reportes).
+    let cashSaleToRegister = false
+    if (
+      status === 'delivered' &&
+      order.payment?.method === 'cash' &&
+      order.payment.status === 'pending'
+    ) {
       order.payment.status = 'approved'
+      cashSaleToRegister = true
     }
 
     if (status === 'ready' && order.orderMode === 'delivery') {
@@ -357,8 +365,15 @@ export async function PATCH(
         // Revertir reward redemptions (loyalty points, store stock)
         await revertRewardRedemptions(order, tenant)
 
-        // Marcar payment.status como cancelled
-        if (order.payment?.status === 'approved') {
+        // Marcar payment.status como cancelled:
+        //  - approved (cobrado de verdad) → cancelled en cualquier método.
+        //  - pending + efectivo → cancelled: el cobro nunca se concretó y el
+        //    pedido está cancelado; dejarlo "pending" sería mentir (y la
+        //    salvaguarda de delivered ya no puede alcanzarlo).
+        if (
+          order.payment?.status === 'approved' ||
+          (order.payment?.method === 'cash' && order.payment?.status === 'pending')
+        ) {
           order.payment.status = 'cancelled'
         }
 
@@ -403,6 +418,22 @@ export async function PATCH(
           }
         }
       }
+    }
+
+    // ── Impresión en cocina diferida (pedidos en efectivo) ──────────────────
+    // Al confirmarse el pedido cash solo imprimió en la BARRA; el flag
+    // kitchenPrintDeferred queda pendiente. Se resuelve ANTES del save para
+    // que el flag limpio (y los jobs nuevos, si aplica) viajen en el mismo.
+    //   - confirmed → preparing: decide el cajero (printKitchen del modal);
+    //     default true para rutas sin UI (POS / internal) — nunca dejar a
+    //     cocina sin comanda por un header que no mandó nadie.
+    //   - cancelled: no imprimir nada, solo limpiar el flag huérfano.
+    if (status === 'cancelled') {
+      const { settleDeferredKitchenPrint } = await import('@/lib/printing')
+      await settleDeferredKitchenPrint(order, { print: false })
+    } else if (status === 'preparing' && previousStatus === 'confirmed') {
+      const { settleDeferredKitchenPrint } = await import('@/lib/printing')
+      await settleDeferredKitchenPrint(order, { print: printKitchen !== false })
     }
 
     await order.save()
@@ -515,6 +546,14 @@ export async function PATCH(
     // Se ejecuta en background cuando un pedido se completa (delivered)
     // para recalcular el tiempo óptimo basado en datos reales
     if (status === 'delivered') {
+      // Cobro en efectivo concretado (pending → approved en este mismo
+      // request): registrar la venta en caja + evento CIS. Fire-and-forget —
+      // la respuesta del endpoint no depende del registro.
+      if (cashSaleToRegister) {
+        const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
+        registerCashSaleOnDelivery({ order, tenant })
+      }
+
       triggerBackgroundAdjustment(order.locationId.toString(), tenant._id.toString())
       // Sumar puntos al club de fidelidad (si no se sumaron antes por pago automático)
       addPointsFromOrder(order, tenant).catch(err => 

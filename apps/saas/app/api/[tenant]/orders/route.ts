@@ -42,7 +42,7 @@ import PushSubscription from '@/models/PushSubscription'
 import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
-import { registerCashSale, syncOrderAfterStatusSet } from '@/lib/order-side-effects'
+import { notifyCashOrderCreated, syncOrderAfterStatusSet } from '@/lib/order-side-effects'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 
@@ -1660,7 +1660,9 @@ export async function POST(
         ...encryptedCustomer,
         ...(pickupLocation && { pickupLocation }),
       },
-      'payment.status': paymentMethod === 'cash' ? 'approved' : 'pending',
+      // Efectivo: el cliente aún no pagó — se cobra contra entrega.
+      // pending → approved recién en delivered (junto con la venta en caja).
+      'payment.status': 'pending',
       'payment.method': paymentMethod,
       'payment.baseTotal': pricing.baseTotal,
       'payment.surchargePercent': pricing.surchargePercent,
@@ -1838,12 +1840,12 @@ export async function POST(
       })
     }
 
-    // ── Pago en efectivo: push + registrar venta en caja ────────────────
-    // El pedido entra en confirmed directo. Los efectos viven en
-    // lib/order-side-effects.ts, que es el MISMO camino que usa
-    // change-payment-method → cash. No duplicar estas llamadas acá.
+    // ── Pago en efectivo: push al admin (avisar que llegó el pedido) ─────────
+    // El pedido entra en confirmed con payment pending. La venta en caja se
+    // registra al ENTREGAR (registerCashSaleOnDelivery), no acá — así un
+    // pedido cancelado antes de entregar nunca deja venta fantasma.
     if (paymentMethod === 'cash') {
-      await registerCashSale({ order, tenant, tenantSlug, customerName })
+      await notifyCashOrderCreated({ order, tenant, tenantSlug, customerName })
     }
 
     // ── Bridge al POS + print jobs, según status ───────────────────────
