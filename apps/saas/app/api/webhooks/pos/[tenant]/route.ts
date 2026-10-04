@@ -121,6 +121,18 @@ export async function POST(
     const oldStatus = order.status
     order.status = newStatus
 
+    // Cobro en efectivo: pending → approved SOLO al entregar (la venta en
+    // caja se registra post-save, en el mismo momento).
+    let cashSaleToRegister = false
+    if (
+      newStatus === 'delivered' &&
+      order.payment?.method === 'cash' &&
+      order.payment.status === 'pending'
+    ) {
+      order.payment.status = 'approved'
+      cashSaleToRegister = true
+    }
+
     const now = new Date()
     if (newStatus === 'confirmed') order.statusTimestamps.confirmedAt = now
     if (newStatus === 'preparing') order.statusTimestamps.preparingAt = now
@@ -128,7 +140,21 @@ export async function POST(
     if (newStatus === 'delivered') order.statusTimestamps.deliveredAt = now
     if (newStatus === 'cancelled') order.statusTimestamps.cancelledAt = now
 
+    // Impresión en cocina diferida (flujo cash): el webhook no tiene UI de
+    // cajero → imprimir por defecto al entrar a preparing; al cancelar solo
+    // limpiar el flag (sin comanda nueva).
+    if ((newStatus === 'preparing' && oldStatus === 'confirmed') || newStatus === 'cancelled') {
+      const { settleDeferredKitchenPrint } = await import('@/lib/printing')
+      await settleDeferredKitchenPrint(order, { print: newStatus !== 'cancelled' })
+    }
+
     await order.save()
+
+    // Cobro en efectivo concretado al entregar: registrar venta en caja + CIS.
+    if (cashSaleToRegister) {
+      const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
+      registerCashSaleOnDelivery({ order, tenant })
+    }
 
     logAudit({
       tenantId: tenant._id.toString(),

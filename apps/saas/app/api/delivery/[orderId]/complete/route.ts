@@ -90,8 +90,10 @@ export async function POST(
     codeAttempts.delete(rateKey)
 
     order.status = 'delivered'
+    let cashSaleToRegister = false
     if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
       order.payment.status = 'approved'
+      cashSaleToRegister = true
     }
     if (order.deliveryConfirmation) {
       order.deliveryConfirmation.status = 'completed'
@@ -99,6 +101,12 @@ export async function POST(
     }
 
     await order.save()
+
+    // Cobro en efectivo concretado al entregar: registrar venta en caja + CIS.
+    if (cashSaleToRegister) {
+      const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
+      registerCashSaleOnDelivery({ order, tenant: { _id: person.tenantId } })
+    }
 
     // Push notification al cliente
     if ((order as any).clientToken) {

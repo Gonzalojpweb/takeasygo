@@ -109,6 +109,13 @@ export async function POST(
     order.status = 'cancelled'
     order.statusTimestamps.cancelledAt = new Date()
     order.cancelledBy = 'client'
+    // Efectivo: el cobro nunca se concretó → cancelado, no "pendiente".
+    if (order.payment?.method === 'cash' && order.payment.status === 'pending') {
+      order.payment.status = 'cancelled'
+    }
+    // Impresión en cocina diferida (flujo cash): no imprimir, limpiar el flag.
+    const { settleDeferredKitchenPrint } = await import('@/lib/printing')
+    await settleDeferredKitchenPrint(order, { print: false })
     await revertRewardRedemptions(order, tenant)
     await order.save()
 

@@ -1,4 +1,6 @@
 export { renderOrderTicket } from './ticket-renderer'
 export { buildPrintPayload } from './buildPrintPayload'
 export { onOrderConfirmed } from './onOrderConfirmed'
+export { settleDeferredKitchenPrint } from './deferredKitchenPrint'
+export { isBarraPrinter } from './barra'
 export { resolvePrintLeadMinutes, getPrintNotBefore, isPrintDue, DEFAULT_PRINT_BEFORE_PICKUP_MINUTES } from './printTiming'
