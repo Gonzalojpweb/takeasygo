@@ -398,6 +398,59 @@ describe("cancelExternalOrder", () => {
 })
 
 // ============================================================================
+// cancelExternalOrder — guard del timeout offline
+// ============================================================================
+
+describe("cancelExternalOrder - offline_timeout guard", () => {
+  it("cancels a still-waiting order (pending + awaiting_payment)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+
+    await cancelExternalOrder("sync_order_abc123", "tenant_test", "offline_timeout")
+
+    expect(mockOrders[0].status).toBe("cancelled")
+  })
+
+  it("does NOT cancel when externalStatus already advanced (confirmed via socket)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "confirmed")
+
+    await cancelExternalOrder("sync_order_abc123", "tenant_test", "offline_timeout")
+
+    expect(mockOrders[0].status).toBe("pending")
+    expect(mockOrders[0].externalStatus).toBe("confirmed")
+    expect(mockOrders[0].notes ?? "").not.toContain("offline_timeout")
+  })
+
+  it("does NOT cancel an order the POS already operated (status confirmed)", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await advanceExternalOrder("sync_order_abc123", "tenant_test", "confirmed")
+
+    await cancelExternalOrder("sync_order_abc123", "tenant_test", "offline_timeout")
+
+    expect(mockOrders[0].status).toBe("confirmed")
+  })
+
+  it("does NOT cancel a delivered order", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await updateExternalOrderStatus("sync_order_abc123", "tenant_test", "delivered")
+
+    await cancelExternalOrder("sync_order_abc123", "tenant_test", "offline_timeout")
+
+    expect(mockOrders[0].status).toBe("delivered")
+  })
+
+  it("a legitimate cancel (no offline_timeout) still cancels a confirmed order", async () => {
+    await persistExternalOrder(BASE_ORDER)
+    await advanceExternalOrder("sync_order_abc123", "tenant_test", "confirmed")
+
+    await cancelExternalOrder("sync_order_abc123", "tenant_test", "Cancelado por el local")
+
+    expect(mockOrders[0].status).toBe("cancelled")
+    expect(mockOrders[0].notes).toContain("[Cancelado: Cancelado por el local]")
+  })
+})
+
+// ============================================================================
 // updateExternalOrderStatus
 // ============================================================================
 

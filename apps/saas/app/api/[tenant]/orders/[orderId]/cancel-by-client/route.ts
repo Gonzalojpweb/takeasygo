@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { revertRewardRedemptions } from '@/lib/loyalty'
+import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { rateLimit } from '@/lib/rateLimit'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
 import { NextRequest, NextResponse } from 'next/server'
@@ -118,6 +119,9 @@ export async function POST(
     await settleDeferredKitchenPrint(order, { print: false })
     await revertRewardRedemptions(order, tenant)
     await order.save()
+
+    // SyncLayer: el POS Online suelta el pedido cancelado por el cliente
+    maybeNotifySyncLayerStatus({ order, tenant })
 
     // Cancelar viaje Rapiboy si existe
     if (order.deliveryProvider?.type === 'rapiboy' && order.deliveryProvider.rapiboy?.tripId) {

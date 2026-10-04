@@ -4,7 +4,7 @@ import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { config } from "../config"
 import { createTranslatedOrder, updateOrderStatus } from "../services/order-translator"
-import { enqueueOrderCreated, removePendingOrder } from "../queues/order-queue"
+import { enqueueOrderCreated, removePendingOrder, voidsOfflineTimeout } from "../queues/order-queue"
 import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 import { SyncOrderModel } from "@takeasygo/db"
@@ -110,8 +110,6 @@ export function internalRouter(
         return
       }
 
-      await removePendingOrder(orderQueue, orderId)
-
       const isObjectId = mongoose.Types.ObjectId.isValid(orderId)
       const syncOrder = await SyncOrderModel.findOne({
         tenantId,
@@ -121,9 +119,17 @@ export function internalRouter(
         ],
       }).lean()
       const locationId = syncOrder?.locationId
+      // Los eventos de socket se emiten con el _id del SyncLayer (la clave de
+      // Dexie en el POS). El parámetro puede traer el id del SaaS: usarlo tal
+      // cual hacía que updateExternalOrderStatus() no encontrara el pedido.
+      const syncId = syncOrder?._id?.toString() ?? orderId
+
+      // El timeout offline usa jobId = _id del SyncLayer: recién acá (tras
+      // resolver el documento) tenemos el id correcto para cancelarlo.
+      await removePendingOrder(orderQueue, syncId)
 
       const confirmedEvent = {
-        orderId,
+        orderId: syncId,
         tenantId,
         locationId,
         timestamp: new Date().toISOString(),
@@ -135,7 +141,7 @@ export function internalRouter(
 
       // Also emit order:status_updated for POS UI
       const statusEvent = {
-        orderId,
+        orderId: syncId,
         tenantId,
         locationId,
         externalStatus: "confirmed",
@@ -189,6 +195,9 @@ export function internalRouter(
         ],
       }).lean()
       const locationId = syncOrder?.locationId
+      // Mismo criterio que en /confirm: el POS indexa por _id del SyncLayer,
+      // no por el id del SaaS que trae el parámetro.
+      const syncId = syncOrder?._id?.toString() ?? orderId
 
       // Forward to SaaS via outbox (skip when called from SaaS to avoid loop)
       if (!skipForward && syncOrder?.externalOrderId) {
@@ -200,8 +209,15 @@ export function internalRouter(
         })
       }
 
+      // Un status que avanza el ciclo invalida el timeout offline: sin
+      // removerlo, el job "order.created" seguía vivo y a los 10 min/24 h
+      // emitía order:cancelled sobre un pedido ya operativo.
+      if (voidsOfflineTimeout(status)) {
+        await removePendingOrder(orderQueue, syncId)
+      }
+
       const statusEvent = {
-        orderId,
+        orderId: syncId,
         tenantId,
         locationId,
         externalStatus: status,

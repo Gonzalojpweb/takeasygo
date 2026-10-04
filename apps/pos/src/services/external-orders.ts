@@ -362,6 +362,18 @@ export async function cancelExternalOrder(
 
   if (existing) {
     if (existing.tenantId !== tenantId) return
+
+    // El timeout offline solo puede cancelar pedidos que SIGUEN esperando
+    // confirmación (status y externalStatus en pending/awaiting_payment).
+    // Si el pedido ya avanzó, el evento es stale — p.ej. jobs encolados
+    // antes del fix de removePendingOrder. Un cancel legítimo del SaaS o
+    // del cajero no lleva reason "offline_timeout" y aplica siempre.
+    if (reason === "offline_timeout") {
+      const statusRank = STATUS_ORDER[existing.status] ?? -1
+      const externalRank = STATUS_ORDER[existing.externalStatus ?? "awaiting_payment"] ?? -1
+      if (statusRank !== 0 || externalRank !== 0) return
+    }
+
     await db.orders.update(orderId, {
       status: "cancelled",
       notes: reason ? `${existing.notes ?? ""} [Cancelado: ${reason}]` : existing.notes,

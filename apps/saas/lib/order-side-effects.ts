@@ -126,6 +126,50 @@ export async function applyStatusTransitionSideEffects(args: {
   }
 }
 
+// Statuses que el POS Online sabe interpretar (mismo set que STATUS_ORDER de
+// apps/pos): avisar cualquier otro (awaiting_confirmation, open, ...) solo
+// genera traido inútil y errores 404 en el SyncLayer.
+const POS_PROPAGATABLE_STATUSES = new Set([
+  'confirmed',
+  'preparing',
+  'ready',
+  'en_ruta',
+  'arrived',
+  'delivered',
+  'cancelled',
+])
+
+/**
+ * Puerta única para que un cambio de status hecho fuera de la ruta central
+ * (webhooks de pago, cancelaciones del cliente, etc.) llegue a los POS
+ * Online: notifica al SyncLayer con skipForward para que emita
+ * `order:status_updated` a los POS conectados sin rebotar a SaaS.
+ *
+ *   - solo tenants con POS habilitado (mismo gate que pushOrderToSyncLayer)
+ *   - nunca para órdenes creadas por el propio POS (source 'pos': no tienen
+ *     registro en SyncLayer y el notify sería un 404 garantizado)
+ *   - solo statuses que el POS entiende
+ *
+ * Fire-and-forget y no bloqueante: la notificación nunca puede romper el
+ * flujo principal (el POS converge igual vía fetch de pendientes).
+ */
+export function maybeNotifySyncLayerStatus(args: {
+  order: Pick<IOrder, '_id' | 'source' | 'status'>
+  tenant: Pick<ITenant, '_id' | 'features'>
+  status?: string
+}): void {
+  const { order, tenant } = args
+  const status = args.status ?? order.status
+
+  if (!tenant.features?.posEnabled) return
+  if (order.source === 'pos') return
+  if (!POS_PROPAGATABLE_STATUSES.has(status)) return
+
+  notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status).catch((err) =>
+    console.error('[side-effects] SyncLayer notify error (non-blocking):', err)
+  )
+}
+
 /**
  * Efectos dirigidos por el status de la orden: bridge al POS (si está
  * habilitado) e impresión de tickets (solo `confirmed`).
