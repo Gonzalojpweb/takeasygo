@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 interface StoreItem {
   _id: string
@@ -71,6 +72,12 @@ export default function GlobalStoreItemsPage() {
   const [isFeatured, setIsFeatured] = useState(false)
   const [targetTenants, setTargetTenants] = useState<string[]>([])
   const [targetAll, setTargetAll] = useState(true)
+
+  const pointsCostFocus = useNumberInputFocus()
+  const cashValueFocus = useNumberInputFocus()
+  const stockFocus = useNumberInputFocus()
+  const maxPerMemberFocus = useNumberInputFocus()
+  const sortOrderFocus = useNumberInputFocus()
 
   useEffect(() => {
     fetchItems()
@@ -319,13 +326,15 @@ export default function GlobalStoreItemsPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Costo en puntos</label>
                   <input required type="number" min="1" value={pointsCost} onChange={e => setPointsCost(Number(e.target.value))}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    {...pointsCostFocus} />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Valor referencia ($)</label>
                   <input type="number" min="0" value={cashValue ?? ''} onChange={e => setCashValue(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    {...cashValueFocus} />
                 </div>
 
                 <div>

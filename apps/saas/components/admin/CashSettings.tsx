@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, Save, Banknote, CheckCircle2, AlertCircle } from 'lucide-react'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 interface Props {
   tenantSlug: string
@@ -17,6 +18,8 @@ export default function CashSettings({ tenantSlug, initialConfig }: Props) {
   const [enabled, setEnabled] = useState(cfg.enabled)
   const [discountPercent, setDiscountPercent] = useState(cfg.discountPercent)
   const [saving, setSaving] = useState(false)
+
+  const discountFocus = useNumberInputFocus()
 
   async function handleSave() {
     setSaving(true)
@@ -79,6 +82,7 @@ export default function CashSettings({ tenantSlug, initialConfig }: Props) {
                 value={discountPercent}
                 onChange={e => setDiscountPercent(Number(e.target.value))}
                 className="w-24 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-zinc-400"
+                {...discountFocus}
               />
               <span className="text-sm text-zinc-500">% de descuento sobre el precio de carta</span>
             </div>

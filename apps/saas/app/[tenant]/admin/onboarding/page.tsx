@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
+import { useCelebrate } from '@/hooks/useCelebrate'
+import { phaseBIndex, progressFor, remaining, etaMinutes, copyFor } from '@/lib/onboarding-journey'
+import JourneyProgress from '@/components/onboarding/JourneyProgress'
 import MenuPreview from './MenuPreview'
 import MenuPhotosUploader from './MenuPhotosUploader'
 import {
@@ -91,6 +94,7 @@ export default function OnboardingInternalPage() {
   const handlePlan = async (e: React.FormEvent) => {
     e.preventDefault()
     await advanceStep(4, { selectedPlan })
+    celebrate()
   }
 
   const handleSede = async (e: React.FormEvent) => {
@@ -114,6 +118,7 @@ export default function OnboardingInternalPage() {
       if (dataLoc.geoWarning) setWarning(dataLoc.geoWarning)
 
       await advanceStep(5, { cuisineTypes: [cuisine] })
+      celebrate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al crear sede')
       setLoading(false)
@@ -132,6 +137,7 @@ export default function OnboardingInternalPage() {
         body: JSON.stringify({ primaryColor })
       })
       await advanceStep(6)
+      celebrate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar identidad visual')
       setLoading(false)
@@ -216,6 +222,8 @@ export default function OnboardingInternalPage() {
 
       {error && <div className="p-4 bg-red-50 text-red-600 rounded-md mb-6">{error}</div>}
       {warning && <div className="p-4 bg-amber-50 text-amber-800 rounded-md mb-6">{warning}</div>}
+
+      <JourneyProgress mode="B" current={step} saved={hydrated} onContinue={() => advanceStep(step + 1)} />
 
       {step === 3 && (
         <form onSubmit={handlePlan} className="space-y-5">

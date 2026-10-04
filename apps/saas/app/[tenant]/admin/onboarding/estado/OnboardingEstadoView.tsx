@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, FileText, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, Clock, FileText, Loader2, XCircle, } from 'lucide-react'
+import { PuntoTGO } from '@/components/tgo/PuntoTGO'
+import { Confetti } from '@/registry/magicui/confetti'
 
 type Logo = { slug: string; name: string; logoUrl: string }
 
@@ -52,6 +54,13 @@ export default function OnboardingEstadoView({ slug, status, rejectionReason, su
           <>
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6">
               <Clock className="h-8 w-8 text-blue-600" />
+              <Confetti
+                particleCount={80}
+                spread={100}
+                colors={['#F74211', '#FAB300', '#12B76A', '#7A5AF8', '#3B82F6']}
+                disableForReducedMotion={true}
+              />
+              <PuntoTGO expression="happy" hasCrown ring="gold" size="xl" animate />
             </div>
             <h1 className="text-2xl font-bold mb-2">Revisión en curso</h1>
             <p className="text-gray-600 mb-3">
