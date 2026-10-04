@@ -11,7 +11,7 @@ import {
   LocationNotFoundError,
   TenantNotFoundError,
 } from '@/lib/payment-methods'
-import { registerCashSale, applyStatusTransitionSideEffects } from '@/lib/order-side-effects'
+import { notifyCashOrderCreated, applyStatusTransitionSideEffects } from '@/lib/order-side-effects'
 
 const ALLOWED_METHODS: PaymentMethod[] = ['mercadopago', 'kripton', 'transfer', 'cash']
 
@@ -41,9 +41,10 @@ const ALLOWED_METHODS: PaymentMethod[] = ['mercadopago', 'kripton', 'transfer', 
  * `cancel-by-client` con reembolso vía API de MP.
  *
  * ── EFECTIVO ─────────────────────────────────────────────────────────────────
- * Cambiar a efectivo NO inventa una semántica nueva: reutiliza
- * `registerCashSale` (misma función que el checkout normal) para que la venta
- * quede registrada en caja igual que un pedido cash creado desde cero.
+ * Cambiar a efectivo NO inventa una semántica nueva: el pedido queda
+ * `confirmed` + `payment pending` (se cobra contra entrega, igual que el
+ * checkout normal), avisa al admin con `notifyCashOrderCreated` y la venta en
+ * caja se registra recién al entregar (registerCashSaleOnDelivery).
  */
 
 export async function POST(
@@ -175,14 +176,17 @@ export async function POST(
     if (method !== previousMethod) clearRefs(method)
 
     // ── Efectivo: el pedido queda confirmado al instante ───────────────────
-    // Misma semántica que el checkout normal (confirmed + approved), NO espera
-    // al cajero: la confirmación del cajero es para transferencia.
+    // NO espera al cajero (la confirmación del cajero es para transferencia),
+    // pero el cobro todavía no: payment queda pending hasta delivered.
     if (method === 'cash') {
       order.status = 'confirmed'
       order.statusTimestamps.confirmedAt = new Date()
-      order.payment.status = 'approved'
+      order.payment.status = 'pending'
     } else {
       order.payment.status = 'pending'
+      // Cambió el medio de pago: cualquier diferimiento de impresión en
+      // cocina del flujo cash previo queda sin efecto.
+      order.kitchenPrintDeferred = false
     }
 
     await order.save()
@@ -192,8 +196,8 @@ export async function POST(
     const customerName = safeDecrypt(order.customer?.name ?? '') || 'Cliente'
 
     if (method === 'cash') {
-      // MISMA función que el checkout normal de efectivo.
-      await registerCashSale({ order, tenant, tenantSlug, customerName })
+      // MISMO aviso al admin que el checkout normal de efectivo.
+      await notifyCashOrderCreated({ order, tenant, tenantSlug, customerName })
       await applyStatusTransitionSideEffects({ order, tenant })
     }
 

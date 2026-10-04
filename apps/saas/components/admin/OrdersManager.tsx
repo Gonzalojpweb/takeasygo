@@ -967,6 +967,7 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
                         paymentMethod={order.payment?.method}
                         compact
                         posSyncStatus={order.posSync?.status}
+                        kitchenPrintDeferred={order.kitchenPrintDeferred}
                       />
                     </div>
                   </div>

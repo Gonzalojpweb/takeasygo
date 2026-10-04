@@ -43,6 +43,7 @@ interface OrderItem {
   loyaltyDiscountAmount?: number
   rewardItems?: any[]
   printLog?: any[]
+  kitchenPrintDeferred?: boolean
   locationName?: string
   locationLat?: number | null
   locationLng?: number | null
@@ -262,6 +263,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
           orderMode={item.orderMode}
           paymentMethod={item.payment?.method}
           posSyncStatus={item.posSync?.status}
+          kitchenPrintDeferred={item.kitchenPrintDeferred}
         />
       </div>
     </div>
