@@ -7,14 +7,14 @@ import { slugify, slugifyOrFallback } from '@/lib/slugify'
 import { sanitizePassword, passwordRules, passwordError, PASSWORD_MIN } from '@/lib/password'
 import { Eye, EyeOff, Check, X } from 'lucide-react'
 import { useCelebrate } from '@/hooks/useCelebrate'
-import { phaseAIndex, progressFor, remaining, etaMinutes, copyFor, serverToGlobal } from '@/lib/onboarding-journey'
-import JourneyProgress from '@/components/onboarding/JourneyProgress'
+import { JourneyProgress } from '@/components/onboarding/JourneyProgress'
 
 export default function OnboardingWizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [ticket, setTicket] = useState<string | null>(null)
   const [persisted, setPersisted] = useState(false)
+  const { fire: celebrate } = useCelebrate()
 
   // Cargar estado persistente de localStorage al montar (solo fase A)
   useEffect(() => {
@@ -29,16 +29,6 @@ export default function OnboardingWizard() {
     } catch {}
   }, [])
 
-[
-    { key: 'datos', phase: 'A', label: 'Datos del negocio' },
-    { key: 'email', phase: 'A', label: 'Verificá tu email' },
-    { key: 'clave', phase: 'A', label: 'Creá tu clave' },
-  ]
-  const globalIdx = phaseAIndex(step)
-  const prog = progressFor(globalIdx)
-  const resto = remaining(globalIdx)
-  const eta = etaMinutes(globalIdx)
-  const label = `Paso ${globalIdx} de 7`
   const saved = persisted || step >= 3
   useEffect(() => {
     if (step >= 1 && step <= 3) {
@@ -72,12 +62,10 @@ export default function OnboardingWizard() {
           if (res.ok) {
             const data = await res.json()
             if (data.verified) {
+              celebrate()
               setStep(3)
               clearInterval(interval)
             }
-          }
-
-  if (step === 1) {
           }
         } catch {
           // ignore poll errors
@@ -110,6 +98,7 @@ export default function OnboardingWizard() {
       
       setTicket(data.ticket)
       setStep(2)
+      celebrate()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error')
     } finally {
@@ -160,7 +149,8 @@ export default function OnboardingWizard() {
       if (signInRes?.error) {
         throw new Error('Error al iniciar sesión automáticamente')
       }
-      
+
+      celebrate()
       router.push(`/${data.slug}/admin/onboarding?step=3`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ocurrió un error')
@@ -171,6 +161,7 @@ export default function OnboardingWizard() {
   if (step === 1) {
     return (
       <form onSubmit={handleRegister} className="space-y-4">
+        <JourneyProgress mode="A" current={step} saved={saved} />
         {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
         
         <div>
@@ -232,6 +223,7 @@ export default function OnboardingWizard() {
   if (step === 2) {
     return (
       <div className="text-center space-y-4">
+        <JourneyProgress mode="A" current={step} saved={saved} />
         {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
 
         <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
@@ -299,19 +291,11 @@ export default function OnboardingWizard() {
       { ok: rules.length, label: `Al menos ${PASSWORD_MIN} caracteres` },
       { ok: rules.letter, label: 'Al menos una letra' },
       { ok: rules.number, label: 'Al menos un número' },
-, [
-    { key: 'datos', phase: 'A', label: 'Datos del negocio' },
-    { key: 'email', phase: 'A', label: 'Verificá tu email' },
-    { key: 'clave', phase: 'A', label: 'Creá tu clave' },
-  ]
-  const globalIdx = phaseAIndex(step)
-  const prog = progressFor(globalIdx)
-  const resto = remaining(globalIdx)
-  const eta = etaMinutes(globalIdx)
-  const saved = persisted || step >= 3
+    ]
 
     return (
       <form onSubmit={handlePassword} className="space-y-4">
+        <JourneyProgress mode="A" current={step} saved={saved} />
         {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
 
         <div className="text-center mb-6">

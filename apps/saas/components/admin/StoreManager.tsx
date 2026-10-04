@@ -61,12 +61,6 @@ export default function StoreManager({ tenantSlug }: Props) {
   const [editingStockValue, setEditingStockValue] = useState<string>('')
 
   const stockFocus = useNumberInputFocus()
-  const pointsCostFocus = useNumberInputFocus()
-  const cashValueFocus = useNumberInputFocus()
-  const stockFormFocus = useNumberInputFocus()
-  const maxPerMemberFocus = useNumberInputFocus()
-  const sortOrderFocus = useNumberInputFocus()
-  const minPurchasesFocus = useNumberInputFocus()
 
   useEffect(() => {
     fetchItems()
@@ -414,6 +408,14 @@ function StoreItemForm({
   const [menuLoading, setMenuLoading] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [categorySearch, setCategorySearch] = useState('')
+
+  // Focus managers de los inputs numéricos del form (seleccionan el contenido al primer foco)
+  const pointsCostFocus = useNumberInputFocus()
+  const cashValueFocus = useNumberInputFocus()
+  const stockFormFocus = useNumberInputFocus()
+  const maxPerMemberFocus = useNumberInputFocus()
+  const sortOrderFocus = useNumberInputFocus()
+  const minPurchasesFocus = useNumberInputFocus()
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',

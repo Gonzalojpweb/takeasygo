@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { CheckCircle2, ChevronDown, Clock, FileText, Loader2, XCircle, } from 'lucide-react'
-import { PuntoTGO } from '@/components/tgo/PuntoTGO'
-import { Confetti } from '@/registry/magicui/confetti'
+import { useEffect, useRef, useState } from 'react'
+import { CheckCircle2, ChevronDown, FileText, Loader2, XCircle, } from 'lucide-react'
+import PuntoTGO from '@/components/tgo/PuntoTGO'
+import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 
 type Logo = { slug: string; name: string; logoUrl: string }
 
@@ -23,6 +23,18 @@ const STEPS = [
 export default function OnboardingEstadoView({ slug, status, rejectionReason, submittedAt }: Props) {
   const [open, setOpen] = useState(false)
   const [logos, setLogos] = useState<Logo[] | null>(null)
+  const confettiRef = useRef<ConfettiRef>(null)
+
+  // Celebración única al entrar en revisión (confetti visual, sin sonido).
+  useEffect(() => {
+    if (status === 'pending_review') {
+      confettiRef.current?.fire({
+        particleCount: 80,
+        spread: 100,
+        colors: ['#F74211', '#FAB300', '#12B76A', '#7A5AF8', '#3B82F6'],
+      })
+    }
+  }, [status])
 
   useEffect(() => {
     let cancelled = false
@@ -52,15 +64,9 @@ export default function OnboardingEstadoView({ slug, status, rejectionReason, su
       <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 text-center">
         {status === 'pending_review' && (
           <>
+            <Confetti ref={confettiRef} className="fixed top-0 left-0 z-50 pointer-events-none size-full" />
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6">
-              <Clock className="h-8 w-8 text-blue-600" />
-              <Confetti
-                particleCount={80}
-                spread={100}
-                colors={['#F74211', '#FAB300', '#12B76A', '#7A5AF8', '#3B82F6']}
-                disableForReducedMotion={true}
-              />
-              <PuntoTGO expression="happy" hasCrown ring="gold" size="xl" animate />
+              <PuntoTGO expression="happy" hasCrown ring="gold" size="md" animate />
             </div>
             <h1 className="text-2xl font-bold mb-2">Revisión en curso</h1>
             <p className="text-gray-600 mb-3">
