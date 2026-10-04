@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import type { ComponentType } from "react"
 import type { Product, OrderItem, CustomerProfile, PaymentMethod, Order } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
@@ -107,7 +107,7 @@ export function CounterDashboard() {
   }, [])
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables, occupyTable } = useTables()
+  const { tables, occupyTable, freeTable, occupyTableForLoading, bindTableOrder } = useTables()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
   const { createOrder } = useOrders()
@@ -430,7 +430,53 @@ export function CounterDashboard() {
     [cart]
   )
 
+  // ── Mesa ocupada al cargar (sin cobro) ─────────────────────────────────
+  // El Salón muestra la mesa ocupada en cuanto el cajero empieza a cargar,
+  // aunque nunca cobre: ocupación "draft" = server-first, occupied SIN orden
+  // (services/table.ts). Las mutaciones de mesa se encolan en serie porque
+  // occupy y free pueden cruzarse (se carga y se vacía el carrito en el
+  // mismo tick) y en paralelo el 409 de concurrencia optimista del server
+  // haría fallar la que llegara segundo.
+  const tableOpChainRef = useRef<Promise<void>>(Promise.resolve())
+
+  const queueTableOp = useCallback((op: () => Promise<void>) => {
+    tableOpChainRef.current = tableOpChainRef.current
+      .catch(() => {})
+      .then(op)
+      .catch((err) => console.warn("[Counter] table operation failed:", err))
+  }, [])
+
+  /** Draft = occupied sin currentOrderId (nadie cobró todavía). */
+  const isDraftOccupied = useCallback(
+    (tableId: string | null): boolean => {
+      if (!tableId) return false
+      const t = tables.find((x) => x.id === tableId)
+      return Boolean(t && t.status === "occupied" && !t.currentOrderId)
+    },
+    [tables]
+  )
+
+  const maybeOccupyForLoading = useCallback(
+    (tableId: string | null) => {
+      if (!tenantId || !tableId) return
+      const t = tables.find((x) => x.id === tableId)
+      if (!t || t.status !== "free") return
+      queueTableOp(() => occupyTableForLoading(tableId, "counter"))
+    },
+    [tenantId, tables, queueTableOp, occupyTableForLoading]
+  )
+
+  const maybeFreeDraft = useCallback(
+    (tableId: string | null) => {
+      if (!tenantId || !tableId || !isDraftOccupied(tableId)) return
+      queueTableOp(() => freeTable(tableId))
+    },
+    [tenantId, isDraftOccupied, queueTableOp, freeTable]
+  )
+
   const handleViewChange = useCallback((viewId: string) => {
+    // El carrito muere acá: si la mesa quedó ocupada en draft, suéltala.
+    maybeFreeDraft(selectedTableId)
     setView(viewId as CounterView)
     setCart([])
     setCustomer(null)
@@ -449,12 +495,25 @@ export function CounterDashboard() {
       reservaciones: "reservaciones",
     }
     setScene(defaults[viewId] ?? "salon")
-  }, [])
+  }, [selectedTableId, maybeFreeDraft])
 
   const handleSelectTable = useCallback((tableId: string) => {
+    if (selectedTableId && selectedTableId !== tableId) {
+      // Cambiar de mesa (el carrito viaja a la nueva): el draft anterior
+      // queda suelto o se clava ocupada para siempre.
+      maybeFreeDraft(selectedTableId)
+    } else if (tableId === selectedTableId && cart.length === 0) {
+      // Reentrar con el carrito vacío sanea un draft huérfano.
+      maybeFreeDraft(tableId)
+    }
+    if (cart.length > 0) {
+      // El carrito ya tiene items: el trigger del primer item no vuelve a
+      // correr, así que la mesa nueva se ocupa acá.
+      maybeOccupyForLoading(tableId)
+    }
     setSelectedTableId(tableId)
     setScene("productos")
-  }, [])
+  }, [selectedTableId, cart.length, maybeFreeDraft, maybeOccupyForLoading])
 
   const handleAddProduct = useCallback((product: Product) => {
     const hasModifiers = product.modifiers && product.modifiers.length > 0
@@ -463,6 +522,7 @@ export function CounterDashboard() {
       setScene("configurar")
       return
     }
+    const isFirstItem = cart.length === 0
     setCart((prev) => {
       const existing = prev.find((i) => i.productId === product.id)
       if (existing) {
@@ -482,11 +542,14 @@ export function CounterDashboard() {
       }
       return [...prev, item]
     })
-  }, [])
+    if (isFirstItem) maybeOccupyForLoading(selectedTableId)
+  }, [cart.length, selectedTableId, maybeOccupyForLoading])
 
   const handleUpdateQuantity = useCallback((productId: string, quantity: number) => {
     if (quantity <= 0) {
+      const isEmptying = cart.length === 1
       setCart((prev) => prev.filter((i) => i.productId !== productId))
+      if (isEmptying) maybeFreeDraft(selectedTableId)
       return
     }
     setCart((prev) =>
@@ -496,18 +559,22 @@ export function CounterDashboard() {
           : i
       )
     )
-  }, [])
+  }, [cart.length, selectedTableId, maybeFreeDraft])
 
   const handleRemoveItem = useCallback((productId: string) => {
+    const isEmptying = cart.length === 1
     setCart((prev) => prev.filter((i) => i.productId !== productId))
-  }, [])
+    if (isEmptying) maybeFreeDraft(selectedTableId)
+  }, [cart.length, selectedTableId, maybeFreeDraft])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
     if (!configProduct) return
+    const isFirstItem = cart.length === 0
     setCart((prev) => [...prev, { ...item, product: configProduct }])
     setConfigProduct(null)
     setScene("productos")
-  }, [configProduct])
+    if (isFirstItem) maybeOccupyForLoading(selectedTableId)
+  }, [configProduct, cart.length, selectedTableId, maybeOccupyForLoading])
 
   const showErrorToast = useCallback((message: string) => {
     setToast({ message, type: "error" })
@@ -517,6 +584,12 @@ export function CounterDashboard() {
   const handlePay = useCallback(async (methods: PaymentMethod[]) => {
     const tableId = selectedTableId ?? `mostrador-${Date.now()}`
     try {
+      // Espera las mutaciones de mesa en vuelo (draft-occupy del primer
+      // item): sin esto la ocupación real llegaría antes que el draft, el
+      // server respondería 409 por concurrencia optimista y el cobro se
+      // cortaría con la orden creada a medio camino.
+      await tableOpChainRef.current.catch(() => {})
+
       const order = await createOrder(
         tableId,
         cart.map((item) => ({
@@ -527,8 +600,18 @@ export function CounterDashboard() {
           total: item.total,
         }))
       )
-      if (selectedTable?.status === "free" && selectedTableId) {
-        await occupyTable(selectedTableId, "counter", order.id)
+
+      // La mesa ya puede estar ocupada por la carga en curso (draft, sin
+      // orden): re-leer el read model local decide si ocupar de nuevo o solo
+      // vincular. occupied con OTRA orden no se toca (el release del server
+      // exige que currentOrderId coincida con ésta).
+      if (selectedTableId) {
+        const fresh = await db.diningTable.get(selectedTableId)
+        if (fresh?.status === "free") {
+          await occupyTable(selectedTableId, "counter", order.id)
+        } else if (fresh?.status === "occupied" && !fresh.currentOrderId) {
+          await bindTableOrder(selectedTableId, "counter", order.id)
+        }
       }
 
       for (const method of methods) {
@@ -544,9 +627,10 @@ export function CounterDashboard() {
       console.error("[Counter] Payment failed:", err)
       showErrorToast("Error al procesar el pago. Intente nuevamente.")
     }
-  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable, tenantId, jwt])
+  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable, bindTableOrder, tenantId, jwt])
 
   const handleNewSale = useCallback(() => {
+    maybeFreeDraft(selectedTableId)
     setCart([])
     setCustomer(null)
     setSelectedTableId(null)
@@ -559,7 +643,7 @@ export function CounterDashboard() {
       reservaciones: "reservaciones",
     }
     setScene(defaults[view] ?? "salon")
-  }, [view])
+  }, [view, selectedTableId, maybeFreeDraft])
 
   // ============================================================================
   // DERIVED STATE
