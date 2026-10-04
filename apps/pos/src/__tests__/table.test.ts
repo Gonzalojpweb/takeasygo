@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
   openTable,
   occupyTable,
+  occupyTableForLoading,
+  bindTableOrder,
   freeTable,
   reserveTable,
   closeTable,
@@ -214,6 +216,38 @@ describe("transiciones", () => {
       serverId: "u1",
       currentOrderId: "o1",
     })
+  })
+
+  it("occupyTableForLoading ocupa la mesa al cargar SIN orden (sin currentOrderId)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ table: serverTable({ status: "occupied", serverId: "u1" }) })
+    )
+
+    await occupyTableForLoading(TENANT, "mesa-uuid", "u1")
+
+    const req = lastRequest()
+    expect(req.method).toBe("PATCH")
+    expect(req.body).toEqual({ status: "occupied", serverId: "u1" })
+    expect(req.body).not.toHaveProperty("currentOrderId")
+  })
+
+  it("bindTableOrder vincula la orden sin transición de estado (sin status)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        table: serverTable({ status: "occupied", serverId: "u1", currentOrderId: "o1" }),
+      })
+    )
+
+    await bindTableOrder(TENANT, "mesa-uuid", "u1", "o1")
+
+    const req = lastRequest()
+    expect(req.method).toBe("PATCH")
+    expect(req.body).toEqual({ serverId: "u1", currentOrderId: "o1" })
+    expect(req.body).not.toHaveProperty("status")
+    // El server responde la mesa ya vinculada y eso es lo que entra a Dexie.
+    expect(putMock).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "occupied", currentOrderId: "o1" })
+    )
   })
 
   it("freeTable no manda currentOrderId/serverId: los limpia el server", async () => {

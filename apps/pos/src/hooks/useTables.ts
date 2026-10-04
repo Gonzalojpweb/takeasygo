@@ -5,6 +5,8 @@ import { useAuth } from "./useAuth"
 import {
   openTable,
   occupyTable,
+  occupyTableForLoading,
+  bindTableOrder,
   freeTable,
   reserveTable,
   closeTable,
@@ -34,6 +36,14 @@ export function useTables() {
       occupyTable: (tableId: string, serverId: string, orderId: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
         return occupyTable(tenantId, tableId, serverId, orderId)
+      },
+      occupyTableForLoading: (tableId: string, serverId: string) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return occupyTableForLoading(tenantId, tableId, serverId)
+      },
+      bindTableOrder: (tableId: string, serverId: string, orderId: string) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return bindTableOrder(tenantId, tableId, serverId, orderId)
       },
       freeTable: (tableId: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")

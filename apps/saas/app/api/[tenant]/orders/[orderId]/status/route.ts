@@ -96,6 +96,24 @@ export async function PATCH(
       )
     }
 
+    // ── Terminal guard (solo interno) ──────────────────────────────────────
+    // El SyncLayer reenvía estados del POS con X-Internal-Secret y ese camino
+    // salta el grafo a propósito (catch-up cuando el SaaS quedó atrás). Pero
+    // un cancelled/delivered del SaaS es terminal: si el POS todavía tiene el
+    // pedido activo y avanza, aceptar otro estado lo resucita (venta fantasma
+    // al cobrar, estados que mienten). El mismo status sigue permitido para
+    // que el reenvío idempotente no se rompa.
+    if (
+      isInternalAuth(request) &&
+      (order.status === 'cancelled' || order.status === 'delivered') &&
+      status !== order.status
+    ) {
+      return NextResponse.json(
+        { error: `El pedido está en estado terminal "${order.status}" y no puede pasar a "${status}"` },
+        { status: 409 }
+      )
+    }
+
     const previousStatus = order.status
     order.status = status
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest'
 import mongoose from 'mongoose'
 import './setup'
 
@@ -148,6 +148,16 @@ function statusReq(orderId: string, body: object): NextRequest {
 
 function statusParams(orderId: string) {
   return { params: Promise.resolve({ tenant: SLUG, orderId }) }
+}
+
+const INTERNAL_SECRET = 'sync-test-secret'
+
+function internalStatusReq(orderId: string, body: object): NextRequest {
+  return new Request(`http://localhost:3000/api/${SLUG}/orders/${orderId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-Internal-Secret': INTERNAL_SECRET },
+    body: JSON.stringify(body),
+  }) as unknown as NextRequest
 }
 
 function createReq(body: object): NextRequest {
@@ -578,5 +588,77 @@ describe('PATCH status — cancelación de un pedido en efectivo', () => {
       after!.printJobs!.some((j) => j.printerId.toString() === kitchenPrinterId.toString())
     ).toBe(false)
     expect(confirmOrderPaymentCoreMock).not.toHaveBeenCalled()
+  })
+})
+
+/* ══════════════════════════════════════════════════════════════════════════
+   6. PATCH status — guard interno: el SyncLayer no resucita terminales
+   ══════════════════════════════════════════════════════════════════════════ */
+describe('PATCH status — guard interno (SyncLayer → SaaS)', () => {
+  beforeAll(() => {
+    process.env.SYNC_LAYER_SECRET = INTERNAL_SECRET
+  })
+
+  afterAll(() => {
+    delete process.env.SYNC_LAYER_SECRET
+  })
+
+  it('cancelled → preparing: 409 y el pedido sigue cancelado (sin resurrección)', async () => {
+    const order = await makeOrder({ status: 'cancelled', kitchenPrintDeferred: false, printJobs: [] })
+
+    const res = await statusPATCH(
+      internalStatusReq(order._id.toString(), { status: 'preparing' }),
+      statusParams(order._id.toString())
+    )
+    expect(res.status).toBe(409)
+
+    const after = await Order.findById(order._id).lean()
+    expect(after!.status).toBe('cancelled')
+  })
+
+  it('delivered → ready: 409 (delivered también es terminal por la vía interna)', async () => {
+    const order = await makeOrder({
+      status: 'delivered',
+      payment: { method: 'cash', status: 'approved', baseTotal: 8000, surchargeAmount: 0 },
+      kitchenPrintDeferred: false,
+      printJobs: [],
+    })
+
+    const res = await statusPATCH(
+      internalStatusReq(order._id.toString(), { status: 'ready' }),
+      statusParams(order._id.toString())
+    )
+    expect(res.status).toBe(409)
+
+    const after = await Order.findById(order._id).lean()
+    expect(after!.status).toBe('delivered')
+    // Cobrar de nuevo sería venta fantasma: el pago no se toca.
+    expect(after!.payment!.status).toBe('approved')
+  })
+
+  it('cancelled → cancelled: idempotente por la vía interna (200)', async () => {
+    const order = await makeOrder({ status: 'cancelled', kitchenPrintDeferred: false, printJobs: [] })
+
+    const res = await statusPATCH(
+      internalStatusReq(order._id.toString(), { status: 'cancelled' }),
+      statusParams(order._id.toString())
+    )
+    expect(res.status).toBe(200)
+
+    const after = await Order.findById(order._id).lean()
+    expect(after!.status).toBe('cancelled')
+  })
+
+  it('la vía externa (sin secreto) sigue rechazando por el grafo: 400', async () => {
+    const order = await makeOrder({ status: 'cancelled', kitchenPrintDeferred: false, printJobs: [] })
+
+    const res = await statusPATCH(
+      statusReq(order._id.toString(), { status: 'preparing' }),
+      statusParams(order._id.toString())
+    )
+    expect(res.status).toBe(400)
+
+    const after = await Order.findById(order._id).lean()
+    expect(after!.status).toBe('cancelled')
   })
 })
