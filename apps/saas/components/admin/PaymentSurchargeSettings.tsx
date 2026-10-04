@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2, Save, Percent, Info } from 'lucide-react'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 interface Props {
   tenantSlug: string
@@ -20,6 +21,10 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
   const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
   const [trFee, setTrFee] = useState(sc.transfer?.feePercent ?? 0)
   const [saving, setSaving] = useState(false)
+
+  const mpFocus = useNumberInputFocus()
+  const krFocus = useNumberInputFocus()
+  const trFocus = useNumberInputFocus()
 
   async function handleSave() {
     setSaving(true)
@@ -83,6 +88,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
                 value={mpFee}
                 onChange={e => setMpFee(parseFloat(e.target.value) || 0)}
                 className="w-20 border border-zinc-200 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-zinc-400"
+                {...mpFocus}
               />
               <span className="text-sm font-bold text-zinc-500">%</span>
             </div>
@@ -112,6 +118,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
                 value={krFee}
                 onChange={e => setKrFee(parseFloat(e.target.value) || 0)}
                 className="w-20 border border-zinc-200 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-zinc-400"
+                {...krFocus}
               />
               <span className="text-sm font-bold text-zinc-500">%</span>
             </div>
@@ -133,6 +140,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
                 value={trFee}
                 onChange={e => setTrFee(parseFloat(e.target.value) || 0)}
                 className="w-20 border border-emerald-200 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-emerald-400"
+                {...trFocus}
               />
               <span className="text-sm font-bold text-emerald-600">%</span>
             </div>

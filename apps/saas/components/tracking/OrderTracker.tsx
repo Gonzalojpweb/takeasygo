@@ -153,7 +153,7 @@ function buildWhatsAppLink(phone: string, opts: {
 💵 *Monto total del pedido: ${totalFormatted}*
 (Incluye envío y recargo de transferencia cuando corresponde.)
 
-Les envío el comprobante de pago por el monto total del pedido. El pago debe realizarse obligatoriamente por el importe total, con todos los cargos incluidos.
+Les envío el comprobante de pago por el monto total del pedido.
 
 ${modeLabel}`
 

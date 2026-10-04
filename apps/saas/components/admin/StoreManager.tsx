@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import ImageUpload from './ImageUpload'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { FieldHint } from '@/components/ui/inline-guide'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 interface StoreItem {
   _id: string
@@ -58,6 +59,14 @@ export default function StoreManager({ tenantSlug }: Props) {
   const [editingItem, setEditingItem] = useState<StoreItem | null>(null)
   const [editingStockId, setEditingStockId] = useState<string | null>(null)
   const [editingStockValue, setEditingStockValue] = useState<string>('')
+
+  const stockFocus = useNumberInputFocus()
+  const pointsCostFocus = useNumberInputFocus()
+  const cashValueFocus = useNumberInputFocus()
+  const stockFormFocus = useNumberInputFocus()
+  const maxPerMemberFocus = useNumberInputFocus()
+  const sortOrderFocus = useNumberInputFocus()
+  const minPurchasesFocus = useNumberInputFocus()
 
   useEffect(() => {
     fetchItems()
@@ -291,6 +300,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                             className="w-16 px-2 py-1 rounded border border-border/60 bg-muted/40 text-xs"
                             min="0"
                             autoFocus
+                            {...stockFocus}
                             onKeyDown={e => {
                               if (e.key === 'Enter') handleStockSave(item)
                               if (e.key === 'Escape') setEditingStockId(null)
@@ -570,6 +580,7 @@ function StoreItemForm({
                 min="1"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
                 required
+                {...pointsCostFocus}
               />
             </div>
             <div className="space-y-2">
@@ -580,6 +591,7 @@ function StoreItemForm({
                 onChange={e => setFormData({ ...formData, cashValue: e.target.value })}
                 min="0"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                {...cashValueFocus}
               />
             </div>
             <div className="space-y-2">
@@ -593,6 +605,7 @@ function StoreItemForm({
                 onChange={e => setFormData({ ...formData, stock: e.target.value })}
                 min="0"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                {...stockFormFocus}
               />
             </div>
           </div>
@@ -606,6 +619,7 @@ function StoreItemForm({
                 onChange={e => setFormData({ ...formData, maxPerMember: e.target.value })}
                 min="1"
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                {...maxPerMemberFocus}
               />
             </div>
             <div className="space-y-2">
@@ -629,6 +643,7 @@ function StoreItemForm({
                 value={formData.sortOrder}
                 onChange={e => setFormData({ ...formData, sortOrder: parseInt(e.target.value) || 0 })}
                 className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                {...sortOrderFocus}
               />
             </div>
           </div>
@@ -655,6 +670,7 @@ function StoreItemForm({
                   onChange={e => setFormData({ ...formData, minItemPurchases: parseInt(e.target.value) || 0 })}
                   min="0"
                   className="w-full px-4 py-3 rounded-xl border-2 border-border/60 bg-muted/40 focus:border-primary/40 outline-none transition-all"
+                  {...minPurchasesFocus}
                 />
                 <p className="text-xs text-muted-foreground">0 = sin requisito de recurrencia</p>
               </div>

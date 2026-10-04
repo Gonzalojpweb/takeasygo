@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 // Fechas especiales de upselling (misma lógica que upsell-menu.ts)
 interface SpecialDateRule {

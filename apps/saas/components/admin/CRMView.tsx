@@ -10,6 +10,7 @@ import { CustomerSegmentBadge, CustomerHealthScore } from './cis'
 import { SegmentDistributionChart } from './cis/charts'
 import ConsumerDetailModal from './crm/ConsumerDetailModal'
 import { toPesos } from '@takeasygo/business/browser'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CRMView — Tabla de clientes con filtros CIS integrados
@@ -96,6 +97,15 @@ export default function CRMView({ tenantSlug }: Props) {
   const [filterMinOrders, setFilterMinOrders] = useState('')
   const [filterMaxOrders, setFilterMaxOrders] = useState('')
   const [filterAvgTicketMin, setFilterAvgTicketMin] = useState('')
+
+  const healthMinFocus = useNumberInputFocus()
+  const healthMaxFocus = useNumberInputFocus()
+  const ltvMinFocus = useNumberInputFocus()
+  const ltvMaxFocus = useNumberInputFocus()
+  const minOrdersFocus = useNumberInputFocus()
+  const maxOrdersFocus = useNumberInputFocus()
+  const avgTicketMinFocus = useNumberInputFocus()
+  const avgTicketMaxFocus = useNumberInputFocus()
   const [filterAvgTicketMax, setFilterAvgTicketMax] = useState('')
 
   // Segment distribution for mini donut
@@ -380,6 +390,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterHealthMin}
                     onChange={e => setFilterHealthMin(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...healthMinFocus}
                   />
                   <span className="text-muted-foreground">—</span>
                   <input
@@ -390,6 +401,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterHealthMax}
                     onChange={e => setFilterHealthMax(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...healthMaxFocus}
                   />
                 </div>
               </div>
@@ -405,6 +417,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterLtvMin}
                     onChange={e => setFilterLtvMin(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...ltvMinFocus}
                   />
                   <span className="text-muted-foreground">—</span>
                   <input
@@ -414,6 +427,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterLtvMax}
                     onChange={e => setFilterLtvMax(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...ltvMaxFocus}
                   />
                 </div>
               </div>
@@ -449,6 +463,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterMinOrders}
                     onChange={e => setFilterMinOrders(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...minOrdersFocus}
                   />
                   <span className="text-muted-foreground">—</span>
                   <input
@@ -458,6 +473,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterMaxOrders}
                     onChange={e => setFilterMaxOrders(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...maxOrdersFocus}
                   />
                 </div>
               </div>
@@ -473,6 +489,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterAvgTicketMin}
                     onChange={e => setFilterAvgTicketMin(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...avgTicketMinFocus}
                   />
                   <span className="text-muted-foreground">—</span>
                   <input
@@ -482,6 +499,7 @@ export default function CRMView({ tenantSlug }: Props) {
                     value={filterAvgTicketMax}
                     onChange={e => setFilterAvgTicketMax(e.target.value)}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-primary"
+                    {...avgTicketMaxFocus}
                   />
                 </div>
               </div>
