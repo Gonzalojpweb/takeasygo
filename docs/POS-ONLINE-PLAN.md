@@ -49,7 +49,7 @@ El plan original borraba a `apps/sync` por completo. **Corrección:**
 | **M4** | Endpoints `/api/[tenant]/pos/*` (orders ✅ · tables ✅ · cash ✅ · menu ✅ · CORS ✅) | ✅ Completo |
 | **M5** | El POS habla con el SaaS: `services/*` server-first, `pos-api`, rehidratación de fechas, outbox fuera de las escrituras POS (ver §7) | ✅ Completo |
 | **M6** | Polling diff-then-put, concurrencia entre terminales, Page Visibility (ver §8) | ✅ Completo |
-| **—** | E2E de dos terminales + despliegue: no es código, es verificación y decisiones (ver §11) | ⬜ |
+| **—** | E2E de dos terminales + despliegue: no es código, es verificación y decisiones (ver §11) | ⬜ Parcial (§11.2a) |
 
 ---
 
@@ -633,6 +633,39 @@ el alcance de V1; lo que sigue es **verificación en ambiente real** y
 5. Con la pestaña de B oculta: ningún request de polling (Network tab).
 6. Con una mutación de A en vuelo a mitad de un tick de B: B no retrocede
    de estado.
+
+### 11.2a Resultados del E2E — 2026-10-04 (parcial)
+
+Ejecutado por el operador sobre producción (SaaS + POS reales):
+
+- [x] Pedido creado en SaaS cae en el POS (cola de Pedidos entrantes).
+- [x] **POS → SaaS**: marcar estados en el POS cambia el estado en SaaS.
+- [x] **Mostrador completo**: abrir mesa → cargar pedido → validar → cobrar
+  en efectivo → cerrar mesa → la venta suma en Ventas.
+- [ ] **SaaS → POS** (el bug corregido en `7e2e780`): mover/cancelar un
+  pedido desde el admin del SaaS y verlo reflejado en el POS. Requiere
+  redeploy del Sync en EC2 + Vercel redesplegado.
+- [ ] Dos terminales: pasos 1–6 de §11.2.
+- [ ] Cancelación desde SaaS suelta el pedido en POS; `offline_timeout` no
+  cancela pedidos vivos (guard nuevo de `7e2e780`).
+
+**Falló en la primera corrida (2026-10-04):**
+
+1. **SaaS → POS cancel** no llegó al POS (el pedido quedó activo ahí).
+   El cableado del SaaS está completo (`maybeNotifySyncLayerStatus` en la
+   ruta de status, `confirmOrderPayment` en confirm-transfer-admin); la
+   variable que falta es el **redeploy del Sync en EC2** (con el código
+   viejo el emit usa el id del SaaS y el POS no lo encuentra). Pendiente
+   de confirmar + retestear. Además se agregó el **terminal guard** de la
+   ruta status: por `X-Internal-Secret` un `cancelled`/`delivered` del
+   SaaS ya no se puede resucitar con otro estado desde el POS.
+2. **Salón: mesa no se marcaba ocupada** al abrir la mesa con items sin
+   cobrar — la ocupación solo existía en `handlePay`. Ahora el cajero
+   ocupa la mesa al cargar el primer item (ocupación *draft* server-first,
+   sin orden): `occupyTableForLoading` / `bindTableOrder` (services),
+   free automático al vaciar el carrito/cambiar de mesa, y en el cobro se
+   vincula la orden real (o se ocupa si sigue libre) releyendo el estado
+   fresco.
 
 ### 11.3 Decisiones de producto abiertas (no son de código)
 

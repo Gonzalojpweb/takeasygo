@@ -96,6 +96,40 @@ export async function occupyTable(
   })
 }
 
+/**
+ * Ocupa la mesa al EMPEZAR a cargar, antes de que exista la orden: el Salón
+ * debe mostrarla ocupada mientras el cajero arma el pedido, aunque nunca
+ * cobre. Sin currentOrderId: no hay orden todavía que proteger en
+ * assertCanRelease, y la server deja el campo libre para el bind del cobro.
+ */
+export async function occupyTableForLoading(
+  tenantId: string,
+  tableId: string,
+  serverId: string
+): Promise<void> {
+  await patchTable(tenantId, tableId, {
+    status: "occupied",
+    serverId,
+  })
+}
+
+/**
+ * Vincula la orden real a una mesa que ya está ocupada por la carga en curso.
+ * Va SIN status: no hay transición que validar (sigue occupied) y el server
+ * guarda currentOrderId para que delivered/cancelled la libere solo.
+ */
+export async function bindTableOrder(
+  tenantId: string,
+  tableId: string,
+  serverId: string,
+  orderId: string
+): Promise<void> {
+  await patchTable(tenantId, tableId, {
+    serverId,
+    currentOrderId: orderId,
+  })
+}
+
 export async function freeTable(
   tenantId: string,
   tableId: string
