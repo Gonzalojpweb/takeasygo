@@ -182,6 +182,7 @@ export function internalRouter(
 
       const updated = await updateOrderStatus(orderId, tenantId, status)
       if (!updated) {
+        console.warn(`[internal] status: order not found (no actualiza) orderId=${orderId} tenant=${tenantId} status=${status}`)
         res.status(404).json({ error: "Order not found" })
         return
       }
@@ -227,6 +228,10 @@ export function internalRouter(
       if (locationId) {
         io.to(`tenant:${tenantId}:location:${locationId}`).emit("order:status_updated", statusEvent)
       }
+
+      console.log(
+        `[internal] status emit orderId=${orderId} syncId=${syncId} status=${status} skipForward=${Boolean(skipForward)} rooms=tenant:${tenantId}${locationId ? `+loc:${locationId}` : ""}`
+      )
 
       res.json({ status })
     } catch (err) {
