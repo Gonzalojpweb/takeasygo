@@ -25,8 +25,8 @@ export default function BoardColumn<T extends BoardItem>({
 }: BoardColumnProps<T>) {
   return (
     <div className={items.length > 0
-    ? "flex flex-col min-w-[260px] w-[300px] lg:min-w-[320px] lg:w-[340px] xl:min-w-[340px] xl:w-[360px] h-full"
-    : "flex flex-col min-w-[220px] w-[240px] md:min-w-[260px] md:w-[280px] h-full"
+    ? "flex flex-col min-w-[260px] w-[300px] md:min-w-[320px] md:w-[340px] lg:min-w-[360px] lg:w-[380px] xl:min-w-[380px] xl:w-[400px] h-full"
+    : "flex flex-col min-w-[160px] w-[190px] md:min-w-[180px] md:w-[210px] h-full"
   }>
       {/* Column header */}
       <div className="flex items-center justify-between px-3 py-2.5 mb-2">
