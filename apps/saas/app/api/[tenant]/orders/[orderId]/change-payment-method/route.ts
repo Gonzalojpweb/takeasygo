@@ -112,7 +112,22 @@ export async function POST(
       tenantSlug,
       order.locationId ? order.locationId.toString() : null
     )
-    const baseTotal = order.payment?.baseTotal ?? order.total ?? 0
+    const previousMethod = order.payment?.method ?? 'mercadopago'
+
+    // ── Obtener configuración de descuento de efectivo del tenant ────────
+    const cashDiscountPercent = tenant.cash?.discountPercent ?? 0
+    // Subtotal original del pedido (para revertir el descuento después)
+    const orderSubtotal = order.subtotal ?? 0
+
+    // ── Paso 1: Quitar el descuento de efectivo si el método anterior era cash ──
+    // Esto obtiene un "baseTotal neutro" sin descuentos de método previo,
+    // replicando el cálculo inverso de orders/route.ts:1051:
+    //   cashDiscount = Math.floor(subtotal * (discountPercent / 100))
+    let neutralBaseTotal = baseTotal
+    if (previousMethod === 'cash' && cashDiscountPercent > 0) {
+      const cashDiscount = Math.floor(orderSubtotal * (cashDiscountPercent / 100))
+      neutralBaseTotal = baseTotal + cashDiscount
+    }
     const catalog = buildPaymentMethodCatalog(ctx, order.orderMode ?? 'takeaway', {
       baseTotal,
       deliveryCost: order.deliveryCost ?? 0,
@@ -128,8 +143,11 @@ export async function POST(
     const previousMethod = order.payment?.method ?? 'mercadopago'
 
     // ── Repricing desde baseTotal (pre-recargo), nunca desde el total actual ─
+    // ── Repricing desde baseTotal (pre-recargo), nunca desde el total actual ─
+    // Se usa neutralBaseTotal si el método anterior era cash, para que el
+    // nuevo precio no incorpore descuentos del método anterior.
     const pricing = calculateFinalTotal(
-      baseTotal,
+      neutralBaseTotal,
       method,
       tenant,
       ctx.platformConfig || {},
@@ -144,6 +162,15 @@ export async function POST(
     order.payment.surchargeAmount = pricing.surchargeAmount
     order.payment.platformFeeAmount = pricing.platformFeeAmount
     order.total = pricing.finalTotal
+    
+    // ── Aplicar descuento de efectivo si el nuevo método es cash ────────
+    // Lógica idéntica a la de orders/route.ts:1051-1054:
+    //   cashDiscount = Math.floor(subtotal * (cashConfig.discountPercent / 100))
+    if (method === 'cash') {
+      const cashDiscount = Math.floor(order.subtotal * (cashDiscountPercent / 100))
+      order.total = order.total - cashDiscount
+      order.payment.surchargeAmount = order.payment.surchargeAmount - cashDiscount
+    }
 
     // ── Limpiar referencias de pago ──────────────────────────────────────
     // Sin esto quedan datos de una preferencia vieja que mislead al webhook,
