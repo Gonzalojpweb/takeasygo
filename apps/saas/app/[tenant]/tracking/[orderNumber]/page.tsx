@@ -151,6 +151,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             city: order.deliveryAddress.city,
           } : undefined}
           initialPaymentMethod={order.payment?.method}
+          initialBaseTotal={order.payment?.baseTotal ?? order.total}
           initialSurchargePercent={order.payment?.surchargePercent}
           initialSurchargeAmount={order.payment?.surchargeAmount}
           initialTransferConfirmed={order.payment?.transferConfirmed}
