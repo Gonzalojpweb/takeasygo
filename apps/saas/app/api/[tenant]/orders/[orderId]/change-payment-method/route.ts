@@ -140,8 +140,6 @@ export async function POST(
       )
     }
 
-    const previousMethod = order.payment?.method ?? 'mercadopago'
-
     // ── Repricing desde baseTotal (pre-recargo), nunca desde el total actual ─
     // ── Repricing desde baseTotal (pre-recargo), nunca desde el total actual ─
     // Se usa neutralBaseTotal si el método anterior era cash, para que el
