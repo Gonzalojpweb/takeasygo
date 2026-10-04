@@ -321,7 +321,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       })
       .catch(() => {})
 
-    fetch(`/api/${tenantSlug}/payment-methods?locationId=${locationId}`)
+    fetch(`/api/${tenantSlug}/payment-methods?mode=${deliveryMode ? 'delivery' : mode}&locationId=${locationId}`)
       .then(r => r.json())
       .then(data => {
         if (data?.error) {
@@ -361,7 +361,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       .catch((err) => {
         console.error('payment-methods fetch error:', err)
       })
-  }, [])
+  }, [deliveryMode])
   
   // Auto-fill from session and lookup loyalty by email
   useEffect(() => {
@@ -560,16 +560,17 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const activeTotalFees = selectedPaymentMethod
     ? (paymentTotalFees[selectedPaymentMethod] ?? 0)
     : 0
-  const activeSurchargePercent = activeTotalFees > 0
-    ? (selectedPaymentMethod === 'transfer'
-      ? Math.round(activeTotalFees * 10000) / 100
-      : Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100)
-    : 0
-  const total = activeTotalFees > 0
-    ? (selectedPaymentMethod === 'transfer'
-      ? baseTotal + Math.round(baseTotal * activeTotalFees)
-      : Math.ceil(baseTotal / (1 - activeTotalFees)))
-    : baseTotal
+  // Transferencia: mismo cálculo que el server (lib/pricing.ts) — recargo solo
+  // sobre el subtotal sin delivery, y solo con la comisión del tenant.
+  const transferSurchargePercent = paymentSurcharges['transfer'] ?? 0
+  const activeSurchargePercent = selectedPaymentMethod === 'transfer'
+    ? transferSurchargePercent
+    : (activeTotalFees > 0
+      ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+      : 0)
+  const total = selectedPaymentMethod === 'transfer'
+    ? baseTotal + Math.round(Math.max(0, baseTotal - deliveryCost) * (transferSurchargePercent / 100))
+    : (activeTotalFees > 0 ? Math.ceil(baseTotal / (1 - activeTotalFees)) : baseTotal)
 
 async function handleSubmit(e: React.FormEvent) {
   e.preventDefault()

@@ -146,9 +146,14 @@ function buildWhatsAppLink(phone: string, opts: {
   const cleanPhone = phone.replace(/[^\d]/g, '')
 
   const modeLabel = orderMode === 'delivery' ? '🚚 DELIVERY' : '🥡 TAKE AWAY'
+  const totalFormatted = `$${toPesos(amount).toLocaleString('es-AR')}`
 
-  let msg = `Hola soy ${customerName} y tengo el pedido #${orderNumber}.
-Te envío el comprobante de pago por $${toPesos(amount).toLocaleString('es-AR')}.
+  let msg = `Hola, soy ${customerName.trim() || 'un cliente'} y realicé el pedido #${orderNumber}.
+
+💵 *Monto total del pedido: ${totalFormatted}*
+(Incluye envío y recargo de transferencia cuando corresponde.)
+
+Les envío el comprobante de pago por el monto total del pedido. El pago debe realizarse obligatoriamente por el importe total, con todos los cargos incluidos.
 
 ${modeLabel}`
 
@@ -157,7 +162,7 @@ ${modeLabel}`
     msg += `\nDirección: ${addr.street} ${addr.number}${addr.apt ? `, ${addr.apt}` : ''}, ${addr.city}`
   }
 
-  msg += `\n\nPodes hacer el seguimiento de tu pedido:\n${trackingUrl}`
+  msg += `\n\nSeguimiento del pedido:\n${trackingUrl}`
 
   return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`
 }
@@ -241,11 +246,15 @@ export default function OrderTracker({
   // ── Salida de emergencia para pedidos varados en awaiting_payment ─────
   const [exitLoading, setExitLoading] = useState(false)
 
+  // Monto total real a transferir = baseTotal (incluye envío) + recargo de
+  // transferencia. Es el mismo cálculo que persiste el server en order.total.
+  // Fallback a orderTotal para órdenes viejas sin payment.baseTotal.
+  const transferTotal = (baseTotal || 0) + (surchargeAmount || 0) || orderTotal
   const whatsAppLink = whatsAppPhone && paymentMethod === 'transfer'
     ? buildWhatsAppLink(whatsAppPhone, {
         customerName: initialCustomerName,
         orderNumber,
-        amount: baseTotal || 0,
+        amount: transferTotal,
         orderMode,
         deliveryAddress,
         trackingUrl: typeof window !== 'undefined'
@@ -1022,7 +1031,7 @@ export default function OrderTracker({
             <div className="space-y-1.5 text-xs text-amber-800">
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
-                <span>Hacé la transferencia por <strong>${toPesos(baseTotal || 0).toLocaleString('es-AR')}</strong> desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
+                <span>Hacé la transferencia por <strong>${toPesos(transferTotal).toLocaleString('es-AR')}</strong> (monto total del pedido, con envío y cargos incluidos) desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
               </p>
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>

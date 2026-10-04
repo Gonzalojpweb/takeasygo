@@ -67,7 +67,7 @@ ${baseUrl}/${tenantSlug}/admin/orders`
           tenant.name,
           tenant.slug,
           order.orderNumber,
-          order.payment?.baseTotal ?? order.total ?? 0,
+          order.total || 0,
           customerName
         )
       } catch (err) {
