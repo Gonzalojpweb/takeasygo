@@ -14,6 +14,7 @@ import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import GalleryManager from './GalleryManager'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toCents, toPesos } from '@takeasygo/business/browser'
+import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 import {
   Palette, User, MapPin,
   Settings as SettingsIcon,

@@ -6,11 +6,46 @@ import { signIn } from 'next-auth/react'
 import { slugify, slugifyOrFallback } from '@/lib/slugify'
 import { sanitizePassword, passwordRules, passwordError, PASSWORD_MIN } from '@/lib/password'
 import { Eye, EyeOff, Check, X } from 'lucide-react'
+import { useCelebrate } from '@/hooks/useCelebrate'
+import { phaseAIndex, progressFor, remaining, etaMinutes, copyFor, serverToGlobal } from '@/lib/onboarding-journey'
+import JourneyProgress from '@/components/onboarding/JourneyProgress'
 
 export default function OnboardingWizard() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [ticket, setTicket] = useState<string | null>(null)
+  const [persisted, setPersisted] = useState(false)
+
+  // Cargar estado persistente de localStorage al montar (solo fase A)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('tgo_onboarding_step')
+      if (stored !== null) {
+        const p = Number(stored)
+        // validar que esté en el rango de fase A (1‑3)
+        if (p >= 1 && p <= 3) setStep(p)
+        setPersisted(true)
+      }
+    } catch {}
+  }, [])
+
+[
+    { key: 'datos', phase: 'A', label: 'Datos del negocio' },
+    { key: 'email', phase: 'A', label: 'Verificá tu email' },
+    { key: 'clave', phase: 'A', label: 'Creá tu clave' },
+  ]
+  const globalIdx = phaseAIndex(step)
+  const prog = progressFor(globalIdx)
+  const resto = remaining(globalIdx)
+  const eta = etaMinutes(globalIdx)
+  const label = `Paso ${globalIdx} de 7`
+  const saved = persisted || step >= 3
+  useEffect(() => {
+    if (step >= 1 && step <= 3) {
+      localStorage.setItem('tgo_onboarding_step', String(step))
+      setPersisted(true)
+    }
+  }, [step])
 
   // Step 1: form
   const [name, setName] = useState('')
@@ -40,6 +75,9 @@ export default function OnboardingWizard() {
               setStep(3)
               clearInterval(interval)
             }
+          }
+
+  if (step === 1) {
           }
         } catch {
           // ignore poll errors
@@ -261,7 +299,16 @@ export default function OnboardingWizard() {
       { ok: rules.length, label: `Al menos ${PASSWORD_MIN} caracteres` },
       { ok: rules.letter, label: 'Al menos una letra' },
       { ok: rules.number, label: 'Al menos un número' },
-    ]
+, [
+    { key: 'datos', phase: 'A', label: 'Datos del negocio' },
+    { key: 'email', phase: 'A', label: 'Verificá tu email' },
+    { key: 'clave', phase: 'A', label: 'Creá tu clave' },
+  ]
+  const globalIdx = phaseAIndex(step)
+  const prog = progressFor(globalIdx)
+  const resto = remaining(globalIdx)
+  const eta = etaMinutes(globalIdx)
+  const saved = persisted || step >= 3
 
     return (
       <form onSubmit={handlePassword} className="space-y-4">
