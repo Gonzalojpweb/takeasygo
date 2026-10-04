@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useCelebrate } from '@/hooks/useCelebrate'
-import { phaseBIndex, progressFor, remaining, etaMinutes, copyFor } from '@/lib/onboarding-journey'
-import JourneyProgress from '@/components/onboarding/JourneyProgress'
+import { JourneyProgress } from '@/components/onboarding/JourneyProgress'
 import MenuPreview from './MenuPreview'
 import MenuPhotosUploader from './MenuPhotosUploader'
 import {
@@ -18,6 +17,7 @@ import {
 export default function OnboardingInternalPage() {
   const router = useRouter()
   const { tenant } = useParams<{ tenant: string }>()
+  const { fire: celebrate } = useCelebrate()
 
   const [step, setStep] = useState(3)
   const [hydrated, setHydrated] = useState(false)
@@ -175,13 +175,6 @@ export default function OnboardingInternalPage() {
   const planFeatures = PLAN_FEATURES_LANDING[selectedPlan]
   const isPaidPlan = selectedPlan !== 'trial'
 
-  const steps = [
-    { n: 3, label: 'Plan' },
-    { n: 4, label: 'Sede' },
-    { n: 5, label: 'Identidad' },
-    { n: 6, label: 'Revisión' },
-  ]
-
   return (
     <div className="max-w-3xl mx-auto py-8">
       <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
@@ -189,41 +182,11 @@ export default function OnboardingInternalPage() {
       </p>
       <h1 className="text-2xl font-bold mb-5">Completá tu perfil</h1>
 
-      {/* Progreso */}
-      <ol className="mb-7 flex flex-wrap gap-x-2 gap-y-2">
-        {steps.map((s, i) => {
-          const done = step > s.n
-          const active = step === s.n
-          return (
-            <li key={s.n} className="flex items-center gap-2">
-              <span
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  active
-                    ? 'bg-black text-white'
-                    : done
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'bg-gray-100 text-gray-400'
-                }`}
-              >
-                <span
-                  className={`h-4 w-4 rounded-full text-[10px] leading-none flex items-center justify-center ${
-                    active ? 'bg-white text-black' : done ? 'bg-emerald-600 text-white' : 'bg-gray-300 text-white'
-                  }`}
-                >
-                  {done ? '✓' : s.n - 2}
-                </span>
-                {s.label}
-              </span>
-              {i < steps.length - 1 && <span className="text-gray-300 text-xs">—</span>}
-            </li>
-          )
-        })}
-      </ol>
+      {/* Progreso unificado (7 hitos, goal‑gradient, ETA y hint del paso actual) */}
+      <JourneyProgress mode="B" current={step} saved={hydrated} />
 
       {error && <div className="p-4 bg-red-50 text-red-600 rounded-md mb-6">{error}</div>}
       {warning && <div className="p-4 bg-amber-50 text-amber-800 rounded-md mb-6">{warning}</div>}
-
-      <JourneyProgress mode="B" current={step} saved={hydrated} onContinue={() => advanceStep(step + 1)} />
 
       {step === 3 && (
         <form onSubmit={handlePlan} className="space-y-5">
