@@ -113,6 +113,8 @@ export async function POST(
       order.locationId ? order.locationId.toString() : null
     )
     const previousMethod = order.payment?.method ?? 'mercadopago'
+    // ── Obtener baseTotal (pre-recargo), usado para repricing y descuentos
+    const baseTotal = order.payment?.baseTotal ?? order.total ?? 0
 
     // ── Obtener configuración de descuento de efectivo del tenant ────────
     const cashDiscountPercent = tenant.cash?.discountPercent ?? 0
