@@ -16,24 +16,19 @@
 
 ### S0.2 — Claves JWT y huellas (CERRADO, verificado 2026-10-05)
 
-- **Vercel (saas) `SSO_JWT_PUBLIC_KEY` → huella `be239784cf98f6cd07843af1958d33b3`** = `apps/sync/keys.public.pem` local = fallback embebido (`POS_PUBLIC_KEY_FALLBACK`). No hay `POS_JWT_PUBLIC_KEY` en la env → esa es la clave con que prod verifica.
-- **La privada del par vigente nunca estuvo en el repo:** `keys.private.pem`/`keys.public.pem` están en `.gitignore:93-94`; `git ls-files` y `git log --all -- '*keys.private.pem'` no los registran jamás. **No hay P0 de rotación por este ítem** (la premisa "privada en GitHub" era incorrecta).
-- La única clave privada que tocó la historia pública: `apps/sync/.env.example` trackeado desde `4ba2121` hasta `38ec3ce` (que lo borró) contenía el par **viejo `670c9409039513bee4b4f7101891f7da`** — distinto del vigente, ya dead.
-- Probes con 401 (incl. control positivo): con la huella verificada no prueban "tercera clave"; el 401 viene de otro chequeo del probe (claims/metodología). Se cierra con el login real en prod (pendiente del dueño).
-- **Pendiente (tuyo):** huella de `JWT_PRIVATE_KEY` en **Render** (el que firma) debe dar `be239784...`:
-
-```powershell
-node -e "const c=require('crypto'),fs=require('fs');const t=fs.readFileSync(process.argv[1],'utf8').replace(/\\n/g,'\n');console.log(c.createHash('sha256').update(c.createPublicKey(t).export({type:'spki',format:'der'})).digest('hex').slice(0,32))" render-jwt-priv.pem
-```
-
-- Riesgo residual (bajo): el mismo par firma prod y vive en máquinas de dev → rotar a par solo-prod cuando toque (ops).
+- **Circuito prod cerrado y verificado con probes:** sync (EC2) firma con el par huella **`fa042c28599e3f858d132783536af5aa`** (vive en `/home/ubuntu/app/apps/sync/.env`, pm2 `sync-layer`, dotenv; sin `keys.private.pem` en el server ni en la env de pm2) y el SaaS de Vercel **lo acepta**: probe firmado con esa clave → 403 (auth pasó), probe firmado con el par del repo (`be239784...`) → 401, control sin auth → 401. No hay mismatch → **no hay P0 de rotación JWT**.
+- Vercel debe tener **`POS_JWT_PUBLIC_KEY` = pública de `fa042c28`** (tiene prioridad en `posJwt.ts:74`). El `SSO_JWT_PUBLIC_KEY` = `be239784...` que está seteado está **sombreado/viejo**: si algún día se borra `POS_JWT_PUBLIC_KEY`, el SaaS cae a `be239784` y el login se rompe en silencio → higiene: borrar o alinear esa var (ops).
+- **La privada de `fa042c28` nunca estuvo en git** (solo el `.env` de la EC2). `keys.private.pem` local está en `.gitignore:93-94` y `git log --all` no lo registra jamás. La única clave privada que tocó la historia pública es la del par viejo **`670c9409039513bee4b4f7101891f7da`** (en `apps/sync/.env.example`, de `4ba2121` hasta `38ec3ce`) — ya no se usa en ningún lado.
+- Los 401 de los probes originales de S0 eran **correctos**: la clave del repo (`be239784`) no la acepta prod (y el control positivo estaba mal planteado — firmaba con la clave equivocada).
+- `be239784...` (par local `apps/sync/keys.*.pem` = `POS_PUBLIC_KEY_FALLBACK`) es solo el respaldo embebido de desarrollo.
+- **Hecho por mí:** huella del `JWT_PRIVATE_KEY` de la EC2 = `fa042c28...` (comando por stdin, la privada nunca salió del server ni se imprimió). Keypair solo-prod ya es así: la privada vive únicamente en la EC2.
 
 ### S0.2b — Credenciales Atlas en la historia del repo (P0)
 
 - Repo **público** (`api.github.com` → `private=false`). `apps/sync/.env.example` en la historia previa a `38ec3ce` contiene credenciales reales de Atlas.
 - Check booleano contra `.env.local` actual: mismo usuario, misma contraseña, mismo host → **las tres vigentes**. La "rotación" de `38ec3ce` no rotó estas credenciales.
 - `CRON_SECRET` filtrado en `TECNICAL/ICOUPDATE.MD:633` → **rotado** (ya no coincide). Clave RSA histórica → **rotada**.
-- Acción: rotar el usuario/contraseña del cluster en Atlas y actualizar envs (Vercel / Render / `.env.local`) — solo el dueño puede hacerlo.
+- Acción: rotar el usuario/contraseña del cluster en Atlas y actualizar envs (Vercel / `.env` de la EC2 / `.env.local`) — solo el dueño puede hacerlo.
 
 ### S0.3 — Precios y estados confiados al cliente (Alta)
 
@@ -47,7 +42,7 @@ node -e "const c=require('crypto'),fs=require('fs');const t=fs.readFileSync(proc
 - `apps/saas/__tests__/integration/pos-context.test.ts`: **24/24 passed** — cross-tenant → 403, superadmin bypass, token inválido/vencido/ausente → 401, scoping por sede.
 - Sin `middleware.ts` de Next en el repo.
 - Roles: **cero gates de rol** en las 11 rutas `/pos/*` (el `role` solo se registra en auditoría). `VALID_DEVICE_ROLES` existe únicamente en el middleware de sync (`apps/sync/src/middleware/auth/middleware.ts:51`); mapeo `SAAS_TO_POS_ROLE` en `packages/business/src/role-mapping.ts:12-25`; `cancelledBy: 'admin'` hardcodeado en `orders/[id]` route:57.
-- Prod: probes con token firmado por la clave del repo → 401, pero la huella de verificación de Vercel **sí** es la del repo (S0.2) → el 401 no se atribuye a la clave (otro chequeo del probe); se cierra con el login real. Cross-tenant real en prod → **pendiente de los 2 usuarios de prueba**.
+- Prod: probes con token firmado por la clave del repo → 401 (correcto: prod verifica con `fa042c28`, ver S0.2). Cross-tenant real en prod → **pendiente de los 2 usuarios de prueba**.
 
 ### S0.5 — Logout / almacenamiento (Media)
 
@@ -116,7 +111,7 @@ Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merg
 
 **Tuyos (requieren tus credenciales):**
 
-- ~~Correr en Vercel la huella de `SSO_JWT_PUBLIC_KEY`~~ **Hecho:** = `be239784...` (S0.2). Ahora falta solo la huella de `JWT_PRIVATE_KEY` en **Render** (comando en S0.2) — debe dar `be239784...`.
+- ~~Huella de la clave que firma en prod~~ **Hecho:** EC2 `JWT_PRIVATE_KEY` = `fa042c28...` y los probes confirman que Vercel la acepta (S0.2). Sobra borrar/alinear el `SSO_JWT_PUBLIC_KEY` viejo en Vercel (ops).
 - Confirmar si `test` es la base de producción (`MONGODB_URI` de Vercel) y probar el login en `pos.takeasygo.com`.
 - Crear 2 usuarios cajeros de prueba (la-pesceria + ligre) con PINs desechables.
 - `POS_CORS_ORIGIN` en Vercel (el default `http://localhost:5173` bloquearía el POS en prod).
