@@ -14,12 +14,19 @@
 - Producción (DB `test`): **0 de 51 tenants con `posIntegration.webhookSecret`** → el endpoint hoy responde 400 para todos. Hacer la firma obligatoria **no rompe ninguna integración viva**.
 - Fix acordado (S1-1): firma obligatoria (sin header → 401, antes de tocar la DB), `crypto.timingSafeEqual`, timestamp anti-replay (±300s), sandbox FUDO solo con `POS_WEBHOOK_ALLOW_UNSIGNED=1`.
 
-### S0.2 — Claves JWT y huellas
+### S0.2 — Claves JWT y huellas (CERRADO, verificado 2026-10-05)
 
-- Repo: `keys.private.pem` = `keys.public.pem` = fallback embebido (`POS_PUBLIC_KEY_FALLBACK`) → huella **`be239784cf98f6cd07843af1958d33b3`**.
-- Clave histórica filtrada `670c9409039513bee4b4f7101891f7da` ≠ repo → **rotada**.
-- Probes contra prod (6 casos, incl. control positivo con token firmado por la clave del repo): **401 en todos** → prod verifica con una tercera clave (ni la del repo ni la histórica). Ninguna clave privada real tocó la red.
-- **Pendiente (tuyo):** correr en Vercel el comando de huella y comparar contra `be239784...`. Si coincide → P0 rotar.
+- **Vercel (saas) `SSO_JWT_PUBLIC_KEY` → huella `be239784cf98f6cd07843af1958d33b3`** = `apps/sync/keys.public.pem` local = fallback embebido (`POS_PUBLIC_KEY_FALLBACK`). No hay `POS_JWT_PUBLIC_KEY` en la env → esa es la clave con que prod verifica.
+- **La privada del par vigente nunca estuvo en el repo:** `keys.private.pem`/`keys.public.pem` están en `.gitignore:93-94`; `git ls-files` y `git log --all -- '*keys.private.pem'` no los registran jamás. **No hay P0 de rotación por este ítem** (la premisa "privada en GitHub" era incorrecta).
+- La única clave privada que tocó la historia pública: `apps/sync/.env.example` trackeado desde `4ba2121` hasta `38ec3ce` (que lo borró) contenía el par **viejo `670c9409039513bee4b4f7101891f7da`** — distinto del vigente, ya dead.
+- Probes con 401 (incl. control positivo): con la huella verificada no prueban "tercera clave"; el 401 viene de otro chequeo del probe (claims/metodología). Se cierra con el login real en prod (pendiente del dueño).
+- **Pendiente (tuyo):** huella de `JWT_PRIVATE_KEY` en **Render** (el que firma) debe dar `be239784...`:
+
+```powershell
+node -e "const c=require('crypto'),fs=require('fs');const t=fs.readFileSync(process.argv[1],'utf8').replace(/\\n/g,'\n');console.log(c.createHash('sha256').update(c.createPublicKey(t).export({type:'spki',format:'der'})).digest('hex').slice(0,32))" render-jwt-priv.pem
+```
+
+- Riesgo residual (bajo): el mismo par firma prod y vive en máquinas de dev → rotar a par solo-prod cuando toque (ops).
 
 ### S0.2b — Credenciales Atlas en la historia del repo (P0)
 
@@ -40,7 +47,7 @@
 - `apps/saas/__tests__/integration/pos-context.test.ts`: **24/24 passed** — cross-tenant → 403, superadmin bypass, token inválido/vencido/ausente → 401, scoping por sede.
 - Sin `middleware.ts` de Next en el repo.
 - Roles: **cero gates de rol** en las 11 rutas `/pos/*` (el `role` solo se registra en auditoría). `VALID_DEVICE_ROLES` existe únicamente en el middleware de sync (`apps/sync/src/middleware/auth/middleware.ts:51`); mapeo `SAAS_TO_POS_ROLE` en `packages/business/src/role-mapping.ts:12-25`; `cancelledBy: 'admin'` hardcodeado en `orders/[id]` route:57.
-- Prod: probes con token firmado por la clave del repo → 401 (prod no acepta esa clave). Cross-tenant real en prod → **pendiente de los 2 usuarios de prueba**.
+- Prod: probes con token firmado por la clave del repo → 401, pero la huella de verificación de Vercel **sí** es la del repo (S0.2) → el 401 no se atribuye a la clave (otro chequeo del probe); se cierra con el login real. Cross-tenant real en prod → **pendiente de los 2 usuarios de prueba**.
 
 ### S0.5 — Logout / almacenamiento (Media)
 
@@ -93,11 +100,13 @@
 
 ## 3. Plan S1 (orden acordado)
 
-1. **Webhook con firma obligatoria** — rama `fix/webhook-signature-required`, tests negativos: sin firma, firma inválida, body alterado, timestamp viejo/futuro, flag sandbox.
-2. Precios desde el catálogo en el server.
-3. Lockout por cuenta (Redis).
-4. JWT fail-closed + `kid`.
-5. Logout completo.
+1. **Webhook con firma obligatoria** — rama `fix/webhook-signature-required`, tests negativos: sin firma, firma inválida, body alterado, timestamp viejo/futuro, flag sandbox. **Hecho:** `cd0ece3` (49/49).
+2. Precios desde el catálogo en el server. **Hecho:** `fix/server-catalog-prices` @ `4e11b4e` (85/85 targeted, 730/730 suite; rechazo 409 si difiere).
+3. Lockout por cuenta (Redis). **Hecho:** `fix/login-lockout` @ `64a0440` (58/58).
+4. JWT fail-closed + `kid`. **Pendiente.**
+5. Logout completo. **Pendiente.**
+
+Estado: las 3 ramas están locales, sin push, sin merge — esperan tu revisión.
 
 Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merge sin visto bueno**. Recién después de S1: `payOrder` → `docs/POS-FLOWS.md` → F1.
 
@@ -107,7 +116,7 @@ Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merg
 
 **Tuyos (requieren tus credenciales):**
 
-- Correr en Vercel la huella de `POS_JWT_PUBLIC_KEY` / `SSO_JWT_PUBLIC_KEY` y compararla con `be239784cf98f6cd07843af1958d33b3`.
+- ~~Correr en Vercel la huella de `SSO_JWT_PUBLIC_KEY`~~ **Hecho:** = `be239784...` (S0.2). Ahora falta solo la huella de `JWT_PRIVATE_KEY` en **Render** (comando en S0.2) — debe dar `be239784...`.
 - Confirmar si `test` es la base de producción (`MONGODB_URI` de Vercel) y probar el login en `pos.takeasygo.com`.
 - Crear 2 usuarios cajeros de prueba (la-pesceria + ligre) con PINs desechables.
 - `POS_CORS_ORIGIN` en Vercel (el default `http://localhost:5173` bloquearía el POS en prod).
@@ -116,4 +125,5 @@ Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merg
 **Míos (tras tu revisión del diff):**
 
 - Cross-tenant real contra prod con los 2 usuarios de prueba.
-- Fixes S1-2 a S1-5 en el orden de la sección 3.
+- S1-4 (JWT fail-closed + `kid`) y S1-5 (logout) — S1-1/2/3 ya están en ramas esperando tu visto bueno.
+- Hallazgos nuevos post-S1-2 (pendientes de tu decisión): órdenes half-half 400 pre-existente, `priceRule` max/average 400 pre-existente, `unitPrice` del cliente aceptado en sync (candidato S1-2b).
