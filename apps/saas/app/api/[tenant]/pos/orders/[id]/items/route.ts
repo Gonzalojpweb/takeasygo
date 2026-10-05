@@ -6,6 +6,7 @@ import { canEditOrderItems } from '@takeasygo/business'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, toSaasOrderItem, recomputeOrderTotals, type PosOrderItemInput } from '@/lib/pos-online/orderMapper'
+import { assertItemAgainstCatalog } from '@/lib/pos-online/catalogPrices'
 import { findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
 // ============================================================================
@@ -21,7 +22,13 @@ export const POST = posRoute(async (ctx, { id }) => {
   }
 
   const body = await readPosBody(ctx.request)
+  // Forma e interna primero (400), después el catálogo vigente (409).
   const item = toSaasOrderItem(body as unknown as PosOrderItemInput)
+  await assertItemAgainstCatalog(
+    body as unknown as PosOrderItemInput,
+    ctx.tenantId,
+    ctx.locationId
+  )
 
   const items = [...(current.items ?? []), item]
   const { subtotal, total, baseTotal } = recomputeOrderTotals(items)

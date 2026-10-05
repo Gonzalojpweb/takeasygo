@@ -6,6 +6,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Table from '@/models/Table'
 import Order from '@/models/Order'
+import Menu from '@/models/Menu'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -118,6 +119,23 @@ beforeEach(async () => {
     status: 'free',
   })
   tablePosId = table.posId
+
+  // Catálogo vigente con los precios que cierran con orderPayload() (S1-2).
+  await Menu.create({
+    tenantId,
+    locationId,
+    isActive: true,
+    categories: [
+      {
+        name: 'Platos',
+        sortOrder: 0,
+        items: [
+          { _id: PRODUCT_A, name: 'Hamburguesa', price: 1500 },
+          { _id: PRODUCT_B, name: 'Papas', price: 500 },
+        ],
+      },
+    ],
+  })
 })
 
 describe('GET /pos/orders/[id]', () => {
@@ -298,6 +316,23 @@ describe('items — agregar', () => {
       detailParams(created.id, PRODUCT_B)
     )
     expect(res.status).toBe(400)
+    expect(await Order.findOne({ posId: created.id }).lean()).toMatchObject({ total: 3000 })
+  })
+
+  it('un item con precio fuera del catálogo → 409 y la orden no cambia', async () => {
+    const created = await createOrder()
+    const res = await itemPost(
+      req(`${URL_}/${created.id}/items`, {
+        productId: PRODUCT_B,
+        name: 'Papas',
+        quantity: 3,
+        unitPrice: 400,
+        total: 1200,
+      }, AUTH()),
+      detailParams(created.id, PRODUCT_B)
+    )
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('conflict')
     expect(await Order.findOne({ posId: created.id }).lean()).toMatchObject({ total: 3000 })
   })
 
