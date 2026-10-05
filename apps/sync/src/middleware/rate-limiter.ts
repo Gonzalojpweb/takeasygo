@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express"
+import Redis from "ioredis"
 import { config } from "../config"
 
 const tokenBuckets = new Map<string, { count: number; resetAt: number }>()
@@ -101,4 +102,119 @@ export function recordLoginFailure(req: Request): void {
 /** Llamar cuando la clave es correcta: el legítimo no arrastra fallos previos. */
 export function clearLoginFailures(req: Request): void {
   loginFailureBuckets.delete(clientIp(req))
+}
+
+// ── Lockout por cuenta (Redis) ─────────────────────────────────────────────
+// El bucket por IP castiga solo desde la MISMA IP; un atacante con credenciales
+// filtradas puede probar desde otra red sin tocar el límite. Este contador va
+// por identidad de cuenta (email o usuario PIN) en Redis, así todas las
+// instancias y roles de red comparten el castigo.
+//
+// Progresivo: N fallos dentro de la ventana → lock; cada lock posterior
+// duplica la duración (hasta loginLockMaxS). Éxito de login → limpieza total.
+// Si Redis no responde, se falla OPEN (no se bloquea el login legítimo por
+// infraestructura caída): el límite por IP de arriba sigue activo igual.
+
+const loginLockFailKey = (key: string) => `loginLock:fail:${key}`
+const loginLockKey = (key: string) => `loginLock:lock:${key}`
+const loginLockCountKey = (key: string) => `loginLock:n:${key}`
+const LOGIN_LOCK_PROGRESS_TTL_S = 86_400
+
+let lockRedis: Redis | null = null
+let lockRedisForcedOff = false
+
+/** Para tests: inyecta un fake (o null = Redis caído → fail-open). */
+export function __setAccountLockRedisForTests(client: Redis | null): void {
+  lockRedis = client
+  lockRedisForcedOff = client === null
+}
+
+function getLockRedis(): Redis | null {
+  if (lockRedisForcedOff) return null
+  if (!lockRedis) {
+    lockRedis = new Redis(config.redisUrl, {
+      maxRetriesPerRequest: 1,
+      enableOfflineQueue: false,
+      connectTimeout: 1_000,
+      retryStrategy: (times: number) => Math.min(times * 1_000, 5_000),
+    })
+    lockRedis.on("error", (err) =>
+      console.warn(`[loginLock/redis] ${err.message}`)
+    )
+  }
+  return lockRedis
+}
+
+let lastLockWarnAt = 0
+function warnLockoutDown(err: unknown): void {
+  const now = Date.now()
+  if (now - lastLockWarnAt > 60_000) {
+    lastLockWarnAt = now
+    console.warn(
+      `[loginLock] Redis no responde, fail-open (solo aplica el límite por IP): ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    )
+  }
+}
+
+/** Segundos de lockout restantes de la cuenta; 0 = libre. Nunca lanza. */
+export async function checkAccountLock(key: string): Promise<number> {
+  try {
+    const redis = getLockRedis()
+    if (!redis) return 0
+    const ttl = await redis.ttl(loginLockKey(key))
+    return ttl > 0 ? ttl : 0
+  } catch (err) {
+    warnLockoutDown(err)
+    return 0
+  }
+}
+
+/** Registrar un fallo de credenciales de la cuenta. Nunca lanza. */
+export async function recordAccountFailure(key: string): Promise<void> {
+  try {
+    const redis = getLockRedis()
+    if (!redis) return
+
+    const lockTtl = await redis.ttl(loginLockKey(key))
+    if (lockTtl > 0) return // ya está lockeada: no acumula sobre el castigo vigente
+
+    const failKey = loginLockFailKey(key)
+    const fails = await redis.incr(failKey)
+    if (fails === 1) await redis.expire(failKey, config.loginLockWindowS)
+
+    if (fails >= config.loginLockFailLimit) {
+      const countKey = loginLockCountKey(key)
+      const lockNo = await redis.incr(countKey)
+      if (lockNo === 1) await redis.expire(countKey, LOGIN_LOCK_PROGRESS_TTL_S)
+
+      const lockSeconds = Math.min(
+        config.loginLockBaseS * 2 ** (lockNo - 1),
+        config.loginLockMaxS
+      )
+      await redis.set(loginLockKey(key), String(lockSeconds), "EX", lockSeconds)
+      await redis.del(failKey) // la ventana vuelve a empezar tras el lock
+      console.warn(
+        `[loginLock] cuenta lockeada ${lockSeconds}s tras ${fails} fallos (lock #${lockNo})`
+      )
+    }
+  } catch (err) {
+    warnLockoutDown(err)
+  }
+}
+
+/** Login exitoso: limpia fallos, lock y progresión de la cuenta. Nunca lanza. */
+export async function clearAccountFailures(key: string): Promise<void> {
+  try {
+    const redis = getLockRedis()
+    if (!redis) return
+    await redis.del(
+      loginLockFailKey(key),
+      loginLockKey(key),
+      loginLockCountKey(key)
+    )
+  } catch (err) {
+    warnLockoutDown(err)
+  }
 }
