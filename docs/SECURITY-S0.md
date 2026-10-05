@@ -30,7 +30,7 @@
 
 ### S0.3 — Precios y estados confiados al cliente (Alta)
 
-- `packages/business/src/order.ts:15-39` `validateValidOrderItems`: solo valida aritmética, **no consulta catálogo**.
+- `packages/business/src/order.ts:15-39` `validateOrderItems`: solo valida aritmética, **no consulta catálogo**.
 - `apps/saas/lib/pos-online/orderMapper.ts:169-192`: `unitPrice`/modifiers llegan desde el body del cliente.
 - `apps/saas/lib/pos-online/orderMapper.ts:280-287`: el mapper fuerza `payment.method = 'cash'`, `payment.status = 'approved'` y toma el status inicial del cliente.
 - Fix acordado (S1-2): el server ignora los precios del cliente y usa el catálogo; definir el manejo de órdenes offline (`menuVersion`).
