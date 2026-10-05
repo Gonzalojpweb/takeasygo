@@ -1,4 +1,5 @@
 import { Router } from "express"
+import type { Response } from "express"
 import mongoose from "mongoose"
 import { signJwt, HUB_TOKEN_TTL_MS } from "@takeasygo/business/jwt"
 import { SAAS_TO_POS_ROLE } from "@takeasygo/business"
@@ -8,6 +9,9 @@ import {
   loginRateLimiter,
   recordLoginFailure,
   clearLoginFailures,
+  checkAccountLock,
+  recordAccountFailure,
+  clearAccountFailures,
 } from "../middleware/rate-limiter"
 import { UserModel, LocationModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
@@ -46,6 +50,19 @@ async function resolveLocationId(
   return locationId
 }
 
+/** Responde 429 si la cuenta está lockeada. Devuelve true si respondió. */
+async function rejectIfAccountLocked(res: Response, accountKey: string): Promise<boolean> {
+  const lockedFor = await checkAccountLock(accountKey)
+  if (lockedFor <= 0) return false
+  res.setHeader("Retry-After", String(lockedFor))
+  res.status(429).json({
+    error: "Account temporarily locked",
+    code: "account_locked",
+    retryAfter: lockedFor,
+  })
+  return true
+}
+
 // loginRateLimiter va primero: corta por IP (req.ip, real gracias a trust
 // proxy) antes de validate() y antes de consultar la base.
 authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, res) => {
@@ -53,6 +70,9 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
     const data = req.body
 
     if (data.mode === "email") {
+      const accountKey = `email:${String(data.email).trim().toLowerCase()}`
+      if (await rejectIfAccountLocked(res, accountKey)) return
+
       const user = await UserModel.findOne({
         email: data.email.toLowerCase(),
         isActive: true,
@@ -60,6 +80,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
 
       if (!user || !user.password) {
         recordLoginFailure(req)
+        await recordAccountFailure(accountKey)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -67,6 +88,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       const valid = await user.comparePassword(data.password)
       if (!valid) {
         recordLoginFailure(req)
+        await recordAccountFailure(accountKey)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -81,6 +103,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       const locationId = await resolveLocationId(tenantId, data.locationId, res)
       if (locationId === null) return
       clearLoginFailures(req)
+      await clearAccountFailures(accountKey)
 
       const token = signJwt(
         {
@@ -110,8 +133,14 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         isActive: true,
       }).select("+pin")
 
+      const accountKey = user
+        ? `pin:${String(data.tenantId)}:${user._id}`
+        : null
+      if (accountKey && (await rejectIfAccountLocked(res, accountKey))) return
+
       if (!user || !user.pin) {
         recordLoginFailure(req)
+        if (accountKey) await recordAccountFailure(accountKey)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -119,6 +148,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       const valid = await user.comparePin(data.employeePin)
       if (!valid) {
         recordLoginFailure(req)
+        if (accountKey) await recordAccountFailure(accountKey)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
@@ -133,6 +163,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       const locationId = await resolveLocationId(tenantId, data.locationId, res)
       if (locationId === null) return
       clearLoginFailures(req)
+      if (accountKey) await clearAccountFailures(accountKey)
 
       const token = signJwt(
         {
