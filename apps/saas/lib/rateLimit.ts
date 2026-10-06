@@ -86,3 +86,8 @@ export async function rateLimit(
 
   return rateLimitMemory(identifier, limit, windowMs)
 }
+
+/** Solo para tests: vacía el backend en memoria. */
+export function __resetRateLimitForTests(): void {
+  memoryMap.clear()
+}

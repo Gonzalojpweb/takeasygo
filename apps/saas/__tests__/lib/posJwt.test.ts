@@ -9,6 +9,7 @@ import {
   __resetPosJwtKeyCacheForTests,
   POS_PUBLIC_KEY_FALLBACK,
 } from '@/lib/posJwt'
+import { denyJti, __resetJtiDenylistForTests } from '@/lib/jtiDenylist'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const PRIVATE_PEM = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string
@@ -17,6 +18,8 @@ const PUBLIC_PEM = publicKey.export({ type: 'spki', format: 'pem' }) as string
 const ORIGINAL_ENV = {
   POS_JWT_PUBLIC_KEY: process.env.POS_JWT_PUBLIC_KEY,
   SSO_JWT_PUBLIC_KEY: process.env.SSO_JWT_PUBLIC_KEY,
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   NODE_ENV: process.env.NODE_ENV,
 }
 
@@ -26,6 +29,12 @@ function restoreEnv() {
 
   if (ORIGINAL_ENV.SSO_JWT_PUBLIC_KEY === undefined) delete process.env.SSO_JWT_PUBLIC_KEY
   else process.env.SSO_JWT_PUBLIC_KEY = ORIGINAL_ENV.SSO_JWT_PUBLIC_KEY
+
+  if (ORIGINAL_ENV.UPSTASH_REDIS_REST_URL === undefined) delete process.env.UPSTASH_REDIS_REST_URL
+  else process.env.UPSTASH_REDIS_REST_URL = ORIGINAL_ENV.UPSTASH_REDIS_REST_URL
+
+  if (ORIGINAL_ENV.UPSTASH_REDIS_REST_TOKEN === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN
+  else process.env.UPSTASH_REDIS_REST_TOKEN = ORIGINAL_ENV.UPSTASH_REDIS_REST_TOKEN
 
   if (ORIGINAL_ENV.NODE_ENV === undefined) delete process.env.NODE_ENV
   else process.env.NODE_ENV = ORIGINAL_ENV.NODE_ENV
@@ -54,12 +63,16 @@ function craftToken(
 beforeEach(() => {
   delete process.env.POS_JWT_PUBLIC_KEY
   delete process.env.SSO_JWT_PUBLIC_KEY
+  delete process.env.UPSTASH_REDIS_REST_URL
+  delete process.env.UPSTASH_REDIS_REST_TOKEN
   __resetPosJwtKeyCacheForTests()
+  __resetJtiDenylistForTests()
 })
 
 afterEach(() => {
   restoreEnv()
   __resetPosJwtKeyCacheForTests()
+  __resetJtiDenylistForTests()
 })
 
 describe('extractBearerToken', () => {
@@ -160,7 +173,7 @@ describe('keyFingerprint', () => {
 })
 
 describe('verifyPosToken', () => {
-  it('verifica un token emitido con la clave configurada y exige su kid', () => {
+  it('verifica un token emitido con la clave configurada y exige su kid', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
     __resetPosJwtKeyCacheForTests()
 
@@ -168,7 +181,7 @@ describe('verifyPosToken', () => {
     const header = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString('utf-8'))
     expect(header.kid).toBe(keyFingerprint(PUBLIC_PEM))
 
-    const payload = verifyPosToken(token)
+    const payload = await verifyPosToken(token)
 
     expect(payload).not.toBeNull()
     expect(payload!.sub).toBe(basePayload.sub)
@@ -177,23 +190,32 @@ describe('verifyPosToken', () => {
     expect(payload!.locationId).toBe(basePayload.locationId)
   })
 
-  it('rechaza un token firmado por otra clave', () => {
+  it('el payload trae jti (base de la revocación en logout, S1-5)', async () => {
+    process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
+    __resetPosJwtKeyCacheForTests()
+
+    const token = signJwt(basePayload, PRIVATE_PEM)
+    const payload = await verifyPosToken(token)
+    expect(payload?.jti).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
+  it('rechaza un token firmado por otra clave', async () => {
     const other = generateKeyPairSync('rsa', { modulusLength: 2048 })
     const token = signJwt(
       basePayload,
       other.privateKey.export({ type: 'pkcs8', format: 'pem' }) as string
     )
-    expect(verifyPosToken(token)).toBeNull()
+    expect(await verifyPosToken(token)).toBeNull()
   })
 
-  it('rechaza un token expirado', () => {
+  it('rechaza un token expirado', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
     __resetPosJwtKeyCacheForTests()
     const token = signJwt(basePayload, PRIVATE_PEM, -1000)
-    expect(verifyPosToken(token)).toBeNull()
+    expect(await verifyPosToken(token)).toBeNull()
   })
 
-  it('rechaza un payload manipulado (firma rota)', () => {
+  it('rechaza un payload manipulado (firma rota)', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
     __resetPosJwtKeyCacheForTests()
 
@@ -203,23 +225,23 @@ describe('verifyPosToken', () => {
       JSON.stringify({ ...JSON.parse(Buffer.from(payload, 'base64url').toString()), role: 'admin' })
     ).toString('base64url')
 
-    expect(verifyPosToken(`${header}.${forged}.${signature}`)).toBeNull()
+    expect(await verifyPosToken(`${header}.${forged}.${signature}`)).toBeNull()
   })
 
-  it('rechaza un token vacío o malformado', () => {
-    expect(verifyPosToken('')).toBeNull()
-    expect(verifyPosToken('un-token')).toBeNull()
-    expect(verifyPosToken('a.b.c')).toBeNull()
+  it('rechaza un token vacío o malformado', async () => {
+    expect(await verifyPosToken('')).toBeNull()
+    expect(await verifyPosToken('un-token')).toBeNull()
+    expect(await verifyPosToken('a.b.c')).toBeNull()
   })
 
-  it('rechaza un token HS256 (no RS256) aunque la clave fuera la misma', () => {
+  it('rechaza un token HS256 (no RS256) aunque la clave fuera la misma', async () => {
     const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url')
     const data = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64(basePayload)}`
     const sig = createHmac('sha256', PUBLIC_PEM).update(data).digest('base64url')
-    expect(verifyPosToken(`${data}.${sig}`)).toBeNull()
+    expect(await verifyPosToken(`${data}.${sig}`)).toBeNull()
   })
 
-  it('FAIL-CLOSED (kid): rechaza un token SIN kid aunque la firma sea válida', () => {
+  it('FAIL-CLOSED (kid): rechaza un token SIN kid aunque la firma sea válida', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
     __resetPosJwtKeyCacheForTests()
 
@@ -227,10 +249,10 @@ describe('verifyPosToken', () => {
     const data = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64(basePayload)}`
     const sig = createSign('RSA-SHA256').update(data).sign(PRIVATE_PEM, 'base64url')
 
-    expect(verifyPosToken(`${data}.${sig}`)).toBeNull()
+    expect(await verifyPosToken(`${data}.${sig}`)).toBeNull()
   })
 
-  it('FAIL-CLOSED (kid): rechaza kid distinto aunque la firma sea válida', () => {
+  it('FAIL-CLOSED (kid): rechaza kid distinto aunque la firma sea válida', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
     __resetPosJwtKeyCacheForTests()
 
@@ -239,22 +261,61 @@ describe('verifyPosToken', () => {
       typ: 'JWT',
       kid: 'deadbeefdeadbeefdeadbeefdeadbeef',
     })
-    expect(verifyPosToken(token)).toBeNull()
+    expect(await verifyPosToken(token)).toBeNull()
   })
 
-  it('FAIL-CLOSED (env): con la env corrupta devuelve null en vez de usar el respaldo', () => {
+  it('FAIL-CLOSED (env): con la env corrupta devuelve null en vez de usar el respaldo', async () => {
     process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM.replace('MII', 'MIIclear', 1)
     __resetPosJwtKeyCacheForTests()
 
     const token = signJwt(basePayload, PRIVATE_PEM)
-    expect(verifyPosToken(token)).toBeNull()
+    expect(await verifyPosToken(token)).toBeNull()
   })
 
-  it('FAIL-CLOSED (prod): sin env en producción devuelve null', () => {
+  it('FAIL-CLOSED (prod): sin env en producción devuelve null', async () => {
     process.env.NODE_ENV = 'production'
     __resetPosJwtKeyCacheForTests()
 
     const token = signJwt(basePayload, PRIVATE_PEM)
-    expect(verifyPosToken(token)).toBeNull()
+    expect(await verifyPosToken(token)).toBeNull()
+  })
+
+  it('FAIL-CLOSED (jti): rechaza un token SIN jti aunque kid y firma sean válidos', async () => {
+    process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
+    __resetPosJwtKeyCacheForTests()
+
+    // Firma correcta con kid correcto, pero sin jti (token pre-S1-5):
+    // no hay cómo revocarlo, así que no puede dar por válido.
+    const token = craftToken(
+      { alg: 'RS256', typ: 'JWT', kid: keyFingerprint(PUBLIC_PEM) },
+      { ...basePayload, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 600 }
+    )
+    expect(await verifyPosToken(token)).toBeNull()
+  })
+
+  it('REVOCADO (S1-5): devuelve null cuando el jti está en la denylist', async () => {
+    process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
+    __resetPosJwtKeyCacheForTests()
+
+    const token = signJwt(basePayload, PRIVATE_PEM)
+    const payload = await verifyPosToken(token)
+    expect(payload).not.toBeNull()
+
+    await denyJti(payload!.jti!, 600)
+    expect(await verifyPosToken(token)).toBeNull()
+  })
+
+  it('un jti revocado NO afecta a otros tokens', async () => {
+    process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
+    __resetPosJwtKeyCacheForTests()
+
+    const revoked = signJwt(basePayload, PRIVATE_PEM)
+    const other = signJwt(basePayload, PRIVATE_PEM)
+    const revokedJti = (await verifyPosToken(revoked))!.jti!
+
+    await denyJti(revokedJti, 600)
+
+    expect(await verifyPosToken(revoked)).toBeNull()
+    expect(await verifyPosToken(other)).not.toBeNull()
   })
 })

@@ -25,21 +25,34 @@ export function syncRouter(
       const deviceSecret = await getDeviceSecret(auth.tenantId)
       const eventsFallidos: { id: string; reason: string }[] = []
 
-      if (deviceSecret) {
-        for (const event of events) {
-          const result = await validateEvent(event, deviceSecret, auth.tenantId)
-          if (!result.valid) {
-            eventsFallidos.push({ id: event.id, reason: result.reason })
-          }
-        }
+      if (!deviceSecret) {
+        // Fail-closed (S1): sin secreto no hay forma de verificar la
+        // firma de los eventos. Aceptarlos acá sería un fail-open sobre
+        // la integridad de las ventas offline. El POS no empaqueta
+        // eventos sin secreto — este 400 es defensa en profundidad.
+        console.error(
+          `[sync/replay] FAIL-CLOSED: tenantId=${auth.tenantId} sin deviceSecret, rechazando ${events.length} eventos`
+        )
+        res.status(400).json({
+          error: "Device secret not configured",
+          eventsFallidos: events.map((e: { id: string }) => ({ id: e.id, reason: "missing_device_secret" })),
+        })
+        return
+      }
 
-        if (eventsFallidos.length > 0) {
-          res.status(400).json({
-            error: "Event signature validation failed",
-            eventsFallidos,
-          })
-          return
+      for (const event of events) {
+        const result = await validateEvent(event, deviceSecret, auth.tenantId)
+        if (!result.valid) {
+          eventsFallidos.push({ id: event.id, reason: result.reason })
         }
+      }
+
+      if (eventsFallidos.length > 0) {
+        res.status(400).json({
+          error: "Event signature validation failed",
+          eventsFallidos,
+        })
+        return
       }
 
       // Process order status events and forward to SaaS
