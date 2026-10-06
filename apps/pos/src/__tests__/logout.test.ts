@@ -91,8 +91,19 @@ describe("revokeSession", () => {
     expect(result).toEqual({ sync: false, saas: true })
   })
 
-  it("responde 401/404 igual cuenta como no revocado (res.ok false)", async () => {
+  it("401 en ambos lados cuenta como revocado (ese lado ya no tiene token vivo)", async () => {
+    // Ronda 2, defecto 1c: el reintento tras un 503 llega con el jti ya en
+    // la memoria local del servidor → 401. Eso es ÉXITO de revocación, no
+    // un fallo a reintentar.
     fetchMock.mockResolvedValue(jsonResponse({ error: "No autorizado" }, 401))
+
+    const result = await revokeSession(TOKEN)
+
+    expect(result).toEqual({ sync: true, saas: true })
+  })
+
+  it("404/500 no cuentan como revocado (queda en la cola de reintentos)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ error: "Not found" }, 404))
 
     const result = await revokeSession(TOKEN)
 
@@ -190,6 +201,75 @@ describe("reintento en memoria (G2)", () => {
 
       await vi.advanceTimersByTimeAsync(120_000)
       expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
+  })
+
+  it("503 y luego 401: el reintento da por confirmada la revocación (defecto 1)", async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockResolvedValue(
+        jsonResponse({ error: "Revocación no persistida", code: "revoke_unavailable" }, 503)
+      )
+
+      const first = await revokeSession(TOKEN)
+      expect(first).toEqual({ sync: false, saas: false })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+
+      // El servidor ya lo tenía en memoria local: el reintento contesta 401
+      // en ambos lados. Eso cuenta como revocado y corta la cadena.
+      fetchMock.mockResolvedValue(jsonResponse({ error: "No autorizado" }, 401))
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+
+      // Sin reintentos adicionales: 401 ya no es "lado fallido".
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+    } finally {
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
+  })
+
+  it("dos logouts con revoke parcial: los timers son POR TOKEN (defecto 2)", async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockRejectedValue(new TypeError("Failed to fetch"))
+
+      await revokeSession("token-A") // 2 llamadas
+      await revokeSession("token-B") // 2 llamadas (NO debe cancelar el timer de A)
+
+      await vi.advanceTimersByTimeAsync(10_000)
+      // A reintenta (2) y B reintenta (2): 4 más = 8 en total.
+      expect(fetchMock).toHaveBeenCalledTimes(8)
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      // Tercer intento de ambos: 4 más = 12.
+      expect(fetchMock).toHaveBeenCalledTimes(12)
+
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(12)
+    } finally {
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
+  })
+
+  it("re-ingreso del MISMO token reemplaza su timer (no duplica reintentos)", async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockRejectedValue(new TypeError("Failed to fetch"))
+
+      await revokeSession(TOKEN) // 2 llamadas
+      await revokeSession(TOKEN) // 2 más; cancela y reemplaza SU timer
+
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(fetchMock).toHaveBeenCalledTimes(6) // 4 + 2 (una sola cadena)
+
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(8) // último intento, sin duplicados
     } finally {
       vi.useRealTimers()
       __resetRevokeRetriesForTests()

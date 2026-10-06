@@ -8,26 +8,36 @@ import type { JwtPayload } from "@takeasygo/types"
 // (pm2 con un único proceso en EC2). Con varios procesos cada uno solo
 // vería sus propios sockets: el logout desconecta los del proceso que
 // atiende la petición, y el re-chequeo por heartbeat tumba el resto.
+//
+// Además del disconnect DIRECTO en logout y el re-chequeo por heartbeat,
+// hay un barrido server-side cada 30s (ronda 2, defecto 3): un cliente
+// comprometido que no responde pings no sobrevive a su token vencido ni
+// a su jti revocado, sin depender de su cooperación.
 // ============================================================================
 
-const socketsByJti = new Map<string, Set<Socket>>()
+interface RegisteredJti {
+  auth: JwtPayload
+  sockets: Set<Socket>
+}
+
+const socketsByJti = new Map<string, RegisteredJti>()
 
 /** Conexión autenticada: queda indexada por su jti. */
-export function registerSocket(jti: string, socket: Socket): void {
-  let ids = socketsByJti.get(jti)
-  if (!ids) {
-    ids = new Set()
-    socketsByJti.set(jti, ids)
+export function registerSocket(jti: string, socket: Socket, auth: JwtPayload): void {
+  let entry = socketsByJti.get(jti)
+  if (!entry) {
+    entry = { auth, sockets: new Set() }
+    socketsByJti.set(jti, entry)
   }
-  ids.add(socket)
+  entry.sockets.add(socket)
 }
 
 /** Desconexión: se retira del índice de su jti. */
 export function unregisterSocket(jti: string, socket: Socket): void {
-  const ids = socketsByJti.get(jti)
-  if (!ids) return
-  ids.delete(socket)
-  if (ids.size === 0) socketsByJti.delete(jti)
+  const entry = socketsByJti.get(jti)
+  if (!entry) return
+  entry.sockets.delete(socket)
+  if (entry.sockets.size === 0) socketsByJti.delete(jti)
 }
 
 /**
@@ -36,10 +46,10 @@ export function unregisterSocket(jti: string, socket: Socket): void {
  * que además lo retira del índice.
  */
 export function disconnectSocketsByJti(jti: string): number {
-  const ids = socketsByJti.get(jti)
-  if (!ids || ids.size === 0) return 0
+  const entry = socketsByJti.get(jti)
+  if (!entry || entry.sockets.size === 0) return 0
   let disconnected = 0
-  for (const socket of ids) {
+  for (const socket of entry.sockets) {
     socket.disconnect(true)
     disconnected++
   }
@@ -50,6 +60,34 @@ export function disconnectSocketsByJti(jti: string): number {
 /** ¿El token de este socket ya venció? (re-chequeo en heartbeat). */
 export function socketAuthExpired(auth: JwtPayload, nowMs: number = Date.now()): boolean {
   return (auth.exp ?? 0) * 1000 <= nowMs
+}
+
+/**
+ * Barrido server-side (ronda 2, defecto 3): tumba sockets cuyo token ya
+ * venció o cuyo jti está en la denylist, INDEPENDIENTEMENTE del heartbeat
+ * del cliente. Devuelve cuántos sockets tumbaron expiración y cuántos el veto.
+ *
+ * `isDenied` puede lanzar (Redis caído): en ese caso este jti queda para
+ * el próximo barrido — mismo fail-open que isJtiDenied.
+ */
+export async function sweepSockets(
+  isDenied: (jti: string) => Promise<boolean>,
+  nowMs: number = Date.now()
+): Promise<{ expired: number; denied: number }> {
+  let expired = 0
+  let denied = 0
+  for (const [jti, entry] of [...socketsByJti]) {
+    if (socketAuthExpired(entry.auth, nowMs)) {
+      expired += disconnectSocketsByJti(jti)
+      continue
+    }
+    try {
+      if (await isDenied(jti)) denied += disconnectSocketsByJti(jti)
+    } catch {
+      // Chequeo fallido: fail-open, se revisa en el próximo barrido.
+    }
+  }
+  return { expired, denied }
 }
 
 /** Solo para tests. */

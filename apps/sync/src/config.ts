@@ -74,4 +74,10 @@ export const config = {
     process.env.SOCKET_HEARTBEAT_TIMEOUT ?? "90000",
     10
   ),
+  // Barrido server-side de sockets vencidos/revocados (S1-5 ronda 2):
+  // independiente del heartbeat, no depende de la cooperación del cliente.
+  socketSweepIntervalMs: parseInt(
+    process.env.SOCKET_SWEEP_INTERVAL_MS ?? "30000",
+    10
+  ),
 }

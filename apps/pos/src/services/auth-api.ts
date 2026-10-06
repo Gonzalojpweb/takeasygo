@@ -85,7 +85,11 @@ async function postRevoke(url: string, accessToken: string): Promise<boolean> {
       headers: { Authorization: `Bearer ${accessToken}` },
       signal: controller.signal,
     })
-    return res.ok
+    // 401 = ese lado ya no acepta el token (revocado, expirado o inválido):
+    // la revocación de HECHO está lograda, no hay nada que reintentar.
+    // Clave para el reintento tras un 503: la memoria local del servidor
+    // ya lo tenía denylisteado y el segundo intento contesta 401.
+    return res.ok || res.status === 401
   } catch {
     // Red caída, timeout o abort: el logout LOCAL igual sigue. Best-effort.
     return false
@@ -101,7 +105,10 @@ async function postRevoke(url: string, accessToken: string): Promise<boolean> {
  * parcial deja el otro lado cubierto y el token local se tira igual.
  *
  * Si un lado no confirma (503 o red caída), se reintenta EN MEMORIA:
- * 3 envíos con backoff (~10s, ~30s; ventana <60s). El token NO se
+ * 3 envíos con backoff (~10s, ~30s; ventana <60s), con timer por token.
+ * Un 401 en la respuesta ya cuenta como confirmado (ese lado no acepta
+ * el token: revocado/expirado/inválido = sin token vivo que temer).
+ * El token NO se
  * persiste en ningún lado — guardarlo en localStorage sería una
  * regresión (credencial viva legible por cualquier XSS). Sin red en esa
  * ventana queda el residual de ≤30 min (exp), que F1 cierra con
@@ -111,7 +118,9 @@ async function postRevoke(url: string, accessToken: string): Promise<boolean> {
  * antes de llamar (mismo criterio que pos-api saasUrl()).
  */
 export async function revokeSession(accessToken: string): Promise<RevokeResult> {
-  clearPendingRevoke()
+  // Solo cancela reintentos PREVIOS de ESTE token (re-ingreso del mismo
+  // logout). Otros tokens en vuelo conservan sus timers (defecto 2).
+  clearPendingRevoke(accessToken)
   const result = await revokeRemaining(accessToken, { sync: false, saas: false })
 
   const retry = sidesWorthRetrying(result)
@@ -156,12 +165,21 @@ function sidesWorthRetrying(prev: RevokeResult): { sync: boolean; saas: boolean 
 // documentamos.
 const REVOKE_RETRY_DELAYS_MS = [10_000, 30_000]
 
-let pendingRetryTimer: ReturnType<typeof setTimeout> | null = null
+// Timer de reintento POR TOKEN (ronda 2, defecto 2): dos logouts seguidos
+// (turnover de caja) no se pisan — el segundo solo cancela/reemplaza su
+// propio timer, nunca el del token anterior.
+const pendingRetryTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
-function clearPendingRevoke(): void {
-  if (pendingRetryTimer !== null) {
-    clearTimeout(pendingRetryTimer)
-    pendingRetryTimer = null
+function clearPendingRevoke(accessToken?: string): void {
+  if (accessToken === undefined) {
+    for (const timer of pendingRetryTimers.values()) clearTimeout(timer)
+    pendingRetryTimers.clear()
+    return
+  }
+  const timer = pendingRetryTimers.get(accessToken)
+  if (timer !== undefined) {
+    clearTimeout(timer)
+    pendingRetryTimers.delete(accessToken)
   }
 }
 
@@ -170,7 +188,7 @@ function scheduleRevokeRetry(
   prev: RevokeResult,
   attempt: number
 ): void {
-  clearPendingRevoke()
+  clearPendingRevoke(accessToken)
 
   if (attempt > REVOKE_RETRY_DELAYS_MS.length) {
     console.error(
@@ -181,8 +199,8 @@ function scheduleRevokeRetry(
     return
   }
 
-  pendingRetryTimer = setTimeout(async () => {
-    pendingRetryTimer = null
+  const timer = setTimeout(async () => {
+    pendingRetryTimers.delete(accessToken)
     const next = await revokeRemaining(accessToken, prev)
     if (next.sync && next.saas) {
       console.log(`[logout] revocación confirmada en el intento ${attempt + 1}`)
@@ -191,9 +209,10 @@ function scheduleRevokeRetry(
     console.warn(`[logout] revocación aún parcial (intento ${attempt + 1}):`, next)
     scheduleRevokeRetry(accessToken, next, attempt + 1)
   }, REVOKE_RETRY_DELAYS_MS[attempt - 1])
+  pendingRetryTimers.set(accessToken, timer)
 }
 
-/** Solo para tests: cancela los reintentos pendientes. */
+/** Solo para tests: cancela TODOS los reintentos pendientes. */
 export function __resetRevokeRetriesForTests(): void {
   clearPendingRevoke()
 }
