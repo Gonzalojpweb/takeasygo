@@ -1,6 +1,7 @@
 import { createPublicKey, timingSafeEqual } from 'node:crypto'
 import { keyFingerprint, verifyJwt } from '@takeasygo/business/jwt'
 import type { JwtPayload } from '@takeasygo/types'
+import { isJtiDenied } from '@/lib/jtiDenylist'
 
 /**
  * Verificación del JWT RS256 emitido por apps/sync (Sync Layer / EC2).
@@ -22,6 +23,9 @@ import type { JwtPayload } from '@takeasygo/types'
  * 3. Cada token trae `kid` (huella sha256-32 de la clave firmante, puesta
  *    por signJwt). Sin kid o con kid distinto → rechazado, aunque la
  *    firma sea válida.
+ * 4. (S1-5) Cada token trae `jti` y `verifyPosToken` consulta la denylist
+ *    antes de aceptarlo: un logout revoca al instante. Token sin `jti`
+ *    (emitido antes de S1-5) → rechazado, igual que sin kid.
  *
  * Módulo SERVER-ONLY: usa `node:crypto`. Solo lo importan route handlers.
  */
@@ -143,12 +147,28 @@ function kidMatches(expected: string, actual: string): boolean {
   return timingSafeEqual(a, b)
 }
 
+/** Opciones de verifyPosToken (S1-5 r3). */
+export interface VerifyPosTokenOptions {
+  /**
+   * Solo el logout lo setea: el POST /api/auth/logout debe llegar aunque
+   * el jti ya esté vetado, porque su tarea es reintentar la escritura
+   * durable y responder 200 (si quedó en Upstash) o 503 (si no).
+   * El resto de las rutas consulta la denylist como siempre.
+   */
+  skipDenylistCheck?: boolean
+}
+
 /**
  * Verifica un token POS RS256. Devuelve el payload o null si es inválido:
- * env mal configurada (fail-closed), kid ausente/distinto, firma o expiración.
+ * env mal configurada (fail-closed), kid ausente/distinto, firma o
+ * expiración, token sin `jti` o `jti` revocado (denylist de logout, salvo
+ * `opts.skipDenylistCheck` en el logout idempotente).
  * Nunca usar `decodeJwt` para autorizar.
  */
-export function verifyPosToken(token: string): JwtPayload | null {
+export async function verifyPosToken(
+  token: string,
+  opts: VerifyPosTokenOptions = {}
+): Promise<JwtPayload | null> {
   if (!token) return null
 
   let resolved: ResolvedPosKey
@@ -175,7 +195,21 @@ export function verifyPosToken(token: string): JwtPayload | null {
     return null
   }
 
-  return verifyJwt(token, resolved.pem)
+  const payload = verifyJwt(token, resolved.pem)
+  if (!payload) return null
+
+  // S1-5: sin jti no hay forma de revocarlo → rechazado (como sin kid).
+  if (!payload.jti) {
+    console.error('[posJwt] token sin jti: rechazado (S1-5).')
+    return null
+  }
+
+  if (!opts.skipDenylistCheck && (await isJtiDenied(payload.jti))) {
+    console.error(`[posJwt] token revocado (jti deny-listeado): sub=${payload.sub} tenantId=${payload.tenantId}`)
+    return null
+  }
+
+  return payload
 }
 
 /** Extrae un token Bearer del header Authorization. Devuelve null si no hay. */

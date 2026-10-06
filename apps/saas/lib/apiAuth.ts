@@ -59,7 +59,7 @@ export async function getSessionUser(request?: NextRequest) {
   // Es la vía que habilita POS → SaaS sin crear un segundo login.
   const bearer = extractBearerToken(request.headers.get('authorization'))
   if (bearer) {
-    const payload = verifyPosToken(bearer)
+    const payload = await verifyPosToken(bearer)
     if (payload?.sub && payload.tenantId && payload.role) {
       return toSessionFromPosToken(payload)
     }

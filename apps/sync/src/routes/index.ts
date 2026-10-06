@@ -3,10 +3,10 @@ import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { authMiddleware } from "../auth/middleware"
 import { tenantMiddleware } from "../middleware/tenant"
-import { rateLimiter } from "../middleware/rate-limiter"
+import { rateLimiter, logoutIpRateLimiter } from "../middleware/rate-limiter"
 import { requestIdMiddleware } from "../middleware/request-id"
 import { healthRouter } from "./health"
-import { authRouter } from "./auth"
+import { authRouter, logoutRouter } from "./auth"
 import { ordersRouter } from "./orders"
 import { menuRouter } from "./menu"
 import { syncRouter } from "./sync"
@@ -44,9 +44,14 @@ export function createRouter(
   // Z Report view — token-based auth, no JWT required (mounted before authMiddleware)
   router.use("/z-report", zReportViewRouter())
 
+  // Logout por IP — ANTES de verificar (S1-5): 60/min por IP, holgado
+  // para que todas las tablets de un local cierren turno sin chocar.
+  router.use("/auth/logout", logoutIpRateLimiter)
   router.use(authMiddleware)
   router.use(tenantMiddleware)
 
+  // Logout (S1-5): después de authMiddleware — exige token válido con jti.
+  router.use("/auth", logoutRouter)
   router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue, complianceQueue))
   router.use("/menu", menuRouter())
   router.use("/locations", locationsRouter())
