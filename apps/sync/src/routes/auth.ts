@@ -9,6 +9,7 @@ import {
   recordLoginFailure,
   clearLoginFailures,
 } from "../middleware/rate-limiter"
+import { denyJti } from "../auth/jtiDenylist"
 import { UserModel, LocationModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
 
@@ -159,6 +160,27 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
     res.status(400).json({ error: "Invalid login mode" })
   } catch (err) {
     console.error("[auth] login error:", err)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+// ============================================================================
+// Logout (S1-5) — SE MONTA DESPUÉS de authMiddleware (ver routes/index.ts):
+// necesita req.auth (con jti/exp) que solo el middleware completo arma.
+// El POS llama a sync Y a saas en el mismo logout: cada verificador tiene
+// su propia denylist (Redis local acá, Upstash allá).
+// ============================================================================
+export const logoutRouter = Router()
+
+logoutRouter.post("/logout", async (req, res) => {
+  try {
+    const auth = req.auth!
+    const ttl = Math.max(auth.exp - Math.floor(Date.now() / 1000), 0) + 60
+    await denyJti(auth.jti, ttl)
+    console.log(`[auth] logout revocado | sub=${auth.sub} tenantId=${auth.tenantId} ttl=${ttl}s`)
+    res.json({ revoked: true })
+  } catch (err) {
+    console.error("[auth] logout error:", err)
     res.status(500).json({ error: "Internal server error" })
   }
 })

@@ -1,6 +1,6 @@
 import * as jwt from "jsonwebtoken"
 import type { JwtPayload } from "@takeasygo/types"
-import { createHash, createPublicKey } from "node:crypto"
+import { createHash, createPublicKey, randomUUID } from "node:crypto"
 
 // ============================================================================
 // TTL Constants — Según SECURITYPOS.md sección 4.2
@@ -51,7 +51,9 @@ export function signJwt(
   const now = Math.floor(Date.now() / 1000)
   const exp = now + Math.floor(expiresInMs / 1000)
 
-  const fullPayload: JwtPayload = { ...payload, iat: now, exp }
+  // jti (S1-5): siempre fresco, pisa cualquier jti que traiga el caller.
+  // Es la clave con la que logout lo pone en la denylist (saas y sync).
+  const fullPayload: JwtPayload = { ...payload, jti: randomUUID(), iat: now, exp }
 
   // kid = huella de la clave con la que se firma. Si la clave no parsea,
   // jwt.sign falla igual al firmar, así que un kid ausente solo adelanta

@@ -18,6 +18,12 @@ export interface JwtPayload {
   deviceType: DeviceType
   /** Sede del POS (multi-sede). Ausente en POS single-sede (legacy). */
   locationId?: string
+  /**
+   * Identificador único del token (S1-5: revocación en logout).
+   * signJwt SIEMPRE lo genera; opcional en el tipo porque tokens viejos
+   * (emitidos antes de S1-5) no lo traen y deben ser rechazados.
+   */
+  jti?: string
   iat: number
   exp: number
 }
