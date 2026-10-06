@@ -11,7 +11,9 @@ import crypto from 'crypto'
  *     estar dentro del body firmado, no puede manipularse sin romper la firma.
  *
  * La firma es obligatoria. El caso sandbox de FUDO (que puede omitirla) solo
- * se habilita con `POS_WEBHOOK_ALLOW_UNSIGNED=1` en el entorno.
+ * se habilita con `POS_WEBHOOK_ALLOW_UNSIGNED=1` FUERA de producción: en
+ * producción la flag la ignora la ruta (y lo loguea) — acá solo decide el
+ * veredicto de `allowUnsigned` que esa ruta le pasa.
  */
 
 /** Ventana máxima de frescura del timestamp del payload (anti-replay). */
