@@ -25,13 +25,26 @@
  *  - `verifyDenylistStartupConfig()` al cargar el módulo: en producción
  *    sin Upstash, una línea CRÍTICA por arranque de instancia (franja
  *    horaria, no por request).
+ *
+ * Ronda 3 (S1-5):
+ *  - el flush perezoso corre DESPUÉS de la respuesta (after() de
+ *    next/server) y también al revocar (denyJti): no ensucia el latency;
+ *  - throttle de logs POR CATEGORÍA (read/write/flush/startup/overflow):
+ *    un fallo de lectura no tapa el de escritura ni el de la cola;
+ *  - cola con tope MAX_PENDING_DENY_WRITES (expulsa la más vieja);
+ *  - denyJti reescribe siempre: es la vía del logout idempotente (200 si
+ *    quedó en Upstash, 503 si no).
  */
+
+import { after } from 'next/server'
 
 const DENY_PREFIX = 'jwtDeny:'
 const MEMORY_MAX = 10_000
 const PENDING_RETRY_INTERVAL_MS = 5_000
 const LAZY_FLUSH_MIN_INTERVAL_MS = 10_000
 const LOG_THROTTLE_MS = 60_000
+/** Tope de la cola de escrituras pendientes (ronda 3, punto 5). */
+export const MAX_PENDING_DENY_WRITES = 10_000
 
 /** jti -> epoch ms en que deja de estar vigente el veto. */
 const memoryMap = new Map<string, number>()
@@ -41,11 +54,15 @@ const pendingWrites = new Map<string, number>()
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
 let lastLazyFlushAt = 0
 
-let lastErrorLogAt = 0
-function logErrorThrottled(message: string): void {
+// Throttle POR CATEGORÍA (ronda 3, punto 4): cada tipo de fallo tiene su
+// propio cupo de 1/min — un fail-open de lectura en cada auth no debe
+// tapar el log de una escritura fallida, ni el de la cola, ni el de arranque.
+const lastErrorLogAtByCategory = new Map<string, number>()
+function logErrorThrottled(category: string, message: string): void {
   const now = Date.now()
-  if (now - lastErrorLogAt < LOG_THROTTLE_MS) return
-  lastErrorLogAt = now
+  const last = lastErrorLogAtByCategory.get(category) ?? 0
+  if (now - last < LOG_THROTTLE_MS) return
+  lastErrorLogAtByCategory.set(category, now)
   console.error(message)
 }
 
@@ -104,6 +121,33 @@ function schedulePendingFlush(): void {
   pendingTimer.unref?.()
 }
 
+/**
+ * Encola una escritura fallida sin dejar que la cola crezca sin límite
+ * (ronda 3, punto 5): primero descarta vencidos; si sigue llena, expulsa
+ * la más vieja y deja UN log rate-limitado. La cola es mejor esfuerzo —
+ * la autoridad sigue siendo Upstash.
+ */
+function enqueuePendingWrite(jti: string, expAt: number): void {
+  if (pendingWrites.has(jti) || pendingWrites.size < MAX_PENDING_DENY_WRITES) {
+    pendingWrites.set(jti, expAt)
+    return
+  }
+  const now = Date.now()
+  for (const [key, exp] of pendingWrites) {
+    if (exp <= now) pendingWrites.delete(key)
+  }
+  while (pendingWrites.size >= MAX_PENDING_DENY_WRITES) {
+    const oldest = pendingWrites.keys().next().value
+    if (oldest === undefined) break
+    pendingWrites.delete(oldest)
+    logErrorThrottled(
+      'overflow',
+      `[jtiDenylist] cola pendingWrites llena (${MAX_PENDING_DENY_WRITES}): se descarta la escritura más vieja.`
+    )
+  }
+  pendingWrites.set(jti, expAt)
+}
+
 /** Reintenta las escrituras fallidas con el TTL restante de cada veto. */
 export async function flushPendingWrites(): Promise<void> {
   if (pendingWrites.size === 0) return
@@ -127,9 +171,23 @@ export async function flushPendingWrites(): Promise<void> {
       pendingWrites.delete(jti)
     }
   } catch (err) {
-    logErrorThrottled(`[jtiDenylist] reintento de escritura pendiente falló (${pendingWrites.size} en cola): ${err}`)
+    logErrorThrottled('flush', `[jtiDenylist] reintento de escritura pendiente falló (${pendingWrites.size} en cola): ${err}`)
   }
   if (pendingWrites.size > 0) schedulePendingFlush()
+}
+
+/**
+ * Ejecuta el flush DESPUÉS de enviar la respuesta (after() de next/server,
+ * ronda 3 punto 3): el request no lo espera y el trabajo sigue en el
+ * runtime de Vercel. Fuera de un scope de request (tests, scripts)
+ * after() lanza → se corre igual, sin esperar.
+ */
+function runAfterResponse(fn: () => Promise<void>): void {
+  try {
+    after(() => fn())
+  } catch {
+    void fn()
+  }
 }
 
 /**
@@ -142,7 +200,7 @@ function maybeFlushPending(): void {
   const now = Date.now()
   if (now - lastLazyFlushAt < LAZY_FLUSH_MIN_INTERVAL_MS) return
   lastLazyFlushAt = now
-  void flushPendingWrites()
+  runAfterResponse(() => flushPendingWrites())
 }
 
 /** ¿Este `jti` fue revocado (y su veto sigue vigente)? */
@@ -158,7 +216,7 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
   if (!upstashConfigured()) {
     // Fuera de producción, dev/test sin Upstash: la memoria de esta única
     // instancia es el backend y es coherente con las escrituras.
-    if (isProduction()) logErrorThrottled(NOT_CONFIGURED_MSG)
+    if (isProduction()) logErrorThrottled('startup', NOT_CONFIGURED_MSG)
     return false
   }
 
@@ -167,7 +225,7 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
     const value = await redis.get(DENY_PREFIX + jti)
     return value !== null && value !== undefined
   } catch (err) {
-    logErrorThrottled(`[jtiDenylist] Upstash no responde (fail-open): ${err}`)
+    logErrorThrottled('read', `[jtiDenylist] Upstash no responde (fail-open): ${err}`)
     return false
   }
 }
@@ -182,13 +240,19 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
  * revocación que no protege nada. El endpoint responde 503 y el POS
  * registra la revocación como parcial. Con Upstash caído → false y el
  * jti queda en la cola de reintentos (flush 5s + lazy).
+ *
+ * Ronda 3 (logout idempotente): con el jti YA vetado REESCRIBE en Upstash
+ * — no se saltea por veto previo — y devuelve true solo si la escritura
+ * quedó: el endpoint responde 200 si sí, 503 si no (nunca 401 por veto).
+ * Arranca con un flush perezoso para maximizar la chance de confirmación.
  */
 export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean> {
+  maybeFlushPending()
   const ttl = Math.max(1, Math.floor(ttlSeconds))
 
   if (!upstashConfigured()) {
     if (isProduction()) {
-      logErrorThrottled(NOT_CONFIGURED_MSG)
+      logErrorThrottled('startup', NOT_CONFIGURED_MSG)
       return false
     }
     // dev/test: un solo proceso, la memoria es backend válido.
@@ -208,9 +272,9 @@ export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean>
     await redis.set(DENY_PREFIX + jti, 1, { ex: ttl })
     return true
   } catch (err) {
-    pendingWrites.set(jti, now + ttl * 1000)
+    enqueuePendingWrite(jti, now + ttl * 1000)
     schedulePendingFlush()
-    logErrorThrottled(`[jtiDenylist] Upstash no responde al revocar (en cola de reintentos): ${err}`)
+    logErrorThrottled('write', `[jtiDenylist] Upstash no responde al revocar (en cola de reintentos): ${err}`)
     return false
   }
 }
@@ -223,7 +287,7 @@ export function __resetJtiDenylistForTests(): void {
     clearTimeout(pendingTimer)
     pendingTimer = null
   }
-  lastErrorLogAt = 0
+  lastErrorLogAtByCategory.clear()
   lastLazyFlushAt = 0
 }
 

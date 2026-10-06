@@ -17,14 +17,18 @@ import { config } from "../config"
 // Fail-open: Redis no responde → se acepta el token (disponibilidad del
 // POS por encima; `exp` sigue siendo el límite duro). Mismo criterio que
 // el lockout de login (S1-3). Las ESCRITURAS fallidas van a una cola que
-// este proceso reintenta cada 5s (siempre activo), y los logs de fallo
-// están rate-limitados a 1/min.
+// este proceso reintenta cada 5s (siempre activo), los logs de fallo están
+// rate-limitados a 1/min POR CATEGORÍA (read/write/flush) y la cola tiene
+// tope (MAX_PENDING_DENY_WRITES, expulsa la más vieja) para no crecer sin
+// límite en memoria mientras Redis esté caído.
 // ============================================================================
 
 const DENY_PREFIX = "jwtDeny:"
 const MEMORY_MAX = 10_000
 const PENDING_RETRY_INTERVAL_MS = 5_000
 const LOG_THROTTLE_MS = 60_000
+/** Tope de la cola de escrituras pendientes (S1-5 r3). */
+export const MAX_PENDING_DENY_WRITES = 10_000
 
 /** jti -> epoch ms en que deja de estar vigente el veto. */
 const memory = new Map<string, number>()
@@ -39,13 +43,16 @@ const memory = new Map<string, number>()
 const pendingWrites = new Map<string, number>()
 let pendingTimer: ReturnType<typeof setTimeout> | null = null
 
-// Log rate-limited (ronda 2, defecto 4): con Redis caído, un console.error
-// por VERIFICACIÓN de token inundaría los logs. Como mucho 1/min.
-let lastErrorLogAt = 0
-function logErrorThrottled(message: string): void {
+// Log rate-limited POR CATEGORÍA (ronda 3, punto 4): con Redis caído un
+// console.error por VERIFICACIÓN inundaría los logs, pero un fallo de
+// lectura no debe tapar el de escritura ni el de la cola: cada categoría
+// tiene su propio cupo de 1/min.
+const lastErrorLogAtByCategory = new Map<string, number>()
+function logErrorThrottled(category: string, message: string): void {
   const now = Date.now()
-  if (now - lastErrorLogAt < LOG_THROTTLE_MS) return
-  lastErrorLogAt = now
+  const last = lastErrorLogAtByCategory.get(category) ?? 0
+  if (now - last < LOG_THROTTLE_MS) return
+  lastErrorLogAtByCategory.set(category, now)
   console.error(message)
 }
 
@@ -95,7 +102,7 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
     return (await getRedis().get(DENY_PREFIX + jti)) !== null
   } catch {
     // Redis caído o desconectado: fail-open (ver comentario del header).
-    logErrorThrottled(`[jti-denylist] Redis no responde al revisar jti=${jti}: fail-open.`)
+    logErrorThrottled("read", `[jti-denylist] Redis no responde al revisar jti=${jti}: fail-open.`)
     return false
   }
 }
@@ -124,11 +131,39 @@ export async function flushPendingWrites(): Promise<void> {
       pendingWrites.delete(jti)
     } catch {
       logErrorThrottled(
+        "flush",
         `[jti-denylist] reintento de escritura pendiente falló (${pendingWrites.size} en cola): sigue el fail-open local.`
       )
     }
   }
   if (pendingWrites.size > 0) schedulePendingFlush()
+}
+
+/**
+ * Encola una escritura fallida sin dejar que la cola crezca sin límite
+ * (S1-5 r3): primero descarta vencidos; si sigue llena, expulsa la más
+ * vieja y deja UN log rate-limitado. La cola es mejor esfuerzo: la
+ * autoridad sigue siendo Redis.
+ */
+function enqueuePendingWrite(jti: string, expAt: number): void {
+  if (pendingWrites.has(jti) || pendingWrites.size < MAX_PENDING_DENY_WRITES) {
+    pendingWrites.set(jti, expAt)
+    return
+  }
+  const now = Date.now()
+  for (const [key, exp] of pendingWrites) {
+    if (exp <= now) pendingWrites.delete(key)
+  }
+  while (pendingWrites.size >= MAX_PENDING_DENY_WRITES) {
+    const oldest = pendingWrites.keys().next().value
+    if (oldest === undefined) break
+    pendingWrites.delete(oldest)
+    logErrorThrottled(
+      "overflow",
+      `[jti-denylist] cola pendingWrites llena (${MAX_PENDING_DENY_WRITES}): se descarta la escritura más vieja.`
+    )
+  }
+  pendingWrites.set(jti, expAt)
 }
 
 /**
@@ -153,9 +188,9 @@ export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean>
     await getRedis().set(DENY_PREFIX + jti, "1", "EX", ttl)
     return true
   } catch {
-    pendingWrites.set(jti, now + ttl * 1000)
+    enqueuePendingWrite(jti, now + ttl * 1000)
     schedulePendingFlush()
-    logErrorThrottled(`[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local + cola de reintentos (503 al cliente).`)
+    logErrorThrottled("write", `[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local + cola de reintentos (503 al cliente).`)
     return false
   }
 }
@@ -173,7 +208,7 @@ export function __resetJtiDenylistForTests(): void {
     clearTimeout(pendingTimer)
     pendingTimer = null
   }
-  lastErrorLogAt = 0
+  lastErrorLogAtByCategory.clear()
 }
 
 /** Solo para tests: jti con escritura en Redis pendiente. */

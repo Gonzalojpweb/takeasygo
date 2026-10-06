@@ -58,8 +58,7 @@ export async function authMiddleware(
       return
     }
 
-    // S1-5: sin jti no hay forma de revocarlo (token pre-S1-5) → 401, y si
-    // el jti está en la denylist el logout ya lo revocó → también 401.
+    // S1-5: sin jti no hay forma de revocarlo (token pre-S1-5) → 401.
     if (!payload.jti) {
       console.warn(`[auth] Token sin jti (pre-S1-5) | path=${req.path} sub=${payload.sub} tenantId=${payload.tenantId}`)
       res.status(401).json({
@@ -68,7 +67,14 @@ export async function authMiddleware(
       })
       return
     }
-    if (await isJtiDenied(payload.jti)) {
+    // Logout idempotente (S1-5 r3): el POST /auth/logout debe correr aunque
+    // el jti ya esté vetado — su tarea es REINTENTAR la escritura durable y
+    // responder 200 si quedó en Redis o 503 si no (nunca 401 por veto ya
+    // aplicado). Firma, exp, jti y el resto de las validaciones siguen
+    // aplicando igual para esa ruta.
+    const isLogoutRetry =
+      req.method === "POST" && /\/auth\/logout(?:\?|$)/.test(req.originalUrl ?? "")
+    if (!isLogoutRetry && (await isJtiDenied(payload.jti))) {
       console.warn(`[auth] Token revocado (denylist) | path=${req.path} sub=${payload.sub} tenantId=${payload.tenantId}`)
       res.status(401).json({
         error: "Invalid or expired token",
