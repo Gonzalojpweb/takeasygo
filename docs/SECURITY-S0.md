@@ -98,10 +98,10 @@
 1. **Webhook con firma obligatoria** — rama `fix/webhook-signature-required`, tests negativos: sin firma, firma inválida, body alterado, timestamp viejo/futuro, flag sandbox. **Hecho:** `cd0ece3` (49/49).
 2. Precios desde el catálogo en el server. **Hecho:** `fix/server-catalog-prices` @ `4e11b4e` (85/85 targeted, 730/730 suite; rechazo 409 si difiere).
 3. Lockout por cuenta (Redis). **Hecho:** `fix/login-lockout` @ `64a0440` (58/58).
-4. JWT fail-closed + `kid`. **Pendiente.**
-5. Logout completo. **Pendiente.**
+4. JWT fail-closed + `kid`. **Hecho:** `fix/jwt-fail-closed-kid` @ `a367c26` (+234/−36, saas 715/715, sync 50/50).
+5. Logout completo. **Hecho:** `fix/logout-total` @ `8e19cb3` + correcciones de revisión `3bff578`, `9d74a21`, `ef7e8a8` (saas 727/727, sync 68/68, pos 154/154).
 
-Estado: las 3 ramas están locales, sin push, sin merge — esperan tu revisión.
+Estado: las 5 ramas están locales, sin push, sin merge — esperan tu revisión.
 
 Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merge sin visto bueno**. Recién después de S1: `payOrder` → `docs/POS-FLOWS.md` → F1.
 
@@ -122,3 +122,60 @@ Reglas: **una rama por fix, tests negativos, diff pegado para revisión, no merg
 - Cross-tenant real contra prod con los 2 usuarios de prueba.
 - S1-4 (JWT fail-closed + `kid`) y S1-5 (logout) — S1-1/2/3 ya están en ramas esperando tu visto bueno.
 - Hallazgos nuevos post-S1-2 (pendientes de tu decisión): órdenes half-half 400 pre-existente, `priceRule` max/average 400 pre-existente, `unitPrice` del cliente aceptado en sync (candidato S1-2b).
+
+
+---
+
+## 5. Decisiones de la revisión (6-oct-2026, veredicto "G")
+
+S1-5 **aprobado con correcciones** (ya aplicadas en `fix/logout-total`);
+ningún deploy aprobado todavía.
+
+**G1 — Dexie: Opción A con 3 correcciones, con fecha escrita:**
+
+- "Non-extractable" **sube la vara, no la cierra**: impide copiar el
+  secreto, pero quien tenga DevTools en ese origen puede seguir usando la
+  clave. No se afirma "se ve solo ciphertext".
+- NO rechazar eventos por `event.userId != jwt.sub` (tras un cambio de
+  turno, otro usuario envía la cola del anterior y es legítimo): registrar
+  `createdBy` (del evento) y `sentBy` (del JWT) para auditoría, y rechazar
+  solo por tenant distinto.
+- El aviso de ventas sin enviar en el logout **avisa, no bloquea** (si el
+  logout viene por token vencido no hay a quién preguntarle).
+- **Límite: 2026-10-31 o antes del primer cliente real** (lo que llegue
+  primero). Incluye deviceSecret por dispositivo (parte del diseño de A).
+  Mientras solo haya tenants de prueba, C temporal es defendible.
+- **Hecho ya:** fail-closed de `/sync/replay` sin `deviceSecret` → 400
+  (commit `9d74a21`).
+
+**G2 — Correcciones de S1-5 (aplicadas):** 503 `revoke_unavailable` si la
+escritura en la denylist falla en ambos endpoints; fallo ruidoso
+(`console.error`) en producción sin Upstash y sin fingir revocación;
+reintento de revocación SOLO en memoria (3 envíos, backoff ~10s/~30s,
+ventana <60s, sin persistir tokens); rate limit 60/min por IP antes de
+verificar + 20/min por sub después; disconnect por `jti` + re-chequeo en
+heartbeat de denylist y `exp` vencido; sin header Authorization en los
+logs de sync. Commits `3bff578`, `9d74a21`, `ef7e8a8`.
+
+**G3 — Lint:** deuda general en `chore/lint-pre-f1` (commit aparte,
+antes de `payOrder`). Los `as any` de `socket/index.ts` (archivo ya
+tocado) y `res: any` de `routes/auth.ts` corregidos en `ef7e8a8`.
+
+**G4 — Vercel:** no se entrega token con lectura de env. Verificación
+manual en Settings → Environment Variables: ¿`MONGODB_URI` termina en
+`/nombre-de-base` o en el host a secas? Alternativa: marcador inofensivo
+escrito desde producción y visto en qué base aparece.
+
+**Gates antes de cualquier merge/deploy:**
+
+1. S0.2b: fingerprint de la clave de Vercel contra el `kid` que sync
+   emite, en un mismo comando, sin pegar claves.
+2. Qué dispara cada rama en Vercel (confirmar antes de mergear a una
+   rama que despliegue a producción).
+3. Los 5 puntos de S0 pendientes: roles en `/pos/*` (lo más serio: hoy
+   basta un token válido), CSP, CSRF/Origin, replay de `POST /orders`,
+   npm audit/gitleaks.
+4. Plan de rollback escrito y probado (saas + sync + variables).
+5. `UPSTASH_REDIS_REST_URL/TOKEN` existen en el scope **Production** de
+   Vercel.
+6. G4 resuelto.
