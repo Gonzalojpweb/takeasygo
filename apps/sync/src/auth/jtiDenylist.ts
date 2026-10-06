@@ -16,14 +16,38 @@ import { config } from "../config"
 //
 // Fail-open: Redis no responde → se acepta el token (disponibilidad del
 // POS por encima; `exp` sigue siendo el límite duro). Mismo criterio que
-// el lockout de login (S1-3).
+// el lockout de login (S1-3). Las ESCRITURAS fallidas van a una cola que
+// este proceso reintenta cada 5s (siempre activo), y los logs de fallo
+// están rate-limitados a 1/min.
 // ============================================================================
 
 const DENY_PREFIX = "jwtDeny:"
 const MEMORY_MAX = 10_000
+const PENDING_RETRY_INTERVAL_MS = 5_000
+const LOG_THROTTLE_MS = 60_000
 
 /** jti -> epoch ms en que deja de estar vigente el veto. */
 const memory = new Map<string, number>()
+
+/**
+ * Escrituras en Redis que fallaron (ronda 2, defecto 1): jti -> epoch ms en
+ * que expira el veto. Mientras Redis esté caído, un timer de este proceso
+ * reintenta con el TTL restante; así una caída transitoria no deja jtis
+ * sin persistir entre instancias/reinicios (el 503 + retry del POS cubre
+ * el mismo hueco desde el cliente).
+ */
+const pendingWrites = new Map<string, number>()
+let pendingTimer: ReturnType<typeof setTimeout> | null = null
+
+// Log rate-limited (ronda 2, defecto 4): con Redis caído, un console.error
+// por VERIFICACIÓN de token inundaría los logs. Como mucho 1/min.
+let lastErrorLogAt = 0
+function logErrorThrottled(message: string): void {
+  const now = Date.now()
+  if (now - lastErrorLogAt < LOG_THROTTLE_MS) return
+  lastErrorLogAt = now
+  console.error(message)
+}
 
 /** Superficie mínima de ioredis que usa esta lista (permite fake en tests). */
 export interface DenyRedisLike {
@@ -71,9 +95,40 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
     return (await getRedis().get(DENY_PREFIX + jti)) !== null
   } catch {
     // Redis caído o desconectado: fail-open (ver comentario del header).
-    console.error(`[jti-denylist] Redis no responde al revisar jti=${jti}: fail-open.`)
+    logErrorThrottled(`[jti-denylist] Redis no responde al revisar jti=${jti}: fail-open.`)
     return false
   }
+}
+
+function schedulePendingFlush(): void {
+  if (pendingTimer !== null) return
+  pendingTimer = setTimeout(() => {
+    pendingTimer = null
+    void flushPendingWrites()
+  }, PENDING_RETRY_INTERVAL_MS)
+  pendingTimer.unref?.()
+}
+
+/** Reintenta las escrituras fallidas con el TTL restante de cada veto. */
+export async function flushPendingWrites(): Promise<void> {
+  if (pendingWrites.size === 0) return
+  const now = Date.now()
+  for (const [jti, expAt] of [...pendingWrites]) {
+    if (expAt <= now) {
+      // El veto expiró: el propio token ya venció, no hay nada que persistir.
+      pendingWrites.delete(jti)
+      continue
+    }
+    try {
+      await getRedis().set(DENY_PREFIX + jti, "1", "EX", Math.ceil((expAt - now) / 1000))
+      pendingWrites.delete(jti)
+    } catch {
+      logErrorThrottled(
+        `[jti-denylist] reintento de escritura pendiente falló (${pendingWrites.size} en cola): sigue el fail-open local.`
+      )
+    }
+  }
+  if (pendingWrites.size > 0) schedulePendingFlush()
 }
 
 /**
@@ -83,19 +138,24 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
  *
  * Devuelve true solo si Redis lo confirmó. Si Redis no responde → false:
  * el endpoint responde 503 para que el POS registre la revocación como
- * PARCIAL y la reintente (la memoria local cubre este proceso igual).
+ * PARCIAL y la reintente (la memoria local cubre este proceso igual), y
+ * el jti queda en la cola de reintentos de este proceso (flush cada 5s
+ * con el TTL restante).
  */
 export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean> {
   const ttl = Math.max(1, Math.floor(ttlSeconds))
   const now = Date.now()
   memory.set(jti, now + ttl * 1000)
   memoryPrune(now)
+  pendingWrites.delete(jti)
 
   try {
     await getRedis().set(DENY_PREFIX + jti, "1", "EX", ttl)
     return true
   } catch {
-    console.error(`[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local (503 al cliente).`)
+    pendingWrites.set(jti, now + ttl * 1000)
+    schedulePendingFlush()
+    logErrorThrottled(`[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local + cola de reintentos (503 al cliente).`)
     return false
   }
 }
@@ -105,7 +165,18 @@ export function __setDenyRedisForTests(client: DenyRedisLike | null): void {
   redisForTests = client
 }
 
-/** Solo para tests: vacía el registro local. */
+/** Solo para tests: vacía el registro local, la cola y los timers. */
 export function __resetJtiDenylistForTests(): void {
   memory.clear()
+  pendingWrites.clear()
+  if (pendingTimer !== null) {
+    clearTimeout(pendingTimer)
+    pendingTimer = null
+  }
+  lastErrorLogAt = 0
+}
+
+/** Solo para tests: jti con escritura en Redis pendiente. */
+export function __getPendingDenyWritesForTests(): string[] {
+  return [...pendingWrites.keys()]
 }
