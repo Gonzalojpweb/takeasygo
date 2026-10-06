@@ -8,6 +8,11 @@ import { signJwt } from "@takeasygo/business/jwt"
 import { authMiddleware } from "../src/auth/middleware"
 import { logoutRouter } from "../src/routes/auth"
 import {
+  logoutIpRateLimiter,
+  checkLogoutSubLimit,
+  __resetLogoutLimitersForTests,
+} from "../src/middleware/rate-limiter"
+import {
   isJtiDenied,
   denyJti,
   __setDenyRedisForTests,
@@ -104,6 +109,7 @@ afterAll(async () => {
 beforeEach(() => {
   __resetJtiDenylistForTests()
   __setDenyRedisForTests(fakeRedis())
+  __resetLogoutLimitersForTests()
 })
 
 afterEach(() => {
@@ -142,7 +148,7 @@ describe("denylist (jtiDenylist)", () => {
     expect(await isJtiDenied("jti-x")).toBe(false)
   })
 
-  it("si Redis falla al revocar, el veto queda igual en memoria local", async () => {
+  it("si Redis falla al revocar, devuelve false (para el 503) y el veto queda en memoria local", async () => {
     __setDenyRedisForTests(
       fakeRedis({
         set: async () => {
@@ -150,7 +156,7 @@ describe("denylist (jtiDenylist)", () => {
         },
       })
     )
-    await denyJti("jti-y", 300)
+    await expect(denyJti("jti-y", 300)).resolves.toBe(false)
     expect(await isJtiDenied("jti-y")).toBe(true)
   })
 
@@ -253,5 +259,57 @@ describe("POST /auth/logout (e2e middleware + ruta)", () => {
 
     expect((await postLogout(revoked)).status).toBe(200)
     expect((await postLogout(other)).status).toBe(200)
+  })
+})
+
+describe("503 si la denylist no confirma (G2 — defecto 1)", () => {
+  it("POST /auth/logout contesta 503 code=revoke_unavailable con Redis caído", async () => {
+    __setDenyRedisForTests(
+      fakeRedis({
+        set: async () => {
+          throw new Error("ECONNREFUSED")
+        },
+      })
+    )
+    const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+
+    const res = await postLogout(token)
+    expect(res.status).toBe(503)
+    expect(await res.json()).toMatchObject({ code: "revoke_unavailable" })
+
+    // La memoria local de ESTE proceso quedó cubierto: el mismo token ya
+    // no pasa el middleware (estado "parcial" documentado).
+    const after = await postLogout(token)
+    expect(after.status).toBe(401)
+  })
+})
+
+describe("rate limit de logout (G2 — defecto 4)", () => {
+  function limiterReq(ip: string) {
+    return { ip } as never
+  }
+
+  it("por IP: 60/min; el 61º request da 429 (antes de verificar)", () => {
+    const next = vi.fn()
+    for (let i = 0; i < 60; i++) {
+      const res = mockRes()
+      logoutIpRateLimiter(limiterReq("203.0.113.9"), res as never, next)
+      expect(res.statusCode).toBeUndefined()
+    }
+    expect(next).toHaveBeenCalledTimes(60)
+
+    const res = mockRes()
+    logoutIpRateLimiter(limiterReq("203.0.113.9"), res as never, next)
+    expect(res.statusCode).toBe(429)
+    expect(next).toHaveBeenCalledTimes(60)
+  })
+
+  it("por sub: 20/min; el 21º intento da false (después de verificar)", () => {
+    for (let i = 0; i < 20; i++) {
+      expect(checkLogoutSubLimit("sub-limite")).toBe(true)
+    }
+    expect(checkLogoutSubLimit("sub-limite")).toBe(false)
+    // Otra sub no arrastra el contador.
+    expect(checkLogoutSubLimit("sub-otra")).toBe(true)
   })
 })

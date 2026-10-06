@@ -79,10 +79,13 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
 /**
  * Revoca un `jti` por `ttlSeconds` (la vida restante del token + margen).
  * El registro local se escribe SIEMPRE; Redis es la autoridad entre
- * reinicios/instancias (best-effort: si falla, la memoria local cubre
- * mientras viva el proceso).
+ * reinicios/instancias.
+ *
+ * Devuelve true solo si Redis lo confirmó. Si Redis no responde → false:
+ * el endpoint responde 503 para que el POS registre la revocación como
+ * PARCIAL y la reintente (la memoria local cubre este proceso igual).
  */
-export async function denyJti(jti: string, ttlSeconds: number): Promise<void> {
+export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean> {
   const ttl = Math.max(1, Math.floor(ttlSeconds))
   const now = Date.now()
   memory.set(jti, now + ttl * 1000)
@@ -90,8 +93,10 @@ export async function denyJti(jti: string, ttlSeconds: number): Promise<void> {
 
   try {
     await getRedis().set(DENY_PREFIX + jti, "1", "EX", ttl)
+    return true
   } catch {
-    console.error(`[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local.`)
+    console.error(`[jti-denylist] Redis no responde al revocar jti=${jti}: queda en memoria local (503 al cliente).`)
+    return false
   }
 }
 

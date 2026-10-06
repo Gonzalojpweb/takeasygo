@@ -100,20 +100,100 @@ async function postRevoke(url: string, accessToken: string): Promise<boolean> {
  * (Upstash, que protege /api/[tenant]/pos/*). Nunca lanza: un fallo
  * parcial deja el otro lado cubierto y el token local se tira igual.
  *
+ * Si un lado no confirma (503 o red caída), se reintenta EN MEMORIA:
+ * 3 envíos con backoff (~10s, ~30s; ventana <60s). El token NO se
+ * persiste en ningún lado — guardarlo en localStorage sería una
+ * regresión (credencial viva legible por cualquier XSS). Sin red en esa
+ * ventana queda el residual de ≤30 min (exp), que F1 cierra con
+ * tokensValidAfter.
+ *
  * Las URLs se leen acá y no en carga de módulo: los tests las pisan
  * antes de llamar (mismo criterio que pos-api saasUrl()).
  */
 export async function revokeSession(accessToken: string): Promise<RevokeResult> {
+  clearPendingRevoke()
+  const result = await revokeRemaining(accessToken, { sync: false, saas: false })
+
+  const retry = sidesWorthRetrying(result)
+  if (retry.sync || retry.saas) {
+    console.warn('[logout] revocación server-side parcial:', result, '- reintentos en memoria')
+    scheduleRevokeRetry(accessToken, result, 1)
+  }
+  return result
+}
+
+/** Reintenta SOLO los lados que siguen fallando y tienen URL configurada. */
+async function revokeRemaining(
+  accessToken: string,
+  prev: RevokeResult
+): Promise<RevokeResult> {
   const syncUrl = import.meta.env.VITE_SYNC_URL
   const saasUrl = import.meta.env.VITE_SAAS_URL
 
-  const syncPromise: Promise<boolean> = syncUrl
-    ? postRevoke(`${syncUrl}/api/v1/auth/logout`, accessToken)
-    : Promise.resolve(false)
-  const saasPromise: Promise<boolean> = saasUrl
-    ? postRevoke(`${saasUrl}/api/auth/logout`, accessToken)
-    : Promise.resolve(false)
+  const syncPromise: Promise<boolean> =
+    !prev.sync && syncUrl
+      ? postRevoke(`${syncUrl}/api/v1/auth/logout`, accessToken)
+      : Promise.resolve(prev.sync)
+  const saasPromise: Promise<boolean> =
+    !prev.saas && saasUrl
+      ? postRevoke(`${saasUrl}/api/auth/logout`, accessToken)
+      : Promise.resolve(prev.saas)
 
   const [sync, saas] = await Promise.all([syncPromise, saasPromise])
   return { sync, saas }
+}
+
+function sidesWorthRetrying(prev: RevokeResult): { sync: boolean; saas: boolean } {
+  return {
+    sync: !prev.sync && Boolean(import.meta.env.VITE_SYNC_URL),
+    saas: !prev.saas && Boolean(import.meta.env.VITE_SAAS_URL),
+  }
+}
+
+// Backoff: intento 1 inmediato + reintentos a los 10s y 30s → 3 envíos
+// en total, ventana <60s. Todo en memoria (module scope): si la página
+// se recarga, se pierde — aceptado, es exactamente el residual que
+// documentamos.
+const REVOKE_RETRY_DELAYS_MS = [10_000, 30_000]
+
+let pendingRetryTimer: ReturnType<typeof setTimeout> | null = null
+
+function clearPendingRevoke(): void {
+  if (pendingRetryTimer !== null) {
+    clearTimeout(pendingRetryTimer)
+    pendingRetryTimer = null
+  }
+}
+
+function scheduleRevokeRetry(
+  accessToken: string,
+  prev: RevokeResult,
+  attempt: number
+): void {
+  clearPendingRevoke()
+
+  if (attempt > REVOKE_RETRY_DELAYS_MS.length) {
+    console.error(
+      `[logout] revocación NO confirmada tras ${REVOKE_RETRY_DELAYS_MS.length + 1} intentos ` +
+        '(residual ≤30 min hasta exp):',
+      prev
+    )
+    return
+  }
+
+  pendingRetryTimer = setTimeout(async () => {
+    pendingRetryTimer = null
+    const next = await revokeRemaining(accessToken, prev)
+    if (next.sync && next.saas) {
+      console.log(`[logout] revocación confirmada en el intento ${attempt + 1}`)
+      return
+    }
+    console.warn(`[logout] revocación aún parcial (intento ${attempt + 1}):`, next)
+    scheduleRevokeRetry(accessToken, next, attempt + 1)
+  }, REVOKE_RETRY_DELAYS_MS[attempt - 1])
+}
+
+/** Solo para tests: cancela los reintentos pendientes. */
+export function __resetRevokeRetriesForTests(): void {
+  clearPendingRevoke()
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { revokeSession } from "../services/auth-api"
+import { revokeSession, __resetRevokeRetriesForTests } from "../services/auth-api"
 
 /**
  * S1-5 — revokeSession: el logout del POS revoca el token en los DOS
@@ -10,6 +10,8 @@ import { revokeSession } from "../services/auth-api"
  *
  * Es best-effort: NUNCA lanza. Un fallo de red no puede impedir que el
  * logout local continúe; lo que sí queda expuesto es un lado sin revocar.
+ * Ese lado se reintenta EN MEMORIA (3 envíos, backoff ~10s/~30s): el
+ * token jamás se persiste en localStorage u otro lado.
  */
 
 const SYNC = "http://sync.test"
@@ -40,6 +42,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  __resetRevokeRetriesForTests()
   import.meta.env.VITE_SYNC_URL = originalSyncUrl
   import.meta.env.VITE_SAAS_URL = originalSaasUrl
   vi.unstubAllGlobals()
@@ -116,5 +119,80 @@ describe("revokeSession", () => {
     expect(result.sync).toBe(false)
     expect(result.saas).toBe(true)
     expect(calledUrls()).toEqual([`${SAAS}/api/auth/logout`])
+  })
+})
+
+describe("reintento en memoria (G2)", () => {
+  it("reintenta SOLO el lado fallido y para cuando confirma", async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementation((url: string) =>
+        url.startsWith(SYNC)
+          ? Promise.resolve(jsonResponse({ revoked: true }))
+          : Promise.reject(new TypeError("Failed to fetch"))
+      )
+
+      const first = await revokeSession(TOKEN)
+      expect(first).toEqual({ sync: true, saas: false })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+
+      // saas vuelve: el reintento a los ~10s solo toca saas.
+      fetchMock.mockResolvedValue(jsonResponse({ revoked: true }))
+      await vi.advanceTimersByTimeAsync(10_000)
+
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(calledUrls()[2]).toBe(`${SAAS}/api/auth/logout`)
+
+      // Confirmado: no quedan timers ni llamadas posteriores.
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
+  })
+
+  it("3 envíos como máximo (inmediato + ~10s + ~30s) y luego se rinde", async () => {
+    vi.useFakeTimers()
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    try {
+      fetchMock.mockRejectedValue(new TypeError("Failed to fetch"))
+
+      await revokeSession(TOKEN) // intento 1 (ambos lados, 2 llamadas)
+      await vi.advanceTimersByTimeAsync(10_000) // intento 2 (2 llamadas)
+      await vi.advanceTimersByTimeAsync(30_000) // intento 3 (2 llamadas)
+      expect(fetchMock).toHaveBeenCalledTimes(6)
+
+      // Agotado: sin más reintentos y con error visible.
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(6)
+      expect(
+        errorSpy.mock.calls.some((c) => String(c[0]).includes("NO confirmada"))
+      ).toBe(true)
+    } finally {
+      errorSpy.mockRestore()
+      warnSpy.mockRestore()
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
+  })
+
+  it("sin URL configurada para un lado no reintenta ese lado", async () => {
+    vi.useFakeTimers()
+    try {
+      import.meta.env.VITE_SAAS_URL = ""
+      fetchMock.mockResolvedValue(jsonResponse({ revoked: true }))
+
+      const result = await revokeSession(TOKEN)
+      expect(result).toEqual({ sync: true, saas: false })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(120_000)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+      __resetRevokeRetriesForTests()
+    }
   })
 })

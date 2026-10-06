@@ -292,10 +292,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     //    ocurre (el token expira solo en <= 30 min).
     const token = state.jwt?.accessToken ?? getCachedSession()?.accessToken
     if (token) {
-      const revoked = await authApi.revokeSession(token)
-      if (!revoked.sync || !revoked.saas) {
-        console.warn("[logout] revocación server-side parcial:", revoked)
-      }
+      // Si un lado no confirma (503 o red), revokeSession lo loguea y
+      // reintenta en memoria (3 envíos, backoff ~10s/~30s) — sin
+      // persistir el token en ningún lado.
+      await authApi.revokeSession(token)
     }
 
     // 2. Limpieza local total (timers, sesión, Dexie, clave).

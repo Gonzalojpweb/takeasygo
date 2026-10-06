@@ -33,6 +33,14 @@ function upstashConfigured(): boolean {
   return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
 }
 
+function isProduction(): boolean {
+  return process.env.NODE_ENV === 'production'
+}
+
+const NOT_CONFIGURED_MSG =
+  '[jtiDenylist] CRÍTICO: UPSTASH_REDIS_REST_URL/TOKEN no configuradas en producción. ' +
+  'La denylist solo viviría en la memoria de UNA instancia serverless (no protege nada).'
+
 let redisClient: import('@upstash/redis').Redis | null = null
 
 async function getRedis() {
@@ -54,7 +62,12 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
     memoryMap.delete(jti)
   }
 
-  if (!upstashConfigured()) return false
+  if (!upstashConfigured()) {
+    // Fuera de producción, dev/test sin Upstash: la memoria de esta única
+    // instancia es el backend y es coherente con las escrituras.
+    if (isProduction()) console.error(NOT_CONFIGURED_MSG)
+    return false
+  }
 
   try {
     const redis = await getRedis()
@@ -68,16 +81,32 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
 
 /**
  * Revoca un `jti` por `ttlSeconds` (la vida restante del token + margen).
- * Devuelve true si quedó registrado en Upstash (autoridad multi-instancia);
- * el registro local siempre se escribe igual.
+ * Devuelve true solo si quedó registrado en Upstash (autoridad
+ * multi-instancia).
+ *
+ * En producción SIN Upstash → console.error (fallo ruidoso) y false:
+ * escribir solo en la memoria de esta instancia sería fingir una
+ * revocación que no protege nada. El endpoint responde 503 y el POS
+ * registra la revocación como parcial.
  */
 export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean> {
   const ttl = Math.max(1, Math.floor(ttlSeconds))
+
+  if (!upstashConfigured()) {
+    if (isProduction()) {
+      console.error(NOT_CONFIGURED_MSG)
+      return false
+    }
+    // dev/test: un solo proceso, la memoria es backend válido.
+    const now = Date.now()
+    memoryMap.set(jti, now + ttl * 1000)
+    memoryPrune(now)
+    return true
+  }
+
   const now = Date.now()
   memoryMap.set(jti, now + ttl * 1000)
   memoryPrune(now)
-
-  if (!upstashConfigured()) return true
 
   try {
     const redis = await getRedis()

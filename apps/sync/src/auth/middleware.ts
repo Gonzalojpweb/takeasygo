@@ -35,7 +35,9 @@ export async function authMiddleware(
   try {
     const header = req.headers.authorization
     if (!header?.startsWith("Bearer ")) {
-      console.warn(`[auth] Missing/invalid header | path=${req.path} header="${header ?? "(none)"}"`)
+      // Nunca imprimir el valor del header: si no es "Bearer …" puede ser
+      // un credential header completo (Basic, etc.) — filtraría secretos.
+      console.warn(`[auth] Missing/invalid header | path=${req.path} header=${header ? "presente" : "ausente"}`)
       res.status(401).json({
         error: "Missing or invalid authorization header",
         requestId: req.id,
