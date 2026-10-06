@@ -5,6 +5,7 @@ import './setup'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Table from '@/models/Table'
+import Menu from '@/models/Menu'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -100,6 +101,16 @@ beforeEach(async () => {
     isActive: true,
   })
   locationId = loc._id.toString()
+
+  // Carta vigente con el precio que cierra con createOrder() (S1-2).
+  await Menu.create({
+    tenantId,
+    locationId,
+    isActive: true,
+    categories: [
+      { name: 'Platos', sortOrder: 0, items: [{ _id: PRODUCT_ID, name: 'Hamburguesa', price: 1500 }] },
+    ],
+  })
 })
 
 describe('GET /pos/tables', () => {
