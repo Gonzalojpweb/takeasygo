@@ -23,8 +23,10 @@ import { verifyPosWebhookSignature } from '@/lib/pos-webhook-signature'
  * puede manipularse sin romper la firma.
  *
  * Excepción sandbox (FUDO puede omitir la firma): solo con la env
- * POS_WEBHOOK_ALLOW_UNSIGNED=1 explícita en el entorno; una firma presente
- * pero inválida se rechaza igual.
+ * POS_WEBHOOK_ALLOW_UNSIGNED=1 explícita FUERA de producción. En producción
+ * la flag se ignora (firma siempre obligatoria) y queda un error en el log
+ * una sola vez por arranque de instancia; una firma presente pero inválida
+ * se rechaza igual.
  *
  * Si el header X-POS-Provider no está presente, se intenta extraer del body:
  *   { provider: 'fudo', event: 'ORDER-CONFIRMED', externalOrderId: 'REST-...' }
@@ -34,6 +36,11 @@ import { verifyPosWebhookSignature } from '@/lib/pos-webhook-signature'
  *
  * FUDO envía: { event: 'ORDER-CONFIRMED', orderId: '...', externalOrderId: 'REST-...', timestamp: '2026-01-01T00:00:00Z' }
  */
+
+// Una sola línea de error por arranque de instancia si la flag sandbox está
+// puesta en producción: se ignora igual (firma obligatoria) y un log por
+// request inundaría Cloud Logs (S1-1).
+let warnedIgnoredInProd = false
 
 export async function POST(
   request: NextRequest,
@@ -53,10 +60,20 @@ export async function POST(
     if (!signature) signature = request.headers.get('x-pos-signature') ?? request.headers.get('x-webhook-signature') ?? null
 
     // Firma obligatoria: se rechaza ANTES de parsear el body o tocar la DB.
-    // El sandbox de FUDO (puede omitirla) solo se habilita con env explícita.
-    const allowUnsigned = ['1', 'true'].includes(
+    // El sandbox de FUDO (puede omitirla) solo se habilita con env explícita
+    // y fuera de producción: en prod la flag se ignora y deja UN error en el
+    // log por arranque de instancia, nunca uno por request (S1-1).
+    const flagSet = ['1', 'true'].includes(
       (process.env.POS_WEBHOOK_ALLOW_UNSIGNED ?? '').toLowerCase()
     )
+    const isProd = process.env.NODE_ENV === 'production'
+    if (flagSet && isProd && !warnedIgnoredInProd) {
+      warnedIgnoredInProd = true
+      console.error(
+        '[POS Webhook] POS_WEBHOOK_ALLOW_UNSIGNED ignorada en produccion: firma obligatoria'
+      )
+    }
+    const allowUnsigned = flagSet && !isProd
     if (!signature && !allowUnsigned) {
       return NextResponse.json({ error: 'Firma requerida' }, { status: 401 })
     }

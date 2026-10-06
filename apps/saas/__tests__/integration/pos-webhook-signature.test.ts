@@ -226,4 +226,21 @@ describe('POST /api/webhooks/pos/[tenant] — caminos válidos', () => {
     expect(res.status).toBe(401)
     expect((await res.json()).error).toBe('Invalid signature')
   })
+
+  it('en producción la flag se ignora: ALLOW_UNSIGNED=1 sin firma → 401 + error en log', async () => {
+    vi.stubEnv('POS_WEBHOOK_ALLOW_UNSIGNED', '1')
+    vi.stubEnv('NODE_ENV', 'production')
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const res = await POST(req(signedBody(), { 'x-pos-provider': 'fudo' }), params)
+      expect(res.status).toBe(401)
+      expect((await res.json()).error).toBe('Firma requerida')
+      expect(errSpy).toHaveBeenCalledWith(
+        expect.stringContaining('POS_WEBHOOK_ALLOW_UNSIGNED ignorada en produccion')
+      )
+    } finally {
+      errSpy.mockRestore()
+      vi.unstubAllEnvs()
+    }
+  })
 })
