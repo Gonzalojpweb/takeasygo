@@ -1,4 +1,4 @@
-import { Router } from "express"
+import { Router, type Response } from "express"
 import mongoose from "mongoose"
 import { signJwt, HUB_TOKEN_TTL_MS } from "@takeasygo/business/jwt"
 import { SAAS_TO_POS_ROLE } from "@takeasygo/business"
@@ -25,7 +25,7 @@ export const authRouter = Router()
 async function resolveLocationId(
   tenantId: string,
   locationId: string | undefined,
-  res: any
+  res: Response
 ): Promise<string | null | undefined> {
   if (!locationId) return undefined
 
