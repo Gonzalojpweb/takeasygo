@@ -55,6 +55,14 @@ export const config = {
   rateLimitTenant: parseInt(process.env.RATE_LIMIT_TENANT ?? "1000", 10),
   rateLimitLogin: parseInt(process.env.RATE_LIMIT_LOGIN ?? "10", 10),
 
+  // Lockout por cuenta (Redis, compartido entre instancias). El límite por IP
+  // solo corta desde la misma IP; con credenciales filtradas desde otra red no
+  // alcanza. Progresivo: cada lock posterior duplica la espera, con tope.
+  loginLockFailLimit: parseInt(process.env.LOGIN_LOCK_FAIL_LIMIT ?? "5", 10),
+  loginLockWindowS: parseInt(process.env.LOGIN_LOCK_WINDOW_S ?? "900", 10),
+  loginLockBaseS: parseInt(process.env.LOGIN_LOCK_BASE_S ?? "60", 10),
+  loginLockMaxS: parseInt(process.env.LOGIN_LOCK_MAX_S ?? "1800", 10),
+
   pairingCodeTTL: parseInt(process.env.PAIRING_CODE_TTL ?? "300", 10),
 
   offlineTimeoutMs: parseInt(process.env.OFFLINE_TIMEOUT_MS ?? "180000", 10),
