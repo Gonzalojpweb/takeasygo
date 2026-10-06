@@ -1,7 +1,0 @@
-{
-  "hasCredentials": false,
-  "keyAvailable": false,
-  "projectIdAvailable": false,
-  "status": "CREDENCIALES NO DISPONIBLES",
-  "note": "Para extraer datos reales de PostHog, se requieren credenciales en el entorno"
-}
