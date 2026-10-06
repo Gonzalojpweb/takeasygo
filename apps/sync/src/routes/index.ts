@@ -6,7 +6,7 @@ import { tenantMiddleware } from "../middleware/tenant"
 import { rateLimiter } from "../middleware/rate-limiter"
 import { requestIdMiddleware } from "../middleware/request-id"
 import { healthRouter } from "./health"
-import { authRouter } from "./auth"
+import { authRouter, logoutRouter } from "./auth"
 import { ordersRouter } from "./orders"
 import { menuRouter } from "./menu"
 import { syncRouter } from "./sync"
@@ -47,6 +47,8 @@ export function createRouter(
   router.use(authMiddleware)
   router.use(tenantMiddleware)
 
+  // Logout (S1-5): después de authMiddleware — exige token válido con jti.
+  router.use("/auth", logoutRouter)
   router.use("/orders", ordersRouter(io, orderQueue, confirmForwardQueue, complianceQueue))
   router.use("/menu", menuRouter())
   router.use("/locations", locationsRouter())

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     return redirectToLogin(req, 'sso_invalid_params')
   }
 
-  const payload = verifyPosToken(token)
+  const payload = await verifyPosToken(token)
   if (!payload) {
     return redirectToLogin(req, 'sso_invalid_token')
   }
