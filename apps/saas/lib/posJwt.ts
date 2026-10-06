@@ -1,9 +1,9 @@
-import { createPublicKey } from 'node:crypto'
-import { verifyJwt } from '@takeasygo/business/jwt'
+import { createPublicKey, timingSafeEqual } from 'node:crypto'
+import { keyFingerprint, verifyJwt } from '@takeasygo/business/jwt'
 import type { JwtPayload } from '@takeasygo/types'
 
 /**
- * Verificación del JWT RS256 emitido por apps/sync (Sync Layer / Render).
+ * Verificación del JWT RS256 emitido por apps/sync (Sync Layer / EC2).
  *
  * ¿Por qué existe este módulo?
  *
@@ -12,15 +12,16 @@ import type { JwtPayload } from '@takeasygo/types'
  * siempre usó sesión NextAuth (HS256 con AUTH_SECRET). Sin este puente,
  * toda ruta del SaaS protegida por `requireAuth` devolvía 401 para el POS.
  *
- * ¿Por qué la clave pública está embebida y no solo en env?
+ * Política (S1-4: fail-closed + kid):
  *
- * 1. Una clave pública NO es secreto: no hay riesgo en commitearla.
- * 2. `.env.local` no está trackeado y las env de Vercel se editan a mano.
- *    Se detectó un caso real: un `clear` pegado dentro del PEM rompía
- *    silenciosamente la verificación (y por tanto el SSO).
- * 3. El resolver valida la env con `createPublicKey`; si no es un PEM RSA
- *    parseable, cae al respaldo embebido y emite un error visible en log.
- *    Una env rota degrada con un warning, nunca con un 401 silencioso.
+ * 1. Si hay env de clave definida pero ninguna parsea como RSA >= 2048,
+ *    NO se cae al respaldo embebido: se rechaza todo (PosKeyConfigError).
+ *    (Antes una env corrupta degradaba en silencio a la clave embebida.)
+ * 2. En producción, sin env definida → también se rechaza: la clave
+ *    embebida es solo para dev/test.
+ * 3. Cada token trae `kid` (huella sha256-32 de la clave firmante, puesta
+ *    por signJwt). Sin kid o con kid distinto → rechazado, aunque la
+ *    firma sea válida.
  *
  * Módulo SERVER-ONLY: usa `node:crypto`. Solo lo importan route handlers.
  */
@@ -39,6 +40,17 @@ dOzP9FUE8G7uhzACLKxn9l32EYfvSzI4Uer3eS6FfB1BT/h7I7sQ2soKxAaghDpz
 export interface ResolvedPosKey {
   pem: string
   source: 'env' | 'fallback'
+}
+
+/**
+ * Misconfiguración de la clave de verificación. El llamador debe fallar
+ * cerrado (401), nunca degradar al respaldo embebido.
+ */
+export class PosKeyConfigError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PosKeyConfigError'
+  }
 }
 
 /**
@@ -63,9 +75,14 @@ let cached: ResolvedPosKey | null = null
  * Resuelve la clave pública a usar. Prioridad:
  *   1. POS_JWT_PUBLIC_KEY (var dedicada)
  *   2. SSO_JWT_PUBLIC_KEY  (var histórica, mismo par de claves)
- *   3. Respaldo embebido
  *
- * El resultado se cachea: las env no cambian en runtime.
+ * Fail-closed (S1-4):
+ *   · Si alguna env está definida pero ninguna es RSA válida → lanza.
+ *   · Sin env y NODE_ENV=production → lanza.
+ *   · Sin env fuera de producción → respaldo embebido (dev/test).
+ *
+ * El resultado se cachea solo cuando es válido: una env rota se re-evalúa
+ * en cada llamada (y sigue lanzando) hasta que se corrija.
  */
 export function getPosJwtPublicKey(): ResolvedPosKey {
   if (cached) return cached
@@ -75,31 +92,90 @@ export function getPosJwtPublicKey(): ResolvedPosKey {
     ['SSO_JWT_PUBLIC_KEY', process.env.SSO_JWT_PUBLIC_KEY],
   ]
 
+  let sawDefined = false
   for (const [name, value] of candidates) {
-    if (value && isRsaPublicKeyPem(value)) {
+    if (!value) continue
+    sawDefined = true
+    if (isRsaPublicKeyPem(value)) {
       cached = { pem: value.trim(), source: 'env' }
       return cached
     }
-    if (value) {
-      console.error(
-        `[posJwt] ${name} está definida pero NO es una clave pública RSA válida. ` +
-          `Usando la clave embebida. Revisá la env: el PEM puede estar corrupto.`
-      )
-    }
+    console.error(
+      `[posJwt] ${name} está definida pero NO es una clave pública RSA válida. ` +
+        `Se ignora esta variable y se prueba la siguiente.`
+    )
+  }
+
+  if (sawDefined) {
+    throw new PosKeyConfigError(
+      'Hay env de clave JWT definida pero ninguna parsea como RSA >= 2048: fail-closed.'
+    )
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new PosKeyConfigError(
+      'Sin POS_JWT_PUBLIC_KEY/SSO_JWT_PUBLIC_KEY en producción: fail-closed.'
+    )
   }
 
   cached = { pem: POS_PUBLIC_KEY_FALLBACK.trim(), source: 'fallback' }
   return cached
 }
 
+/** Lee el `kid` del header de un JWT sin verificar nada aún. */
+function readHeaderKid(token: string): string | null {
+  const dot = token.indexOf('.')
+  if (dot <= 0) return null
+  try {
+    const header = JSON.parse(
+      Buffer.from(token.slice(0, dot), 'base64url').toString('utf-8')
+    ) as { kid?: unknown }
+    return typeof header.kid === 'string' && header.kid.length > 0 ? header.kid : null
+  } catch {
+    return null
+  }
+}
+
+function kidMatches(expected: string, actual: string): boolean {
+  const a = Buffer.from(expected, 'utf8')
+  const b = Buffer.from(actual, 'utf8')
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
+}
+
 /**
- * Verifica un token POS RS256. Devuelve el payload o null si es inválido
- * (firma, algoritmo o expiración). Nunca usar `decodeJwt` para autorizar.
+ * Verifica un token POS RS256. Devuelve el payload o null si es inválido:
+ * env mal configurada (fail-closed), kid ausente/distinto, firma o expiración.
+ * Nunca usar `decodeJwt` para autorizar.
  */
 export function verifyPosToken(token: string): JwtPayload | null {
   if (!token) return null
-  const { pem } = getPosJwtPublicKey()
-  return verifyJwt(token, pem)
+
+  let resolved: ResolvedPosKey
+  try {
+    resolved = getPosJwtPublicKey()
+  } catch (error) {
+    console.error(`[posJwt] Verificación rechazada (fail-closed): ${(error as Error).message}`)
+    return null
+  }
+
+  let expectedKid: string
+  try {
+    expectedKid = keyFingerprint(resolved.pem)
+  } catch {
+    console.error('[posJwt] La clave resuelta no parsea como RSA: fail-closed.')
+    return null
+  }
+
+  const tokenKid = readHeaderKid(token)
+  if (!tokenKid || !kidMatches(expectedKid, tokenKid)) {
+    console.error(
+      `[posJwt] kid rechazado (token=${tokenKid ?? 'ausente'} esperado=${expectedKid}).`
+    )
+    return null
+  }
+
+  return verifyJwt(token, resolved.pem)
 }
 
 /** Extrae un token Bearer del header Authorization. Devuelve null si no hay. */
