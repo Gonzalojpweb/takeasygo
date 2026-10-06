@@ -3,6 +3,7 @@ import type { Server as HttpServer } from "node:http"
 import { createAdapter } from "@socket.io/redis-adapter"
 import Redis from "ioredis"
 import { verifyJwt } from "@takeasygo/business/jwt"
+import type { JwtPayload } from "@takeasygo/types"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
 import { isJtiDenied } from "../auth/jtiDenylist"
@@ -34,9 +35,10 @@ export function createSocketServer(
     if (!tenantId || !locationId) return
     const key = `posSeen:${tenantId}:${locationId}`
     const now = Date.now()
-    const last = (globalThis as any)[key] as number | undefined
+    const g = globalThis as unknown as Record<string, number | undefined>
+    const last = g[key]
     if (last && now - last < 15_000) return
-    ;(globalThis as any)[key] = now
+    g[key] = now
     LocationModel.updateOne(
       { tenantId, _id: locationId },
       { $set: { "pos.lastSeenAt": new Date() } }
@@ -66,7 +68,7 @@ export function createSocketServer(
         return next(new Error("Invalid or expired token"))
       }
 
-      (socket as any).auth = payload
+      socket.data.auth = payload
 
       // Generic device room (needed for sync:pending_events hub re-sync).
       socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
@@ -89,7 +91,7 @@ export function createSocketServer(
   })
 
   io.on("connection", (socket) => {
-    const auth = (socket as any).auth
+    const auth: JwtPayload = socket.data.auth
 
     if (auth.jti) registerSocket(auth.jti, socket)
 
