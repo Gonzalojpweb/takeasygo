@@ -10,6 +10,16 @@ const tenantBuckets = new Map<string, { count: number; resetAt: number }>()
 // cajero legítimo. Una clave correcta limpia el contador de esa IP.
 const loginFailureBuckets = new Map<string, { count: number; resetAt: number }>()
 
+// Logout (S1-5): 60/min por IP ANTES de verificar — holgado a propósito,
+// porque todas las tablets de un local salen por la misma IP y al cierre
+// de turno hacen logout casi simultáneo (el límite corta abuso, no al
+// equipo). 20/min por sub DESPUÉS de verificar: un logout legítimo más
+// los reintentos del POS caben holgados.
+const LOGOUT_IP_LIMIT = 60
+const LOGOUT_SUB_LIMIT = 20
+const logoutIpBuckets = new Map<string, { count: number; resetAt: number }>()
+const logoutSubBuckets = new Map<string, { count: number; resetAt: number }>()
+
 const CLEANUP_INTERVAL = 5 * 60 * 1000 // every 5 minutes
 
 function cleanupBuckets(buckets: Map<string, { count: number; resetAt: number }>): number {
@@ -29,8 +39,10 @@ setInterval(() => {
   const t = cleanupBuckets(tokenBuckets)
   const tn = cleanupBuckets(tenantBuckets)
   const tl = cleanupBuckets(loginFailureBuckets)
-  if (t + tn + tl > 0) {
-    console.log(`[rateLimit] Cleaned ${t} token + ${tn} tenant + ${tl} login expired entries. Sizes: token=${tokenBuckets.size} tenant=${tenantBuckets.size} login=${loginFailureBuckets.size}`)
+  const ti = cleanupBuckets(logoutIpBuckets)
+  const ts = cleanupBuckets(logoutSubBuckets)
+  if (t + tn + tl + ti + ts > 0) {
+    console.log(`[rateLimit] Cleaned ${t} token + ${tn} tenant + ${tl} login + ${ti} logoutIp + ${ts} logoutSub expired entries. Sizes: token=${tokenBuckets.size} tenant=${tenantBuckets.size} login=${loginFailureBuckets.size} logoutIp=${logoutIpBuckets.size} logoutSub=${logoutSubBuckets.size}`)
   }
 }, CLEANUP_INTERVAL)
 
@@ -101,4 +113,27 @@ export function recordLoginFailure(req: Request): void {
 /** Llamar cuando la clave es correcta: el legítimo no arrastra fallos previos. */
 export function clearLoginFailures(req: Request): void {
   loginFailureBuckets.delete(clientIp(req))
+}
+
+/**
+ * Logout por IP — se monta ANTES de authMiddleware (ver routes/index.ts):
+ * corta el flood antes de verificar firma ni tocar la denylist.
+ */
+export function logoutIpRateLimiter(req: Request, res: Response, next: NextFunction): void {
+  if (!checkBucket(logoutIpBuckets, clientIp(req), LOGOUT_IP_LIMIT, 60_000)) {
+    res.status(429).json({ error: "Too many logout requests", code: "rate_limited" })
+    return
+  }
+  next()
+}
+
+/** Logout por sub — se llama DENTRO de la ruta, después de verificar. */
+export function checkLogoutSubLimit(sub: string): boolean {
+  return checkBucket(logoutSubBuckets, sub, LOGOUT_SUB_LIMIT, 60_000)
+}
+
+/** Solo para tests: vacía los buckets de logout. */
+export function __resetLogoutLimitersForTests(): void {
+  logoutIpBuckets.clear()
+  logoutSubBuckets.clear()
 }

@@ -6,6 +6,7 @@ import { verifyJwt } from "@takeasygo/business/jwt"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
 import { isJtiDenied } from "../auth/jtiDenylist"
+import { registerSocket, unregisterSocket, socketAuthExpired } from "./registry"
 
 export function createSocketServer(
   httpServer: HttpServer,
@@ -90,6 +91,8 @@ export function createSocketServer(
   io.on("connection", (socket) => {
     const auth = (socket as any).auth
 
+    if (auth.jti) registerSocket(auth.jti, socket)
+
     socket.emit("heartbeat", { timestamp: new Date().toISOString() })
 
     // Emit sync:pending_events on every connection/reconnection.
@@ -104,14 +107,32 @@ export function createSocketServer(
       timestamp: new Date().toISOString(),
     })
 
-    socket.on("heartbeat", () => {
-      socket.emit("heartbeat", { timestamp: new Date().toISOString() })
-      if (auth.locationId) {
-        markPosSeen(auth.tenantId, auth.locationId)
+    socket.on("heartbeat", async () => {
+      try {
+        // Re-chequeo por heartbeat (S1-5): el logout revocó el jti en la
+        // denylist, o el token venció. Antes de este chequeo un socket
+        // sobrevivía a su propio token (solo el handshake lo validaba).
+        const expired = socketAuthExpired(auth)
+        const denied = auth.jti ? await isJtiDenied(auth.jti) : false
+        if (expired || denied) {
+          console.warn(
+            `[socket] Desconecto en heartbeat | sub=${auth.sub} tenantId=${auth.tenantId} expired=${expired} denied=${denied}`
+          )
+          socket.disconnect(true)
+          return
+        }
+
+        socket.emit("heartbeat", { timestamp: new Date().toISOString() })
+        if (auth.locationId) {
+          markPosSeen(auth.tenantId, auth.locationId)
+        }
+      } catch (err) {
+        console.error("[socket] heartbeat error:", err)
       }
     })
 
     socket.on("disconnect", () => {
+      if (auth.jti) unregisterSocket(auth.jti, socket)
     })
   })
 
