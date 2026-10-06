@@ -102,6 +102,24 @@ describe("revokeSession", () => {
     expect(result).toEqual({ sync: true, saas: true })
   })
 
+  it("401 queda LOGUEADO en el POS (r3): un warn por cada lado que lo contesta", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
+    try {
+      fetchMock.mockResolvedValue(jsonResponse({ error: "No autorizado" }, 401))
+
+      const result = await revokeSession(TOKEN)
+
+      // Sigue contando como revocado (sin reintento)…
+      expect(result).toEqual({ sync: true, saas: true })
+      // …y ahora deja rastro diagnóstico: con el logout idempotente un 401
+      // no es lo esperado (el endpoint responde 200/503).
+      const warns = warnSpy.mock.calls.filter((c) => String(c[0]).includes("401"))
+      expect(warns.length).toBeGreaterThanOrEqual(2)
+    } finally {
+      warnSpy.mockRestore()
+    }
+  })
+
   it("404/500 no cuentan como revocado (queda en la cola de reintentos)", async () => {
     fetchMock.mockResolvedValue(jsonResponse({ error: "Not found" }, 404))
 

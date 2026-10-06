@@ -116,4 +116,33 @@ describe("sweepSockets (barrido server-side)", () => {
     // Solo al vigente se le preguntó por la denylist (el vencido ni llega).
     expect(checked).toEqual(["jti-vigente-revocado", "jti-libre"])
   })
+
+  it("r3 — anti-solapamiento: si un barrido sigue en vuelo, el siguiente se saltea", async () => {
+    const socket = fakeSocket()
+    registerSocket("jti-lento", socket, authNow()) // vigente → consulta denylist
+
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    // Barrido 1: queda esperando dentro de isDenied (Redis congesto).
+    const first = sweepSockets(async () => {
+      await gate
+      return false
+    })
+
+    // Barrido 2 mientras el 1 sigue en vuelo: no toca nada.
+    const second = await sweepSockets(async () => true)
+    expect(second).toEqual({ expired: 0, denied: 0 })
+    expect(socket.disconnect).not.toHaveBeenCalled()
+
+    release()
+    expect(await first).toEqual({ expired: 0, denied: 0 })
+    expect(socket.disconnect).not.toHaveBeenCalled()
+
+    // Flag liberado: el siguiente barrido opera con normalidad.
+    const third = await sweepSockets(async () => true)
+    expect(third).toEqual({ expired: 0, denied: 1 })
+    expect(socket.disconnect).toHaveBeenCalledTimes(1)
+  })
 })

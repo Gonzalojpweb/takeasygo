@@ -22,6 +22,12 @@ interface RegisteredJti {
 
 const socketsByJti = new Map<string, RegisteredJti>()
 
+// Guard anti-solapamiento (ronda 3, punto 2): si un barrido sigue en vuelo
+// (isDenied lento con Redis congesto), el tick siguiente se saltea — dos
+// barridos simultáneos solo competirían por disconnects que el primero ya
+// procesa, y el próximo timer reintenta con normalidad.
+let sweepInFlight = false
+
 /** Conexión autenticada: queda indexada por su jti. */
 export function registerSocket(jti: string, socket: Socket, auth: JwtPayload): void {
   let entry = socketsByJti.get(jti)
@@ -69,25 +75,35 @@ export function socketAuthExpired(auth: JwtPayload, nowMs: number = Date.now()):
  *
  * `isDenied` puede lanzar (Redis caído): en ese caso este jti queda para
  * el próximo barrido — mismo fail-open que isJtiDenied.
+ *
+ * Anti-solapamiento (ronda 3): si ya hay un barrido en vuelo devuelve
+ * {0,0} sin tocar nada; el flag se libera en `finally` (si `isDenied`
+ * lanzara por completo, el próximo tick vuelve a operar).
  */
 export async function sweepSockets(
   isDenied: (jti: string) => Promise<boolean>,
   nowMs: number = Date.now()
 ): Promise<{ expired: number; denied: number }> {
+  if (sweepInFlight) return { expired: 0, denied: 0 }
+  sweepInFlight = true
   let expired = 0
   let denied = 0
-  for (const [jti, entry] of [...socketsByJti]) {
-    if (socketAuthExpired(entry.auth, nowMs)) {
-      expired += disconnectSocketsByJti(jti)
-      continue
+  try {
+    for (const [jti, entry] of [...socketsByJti]) {
+      if (socketAuthExpired(entry.auth, nowMs)) {
+        expired += disconnectSocketsByJti(jti)
+        continue
+      }
+      try {
+        if (await isDenied(jti)) denied += disconnectSocketsByJti(jti)
+      } catch {
+        // Chequeo fallido: fail-open, se revisa en el próximo barrido.
+      }
     }
-    try {
-      if (await isDenied(jti)) denied += disconnectSocketsByJti(jti)
-    } catch {
-      // Chequeo fallido: fail-open, se revisa en el próximo barrido.
-    }
+    return { expired, denied }
+  } finally {
+    sweepInFlight = false
   }
-  return { expired, denied }
 }
 
 /** Solo para tests. */

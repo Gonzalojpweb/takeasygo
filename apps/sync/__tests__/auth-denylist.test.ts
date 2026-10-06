@@ -16,6 +16,7 @@ import {
   isJtiDenied,
   denyJti,
   flushPendingWrites,
+  MAX_PENDING_DENY_WRITES,
   __setDenyRedisForTests,
   __resetJtiDenylistForTests,
   __getPendingDenyWritesForTests,
@@ -26,7 +27,9 @@ import {
  * S1-5 — Revocación de tokens en logout (sync side).
  *
  * Cubre el camino real: POST /auth/logout con Bearer válido → el jti queda
- * en la denylist → el MISMO token deja de pasar authMiddleware (401).
+ * en la denylist → el MISMO token deja de pasar authMiddleware en cualquier
+ * OTRO endpoint (401). El propio logout es idempotente (r3): vuelve a 200,
+ * o 503 si Redis no confirma — nunca 401 por un veto previo.
  * Redis se inyecta falso: sin servidor, sin handles colgados.
  *
  * Los tokens se firman con apps/sync/keys.private.pem — la MISMA clave con
@@ -220,10 +223,56 @@ describe("authMiddleware con denylist", () => {
     expect(res.status).toHaveBeenCalledWith(401)
     expect(nexted).toBe(false)
   })
+
+  it("r3 — LOGOUT idempotente: POST /auth/logout con jti ya vetado pasa al next()", async () => {
+    const token = signJwt(basePayload, PRIVATE_PEM)
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf-8")
+    ) as { jti: string }
+    await denyJti(payload.jti, 300)
+
+    const req = {
+      headers: { authorization: `Bearer ${token}` },
+      path: "/api/v1/auth/logout",
+      id: "req-test",
+      method: "POST",
+      originalUrl: "/api/v1/auth/logout",
+    } as never
+    const res = mockRes()
+    let nexted = false
+    await authMiddleware(req, res, () => {
+      nexted = true
+    })
+    expect(nexted).toBe(true)
+    expect(res.status).not.toHaveBeenCalled()
+  })
+
+  it("r3 — el bypass es SOLO logout: otro POST con el mismo jti vetado → 401", async () => {
+    const token = signJwt(basePayload, PRIVATE_PEM)
+    const payload = JSON.parse(
+      Buffer.from(token.split(".")[1], "base64url").toString("utf-8")
+    ) as { jti: string }
+    await denyJti(payload.jti, 300)
+
+    const req = {
+      headers: { authorization: `Bearer ${token}` },
+      path: "/api/v1/orders",
+      id: "req-test",
+      method: "POST",
+      originalUrl: "/api/v1/orders",
+    } as never
+    const res = mockRes()
+    let nexted = false
+    await authMiddleware(req, res, () => {
+      nexted = true
+    })
+    expect(res.status).toHaveBeenCalledWith(401)
+    expect(nexted).toBe(false)
+  })
 })
 
 describe("POST /auth/logout (e2e middleware + ruta)", () => {
-  it("200 y después el MISMO token queda rechazado por el middleware", async () => {
+  it("200 y el segundo logout con el MISMO token es idempotente (r3)", async () => {
     const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
 
     // Pasa el middleware antes de revocar.
@@ -237,9 +286,12 @@ describe("POST /auth/logout (e2e middleware + ruta)", () => {
     ) as { jti: string }
     expect(await isJtiDenied(payload.jti)).toBe(true)
 
-    // ...y el mismo token ahora muere en el middleware (401), no llega a la ruta.
-    const after = await postLogout(token)
-    expect(after.status).toBe(401)
+    // ...el mismo token sigue muriendo en el middleware para CUALQUIER
+    // otro endpoint, pero el logout lo deja pasar (r3): reescribe la
+    // escritura durable y responde 200, nunca 401 por veto previo.
+    const again = await postLogout(token)
+    expect(again.status).toBe(200)
+    expect(await again.json()).toEqual({ revoked: true })
   })
 
   it("401 sin header", async () => {
@@ -279,10 +331,12 @@ describe("503 si la denylist no confirma (G2 — defecto 1)", () => {
     expect(res.status).toBe(503)
     expect(await res.json()).toMatchObject({ code: "revoke_unavailable" })
 
-    // La memoria local de ESTE proceso quedó cubierto: el mismo token ya
-    // no pasa el middleware (estado "parcial" documentado).
+    // La memoria local de ESTE proceso quedó cubierta, pero el logout es
+    // idempotente (r3): reintenta la escritura durable y, con Redis caído,
+    // contesta 503 — NUNCA 401 por un veto que ya estaba aplicado.
     const after = await postLogout(token)
-    expect(after.status).toBe(401)
+    expect(after.status).toBe(503)
+    expect(await after.json()).toMatchObject({ code: "revoke_unavailable" })
   })
 })
 
@@ -396,6 +450,33 @@ describe("cola de escrituras pendientes (ronda 2 — defecto 1)", () => {
       __setDenyRedisForTests(fakeRedis())
     }
   })
+
+  it("r3 — la cola tiene tope: nunca crece más allá de MAX_PENDING_DENY_WRITES", async () => {
+    __setDenyRedisForTests(
+      fakeRedis({
+        set: async () => {
+          throw new Error("ECONNREFUSED")
+        },
+      })
+    )
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    try {
+      for (let i = 0; i < MAX_PENDING_DENY_WRITES + 5; i++) {
+        await denyJti(`jti-cap-${i}`, 300)
+      }
+      const pending = __getPendingDenyWritesForTests()
+      expect(pending).toHaveLength(MAX_PENDING_DENY_WRITES)
+      expect(pending).not.toContain("jti-cap-0") // el más viejo se expulsó
+      expect(pending).toContain(`jti-cap-${MAX_PENDING_DENY_WRITES + 4}`)
+      expect(
+        errorSpy.mock.calls.some((c) => String(c[0]).includes("cola pendingWrites llena"))
+      ).toBe(true)
+    } finally {
+      errorSpy.mockRestore()
+      __resetJtiDenylistForTests()
+      __setDenyRedisForTests(fakeRedis())
+    }
+  })
 })
 
 describe("logs rate-limitados (ronda 2 — defecto 4)", () => {
@@ -421,6 +502,31 @@ describe("logs rate-limitados (ronda 2 — defecto 4)", () => {
       vi.setSystemTime(Date.now() + 61_000)
       await isJtiDenied("jti-flood-x")
       expect(failOpenLogs()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+      errorSpy.mockRestore()
+    }
+  })
+
+  it("r3 — throttle POR CATEGORÍA: el fallo de lectura no tapa el de escritura", async () => {
+    __setDenyRedisForTests(
+      fakeRedis({
+        get: async () => {
+          throw new Error("ECONNREFUSED")
+        },
+        set: async () => {
+          throw new Error("ECONNREFUSED")
+        },
+      })
+    )
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      await isJtiDenied("jti-r") // categoría "read" → fail-open
+      await denyJti("jti-w", 300) // categoría "write" → cola
+      const msgs = errorSpy.mock.calls.map((c) => String(c[0]))
+      expect(msgs.some((m) => m.includes("fail-open"))).toBe(true)
+      expect(msgs.some((m) => m.includes("cola de reintentos"))).toBe(true)
     } finally {
       vi.useRealTimers()
       errorSpy.mockRestore()

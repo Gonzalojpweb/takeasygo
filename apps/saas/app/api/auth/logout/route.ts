@@ -17,8 +17,10 @@ import { rateLimit } from '@/lib/rateLimit'
  * Si la escritura en la denylist falla → 503 (`revoke_unavailable`): el
  * POS lo registra como revocación PARCIAL y reintenta en memoria.
  *
- * Idempotente: un segundo intento con el mismo token falla la verificación
- * (ya está deny-listeado) y responde 401 — el cliente es best-effort.
+ * Idempotente (r3): si el jti ya está vetado el endpoint NO responde 401 —
+ * saltea la denylist en la verificación y REINTENTA la escritura durable:
+ * 200 si quedó (o siguió) en Upstash, 503 si no. El único 401 posible es
+ * un token inválido/expirado (el POS lo loguea).
  */
 export async function POST(request: NextRequest) {
   const fwd = request.headers.get('x-forwarded-for')
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const payload = await verifyPosToken(token)
+  const payload = await verifyPosToken(token, { skipDenylistCheck: true })
   if (!payload) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }

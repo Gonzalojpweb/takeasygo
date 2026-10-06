@@ -89,6 +89,12 @@ async function postRevoke(url: string, accessToken: string): Promise<boolean> {
     // la revocación de HECHO está lograda, no hay nada que reintentar.
     // Clave para el reintento tras un 503: la memoria local del servidor
     // ya lo tenía denylisteado y el segundo intento contesta 401.
+    // Con el logout idempotente (r3) un 401 no es lo esperado (el endpoint
+    // responde 200/503): queda logueado para diagnosticar token expirado
+    // o clave mal configurada.
+    if (res.status === 401) {
+      console.warn(`[logout] 401 de ${url}: el servidor no acepta el token (expirado/invalido)`)
+    }
     return res.ok || res.status === 401
   } catch {
     // Red caída, timeout o abort: el logout LOCAL igual sigue. Best-effort.
