@@ -11,6 +11,7 @@ import {
   type PosOrderInput,
   type SaasOrderDraft,
 } from '@/lib/pos-online/orderMapper'
+import { assertOrderAgainstCatalog } from '@/lib/pos-online/catalogPrices'
 
 // ============================================================================
 // GET  /api/[tenant]/pos/orders — lista (habilita el diff-then-put de M5)
@@ -176,6 +177,11 @@ export const POST = posRoute(async (ctx) => {
 
   const existing = await findExisting(ctx.tenantId, draft.posId)
   if (existing) return replayOrConflict(existing, draft)
+
+  // Precios contra el catálogo VIGENTE: se valida DESPUÉS del replay para que
+  // un reintento idéntico de una orden ya aceptada siga devolviendo 200 aunque
+  // la carta haya cambiado entre medio. Toda orden NUEVA cierra contra carta.
+  await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
 
   let created
   try {

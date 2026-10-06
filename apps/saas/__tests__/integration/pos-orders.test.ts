@@ -6,6 +6,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Table from '@/models/Table'
 import Order from '@/models/Order'
+import Menu from '@/models/Menu'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -68,6 +69,40 @@ const params = { params: Promise.resolve({ tenant: SLUG }) }
 
 const PRODUCT_ID = '64b0000000000000000000aa'
 
+/**
+ * Menú mínimo cuyos precios cierran con orderPayload() (S1-2: el server
+ * valida los importes contra el catálogo vigente; sin carta no hay orden).
+ */
+async function seedMenu(tenant: string, location: string): Promise<void> {
+  await Menu.create({
+    tenantId: tenant,
+    locationId: location,
+    isActive: true,
+    categories: [
+      {
+        name: 'Platos',
+        sortOrder: 0,
+        items: [
+          {
+            _id: PRODUCT_ID,
+            name: 'Hamburguesa',
+            price: 1500,
+            customizationGroups: [
+              {
+                name: 'Extras',
+                options: [
+                  { name: 'Papas', extraPrice: 200 },
+                  { name: 'Queso', extraPrice: 150 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+}
+
 function orderPayload(overrides: Record<string, unknown> = {}) {
   return {
     id: crypto.randomUUID(),
@@ -115,6 +150,8 @@ beforeEach(async () => {
     status: 'free',
   })
   tablePosId = table.posId
+
+  await seedMenu(tenantId, locationId)
 })
 
 /** Crea una segunda sede (los tests multi-sede la necesitan). */
@@ -126,7 +163,9 @@ async function addSecondLocation(): Promise<string> {
     address: 'Calle 2',
     isActive: true,
   })
-  return other._id.toString()
+  const otherId = other._id.toString()
+  await seedMenu(tenantId, otherId)
+  return otherId
 }
 
 describe('POST /pos/orders — contrato', () => {
@@ -410,5 +449,119 @@ describe('GET /pos/orders', () => {
       params
     )
     expect((await res.json()).orders).toHaveLength(0)
+  })
+})
+
+describe('POST /pos/orders — precios contra el catálogo vigente (S1-2)', () => {
+  it('unitPrice por debajo del catálogo → 409 conflict y NO persiste', async () => {
+    const payload = orderPayload({
+      items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 2, unitPrice: 100, total: 200 }],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error.code).toBe('conflict')
+    expect(body.error.detail).toContain('catalogPrice=1500')
+    expect(await Order.countDocuments({})).toBe(0)
+  })
+
+  it('unitPrice por encima del catálogo → 409 (sobreprecio tambien se rechaza)', async () => {
+    const payload = orderPayload({
+      items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 2, unitPrice: 9999, total: 19998 }],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('conflict')
+    expect(await Order.countDocuments({})).toBe(0)
+  })
+
+  it('productId fuera del catálogo vigente → 409', async () => {
+    const payload = orderPayload({
+      items: [
+        { productId: '64b0000000000000000000ff', name: 'Borrado', quantity: 1, unitPrice: 100, total: 100 },
+      ],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.code).toBe('conflict')
+    expect(await Order.countDocuments({})).toBe(0)
+  })
+
+  it('modificador con precio alterado → 409 aunque el total cierre', async () => {
+    const payload = orderPayload({
+      items: [
+        {
+          productId: PRODUCT_ID,
+          name: 'Hamburguesa',
+          quantity: 2,
+          unitPrice: 1500,
+          modifiers: [{ name: 'Extras: Papas', price: 1 }],
+          total: 3002,
+        },
+      ],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(409)
+    expect((await res.json()).error.detail).toContain('price=1')
+    expect(await Order.countDocuments({})).toBe(0)
+  })
+
+  it('modificador inexistente en la carta → 409', async () => {
+    const payload = orderPayload({
+      items: [
+        {
+          productId: PRODUCT_ID,
+          name: 'Hamburguesa',
+          quantity: 1,
+          unitPrice: 1500,
+          modifiers: [{ name: 'Extras: Tocineta', price: 300 }],
+          total: 1800,
+        },
+      ],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(409)
+    expect(await Order.countDocuments({})).toBe(0)
+  })
+
+  it('precio y modificador vigentes → 201 con los importes del catálogo', async () => {
+    const payload = orderPayload({
+      items: [
+        {
+          productId: PRODUCT_ID,
+          name: 'Hamburguesa',
+          quantity: 2,
+          unitPrice: 1500,
+          modifiers: [{ name: 'Extras: Papas', price: 200 }],
+          total: 3400,
+        },
+      ],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+
+    expect(res.status).toBe(201)
+    const stored = await Order.findOne({ tenantId, posId: payload.id }).lean()
+    expect(stored!.items[0]).toMatchObject({ basePrice: 1500, extraPrice: 200, price: 1700, subtotal: 3400 })
+    expect(stored!.total).toBe(3400)
+  })
+
+  it('replay de una orden ya aceptada tras cambiar la carta → sigue en 200', async () => {
+    const payload = orderPayload()
+    const first = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+    expect(first.status).toBe(201)
+
+    await Menu.updateOne(
+      { tenantId, locationId },
+      { $set: { 'categories.0.items.0.price': 9999 } }
+    )
+
+    const second = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+    expect(second.status).toBe(200)
+    expect(await Order.countDocuments({ tenantId })).toBe(1)
   })
 })
