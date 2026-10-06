@@ -3,9 +3,9 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import { getPOSConnector } from '@/lib/pos'
 import { decrypt } from '@/lib/crypto'
-import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/audit'
+import { verifyPosWebhookSignature } from '@/lib/pos-webhook-signature'
 
 /**
  * Webhook genérico para recibir eventos de sistemas POS (FUDO, BISTROSOFT, etc.)
@@ -14,16 +14,33 @@ import { logAudit } from '@/lib/audit'
  *
  * Headers (por prioridad):
  *   X-POS-Provider / x-pos-provider  → 'fudo' | 'bistrosoft'
- *   X-POS-Signature / x-pos-signature → HMAC-SHA256 del body
+ *   X-POS-Signature / x-pos-signature (alias X-Webhook-Signature)
+ *     → HMAC-SHA256 en hex del rawBody, con el webhookSecret del tenant.
+ *       OBLIGATORIA: sin header se responde 401 antes de tocar la DB.
+ *
+ * El body debe incluir `timestamp` (ISO, unix seconds o unix ms) dentro de
+ * ±300s respecto de ahora (anti-replay); al ir dentro del body firmado no
+ * puede manipularse sin romper la firma.
+ *
+ * Excepción sandbox (FUDO puede omitir la firma): solo con la env
+ * POS_WEBHOOK_ALLOW_UNSIGNED=1 explícita FUERA de producción. En producción
+ * la flag se ignora (firma siempre obligatoria) y queda un error en el log
+ * una sola vez por arranque de instancia; una firma presente pero inválida
+ * se rechaza igual.
  *
  * Si el header X-POS-Provider no está presente, se intenta extraer del body:
  *   { provider: 'fudo', event: 'ORDER-CONFIRMED', externalOrderId: 'REST-...' }
  *
  * Body esperado (formato normalizado):
- *   { event: string, externalOrderId: string }
+ *   { event: string, externalOrderId: string, timestamp: string }
  *
  * FUDO envía: { event: 'ORDER-CONFIRMED', orderId: '...', externalOrderId: 'REST-...', timestamp: '2026-01-01T00:00:00Z' }
  */
+
+// Una sola línea de error por arranque de instancia si la flag sandbox está
+// puesta en producción: se ignora igual (firma obligatoria) y un log por
+// request inundaría Cloud Logs (S1-1).
+let warnedIgnoredInProd = false
 
 export async function POST(
   request: NextRequest,
@@ -42,12 +59,33 @@ export async function POST(
     if (!provider) provider = request.headers.get('x-pos-provider')?.toLowerCase() ?? null
     if (!signature) signature = request.headers.get('x-pos-signature') ?? request.headers.get('x-webhook-signature') ?? null
 
+    // Firma obligatoria: se rechaza ANTES de parsear el body o tocar la DB.
+    // El sandbox de FUDO (puede omitirla) solo se habilita con env explícita
+    // y fuera de producción: en prod la flag se ignora y deja UN error en el
+    // log por arranque de instancia, nunca uno por request (S1-1).
+    const flagSet = ['1', 'true'].includes(
+      (process.env.POS_WEBHOOK_ALLOW_UNSIGNED ?? '').toLowerCase()
+    )
+    const isProd = process.env.NODE_ENV === 'production'
+    if (flagSet && isProd && !warnedIgnoredInProd) {
+      warnedIgnoredInProd = true
+      console.error(
+        '[POS Webhook] POS_WEBHOOK_ALLOW_UNSIGNED ignorada en produccion: firma obligatoria'
+      )
+    }
+    const allowUnsigned = flagSet && !isProd
+    if (!signature && !allowUnsigned) {
+      return NextResponse.json({ error: 'Firma requerida' }, { status: 401 })
+    }
+
     // ── Parsear body para extraer provider y evento ────────────────────────
     let event: string = ''
     let externalOrderId: string = ''
+    let bodyTimestamp: unknown = undefined
 
     try {
       const payload = JSON.parse(rawBody)
+      bodyTimestamp = payload.timestamp
       event = payload.event ?? payload.type ?? payload.status ?? ''
       externalOrderId = payload.externalOrderId ?? payload.external_order_id ?? payload.orderNumber ?? payload.order_number ?? ''
 
@@ -86,15 +124,21 @@ export async function POST(
 
     const webhookSecret = decrypt(tenant.posIntegration.webhookSecret)
 
-    if (signature) {
-      const hmac = crypto.createHmac('sha256', webhookSecret)
-      const digest = hmac.update(rawBody).digest('hex')
-      if (signature !== digest) {
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-      }
+    const verdict = verifyPosWebhookSignature({
+      rawBody,
+      signature,
+      timestamp: bodyTimestamp,
+      secret: webhookSecret,
+      allowUnsigned,
+    })
+    if (!verdict.ok) {
+      return NextResponse.json({ error: verdict.error }, { status: verdict.status })
     }
-    // NOTA: Algunos POS (como FUDO) pueden omitir la firma en entorno sandbox.
-    // En producción, la firma es obligatoria para validar autenticidad.
+    if (verdict.unsigned) {
+      console.warn(
+        `[POS Webhook] firma omitida (POS_WEBHOOK_ALLOW_UNSIGNED) tenant=${tenantSlug}`
+      )
+    }
 
     // ── Mapear evento al estado de TakeasyGO ──────────────────────────────
     const connector = getPOSConnector(provider as 'fudo' | 'bistrosoft')
