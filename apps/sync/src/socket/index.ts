@@ -3,8 +3,11 @@ import type { Server as HttpServer } from "node:http"
 import { createAdapter } from "@socket.io/redis-adapter"
 import Redis from "ioredis"
 import { verifyJwt } from "@takeasygo/business/jwt"
+import type { JwtPayload } from "@takeasygo/types"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
+import { isJtiDenied } from "../auth/jtiDenylist"
+import { registerSocket, unregisterSocket, socketAuthExpired, sweepSockets } from "./registry"
 
 export function createSocketServer(
   httpServer: HttpServer,
@@ -26,15 +29,33 @@ export function createSocketServer(
   subClient.on("error", (err) => console.error("[socket/sub/redis] error:", err.message))
   io.adapter(createAdapter(pubClient, subClient))
 
+  // Barrido server-side (ronda 2, defecto 3): cada socketSweepIntervalMs
+  // tumba tokens vencidos y jtis revocados sin depender del heartbeat del
+  // cliente. Los timers de este proceso son siempre-activos (pm2 en EC2);
+  // unref() para no retener el loop en tests/cierre ordenado.
+  const sweepTimer = setInterval(() => {
+    void sweepSockets(isJtiDenied)
+      .then(({ expired, denied }) => {
+        if (expired > 0 || denied > 0) {
+          console.warn(
+            `[socket] sweep | sockets caidos: exp=${expired} denylist=${denied}`
+          )
+        }
+      })
+      .catch((err) => console.error("[socket] sweep error:", err))
+  }, config.socketSweepIntervalMs)
+  sweepTimer.unref?.()
+
   // Tracks POS liveness per position (E gate: `Location.pos.lastSeenAt`).
   // Throttled: at most one write every 15s per socket.
   function markPosSeen(tenantId: string, locationId: string): void {
     if (!tenantId || !locationId) return
     const key = `posSeen:${tenantId}:${locationId}`
     const now = Date.now()
-    const last = (globalThis as any)[key] as number | undefined
+    const g = globalThis as unknown as Record<string, number | undefined>
+    const last = g[key]
     if (last && now - last < 15_000) return
-    ;(globalThis as any)[key] = now
+    g[key] = now
     LocationModel.updateOne(
       { tenantId, _id: locationId },
       { $set: { "pos.lastSeenAt": new Date() } }
@@ -43,37 +64,53 @@ export function createSocketServer(
     })
   }
 
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token as string | undefined
-    if (!token) {
-      return next(new Error("Authentication required"))
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token as string | undefined
+      if (!token) {
+        return next(new Error("Authentication required"))
+      }
+
+      const payload = verifyJwt(token, config.jwtPublicKey)
+      if (!payload) {
+        return next(new Error("Invalid or expired token"))
+      }
+
+      // S1-5: sin jti no es revocable (token pre-S1-5) y con jti
+      // revocado el logout ya lo tumbó — en ambos casos, fuera.
+      if (!payload.jti || (await isJtiDenied(payload.jti))) {
+        console.warn(
+          `[socket] Token sin jti o revocado | sub=${payload.sub} tenantId=${payload.tenantId}`
+        )
+        return next(new Error("Invalid or expired token"))
+      }
+
+      socket.data.auth = payload
+
+      // Generic device room (needed for sync:pending_events hub re-sync).
+      socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
+
+      if (payload.locationId) {
+        // Multi-sede POS: joins ONLY its location room — receives only its own
+        // orders. The generic `tenant:{id}` room is intentionally NOT joined.
+        socket.join(`tenant:${payload.tenantId}:location:${payload.locationId}`)
+        markPosSeen(payload.tenantId, payload.locationId)
+      } else {
+        // Single-sede POS (legacy): generic tenant room, current behavior.
+        socket.join(`tenant:${payload.tenantId}`)
+      }
+
+      next()
+    } catch (err) {
+      console.error("[socket] auth middleware error:", err)
+      next(err as Error)
     }
-
-    const payload = verifyJwt(token, config.jwtPublicKey)
-    if (!payload) {
-      return next(new Error("Invalid or expired token"))
-    }
-
-    (socket as any).auth = payload
-
-    // Generic device room (needed for sync:pending_events hub re-sync).
-    socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
-
-    if (payload.locationId) {
-      // Multi-sede POS: joins ONLY its location room — receives only its own
-      // orders. The generic `tenant:{id}` room is intentionally NOT joined.
-      socket.join(`tenant:${payload.tenantId}:location:${payload.locationId}`)
-      markPosSeen(payload.tenantId, payload.locationId)
-    } else {
-      // Single-sede POS (legacy): generic tenant room, current behavior.
-      socket.join(`tenant:${payload.tenantId}`)
-    }
-
-    next()
   })
 
   io.on("connection", (socket) => {
-    const auth = (socket as any).auth
+    const auth: JwtPayload = socket.data.auth
+
+    if (auth.jti) registerSocket(auth.jti, socket, auth)
 
     socket.emit("heartbeat", { timestamp: new Date().toISOString() })
 
@@ -89,14 +126,32 @@ export function createSocketServer(
       timestamp: new Date().toISOString(),
     })
 
-    socket.on("heartbeat", () => {
-      socket.emit("heartbeat", { timestamp: new Date().toISOString() })
-      if (auth.locationId) {
-        markPosSeen(auth.tenantId, auth.locationId)
+    socket.on("heartbeat", async () => {
+      try {
+        // Re-chequeo por heartbeat (S1-5): el logout revocó el jti en la
+        // denylist, o el token venció. Antes de este chequeo un socket
+        // sobrevivía a su propio token (solo el handshake lo validaba).
+        const expired = socketAuthExpired(auth)
+        const denied = auth.jti ? await isJtiDenied(auth.jti) : false
+        if (expired || denied) {
+          console.warn(
+            `[socket] Desconecto en heartbeat | sub=${auth.sub} tenantId=${auth.tenantId} expired=${expired} denied=${denied}`
+          )
+          socket.disconnect(true)
+          return
+        }
+
+        socket.emit("heartbeat", { timestamp: new Date().toISOString() })
+        if (auth.locationId) {
+          markPosSeen(auth.tenantId, auth.locationId)
+        }
+      } catch (err) {
+        console.error("[socket] heartbeat error:", err)
       }
     })
 
     socket.on("disconnect", () => {
+      if (auth.jti) unregisterSocket(auth.jti, socket)
     })
   })
 

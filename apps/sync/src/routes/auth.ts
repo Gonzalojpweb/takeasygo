@@ -12,7 +12,10 @@ import {
   checkAccountLock,
   recordAccountFailure,
   clearAccountFailures,
+  checkLogoutSubLimit,
 } from "../middleware/rate-limiter"
+import { denyJti } from "../auth/jtiDenylist"
+import { disconnectSocketsByJti } from "../socket/registry"
 import { UserModel, LocationModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
 
@@ -26,7 +29,7 @@ export const authRouter = Router()
 async function resolveLocationId(
   tenantId: string,
   locationId: string | undefined,
-  res: any
+  res: Response
 ): Promise<string | null | undefined> {
   if (!locationId) return undefined
 
@@ -190,6 +193,48 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
     res.status(400).json({ error: "Invalid login mode" })
   } catch (err) {
     console.error("[auth] login error:", err)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+// ============================================================================
+// Logout (S1-5) — SE MONTA DESPUÉS de authMiddleware (ver routes/index.ts):
+// necesita req.auth (con jti/exp) que solo el middleware completo arma.
+// El POS llama a sync Y a saas en el mismo logout: cada verificador tiene
+// su propia denylist (Redis local acá, Upstash allá).
+// ============================================================================
+export const logoutRouter = Router()
+
+logoutRouter.post("/logout", async (req, res) => {
+  try {
+    const auth = req.auth!
+
+    // Límite por sub DESPUÉS de verificar (el por-IP ya corrió antes de
+    // authMiddleware, ver routes/index.ts).
+    if (!checkLogoutSubLimit(auth.sub)) {
+      res.status(429).json({ error: "Too many logout requests", code: "rate_limited" })
+      return
+    }
+
+    const ttl = Math.max(auth.exp - Math.floor(Date.now() / 1000), 0) + 60
+    const ok = await denyJti(auth.jti, ttl)
+
+    // Sockets: se tumban igual — denyJti escribió la memoria local de este
+    // proceso, así que este instancia ya no acepta el token.
+    const sockets = disconnectSocketsByJti(auth.jti)
+
+    if (!ok) {
+      // Redis no confirmó: el POS debe registrar la revocación como
+      // PARCIAL (503) y reintentar. Este proceso quedó cubierto igual.
+      console.error(`[auth] logout 503: denylist no confirmada | sub=${auth.sub} tenantId=${auth.tenantId} sockets=${sockets}`)
+      res.status(503).json({ error: "Revocación no persistida", code: "revoke_unavailable" })
+      return
+    }
+
+    console.log(`[auth] logout revocado | sub=${auth.sub} tenantId=${auth.tenantId} ttl=${ttl}s sockets=${sockets}`)
+    res.json({ revoked: true })
+  } catch (err) {
+    console.error("[auth] logout error:", err)
     res.status(500).json({ error: "Internal server error" })
   }
 })

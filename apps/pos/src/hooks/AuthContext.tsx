@@ -88,6 +88,27 @@ function clearCachedSession() {
   try { sessionStorage.removeItem(SESSION_CACHE_KEY) } catch {}
 }
 
+/**
+ * Tablas de Dexie que se limpian al hacer logout (S1-5): son vistas y
+ * cachés del turno/usuario — el próximo que entre no debe heredarlas.
+ *
+ * Las que SOBREVIVEN (y por qué):
+ *  - tenantConfig      → identidad del dispositivo (tenantSalt, deviceSecret);
+ *                        borrarla rompe la firma de eventos offline y el pareo.
+ *  - pendingEvents     → eventos offline aún NO sincronizados: son ventas.
+ *  - pendingMovements  → movimientos de caja huérfanos sin sincronizar.
+ *  - pendingStatusUpdates → cambios de estado locales esperando su pedido.
+ *  - cashRegister      → caja abierta: es estado operativo, no de sesión.
+ *  - pairedSpokes      → pareja de dispositivos (identidad, no sesión).
+ */
+async function wipeLocalSessionData(): Promise<void> {
+  await db.session.clear()
+  await db.menuSnapshot.clear()
+  await db.orders.clear()
+  await db.commands.clear()
+  await db.diningTable.clear()
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -265,16 +286,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
+    // 1. Revocar el token en sync Y saas (S1-5) ANTES de tirar la copia
+    //    local: si se revoca después, ya no queda con qué mandarla.
+    //    Best-effort con timeout — si no hay red, el logout local igual
+    //    ocurre (el token expira solo en <= 30 min).
+    const token = state.jwt?.accessToken ?? getCachedSession()?.accessToken
+    if (token) {
+      // Si un lado no confirma (503 o red), revokeSession lo loguea y
+      // reintenta en memoria (3 envíos, backoff ~10s/~30s) — sin
+      // persistir el token en ningún lado.
+      await authApi.revokeSession(token)
+    }
+
+    // 2. Limpieza local total (timers, sesión, Dexie, clave).
     clearTimers()
     clearCachedSession()
-    const sessions = await db.session.toArray()
-    for (const s of sessions) {
-      await db.session.delete(s.tenantId)
-    }
+    await wipeLocalSessionData()
     setEncryptionKey(null)
     setState({ status: "login" })
     window.dispatchEvent(new CustomEvent("auth:expired"))
-  }, [clearTimers])
+  }, [clearTimers, state.jwt?.accessToken])
 
   return (
     <AuthContext.Provider value={{ state, login, logout }}>
