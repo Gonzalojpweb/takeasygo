@@ -5,6 +5,7 @@ import Redis from "ioredis"
 import { verifyJwt } from "@takeasygo/business/jwt"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
+import { isJtiDenied } from "../auth/jtiDenylist"
 
 export function createSocketServer(
   httpServer: HttpServer,
@@ -43,33 +44,47 @@ export function createSocketServer(
     })
   }
 
-  io.use((socket, next) => {
-    const token = socket.handshake.auth?.token as string | undefined
-    if (!token) {
-      return next(new Error("Authentication required"))
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token as string | undefined
+      if (!token) {
+        return next(new Error("Authentication required"))
+      }
+
+      const payload = verifyJwt(token, config.jwtPublicKey)
+      if (!payload) {
+        return next(new Error("Invalid or expired token"))
+      }
+
+      // S1-5: sin jti no es revocable (token pre-S1-5) y con jti
+      // revocado el logout ya lo tumbó — en ambos casos, fuera.
+      if (!payload.jti || (await isJtiDenied(payload.jti))) {
+        console.warn(
+          `[socket] Token sin jti o revocado | sub=${payload.sub} tenantId=${payload.tenantId}`
+        )
+        return next(new Error("Invalid or expired token"))
+      }
+
+      (socket as any).auth = payload
+
+      // Generic device room (needed for sync:pending_events hub re-sync).
+      socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
+
+      if (payload.locationId) {
+        // Multi-sede POS: joins ONLY its location room — receives only its own
+        // orders. The generic `tenant:{id}` room is intentionally NOT joined.
+        socket.join(`tenant:${payload.tenantId}:location:${payload.locationId}`)
+        markPosSeen(payload.tenantId, payload.locationId)
+      } else {
+        // Single-sede POS (legacy): generic tenant room, current behavior.
+        socket.join(`tenant:${payload.tenantId}`)
+      }
+
+      next()
+    } catch (err) {
+      console.error("[socket] auth middleware error:", err)
+      next(err as Error)
     }
-
-    const payload = verifyJwt(token, config.jwtPublicKey)
-    if (!payload) {
-      return next(new Error("Invalid or expired token"))
-    }
-
-    (socket as any).auth = payload
-
-    // Generic device room (needed for sync:pending_events hub re-sync).
-    socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
-
-    if (payload.locationId) {
-      // Multi-sede POS: joins ONLY its location room — receives only its own
-      // orders. The generic `tenant:{id}` room is intentionally NOT joined.
-      socket.join(`tenant:${payload.tenantId}:location:${payload.locationId}`)
-      markPosSeen(payload.tenantId, payload.locationId)
-    } else {
-      // Single-sede POS (legacy): generic tenant room, current behavior.
-      socket.join(`tenant:${payload.tenantId}`)
-    }
-
-    next()
   })
 
   io.on("connection", (socket) => {
