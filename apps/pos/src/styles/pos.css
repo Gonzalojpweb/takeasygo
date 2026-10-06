@@ -38,6 +38,10 @@
   --mesa-ocupada-border: #F5C451;
   --mesa-atencion: #FDECEA;
   --mesa-atencion-border: #C94C4C;
+  --mesa-libre-solid: #91C788;
+  --mesa-ocupada-solid: #F69947;
+  --mesa-atencion-solid: #DE675A;
+  --mesa-reservada-solid: #7BA2E2;
 
   /* Spacing — Base 8px */
   --sp-1: 4px;
@@ -147,13 +151,14 @@ input, select, textarea {
   border-bottom: 1px solid var(--border);
   z-index: 10;
 }
-.header-left { display: flex; align-items: center; gap: var(--sp-6); }
+.header-left { display: flex; align-items: center; gap: var(--sp-6); flex: 1; }
 .brand { display: flex; align-items: center; gap: var(--sp-2); font-weight: var(--font-weight-semibold); font-size: var(--font-size-lg); color: var(--text-primary); letter-spacing: -0.3px; }
-.brand-icon { width: 28px; height: 28px; background: var(--brand-orange); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: 700; }
+.brand-icon { width: 32px; height: 32px; background: var(--brand-orange); border-radius: 12px 12px 12px 0; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; font-weight: 700; flex-shrink: 0; }
 .header-info { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--font-size-sm); color: var(--text-secondary); }
 .header-info span { display: flex; align-items: center; gap: var(--sp-1); }
 .header-divider { width: 1px; height: 20px; background: var(--border); }
-.header-right { display: flex; align-items: center; gap: var(--sp-4); }
+.header-right { display: flex; align-items: center; gap: var(--sp-3); flex: 1; justify-content: flex-end; }
+.header-center { flex: 1; text-align: center; }
 .sync-status { display: flex; align-items: center; gap: var(--sp-1); font-size: var(--font-size-xs); color: var(--success); padding: var(--sp-1) var(--sp-2); background: var(--success-light); border-radius: 4px; }
 .sync-status.disconnected { color: var(--danger); background: var(--danger-light, #fee2e2); }
 .sync-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; }
@@ -224,12 +229,13 @@ input, select, textarea {
 .navigation.collapsed .nav-item {
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
   padding: var(--sp-2) 0;
   margin: 0 var(--sp-1);
-  font-size: 9px;
-  min-height: 56px;
+  font-size: 10px;
+  min-height: 60px;
   text-align: center;
+  border-radius: 10px;
 }
 .navigation.collapsed .nav-item span:not(.nav-item-badge) {
   display: block;
@@ -276,7 +282,7 @@ input, select, textarea {
 .view-tab { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-secondary); background: none; border: none; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all var(--transition-fast); }
 .view-tab:hover { color: var(--brand-orange); background: #F5F5F4; }
 .view-tab:hover .nav-item-svg { color: var(--brand-orange); opacity: 1; }
-.view-tab.active { color: var(--brand-orange); border-bottom-color: var(--brand-orange); }
+.view-tab.active { color: var(--brand-orange); border-bottom: 3px solid var(--brand-orange); font-weight: var(--font-weight-semibold); }
 .view-tab.active .nav-item-svg { color: var(--brand-orange); opacity: 1; }
 
 /* CONTEXT PANEL */
@@ -381,6 +387,27 @@ input, select, textarea {
   gap: var(--sp-3);
 }
 
+/* Context Panel Cobro Button */
+.btn-cobro {
+  width: 100%;
+  padding: 16px;
+  background: var(--brand-orange);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(247,66,17,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-cobro:hover { background: var(--brand-orange-hover); box-shadow: 0 6px 16px rgba(247,66,17,0.35); transform: translateY(-1px); }
+.btn-cobro:disabled { background: #F2D3C2; box-shadow: none; transform: none; cursor: not-allowed; }
+
 /* ========================================
    BUTTONS
    ======================================== */
@@ -413,6 +440,27 @@ input, select, textarea {
 .btn-secondary:hover { background: var(--surface-secondary); }
 .btn-brand { background: var(--brand-orange); color: white; }
 .btn-brand:hover { background: var(--brand-orange-hover); }
+
+/* Context Panel Cobro Button */
+.btn-cobro {
+  width: 100%;
+  padding: 16px;
+  background: var(--brand-orange);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px rgba(247,66,17,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-cobro:hover { background: var(--brand-orange-hover); box-shadow: 0 6px 16px rgba(247,66,17,0.35); transform: translateY(-1px); }
+.btn-cobro:disabled { background: #F2D3C2; box-shadow: none; transform: none; cursor: not-allowed; }
 
 /* ========================================
    CUSTOMERS
@@ -826,45 +874,145 @@ input, select, textarea {
 }
 
 /* ========================================
-   MESA GRID
+   SALON / MESA GRID — Dynamic Relief Style
    ======================================== */
 
-.salon-content { padding: var(--sp-6); }
+.salon-content { padding: var(--sp-6); overflow-y: auto; flex: 1; }
+.salon-map-container {
+  background: rgba(240,242,244,0.35);
+  border: 2px solid var(--border);
+  border-radius: 24px;
+  padding: 32px;
+  min-height: 420px;
+  position: relative;
+}
+.salon-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: var(--surface);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  margin-top: 20px;
+  box-shadow: var(--depth-1);
+}
+.salon-footer-stats { display: flex; gap: 28px; }
+.salon-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.salon-stat-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+.salon-stat-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.salon-stat-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.salon-total { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.salon-total-label { font-size: var(--font-size-xs); color: var(--text-secondary); }
+.salon-total-count { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+
 .sector { margin-bottom: var(--sp-8); }
-.sector-header { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: var(--sp-3); padding-left: var(--sp-1); }
-.sector-grid { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.sector-header { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: var(--sp-4); padding-left: var(--sp-1); }
+.sector-grid { display: flex; flex-wrap: wrap; gap: 20px; }
 
 .mesa {
-  width: 100px;
-  height: 80px;
-  border-radius: 10px;
-  border: 2px solid var(--border);
-  background: var(--surface);
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  border: none;
+  background: var(--surface-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-normal);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
   position: relative;
   min-width: 44px;
   min-height: 44px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.07), inset 0 1px 3px rgba(255,255,255,0.35);
+  user-select: none;
 }
-.mesa:hover { border-color: var(--brand-orange); box-shadow: var(--depth-1); transform: translateY(-1px); }
-.mesa.libre { border-color: var(--mesa-libre-border); background: var(--mesa-libre); }
-.mesa.ocupada { border-color: var(--mesa-ocupada-border); background: var(--mesa-ocupada); }
-.mesa.atencion { border-color: var(--mesa-atencion-border); background: var(--mesa-atencion); }
-.mesa.seleccionada { border-color: var(--brand-orange); background: var(--brand-orange); color: white; box-shadow: 0 0 0 3px rgba(247,66, 17, 0.2); }
-.mesa-number { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); line-height: 1; }
-.mesa-time { position: absolute; top: 4px; right: 6px; font-size: 10px; color: var(--text-muted); font-weight: var(--font-weight-medium); }
-.mesa-info { font-size: var(--font-size-xs); color: var(--text-secondary); line-height: 1; }
-.mesa.seleccionada .mesa-info { color: rgba(255,255,255,0.8); }
-.mesa.seleccionada .mesa-time { color: rgba(255,255,255,0.7); }
+.mesa:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 24px rgba(0,0,0,0.11), inset 0 1px 3px rgba(255,255,255,0.4); }
+.mesa:active { transform: translateY(0) scale(0.98); }
 
-/* ========================================
-   PRODUCT GRID
-   ======================================== */
+/* Estado Libre — círculo verde */
+.mesa.libre {
+  background: var(--mesa-libre-solid, #91C788);
+  border-radius: 50%;
+  color: white;
+}
+/* Estado Ocupada — rect naranja */
+.mesa.ocupada {
+  background: var(--mesa-ocupada-solid, #F69947);
+  border-radius: 16px;
+  color: white;
+}
+/* Estado Atención — rect rojo */
+.mesa.atencion {
+  background: var(--mesa-atencion-solid, #DE675A);
+  border-radius: 16px;
+  color: white;
+}
+/* Estado Reservada — forma especial azul */
+.mesa.reservada {
+  background: var(--mesa-reservada-solid, #7BA2E2);
+  border-radius: 22px 8px;
+  color: white;
+}
+/* Mesa seleccionada — ring de foco */
+.mesa.seleccionada {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--brand-orange);
+  transform: translateY(-3px);
+}
+
+.mesa-number {
+  font-size: 20px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+.mesa-info {
+  font-size: var(--font-size-xs);
+  color: rgba(255,255,255,0.92);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.mesa.libre .mesa-info,
+.mesa.ocupada .mesa-info,
+.mesa.atencion .mesa-info,
+.mesa.reservada .mesa-info { color: rgba(255,255,255,0.92); }
+.mesa-time {
+  position: absolute;
+  bottom: 7px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  color: rgba(255,255,255,0.88);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.3px;
+}
+
 
 .category-tabs { display: flex; gap: var(--sp-2); padding: var(--sp-4) var(--sp-6) 0; overflow-x: auto; flex-shrink: 0; }
 .category-tab {
@@ -1569,10 +1717,11 @@ input, select, textarea {
    WAITER — Turno stats
    ======================================== */
 
-.turno-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
-.turno-stat { background: var(--surface); border-radius: 8px; border: 1px solid var(--border); padding: 12px; text-align: center; }
-.turno-stat-num { font-size: 20px; font-weight: 600; color: var(--brand-orange); }
-.turno-stat-label { font-size: 10px; color: var(--text-muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+.turno-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.turno-stat { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); padding: 14px 16px; text-align: center; box-shadow: var(--depth-1); transition: transform var(--transition-fast); }
+.turno-stat:hover { transform: translateY(-1px); }
+.turno-stat-num { font-size: 22px; font-weight: 700; color: var(--brand-orange); }
+.turno-stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 
 /* ========================================
    INCOMING ORDERS — Gateway
