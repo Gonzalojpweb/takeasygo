@@ -1223,25 +1223,67 @@ export function CounterDashboard() {
                     </button>
                   </div>
                 ) : (
-                  [...new Set(tables.map((t) => t.section || "Sala Principal"))].map(
-                    (section) => (
-                      <div key={section} className="sector">
-                        <div className="sector-header">{section}</div>
-                        <div className="sector-grid">
-                          {tables
-                            .filter((t) => (t.section || "Sala Principal") === section)
-                            .map((table) => (
-                              <MesaCard
-                                key={table.id}
-                                table={table}
-                                variant="counter"
-                                onClick={handleSelectTable}
-                              />
-                            ))}
+                  <>
+                    <div className="salon-map-container">
+                      {[...new Set(tables.map((t) => t.section || "Sala Principal"))].map(
+                        (section) => (
+                          <div key={section} className="sector">
+                            <div className="sector-header">{section}</div>
+                            <div className="sector-grid">
+                              {tables
+                                .filter((t) => (t.section || "Sala Principal") === section)
+                                .map((table) => (
+                                  <MesaCard
+                                    key={table.id}
+                                    table={table}
+                                    variant="counter"
+                                    onClick={handleSelectTable}
+                                    isSelected={selectedTableId === table.id}
+                                  />
+                                ))}
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    <div className="salon-footer">
+                      <div className="salon-footer-stats">
+                        <div className="salon-stat">
+                          <div className="salon-stat-count">
+                            <span className="salon-stat-dot" style={{ background: "#91C788" }} />
+                            {tables.filter((t) => t.status === "free").length}
+                          </div>
+                          <div className="salon-stat-label">Libres</div>
+                        </div>
+                        <div className="salon-stat">
+                          <div className="salon-stat-count">
+                            <span className="salon-stat-dot" style={{ background: "#F69947" }} />
+                            {tables.filter((t) => t.status === "occupied").length}
+                          </div>
+                          <div className="salon-stat-label">Ocupadas</div>
+                        </div>
+                        <div className="salon-stat">
+                          <div className="salon-stat-count">
+                            <span className="salon-stat-dot" style={{ background: "#DE675A" }} />
+                            {tables.filter((t) => t.status === "needs_attention").length}
+                          </div>
+                          <div className="salon-stat-label">Atención</div>
+                        </div>
+                        <div className="salon-stat">
+                          <div className="salon-stat-count">
+                            <span className="salon-stat-dot" style={{ background: "#7BA2E2" }} />
+                            {tables.filter((t) => t.status === "reserved").length}
+                          </div>
+                          <div className="salon-stat-label">Reservadas</div>
                         </div>
                       </div>
-                    )
-                  )
+                      <div className="salon-total">
+                        <div className="salon-total-label">Total mesas</div>
+                        <div className="salon-total-count">{tables.length}</div>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </>

@@ -66,55 +66,52 @@ export function Header({ tenantName, userName }: HeaderProps) {
 
   return (
     <header className="header">
-      <div className="header-left">
+      {/* Izquierda: Brand */}
+      <div className="header-left" style={{ flex: 1 }}>
         <div className="brand">
-          <div className="brand-icon">TG</div>
-          <span>TakeasyGO</span>
-        </div>
-        <div className="header-divider" />
-        <div className="header-info">
-          <span>📍 {tenantName}</span>
-          <span className="header-divider" />
-          <span>
-            🕐{" "}
-            {time.toLocaleTimeString("es-AR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
+          <div className="brand-icon" style={{ borderRadius: '12px 12px 12px 0', fontSize: '15px' }}>🔥</div>
+          <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600 }}>TakeasyGO</span>
         </div>
       </div>
-      <div className="header-right">
+
+      {/* Centro: Nombre tenant */}
+      <div style={{ flex: 1, textAlign: 'center', fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary)' }}>
+        {tenantName}
+      </div>
+
+      {/* Derecha: Acciones + Estado */}
+      <div className="header-right" style={{ flex: 1, justifyContent: 'flex-end' }}>
         <button
           className="btn btn-ghost btn-sm"
           onClick={handleGoToSaas}
           disabled={ssoLoading}
           title="Ir al SaaS"
-          style={{
-            fontSize: "var(--font-size-xs)",
-            padding: "4px 8px",
-            display: "flex",
-            alignItems: "center",
-            gap: "4px",
-            opacity: ssoLoading ? 0.6 : 1,
-          }}
+          style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: ssoLoading ? 0.6 : 1 }}
         >
           <ExternalLink size={14} />
-          {ssoLoading ? "Abriendo..." : "Ir al SaaS"}
+          {ssoLoading ? 'Abriendo...' : 'Ir al SaaS'}
         </button>
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => window.location.reload()}
           title="Refrescar POS"
-          style={{ fontSize: "var(--font-size-xs)", padding: "4px 8px" }}
+          style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px' }}
         >
           ↻ Refrescar
         </button>
-        <div className={`sync-status ${connected ? "" : "disconnected"}`}>
+        <div className={`sync-status ${connected ? '' : 'disconnected'}`}>
           <div className="sync-dot" />
-          <span>{connected ? "Sincronizado" : "Sin conexión"}</span>
+          <span>{connected ? 'Online' : 'Sin conexión'}</span>
         </div>
-        <div className="header-avatar" title={userName}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: '4px' }}>
+          <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+            {time.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+            {time.toLocaleDateString('es-AR', { weekday: 'long' })}
+          </div>
+        </div>
+        <div className="header-avatar" title={userName} style={{ background: 'var(--brand-orange)', color: 'white' }}>
           {initials}
         </div>
       </div>
