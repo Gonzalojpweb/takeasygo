@@ -20,6 +20,8 @@ export interface AuthPayload {
 }
 
 declare global {
+  // La augmentación de Express exige namespace (patrón oficial de tipos).
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       auth?: AuthPayload
