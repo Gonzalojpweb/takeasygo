@@ -14,13 +14,40 @@
  * Fail-open: si Upstash falla al LEER, se acepta el token (disponibilidad
  * del POS por encima; el exp sigue siendo el límite duro). Si falla al
  * ESCRIBIR, queda el registro local y se loguea el error.
+ *
+ * Ronda 2 (defectos 1 y 4):
+ *  - escrituras fallidas → cola `pendingWrites` que este proceso reintenta
+ *    (timer 5s mientras la instancia viva + flush perezoso en la próxima
+ *    llamada, como máximo 1/10s); serverless congela los timers entre
+ *    invocaciones, el flush perezoso cubre ese caso;
+ *  - logs de fallo rate-limitados a 1/min (con Upstash caído, un
+ *    console.error por verificación de token inundaría Cloud Logs);
+ *  - `verifyDenylistStartupConfig()` al cargar el módulo: en producción
+ *    sin Upstash, una línea CRÍTICA por arranque de instancia (franja
+ *    horaria, no por request).
  */
 
 const DENY_PREFIX = 'jwtDeny:'
 const MEMORY_MAX = 10_000
+const PENDING_RETRY_INTERVAL_MS = 5_000
+const LAZY_FLUSH_MIN_INTERVAL_MS = 10_000
+const LOG_THROTTLE_MS = 60_000
 
 /** jti -> epoch ms en que deja de estar vigente el veto. */
 const memoryMap = new Map<string, number>()
+
+/** Escrituras en Upstash que fallaron: jti -> epoch ms en que expira el veto. */
+const pendingWrites = new Map<string, number>()
+let pendingTimer: ReturnType<typeof setTimeout> | null = null
+let lastLazyFlushAt = 0
+
+let lastErrorLogAt = 0
+function logErrorThrottled(message: string): void {
+  const now = Date.now()
+  if (now - lastErrorLogAt < LOG_THROTTLE_MS) return
+  lastErrorLogAt = now
+  console.error(message)
+}
 
 function memoryPrune(now: number): void {
   if (memoryMap.size <= MEMORY_MAX) return
@@ -53,8 +80,74 @@ async function getRedis() {
   return redisClient
 }
 
+// ── Verificación de arranque (ronda 2, defecto 4) ───────────────────────────
+let startupChecked = false
+
+/**
+ * Debe correr al cargar el módulo (arranque de la instancia serverless):
+ * en producción SIN Upstash, deja UNA línea CRÍTICA por arranque en lugar
+ * de un error por cada verificación de token.
+ */
+export function verifyDenylistStartupConfig(): void {
+  if (startupChecked) return
+  startupChecked = true
+  if (isProduction() && !upstashConfigured()) console.error(NOT_CONFIGURED_MSG)
+}
+
+// ── Cola de escrituras pendientes (ronda 2, defecto 1) ──────────────────────
+function schedulePendingFlush(): void {
+  if (pendingTimer !== null) return
+  pendingTimer = setTimeout(() => {
+    pendingTimer = null
+    void flushPendingWrites()
+  }, PENDING_RETRY_INTERVAL_MS)
+  pendingTimer.unref?.()
+}
+
+/** Reintenta las escrituras fallidas con el TTL restante de cada veto. */
+export async function flushPendingWrites(): Promise<void> {
+  if (pendingWrites.size === 0) return
+  if (!upstashConfigured()) {
+    // Sin configuración no hay a dónde escribir: solo descartar vencidos.
+    const now = Date.now()
+    for (const [jti, expAt] of [...pendingWrites]) {
+      if (expAt <= now) pendingWrites.delete(jti)
+    }
+    return
+  }
+  const now = Date.now()
+  try {
+    const redis = await getRedis()
+    for (const [jti, expAt] of [...pendingWrites]) {
+      if (expAt <= now) {
+        pendingWrites.delete(jti)
+        continue
+      }
+      await redis.set(DENY_PREFIX + jti, 1, { ex: Math.ceil((expAt - now) / 1000) })
+      pendingWrites.delete(jti)
+    }
+  } catch (err) {
+    logErrorThrottled(`[jtiDenylist] reintento de escritura pendiente falló (${pendingWrites.size} en cola): ${err}`)
+  }
+  if (pendingWrites.size > 0) schedulePendingFlush()
+}
+
+/**
+ * Flush perezoso: en la próxima verificación/revocación, con a lo sumo 1
+ * intento cada 10s (no por request — con Upstash caído cada auth no debe
+ * pagar un reintento extra). Fire-and-forget: el request no espera.
+ */
+function maybeFlushPending(): void {
+  if (pendingWrites.size === 0) return
+  const now = Date.now()
+  if (now - lastLazyFlushAt < LAZY_FLUSH_MIN_INTERVAL_MS) return
+  lastLazyFlushAt = now
+  void flushPendingWrites()
+}
+
 /** ¿Este `jti` fue revocado (y su veto sigue vigente)? */
 export async function isJtiDenied(jti: string): Promise<boolean> {
+  maybeFlushPending()
   const now = Date.now()
   const local = memoryMap.get(jti)
   if (local !== undefined) {
@@ -65,7 +158,7 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
   if (!upstashConfigured()) {
     // Fuera de producción, dev/test sin Upstash: la memoria de esta única
     // instancia es el backend y es coherente con las escrituras.
-    if (isProduction()) console.error(NOT_CONFIGURED_MSG)
+    if (isProduction()) logErrorThrottled(NOT_CONFIGURED_MSG)
     return false
   }
 
@@ -74,7 +167,7 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
     const value = await redis.get(DENY_PREFIX + jti)
     return value !== null && value !== undefined
   } catch (err) {
-    console.error('[jtiDenylist] Upstash no responde (fail-open):', err)
+    logErrorThrottled(`[jtiDenylist] Upstash no responde (fail-open): ${err}`)
     return false
   }
 }
@@ -84,17 +177,18 @@ export async function isJtiDenied(jti: string): Promise<boolean> {
  * Devuelve true solo si quedó registrado en Upstash (autoridad
  * multi-instancia).
  *
- * En producción SIN Upstash → console.error (fallo ruidoso) y false:
+ * En producción SIN Upstash → log CRÍTICO (rate-limitado 1/min) y false:
  * escribir solo en la memoria de esta instancia sería fingir una
  * revocación que no protege nada. El endpoint responde 503 y el POS
- * registra la revocación como parcial.
+ * registra la revocación como parcial. Con Upstash caído → false y el
+ * jti queda en la cola de reintentos (flush 5s + lazy).
  */
 export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean> {
   const ttl = Math.max(1, Math.floor(ttlSeconds))
 
   if (!upstashConfigured()) {
     if (isProduction()) {
-      console.error(NOT_CONFIGURED_MSG)
+      logErrorThrottled(NOT_CONFIGURED_MSG)
       return false
     }
     // dev/test: un solo proceso, la memoria es backend válido.
@@ -107,18 +201,47 @@ export async function denyJti(jti: string, ttlSeconds: number): Promise<boolean>
   const now = Date.now()
   memoryMap.set(jti, now + ttl * 1000)
   memoryPrune(now)
+  pendingWrites.delete(jti)
 
   try {
     const redis = await getRedis()
     await redis.set(DENY_PREFIX + jti, 1, { ex: ttl })
     return true
   } catch (err) {
-    console.error('[jtiDenylist] Upstash no responde al revocar:', err)
+    pendingWrites.set(jti, now + ttl * 1000)
+    schedulePendingFlush()
+    logErrorThrottled(`[jtiDenylist] Upstash no responde al revocar (en cola de reintentos): ${err}`)
     return false
   }
 }
 
-/** Solo para tests: vacía el registro local. */
+/** Solo para tests: vacía el registro local, la cola, los timers y el throttle de logs. */
 export function __resetJtiDenylistForTests(): void {
   memoryMap.clear()
+  pendingWrites.clear()
+  if (pendingTimer !== null) {
+    clearTimeout(pendingTimer)
+    pendingTimer = null
+  }
+  lastErrorLogAt = 0
+  lastLazyFlushAt = 0
 }
+
+/** Solo para tests: jti con escritura en Upstash pendiente. */
+export function __getPendingDenyWritesForTests(): string[] {
+  return [...pendingWrites.keys()]
+}
+
+/** Solo para tests: fuerza el flush de la cola (sin esperar timer/lazy). */
+export async function __flushPendingDenyWritesForTests(): Promise<void> {
+  await flushPendingWrites()
+}
+
+/** Solo para tests: re-arma la verificación de arranque. */
+export function __resetStartupCheckForTests(): void {
+  startupChecked = false
+}
+
+// Al importar el módulo (= arranque de la instancia): producción sin
+// Upstash deja constancia una sola vez, no un log por request.
+verifyDenylistStartupConfig()

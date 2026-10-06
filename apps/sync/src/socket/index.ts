@@ -7,7 +7,7 @@ import type { JwtPayload } from "@takeasygo/types"
 import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
 import { isJtiDenied } from "../auth/jtiDenylist"
-import { registerSocket, unregisterSocket, socketAuthExpired } from "./registry"
+import { registerSocket, unregisterSocket, socketAuthExpired, sweepSockets } from "./registry"
 
 export function createSocketServer(
   httpServer: HttpServer,
@@ -28,6 +28,23 @@ export function createSocketServer(
   pubClient.on("error", (err) => console.error("[socket/pub/redis] error:", err.message))
   subClient.on("error", (err) => console.error("[socket/sub/redis] error:", err.message))
   io.adapter(createAdapter(pubClient, subClient))
+
+  // Barrido server-side (ronda 2, defecto 3): cada socketSweepIntervalMs
+  // tumba tokens vencidos y jtis revocados sin depender del heartbeat del
+  // cliente. Los timers de este proceso son siempre-activos (pm2 en EC2);
+  // unref() para no retener el loop en tests/cierre ordenado.
+  const sweepTimer = setInterval(() => {
+    void sweepSockets(isJtiDenied)
+      .then(({ expired, denied }) => {
+        if (expired > 0 || denied > 0) {
+          console.warn(
+            `[socket] sweep | sockets caidos: exp=${expired} denylist=${denied}`
+          )
+        }
+      })
+      .catch((err) => console.error("[socket] sweep error:", err))
+  }, config.socketSweepIntervalMs)
+  sweepTimer.unref?.()
 
   // Tracks POS liveness per position (E gate: `Location.pos.lastSeenAt`).
   // Throttled: at most one write every 15s per socket.
@@ -93,7 +110,7 @@ export function createSocketServer(
   io.on("connection", (socket) => {
     const auth: JwtPayload = socket.data.auth
 
-    if (auth.jti) registerSocket(auth.jti, socket)
+    if (auth.jti) registerSocket(auth.jti, socket, auth)
 
     socket.emit("heartbeat", { timestamp: new Date().toISOString() })
 

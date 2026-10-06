@@ -4,8 +4,46 @@ import { generateKeyPairSync } from 'node:crypto'
 import { signJwt } from '@takeasygo/business/jwt'
 import { POST } from '@/app/api/auth/logout/route'
 import { verifyPosToken } from '@/lib/posJwt'
-import { __resetJtiDenylistForTests } from '@/lib/jtiDenylist'
+import {
+  isJtiDenied,
+  verifyDenylistStartupConfig,
+  __resetJtiDenylistForTests,
+  __resetStartupCheckForTests,
+  __getPendingDenyWritesForTests,
+  __flushPendingDenyWritesForTests,
+} from '@/lib/jtiDenylist'
 import { __resetRateLimitForTests } from '@/lib/rateLimit'
+
+// Upstash falso (ronda 2): permite simular "Upstash caído → 503 + cola" y
+// después "vuelve → el flush del servidor persiste el veto".
+const upstashMock = vi.hoisted(() => ({
+  fail: false,
+  store: new Map<string, unknown>(),
+}))
+
+vi.mock('@upstash/redis', () => {
+  class Redis {
+    async get(key: string) {
+      if (upstashMock.fail) throw new Error('upstash down')
+      return upstashMock.store.has(key) ? 1 : null
+    }
+    async set(key: string, value: unknown) {
+      if (upstashMock.fail) throw new Error('upstash down')
+      upstashMock.store.set(key, value)
+      return 'OK'
+    }
+    async incr(key: string) {
+      if (upstashMock.fail) throw new Error('upstash down')
+      const next = (Number(upstashMock.store.get(key)) || 0) + 1
+      upstashMock.store.set(key, next)
+      return next
+    }
+    async expire() {
+      return true
+    }
+  }
+  return { Redis }
+})
 
 /**
  * S1-5 — POST /api/auth/logout.
@@ -59,6 +97,8 @@ beforeEach(() => {
   process.env.POS_JWT_PUBLIC_KEY = PUBLIC_PEM
   delete process.env.UPSTASH_REDIS_REST_URL
   delete process.env.UPSTASH_REDIS_REST_TOKEN
+  upstashMock.fail = false
+  upstashMock.store.clear()
   __resetJtiDenylistForTests()
   __resetRateLimitForTests()
 })
@@ -168,5 +208,83 @@ describe('rate limit de logout (G2 — defecto 4)', () => {
     const res = await POST(logoutRequest(token))
     expect(res.status).toBe(429)
     expect(await res.json()).toMatchObject({ code: 'rate_limited' })
+  })
+})
+
+describe('cola de escrituras pendientes (ronda 2 — defecto 1)', () => {
+  it('503 con Upstash caído deja la escritura en cola y el flush la persiste al volver', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
+    upstashMock.fail = true
+    const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+
+    const res = await POST(logoutRequest(token))
+    expect(res.status).toBe(503)
+    expect(__getPendingDenyWritesForTests()).toHaveLength(1)
+
+    // Upstash vuelve: el flush del SERVIDOR persiste el veto con su TTL.
+    upstashMock.fail = false
+    await __flushPendingDenyWritesForTests()
+
+    expect(__getPendingDenyWritesForTests()).toEqual([])
+    const { jti } = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64url').toString()
+    ) as { jti: string }
+    expect(upstashMock.store.has(`jwtDeny:${jti}`)).toBe(true)
+  })
+
+  it('flush perezoso: la próxima verificación reintenta la escritura (serverless)', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
+    upstashMock.fail = true
+    const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+
+    expect((await POST(logoutRequest(token))).status).toBe(503)
+    expect(__getPendingDenyWritesForTests()).toHaveLength(1)
+
+    // La instancia serverless "vuelve": la próxima llamada dispara el flush
+    // (fire-and-forget, con a lo sumo 1 intento cada 10s).
+    upstashMock.fail = false
+    await isJtiDenied('jti-otro')
+    for (let i = 0; i < 100 && __getPendingDenyWritesForTests().length > 0; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10))
+    }
+    expect(__getPendingDenyWritesForTests()).toEqual([])
+  })
+})
+
+describe('logs rate-limitados y verificación de arranque (ronda 2 — defecto 4)', () => {
+  it('producción sin Upstash: 50 verificaciones = UN solo log (1/min), no uno por request', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      process.env.NODE_ENV = 'production'
+      for (let i = 0; i < 50; i++) {
+        await isJtiDenied(`jti-flood-${i}`)
+      }
+      const configLogs = errorSpy.mock.calls.filter((c) =>
+        String(c[0]).includes('UPSTASH_REDIS_REST_URL')
+      )
+      expect(configLogs).toHaveLength(1)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('verificación de arranque: UNA línea crítica por arranque de instancia', () => {
+    __resetStartupCheckForTests()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      process.env.NODE_ENV = 'production'
+      verifyDenylistStartupConfig()
+      verifyDenylistStartupConfig()
+      verifyDenylistStartupConfig()
+      const configLogs = errorSpy.mock.calls.filter((c) =>
+        String(c[0]).includes('UPSTASH_REDIS_REST_URL')
+      )
+      expect(configLogs).toHaveLength(1)
+    } finally {
+      errorSpy.mockRestore()
+      __resetStartupCheckForTests()
+    }
   })
 })

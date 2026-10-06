@@ -15,8 +15,10 @@ import {
 import {
   isJtiDenied,
   denyJti,
+  flushPendingWrites,
   __setDenyRedisForTests,
   __resetJtiDenylistForTests,
+  __getPendingDenyWritesForTests,
   type DenyRedisLike,
 } from "../src/auth/jtiDenylist"
 
@@ -311,5 +313,117 @@ describe("rate limit de logout (G2 — defecto 4)", () => {
     expect(checkLogoutSubLimit("sub-limite")).toBe(false)
     // Otra sub no arrastra el contador.
     expect(checkLogoutSubLimit("sub-otra")).toBe(true)
+  })
+})
+
+function statefulRedis(): DenyRedisLike & {
+  store: Map<string, string>
+  setDown(down: boolean): void
+} {
+  const store = new Map<string, string>()
+  let down = false
+  return {
+    store,
+    setDown(next: boolean) {
+      down = next
+    },
+    get: async (key) => {
+      if (down) throw new Error("ECONNREFUSED")
+      return store.get(key) ?? null
+    },
+    set: async (key, value) => {
+      if (down) throw new Error("ECONNREFUSED")
+      store.set(key, value)
+      return "OK"
+    },
+  }
+}
+
+describe("cola de escrituras pendientes (ronda 2 — defecto 1)", () => {
+  it("Redis falla al revocar → en cola; flushPendingWrites la persiste al volver", async () => {
+    const fake = statefulRedis()
+    fake.setDown(true)
+    __setDenyRedisForTests(fake)
+
+    await expect(denyJti("jti-cola", 300)).resolves.toBe(false)
+    expect(__getPendingDenyWritesForTests()).toEqual(["jti-cola"])
+
+    fake.setDown(false)
+    await flushPendingWrites()
+
+    expect(__getPendingDenyWritesForTests()).toEqual([])
+    // La autoridad entre instancias (Redis) quedó con el veto + TTL.
+    expect(fake.store.get("jwtDeny:jti-cola")).toBe("1")
+    expect(await isJtiDenied("jti-cola")).toBe(true)
+  })
+
+  it("el fallo arma el timer de reintento del proceso (5s)", async () => {
+    vi.useFakeTimers()
+    try {
+      const fake = statefulRedis()
+      fake.setDown(true)
+      __setDenyRedisForTests(fake)
+
+      await denyJti("jti-timer", 300)
+
+      expect(__getPendingDenyWritesForTests()).toEqual(["jti-timer"])
+      expect(vi.getTimerCount()).toBe(1)
+    } finally {
+      vi.useRealTimers()
+      __resetJtiDenylistForTests()
+      __setDenyRedisForTests(fakeRedis())
+    }
+  })
+
+  it("un veto ya vencido en la cola no se reescribe (el token también venció)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      const fake = statefulRedis()
+      fake.setDown(true)
+      __setDenyRedisForTests(fake)
+
+      await denyJti("jti-vence", 60)
+
+      vi.setSystemTime(Date.now() + 61_000)
+      fake.setDown(false)
+      await flushPendingWrites()
+
+      expect(__getPendingDenyWritesForTests()).toEqual([])
+      expect(fake.store.has("jwtDeny:jti-vence")).toBe(false)
+    } finally {
+      vi.useRealTimers()
+      __resetJtiDenylistForTests()
+      __setDenyRedisForTests(fakeRedis())
+    }
+  })
+})
+
+describe("logs rate-limitados (ronda 2 — defecto 4)", () => {
+  it("con Redis caído: 1 log por minuto, no uno por verificación de token", async () => {
+    __setDenyRedisForTests(
+      fakeRedis({
+        get: async () => {
+          throw new Error("ECONNREFUSED")
+        },
+      })
+    )
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {})
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      for (let i = 0; i < 50; i++) {
+        await isJtiDenied(`jti-flood-${i}`)
+      }
+      const failOpenLogs = () =>
+        errorSpy.mock.calls.filter((c) => String(c[0]).includes("fail-open"))
+      expect(failOpenLogs()).toHaveLength(1)
+
+      // Pasó el minuto: vuelve a loguear UNA vez.
+      vi.setSystemTime(Date.now() + 61_000)
+      await isJtiDenied("jti-flood-x")
+      expect(failOpenLogs()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+      errorSpy.mockRestore()
+    }
   })
 })
