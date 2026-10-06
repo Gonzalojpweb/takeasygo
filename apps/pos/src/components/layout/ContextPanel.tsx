@@ -7,9 +7,12 @@ export function ContextPanel() {
     return (
       <aside className="context-panel context-panel--empty">
         <div className="context-panel-empty-state">
-          <span className="context-panel-empty-icon">📋</span>
-          <span className="context-panel-empty-text">
-            Seleccioná una mesa o contexto
+          <div style={{ fontSize: '40px', marginBottom: '8px', opacity: 0.3 }}>🍽</div>
+          <span className="context-panel-empty-text" style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
+            Seleccioná una mesa
+          </span>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'center', lineHeight: 1.5 }}>
+            Tocá una mesa del mapa para ver su detalle y gestionar el pedido
           </span>
         </div>
       </aside>
@@ -20,7 +23,9 @@ export function ContextPanel() {
     <aside className="context-panel">
       <div className="context-panel-header">
         <div>
-          <div className="context-panel-title">{contextPanel.title}</div>
+          <div className="context-panel-title" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, color: 'var(--brand-orange)' }}>
+            {contextPanel.title}
+          </div>
           {contextPanel.subtitle && (
             <div className="context-panel-subtitle">{contextPanel.subtitle}</div>
           )}

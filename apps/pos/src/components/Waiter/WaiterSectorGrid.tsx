@@ -28,7 +28,7 @@ export function WaiterSectorGrid({ tables, onSelectTable }: WaiterSectorGridProp
   }
 
   return (
-    <>
+    <div className="salon-map-container">
       {Object.entries(sectors).map(([section, sectionTables]) => (
         <div key={section} className="sector">
           <div className="sector-header">{section}</div>
@@ -44,6 +44,6 @@ export function WaiterSectorGrid({ tables, onSelectTable }: WaiterSectorGridProp
           </div>
         </div>
       ))}
-    </>
+    </div>
   )
 }
