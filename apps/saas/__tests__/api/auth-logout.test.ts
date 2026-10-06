@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { generateKeyPairSync } from 'node:crypto'
 import { signJwt } from '@takeasygo/business/jwt'
 import { POST } from '@/app/api/auth/logout/route'
 import { verifyPosToken } from '@/lib/posJwt'
 import { __resetJtiDenylistForTests } from '@/lib/jtiDenylist'
+import { __resetRateLimitForTests } from '@/lib/rateLimit'
 
 /**
  * S1-5 — POST /api/auth/logout.
@@ -12,7 +13,10 @@ import { __resetJtiDenylistForTests } from '@/lib/jtiDenylist'
  * El POS llama a este endpoint (y al de sync) en su logout. El contrato:
  *  - solo con Bearer válido → 401 sin él o con token inválido/revocado;
  *  - 200 deja el jti en la denylist: verifyPosToken pasa a rechazarlo;
- *  - idempotencia: un segundo intento con el mismo token da 401.
+ *  - idempotencia: un segundo intento con el mismo token da 401;
+ *  - 503 `revoke_unavailable` si la denylist no persiste (G2: el POS lo
+ *    registra como revocación PARCIAL y reintenta);
+ *  - rate limit 60/min por IP (antes de verificar) y 20/min por sub.
  */
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
@@ -31,6 +35,7 @@ const ORIGINAL_ENV = {
   POS_JWT_PUBLIC_KEY: process.env.POS_JWT_PUBLIC_KEY,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  NODE_ENV: process.env.NODE_ENV,
 }
 
 function restoreEnv() {
@@ -40,6 +45,8 @@ function restoreEnv() {
   else process.env.UPSTASH_REDIS_REST_URL = ORIGINAL_ENV.UPSTASH_REDIS_REST_URL
   if (ORIGINAL_ENV.UPSTASH_REDIS_REST_TOKEN === undefined) delete process.env.UPSTASH_REDIS_REST_TOKEN
   else process.env.UPSTASH_REDIS_REST_TOKEN = ORIGINAL_ENV.UPSTASH_REDIS_REST_TOKEN
+  if (ORIGINAL_ENV.NODE_ENV === undefined) delete process.env.NODE_ENV
+  else process.env.NODE_ENV = ORIGINAL_ENV.NODE_ENV
 }
 
 function logoutRequest(accessToken: string | null): NextRequest {
@@ -53,6 +60,7 @@ beforeEach(() => {
   delete process.env.UPSTASH_REDIS_REST_URL
   delete process.env.UPSTASH_REDIS_REST_TOKEN
   __resetJtiDenylistForTests()
+  __resetRateLimitForTests()
 })
 
 afterEach(() => {
@@ -102,5 +110,63 @@ describe('POST /api/auth/logout', () => {
 
     expect(await verifyPosToken(revoked)).toBeNull()
     expect(await verifyPosToken(other)).not.toBeNull()
+  })
+})
+
+describe('503 si la denylist no persiste (G2 — defectos 1 y 2)', () => {
+  it('producción sin Upstash: error ruidoso + 503, NO finge revocación', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      process.env.NODE_ENV = 'production'
+      const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+
+      const res = await POST(logoutRequest(token))
+      expect(res.status).toBe(503)
+      expect(await res.json()).toMatchObject({ code: 'revoke_unavailable' })
+
+      // Fallo ruidoso: el misconfig aparece en los logs de producción.
+      expect(
+        errorSpy.mock.calls.some((c) => String(c[0]).includes('UPSTASH_REDIS_REST_URL'))
+      ).toBe(true)
+
+      // No finge revocación: el token sigue vivo y verificable.
+      expect(await verifyPosToken(token)).not.toBeNull()
+    } finally {
+      errorSpy.mockRestore()
+      restoreEnv()
+    }
+  })
+})
+
+describe('rate limit de logout (G2 — defecto 4)', () => {
+  it('60/min por IP: el 61º request da 429', async () => {
+    __resetRateLimitForTests()
+    let last = 0
+    for (let i = 0; i < 61; i++) {
+      // Sub distinta por request: el límite por sub (20/min) no debe
+      // dispararse antes que el de IP.
+      const payload = { ...basePayload, sub: `64b00000000000000000${i.toString(16).padStart(4, '0')}` }
+      const token = signJwt(payload, PRIVATE_PEM, 10 * 60 * 1000)
+      last = (await POST(logoutRequest(token))).status
+      if (i < 60) expect(last).toBe(200)
+    }
+    expect(last).toBe(429)
+  })
+
+  it('20/min por sub: el 21º logout da 429 code=rate_limited', async () => {
+    __resetRateLimitForTests()
+    let last = 0
+    for (let i = 0; i < 21; i++) {
+      const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+      const res = await POST(logoutRequest(token))
+      last = res.status
+      if (i < 20) expect(last).toBe(200)
+    }
+    expect(last).toBe(429)
+
+    const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+    const res = await POST(logoutRequest(token))
+    expect(res.status).toBe(429)
+    expect(await res.json()).toMatchObject({ code: 'rate_limited' })
   })
 })
