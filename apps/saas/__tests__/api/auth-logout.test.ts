@@ -5,8 +5,10 @@ import { signJwt } from '@takeasygo/business/jwt'
 import { POST } from '@/app/api/auth/logout/route'
 import { verifyPosToken } from '@/lib/posJwt'
 import {
+  denyJti,
   isJtiDenied,
   verifyDenylistStartupConfig,
+  MAX_PENDING_DENY_WRITES,
   __resetJtiDenylistForTests,
   __resetStartupCheckForTests,
   __getPendingDenyWritesForTests,
@@ -51,7 +53,8 @@ vi.mock('@upstash/redis', () => {
  * El POS llama a este endpoint (y al de sync) en su logout. El contrato:
  *  - solo con Bearer válido → 401 sin él o con token inválido/revocado;
  *  - 200 deja el jti en la denylist: verifyPosToken pasa a rechazarlo;
- *  - idempotencia: un segundo intento con el mismo token da 401;
+ *  - idempotencia (r3): un segundo intento REESCRIBE la escritura
+ *    durable → 200 si quedó, 503 si no (nunca 401 por veto previo);
  *  - 503 `revoke_unavailable` si la denylist no persiste (G2: el POS lo
  *    registra como revocación PARCIAL y reintenta);
  *  - rate limit 60/min por IP (antes de verificar) y 20/min por sub.
@@ -136,10 +139,14 @@ describe('POST /api/auth/logout', () => {
     expect(await verifyPosToken(token)).toBeNull()
   })
 
-  it('es idempotente: el segundo logout con el mismo token da 401', async () => {
+  it('es idempotente: el segundo logout REESCRIBE y vuelve a dar 200', async () => {
     const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
     expect((await POST(logoutRequest(token))).status).toBe(200)
-    expect((await POST(logoutRequest(token))).status).toBe(401)
+    // r3: el veto previo no rechaza el endpoint — reintenta la escritura
+    // durable y contesta 200 si quedó (en dev/test, la memoria es backend).
+    expect((await POST(logoutRequest(token))).status).toBe(200)
+    // El resto del SaaS SÍ lo sigue rechazando (verifyPosToken normal).
+    expect(await verifyPosToken(token)).toBeNull()
   })
 
   it('revocar un token no afecta a los demás', async () => {
@@ -175,6 +182,24 @@ describe('503 si la denylist no persiste (G2 — defectos 1 y 2)', () => {
       errorSpy.mockRestore()
       restoreEnv()
     }
+  })
+
+  it('r3 — jti ya vetado en memoria + Upstash caído → 503, NUNCA 401', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
+    const token = signJwt(basePayload, PRIVATE_PEM, 10 * 60 * 1000)
+
+    // Primer logout: veto en memoria local Y en Upstash.
+    expect((await POST(logoutRequest(token))).status).toBe(200)
+
+    // Upstash cae: el reintento durable del segundo logout falla…
+    upstashMock.fail = true
+    const res = await POST(logoutRequest(token))
+
+    // …y responde 503 (queda en cola), NO 401: el veto previo no mata la
+    // idempotencia — el POS reintenta en vez de dar por hecho un 401.
+    expect(res.status).toBe(503)
+    expect(await res.json()).toMatchObject({ code: 'revoke_unavailable' })
   })
 })
 
@@ -233,6 +258,27 @@ describe('cola de escrituras pendientes (ronda 2 — defecto 1)', () => {
     expect(upstashMock.store.has(`jwtDeny:${jti}`)).toBe(true)
   })
 
+  it('r3 — la cola tiene tope: no crece más allá de MAX_PENDING_DENY_WRITES', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
+    upstashMock.fail = true
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      for (let i = 0; i < MAX_PENDING_DENY_WRITES + 5; i++) {
+        await denyJti(`jti-cap-${i}`, 300)
+      }
+      const pending = __getPendingDenyWritesForTests()
+      expect(pending).toHaveLength(MAX_PENDING_DENY_WRITES)
+      expect(pending).not.toContain('jti-cap-0') // el más viejo se expulsó
+      expect(pending).toContain(`jti-cap-${MAX_PENDING_DENY_WRITES + 4}`)
+      expect(
+        errorSpy.mock.calls.some((c) => String(c[0]).includes('cola pendingWrites llena'))
+      ).toBe(true)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
+
   it('flush perezoso: la próxima verificación reintenta la escritura (serverless)', async () => {
     process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
     process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
@@ -285,6 +331,22 @@ describe('logs rate-limitados y verificación de arranque (ronda 2 — defecto 4
     } finally {
       errorSpy.mockRestore()
       __resetStartupCheckForTests()
+    }
+  })
+
+  it('r3 — throttle POR CATEGORÍA: el fallo de lectura no tapa el de escritura', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'http://upstash.test'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'token-test'
+    upstashMock.fail = true
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await isJtiDenied('jti-r') // categoría "read" → fail-open
+      await denyJti('jti-w', 300) // categoría "write" → cola
+      const msgs = errorSpy.mock.calls.map((c) => String(c[0]))
+      expect(msgs.some((m) => m.includes('fail-open'))).toBe(true)
+      expect(msgs.some((m) => m.includes('en cola de reintentos'))).toBe(true)
+    } finally {
+      errorSpy.mockRestore()
     }
   })
 })

@@ -147,13 +147,28 @@ function kidMatches(expected: string, actual: string): boolean {
   return timingSafeEqual(a, b)
 }
 
+/** Opciones de verifyPosToken (S1-5 r3). */
+export interface VerifyPosTokenOptions {
+  /**
+   * Solo el logout lo setea: el POST /api/auth/logout debe llegar aunque
+   * el jti ya esté vetado, porque su tarea es reintentar la escritura
+   * durable y responder 200 (si quedó en Upstash) o 503 (si no).
+   * El resto de las rutas consulta la denylist como siempre.
+   */
+  skipDenylistCheck?: boolean
+}
+
 /**
  * Verifica un token POS RS256. Devuelve el payload o null si es inválido:
  * env mal configurada (fail-closed), kid ausente/distinto, firma o
- * expiración, token sin `jti` o `jti` revocado (denylist de logout).
+ * expiración, token sin `jti` o `jti` revocado (denylist de logout, salvo
+ * `opts.skipDenylistCheck` en el logout idempotente).
  * Nunca usar `decodeJwt` para autorizar.
  */
-export async function verifyPosToken(token: string): Promise<JwtPayload | null> {
+export async function verifyPosToken(
+  token: string,
+  opts: VerifyPosTokenOptions = {}
+): Promise<JwtPayload | null> {
   if (!token) return null
 
   let resolved: ResolvedPosKey
@@ -189,7 +204,7 @@ export async function verifyPosToken(token: string): Promise<JwtPayload | null> 
     return null
   }
 
-  if (await isJtiDenied(payload.jti)) {
+  if (!opts.skipDenylistCheck && (await isJtiDenied(payload.jti))) {
     console.error(`[posJwt] token revocado (jti deny-listeado): sub=${payload.sub} tenantId=${payload.tenantId}`)
     return null
   }
