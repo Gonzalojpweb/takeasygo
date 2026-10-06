@@ -1,5 +1,6 @@
 import * as jwt from "jsonwebtoken"
 import type { JwtPayload } from "@takeasygo/types"
+import { createHash, createPublicKey } from "node:crypto"
 
 // ============================================================================
 // TTL Constants — Según SECURITYPOS.md sección 4.2
@@ -21,6 +22,21 @@ export interface KeyPair {
 }
 
 /**
+ * Huella de una clave (RSA): sha256 del SPKI DER, primeros 32 hex.
+ * Acepta PEM público o privado (se deriva la pública).
+ *
+ * Es el `kid` que signJwt pone en el header de cada token y con el que
+ * apps/saas exige que el token corresponda a la clave que resolvió
+ * (S1-4: fail-closed + kid).
+ */
+export function keyFingerprint(keyPem: string): string {
+  return createHash("sha256")
+    .update(createPublicKey(keyPem).export({ type: "spki", format: "der" }))
+    .digest("hex")
+    .slice(0, 32)
+}
+
+/**
  * Firma un JWT con RS256 usando la clave privada.
  * @param payload - Claims del JWT (sin iat/exp, se agregan automáticamente)
  * @param privateKey - Clave privada PEM
@@ -37,7 +53,20 @@ export function signJwt(
 
   const fullPayload: JwtPayload = { ...payload, iat: now, exp }
 
-  return jwt.sign(fullPayload, privateKey, { algorithm: "RS256" })
+  // kid = huella de la clave con la que se firma. Si la clave no parsea,
+  // jwt.sign falla igual al firmar, así que un kid ausente solo adelanta
+  // el mismo error.
+  let kid: string | undefined
+  try {
+    kid = keyFingerprint(privateKey)
+  } catch {
+    kid = undefined
+  }
+
+  return jwt.sign(fullPayload, privateKey, {
+    algorithm: "RS256",
+    ...(kid ? { header: { alg: "RS256", kid } } : {}),
+  })
 }
 
 /**
