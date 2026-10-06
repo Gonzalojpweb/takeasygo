@@ -157,6 +157,23 @@ verificar + 20/min por sub después; disconnect por `jti` + re-chequeo en
 heartbeat de denylist y `exp` vencido; sin header Authorization en los
 logs de sync. Commits `3bff578`, `9d74a21`, `ef7e8a8`.
 
+**G2b — Segunda ronda de S1-5 (aplicada, commit `c3ff57a`):**
+
+1. Las escrituras de denylist que fallan quedan en una cola que el
+   SERVIDOR reintenta (sync: timer cada 5s con TTL restante; saas:
+   timer + flush perezoso en la próxima llamada, máx. 1/10s): el 503 ya
+   no depende solo del retry del cliente.
+2. El POS trata el **401 como revocado** en logout (ese lado ya no tiene
+   token vivo): el reintento tras un 503 se cura en vez de agotar 3
+   intentos en vano.
+3. Timer de reintento **por accessToken**: dos logouts seguidos (turnover)
+   no se pisan.
+4. Barrido server-side de sockets en sync cada 30s (token `exp` vencido o
+   `jti` revocado), sin depender del heartbeat del cliente.
+5. Logs de denylist rate-limitados a 1/min + verificación de arranque en
+   saas (producción sin Upstash = 1 línea crítica por arranque, no por
+   request). Tests: pos 158, sync 78, saas 731.
+
 **G3 — Lint:** deuda general en `chore/lint-pre-f1` (commit aparte,
 antes de `payOrder`). Los `as any` de `socket/index.ts` (archivo ya
 tocado) y `res: any` de `routes/auth.ts` corregidos en `ef7e8a8`.
