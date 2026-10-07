@@ -32,6 +32,7 @@ import {
   ImageIcon,
   Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
   ChevronLeft, ChevronRight, ChevronDown, Star,
+  HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -51,6 +52,11 @@ interface Props {
   tenantSlug: string
   plan?: string
   role?: string
+}
+
+/** Texto de ayuda siempre visible bajo un campo, en lenguaje simple. */
+function FieldHelp({ children }: { children: string }) {
+  return <p className="text-[10px] leading-snug text-muted-foreground/60 mt-1.5">{children}</p>
 }
 
 export default function SettingsForm({ tenant, locations, tenantSlug, plan, role }: Props) {
@@ -2250,6 +2256,65 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     </div>
                   </div>
 
+                  {/* ── Guía siempre visible: cómo funcionan las reservas ── */}
+                  <div className="p-4 sm:p-5 bg-primary/5 border border-primary/20 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <HelpCircle size={16} className="text-primary shrink-0" />
+                      <span className="text-[11px] font-black uppercase tracking-widest text-foreground">
+                        ¿Cómo funcionan las reservas?
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/70 font-medium">
+                        Leé esto una vez y no vas a tener que adivinar nada.
+                      </span>
+                    </div>
+                    <ul className="space-y-2 text-[11px] leading-relaxed text-muted-foreground">
+                      <li>
+                        <b className="text-foreground">1. La llave.</b> El switch «Habilitar reservas» de cada sede
+                        prende o apaga las reservas: apagado, nadie puede reservar; prendido, tus clientes reservan
+                        desde el QR o la web.
+                      </li>
+                      <li>
+                        <b className="text-foreground">2. Contale en qué horarios atendés.</b> Encendé
+                        «Generación automática» y cargá tus franjas, por ejemplo: todos los días de 12:00 a 15:30 y de
+                        20:00 a 23:30. El sistema solo va a mostrar horas dentro de esos rangos. Si la apagás, cargás
+                        los horarios a mano, uno por uno.
+                      </li>
+                      <li>
+                        <b className="text-foreground">3. Cada cuánto se cortan los turnos (Intervalo).</b> Con 30 min
+                        el cliente ve 10:00, 10:30, 11:00… Con 60 min ve 10:00, 11:00, 12:00… Es la grilla de horas
+                        que se ofrece.
+                      </li>
+                      <li>
+                        <b className="text-foreground">4. Cuánto dura cada reserva (Bloqueo).</b> ¿Querés que cada
+                        reserva dure 1 hora? Poné 60: la mesa de las 10:00 queda ocupada hasta las 11:00 y nadie
+                        puede pisarla. ¿Tus clientes se quedan 2 horas? Poné 120.
+                      </li>
+                      <li>
+                        <b className="text-foreground">5. Cuántas mesas a la vez (Máx. x slot).</b> Con 2, dos mesas
+                        pueden reservar para las 21:00 al mismo tiempo. Si cargás espacios abajo, manda la capacidad
+                        de los espacios.
+                      </li>
+                      <li>
+                        <b className="text-foreground">6. Cortá tu local en espacios (Espacios / sectores).</b> Ej:
+                        Salón 20 + Terraza 12. La capacidad de un día es la suma de los espacios abiertos ese día.
+                        ¿La terraza no abre el lunes? Bloqueá esa fecha y ese día no cuenta su capacidad.
+                      </li>
+                      <li>
+                        <b className="text-foreground">7. Reglas para tus clientes.</b> Pago mínimo (cuánto deben
+                        gastar como mínimo), Personas máx. (el grupo más grande que aceptás) y Antelación mínima
+                        (cuánto tiempo antes tienen que reservar: con 30, no pueden reservar para dentro de 10
+                        minutos, pero sí para dentro de 40).
+                      </li>
+                    </ul>
+                    <p className="text-[11px] font-bold text-foreground bg-white border border-border/60 rounded-xl px-3 py-2.5 leading-relaxed">
+                      Ejemplo rápido: ¿querés un turno cada hora, con reservas de 1 hora y hasta 2 mesas a la vez?
+                      Ponele <span className="text-primary">Intervalo 60</span>,{' '}
+                      <span className="text-primary">Bloqueo 60</span> y{' '}
+                      <span className="text-primary">Máx. x slot 2</span>. Después apretá «Guardar configuración»
+                      al final de la tarjeta de la sede.
+                    </p>
+                  </div>
+
                   {locations.length === 0 ? (
                     <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem]">
                       <CardContent className="py-16 text-center">
@@ -2265,6 +2330,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                               <CardTitle className="text-base font-bold">{loc.name}</CardTitle>
                               <p className="text-xs text-muted-foreground mt-0.5">{loc.address}</p>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-muted-foreground text-right leading-tight">
+                                Habilitar
+                                <br />reservas
+                              </span>
                             <button
                               type="button"
                               onClick={() => setReservationMap(prev => ({
@@ -2281,6 +2351,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 reservationMap[loc._id]?.enabled ? 'translate-x-5' : 'translate-x-0'
                               )} />
                             </button>
+                            </div>
                           </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-5">
@@ -2297,6 +2368,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 }))}
                                 className={cn(inputCls, "text-center")}
                               />
+                              <FieldHelp>
+                                Cuánto mínimo debe gastar la mesa. Si no querés mínimo, dejalo en 0.
+                              </FieldHelp>
                             </div>
                             <div>
                               <label className={labelCls}>Personas (máx.)</label>
@@ -2311,6 +2385,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 }))}
                                 className={cn(inputCls, "text-center")}
                               />
+                              <FieldHelp>
+                                El grupo más grande que aceptás. Si ponés 12, un grupo de 13 no puede reservar.
+                              </FieldHelp>
                             </div>
                             <div>
                               <label className={labelCls}>Antelación mínima (min)</label>
@@ -2326,6 +2403,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 }))}
                                 className={cn(inputCls, "text-center")}
                               />
+                              <FieldHelp>
+                                Cuánto tiempo antes tiene que reservar el cliente. Con 30 no puede reservar para
+                                dentro de 10 minutos, pero sí para dentro de 40. Poné 0 si querés aceptar
+                                reservas de último momento.
+                              </FieldHelp>
                             </div>
                           </div>
 
@@ -2359,12 +2441,20 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                               )} />
                             </button>
                           </div>
+                          <FieldHelp>
+                            Prendela y el sistema arma los horarios solo, según los días y franjas que cargues
+                            abajo. Si la apagás, tenés que cargar cada horario a mano.
+                          </FieldHelp>
 
                           {reservationMap[loc._id]?.slotConfig?.enabled ? (
                             /* ── Modo automático: operating hours + configuración ── */
                             <div className="space-y-4">
                               <div>
                                 <label className={labelCls}>Horarios operativos</label>
+                                <FieldHelp>
+                                  Los días y franjas donde recibís reservas, por ejemplo: Lun a Dom de 12:00 a
+                                  15:30 y de 20:00 a 23:30. Solo se muestran horas dentro de estos rangos.
+                                </FieldHelp>
                                 {(reservationMap[loc._id]?.slotConfig?.operatingHours ?? []).map((oh, idx) => (
                                   <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-border/60 shadow-sm mb-2">
                                     <div className="flex items-center gap-1 flex-wrap">
@@ -2437,6 +2527,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     <option value={30}>30 min</option>
                                     <option value={60}>60 min</option>
                                   </select>
+                                  <FieldHelp>
+                                    Cada cuántos minutos se corta la grilla de horarios: con 30 el cliente ve
+                                    10:00, 10:30, 11:00… con 60 ve 10:00, 11:00, 12:00…
+                                  </FieldHelp>
                                 </div>
                                 <div>
                                   <label className={labelCls}>Bloqueo (min)</label>
@@ -2454,6 +2548,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     }))}
                                     className={cn(inputCls, "text-center")}
                                   />
+                                  <FieldHelp>
+                                    Cuánto tiempo queda ocupada la mesa. Con 60, la reserva de 10:00 ocupa de
+                                    10:00 a 11:00 y nadie puede pisarla. ¿Cada reserva dura 2 horas? Poné 120.
+                                  </FieldHelp>
                                 </div>
                                 <div>
                                   <label className={labelCls}>Máx. x slot</label>
@@ -2470,6 +2568,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     }))}
                                     className={cn(inputCls, "text-center")}
                                   />
+                                  <FieldHelp>
+                                    Cuántas mesas pueden reservar el mismo día y a la misma hora. Con 2, dos
+                                    mesas pueden tomar las 21:00. Si cargás espacios, manda la capacidad de
+                                    ellos.
+                                  </FieldHelp>
                                 </div>
                               </div>
                             </div>
@@ -2477,6 +2580,11 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             /* ── Modo manual: timeSlots individuales (existente) ── */
                             <div>
                               <label className={labelCls}>Horarios disponibles</label>
+                              <FieldHelp>
+                                Cargá a mano cada hora que querés ofrecer, por ejemplo 10:00, 10:30, 11:00…
+                                El cliente va a ver exactamente estas horas. Para que se armen solos, prendé
+                                «Generación automática».
+                              </FieldHelp>
                               <div className="flex flex-wrap gap-2 mb-3 min-h-[36px]">
                                 {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
                                   <span
@@ -2522,8 +2630,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
                                   <Clock size={13} /> Espacios / sectores
                                 </span>
-                                <p className="text-[10px] text-muted-foreground/70">
-                                  Capacidad por fecha. Si no hay espacios, manda Máx. x slot.
+                                <p className="text-[10px] text-muted-foreground/70 leading-snug">
+                                  Partes de tu local con su propia cantidad de sillas. Ej: Salón 20 + Terraza 12.
+                                  Un día, la capacidad total es la suma de los espacios abiertos ese día. Si no
+                                  cargás espacios, rige «Máx. x slot».
                                 </p>
                               </div>
                               <button
@@ -2537,7 +2647,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
                             {(spacesMap[loc._id] ?? []).length === 0 && (
                               <p className="text-[11px] text-muted-foreground/50 italic">
-                                Sin espacios cargados: rige el límite de reservas por turno.
+                                Sin espacios cargados: funciona con el límite de reservas por turno
+                                (Máx. x slot).
                               </p>
                             )}
 
@@ -2642,6 +2753,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     Bloquear fecha
                                   </button>
                                 </div>
+                                <p className="text-[10px] text-muted-foreground/60 leading-snug">
+                                  Días en que este espacio no toma reservas (vacaciones, día cerrado). Las
+                                  reservas ya hechas no se cancelan: solo dejan de entrar nuevas.
+                                </p>
                               </div>
                             ))}
 
