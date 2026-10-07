@@ -89,6 +89,9 @@ export default function ReservaForm({ tenant, location }: Props) {
   const minPayment: number = config.minPayment || 0
   const maxPartySize: number = config.maxPartySize || 10
   const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
+  // Con espacios cargados el aforo lo decide el server, también en modo manual.
+  const useServerSlots: boolean =
+    !!useAutoSlots || (Array.isArray(location.spaces) && location.spaces.length > 0)
 
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
@@ -97,12 +100,12 @@ export default function ReservaForm({ tenant, location }: Props) {
   const [error, setError] = useState('')
 
   const [slots, setSlots] = useState<SlotItem[]>(
-    useAutoSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
+    useServerSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
   )
 
   const [form, setForm] = useState({
     date: getTodayStrInTimezone(timezone),
-    time: useAutoSlots ? '' : (staticTimeSlots[0] || ''),
+    time: useServerSlots ? '' : (staticTimeSlots[0] || ''),
     partySize: 2,
     name: '',
     phone: '',
@@ -119,18 +122,21 @@ export default function ReservaForm({ tenant, location }: Props) {
 
   const refreshSlotsRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => {})
 
-  // Refresca los horarios: en modo automático pide los slots al server, en
-  // manual filtra los timeSlots por "ahora" en el timezone de la sede.
-  // Corre al cambiar la fecha y después cada minuto, para que un formulario
-  // abierto un rato no siga ofreciendo horarios que ya pasaron.
+  // Refresca los horarios: si el server los maneja (automático o con
+  // espacios) los pide con la fecha y el tamaño del grupo; si no, filtra los
+  // timeSlots por "ahora" en el timezone de la sede.
+  // Corre al cambiar la fecha o el grupo y después cada minuto, para que un
+  // formulario abierto un rato no siga ofreciendo horarios que ya pasaron.
   useEffect(() => {
     let cancelled = false
 
     async function refreshSlots(showLoading = true) {
-      if (useAutoSlots) {
+      if (useServerSlots) {
         if (showLoading) setSlotsLoading(true)
         try {
-          const res = await fetch(`/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}`)
+          const res = await fetch(
+            `/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}&partySize=${form.partySize}`
+          )
           if (!res.ok) return
           const data = await res.json()
           if (cancelled) return
@@ -169,7 +175,7 @@ export default function ReservaForm({ tenant, location }: Props) {
     refreshSlots()
     const interval = setInterval(() => { refreshSlots(false) }, 60_000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [form.date, useAutoSlots, tenant.slug, location._id, timezone, minAdvanceMinutes])
+  }, [form.date, form.partySize, useServerSlots, tenant.slug, location._id, timezone, minAdvanceMinutes])
 
   const t = UI[locale]
   const primary = branding.primaryColor

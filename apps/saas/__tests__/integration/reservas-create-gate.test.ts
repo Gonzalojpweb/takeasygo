@@ -9,8 +9,15 @@ vi.mock('@/lib/reservationNotifications', () => ({
   sendReservationConfirmation: vi.fn().mockResolvedValue(undefined),
 }))
 
+vi.mock('@/lib/reservation-slots', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/reservation-slots')>()
+  return { ...actual, generateReservationSlots: vi.fn(actual.generateReservationSlots) }
+})
+
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import Reservation from '@/models/Reservation'
+import { generateReservationSlots } from '@/lib/reservation-slots'
 import type { NextRequest } from 'next/server'
 import { POST as reservasPost } from '@/app/api/[tenant]/reservas/route'
 
@@ -295,5 +302,176 @@ describe('gates previos que siguen intactos', () => {
     await Tenant.findOneAndUpdate({ slug: 'test-tenant' }, { 'features.reservations': false })
     const res = await post({ ...BASE_BODY, locationId })
     expect(res.status).toBe(403)
+  })
+})
+
+describe('aforo por espacios', () => {
+  let seedCounter = 0
+
+  async function createSpacesLocation(overrides: Record<string, unknown> = {}) {
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    const location = await Location.create({
+      tenantId: tenant._id,
+      name: 'Con Espacios',
+      slug: 'con-espacios',
+      address: 'Av. Espacios 100',
+      isActive: true,
+      timezone: 'America/Argentina/Buenos_Aires',
+      reservationConfig: {
+        enabled: true,
+        minPayment: 0,
+        timeSlots: ['13:00', '15:00'],
+        maxPartySize: null,
+        minAdvanceMinutes: 0,
+        slotConfig: { enabled: false, operatingHours: [] },
+      },
+      spaces: [
+        { name: 'Salón', capacity: 2, enabled: true, blockedDates: [], order: 0 },
+        { name: 'Terraza', capacity: 10, enabled: true, blockedDates: [], order: 1 },
+      ],
+      ...overrides,
+    })
+    return String(location._id)
+  }
+
+  async function seedReservation(locationId: string, partySize: number, time = '13:00') {
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    seedCounter += 1
+    return Reservation.create({
+      tenantId: tenant._id,
+      locationId,
+      reservationNumber: `R9${String(seedCounter).padStart(3, '0')}`,
+      date: TOMORROW,
+      time,
+      partySize,
+      name: 'Seed Test',
+      phone: '+5491100000001',
+      status: 'confirmed',
+    })
+  }
+
+  async function activeReservations(locationId: string) {
+    return Reservation.find({
+      locationId,
+      date: TOMORROW,
+      status: { $in: ['pending_payment', 'confirmed'] },
+    }).lean()
+  }
+
+  it('con lugar disponible crea la reserva y queda sin espacio asignado', async () => {
+    const spacesLocationId = await createSpacesLocation()
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 4 })
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    expect(body.reservation.spaceId).toBeNull()
+  })
+
+  it('grupo mayor al espacio más grande → 400 sin crear la reserva', async () => {
+    const spacesLocationId = await createSpacesLocation()
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 11 })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/no entra en ningún espacio/)
+    expect(await Reservation.find({ locationId: spacesLocationId })).toHaveLength(0)
+  })
+
+  it('sin lugar para el grupo → 409 y no se crea la reserva', async () => {
+    const spacesLocationId = await createSpacesLocation()
+    await seedReservation(spacesLocationId, 8)
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 6 })
+    expect(res.status).toBe(409)
+    expect(await activeReservations(spacesLocationId)).toHaveLength(1)
+  })
+
+  it('si la capacidad se excede entre el chequeo y el insert, revierte y contesta 409', async () => {
+    const spacesLocationId = await createSpacesLocation()
+    await seedReservation(spacesLocationId, 8)
+
+    // El chequeo previo ve el lugar libre (simula la carrera); el recount real no.
+    vi.mocked(generateReservationSlots).mockResolvedValueOnce({
+      date: TOMORROW,
+      dayOpen: true,
+      slots: [{ time: '13:00', available: true, currentReservations: 0, maxReservations: 12 }],
+    })
+
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 6 })
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toMatch(/se llenó/)
+    expect(await activeReservations(spacesLocationId)).toHaveLength(1)
+  })
+
+  it('sobreventa concurrente: dos POST simultáneos no superan la capacidad', async () => {
+    const spacesLocationId = await createSpacesLocation()
+    await seedReservation(spacesLocationId, 6)
+
+    const body = { ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 6 }
+    const [first, second] = await Promise.all([
+      reservasPost(req(body), params),
+      reservasPost(req(body), params),
+    ])
+
+    const created = [first.status, second.status].filter(s => s === 201)
+    expect(created.length).toBeLessThanOrEqual(1)
+
+    const occupied = (await activeReservations(spacesLocationId))
+      .reduce((sum, r) => sum + (r.partySize || 0), 0)
+    expect(occupied).toBeLessThanOrEqual(12)
+  })
+
+  it('un espacio deshabilitado no aporta capacidad', async () => {
+    const spacesLocationId = await createSpacesLocation({
+      spaces: [
+        { name: 'Salón', capacity: 2, enabled: true, blockedDates: [], order: 0 },
+        { name: 'Terraza', capacity: 10, enabled: false, blockedDates: [], order: 1 },
+      ],
+    })
+    await seedReservation(spacesLocationId, 2)
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 1 })
+    expect(res.status).toBe(409)
+  })
+
+  it('espacios con la fecha bloqueada → sin capacidad ese día', async () => {
+    const spacesLocationId = await createSpacesLocation({
+      spaces: [
+        { name: 'Salón', capacity: 2, enabled: true, blockedDates: [TOMORROW], order: 0 },
+        { name: 'Terraza', capacity: 10, enabled: true, blockedDates: [TOMORROW], order: 1 },
+      ],
+    })
+    const res = await post({ ...BASE_BODY, date: TOMORROW, locationId: spacesLocationId, time: '13:00', partySize: 2 })
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toMatch(/no entra en ningún espacio/)
+  })
+
+  it('sede sin spaces sigue con maxReservationsPerSlot (compatibilidad)', async () => {
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    const classic = await Location.create({
+      tenantId: tenant._id,
+      name: 'Clásica',
+      slug: 'clasica',
+      address: 'Calle Clásica 1',
+      isActive: true,
+      timezone: 'America/Argentina/Buenos_Aires',
+      reservationConfig: {
+        enabled: true,
+        minPayment: 0,
+        timeSlots: [],
+        maxPartySize: null,
+        minAdvanceMinutes: 0,
+        slotConfig: {
+          enabled: true,
+          operatingHours: [{ days: [0, 1, 2, 3, 4, 5, 6], open: '13:00', close: '16:00' }],
+          slotIntervalMinutes: 60,
+          blockDurationMinutes: 90,
+          maxReservationsPerSlot: 1,
+        },
+      },
+    })
+    const classicLocationId = String(classic._id)
+    await seedReservation(classicLocationId, 8)
+
+    const taken = await post({ ...BASE_BODY, date: TOMORROW, locationId: classicLocationId, time: '13:00', partySize: 2 })
+    expect(taken.status).toBe(409)
+
+    const free = await post({ ...BASE_BODY, date: TOMORROW, locationId: classicLocationId, time: '15:00', partySize: 2 })
+    expect(free.status).toBe(201)
   })
 })

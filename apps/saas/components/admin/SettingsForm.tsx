@@ -14,7 +14,8 @@ import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import GalleryManager from './GalleryManager'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toCents, toPesos } from '@takeasygo/business/browser'
-import { DEFAULT_MIN_ADVANCE_MINUTES } from '@/lib/restaurant-time'
+import { DEFAULT_MIN_ADVANCE_MINUTES, getTodayStrInTimezone } from '@/lib/restaurant-time'
+import { validateSpacesInput } from '@/lib/space-capacity'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 import {
   Palette, User, MapPin,
@@ -193,6 +194,32 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
   const [reservationSaving, setReservationSaving] = useState<string | null>(null)
   const [newSlotMap, setNewSlotMap] = useState<Record<string, string>>({})
 
+  // Espacios/sectores: aforo interno por fecha (el cliente no elige espacio)
+  type SpaceConfig = {
+    _id?: string
+    name: string
+    capacity: number
+    enabled: boolean
+    blockedDates: string[]
+    order: number
+  }
+  const [spacesMap, setSpacesMap] = useState<Record<string, SpaceConfig[]>>(
+    Object.fromEntries(locations.map(l => [
+      l._id,
+      (l.spaces ?? []).map((s: Partial<SpaceConfig>, i: number) => ({
+        _id: s._id,
+        name: s.name ?? '',
+        capacity: s.capacity ?? 1,
+        enabled: s.enabled !== false,
+        blockedDates: s.blockedDates ?? [],
+        order: s.order ?? i,
+      })),
+    ]))
+  )
+  const [newSpaceDateMap, setNewSpaceDateMap] = useState<Record<string, string>>({})
+  const [spaceImpactMap, setSpaceImpactMap] = useState<Record<string, { count: number; date?: string }>>({})
+  const [spaceImpactLoading, setSpaceImpactLoading] = useState<string | null>(null)
+
   // Service hours state
   type ServiceHoursSlot = { days: number[]; open: string; close: string }
   type ServiceHoursConfig = { takeaway: ServiceHoursSlot[]; dineIn: ServiceHoursSlot[]; delivery: ServiceHoursSlot[] }
@@ -265,6 +292,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     setReservationSaving(locationId)
     try {
       const config = reservationMap[locationId]
+      const spaces = spacesMap[locationId] ?? []
+      const spacesError = validateSpacesInput(spaces)
+      if (spacesError) {
+        toast.error(spacesError)
+        return
+      }
       const payload = {
         ...config,
         minPayment: toCents(config.minPayment),
@@ -272,14 +305,113 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reservationConfig: payload }),
+        body: JSON.stringify({ reservationConfig: payload, spaces }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null)
+        if (errBody?.error) {
+          toast.error(errBody.error)
+          return
+        }
+        throw new Error()
+      }
       toast.success('Configuración de reservas guardada')
     } catch {
       toast.error('Error al guardar configuración')
     } finally {
       setReservationSaving(null)
+    }
+  }
+
+  function updateSpace(locationId: string, index: number, patch: Partial<SpaceConfig>) {
+    setSpacesMap(prev => ({
+      ...prev,
+      [locationId]: (prev[locationId] ?? []).map((s, i) => (i === index ? { ...s, ...patch } : s)),
+    }))
+  }
+
+  function addSpace(locationId: string) {
+    setSpacesMap(prev => {
+      const list = prev[locationId] ?? []
+      return {
+        ...prev,
+        [locationId]: [...list, { name: '', capacity: 10, enabled: true, blockedDates: [], order: list.length }],
+      }
+    })
+  }
+
+  function removeSpace(locationId: string, index: number) {
+    setSpacesMap(prev => ({
+      ...prev,
+      [locationId]: (prev[locationId] ?? []).filter((_, i) => i !== index),
+    }))
+    setSpaceImpactMap(prev => {
+      const next = { ...prev }
+      delete next[locationId]
+      return next
+    })
+  }
+
+  function moveSpace(locationId: string, index: number, direction: -1 | 1) {
+    setSpacesMap(prev => {
+      const list = [...(prev[locationId] ?? [])]
+      const target = index + direction
+      if (target < 0 || target >= list.length) return prev
+      const moved = list[index]
+      list[index] = list[target]
+      list[target] = moved
+      return { ...prev, [locationId]: list.map((s, i) => ({ ...s, order: i })) }
+    })
+  }
+
+  function toggleSpaceEnabled(locationId: string, index: number) {
+    const space = spacesMap[locationId]?.[index]
+    if (!space) return
+    updateSpace(locationId, index, { enabled: !space.enabled })
+    // Deshabilitar afecta reservas existentes: avisamos cuántas quedan.
+    if (space.enabled) void refreshSpaceImpact(locationId)
+  }
+
+  function addBlockedDate(locationId: string, index: number) {
+    const date = (newSpaceDateMap[`${locationId}:${index}`] || '').trim()
+    const space = spacesMap[locationId]?.[index]
+    if (!space || !date) return
+    if (space.blockedDates.includes(date)) {
+      toast.error('Esa fecha ya está bloqueada')
+      return
+    }
+    updateSpace(locationId, index, { blockedDates: [...space.blockedDates, date].sort() })
+    setNewSpaceDateMap(prev => ({ ...prev, [`${locationId}:${index}`]: '' }))
+    void refreshSpaceImpact(locationId, date)
+  }
+
+  function removeBlockedDate(locationId: string, index: number, date: string) {
+    const space = spacesMap[locationId]?.[index]
+    if (!space) return
+    updateSpace(locationId, index, { blockedDates: space.blockedDates.filter(d => d !== date) })
+  }
+
+  // Reservas existentes que quedan afectadas al deshabilitar o bloquear.
+  // No se cancelan: sólo dejan de admitir nuevas.
+  async function refreshSpaceImpact(locationId: string, date?: string) {
+    setSpaceImpactLoading(locationId)
+    try {
+      const qs = new URLSearchParams({ locationId })
+      if (date) qs.set('date', date)
+      const res = await fetch(`/api/${tenantSlug}/reservas?${qs}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const todayStr = getTodayStrInTimezone()
+      const active = (data.reservations ?? []).filter(
+        (r: { status?: string; date?: string }) =>
+          (r.status === 'pending_payment' || r.status === 'confirmed') &&
+          (date ? true : (r.date ?? '') >= todayStr)
+      )
+      setSpaceImpactMap(prev => ({ ...prev, [locationId]: { count: active.length, date } }))
+    } catch {
+      setSpaceImpactMap(prev => ({ ...prev, [locationId]: { count: 0, date } }))
+    } finally {
+      setSpaceImpactLoading(null)
     }
   }
 
@@ -658,6 +790,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
   const labelCls = "text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50 mb-2 block"
   const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
+  const spaceInputCls = "bg-white border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-lg px-2 h-8 outline-none transition-all"
 
   if (!mounted) return <div className="max-w-6xl h-96 flex items-center justify-center"><Loader2 className="animate-spin text-primary/20" size={40} /></div>
 
@@ -2381,6 +2514,154 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                               </div>
                             </div>
                           )}
+
+                          {/* ── Espacios / sectores: aforo por fecha ── */}
+                          <div className="space-y-2 p-3 bg-muted/30 rounded-2xl border border-border/40">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="text-xs font-bold text-muted-foreground flex items-center gap-1.5">
+                                  <Clock size={13} /> Espacios / sectores
+                                </span>
+                                <p className="text-[10px] text-muted-foreground/70">
+                                  Capacidad por fecha. Si no hay espacios, manda Máx. x slot.
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => addSpace(loc._id)}
+                                className="flex items-center gap-1 px-2 h-7 rounded-xl bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
+                              >
+                                <Plus size={12} /> Nuevo espacio
+                              </button>
+                            </div>
+
+                            {(spacesMap[loc._id] ?? []).length === 0 && (
+                              <p className="text-[11px] text-muted-foreground/50 italic">
+                                Sin espacios cargados: rige el límite de reservas por turno.
+                              </p>
+                            )}
+
+                            {(spacesMap[loc._id] ?? []).map((space, spaceIdx, list) => (
+                              <div
+                                key={space._id ?? `space-new-${spaceIdx}`}
+                                className={cn(
+                                  "p-2.5 bg-white rounded-xl border border-border/60 shadow-sm space-y-2",
+                                  !space.enabled && "opacity-60"
+                                )}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    value={space.name}
+                                    placeholder="Nombre (Salón, Terraza...)"
+                                    onChange={e => updateSpace(loc._id, spaceIdx, { name: e.target.value })}
+                                    className={cn(spaceInputCls, "flex-1 min-w-0")}
+                                  />
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    value={space.capacity}
+                                    title="Capacidad en comensales"
+                                    onChange={e => updateSpace(loc._id, spaceIdx, { capacity: Number(e.target.value) })}
+                                    className={cn(spaceInputCls, "w-16 text-center")}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSpaceEnabled(loc._id, spaceIdx)}
+                                    aria-label={space.enabled ? 'Deshabilitar espacio' : 'Habilitar espacio'}
+                                    className={cn(
+                                      'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                      space.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
+                                    )}
+                                  >
+                                    <span className={cn(
+                                      'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                      space.enabled ? 'translate-x-4' : 'translate-x-0'
+                                    )} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={spaceIdx === 0}
+                                    onClick={() => moveSpace(loc._id, spaceIdx, -1)}
+                                    aria-label="Subir espacio"
+                                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                  >
+                                    <ChevronDown size={14} className="rotate-180" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={spaceIdx === list.length - 1}
+                                    onClick={() => moveSpace(loc._id, spaceIdx, 1)}
+                                    aria-label="Bajar espacio"
+                                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeSpace(loc._id, spaceIdx)}
+                                    aria-label="Eliminar espacio"
+                                    className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50">
+                                    Fuera de servicio
+                                  </span>
+                                  {space.blockedDates.map(date => (
+                                    <span
+                                      key={date}
+                                      className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-destructive/10 text-destructive border border-destructive/20"
+                                    >
+                                      {date}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeBlockedDate(loc._id, spaceIdx, date)}
+                                        aria-label={`Liberar ${date}`}
+                                        className="hover:text-red-600 transition-colors"
+                                      >
+                                        <X size={10} />
+                                      </button>
+                                    </span>
+                                  ))}
+                                  <input
+                                    type="date"
+                                    value={newSpaceDateMap[`${loc._id}:${spaceIdx}`] || ''}
+                                    min={getTodayStrInTimezone()}
+                                    onChange={e => setNewSpaceDateMap(prev => ({ ...prev, [`${loc._id}:${spaceIdx}`]: e.target.value }))}
+                                    className={cn(spaceInputCls, "h-7 text-[11px] px-1.5")}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => addBlockedDate(loc._id, spaceIdx)}
+                                    className="flex items-center gap-1 px-2 h-7 rounded-lg bg-muted text-muted-foreground text-[10px] font-black hover:bg-muted/70 transition-colors active:scale-95"
+                                  >
+                                    Bloquear fecha
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+
+                            {spaceImpactLoading === loc._id && (
+                              <p className="text-[10px] text-muted-foreground/60">Calculando impacto...</p>
+                            )}
+                            {!!spaceImpactMap[loc._id]?.count && (
+                              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                                <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                                <span className="text-[11px] font-medium text-amber-700">
+                                  {spaceImpactMap[loc._id]?.count} reserva
+                                  {(spaceImpactMap[loc._id]?.count ?? 0) === 1 ? '' : 's'} existente
+                                  {(spaceImpactMap[loc._id]?.count ?? 0) === 1 ? '' : 's'}
+                                  {spaceImpactMap[loc._id]?.date ? ` del ${spaceImpactMap[loc._id]?.date}` : ' futura'}
+                                  {(spaceImpactMap[loc._id]?.count ?? 0) === 1 ? ' queda afectada' : ' quedan afectadas'}:
+                                  no se cancelan, pero ya no admiten nuevas en ese espacio.
+                                </span>
+                              </div>
+                            )}
+                          </div>
 
                           <Button
                             className="w-full bg-zinc-900 text-white font-bold h-12 rounded-xl active:scale-95 transition-all"

@@ -30,10 +30,21 @@ export async function GET(
       return NextResponse.json({ error: 'Fecha inválida. Usar formato YYYY-MM-DD' }, { status: 400 })
     }
 
+    const partySizeParam = searchParams.get('partySize')
+    let partySize = 1
+    if (partySizeParam !== null) {
+      partySize = Number(partySizeParam)
+      if (!Number.isInteger(partySize) || partySize < 1 || partySize > 1000) {
+        return NextResponse.json({ error: 'Cantidad de personas inválida' }, { status: 400 })
+      }
+    }
+
     const reservationConfig = location.reservationConfig || {}
     const result = await generateReservationSlots(locationId, dateStr, reservationConfig, {
       timezone: location.timezone || DEFAULT_TIMEZONE,
       minAdvanceMinutes: reservationConfig.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
+      spaces: location.spaces,
+      partySize,
     })
 
     return NextResponse.json(result)

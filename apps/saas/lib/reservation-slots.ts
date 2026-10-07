@@ -2,6 +2,14 @@ import { connectDB } from '@/lib/mongoose'
 import Reservation from '@/models/Reservation'
 import type { ILocation } from '@/models/Location'
 import {
+  ACTIVE_RESERVATION_STATUSES,
+  getDayCapacity,
+  getMaxSpaceCapacity,
+  isSpacesMode,
+  overlappingReservations,
+  type ReservationSpace,
+} from '@/lib/space-capacity'
+import {
   DEFAULT_MIN_ADVANCE_MINUTES,
   DEFAULT_TIMEZONE,
   getDayAndMidnightInTimezone,
@@ -20,7 +28,9 @@ function minutesToTime(minutes: number): string {
 export interface AvailableReservationSlot {
   time: string
   available: boolean
+  /** Sin espacios: cantidad de reservas. Con espacios: comensales ocupados. */
   currentReservations: number
+  /** Sin espacios: maxReservationsPerSlot. Con espacios: capacidad del día. */
   maxReservations: number
 }
 
@@ -34,6 +44,10 @@ export interface GenerateReservationSlotsOptions {
   timezone?: string
   minAdvanceMinutes?: number
   now?: Date
+  /** Espacios de la sede. Vacío/ausente = modo clásico por maxReservationsPerSlot. */
+  spaces?: ReservationSpace[] | null
+  /** Tamaño del grupo que pregunta. En modo espacios define si entra en el aforo. */
+  partySize?: number
 }
 
 const EMPTY_RESULT = (date: string): AvailableReservationSlotsResult => ({
@@ -64,64 +78,63 @@ export async function generateReservationSlots(
     !isToday || isSlotBookable(timeToMinutes(time), nowMinutes, minAdvanceMinutes)
 
   const slotConfig = reservationConfig?.slotConfig
-  if (!slotConfig?.enabled || !slotConfig?.operatingHours?.length) {
-    // Fallback to manual timeSlots if no slotConfig
-    const manualSlots = (reservationConfig?.timeSlots || []).filter(bookable)
-    if (!manualSlots.length) return EMPTY_RESULT(dateStr)
-    return {
-      date: dateStr,
-      dayOpen: true,
-      slots: manualSlots.map(time => ({
-        time,
-        available: true,
-        currentReservations: 0,
-        maxReservations: 1,
-      })),
-    }
-  }
+  const autoMode = !!slotConfig?.enabled && !!slotConfig?.operatingHours?.length
+  const blockDuration = slotConfig?.blockDurationMinutes || 90
+  const maxPerSlot = slotConfig?.maxReservationsPerSlot || 1
 
-  await connectDB()
-
-  const dayOfWeek = getDayAndMidnightInTimezone(dateStr, timezone).day
-
-  const matchingHours = slotConfig.operatingHours.filter(h => h.days.includes(dayOfWeek))
-  if (matchingHours.length === 0) {
-    return EMPTY_RESULT(dateStr)
-  }
-
-  const interval = slotConfig.slotIntervalMinutes || 30
-  const blockDuration = slotConfig.blockDurationMinutes || 90
-  const maxPerSlot = slotConfig.maxReservationsPerSlot || 1
-
-  // Collect all candidate slots
   const candidateSlots: string[] = []
-  for (const hours of matchingHours) {
-    const openMin = timeToMinutes(hours.open)
-    const closeMin = timeToMinutes(hours.close)
-    for (let min = openMin; min < closeMin; min += interval) {
-      const time = minutesToTime(min)
+  if (!autoMode) {
+    for (const time of reservationConfig?.timeSlots || []) {
       if (bookable(time)) candidateSlots.push(time)
     }
+    if (!candidateSlots.length) return EMPTY_RESULT(dateStr)
+  } else {
+    const dayOfWeek = getDayAndMidnightInTimezone(dateStr, timezone).day
+    const matchingHours = slotConfig.operatingHours.filter(h =>
+      h.days.includes(dayOfWeek)
+    )
+    if (matchingHours.length === 0) return EMPTY_RESULT(dateStr)
+
+    const interval = slotConfig.slotIntervalMinutes || 30
+    for (const hours of matchingHours) {
+      const openMin = timeToMinutes(hours.open)
+      const closeMin = timeToMinutes(hours.close)
+      for (let min = openMin; min < closeMin; min += interval) {
+        const time = minutesToTime(min)
+        if (bookable(time)) candidateSlots.push(time)
+      }
+    }
+    if (!candidateSlots.length) return EMPTY_RESULT(dateStr)
   }
-  if (!candidateSlots.length) return EMPTY_RESULT(dateStr)
 
-  // Fetch existing reservations for this date
-  const existingReservations = await Reservation.find({
-    locationId,
-    date: dateStr,
-    status: { $in: ['pending_payment', 'confirmed'] },
-  }).lean()
+  const spacesMode = isSpacesMode(opts.spaces)
+  const partySize = opts.partySize ?? 1
 
-  // For each candidate slot, count overlapping reservations
+  let existingReservations: Array<{ time: string; partySize: number }> = []
+  if (autoMode || spacesMode) {
+    await connectDB()
+    existingReservations = await Reservation.find({
+      locationId,
+      date: dateStr,
+      status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
+    }).lean()
+  }
+
+  const dayCapacity = spacesMode ? getDayCapacity(opts.spaces, dateStr) : 0
+  const maxSpaceCapacity = spacesMode ? getMaxSpaceCapacity(opts.spaces, dateStr) : 0
+
   const slots: AvailableReservationSlot[] = candidateSlots.map(time => {
-    const slotStart = timeToMinutes(time)
-    const slotEnd = slotStart + blockDuration
+    const overlapping = overlappingReservations(existingReservations, time, blockDuration)
 
-    const overlapping = existingReservations.filter(r => {
-      const rStart = timeToMinutes(r.time || '00:00')
-      const rEnd = rStart + blockDuration
-      return rStart < slotEnd && rEnd > slotStart
-    })
+    if (spacesMode) {
+      const occupied = overlapping.reduce((sum, r) => sum + (r.partySize || 0), 0)
+      return {
+        time,
+        available: partySize <= maxSpaceCapacity && dayCapacity - occupied >= partySize,
+        currentReservations: occupied,
+        maxReservations: dayCapacity,
+      }
+    }
 
     return {
       time,

@@ -87,6 +87,21 @@ export interface ILocation extends Document {
       maxReservationsPerSlot: number
     }
   }
+  /**
+   * Espacios/sectores de la sede para el aforo de reservas.
+   * Vacío o ausente = sin espacios: manda maxReservationsPerSlot (modo clásico).
+   * El cliente no elige espacio: es capacidad interna del server.
+   */
+  spaces?: Array<{
+    /** Nombre libre: Salón, Terraza, Coworking, Interior, Exterior... */
+    name: string
+    /** Comensales/sillas. Entero >= 1. */
+    capacity: number
+    enabled: boolean
+    /** Días 'YYYY-MM-DD' con el espacio fuera de servicio. */
+    blockedDates: string[]
+    order: number
+  }>
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
@@ -277,6 +292,16 @@ settings: {
         blockDurationMinutes: { type: Number, default: 90 },
         maxReservationsPerSlot: { type: Number, default: 1 },
       },
+    },
+    spaces: {
+      type: [{
+        name: { type: String, required: true, trim: true },
+        capacity: { type: Number, required: true, min: 1 },
+        enabled: { type: Boolean, default: true },
+        blockedDates: { type: [String], default: [] },
+        order: { type: Number, default: 0 },
+      }],
+      default: [],
     },
     hero: {
       mediaType: { type: String, enum: ['none', 'image', 'video'], default: 'none' },

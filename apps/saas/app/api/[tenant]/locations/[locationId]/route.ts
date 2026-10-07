@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { encrypt } from '@/lib/crypto'
+import { normalizeSpacesInput, validateSpacesInput } from '@/lib/space-capacity'
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -80,6 +81,15 @@ export async function PUT(
           { status: 400 }
         )
       }
+    }
+
+    // ── Validate spaces (espacios/sectores de aforo) si viene ───────────────
+    if (body && 'spaces' in body) {
+      const spacesError = validateSpacesInput(body.spaces)
+      if (spacesError) {
+        return NextResponse.json({ error: spacesError }, { status: 400 })
+      }
+      body.spaces = normalizeSpacesInput(body.spaces as Array<Record<string, unknown>>)
     }
 
     // Merge profundo: preservar subdocumentos existentes (deliveryConfig, settings, serviceHours)
