@@ -10,6 +10,16 @@ import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import {
+  DEFAULT_MIN_ADVANCE_MINUTES,
+  DEFAULT_TIMEZONE,
+  getLocalDayAndMinutes,
+  getTodayStrInTimezone,
+  isSlotBookable,
+  isValidCalendarDate,
+  isValidHHMM,
+  timeToMinutes,
+} from '@/lib/restaurant-time'
 
 function decryptReservation(r: any) {
   return {
@@ -84,6 +94,14 @@ export async function POST(
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
     }
 
+    // Formato de fecha y hora
+    if (!isValidCalendarDate(date)) {
+      return NextResponse.json({ error: 'Fecha inválida. Usar formato YYYY-MM-DD' }, { status: 400 })
+    }
+    if (!isValidHHMM(time)) {
+      return NextResponse.json({ error: 'Horario inválido. Usar formato HH:MM' }, { status: 400 })
+    }
+
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
@@ -91,17 +109,52 @@ export async function POST(
       return NextResponse.json({ error: 'Reservaciones no habilitadas para esta sede' }, { status: 400 })
     }
 
-    // Validate slot availability for auto-generated slots
-    if (location.reservationConfig?.slotConfig?.enabled) {
-      const { generateReservationSlots } = await import('@/lib/reservation-slots')
-      const available = await generateReservationSlots(locationId, date, location.reservationConfig)
-      const requestedSlot = available.slots.find(s => s.time === time)
-      if (!requestedSlot || !requestedSlot.available) {
-        return NextResponse.json({
-          error: 'El horario seleccionado ya no está disponible. Elegí otro.',
-          availableSlots: available.slots.filter(s => s.available).map(s => s.time),
-        }, { status: 409 })
+    const reservationConfig = location.reservationConfig
+    const timezone = location.timezone || DEFAULT_TIMEZONE
+    // Los documentos viejos no traen el campo (o llegan via .lean()): ?? explícito.
+    const minAdvanceMinutes = reservationConfig.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES
+    // maxPartySize ausente o null = sin límite.
+    const maxPartySize = reservationConfig.maxPartySize
+    if (maxPartySize != null && partySize > maxPartySize) {
+      return NextResponse.json(
+        { error: `Como máximo ${maxPartySize} personas por reserva` },
+        { status: 400 }
+      )
+    }
+
+    // Fechas y horarios ya transcurridos no se pueden reservar
+    const todayStr = getTodayStrInTimezone(timezone)
+    if (date < todayStr) {
+      return NextResponse.json({ error: 'La fecha de la reserva ya pasó.' }, { status: 400 })
+    }
+    if (date === todayStr) {
+      const { minutes: nowMinutes } = getLocalDayAndMinutes(new Date(), timezone)
+      if (!isSlotBookable(timeToMinutes(time), nowMinutes, minAdvanceMinutes)) {
+        return NextResponse.json(
+          { error: `Ese horario ya pasó. Elegí uno a partir de ${minAdvanceMinutes} minutos desde ahora.` },
+          { status: 400 }
+        )
       }
+    }
+
+    // Disponibilidad: valida en ambos modos (automático y manual)
+    const { generateReservationSlots } = await import('@/lib/reservation-slots')
+    const available = await generateReservationSlots(locationId, date, reservationConfig, {
+      timezone,
+      minAdvanceMinutes,
+    })
+    if (available.slots.length === 0) {
+      return NextResponse.json(
+        { error: 'Esta sede no tiene horarios de reserva configurados para ese día.', availableSlots: [] },
+        { status: 409 }
+      )
+    }
+    const requestedSlot = available.slots.find(s => s.time === time)
+    if (!requestedSlot || !requestedSlot.available) {
+      return NextResponse.json({
+        error: 'El horario seleccionado ya no está disponible. Elegí otro.',
+        availableSlots: available.slots.filter(s => s.available).map(s => s.time),
+      }, { status: 409 })
     }
 
     // Generate reservation number (atomic counter)

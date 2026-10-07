@@ -1,7 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { toPesos } from '@takeasygo/business/browser'
+import {
+  DEFAULT_MIN_ADVANCE_MINUTES,
+  DEFAULT_TIMEZONE,
+  getLocalDayAndMinutes,
+  getTodayStrInTimezone,
+  isSlotBookable,
+  timeToMinutes,
+} from '@/lib/restaurant-time'
 
 interface SlotItem {
   time: string
@@ -14,10 +22,6 @@ interface Props {
 }
 
 const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
-function getTodayStr() {
-  return new Date().toISOString().split('T')[0]
-}
 
 const UI = {
   es: {
@@ -79,6 +83,8 @@ const UI = {
 export default function ReservaForm({ tenant, location }: Props) {
   const branding = tenant.branding
   const config = location.reservationConfig || {}
+  const timezone: string = location.timezone || DEFAULT_TIMEZONE
+  const minAdvanceMinutes: number = config.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES
   const staticTimeSlots: string[] = config.timeSlots || []
   const minPayment: number = config.minPayment || 0
   const maxPartySize: number = config.maxPartySize || 10
@@ -95,7 +101,7 @@ export default function ReservaForm({ tenant, location }: Props) {
   )
 
   const [form, setForm] = useState({
-    date: getTodayStr(),
+    date: getTodayStrInTimezone(timezone),
     time: useAutoSlots ? '' : (staticTimeSlots[0] || ''),
     partySize: 2,
     name: '',
@@ -106,37 +112,64 @@ export default function ReservaForm({ tenant, location }: Props) {
 
   const clientToken = typeof window !== 'undefined' ? localStorage.getItem('push_client_token') : null
 
-  // Fetch available slots when date changes (auto mode)
+  // El modo manual filtra por este ref: es un array que se recrea en cada
+  // render y meterlo en las deps del efecto causaría un loop infinito.
+  const staticSlotsRef = useRef(staticTimeSlots)
+  staticSlotsRef.current = staticTimeSlots
+
+  const refreshSlotsRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => {})
+
+  // Refresca los horarios: en modo automático pide los slots al server, en
+  // manual filtra los timeSlots por "ahora" en el timezone de la sede.
+  // Corre al cambiar la fecha y después cada minuto, para que un formulario
+  // abierto un rato no siga ofreciendo horarios que ya pasaron.
   useEffect(() => {
-    if (!useAutoSlots) return
     let cancelled = false
-    async function fetchSlots() {
-      setSlotsLoading(true)
-      try {
-        const res = await fetch(`/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}`)
-        if (!res.ok) return
-        const data = await res.json()
-        if (cancelled) return
-        setSlots(data.slots || [])
-        // Reset selected time if no longer available
-        if (data.slots?.length > 0) {
-          const currentStillAvailable = data.slots.some((s: SlotItem) => s.time === form.time && s.available)
-          if (!currentStillAvailable) {
-            const firstAvailable = data.slots.find((s: SlotItem) => s.available)
-            setForm(f => ({ ...f, time: firstAvailable?.time || '' }))
-          }
-        } else {
-          setForm(f => ({ ...f, time: '' }))
+
+    async function refreshSlots(showLoading = true) {
+      if (useAutoSlots) {
+        if (showLoading) setSlotsLoading(true)
+        try {
+          const res = await fetch(`/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}`)
+          if (!res.ok) return
+          const data = await res.json()
+          if (cancelled) return
+          const list: SlotItem[] = data.slots || []
+          setSlots(list)
+          // Reset selected time if no longer available
+          setForm(f => (
+            list.some(s => s.time === f.time && s.available)
+              ? f
+              : { ...f, time: list.find(s => s.available)?.time || '' }
+          ))
+        } catch {
+          // ignore
+        } finally {
+          if (showLoading && !cancelled) setSlotsLoading(false)
         }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setSlotsLoading(false)
+        return
       }
+
+      const todayStr = getTodayStrInTimezone(timezone)
+      const isToday = form.date === todayStr
+      const nowMinutes = isToday ? getLocalDayAndMinutes(new Date(), timezone).minutes : -1
+      const visible = form.date < todayStr
+        ? []
+        : staticSlotsRef.current.filter(
+            t => !isToday || isSlotBookable(timeToMinutes(t), nowMinutes, minAdvanceMinutes)
+          )
+      if (cancelled) return
+      setSlots(visible.map(time => ({ time, available: true })))
+      setForm(f => (
+        f.time && !visible.includes(f.time) ? { ...f, time: visible[0] || '' } : f
+      ))
     }
-    fetchSlots()
-    return () => { cancelled = true }
-  }, [form.date, location._id, useAutoSlots])
+
+    refreshSlotsRef.current = refreshSlots
+    refreshSlots()
+    const interval = setInterval(() => { refreshSlots(false) }, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [form.date, useAutoSlots, tenant.slug, location._id, timezone, minAdvanceMinutes])
 
   const t = UI[locale]
   const primary = branding.primaryColor
@@ -159,6 +192,9 @@ export default function ReservaForm({ tenant, location }: Props) {
       })
       if (!resRes.ok) {
         const d = await resRes.json()
+        // 409 = el horario dejó de estar disponible (lo ocuparon o pasó):
+        // refrescamos los slots para que el form no siga ofreciendo ese.
+        if (resRes.status === 409) await refreshSlotsRef.current()
         setError(d.error || t.errCreate)
         return
       }
@@ -281,7 +317,7 @@ export default function ReservaForm({ tenant, location }: Props) {
             <input
               type="date"
               value={form.date}
-              min={getTodayStr()}
+              min={getTodayStrInTimezone(timezone)}
               onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
               style={inputStyle}
               required

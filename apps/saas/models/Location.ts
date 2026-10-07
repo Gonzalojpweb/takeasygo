@@ -75,7 +75,10 @@ export interface ILocation extends Document {
     /** Pago mínimo para reservar en centavos. @storedAs cents */
     minPayment: number
     timeSlots: string[]
-    maxPartySize: number
+    /** Ausente o null = sin límite de comensales. */
+    maxPartySize?: number | null
+    /** Minutos de antelación mínima para reservar. Ausente = DEFAULT_MIN_ADVANCE_MINUTES. */
+    minAdvanceMinutes?: number | null
     slotConfig?: {
       enabled: boolean
       operatingHours: Array<{ days: number[]; open: string; close: string }>
@@ -266,6 +269,7 @@ settings: {
       minPayment: { type: Number, default: 0 },
       timeSlots: { type: [String], default: [] },
       maxPartySize: { type: Number, default: 10 },
+      minAdvanceMinutes: { type: Number, default: 30, min: 0, max: 720 },
       slotConfig: {
         enabled: { type: Boolean, default: false },
         operatingHours: { type: [{ days: [Number], open: String, close: String }], default: [] },
