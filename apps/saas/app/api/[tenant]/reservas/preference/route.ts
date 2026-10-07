@@ -1,12 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Preference } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { toPesos } from '@takeasygo/business'
-import { getActiveMpAccount } from '@/lib/mercadopago'
+import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
 
 export async function POST(
   request: NextRequest,
@@ -26,11 +27,6 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const account = getActiveMpAccount(tenant)
-    if (!account) {
-      return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })
-    }
-
     const { reservaId } = await request.json()
     if (!reservaId) return NextResponse.json({ error: 'reservaId requerido' }, { status: 400 })
 
@@ -45,7 +41,27 @@ export async function POST(
       return NextResponse.json({ free: true, reservationNumber: reservation.reservationNumber })
     }
 
-    const accessToken = decrypt(account.accessToken)
+    // Misma cuenta que la sede usa para cobrar pedidos (respeta el override por sede).
+    const location = await Location.findOne({ _id: reservation.locationId, tenantId: tenant._id }).lean()
+    const account = getMpAccountForLocation(
+      tenant,
+      (location as { settings?: { mpAccountId?: string | null } } | null)?.settings?.mpAccountId
+    )
+    if (!account) {
+      return NextResponse.json(
+        { error: 'MercadoPago no configurado para esta sede. Configuralo en la pestaña Pagos.' },
+        { status: 400 }
+      )
+    }
+
+    // Se guarda antes de crear la preferencia: si el webhook llega primero,
+    // la reserva ya sabe en qué cuenta se acreditó (igual que los pedidos).
+    reservation.payment.mpAccountId = account.accountId
+    await reservation.save()
+
+    const accessToken = isOAuthValid(account)
+      ? decrypt(account.oauthAccessToken as string)
+      : decrypt(account.accessToken)
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 

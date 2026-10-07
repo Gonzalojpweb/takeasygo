@@ -6,6 +6,7 @@ import {
   getDayCapacity,
   getMaxSpaceCapacity,
   isSpacesMode,
+  occupiedSeatsForSpace,
   overlappingReservations,
   type ReservationSpace,
 } from '@/lib/space-capacity'
@@ -28,9 +29,9 @@ function minutesToTime(minutes: number): string {
 export interface AvailableReservationSlot {
   time: string
   available: boolean
-  /** Sin espacios: cantidad de reservas. Con espacios: comensales ocupados. */
+  /** Sin espacios: nº de reservas. Con espacios: comensales ocupados (del día, o del espacio elegido). */
   currentReservations: number
-  /** Sin espacios: maxReservationsPerSlot. Con espacios: capacidad del día. */
+  /** Sin espacios: maxReservationsPerSlot. Con espacios: capacidad (del día, o del espacio elegido). */
   maxReservations: number
 }
 
@@ -48,6 +49,11 @@ export interface GenerateReservationSlotsOptions {
   spaces?: ReservationSpace[] | null
   /** Tamaño del grupo que pregunta. En modo espacios define si entra en el aforo. */
   partySize?: number
+  /**
+   * Espacio elegido por el cliente. Si se pasa, la disponibilidad de cada
+   * horario se mide contra la capacidad de ESE espacio, no contra la total.
+   */
+  spaceId?: string | null
 }
 
 const EMPTY_RESULT = (date: string): AvailableReservationSlotsResult => ({
@@ -110,7 +116,19 @@ export async function generateReservationSlots(
   const spacesMode = isSpacesMode(opts.spaces)
   const partySize = opts.partySize ?? 1
 
-  let existingReservations: Array<{ time: string; partySize: number }> = []
+  // Espacio elegido por el cliente: capacidad individual y ocupación solo de
+  // las reservas que apuntan a ese espacio.
+  const spaceId = opts.spaceId ?? null
+  const chosenSpace = spaceId
+    ? (opts.spaces ?? []).find(s => s._id != null && String(s._id) === spaceId) ?? null
+    : null
+  const chosenSpaceActive =
+    !!chosenSpace &&
+    chosenSpace.enabled !== false &&
+    !(chosenSpace.blockedDates ?? []).includes(dateStr)
+  const chosenSpaceCapacity = chosenSpaceActive ? chosenSpace!.capacity || 0 : 0
+
+  let existingReservations: Array<{ time: string; partySize: number; spaceId?: unknown }> = []
   if (autoMode || spacesMode) {
     await connectDB()
     existingReservations = await Reservation.find({
@@ -127,6 +145,18 @@ export async function generateReservationSlots(
     const overlapping = overlappingReservations(existingReservations, time, blockDuration)
 
     if (spacesMode) {
+      if (spaceId) {
+        const occupied = occupiedSeatsForSpace(existingReservations, spaceId, time, blockDuration)
+        return {
+          time,
+          available:
+            chosenSpaceActive &&
+            partySize <= chosenSpaceCapacity &&
+            chosenSpaceCapacity - occupied >= partySize,
+          currentReservations: occupied,
+          maxReservations: chosenSpaceCapacity,
+        }
+      }
       const occupied = overlapping.reduce((sum, r) => sum + (r.partySize || 0), 0)
       return {
         time,

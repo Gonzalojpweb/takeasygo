@@ -12,6 +12,8 @@ export interface ReservationSpace {
 export interface OccupyingReservation {
   time: string
   partySize: number
+  /** Espacio elegido por el cliente. null = reserva sin espacio asignado. */
+  spaceId?: unknown
 }
 
 /** Estados que ocupan lugar en el aforo de un día. */
@@ -83,6 +85,18 @@ export function occupiedSeats(
     .reduce((sum, r) => sum + (r.partySize || 0), 0)
 }
 
+/** Comensales ocupando UN espacio concreto en el bloque de ese horario. */
+export function occupiedSeatsForSpace(
+  reservations: OccupyingReservation[],
+  spaceId: string,
+  time: string,
+  blockDurationMinutes: number
+): number {
+  return overlappingReservations(reservations, time, blockDurationMinutes)
+    .filter(r => r.spaceId != null && String(r.spaceId) === spaceId)
+    .reduce((sum, r) => sum + (r.partySize || 0), 0)
+}
+
 export interface SeatsState {
   spacesMode: boolean
   capacity: number
@@ -97,11 +111,37 @@ export function getSeatsState(opts: {
   time: string
   blockDurationMinutes: number
   reservations: OccupyingReservation[]
+  /** Con spaceId mide la capacidad y la ocupación de ese espacio concreto. */
+  spaceId?: string | null
 }): SeatsState {
   const spacesMode = isSpacesMode(opts.spaces)
   if (!spacesMode) {
     return { spacesMode: false, capacity: 0, occupied: 0, remaining: 0, maxSpaceCapacity: 0 }
   }
+
+  if (opts.spaceId) {
+    const space = (opts.spaces ?? []).find(
+      s => s._id != null && String(s._id) === opts.spaceId
+    )
+    const active =
+      !!space && space.enabled !== false && !(space.blockedDates ?? []).includes(opts.date)
+    // Espacio inactivo o bloqueado ese día: capacidad 0 ⇒ no entra nada.
+    const capacity = active ? (space!.capacity || 0) : 0
+    const occupied = occupiedSeatsForSpace(
+      opts.reservations,
+      opts.spaceId,
+      opts.time,
+      opts.blockDurationMinutes
+    )
+    return {
+      spacesMode: true,
+      capacity,
+      occupied,
+      remaining: Math.max(0, capacity - occupied),
+      maxSpaceCapacity: capacity,
+    }
+  }
+
   const capacity = getDayCapacity(opts.spaces, opts.date)
   const occupied = occupiedSeats(
     opts.reservations,
@@ -112,7 +152,7 @@ export function getSeatsState(opts: {
     spacesMode: true,
     capacity,
     occupied,
-    remaining: capacity - occupied,
+    remaining: Math.max(0, capacity - occupied),
     maxSpaceCapacity: getMaxSpaceCapacity(opts.spaces, opts.date),
   }
 }

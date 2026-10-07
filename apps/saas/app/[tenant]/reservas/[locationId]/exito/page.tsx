@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import { safeDecrypt } from '@/lib/crypto'
 import { notFound } from 'next/navigation'
@@ -28,6 +29,16 @@ export default async function ReservaExitoPage({ params, searchParams }: Props) 
 
   const branding = tenant.branding
   const isPending = pending === '1'
+
+  // Espacio/sector elegido: se resuelve el nombre para mostrarlo en el detalle.
+  let spaceName: string | null = null
+  if (reservation?.spaceId) {
+    const loc = await Location.findOne({ _id: reservation.locationId, tenantId: tenant._id }).lean() as {
+      spaces?: Array<{ _id: unknown; name: string }>
+    } | null
+    const space = loc?.spaces?.find(s => String(s._id) === String(reservation.spaceId))
+    if (space) spaceName = space.name
+  }
 
   return (
     <div style={{
@@ -78,6 +89,7 @@ export default async function ReservaExitoPage({ params, searchParams }: Props) 
                 { label: 'N° Reserva', value: reservation.reservationNumber },
                 { label: 'Fecha', value: reservation.date },
                 { label: 'Horario', value: reservation.time },
+                ...(spaceName ? [{ label: 'Espacio', value: spaceName }] : []),
                 { label: 'Personas', value: reservation.partySize },
                 { label: 'A nombre de', value: reservation.name },
               ].map(({ label, value }) => (

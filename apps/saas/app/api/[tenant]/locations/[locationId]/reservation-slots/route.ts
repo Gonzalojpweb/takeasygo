@@ -39,12 +39,25 @@ export async function GET(
       }
     }
 
+    // Espacio elegido por el cliente: tiene que existir en la sede.
+    const spaceIdParam = searchParams.get('spaceId')
+    let spaceId: string | null = null
+    if (spaceIdParam) {
+      const spacesList = (location.spaces ?? []) as Array<{ _id?: unknown }>
+      const exists = spacesList.some(s => s._id != null && String(s._id) === spaceIdParam)
+      if (!exists) {
+        return NextResponse.json({ error: 'Espacio no válido para esta sede' }, { status: 400 })
+      }
+      spaceId = spaceIdParam
+    }
+
     const reservationConfig = location.reservationConfig || {}
     const result = await generateReservationSlots(locationId, dateStr, reservationConfig, {
       timezone: location.timezone || DEFAULT_TIMEZONE,
       minAdvanceMinutes: reservationConfig.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
       spaces: location.spaces,
       partySize,
+      spaceId,
     })
 
     return NextResponse.json(result)

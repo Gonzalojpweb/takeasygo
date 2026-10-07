@@ -8,6 +8,7 @@ import {
   isSpacesMode,
   normalizeSpacesInput,
   occupiedSeats,
+  occupiedSeatsForSpace,
   overlappingReservations,
   validateSpacesInput,
   type ReservationSpace,
@@ -164,6 +165,91 @@ describe('solapamiento de bloques', () => {
     // Reserva a las 13:00 con bloque de 150 min llega hasta 15:30.
     const overlapping = overlappingReservations([reservation('13:00', 2)], '15:29', 150)
     expect(overlapping).toHaveLength(1)
+  })
+})
+
+describe('ocupación por espacio elegido (spaceId)', () => {
+  const S_SALON = '65f1c0a1b2c3d4e5f6a7b8c1'
+  const S_TERRAZA = '65f1c0a1b2c3d4e5f6a7b8c2'
+  const spaces: ReservationSpace[] = [
+    space({ _id: S_SALON, name: 'Salón', capacity: 2 }),
+    space({ _id: S_TERRAZA, name: 'Terraza', capacity: 10, order: 1 }),
+  ]
+  const BASE = { date: DAY, time: '13:00', blockDurationMinutes: 90 }
+
+  function reserved(time: string, partySize: number, spaceId?: string) {
+    return { time, partySize, spaceId }
+  }
+
+  it('occupiedSeatsForSpace sólo suma las reservas de ese espacio', () => {
+    const rows = [
+      reserved('13:00', 4, S_SALON),
+      reserved('13:30', 5, S_TERRAZA),
+      reserved('13:00', 3), // sin espacio asignado
+    ]
+    expect(occupiedSeatsForSpace(rows, S_SALON, '13:00', 90)).toBe(4)
+    expect(occupiedSeatsForSpace(rows, S_TERRAZA, '13:00', 90)).toBe(5)
+  })
+
+  it('las reservas sin espacio no ocupan al espacio elegido', () => {
+    const rows = [reserved('13:00', 8)]
+    expect(occupiedSeatsForSpace(rows, S_SALON, '13:00', 90)).toBe(0)
+  })
+
+  it('getSeatsState con spaceId mide el espacio, no la suma del día', () => {
+    const state = getSeatsState({
+      ...BASE,
+      spaces,
+      reservations: [reserved('13:00', 5, S_TERRAZA), reserved('13:00', 2, S_SALON)],
+      spaceId: S_TERRAZA,
+    })
+    expect(state.capacity).toBe(10)
+    expect(state.occupied).toBe(5)
+    expect(state.remaining).toBe(5)
+    expect(state.maxSpaceCapacity).toBe(10)
+  })
+
+  it('espacio deshabilitado → capacidad 0 aunque tenga reservas', () => {
+    const state = getSeatsState({
+      ...BASE,
+      spaces: [spaces[0], { ...spaces[1], enabled: false }],
+      reservations: [reserved('13:00', 3, S_TERRAZA)],
+      spaceId: S_TERRAZA,
+    })
+    expect(state.capacity).toBe(0)
+    expect(state.remaining).toBe(0)
+  })
+
+  it('fecha bloqueada del espacio elegido → capacidad 0 sólo ese día', () => {
+    const blocked = getSeatsState({
+      ...BASE,
+      spaces: [spaces[0], { ...spaces[1], blockedDates: [DAY] }],
+      reservations: [],
+      spaceId: S_TERRAZA,
+    })
+    expect(blocked.capacity).toBe(0)
+
+    const otherDay = getSeatsState({
+      ...BASE,
+      date: OTHER_DAY,
+      spaces: [spaces[0], { ...spaces[1], blockedDates: [DAY] }],
+      reservations: [],
+      spaceId: S_TERRAZA,
+    })
+    expect(otherDay.capacity).toBe(10)
+    expect(otherDay.remaining).toBe(10)
+  })
+
+  it('sin spaceId sigue midiendo el aforo total del día', () => {
+    const state = getSeatsState({
+      ...BASE,
+      spaces,
+      reservations: [reserved('13:00', 5, S_TERRAZA), reserved('13:00', 2, S_SALON)],
+    })
+    expect(state.capacity).toBe(12)
+    expect(state.occupied).toBe(7)
+    expect(state.remaining).toBe(5)
+    expect(state.maxSpaceCapacity).toBe(10)
   })
 })
 

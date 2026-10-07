@@ -14,6 +14,9 @@ import {
 interface SlotItem {
   time: string
   available: boolean
+  /** Con espacios: comensales ocupados y capacidad (medidos en el espacio elegido). */
+  currentReservations?: number
+  maxReservations?: number
 }
 
 interface Props {
@@ -23,11 +26,24 @@ interface Props {
 
 const PARTY_SIZES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
+interface SpaceItem {
+  _id: string
+  name: string
+  capacity: number
+  enabled?: boolean
+  blockedDates?: string[]
+}
+
 const UI = {
   es: {
     title: 'Reservar mesa',
     deposit: (amount: string) => `Seña de $${amount} para confirmar`,
     date: 'Fecha',
+    space: 'Espacio',
+    spaceCapacity: (n: number) => `hasta ${n} pers.`,
+    spaceLeft: (n: number) => `quedan ${n}`,
+    spacesHint: 'Elegí un espacio para ver los horarios disponibles',
+    errSpace: 'Elegí un espacio para tu reserva',
     time: 'Horario',
     noSlots: 'No hay horarios configurados',
     slotUnavailable: 'No disponible',
@@ -55,6 +71,11 @@ const UI = {
     title: 'Book a table',
     deposit: (amount: string) => `$${amount} deposit required to confirm`,
     date: 'Date',
+    space: 'Space',
+    spaceCapacity: (n: number) => `up to ${n} guests`,
+    spaceLeft: (n: number) => `${n} left`,
+    spacesHint: 'Pick a space to see available times',
+    errSpace: 'Please select a space',
     time: 'Time',
     noSlots: 'No time slots available',
     slotUnavailable: 'Unavailable',
@@ -86,18 +107,26 @@ export default function ReservaForm({ tenant, location }: Props) {
   const timezone: string = location.timezone || DEFAULT_TIMEZONE
   const minAdvanceMinutes: number = config.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES
   const staticTimeSlots: string[] = config.timeSlots || []
-  const minPayment: number = config.minPayment || 0
+  // Se cobra sólo si el admin dejó los pagos activos y hay seña > 0.
+  const paymentsEnabled = config.paymentsEnabled !== false
+  const minPayment: number = paymentsEnabled ? config.minPayment || 0 : 0
   const maxPartySize: number = config.maxPartySize || 10
   const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
   // Con espacios cargados el aforo lo decide el server, también en modo manual.
-  const useServerSlots: boolean =
-    !!useAutoSlots || (Array.isArray(location.spaces) && location.spaces.length > 0)
+  const spaces: SpaceItem[] = Array.isArray(location.spaces) ? location.spaces : []
+  const spacesMode = spaces.length > 0
+  const useServerSlots: boolean = !!useAutoSlots || spacesMode
+
+  const spaceBlockedOnDate = (s: SpaceItem, date: string) =>
+    s.enabled === false || (s.blockedDates ?? []).includes(date)
 
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
   const [loading, setLoading] = useState(false)
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [spaceId, setSpaceId] = useState('')
+  const [doneSpaceName, setDoneSpaceName] = useState('')
 
   const [slots, setSlots] = useState<SlotItem[]>(
     useServerSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
@@ -112,6 +141,13 @@ export default function ReservaForm({ tenant, location }: Props) {
     email: '',
     notes: '',
   })
+
+  // Si al cambiar la fecha el espacio elegido queda bloqueado/deshabilitado,
+  // la selección se ignora y vuelve a pedirse.
+  const selectedSpace = spaces.find(s => s._id === spaceId)
+  const activeSpace =
+    selectedSpace && !spaceBlockedOnDate(selectedSpace, form.date) ? selectedSpace : null
+  const activeSpaceId = activeSpace?._id || ''
 
   const clientToken = typeof window !== 'undefined' ? localStorage.getItem('push_client_token') : null
 
@@ -132,11 +168,21 @@ export default function ReservaForm({ tenant, location }: Props) {
 
     async function refreshSlots(showLoading = true) {
       if (useServerSlots) {
+        // Con espacios la disponibilidad es la del espacio elegido: sin elección
+        // todavía no hay horarios que mostrar.
+        if (spacesMode && !activeSpaceId) {
+          setSlots([])
+          setSlotsLoading(false)
+          setForm(f => (f.time ? { ...f, time: '' } : f))
+          return
+        }
         if (showLoading) setSlotsLoading(true)
         try {
-          const res = await fetch(
-            `/api/${tenant.slug}/locations/${location._id}/reservation-slots?date=${form.date}&partySize=${form.partySize}`
-          )
+          const url =
+            `/api/${tenant.slug}/locations/${location._id}/reservation-slots` +
+            `?date=${form.date}&partySize=${form.partySize}` +
+            (activeSpaceId ? `&spaceId=${activeSpaceId}` : '')
+          const res = await fetch(url)
           if (!res.ok) return
           const data = await res.json()
           if (cancelled) return
@@ -175,7 +221,7 @@ export default function ReservaForm({ tenant, location }: Props) {
     refreshSlots()
     const interval = setInterval(() => { refreshSlots(false) }, 60_000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [form.date, form.partySize, useServerSlots, tenant.slug, location._id, timezone, minAdvanceMinutes])
+  }, [form.date, form.partySize, useServerSlots, spacesMode, activeSpaceId, tenant.slug, location._id, timezone, minAdvanceMinutes])
 
   const t = UI[locale]
   const primary = branding.primaryColor
@@ -184,6 +230,7 @@ export default function ReservaForm({ tenant, location }: Props) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
+    if (spacesMode && !activeSpaceId) { setError(t.errSpace); return }
     if (!form.time) { setError(t.errTime); return }
     if (!form.name.trim()) { setError(t.errName); return }
     if (!form.phone.trim()) { setError(t.errPhone); return }
@@ -194,7 +241,12 @@ export default function ReservaForm({ tenant, location }: Props) {
       const resRes = await fetch(`/api/${tenant.slug}/reservas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, locationId: location._id, clientToken: clientToken || undefined }),
+        body: JSON.stringify({
+          ...form,
+          locationId: location._id,
+          clientToken: clientToken || undefined,
+          spaceId: activeSpaceId || undefined,
+        }),
       })
       if (!resRes.ok) {
         const d = await resRes.json()
@@ -220,6 +272,7 @@ export default function ReservaForm({ tenant, location }: Props) {
 
       if (prefData.free) {
         // No payment needed
+        setDoneSpaceName(activeSpace?.name || '')
         setStep('free_done')
         return
       }
@@ -270,6 +323,11 @@ export default function ReservaForm({ tenant, location }: Props) {
           </div>
           <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>{t.confirmed}</h2>
           <p style={{ opacity: 0.6, fontSize: '14px' }}>{t.confirmedMsg(location.phone)}</p>
+          {doneSpaceName && (
+            <p style={{ fontSize: '14px', fontWeight: 700, marginTop: '12px', color: primary }}>
+              {t.space}: {doneSpaceName}
+            </p>
+          )}
         </div>
       </div>
     )
@@ -330,37 +388,95 @@ export default function ReservaForm({ tenant, location }: Props) {
             />
           </div>
 
+          {/* Space (obligatorio cuando la sede tiene espacios) */}
+          {spacesMode && (
+            <div>
+              <label style={labelStyle}>{t.space}</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {spaces.map(s => {
+                  const blocked = spaceBlockedOnDate(s, form.date)
+                  const selected = s._id === activeSpaceId
+                  return (
+                    <button
+                      key={s._id}
+                      type="button"
+                      disabled={blocked}
+                      onClick={() => {
+                        setSpaceId(s._id)
+                        // Si el grupo no entra en el espacio elegido, se achica.
+                        setForm(f =>
+                          f.partySize > s.capacity ? { ...f, partySize: s.capacity } : f
+                        )
+                      }}
+                      style={{
+                        padding: '8px 14px',
+                        borderRadius: br,
+                        border: `1.5px solid ${selected ? primary : primary}40`,
+                        backgroundColor: blocked ? '#f5f5f5' : selected ? primary : 'transparent',
+                        color: blocked ? '#ccc' : selected ? '#ffffff' : primary,
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        textAlign: 'left',
+                        cursor: blocked ? 'not-allowed' : 'pointer',
+                        opacity: blocked ? 0.6 : 1,
+                      }}
+                    >
+                      {s.name}
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 600, opacity: 0.75 }}>
+                        {t.spaceCapacity(s.capacity)}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Time slots */}
           <div>
             <label style={labelStyle}>{t.time}</label>
             {slotsLoading ? (
               <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.loadingSlots}</p>
             ) : slots.length === 0 ? (
-              <p style={{ fontSize: '13px', opacity: 0.5 }}>{t.noSlots}</p>
+              <p style={{ fontSize: '13px', opacity: 0.5 }}>
+                {spacesMode && !activeSpaceId ? t.spacesHint : t.noSlots}
+              </p>
             ) : (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {slots.map(slot => (
-                  <button
-                    key={slot.time}
-                    type="button"
-                    disabled={!slot.available}
-                    onClick={() => slot.available && setForm(f => ({ ...f, time: slot.time }))}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: br,
-                      border: `1.5px solid ${form.time === slot.time ? primary : primary}40`,
-                      backgroundColor: !slot.available ? '#f5f5f5' : form.time === slot.time ? primary : 'transparent',
-                      color: !slot.available ? '#ccc' : form.time === slot.time ? '#ffffff' : primary,
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      cursor: slot.available ? 'pointer' : 'not-allowed',
-                      opacity: !slot.available ? 0.5 : 1,
-                      textDecoration: !slot.available ? 'line-through' : 'none',
-                    }}
-                  >
-                    {slot.time}
-                  </button>
-                ))}
+                {slots.map(slot => {
+                  const left =
+                    typeof slot.maxReservations === 'number' && typeof slot.currentReservations === 'number'
+                      ? Math.max(0, slot.maxReservations - slot.currentReservations)
+                      : null
+                  return (
+                    <button
+                      key={slot.time}
+                      type="button"
+                      disabled={!slot.available}
+                      onClick={() => slot.available && setForm(f => ({ ...f, time: slot.time }))}
+                      style={{
+                        padding: slot.available && spacesMode && left !== null ? '6px 14px' : '8px 16px',
+                        borderRadius: br,
+                        border: `1.5px solid ${form.time === slot.time ? primary : primary}40`,
+                        backgroundColor: !slot.available ? '#f5f5f5' : form.time === slot.time ? primary : 'transparent',
+                        color: !slot.available ? '#ccc' : form.time === slot.time ? '#ffffff' : primary,
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        cursor: slot.available ? 'pointer' : 'not-allowed',
+                        opacity: !slot.available ? 0.5 : 1,
+                        textDecoration: !slot.available ? 'line-through' : 'none',
+                      }}
+                    >
+                      {slot.time}
+                      {slot.available && spacesMode && left !== null && (
+                        <span style={{ display: 'block', fontSize: 10, fontWeight: 600, opacity: 0.75 }}>
+                          {t.spaceLeft(left)}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -369,7 +485,9 @@ export default function ReservaForm({ tenant, location }: Props) {
           <div>
             <label style={labelStyle}>{t.partySize}</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {PARTY_SIZES.filter(s => s <= maxPartySize).map(s => (
+              {PARTY_SIZES.filter(
+                s => s <= maxPartySize && (!activeSpace || s <= activeSpace.capacity)
+              ).map(s => (
                 <button
                   key={s}
                   type="button"
@@ -448,7 +566,7 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           <button
             type="submit"
-            disabled={loading || slots.length === 0}
+            disabled={loading || slots.length === 0 || (spacesMode && !activeSpaceId)}
             style={{
               width: '100%',
               padding: '15px',

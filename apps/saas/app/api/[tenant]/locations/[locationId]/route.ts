@@ -83,6 +83,16 @@ export async function PUT(
       }
     }
 
+    // ── Validate reservationConfig.paymentsEnabled si viene ────────────────
+    if (body?.reservationConfig && 'paymentsEnabled' in body.reservationConfig) {
+      if (typeof body.reservationConfig.paymentsEnabled !== 'boolean') {
+        return NextResponse.json(
+          { error: 'El estado de cobro de reservas debe ser verdadero o falso' },
+          { status: 400 }
+        )
+      }
+    }
+
     // ── Validate spaces (espacios/sectores de aforo) si viene ───────────────
     if (body && 'spaces' in body) {
       const spacesError = validateSpacesInput(body.spaces)
