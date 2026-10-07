@@ -1,14 +1,15 @@
 import { connectDB } from '@/lib/mongoose'
 import Reservation from '@/models/Reservation'
-import Location from '@/models/Location'
 import type { ILocation } from '@/models/Location'
-
-type OperatingHour = { days: number[]; open: string; close: string }
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
-}
+import {
+  DEFAULT_MIN_ADVANCE_MINUTES,
+  DEFAULT_TIMEZONE,
+  getDayAndMidnightInTimezone,
+  getLocalDayAndMinutes,
+  getTodayStrInTimezone,
+  isSlotBookable,
+  timeToMinutes,
+} from '@/lib/restaurant-time'
 
 function minutesToTime(minutes: number): string {
   const h = Math.floor(minutes / 60)
@@ -29,18 +30,48 @@ export interface AvailableReservationSlotsResult {
   slots: AvailableReservationSlot[]
 }
 
+export interface GenerateReservationSlotsOptions {
+  timezone?: string
+  minAdvanceMinutes?: number
+  now?: Date
+}
+
+const EMPTY_RESULT = (date: string): AvailableReservationSlotsResult => ({
+  date,
+  dayOpen: false,
+  slots: [],
+})
+
 export async function generateReservationSlots(
   locationId: string,
   dateStr: string,
-  reservationConfig: ILocation['reservationConfig']
+  reservationConfig: ILocation['reservationConfig'],
+  opts: GenerateReservationSlotsOptions = {}
 ): Promise<AvailableReservationSlotsResult> {
+  const timezone = opts.timezone || DEFAULT_TIMEZONE
+  const minAdvanceMinutes =
+    opts.minAdvanceMinutes ??
+    reservationConfig?.minAdvanceMinutes ??
+    DEFAULT_MIN_ADVANCE_MINUTES
+  const now = opts.now ?? new Date()
+
+  const todayStr = getTodayStrInTimezone(timezone, now)
+  if (dateStr < todayStr) return EMPTY_RESULT(dateStr)
+
+  const isToday = dateStr === todayStr
+  const nowMinutes = isToday ? getLocalDayAndMinutes(now, timezone).minutes : -1
+  const bookable = (time: string) =>
+    !isToday || isSlotBookable(timeToMinutes(time), nowMinutes, minAdvanceMinutes)
+
   const slotConfig = reservationConfig?.slotConfig
   if (!slotConfig?.enabled || !slotConfig?.operatingHours?.length) {
     // Fallback to manual timeSlots if no slotConfig
+    const manualSlots = (reservationConfig?.timeSlots || []).filter(bookable)
+    if (!manualSlots.length) return EMPTY_RESULT(dateStr)
     return {
       date: dateStr,
       dayOpen: true,
-      slots: (reservationConfig?.timeSlots || []).map(time => ({
+      slots: manualSlots.map(time => ({
         time,
         available: true,
         currentReservations: 0,
@@ -51,12 +82,11 @@ export async function generateReservationSlots(
 
   await connectDB()
 
-  const targetDate = new Date(dateStr + 'T00:00:00')
-  const dayOfWeek = targetDate.getDay()
+  const dayOfWeek = getDayAndMidnightInTimezone(dateStr, timezone).day
 
   const matchingHours = slotConfig.operatingHours.filter(h => h.days.includes(dayOfWeek))
   if (matchingHours.length === 0) {
-    return { date: dateStr, dayOpen: false, slots: [] }
+    return EMPTY_RESULT(dateStr)
   }
 
   const interval = slotConfig.slotIntervalMinutes || 30
@@ -69,9 +99,11 @@ export async function generateReservationSlots(
     const openMin = timeToMinutes(hours.open)
     const closeMin = timeToMinutes(hours.close)
     for (let min = openMin; min < closeMin; min += interval) {
-      candidateSlots.push(minutesToTime(min))
+      const time = minutesToTime(min)
+      if (bookable(time)) candidateSlots.push(time)
     }
   }
+  if (!candidateSlots.length) return EMPTY_RESULT(dateStr)
 
   // Fetch existing reservations for this date
   const existingReservations = await Reservation.find({

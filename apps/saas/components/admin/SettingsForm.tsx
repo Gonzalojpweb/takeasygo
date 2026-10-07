@@ -14,6 +14,7 @@ import PaymentSurchargeSettings from './PaymentSurchargeSettings'
 import GalleryManager from './GalleryManager'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toCents, toPesos } from '@takeasygo/business/browser'
+import { DEFAULT_MIN_ADVANCE_MINUTES } from '@/lib/restaurant-time'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
 import {
   Palette, User, MapPin,
@@ -161,6 +162,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     minPayment: number
     timeSlots: string[]
     maxPartySize: number
+    minAdvanceMinutes: number
     slotConfig?: {
       enabled: boolean
       operatingHours: OperatingHourConfig[]
@@ -177,6 +179,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
         minPayment: toPesos(l.reservationConfig?.minPayment ?? 0),
         timeSlots: l.reservationConfig?.timeSlots ?? [],
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
+        minAdvanceMinutes: l.reservationConfig?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
         slotConfig: {
           enabled: l.reservationConfig?.slotConfig?.enabled ?? false,
           operatingHours: l.reservationConfig?.slotConfig?.operatingHours ?? [],
@@ -1764,7 +1767,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
                               {reservationMap[loc._id]?.enabled && (
                               <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
                                   <div>
                                     <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                       Pago mínimo ($)
@@ -1792,6 +1795,23 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                       onChange={e => setReservationMap(prev => ({
                                         ...prev,
                                         [loc._id]: { ...prev[loc._id], maxPartySize: Number(e.target.value) }
+                                      }))}
+                                      className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                      Antelación mínima (min)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={720}
+                                      step={5}
+                                      value={reservationMap[loc._id]?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES}
+                                      onChange={e => setReservationMap(prev => ({
+                                        ...prev,
+                                        [loc._id]: { ...prev[loc._id], minAdvanceMinutes: Number(e.target.value) }
                                       }))}
                                       className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
                                     />
@@ -2131,7 +2151,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-5">
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-3 gap-4">
                             <div>
                               <label className={labelCls}>Pago mínimo ($)</label>
                               <input
@@ -2155,6 +2175,21 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 onChange={e => setReservationMap(prev => ({
                                   ...prev,
                                   [loc._id]: { ...prev[loc._id], maxPartySize: Number(e.target.value) }
+                                }))}
+                                className={cn(inputCls, "text-center")}
+                              />
+                            </div>
+                            <div>
+                              <label className={labelCls}>Antelación mínima (min)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                max={720}
+                                step={5}
+                                value={reservationMap[loc._id]?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES}
+                                onChange={e => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], minAdvanceMinutes: Number(e.target.value) }
                                 }))}
                                 className={cn(inputCls, "text-center")}
                               />

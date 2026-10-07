@@ -2,6 +2,14 @@ const DAY_MAP: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
 }
 
+export const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
+
+export const DEFAULT_MIN_ADVANCE_MINUTES = 30
+
+const CALENDAR_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
+const HH_MM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/
+
 /**
  * Converts a UTC Date to local calendar values in the given timezone
  * using Intl.DateTimeFormat.formatToParts (no offset string parsing).
@@ -38,13 +46,13 @@ function toLocal(date: Date, timezone: string): { y: number; M: number; d: numbe
 }
 
 export function getNowInTimezone(timezone?: string): { day: number; minutes: number } {
-  const tz = timezone || 'America/Argentina/Buenos_Aires'
+  const tz = timezone || DEFAULT_TIMEZONE
   const local = toLocal(new Date(), tz)
   return { day: local.wd, minutes: local.h * 60 + local.m }
 }
 
 export function getLocalDayAndMinutes(date: Date, timezone?: string): { day: number; minutes: number } {
-  const tz = timezone || 'America/Argentina/Buenos_Aires'
+  const tz = timezone || DEFAULT_TIMEZONE
   const local = toLocal(date, tz)
   return { day: local.wd, minutes: local.h * 60 + local.m }
 }
@@ -58,7 +66,7 @@ export function getLocalDayAndMinutes(date: Date, timezone?: string): { day: num
  * calcular la medianoche local sin parsear strings de offset.
  */
 export function getDayAndMidnightInTimezone(dateStr: string, timezone?: string): { date: Date; day: number } {
-  const tz = timezone || 'America/Argentina/Buenos_Aires'
+  const tz = timezone || DEFAULT_TIMEZONE
   const [y, M, d] = dateStr.split('-').map(Number)
 
   // Obtener la hora local al mediodía UTC
@@ -78,4 +86,51 @@ export function getDayAndMidnightInTimezone(dateStr: string, timezone?: string):
   const localMidnight = toLocal(midnightLocal, tz)
 
   return { date: midnightLocal, day: localMidnight.wd }
+}
+
+/**
+ * "YYYY-MM-DD" del día actual en el timezone del restaurante (no en el del
+ * servidor ni en UTC, que se desfasan un día cerca de la medianoche).
+ */
+export function getTodayStrInTimezone(timezone?: string, now: Date = new Date()): string {
+  const tz = timezone || DEFAULT_TIMEZONE
+  const local = toLocal(now, tz)
+  const mm = String(local.M).padStart(2, '0')
+  const dd = String(local.d).padStart(2, '0')
+  return `${local.y}-${mm}-${dd}`
+}
+
+export function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number)
+  return h * 60 + m
+}
+
+export function isValidHHMM(time: unknown): time is string {
+  return typeof time === 'string' && HH_MM_REGEX.test(time)
+}
+
+/**
+ * Un slot es reservable si todavía no pasó y falta al menos
+ * `minAdvanceMinutes` para que comience. El corte es inclusivo:
+ * con ahora=12:00 y antelación=30, el slot 12:30 SÍ se puede reservar.
+ */
+export function isSlotBookable(
+  slotMinutes: number,
+  nowMinutes: number,
+  minAdvanceMinutes: number
+): boolean {
+  return slotMinutes > nowMinutes && slotMinutes >= nowMinutes + minAdvanceMinutes
+}
+
+/**
+ * Valida que el string sea una fecha de calendario real. La regex sola
+ * acepta 2026-02-31, que rompe la comparación de strings y el cálculo
+ * del día de la semana.
+ */
+export function isValidCalendarDate(dateStr: unknown): dateStr is string {
+  if (typeof dateStr !== 'string' || !CALENDAR_DATE_REGEX.test(dateStr)) return false
+  const [y, M, d] = dateStr.split('-').map(Number)
+  if (y < 1970 || y > 2100 || M < 1 || M > 12 || d < 1) return false
+  const daysInMonth = new Date(Date.UTC(y, M, 0)).getUTCDate()
+  return d <= daysInMonth
 }

@@ -71,6 +71,17 @@ export async function PUT(
       }
     }
 
+    // ── Validate reservationConfig.minAdvanceMinutes si viene ──────────────
+    if (body?.reservationConfig && 'minAdvanceMinutes' in body.reservationConfig) {
+      const v = body.reservationConfig.minAdvanceMinutes
+      if (!Number.isInteger(v) || v < 0 || v > 720) {
+        return NextResponse.json(
+          { error: 'La antelación mínima debe ser un número entero entre 0 y 720 minutos' },
+          { status: 400 }
+        )
+      }
+    }
+
     // Merge profundo: preservar subdocumentos existentes (deliveryConfig, settings, serviceHours)
     // cuando el body solo trae parciales
     const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean() as Record<string, any> | null

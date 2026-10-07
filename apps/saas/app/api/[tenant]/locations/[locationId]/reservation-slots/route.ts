@@ -2,9 +2,12 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { generateReservationSlots } from '@/lib/reservation-slots'
+import {
+  DEFAULT_MIN_ADVANCE_MINUTES,
+  DEFAULT_TIMEZONE,
+  isValidCalendarDate,
+} from '@/lib/restaurant-time'
 import { NextRequest, NextResponse } from 'next/server'
-
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET(
   request: NextRequest,
@@ -23,11 +26,15 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams
     const dateStr = searchParams.get('date')
 
-    if (!dateStr || !DATE_REGEX.test(dateStr)) {
+    if (!isValidCalendarDate(dateStr)) {
       return NextResponse.json({ error: 'Fecha inválida. Usar formato YYYY-MM-DD' }, { status: 400 })
     }
 
-    const result = await generateReservationSlots(locationId, dateStr, location.reservationConfig || {})
+    const reservationConfig = location.reservationConfig || {}
+    const result = await generateReservationSlots(locationId, dateStr, reservationConfig, {
+      timezone: location.timezone || DEFAULT_TIMEZONE,
+      minAdvanceMinutes: reservationConfig.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
+    })
 
     return NextResponse.json(result)
   } catch (error) {
