@@ -48,10 +48,12 @@ interface Props {
   locations: any[]
   tenantSlug: string
   plan?: string
+  role?: string
 }
 
-export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Props) {
+export default function SettingsForm({ tenant, locations, tenantSlug, plan, role }: Props) {
   const router = useRouter()
+  const canManageSensitiveSettings = role === 'admin' || role === 'superadmin'
   const [loading, setLoading] = useState(false)
   const defaultFonts = {
     heading: { source: 'google' as FontSource, family: 'inter', weight: '' },
@@ -681,10 +683,14 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
               <TabTrigger value="profile" icon={<User size={16} />} label="Perfil" />
               <TabTrigger value="locations" icon={<MapPin size={16} />} label="Sedes" />
               <TabTrigger value="general" icon={<SettingsIcon size={16} />} label="General" />
-              <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
-              <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
+              {canManageSensitiveSettings && (
+                <TabTrigger value="mercadopago" icon={<CreditCard size={16} />} label="Pagos" />
+              )}
+              {canManageSensitiveSettings && (
+                <TabTrigger value="kripton" icon={<Coins size={16} />} label="Kripton" />
+              )}
               <TabTrigger value="notifications" icon={<Bell size={16} />} label="Notificaciones" />
-              {canAccess(plan as Plan, 'transferPayment') && (
+              {canAccess(plan as Plan, 'transferPayment') && canManageSensitiveSettings && (
                 <TabTrigger value="transferencia" icon={<Banknote size={16} />} label="Transferencia" />
               )}
               {canAccess(plan as Plan, 'cashPayment') && tenant.features?.cashPaymentEnabledBySuperadmin && (
@@ -694,7 +700,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
               {tenant.features?.reservations && (
                 <TabTrigger value="reservas" icon={<CalendarDays size={16} />} label="Reservas" />
               )}
-              {canAccess(plan as Plan, 'posIntegration') && (
+              {canAccess(plan as Plan, 'posIntegration') && canManageSensitiveSettings && (
                 <TabTrigger value="pos" icon={<Database size={16} />} label="POS" />
               )}
             </TabsList>
@@ -1934,26 +1940,30 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             </TabsContent>
 
             {/* ── MercadoPago ── */}
-            <TabsContent value="mercadopago" className="m-0 mt-2">
-              <div className="max-w-3xl">
-                <MercadoPagoSettings
-                  tenantSlug={tenantSlug}
-                  isConfigured={tenant.mercadopago?.isConfigured}
-                  mpOAuth={tenant.mpOAuth}
-                  mpAccounts={tenant.mpAccounts}
-                />
-              </div>
-            </TabsContent>
+            {canManageSensitiveSettings && (
+              <TabsContent value="mercadopago" className="m-0 mt-2">
+                <div className="max-w-3xl">
+                  <MercadoPagoSettings
+                    tenantSlug={tenantSlug}
+                    isConfigured={tenant.mercadopago?.isConfigured}
+                    mpOAuth={tenant.mpOAuth}
+                    mpAccounts={tenant.mpAccounts}
+                  />
+                </div>
+              </TabsContent>
+            )}
 
             {/* ── Kripton ── */}
-            <TabsContent value="kripton" className="m-0 mt-2">
-              <div className="max-w-3xl">
-                <KriptonSettings
-                  tenantSlug={tenantSlug}
-                  isConfigured={tenant.kripton?.isConfigured ?? false}
-                />
-              </div>
-            </TabsContent>
+            {canManageSensitiveSettings && (
+              <TabsContent value="kripton" className="m-0 mt-2">
+                <div className="max-w-3xl">
+                  <KriptonSettings
+                    tenantSlug={tenantSlug}
+                    isConfigured={tenant.kripton?.isConfigured ?? false}
+                  />
+                </div>
+              </TabsContent>
+            )}
 
             {/* ── Notificaciones WhatsApp ── */}
             <TabsContent value="notifications" className="m-0 mt-2">
@@ -2038,7 +2048,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
             </TabsContent>
 
             {/* ── Transferencia ── */}
-            {canAccess(plan as Plan, 'transferPayment') && (
+            {canAccess(plan as Plan, 'transferPayment') && canManageSensitiveSettings && (
               <TabsContent value="transferencia" className="m-0 mt-2">
                 <div className="max-w-3xl">
                   <TransferAccountsSettings
@@ -2356,42 +2366,44 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan }: Pr
               </TabsContent>
             )}
             {/* ── POS Integration ── */}
-            <TabsContent value="pos" className="m-0 mt-2">
-              <div className="max-w-2xl bg-muted/20 border border-border/40 p-8 rounded-[2.5rem] space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                    <Database size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold tracking-tight">Integración con Sistemas POS</h3>
-                    <p className="text-xs text-muted-foreground font-medium mt-1">Conecta TakeasyGO con FUDO o BISTROSOFT.</p>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    La integración POS permite inyectar pedidos automáticamente en tu sistema de gestión, sincronizar el catálogo de productos y mantener el estado de las órdenes actualizado en tiempo real.
-                  </p>
-
-                  <div className="p-4 bg-white border rounded-2xl flex items-center justify-between group hover:border-primary/40 transition-all">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <SettingsIcon size={16} />
-                      </div>
-                      <span className="text-sm font-bold">Configuración Avanzada de POS</span>
+            {canManageSensitiveSettings && (
+              <TabsContent value="pos" className="m-0 mt-2">
+                <div className="max-w-2xl bg-muted/20 border border-border/40 p-8 rounded-[2.5rem] space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                      <Database size={24} />
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      className="text-primary hover:bg-primary/5 font-bold flex items-center gap-2"
-                      onClick={() => router.push(`/${tenantSlug}/admin/settings/pos`)}
-                    >
-                      Configurar
-                      <ExternalLink size={14} />
-                    </Button>
+                    <div>
+                      <h3 className="text-xl font-bold tracking-tight">Integración con Sistemas POS</h3>
+                      <p className="text-xs text-muted-foreground font-medium mt-1">Conecta TakeasyGO con FUDO o BISTROSOFT.</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      La integración POS permite inyectar pedidos automáticamente en tu sistema de gestión, sincronizar el catálogo de productos y mantener el estado de las órdenes actualizado en tiempo real.
+                    </p>
+
+                    <div className="p-4 bg-white border rounded-2xl flex items-center justify-between group hover:border-primary/40 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                          <SettingsIcon size={16} />
+                        </div>
+                        <span className="text-sm font-bold">Configuración Avanzada de POS</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        className="text-primary hover:bg-primary/5 font-bold flex items-center gap-2"
+                        onClick={() => router.push(`/${tenantSlug}/admin/settings/pos`)}
+                      >
+                        Configurar
+                        <ExternalLink size={14} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </TabsContent>
+              </TabsContent>
+            )}
           </motion.div>
         </AnimatePresence>
       </Tabs>
