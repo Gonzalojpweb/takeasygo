@@ -186,7 +186,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'], feature: 'users' },
         { href: `${base}/billing`, label: 'Facturación', icon: CreditCard, roles: ['admin'] },
         { href: `${base}/commissions`, label: 'Comisiones', icon: Coins, roles: ['admin'], badge: commissionBadge },
-        { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin'] },
+        { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin', 'manager'] },
         { href: `${base}/settings/pos`, label: 'Integración POS', icon: Database, roles: ['admin'], feature: 'posIntegration' },
       ],
     },

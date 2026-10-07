@@ -1,0 +1,684 @@
+{
+  "dataAudit": {
+    "totalOrdersInDB": 267,
+    "validOrdersCount": 252,
+    "cancelledOrdersCount": 15,
+    "orderStatusBreakdown": [
+      {
+        "_id": "cancelled",
+        "count": 15
+      },
+      {
+        "_id": "delivered",
+        "count": 248
+      },
+      {
+        "_id": "awaiting_payment",
+        "count": 4
+      }
+    ],
+    "minOrderDate": "2026-06-19T23:33:39.828Z",
+    "maxOrderDate": "2026-10-07T00:55:12.930Z",
+    "uniquePurchasingPhones": 240,
+    "customerProfilesCount": 140,
+    "loyaltyMembersCount": 123,
+    "totalCustomerEvents": 15508,
+    "customerEventBreakdown": [
+      {
+        "_id": "signal_detected",
+        "count": 14917,
+        "type": "signal_detected",
+        "uniqueUsers": 107
+      },
+      {
+        "_id": "health_score_changed",
+        "count": 457,
+        "type": "health_score_changed",
+        "uniqueUsers": 90
+      },
+      {
+        "_id": "product_view",
+        "count": 79,
+        "type": "product_view",
+        "uniqueUsers": 25
+      },
+      {
+        "_id": "order_completed",
+        "count": 38,
+        "type": "order_completed",
+        "uniqueUsers": 25
+      },
+      {
+        "_id": "segment_changed",
+        "count": 17,
+        "type": "segment_changed",
+        "uniqueUsers": 13
+      }
+    ],
+    "menuVisitsCount": 4085,
+    "qrPromosCount": 2,
+    "qrPromoViewsCount": 401,
+    "promotionsCount": 10,
+    "feedbacksCount": 86
+  },
+  "menuEntry": {
+    "totalMenuVisits": 4085,
+    "uniqueIPs": 2405,
+    "visitsBySource": {
+      "instagram": 2243,
+      "other": 1842
+    },
+    "visitsByDevice": {
+      "mobile": 3734,
+      "desktop": 345,
+      "unknown": 6
+    },
+    "visitsByHour": [
+      682,
+      398,
+      195,
+      82,
+      57,
+      65,
+      39,
+      29,
+      14,
+      15,
+      12,
+      19,
+      44,
+      70,
+      142,
+      174,
+      172,
+      141,
+      119,
+      107,
+      128,
+      192,
+      400,
+      789
+    ],
+    "visitsByDayOfWeek": [
+      701,
+      442,
+      459,
+      485,
+      545,
+      672,
+      781
+    ]
+  },
+  "salesAnalysis": {
+    "validOrdersCount": 252,
+    "meanTicket": 48635.75773809525,
+    "medianTicket": 42400,
+    "p25Ticket": 27437.5,
+    "p75Ticket": 51317.325,
+    "p90Ticket": 89738.19800000002,
+    "meanItemsPerOrder": 2.4166666666666665,
+    "medianItemsPerOrder": 2,
+    "productSalesSorted": [
+      {
+        "name": "TYRON",
+        "ordersCount": 92,
+        "totalQuantity": 100,
+        "totalRevenue": 1920200,
+        "percentageOfValidOrders": "36.51%"
+      },
+      {
+        "name": "ZEBALLON CRISPY",
+        "ordersCount": 74,
+        "totalQuantity": 83,
+        "totalRevenue": 1750650,
+        "percentageOfValidOrders": "29.37%"
+      },
+      {
+        "name": "KHEBURGER",
+        "ordersCount": 65,
+        "totalQuantity": 71,
+        "totalRevenue": 1401000,
+        "percentageOfValidOrders": "25.79%"
+      },
+      {
+        "name": "JEEZY",
+        "ordersCount": 48,
+        "totalQuantity": 49,
+        "totalRevenue": 999250,
+        "percentageOfValidOrders": "19.05%"
+      },
+      {
+        "name": "YSIBOOM",
+        "ordersCount": 48,
+        "totalQuantity": 53,
+        "totalRevenue": 1151300,
+        "percentageOfValidOrders": "19.05%"
+      },
+      {
+        "name": "ACRI",
+        "ordersCount": 46,
+        "totalQuantity": 51,
+        "totalRevenue": 938350,
+        "percentageOfValidOrders": "18.25%"
+      },
+      {
+        "name": "RABREK",
+        "ordersCount": 29,
+        "totalQuantity": 30,
+        "totalRevenue": 611650,
+        "percentageOfValidOrders": "11.51%"
+      },
+      {
+        "name": "DUKING",
+        "ordersCount": 28,
+        "totalQuantity": 30,
+        "totalRevenue": 643400,
+        "percentageOfValidOrders": "11.11%"
+      },
+      {
+        "name": "SAINTLUNA",
+        "ordersCount": 23,
+        "totalQuantity": 24,
+        "totalRevenue": 525000,
+        "percentageOfValidOrders": "9.13%"
+      },
+      {
+        "name": "BarderiTo$",
+        "ordersCount": 18,
+        "totalQuantity": 18,
+        "totalRevenue": 199750,
+        "percentageOfValidOrders": "7.14%"
+      },
+      {
+        "name": "Papas Clásicas",
+        "ordersCount": 16,
+        "totalQuantity": 17,
+        "totalRevenue": 116000,
+        "percentageOfValidOrders": "6.35%"
+      },
+      {
+        "name": "LARRY MOB",
+        "ordersCount": 16,
+        "totalQuantity": 16,
+        "totalRevenue": 311000,
+        "percentageOfValidOrders": "6.35%"
+      },
+      {
+        "name": "Pepsi",
+        "ordersCount": 11,
+        "totalQuantity": 15,
+        "totalRevenue": 52500,
+        "percentageOfValidOrders": "4.37%"
+      },
+      {
+        "name": "Papas Crew",
+        "ordersCount": 11,
+        "totalQuantity": 11,
+        "totalRevenue": 130000,
+        "percentageOfValidOrders": "4.37%"
+      },
+      {
+        "name": "PAPAS SAZONADAS",
+        "ordersCount": 8,
+        "totalQuantity": 9,
+        "totalRevenue": 64500,
+        "percentageOfValidOrders": "3.17%"
+      },
+      {
+        "name": "MOMO SAMP",
+        "ordersCount": 6,
+        "totalQuantity": 6,
+        "totalRevenue": 124200,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "name": "7UP",
+        "ordersCount": 3,
+        "totalQuantity": 4,
+        "totalRevenue": 14000,
+        "percentageOfValidOrders": "1.19%"
+      },
+      {
+        "name": "🍔 2 RABREK DOBLES",
+        "ordersCount": 3,
+        "totalQuantity": 3,
+        "totalRevenue": 115500,
+        "percentageOfValidOrders": "1.19%"
+      },
+      {
+        "name": "🍔 3 TYRON",
+        "ordersCount": 3,
+        "totalQuantity": 3,
+        "totalRevenue": 160500,
+        "percentageOfValidOrders": "1.19%"
+      },
+      {
+        "name": "Poliamok",
+        "ordersCount": 3,
+        "totalQuantity": 3,
+        "totalRevenue": 36750,
+        "percentageOfValidOrders": "1.19%"
+      },
+      {
+        "name": "🤤 La dieta arranca el lunes. Hoy sale KEKE & Larry.",
+        "ordersCount": 2,
+        "totalQuantity": 2,
+        "totalRevenue": 68500,
+        "percentageOfValidOrders": "0.79%"
+      },
+      {
+        "name": "Mirinda",
+        "ordersCount": 1,
+        "totalQuantity": 2,
+        "totalRevenue": 7000,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "🍔 3 YSIBOOM",
+        "ordersCount": 1,
+        "totalQuantity": 2,
+        "totalRevenue": 120000,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "🍔 2 LARRY MOB",
+        "ordersCount": 1,
+        "totalQuantity": 1,
+        "totalRevenue": 35000,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "Andes Rubia",
+        "ordersCount": 1,
+        "totalQuantity": 2,
+        "totalRevenue": 7000,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "🍔 2 DUKING DOBLES",
+        "ordersCount": 1,
+        "totalQuantity": 1,
+        "totalRevenue": 40000,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "🍔 ACR1 + TYRON",
+        "ordersCount": 1,
+        "totalQuantity": 1,
+        "totalRevenue": 36500,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "🔥 PROMO 3x2 TYRON DOBLE 🔥",
+        "ordersCount": 1,
+        "totalQuantity": 1,
+        "totalRevenue": 49400,
+        "percentageOfValidOrders": "0.40%"
+      },
+      {
+        "name": "Zero",
+        "ordersCount": 1,
+        "totalQuantity": 1,
+        "totalRevenue": 3500,
+        "percentageOfValidOrders": "0.40%"
+      }
+    ],
+    "topProductPairs": [
+      {
+        "pair": "TYRON + ZEBALLON CRISPY",
+        "ordersCount": 19,
+        "percentageOfValidOrders": "7.54%"
+      },
+      {
+        "pair": "KHEBURGER + TYRON",
+        "ordersCount": 18,
+        "percentageOfValidOrders": "7.14%"
+      },
+      {
+        "pair": "ACRI + TYRON",
+        "ordersCount": 14,
+        "percentageOfValidOrders": "5.56%"
+      },
+      {
+        "pair": "KHEBURGER + ZEBALLON CRISPY",
+        "ordersCount": 13,
+        "percentageOfValidOrders": "5.16%"
+      },
+      {
+        "pair": "TYRON + YSIBOOM",
+        "ordersCount": 9,
+        "percentageOfValidOrders": "3.57%"
+      },
+      {
+        "pair": "ACRI + KHEBURGER",
+        "ordersCount": 8,
+        "percentageOfValidOrders": "3.17%"
+      },
+      {
+        "pair": "JEEZY + KHEBURGER",
+        "ordersCount": 8,
+        "percentageOfValidOrders": "3.17%"
+      },
+      {
+        "pair": "SAINTLUNA + TYRON",
+        "ordersCount": 7,
+        "percentageOfValidOrders": "2.78%"
+      },
+      {
+        "pair": "JEEZY + ZEBALLON CRISPY",
+        "ordersCount": 7,
+        "percentageOfValidOrders": "2.78%"
+      },
+      {
+        "pair": "ACRI + YSIBOOM",
+        "ordersCount": 7,
+        "percentageOfValidOrders": "2.78%"
+      },
+      {
+        "pair": "YSIBOOM + ZEBALLON CRISPY",
+        "ordersCount": 7,
+        "percentageOfValidOrders": "2.78%"
+      },
+      {
+        "pair": "RABREK + ZEBALLON CRISPY",
+        "ordersCount": 7,
+        "percentageOfValidOrders": "2.78%"
+      },
+      {
+        "pair": "SAINTLUNA + ZEBALLON CRISPY",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "Pepsi + TYRON",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "JEEZY + RABREK",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "DUKING + ZEBALLON CRISPY",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "KHEBURGER + YSIBOOM",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "DUKING + JEEZY",
+        "ordersCount": 6,
+        "percentageOfValidOrders": "2.38%"
+      },
+      {
+        "pair": "ACRI + ZEBALLON CRISPY",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "BarderiTo$ + YSIBOOM",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "BarderiTo$ + ZEBALLON CRISPY",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "BarderiTo$ + DUKING",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "Papas Clásicas + YSIBOOM",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "DUKING + TYRON",
+        "ordersCount": 5,
+        "percentageOfValidOrders": "1.98%"
+      },
+      {
+        "pair": "KHEBURGER + Papas Clásicas",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      },
+      {
+        "pair": "Papas Clásicas + TYRON",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      },
+      {
+        "pair": "JEEZY + TYRON",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      },
+      {
+        "pair": "KHEBURGER + RABREK",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      },
+      {
+        "pair": "JEEZY + YSIBOOM",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      },
+      {
+        "pair": "RABREK + YSIBOOM",
+        "ordersCount": 4,
+        "percentageOfValidOrders": "1.59%"
+      }
+    ]
+  },
+  "eventsTaxonomy": {
+    "totalCustomerEvents": 15508,
+    "eventTypesSummary": [
+      {
+        "_id": "signal_detected",
+        "count": 14917,
+        "type": "signal_detected",
+        "uniqueUsers": 107
+      },
+      {
+        "_id": "health_score_changed",
+        "count": 457,
+        "type": "health_score_changed",
+        "uniqueUsers": 90
+      },
+      {
+        "_id": "product_view",
+        "count": 79,
+        "type": "product_view",
+        "uniqueUsers": 25
+      },
+      {
+        "_id": "order_completed",
+        "count": 38,
+        "type": "order_completed",
+        "uniqueUsers": 25
+      },
+      {
+        "_id": "segment_changed",
+        "count": 17,
+        "type": "segment_changed",
+        "uniqueUsers": 13
+      }
+    ],
+    "productViewsByName": {
+      "JEEZY": 7,
+      "PAPAS SAZONADAS": 4,
+      "Pepsi": 4,
+      "TYRON": 11,
+      "KHEBURGER": 4,
+      "ZEBALLON CRISPY": 15,
+      "YSIBOOM": 8,
+      "DUKING": 2,
+      "Papas Clásicas": 3,
+      "BarderiTo$": 2,
+      "SAINTLUNA": 10,
+      "ACRI": 3,
+      "RABREK": 2,
+      "LARRY MOB": 2,
+      "Aprovecha la unica promo 2x1": 2
+    },
+    "nonInstrumentedEvents": [
+      "click (general)",
+      "tap",
+      "category_view",
+      "add_to_cart",
+      "remove_from_cart",
+      "increase_quantity",
+      "decrease_quantity",
+      "modifier_selected",
+      "modifier_removed",
+      "checkout_started",
+      "payment_started",
+      "payment_completed",
+      "promotion_clicked",
+      "promotion_viewed",
+      "reward_viewed",
+      "reward_clicked",
+      "club_viewed",
+      "club_joined_event",
+      "points_viewed",
+      "reward_redeemed_event"
+    ]
+  },
+  "clubAnalysis": {
+    "totalMembers": 123,
+    "zeroPointsMembers": 10,
+    "positivePointsMembers": 113,
+    "pointsDistribution": {
+      "mean": 3105.6260162601625,
+      "median": 2394,
+      "p25": 309,
+      "p75": 4031.5,
+      "p90": 7972.199999999998,
+      "max": 14588
+    },
+    "membersReachedRewardCount": 1,
+    "membersNearRewardCount": 12,
+    "membersReachedRewardList": [
+      {
+        "name": "Santiago Tedesco",
+        "phone": "+54 1150998215",
+        "points": 14588
+      }
+    ],
+    "totalRedemptionsCount": 1,
+    "comparison": {
+      "memberOrdersCount": 0,
+      "memberMeanTicket": 0,
+      "memberMedianTicket": 0,
+      "nonMemberOrdersCount": 252,
+      "nonMemberMeanTicket": 48635.75773809525,
+      "nonMemberMedianTicket": 42400
+    },
+    "rewardAdvance": {
+      "membersWithSosConfigCount": 123,
+      "membersUsedSosCount": 0,
+      "evidence": "Existe la funcionalidad sosConfig en el modelo de datos, pero 0 usuarios registran sosUsed > 0."
+    }
+  },
+  "recurrenceAnalysis": {
+    "totalPurchasingCustomers": 241,
+    "oneTimeBuyers": 240,
+    "repeatBuyers": 1,
+    "repeatRate": "0.41%",
+    "repeatIntervalsDays": {
+      "mean": 7.816541038510101,
+      "median": 6.907252453703704,
+      "p25": 3.1599393518518517,
+      "p75": 10.044885109953704
+    }
+  },
+  "qrAndPromoAnalysis": {
+    "totalQRPromos": 2,
+    "totalQRPromoViews": 401,
+    "qrViewsBySource": {
+      "direct/empty": 138,
+      "qr-puerta": 17,
+      "qr-takeaway": 6,
+      "tgo-explore": 3,
+      "qr": 237
+    },
+    "promotionsList": [
+      {
+        "title": "🍔 3 ZEBALLON DOBLES",
+        "price": 5900000,
+        "originalPrice": 6300000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 2 LARRY MOB",
+        "price": 3500000,
+        "originalPrice": 3800000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "LA DATA BUENA PASA POR EL CLUB.",
+        "price": 0,
+        "originalPrice": null,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 2 DUKING DOBLES",
+        "price": 4000000,
+        "originalPrice": 4200000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 3 TYRON",
+        "price": 5350000,
+        "originalPrice": 5700000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 ACR1 + TYRON + BEBIDAS",
+        "price": 3650000,
+        "originalPrice": 4000000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 3 YSIBOOM",
+        "price": 6000000,
+        "originalPrice": 6300000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 2 JEEZY SIMPLES — $34.000",
+        "price": 3400000,
+        "originalPrice": 3600000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "🍔 2 RABREK DOBLES",
+        "price": 3850000,
+        "originalPrice": 4100000,
+        "isActive": true,
+        "redemptionsCount": 0
+      },
+      {
+        "title": "LAS MAS PEDIDAS. YA LO SABES!",
+        "price": 600000,
+        "originalPrice": null,
+        "isActive": true,
+        "redemptionsCount": 0
+      }
+    ]
+  }
+}

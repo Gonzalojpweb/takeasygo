@@ -16,7 +16,7 @@ interface LeanTenant {
 export default async function SettingsPage() {
   const session = await auth()
   const role = session?.user?.role
-  if (role !== 'admin' && role !== 'superadmin') {
+  if (role !== 'admin' && role !== 'superadmin' && role !== 'manager') {
     redirect('/')
   }
 
@@ -44,6 +44,7 @@ export default async function SettingsPage() {
         locations={JSON.parse(JSON.stringify(locations))}
         tenantSlug={tenantSlug || ''}
         plan={plan}
+        role={role}
       />
     </div>
   )
