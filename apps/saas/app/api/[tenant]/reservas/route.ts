@@ -23,7 +23,6 @@ import {
 import {
   ACTIVE_RESERVATION_STATUSES,
   getSeatsState,
-  getMaxSpaceCapacity,
   isSpacesMode,
 } from '@/lib/space-capacity'
 
@@ -94,7 +93,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { locationId, date, time, partySize, name, phone, email, clientToken, notes } = body
+    const { locationId, date, time, partySize, name, phone, email, clientToken, notes, spaceId } = body
 
     if (!locationId || !date || !time || !partySize || !name || !phone) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
@@ -147,13 +146,32 @@ export async function POST(
     const spacesMode = isSpacesMode(spaces)
     const blockDuration = reservationConfig.slotConfig?.blockDurationMinutes || 90
 
-    // El grupo tiene que entrar en algún espacio habilitado ese día
+    // En modo espacios el cliente tiene que elegir uno concreto de la sede.
     if (spacesMode) {
-      const maxSpaceCapacity = getMaxSpaceCapacity(spaces, date)
-      if (partySize > maxSpaceCapacity) {
+      if (typeof spaceId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(spaceId)) {
+        return NextResponse.json({ error: 'Elegí un espacio para tu reserva.' }, { status: 400 })
+      }
+      const space = (spaces as Array<{ _id?: unknown; name: string; capacity: number; enabled?: boolean; blockedDates?: string[] }>)
+        .find(s => s._id != null && String(s._id) === spaceId)
+      if (!space) {
+        return NextResponse.json({ error: 'El espacio elegido no existe en esta sede.' }, { status: 400 })
+      }
+      if (space.enabled === false) {
+        return NextResponse.json(
+          { error: `El espacio "${space.name}" no está habilitado. Elegí otro.` },
+          { status: 400 }
+        )
+      }
+      if ((space.blockedDates ?? []).includes(date)) {
+        return NextResponse.json(
+          { error: `El espacio "${space.name}" no está disponible en esa fecha. Elegí otro.` },
+          { status: 400 }
+        )
+      }
+      if (partySize > space.capacity) {
         return NextResponse.json(
           {
-            error: `Tu grupo de ${partySize} personas no entra en ningún espacio habilitado ese día (máximo ${maxSpaceCapacity} personas).`,
+            error: `Tu grupo de ${partySize} personas no entra en "${space.name}" (máximo ${space.capacity} personas).`,
           },
           { status: 400 }
         )
@@ -167,6 +185,7 @@ export async function POST(
       minAdvanceMinutes,
       spaces,
       partySize,
+      spaceId: spacesMode ? spaceId : null,
     })
     if (available.slots.length === 0) {
       return NextResponse.json(
@@ -190,6 +209,11 @@ export async function POST(
     )
     const reservationNumber = `R${String(counter.seq).padStart(4, '0')}`
 
+    // Se cobra solo si el admin dejó los pagos activos y hay seña > 0.
+    const minPayment = reservationConfig.minPayment ?? 0
+    const paymentAmount =
+      reservationConfig.paymentsEnabled !== false && minPayment > 0 ? minPayment : 0
+
     const reservation = await Reservation.create({
       tenantId: tenant._id,
       locationId,
@@ -202,13 +226,14 @@ export async function POST(
       email: email?.trim() || '',
       clientToken: clientToken || null,
       notes: notes?.trim() || '',
-      spaceId: null,
+      spaceId: spacesMode && typeof spaceId === 'string' ? spaceId : null,
       status: 'pending_payment',
       payment: {
-        amount: location.reservationConfig.minPayment,
+        amount: paymentAmount,
         status: 'pending',
         mercadopagoId: null,
         preferenceId: null,
+        mpAccountId: null,
       },
       notifications: {},
     })
@@ -229,7 +254,15 @@ export async function POST(
         blockDurationMinutes: blockDuration,
         reservations: after,
       })
-      if (state.occupied > state.capacity) {
+      const spaceState = getSeatsState({
+        spaces,
+        date,
+        time,
+        blockDurationMinutes: blockDuration,
+        reservations: after,
+        spaceId: typeof spaceId === 'string' ? spaceId : null,
+      })
+      if (state.occupied > state.capacity || spaceState.occupied > spaceState.capacity) {
         await Reservation.deleteOne({ _id: reservation._id })
         return NextResponse.json(
           {
@@ -241,7 +274,7 @@ export async function POST(
       }
     }
 
-    const isFree = (location.reservationConfig.minPayment ?? 0) <= 0
+    const isFree = paymentAmount <= 0
     if (isFree) {
       await sendReservationConfirmation(
         {

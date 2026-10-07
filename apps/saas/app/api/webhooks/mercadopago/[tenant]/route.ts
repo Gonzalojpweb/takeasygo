@@ -351,6 +351,12 @@ export async function POST(
             reservation.payment.mercadopagoId = mpPaymentId
             reservation.payment.status = paymentData.status as any
 
+            // Misma race condition que las órdenes: si el webhook llega antes
+            // de que preference guarde la cuenta, la persistimos ahora.
+            if (!reservation.payment.mpAccountId && processAccount.accountId && processAccount.accountId !== 'legacy') {
+              reservation.payment.mpAccountId = processAccount.accountId
+            }
+
             if (paymentData.status === 'approved') {
               reservation.status = 'confirmed'
               reservation.payment.status = 'approved'

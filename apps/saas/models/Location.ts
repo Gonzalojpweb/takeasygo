@@ -74,6 +74,11 @@ export interface ILocation extends Document {
     enabled: boolean
     /** Pago mínimo para reservar en centavos. @storedAs cents */
     minPayment: number
+    /**
+     * Cobrar la seña online (Mercado Pago, en la misma cuenta que los pedidos).
+     * false = las reservas no se cobran aunque haya seña cargada. Ausente = true.
+     */
+    paymentsEnabled?: boolean
     timeSlots: string[]
     /** Ausente o null = sin límite de comensales. */
     maxPartySize?: number | null
@@ -90,7 +95,7 @@ export interface ILocation extends Document {
   /**
    * Espacios/sectores de la sede para el aforo de reservas.
    * Vacío o ausente = sin espacios: manda maxReservationsPerSlot (modo clásico).
-   * El cliente no elige espacio: es capacidad interna del server.
+   * Con espacios cargados el cliente elige uno al reservar (obligatorio).
    */
   spaces?: Array<{
     /** Nombre libre: Salón, Terraza, Coworking, Interior, Exterior... */
@@ -282,6 +287,7 @@ settings: {
     reservationConfig: {
       enabled: { type: Boolean, default: false },
       minPayment: { type: Number, default: 0 },
+      paymentsEnabled: { type: Boolean, default: true },
       timeSlots: { type: [String], default: [] },
       maxPartySize: { type: Number, default: 10 },
       minAdvanceMinutes: { type: Number, default: 30, min: 0, max: 720 },

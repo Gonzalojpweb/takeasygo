@@ -13,8 +13,8 @@ export interface IReservation extends Document {
   notes: string
   clientToken?: string
   /**
-   * Espacio asignado a la reserva. Preparado pero sin uso: el cliente no
-   * elige espacio (es capacidad interna), siempre null.
+   * Espacio/sector elegido por el cliente al reservar (Salón, Terraza…).
+   * null = reserva sin espacio (sedes sin espacios cargados).
    */
   spaceId?: mongoose.Types.ObjectId | null
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
@@ -24,6 +24,8 @@ export interface IReservation extends Document {
     status: 'pending' | 'approved' | 'rejected'
     mercadopagoId: string | null
     preferenceId: string | null
+    /** Cuenta MP donde se acredita (la misma que la sede usa para pedidos). */
+    mpAccountId: string | null
   }
   notifications: {
     confirmationSent?: boolean
@@ -58,6 +60,7 @@ const ReservationSchema = new Schema<IReservation>(
       status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
       mercadopagoId: { type: String, default: null },
       preferenceId: { type: String, default: null },
+      mpAccountId: { type: String, default: null },
     },
     notifications: {
       confirmationSent: { type: Boolean, default: false },

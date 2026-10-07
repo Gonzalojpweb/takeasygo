@@ -166,6 +166,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
   type OperatingHourConfig = { days: number[]; open: string; close: string }
   type ReservationConfig = {
     enabled: boolean
+    paymentsEnabled: boolean
     minPayment: number
     timeSlots: string[]
     maxPartySize: number
@@ -183,6 +184,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
       l._id,
       {
         enabled: l.reservationConfig?.enabled ?? false,
+        paymentsEnabled: l.reservationConfig?.paymentsEnabled !== false,
         minPayment: toPesos(l.reservationConfig?.minPayment ?? 0),
         timeSlots: l.reservationConfig?.timeSlots ?? [],
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
@@ -200,7 +202,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
   const [reservationSaving, setReservationSaving] = useState<string | null>(null)
   const [newSlotMap, setNewSlotMap] = useState<Record<string, string>>({})
 
-  // Espacios/sectores: aforo interno por fecha (el cliente no elige espacio)
+  // Espacios/sectores: el cliente elige uno al reservar (obligatorio cuando hay)
   type SpaceConfig = {
     _id?: string
     name: string
@@ -306,6 +308,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
       }
       const payload = {
         ...config,
+        paymentsEnabled: config.paymentsEnabled !== false,
         minPayment: toCents(config.minPayment),
       }
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
@@ -1862,156 +1865,6 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </Button>
                         </div>
 
-                        {/* ── Reservation config ── */}
-                        {tenant.features?.reservations && (
-                          <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl space-y-3">
-                            <button
-                              type="button"
-                              onClick={() => setExpandedSections(prev => ({ ...prev, [`${loc._id}-reservations`]: !prev[`${loc._id}-reservations`] }))}
-                              className="w-full flex items-center justify-between"
-                            >
-                              <div className="flex items-center gap-2">
-                                <CalendarDays size={12} className="text-primary" />
-                                <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
-                                  Configuración de Reservas
-                                </label>
-                              </div>
-                              <ChevronDown 
-                                size={14} 
-                                className={cn('transition-transform', expandedSections[`${loc._id}-reservations`] ? 'rotate-180' : '')} 
-                              />
-                            </button>
-
-                            {expandedSections[`${loc._id}-reservations`] && (
-                              <div className="space-y-3 pt-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[9px] text-muted-foreground/60">Habilitar reservas</span>
-                                <button
-                                  type="button"
-                                  onClick={() => setReservationMap(prev => ({
-                                    ...prev,
-                                    [loc._id]: { ...prev[loc._id], enabled: !(prev[loc._id]?.enabled ?? false) }
-                                  }))}
-                                  className={cn(
-                                    'relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
-                                    reservationMap[loc._id]?.enabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                                  )}
-                                >
-                                  <span className={cn(
-                                    'pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-lg transform transition-transform duration-200',
-                                    reservationMap[loc._id]?.enabled ? 'translate-x-5' : 'translate-x-0'
-                                  )} />
-                                </button>
-                              </div>
-
-                              {reservationMap[loc._id]?.enabled && (
-                              <div className="space-y-3">
-                                <div className="grid grid-cols-3 gap-3">
-                                  <div>
-                                    <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
-                                      Pago mínimo ($)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      value={reservationMap[loc._id]?.minPayment ?? 0}
-                                      onChange={e => setReservationMap(prev => ({
-                                        ...prev,
-                                        [loc._id]: { ...prev[loc._id], minPayment: Number(e.target.value) }
-                                      }))}
-                                      className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
-                                      Personas (máx.)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      max={30}
-                                      value={reservationMap[loc._id]?.maxPartySize ?? 10}
-                                      onChange={e => setReservationMap(prev => ({
-                                        ...prev,
-                                        [loc._id]: { ...prev[loc._id], maxPartySize: Number(e.target.value) }
-                                      }))}
-                                      className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
-                                      Antelación mínima (min)
-                                    </label>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      max={720}
-                                      step={5}
-                                      value={reservationMap[loc._id]?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES}
-                                      onChange={e => setReservationMap(prev => ({
-                                        ...prev,
-                                        [loc._id]: { ...prev[loc._id], minAdvanceMinutes: Number(e.target.value) }
-                                      }))}
-                                      className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1.5 block">
-                                    Horarios disponibles
-                                  </label>
-                                  <div className="flex flex-wrap gap-1 mb-2 min-h-[24px]">
-                                    {(reservationMap[loc._id]?.timeSlots || []).map(slot => (
-                                      <span
-                                        key={slot}
-                                        className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20"
-                                      >
-                                        {slot}
-                                        <button
-                                          type="button"
-                                          onClick={() => removeSlot(loc._id, slot)}
-                                          className="text-primary/60 hover:text-red-500 transition-colors"
-                                        >
-                                          <X size={10} />
-                                        </button>
-                                      </span>
-                                    ))}
-                                    {(reservationMap[loc._id]?.timeSlots || []).length === 0 && (
-                                      <span className="text-[9px] text-muted-foreground/40 font-medium">Sin horarios configurados</span>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <input
-                                      type="time"
-                                      value={newSlotMap[loc._id] || ''}
-                                      onChange={e => setNewSlotMap(prev => ({ ...prev, [loc._id]: e.target.value }))}
-                                      className={cn(inputCls, "bg-white border-none shadow-inner h-8 flex-1 text-xs")}
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => addSlot(loc._id)}
-                                      className="flex items-center gap-1 px-2 h-8 rounded-xl bg-primary text-white text-[10px] font-black hover:bg-primary/90 transition-colors active:scale-95 shrink-0"
-                                    >
-                                      <Plus size={12} /> Agregar
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          )}
-
-                            <Button
-                              className="w-full bg-zinc-900 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
-                              onClick={() => handleSaveReservationConfig(loc._id)}
-                              disabled={reservationSaving === loc._id}
-                            >
-                              {reservationSaving === loc._id ? 'Guardando...' : 'Guardar configuración de reservas'}
-                            </Button>
-                          </div>
-                        )}
-
                         {/* ── Delivery Config ── */}
                         {canAccess(plan as Plan, 'delivery') && (
                           <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
@@ -2296,14 +2149,15 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                       </li>
                       <li>
                         <b className="text-foreground">6. Cortá tu local en espacios (Espacios / sectores).</b> Ej:
-                        Salón 20 + Terraza 12. La capacidad de un día es la suma de los espacios abiertos ese día.
-                        ¿La terraza no abre el lunes? Bloqueá esa fecha y ese día no cuenta su capacidad.
+                        Salón 20 + Terraza 12. La capacidad de un día es la suma de los espacios abiertos ese día
+                        y el cliente elige el espacio al reservar, viendo cuántos lugares quedan. ¿La terraza no
+                        abre el lunes? Bloqueá esa fecha y ese día no cuenta su capacidad.
                       </li>
                       <li>
-                        <b className="text-foreground">7. Reglas para tus clientes.</b> Pago mínimo (cuánto deben
-                        gastar como mínimo), Personas máx. (el grupo más grande que aceptás) y Antelación mínima
-                        (cuánto tiempo antes tienen que reservar: con 30, no pueden reservar para dentro de 10
-                        minutos, pero sí para dentro de 40).
+                        <b className="text-foreground">7. Reglas para tus clientes.</b> Seña (cuánto pagan online
+                        para confirmar: con 0 no se cobra), Personas máx. (el grupo más grande que aceptás) y
+                        Antelación mínima (cuánto tiempo antes tienen que reservar: con 30, no pueden reservar
+                        para dentro de 10 minutos, pero sí para dentro de 40).
                       </li>
                     </ul>
                     <p className="text-[11px] font-bold text-foreground bg-white border border-border/60 rounded-xl px-3 py-2.5 leading-relaxed">
@@ -2355,23 +2209,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </div>
                         </CardHeader>
                         <CardContent className="p-6 space-y-5">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <label className={labelCls}>Pago mínimo ($)</label>
-                              <input
-                                type="number"
-                                min={0}
-                                value={reservationMap[loc._id]?.minPayment ?? 0}
-                                onChange={e => setReservationMap(prev => ({
-                                  ...prev,
-                                  [loc._id]: { ...prev[loc._id], minPayment: Number(e.target.value) }
-                                }))}
-                                className={cn(inputCls, "text-center")}
-                              />
-                              <FieldHelp>
-                                Cuánto mínimo debe gastar la mesa. Si no querés mínimo, dejalo en 0.
-                              </FieldHelp>
-                            </div>
+                          <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className={labelCls}>Personas (máx.)</label>
                               <input
@@ -2776,6 +2614,79 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 </span>
                               </div>
                             )}
+                          </div>
+
+                          {/* ── Pagos de reservas: seña por MP, misma cuenta que pedidos ── */}
+                          <div className="space-y-3 p-3 bg-muted/30 rounded-2xl border border-border/40">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <CreditCard size={14} className="text-muted-foreground" />
+                                <span className="text-xs font-bold text-muted-foreground">Cobrar señas</span>
+                              </div>
+                              <button
+                                type="button"
+                                aria-label="Cobrar señas de reservas"
+                                onClick={() => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], paymentsEnabled: !(prev[loc._id]?.paymentsEnabled ?? true) }
+                                }))}
+                                className={cn(
+                                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200',
+                                  reservationMap[loc._id]?.paymentsEnabled !== false ? 'bg-primary' : 'bg-muted-foreground/30'
+                                )}
+                              >
+                                <span className={cn(
+                                  'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg transform transition-transform duration-200',
+                                  reservationMap[loc._id]?.paymentsEnabled !== false ? 'translate-x-5' : 'translate-x-0'
+                                )} />
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground/70 leading-snug">
+                              Prendido, el cliente paga una seña con Mercado Pago para confirmar la reserva.
+                              Apagado, reserva sin pagar.
+                            </p>
+
+                            {reservationMap[loc._id]?.paymentsEnabled !== false && (
+                              <div>
+                                <label className={labelCls}>Seña ($)</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={reservationMap[loc._id]?.minPayment ?? 0}
+                                  onChange={e => setReservationMap(prev => ({
+                                    ...prev,
+                                    [loc._id]: { ...prev[loc._id], minPayment: Number(e.target.value) }
+                                  }))}
+                                  className={cn(inputCls, "text-center")}
+                                />
+                                <FieldHelp>
+                                  Monto que el cliente paga online para confirmar. Si lo dejás en 0,
+                                  la reserva no se cobra.
+                                </FieldHelp>
+                              </div>
+                            )}
+
+                            <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white border border-border/60">
+                              <AlertCircle size={13} className="shrink-0 mt-0.5 text-muted-foreground" />
+                              <p className="text-[10px] leading-snug text-muted-foreground">
+                                {tenant.mercadopago?.isConfigured || (tenant.mpAccounts?.length ?? 0) > 0 ? (
+                                  <>
+                                    El cobro acredita en{' '}
+                                    <b className="text-foreground">
+                                      {loc.settings?.mpAccountId
+                                        ? tenant.mpAccounts?.find((a: { _id: string }) => a._id === loc.settings?.mpAccountId)?.label || 'la cuenta elegida'
+                                        : 'tu cuenta activa de Mercado Pago'}
+                                    </b>
+                                    , la misma que usás para cobrar los pedidos.
+                                  </>
+                                ) : (
+                                  <>
+                                    Todavía no conectaste Mercado Pago: sin cuenta conectada no se puede cobrar
+                                    la seña. Conectala en la pestaña MercadoPago.
+                                  </>
+                                )}
+                              </p>
+                            </div>
                           </div>
 
                           <Button

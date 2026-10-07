@@ -15,6 +15,7 @@ import {
   Users,
   Clock,
   MapPin,
+  LayoutGrid,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -37,6 +38,8 @@ interface Reservation {
   notes: string
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   locationId: string
+  /** Espacio/sector elegido por el cliente. null = reservas viejas o sede sin espacios. */
+  spaceId?: string | null
   payment: {
     amount: number
     status: 'pending' | 'approved' | 'rejected'
@@ -46,6 +49,7 @@ interface Reservation {
 interface Location {
   _id: string
   name: string
+  spaces?: Array<{ _id: string; name: string; capacity: number; enabled?: boolean }>
 }
 
 interface Props {
@@ -95,6 +99,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0])
   const selectedLocation = activeLocationId ?? 'all'
+  const [selectedSpace, setSelectedSpace] = useState<string>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const { play: playSound } = useNotificationSound('/pop.mp3')
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
@@ -108,24 +113,43 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   weekTo.setDate(today.getDate() + 14)
   const dateRange = getDatesInRange(weekFrom, weekTo)
 
+  // Espacios del alcance actual (la sede elegida, o todas)
+  const scopeSpaces = useMemo(() => {
+    const scope = selectedLocation === 'all'
+      ? locations
+      : locations.filter(l => l._id === selectedLocation)
+    return scope.flatMap(l => (l.spaces ?? []).map(s => ({ ...s, locationId: l._id })))
+  }, [locations, selectedLocation])
+
+  const spaceName = (id: string) => {
+    for (const loc of locations) {
+      const space = (loc.spaces ?? []).find(s => s._id === id)
+      if (space) return space.name
+    }
+    return 'Espacio'
+  }
+
   const filtered = useMemo(() => {
     return reservations.filter(r => {
       const dateOk = r.date === selectedDate
       const locOk = selectedLocation === 'all' || r.locationId === selectedLocation
-      return dateOk && locOk
+      const spaceOk = selectedSpace === 'all' || (r.spaceId != null && String(r.spaceId) === selectedSpace)
+      return dateOk && locOk && spaceOk
     })
-  }, [reservations, selectedDate, selectedLocation])
+  }, [reservations, selectedDate, selectedLocation, selectedSpace])
 
   // Count per date for dots
   const countByDate = useMemo(() => {
     const map: Record<string, number> = {}
     reservations.forEach(r => {
-      if (selectedLocation === 'all' || r.locationId === selectedLocation) {
+      const locOk = selectedLocation === 'all' || r.locationId === selectedLocation
+      const spaceOk = selectedSpace === 'all' || (r.spaceId != null && String(r.spaceId) === selectedSpace)
+      if (locOk && spaceOk) {
         map[r.date] = (map[r.date] || 0) + 1
       }
     })
     return map
-  }, [reservations, selectedLocation])
+  }, [reservations, selectedLocation, selectedSpace])
 
   // Sync state when server re-sends new props (after router.refresh)
   useEffect(() => {
@@ -172,7 +196,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
       {locations.length > 1 && (
         <div className="flex gap-2 flex-wrap">
           <button
-            onClick={() => setActiveLocation(null)}
+            onClick={() => { setActiveLocation(null); setSelectedSpace('all') }}
             className={cn(
               'px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border',
               selectedLocation === 'all'
@@ -188,7 +212,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
             return (
               <button
                 key={loc._id}
-                onClick={() => setActiveLocation(loc._id)}
+                onClick={() => { setActiveLocation(loc._id); setSelectedSpace('all') }}
                 className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border flex items-center gap-2"
                 style={isActive ? {
                   backgroundColor: color.bg,
@@ -202,6 +226,44 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                   style={isActive ? { backgroundColor: 'rgba(255,255,255,0.6)' } : { backgroundColor: color.bg }}
                 />
                 {loc.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Space filter (solo sedes con espacios cargados) */}
+      {scopeSpaces.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setSelectedSpace('all')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border',
+              selectedSpace === 'all'
+                ? 'bg-foreground text-background border-foreground'
+                : 'border-border/60 text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+            )}
+          >
+            Todos los espacios
+          </button>
+          {scopeSpaces.map(space => {
+            const isActive = selectedSpace === space._id
+            return (
+              <button
+                key={space._id}
+                onClick={() => setSelectedSpace(space._id)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border flex items-center gap-1.5',
+                  isActive
+                    ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20'
+                    : space.enabled === false
+                    ? 'border-border/40 text-muted-foreground/40 line-through'
+                    : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                )}
+                title={`${space.name} · hasta ${space.capacity} personas`}
+              >
+                <LayoutGrid size={11} className="shrink-0" />
+                {space.name}
               </button>
             )
           })}
@@ -267,7 +329,11 @@ export default function ReservasPanel({ reservations: initialReservations, locat
         <Card className="border-2 border-dashed border-border/50 rounded-[2rem]">
           <CardContent className="py-16 text-center">
             <CalendarDays size={32} className="mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground font-bold text-sm">Sin reservas para este día</p>
+            <p className="text-muted-foreground font-bold text-sm">
+              {selectedSpace !== 'all'
+                ? 'Sin reservas para este día en el espacio elegido'
+                : 'Sin reservas para este día'}
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -307,6 +373,15 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                             <Users size={11} className="text-primary" />
                             {r.partySize} {r.partySize === 1 ? 'persona' : 'personas'}
                           </span>
+                          {r.spaceId && (
+                            <span
+                              className="flex items-center gap-1 font-bold text-primary"
+                              title="Espacio elegido por el cliente"
+                            >
+                              <LayoutGrid size={11} />
+                              {spaceName(String(r.spaceId))}
+                            </span>
+                          )}
                           <span className="flex items-center gap-1">
                             <Phone size={11} className="text-primary" />
                             {r.phone}
