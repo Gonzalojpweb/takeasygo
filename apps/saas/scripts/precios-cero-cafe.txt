@@ -1,0 +1,469 @@
+CERO — MENÚ COMPLETO
+BEBIDAS
+☕ SOLO CAFÉ
+
+Espresso (S) — $3.900
+
+Shot de espresso en pocillo.
+
+Lungo (S) — $3.900
+
+Shot de espresso en pocillo con colchón de agua.
+
+Americano (M) — $5.500
+
+Doble shot de espresso con colchón de agua.
+
+Filtrado (L) — $7.900
+
+Café de origen seleccionado.
+Método de filtrado V60.
+☕ CAFÉ CON LECHE
+
+Leches disponibles:
+
+Entera
+Descremada
+Deslactosada
+
+Leches vegetales:
+
+Avena
+Almendras
+
+Cortado (S) — $5.600
+
+Shot de espresso y leche texturizada.
+
+Magic (S) — $6.300
+
+Doble shot de espresso con leche texturizada.
+
+Flat White / Cortado en Jarrito (M) — $6.900
+
+Doble shot de espresso.
+Microespuma de leche sedosa.
+
+Capuccino (M) — $6.500
+
+Shot de espresso.
+Leche texturizada.
+Espuma de leche.
+Adicional: cacao y canela.
+
+Café con Leche (L) — $7.200
+
+Doble shot de espresso.
+Leche texturizada.
+
+Moccacino (XL) — $8.300
+
+Doble shot de espresso.
+Chocolate semiamargo.
+Leche texturizada.
+
+Vainilla Latte (XL) — $7.900
+
+Doble shot de espresso.
+Leche texturizada.
+Reducción de vainilla.
+
+Caramel Latte (XL) — $7.500
+
+Doble shot de espresso.
+Leche texturizada.
+Reducción de caramelo.
+
+Pistacchio Latte (XL) — NOVEDAD — $8.400
+
+Doble shot de espresso.
+Leche texturizada.
+Reducción de pistacchios.
+
+Nutella Latte (XL) — $8.800
+
+Doble shot de espresso.
+Leche vaporizada.
+Reducción de Nutella.
+🧊 CAFÉ FRÍO
+
+Iced Americano — $5.800
+
+Doble shot de espresso.
+Agua fría.
+Hielo.
+
+Iced Latte — $6.500
+
+Shot de espresso.
+Leche fría semitexturizada.
+
+Iced Flat — $7.900
+
+Doble shot de espresso.
+Leche fría semitexturizada.
+
+Café Tonic & Quinotos — NOVEDAD — $8.200
+
+Doble espresso.
+Almíbar de quinotos.
+Ginger ale o tónica.
+🥤 BEBIDAS FRÍAS
+
+Agua mineral / Agua con gas — $4.300
+
+Gaseosas — $4.900
+
+Limonada — $7.200
+
+Casera.
+Menta.
+Jengibre.
+
+Jugo de naranja exprimido — $8.200
+
+Agua de Jamaica — $7.900
+
+Té frío de hibiscus.
+Cáscara de naranja.
+Limón.
+Canela.
+Clavo de olor.
+Cardamomo.
+Licuados Naturales — $8.200
+
+Berries
+
+Frambuesas.
+Frutillas.
+Arándanos.
+Moras.
+
+Frutal
+
+Naranja.
+Pomelo.
+Frutilla.
+Rosa mosqueta.
+
+Maracuyá
+
+Maracuyá.
+Mango.
+Naranja.
+Menta.
+
+Banana con leche
+
+Banana.
+Leche.
+Adicional: shake de proteína.
+🔥 BEBIDAS CALIENTES
+
+Té en hebras — $6.900
+
+Negro.
+Verde.
+Chai.
+Blend.
+
+Matcha Latte (XL) — $8.900
+
+Té verde ceremonial japonés.
+Leche texturizada.
+Adicional: syrup de vainilla.
+
+Chocolatada Belga (XL) — $7.200
+
+Leche caliente.
+Chocolate semiamargo.
+Ralladura de cacao.
+
+Chai Latte (XL) — $7.300
+
+Reducción de té chai especiado.
+Canela.
+Leche vaporizada.
+Adicional: shot de espresso.
+
+Golden Milk (XL) — $6.900
+
+Leche vaporizada.
+Cardamomo.
+Anís estrellado.
+Reducción de cúrcuma y especias.
+❄️ WINTER DRINKS
+Edición de temporada — para entrar en calor
+TRAGOS
+
+Chocolatada Spicy — $8.400
+
+Leche vaporizada.
+Chocolate semiamargo.
+Ralladura de naranja.
+Un touch de pimienta.
+
+Espresso Martini — $10.000
+
+Vodka.
+Doble espresso.
+Vainilla.
+Licor Kahlúa.
+
+Amarula Flat HOT — $9.000
+
+Amarula.
+Doble espresso.
+Leche texturizada.
+
+Aconcagua Bourbon — $11.000
+
+Doble espresso.
+Whisky bourbon.
+Kahlúa.
+Quinotos en almíbar.
+Caramel cold foam.
+
+Aperol Spritz — $9.500
+
+Espumoso Chandon.
+Aperol.
+Agua con gas.
+Rodaja de naranja.
+🍺 CERVEZAS STRANGE
+
+Samsa Enamorado — $8.100
+
+American IPA.
+Rubia.
+Suave amargor.
+Aromática.
+Notas a frutos rojos.
+
+Alma Gorda — $6.300
+
+Amber Lager.
+Rojiza.
+Suave.
+Lupulada.
+
+Fiesta de Focas — $5.900
+
+Fest Beer.
+Rubia.
+Cristalina.
+Maltosa.
+
+Más Monje — $7.200
+
+Dubbel.
+Robusta.
+Acaramelada.
+Con carácter.
+
+Catacumbia — $9.000
+
+Imperial Stout.
+Oscura.
+Tostada.
+Cremosa.
+🍳 COMIDAS
+TODO EL DÍA
+
+Medialuna JyQ — $8.900
+
+Medialuna de manteca.
+Rellena de jamón.
+Queso gratinado.
+Almíbar chai.
+
+Mbejú Guaraní XL SIN TACC — $16.900
+
+Relleno de jamón.
+Queso gratinado.
+Pickles de pepino.
+Zucchini.
+Cebolla morada.
+Tomate confitado.
+Emulsión de palta.
+Mayonesa de eneldo fresco.
+
+Árabe JyQ — $13.500
+
+Jamón.
+Queso gratinado.
+Chips de papas.
+Adicional: tomate fresco.
+
+Chipa relleno OPCIONAL SIN TACC — $13.900
+
+Pan de queso casero gratinado.
+Relleno de jamón cocido natural.
+Queso tybo.
+Dip de hummus de remolacha.
+
+Focaccia jamón crudo — NOVEDAD — $16.500
+
+Jamón crudo.
+Queso tybo.
+Ricotta especiada.
+Rúcula.
+Caviar de Dijon.
+
+Scon más queso — $12.500
+
+Scon gratinado.
+Relleno de jamón natural.
+Queso.
+Tomates secos.
+Caviar de mostaza y miel.
+
+Waffle CERO OPCIONAL KETO — $14.200
+
+Queso mascarpone.
+Crema de avellanas.
+Topping de frutas de estación.
+Syrup chai.
+🥞 COMBOS / BRUNCH
+
+Condición general de Combos / Brunch:
+
+Se puede sumar una infusión a elección, tamaño S o M, y un shot de naranja exprimida por $4.900.
+
+American Deluxe — $11.900
+
+Huevos revueltos.
+Panceta crocante.
+Cherrys.
+Pan tostado.
+Dip de queso crema.
+
+Avocado Toast — $13.900
+
+Tostón de masa madre.
+Doble textura de palta:
+Palta en láminas.
+Palta cremosa.
+Tomates cherry.
+Queso crema.
+Brotes.
+Adicional: huevo revuelto.
+
+Tazón de Granola — $12.900
+
+Yogur casero natural.
+Frutas de estación.
+Granola casera de frutos secos.
+Miel.
+
+Doble Tostón 3 Amores — $11.500
+
+Queso crema.
+Mermelada casera de frutos rojos.
+Dulce de leche o manteca de maní.
+
+Waffle KETO de salmón KETO — $17.900
+
+Base de harina de garbanzos.
+Salmón.
+Palta.
+Queso crema.
+Eneldo fresco.
+Ralladura de limón.
+Adicional: huevo revuelto.
+
+French Banana Toast — NOVEDAD — $13.200
+
+Pan brioche.
+Banana caramelizada.
+Queso mascarpone.
+Miel.
+Frutas de estación.
+🥐 MOSTRADOR
+DULCE · PANADERÍA · CAKES
+PANADERÍA / DULCE
+
+Medialuna de manteca — $3.200
+
+Croissant — $4.900
+
+Croissant a la Reina — $10.200
+
+Rellena de crema pastelera.
+Fina base de dulce de leche.
+Topping de frutos rojos.
+Azúcar impalpable.
+
+Sfogliatella rellena — $6.300
+
+Crema pastelera.
+Pistacchio.
+
+Cookie black velvet — $8.000
+
+Masa húmeda de cacao semiamargo.
+Topping de frutos rojos.
+
+Scon de queso — $8.900
+
+Cookie vainilla & chips — $7.500
+
+Chocolate semiamargo.
+
+Alfajor de Coco KETO — $6.900
+
+Masa a base de coco.
+Baño de chocolate semiamargo.
+Corazón de pasta de maní.
+Endulzado con dátiles.
+
+Cookie pistacchio — $8.500
+
+Masa suave con pistacchios tostados.
+Centro de chocolate con pistacchios.
+
+Alfajor de Almendras KETO — Vainilla / Chocolate — $7.900
+
+Masa a base de harina de almendras.
+Opción:
+Cacao amargo.
+Vainilla.
+Relleno con dulce de leche.
+Endulzado con stevia.
+
+Budín de banana y nuez — $7.900
+
+Budín de limón, amapolas y arándanos — $7.900
+
+Pepa KETO — $5.900
+
+Masa de almendras y coco.
+Recubierta con semillas de sésamo.
+Topping de frutos rojos.
+Sin azúcar agregada.
+
+Pavlova — $8.500
+
+Rellena de crema pastelera.
+Dulce de leche.
+Frutas de estación.
+
+Roll de canela — $7.900
+
+Brownie OPCIONAL SIN TACC — $9.900
+
+🍰 CAKES
+
+Cheesecake de Frutos Rojos — $13.900
+
+Key Lime Pie — $14.500
+
+Carrot Cake — $14.900
+
+Torta del día — $14.900
+
+Alfajores SIN TACC — $9.900
+
+Choco 60%
+Avellanas
+Pistacchios
