@@ -12,7 +12,10 @@ vi.mock('@/models/Reservation', () => ({
 
 vi.mock('@/models/Location', () => ({ default: {} }))
 
+import Reservation from '@/models/Reservation'
 import { generateReservationSlots } from '@/lib/reservation-slots'
+import type { ReservationSpace } from '@/lib/space-capacity'
+import type { Mock } from 'vitest'
 
 // 2026-10-07 12:00 en America/Argentina/Buenos_Aires (miércoles)
 const NOON_AR = new Date('2026-10-07T15:00:00.000Z')
@@ -79,8 +82,15 @@ function times(result: { slots: Array<{ time: string }> }): string[] {
   return result.slots.map(s => s.time)
 }
 
+const findMock = Reservation.find as unknown as Mock
+
+function mockExistingReservations(rows: Array<{ time: string; partySize: number }>) {
+  findMock.mockReturnValue({ lean: vi.fn().mockResolvedValue(rows) })
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  mockExistingReservations([])
 })
 
 describe('fechas pasadas', () => {
@@ -312,5 +322,157 @@ describe('minAdvanceMinutes en documentos viejos', () => {
     expect(all).toContain('12:15')
     expect(all).toContain('12:30')
     expect(all).toContain('18:00')
+  })
+})
+
+describe('aforo por espacios', () => {
+  const SALON: ReservationSpace = { name: 'Salón', capacity: 2, enabled: true, blockedDates: [], order: 0 }
+  const TERRAZA: ReservationSpace = { name: 'Terraza', capacity: 10, enabled: true, blockedDates: [], order: 1 }
+  const TWO_SPACES: ReservationSpace[] = [SALON, TERRAZA]
+  const FREE_DAY = '2026-10-09'
+
+  function slotAt(result: { slots: Array<{ time: string; available: boolean }> }, time: string) {
+    const slot = result.slots.find(s => s.time === time)
+    if (!slot) throw new Error(`el slot ${time} no existe`)
+    return slot
+  }
+
+  it('sede sin espacios: sigue mandando maxReservationsPerSlot (compatibilidad)', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 4 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: [],
+    })
+    expect(slotAt(result, '12:30').available).toBe(false)
+    expect(slotAt(result, '12:30').currentReservations).toBe(1)
+    expect(slotAt(result, '12:30').maxReservations).toBe(1)
+    expect(slotAt(result, '15:00').available).toBe(true)
+  })
+
+  it('con espacios manda la suma de comensales, no la cantidad de reservas', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 6 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 4,
+    })
+    const slot = slotAt(result, '12:30')
+    expect(slot.currentReservations).toBe(6)
+    expect(slot.maxReservations).toBe(12)
+    // maxReservationsPerSlot es 1, pero con espacios manda el aforo: entra.
+    expect(slot.available).toBe(true)
+  })
+
+  it('2 y 10 comensales pesan distinto: 7 no entra si quedan 6 lugares', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 6 }])
+
+    const fits = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 6,
+    })
+    expect(slotAt(fits, '12:30').available).toBe(true)
+
+    const overflows = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 7,
+    })
+    expect(slotAt(overflows, '12:30').available).toBe(false)
+  })
+
+  it('el aforo se evalúa por bloque solapado, no sólo por la hora exacta', async () => {
+    mockExistingReservations([{ time: '13:00', partySize: 12 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 2,
+    })
+    // Bloque de 13:00 a 14:30: 13:30 está dentro, 15:00 ya no.
+    expect(slotAt(result, '13:30').available).toBe(false)
+    expect(slotAt(result, '13:30').currentReservations).toBe(12)
+    expect(slotAt(result, '15:00').available).toBe(true)
+  })
+
+  it('un espacio deshabilitado no aporta capacidad', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 2 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: [
+        SALON,
+        { ...TERRAZA, enabled: false },
+      ],
+      partySize: 1,
+    })
+    // Sólo el Salón (2) sigue habilitado y está ocupado por 2 comensales.
+    expect(slotAt(result, '12:30').maxReservations).toBe(2)
+    expect(slotAt(result, '12:30').available).toBe(false)
+    expect(slotAt(result, '15:00').available).toBe(true)
+  })
+
+  it('una fecha bloqueada saca la capacidad sólo ese día', async () => {
+    const spaces = [SALON, { ...TERRAZA, blockedDates: [TOMORROW] }]
+    mockExistingReservations([{ time: '12:30', partySize: 4 }])
+
+    const blockedDay = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces,
+      partySize: 2,
+    })
+    expect(slotAt(blockedDay, '12:30').maxReservations).toBe(2)
+    expect(slotAt(blockedDay, '12:30').available).toBe(false)
+
+    const freeDay = await generateReservationSlots('loc1', FREE_DAY, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces,
+      partySize: 2,
+    })
+    expect(slotAt(freeDay, '12:30').maxReservations).toBe(12)
+    expect(slotAt(freeDay, '12:30').available).toBe(true)
+  })
+
+  it('grupo mayor al espacio más grande: ningún slot queda disponible', async () => {
+    mockExistingReservations([])
+    const result = await generateReservationSlots('loc1', TOMORROW, autoConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 11,
+    })
+    expect(result.slots.length).toBeGreaterThan(0)
+    expect(result.slots.every(s => !s.available)).toBe(true)
+    expect(slotAt(result, '12:30').maxReservations).toBe(12)
+  })
+
+  it('modo manual con spaces también evalúa el aforo', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 10 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, manualConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+      spaces: TWO_SPACES,
+      partySize: 3,
+    })
+    expect(times(result)).toEqual(['09:00', '12:30', '18:00'])
+    expect(slotAt(result, '12:30').available).toBe(false)
+    expect(slotAt(result, '12:30').currentReservations).toBe(10)
+    expect(slotAt(result, '18:00').available).toBe(true)
+  })
+
+  it('sin espacios y en modo manual no se consulta la ocupación', async () => {
+    mockExistingReservations([{ time: '12:30', partySize: 4 }])
+    const result = await generateReservationSlots('loc1', TOMORROW, manualConfig(), {
+      timezone: AR,
+      now: NOON_AR,
+    })
+    expect(findMock).not.toHaveBeenCalled()
+    expect(result.slots.every(s => s.available)).toBe(true)
   })
 })

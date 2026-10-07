@@ -20,6 +20,12 @@ import {
   isValidHHMM,
   timeToMinutes,
 } from '@/lib/restaurant-time'
+import {
+  ACTIVE_RESERVATION_STATUSES,
+  getSeatsState,
+  getMaxSpaceCapacity,
+  isSpacesMode,
+} from '@/lib/space-capacity'
 
 function decryptReservation(r: any) {
   return {
@@ -137,11 +143,30 @@ export async function POST(
       }
     }
 
+    const spaces = location.spaces
+    const spacesMode = isSpacesMode(spaces)
+    const blockDuration = reservationConfig.slotConfig?.blockDurationMinutes || 90
+
+    // El grupo tiene que entrar en algún espacio habilitado ese día
+    if (spacesMode) {
+      const maxSpaceCapacity = getMaxSpaceCapacity(spaces, date)
+      if (partySize > maxSpaceCapacity) {
+        return NextResponse.json(
+          {
+            error: `Tu grupo de ${partySize} personas no entra en ningún espacio habilitado ese día (máximo ${maxSpaceCapacity} personas).`,
+          },
+          { status: 400 }
+        )
+      }
+    }
+
     // Disponibilidad: valida en ambos modos (automático y manual)
     const { generateReservationSlots } = await import('@/lib/reservation-slots')
     const available = await generateReservationSlots(locationId, date, reservationConfig, {
       timezone,
       minAdvanceMinutes,
+      spaces,
+      partySize,
     })
     if (available.slots.length === 0) {
       return NextResponse.json(
@@ -177,6 +202,7 @@ export async function POST(
       email: email?.trim() || '',
       clientToken: clientToken || null,
       notes: notes?.trim() || '',
+      spaceId: null,
       status: 'pending_payment',
       payment: {
         amount: location.reservationConfig.minPayment,
@@ -186,6 +212,34 @@ export async function POST(
       },
       notifications: {},
     })
+
+    // Aforo por espacios: insertar y recontar. Si entre el chequeo previo y el
+    // insert otra reserva copió el lugar, la capacidad queda excedida: se
+    // revierte la inserción y se contesta 409.
+    if (spacesMode) {
+      const after = await Reservation.find({
+        locationId,
+        date,
+        status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
+      }).lean()
+      const state = getSeatsState({
+        spaces,
+        date,
+        time,
+        blockDurationMinutes: blockDuration,
+        reservations: after,
+      })
+      if (state.occupied > state.capacity) {
+        await Reservation.deleteOne({ _id: reservation._id })
+        return NextResponse.json(
+          {
+            error: 'La capacidad de este horario se llenó mientras reservabas. Elegí otro.',
+            availableSlots: [],
+          },
+          { status: 409 }
+        )
+      }
+    }
 
     const isFree = (location.reservationConfig.minPayment ?? 0) <= 0
     if (isFree) {

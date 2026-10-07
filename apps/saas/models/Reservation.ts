@@ -12,6 +12,11 @@ export interface IReservation extends Document {
   email?: string
   notes: string
   clientToken?: string
+  /**
+   * Espacio asignado a la reserva. Preparado pero sin uso: el cliente no
+   * elige espacio (es capacidad interna), siempre null.
+   */
+  spaceId?: mongoose.Types.ObjectId | null
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   payment: {
     /** Monto del pago en centavos. @storedAs cents */
@@ -42,6 +47,7 @@ const ReservationSchema = new Schema<IReservation>(
     email: { type: String, default: '', trim: true },
     notes: { type: String, default: '', trim: true },
     clientToken: { type: String, default: null },
+    spaceId: { type: Schema.Types.ObjectId, default: null },
     status: {
       type: String,
       enum: ['pending_payment', 'confirmed', 'cancelled', 'seated', 'no_show'],
