@@ -6,8 +6,8 @@ import { toast } from 'sonner'
 import { toPesos } from '@takeasygo/business/browser'
 import { useRouter } from 'next/navigation'
 import { MapPin, Loader2, CheckCircle2 } from 'lucide-react'
-import { captureCheckoutStarted, captureRewardAdvanceAccepted } from '@/lib/tia/events'
-import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
+import { captureRewardAdvanceAccepted } from '@/lib/tia/events'
+import { trackCheckoutSubmitted } from '@/lib/track'
 
 type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'error'
 
@@ -111,8 +111,7 @@ export default function CheckoutPaymentFooter() {
 
     dispatch({ type: 'SET_LOADING', loading: true })
 
-    captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
-    captureCheckoutStartedMongo({ total, itemsCount: cart.length, orderMode: mode })
+    trackCheckoutSubmitted({ total, itemsCount: cart.length, orderMode: mode, locationId })
 
     let lastOrder: any = null
 

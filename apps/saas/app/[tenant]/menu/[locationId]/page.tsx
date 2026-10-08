@@ -9,6 +9,7 @@ import MenuWithExploreNav from '@/components/menu/MenuWithExploreNav'
 import WelcomeBackground from '@/components/menu/WelcomeBackground'
 import WelcomeLocationBar from '@/components/menu/WelcomeLocationBar'
 import ReturningCustomerBanner from '@/components/menu/ReturningCustomerBanner'
+import MenuOpenTracker from '@/components/menu/MenuOpenTracker'
 
 export const revalidate = 300
 
@@ -75,6 +76,7 @@ export default async function MenuSelectorPage({ params }: Props) {
 
   return (
     <MenuWithExploreNav tenantSlug={tenantSlug}>
+      <MenuOpenTracker locationId={locationId} />
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 

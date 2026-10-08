@@ -40,8 +40,12 @@ export type CustomerEventType =
   | 'order_completed'
   | 'product_view'
   | 'cart_add'
+  | 'cart_remove'
   | 'reward_redeemed'
+  | 'reward_viewed'
+  | 'reward_interaction'
   | 'checkout_started'
+  | 'checkout_submitted'
   | 'checkout_completed'
   | 'menu_opened'
   // CIS internal

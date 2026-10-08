@@ -75,6 +75,20 @@ export async function POST(
 
     const syncResult = await syncWalletPoints(member._id).catch(() => null)
 
+    // ── reward_redeemed: canje manual de puntos (solo server lo emite) ──
+    const { writeCustomerEvent } = await import('@/lib/events-server')
+    await writeCustomerEvent({
+      tenantId: tenant._id,
+      type: 'reward_redeemed',
+      phoneHash: member.phoneHash || undefined,
+      data: {
+        redeemType: 'manual_points',
+        amount: points,
+        points,
+      },
+      metadata: { source: 'loyalty', ...(locationId ? { locationId } : {}) },
+    }).catch(err => console.error('[loyalty/members/redeem] reward_redeemed event error:', err))
+
     return NextResponse.json({
       success: true,
       redeemedPoints: points,

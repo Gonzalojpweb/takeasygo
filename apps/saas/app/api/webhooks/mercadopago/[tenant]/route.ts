@@ -20,6 +20,7 @@ import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import type { ResolvedMpAccount } from '@/lib/mercadopago'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 webpush.setVapidDetails(
   'mailto:clickandthink1@gmail.com',
@@ -330,6 +331,14 @@ export async function POST(
     }
 
     try {
+      // Snapshot post-commit de checkout_completed: se toma dentro de txBody
+      // (por si withTransaction reintenta, el último intento pisa el valor) y
+      // se emite SOLO después de que la transacción confirme.
+      let confirmedOrder: InstanceType<typeof Order> | null = null
+      // previousStatus del snapshot: estado de la orden ANTES de la mutación
+      // (gate becameCompleted — criterio único en lib/events-server.ts).
+      let confirmedOrderPrevStatus: string | undefined = undefined
+
       const txBody = async () => {
         // A. Registrar la notificación
         const notification = await PaymentNotification.findOneAndUpdate(
@@ -386,6 +395,8 @@ export async function POST(
             }
 
             if (paymentData.status === 'approved') {
+              // prev del ORDER status, capturado antes de mutar (criterio único)
+              confirmedOrderPrevStatus = order.status
               if (order.status === 'awaiting_payment') {
                 order.status = 'confirmed'
               }
@@ -418,6 +429,10 @@ export async function POST(
             }
 
             await order.save({ session })
+
+            if (paymentData.status === 'approved' && order.status === 'confirmed') {
+              confirmedOrder = order
+            }
 
             // SyncLayer: si el pago se rechazó/canceló, el POS Online debe
             // soltar el pedido que estaba esperando confirmación (el confirm
@@ -494,6 +509,14 @@ export async function POST(
       } else {
         // Standalone mode: execute without transaction (best-effort)
         await txBody()
+      }
+
+      // checkout_completed recién confirmado → emitir post-commit
+      // (gate becameCompleted + dedup atómico por orderId: reintentos no duplican)
+      if (confirmedOrder) {
+        captureCheckoutCompletedFromOrder(confirmedOrder, tenant._id, confirmedOrderPrevStatus).catch(err =>
+          console.error(`[Webhook MP][${traceId}] checkout_completed event error:`, err)
+        )
       }
 
       if (externalRef.startsWith('reserva_') && paymentData.status === 'approved') {

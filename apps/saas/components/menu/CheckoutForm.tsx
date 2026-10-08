@@ -14,8 +14,8 @@ import type { CartItem } from '@/types/cart'
 import SchedulePicker from './SchedulePicker'
 import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackContext'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
-import { captureCheckoutStarted, captureRewardRedeemed, captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
-import { captureCheckoutStarted as captureCheckoutStartedMongo } from '@/lib/events'
+import { captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
+import { trackCheckoutStarted, trackCheckoutSubmitted, trackCartAdd, trackCartRemove, trackRewardInteraction } from '@/lib/track'
 
 const RETRY_SECONDS = 180
 
@@ -266,6 +266,16 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
     }))
     setCart(cartWithType)
+
+    // Checkout iniciado: 1 por sesión al entrar (guard en lib/track.ts)
+    if (cartWithType.length > 0) {
+      trackCheckoutStarted({
+        total: cartWithType.reduce((sum: number, i: { price?: number; quantity?: number }) => sum + (i.price ?? 0) * (i.quantity ?? 1), 0),
+        itemsCount: cartWithType.length,
+        orderMode: mode,
+        locationId,
+      })
+    }
 
     const hints = sessionStorage.getItem('upsellHints')
     if (hints) {
@@ -519,15 +529,24 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   }
 
   function decreaseQty(cartItemId: string) {
+    const item = cart.find(i => i.cartItemId === cartItemId)
+    // Si era la última unidad, el producto sale del carrito → cart_remove
+    if (item && item.quantity === 1) {
+      trackCartRemove({ menuItemId: item.menuItemId, name: item.name, quantity: 1, locationId })
+    }
     setCart(prev => {
-      const item = prev.find(i => i.cartItemId === cartItemId)
-      if (!item) return prev
-      if (item.quantity === 1) return prev.filter(i => i.cartItemId !== cartItemId)
+      const existing = prev.find(i => i.cartItemId === cartItemId)
+      if (!existing) return prev
+      if (existing.quantity === 1) return prev.filter(i => i.cartItemId !== cartItemId)
       return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
     })
   }
 
   function removeItem(cartItemId: string) {
+    const item = cart.find(i => i.cartItemId === cartItemId)
+    if (item) {
+      trackCartRemove({ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, locationId })
+    }
     setCart(prev => prev.filter(i => i.cartItemId !== cartItemId))
   }
 
@@ -552,6 +571,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         takeawayOriginalPrice: item.takeawayOriginalPrice,
       }]
     })
+    trackCartAdd({ menuItemId: item._id, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId })
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 
@@ -582,8 +602,7 @@ async function handleSubmit(e: React.FormEvent) {
   if (!selectedPaymentMethod) return toast.error('Seleccioná un método de pago')
   setLoading(true)
 
-    captureCheckoutStarted({ total, itemsCount: cart.length, orderMode: mode })
-    captureCheckoutStartedMongo({ total, itemsCount: cart.length, orderMode: mode })
+    trackCheckoutSubmitted({ total, itemsCount: cart.length, orderMode: mode, locationId })
 
     let lastOrder: any = null
 
@@ -1315,7 +1334,7 @@ async function handleSubmit(e: React.FormEvent) {
                                 setSelectedRewardItemId(null)
                               } else if (enoughPoints || canAdvance) {
                                 setSelectedRewardItemId(item._id)
-                                captureRewardRedeemed({ _id: item._id, type: 'store_item', value: item.pointsCost })
+                                trackRewardInteraction({ rewardId: item._id, type: 'store_item', value: item.pointsCost, action: 'add_to_cart', locationId })
                               }
                             }}
                             disabled={!enoughPoints && !canAdvance}

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { FeedbackProvider } from '@/components/feedback/FeedbackContext'
 import FeedbackModal from '@/components/feedback/FeedbackModal'
 import FeedbackTrigger from '@/components/feedback/FeedbackTrigger'
+import { trackCheckoutCompleted } from '@/lib/track'
 
 type VerifyState = 'verifying' | 'confirmed' | 'failed' | 'unverifiable'
 
@@ -36,6 +37,17 @@ export default function OrderSuccessPage() {
 
         if (data.status === 'confirmed' || data.alreadyConfirmed) {
           setState('confirmed')
+          // Fallback client de checkout_completed: el server ya emitió (dedup
+          // atómico por orderId) o lo hará — duplicar no importa, no suma docs.
+          if (data.orderId && data.checkout) {
+            trackCheckoutCompleted({
+              orderId: data.orderId,
+              total: data.checkout.amount ?? 0,
+              itemsCount: data.checkout.quantity ?? 0,
+              orderMode: data.checkout.orderMode,
+              paymentMethod: data.checkout.paymentMethod,
+            })
+          }
           return
         }
 

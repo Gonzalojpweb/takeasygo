@@ -3,18 +3,13 @@
 import { useCallback, useRef } from 'react'
 import {
   captureEvent,
-  captureMenuOpened,
-  captureDishViewed,
   captureDishDetailOpened,
-  captureCartAdd,
-  captureCheckoutStarted,
   captureCheckoutFieldInteract,
   capturePaymentMethodSelected,
   captureDeliveryAddressSet,
   captureLoyaltyLookup,
   captureUpsellImpression,
   captureUpsellAdd,
-  captureRewardRedeemed,
   captureHiddenRewardRedeemed,
   captureTiaInsightShown,
   captureTiaInsightDismissed,
@@ -24,6 +19,11 @@ import {
   captureQrPromoApplied,
   captureOrderStatusChanged,
 } from '@/lib/events'
+
+// NOTA: los 8 eventos de navegación (menu_opened, product_view, cart_add,
+// cart_remove, checkout_started, checkout_submitted, checkout_completed,
+// reward_viewed, reward_interaction) NO se re-exportan acá: siempre se usan
+// desde lib/track.ts (wrapper único dual-write con dedups y batching).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // hooks/useEventTracking.ts — React hook for behavioral event capture
@@ -59,18 +59,13 @@ export function useEventTracking(options: UseEventTrackingOptions = {}) {
   return {
     track,
     // Expose individual functions for typed usage
-    captureMenuOpened,
-    captureDishViewed,
     captureDishDetailOpened,
-    captureCartAdd,
-    captureCheckoutStarted,
     captureCheckoutFieldInteract,
     capturePaymentMethodSelected,
     captureDeliveryAddressSet,
     captureLoyaltyLookup,
     captureUpsellImpression,
     captureUpsellAdd,
-    captureRewardRedeemed,
     captureHiddenRewardRedeemed,
     captureTiaInsightShown,
     captureTiaInsightDismissed,

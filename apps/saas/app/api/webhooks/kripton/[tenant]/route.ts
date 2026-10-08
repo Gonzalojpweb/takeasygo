@@ -11,6 +11,7 @@ import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { addPointsFromOrder, processRewardDeduction, revertRewardRedemptions } from '@/lib/loyalty'
 import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 const KRIPTON_CONFIRMED_STATES = ['confirmed', 'payed', 'pre_confirmed', 'completing']
 const KRIPTON_FAILED_STATES = ['expired', 'cancel', 'cancelled', 'rejected']
@@ -78,6 +79,9 @@ export async function POST(
 
     // ── Transacción ACID ──────────────────────────────────────────────────
     const session = await mongoose.startSession()
+    // previousStatus del ORDER capturado dentro de la tx antes de mutar
+    // (gate becameCompleted — criterio único en lib/events-server.ts).
+    let confirmedPrevStatus: string | undefined = undefined
 
     try {
       await session.withTransaction(async () => {
@@ -116,6 +120,10 @@ export async function POST(
         // 3. Actualizar orden según estado
         order.payment.status = isConfirmed ? 'approved' : 'rejected'
         order.payment.kriptonData = paymentData
+
+        // prev del ORDER status, capturado antes de mutar (criterio único):
+        // si la orden ya estaba confirmada, el gate no emitirá de nuevo.
+        if (isConfirmed) confirmedPrevStatus = order.status
 
         if (isConfirmed && order.status === 'awaiting_payment') {
           order.status = 'confirmed'
@@ -163,6 +171,11 @@ export async function POST(
 
         if (order) {
           if (isConfirmed) {
+            // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+            captureCheckoutCompletedFromOrder(order, tenant._id, confirmedPrevStatus).catch(err =>
+              console.error('[Webhook Kripton] checkout_completed event error:', err)
+            )
+
             if (tenant.posIntegration?.enabled) {
               setImmediate(() => {
                 injectOrderToPOS(order._id.toString(), tenant).catch(err =>

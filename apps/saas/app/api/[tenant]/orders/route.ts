@@ -43,6 +43,7 @@ import Rating from '@/models/Rating'
 import webpush from 'web-push'
 import { rateLimit } from '@/lib/rateLimit'
 import { notifyCashOrderCreated, syncOrderAfterStatusSet } from '@/lib/order-side-effects'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 
@@ -1855,6 +1856,17 @@ export async function POST(
       items: resolvedItems,
       locationId: body.locationId,
     })
+
+    // ── checkout_completed para órdenes creadas YA confirmadas ────────
+    // (efectivo / business deferred). Criterio único en lib/events-server.ts:
+    // la orden NACE en 'confirmed' → previousStatus undefined (no hay estado
+    // previo). Dedup atómico por orderId: si otra ruta (status/verify/webhook)
+    // emite después, no duplica.
+    if (initialStatus === 'confirmed') {
+      captureCheckoutCompletedFromOrder(order, tenant._id, undefined).catch(err =>
+        console.error('[orders] checkout_completed event error:', err)
+      )
+    }
 
     return NextResponse.json({ order }, { status: 201 })
   } catch (error) {

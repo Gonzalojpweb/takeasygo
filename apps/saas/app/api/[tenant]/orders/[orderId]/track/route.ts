@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -192,12 +193,20 @@ export async function POST(
         if (mpStatus === 'approved') {
           const dbOrder = await Order.findOne({ _id: order._id, status: 'awaiting_payment' })
           if (dbOrder) {
+            // prev del ORDER status, capturado antes de mutar (criterio único:
+            // lib/events-server.ts) — el findOne de arriba ya restringe a
+            // awaiting_payment, pero el gate hace el chequeo explícito.
+            const previousStatus = dbOrder.status
             dbOrder.payment.status = 'approved'
             dbOrder.status = 'confirmed'
             await dbOrder.save()
             finalizeHiddenRewardClaims(dbOrder._id, dbOrder.customerPhoneHash).catch(() => {})
             const { onOrderConfirmed } = await import('@/lib/printing')
             onOrderConfirmed(dbOrder).catch(() => {})
+            // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+            captureCheckoutCompletedFromOrder(dbOrder, tenantId, previousStatus).catch(err =>
+              console.error('[track] checkout_completed event error:', err)
+            )
             currentStatus = 'confirmed'
           } else {
             // El pedido ya fue actualizado por el webhook

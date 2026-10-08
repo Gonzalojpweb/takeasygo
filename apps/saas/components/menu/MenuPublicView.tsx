@@ -28,8 +28,9 @@ import LikeBadge from '@/components/menu/LikeBadge'
 import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
-import { captureMenuOpened, captureDishAdded, captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
-import { captureMenuOpened as captureMenuOpenedMongo, captureCartAdd, captureUpsellImpression } from '@/lib/events'
+import { captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
+import { captureUpsellImpression } from '@/lib/events'
+import { trackMenuOpened, trackCartAdd, trackCartRemove } from '@/lib/track'
 import { motion } from 'framer-motion'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
@@ -249,8 +250,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }, [])
 
   useEffect(() => {
-    captureMenuOpened(location._id)
-    captureMenuOpenedMongo(location._id)
+    trackMenuOpened(location._id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Upsell impression: track when suggestions become visible
@@ -524,8 +524,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       const { items, source } = getSuggestions(categories, cart, String(item._id), insights, 2, tenant.specialDates)
       if (items.length > 0) { setUpsellSuggestions(items); setUpsellSource(source) }
     }
-    captureDishAdded({ _id: item._id, name: item.name, price: getItemPrice(item) }, 1, false)
-    captureCartAdd({ menuItemId: item._id, name: item.name, category: '', price: getItemPrice(item), quantity: 1, hasCustomizations: false, source: addedFrom || 'menu' })
+    trackCartAdd({ menuItemId: item._id, name: item.name, category: '', price: getItemPrice(item), quantity: 1, hasCustomizations: false, source: addedFrom || 'menu', locationId: location._id })
     // Momento 01: feedback de posesión
     playAddSound()
     if (navigator.vibrate) navigator.vibrate(50)
@@ -724,8 +723,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         addedFrom: 'menu',
       }
       if (cartItem.menuItemId) {
-        captureDishAdded({ _id: cartItem.menuItemId, name: itemName, price: cartItem.price }, cartItem.quantity, true)
-        captureCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: 'menu' })
+        trackCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: 'menu', locationId: location._id })
       }
       setCart(prev => {
         const existing = prev.find(i => i.cartItemId === uniqueId)
@@ -777,9 +775,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     }
 
     if (cartItem.menuItemId) {
-      captureDishAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price }, cartItem.quantity, true)
       const addedFrom = bestSellerRef.current ? 'best_sellers' : upsellModalRef.current ? 'upsell_sheet' : 'menu'
-      captureCartAdd({ menuItemId: cartItem.menuItemId, name: cartItem.name, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: addedFrom })
+      trackCartAdd({ menuItemId: cartItem.menuItemId, name: cartItem.name, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: addedFrom, locationId: location._id })
     }
     if (bestSellerRef.current && cartItem.menuItemId) {
       captureBestSellerAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price })
@@ -811,11 +808,18 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   function removeFromCart(cartItemId: string) {
+    const existing = cart.find(i => i.cartItemId === cartItemId)
+    // cart_remove = el producto sale del carrito por completo
+    // (si quantity > 1 este botón solo decrementa, no elimina)
+    const fullyRemoved = !existing || existing.quantity <= 1
     setCart(prev => {
-      const existing = prev.find(i => i.cartItemId === cartItemId)
-      if (existing && existing.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
+      const item = prev.find(i => i.cartItemId === cartItemId)
+      if (item && item.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
       return prev.filter(i => i.cartItemId !== cartItemId)
     })
+    if (existing && fullyRemoved) {
+      trackCartRemove({ menuItemId: existing.menuItemId, name: existing.name, quantity: existing.quantity, locationId: location._id })
+    }
   }
 
   function buildHalfPriceContext(item: any): typeof halfPriceContext {
@@ -2130,6 +2134,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                     type: 'promotion' as const,
                                   }]
                                 })
+                                trackCartAdd({ menuItemId: item._id, name: v ? `${item.name} - ${v.name}` : item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
                                 setPromoSlotSelection(prev => {
                                   if (!prev) return null
                                   const newSlotStates = { ...prev.slotStates }
@@ -2184,6 +2189,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   type: 'promotion' as const,
                                 }]
                               })
+                              trackCartAdd({ menuItemId: item._id, name: item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
                               setPromoSlotSelection(prev => {
                                 if (!prev) return null
                                 const newSlotStates = { ...prev.slotStates }

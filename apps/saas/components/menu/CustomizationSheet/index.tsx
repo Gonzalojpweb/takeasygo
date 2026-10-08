@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { captureDishViewed } from '@/lib/tia/events'
+import { trackDishViewed } from '@/lib/track'
 import { calculateHalfHalfPrice } from '@takeasygo/business/browser'
 import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
@@ -252,7 +252,7 @@ export default function CustomizationSheet({
   const unitPrice = basePrice + extraPrice
 
   useEffect(() => {
-    captureDishViewed({ _id: item._id, name: item.name, price: basePrice })
+    trackDishViewed({ _id: item._id, name: item.name, categoryName: item.categoryName, price: basePrice })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select single options in required groups (promo optimization)

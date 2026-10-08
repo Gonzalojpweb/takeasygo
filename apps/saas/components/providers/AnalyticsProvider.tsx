@@ -4,6 +4,17 @@ import posthog from 'posthog-js'
 import { PostHogProvider } from 'posthog-js/react'
 import { useEffect } from 'react'
 
+// Init a module-scope (no en useEffect): los efectos de los hijos corren ANTES
+// que los del padre, así que un capture en el mount (menu.opened) llegaría
+// antes del init y posthog-js lo descartaría silenciosamente.
+if (typeof window !== 'undefined' && !posthog.__loaded) {
+  posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest',
+    person_profiles: 'identified_only',
+    capture_pageview: false,
+  })
+}
+
 interface AnalyticsProviderProps {
   children: React.ReactNode
   tenantId: string
@@ -12,14 +23,6 @@ interface AnalyticsProviderProps {
 
 export function AnalyticsProvider({ children, tenantId, tenantSlug }: AnalyticsProviderProps) {
   useEffect(() => {
-    if (!posthog.__loaded) {
-      posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-        api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || '/ingest',
-        person_profiles: 'identified_only',
-        capture_pageview: false,
-      })
-    }
-
     posthog.register({
       tenantId,
       tenantSlug,
