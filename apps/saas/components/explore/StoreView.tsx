@@ -9,6 +9,7 @@ import StoreItemCard from './StoreItemCard'
 import RedemptionSuccess from './RedemptionSuccess'
 import MyRedemptions from './MyRedemptions'
 import { useHaptic } from '@/components/tgo/useHaptic'
+import { trackRewardViewed, trackRewardInteraction } from '@/lib/track'
 
 interface StoreItem {
   _id: string
@@ -69,6 +70,13 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     fetchData()
   }, [])
 
+  // Viste la vitrina de recompensas (1 por carga de listado)
+  useEffect(() => {
+    if (!loading && items.length > 0) {
+      trackRewardViewed({ type: 'store_item', pointsRequired: items[0]?.pointsCost, tenantSlug })
+    }
+  }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
+
   async function fetchData() {
     setLoading(true)
     try {
@@ -97,6 +105,9 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
   const regularItems = filteredItems.filter(item => !item.isFeatured)
 
   const handleRedeem = async (itemId: string) => {
+    // Intención de canjear (el reward_redeemed real lo emite server-side)
+    const clicked = items.find(i => i._id === itemId)
+    trackRewardInteraction({ rewardId: itemId, type: 'store_item', value: clicked?.pointsCost, action: 'tap', tenantSlug })
     try {
       const res = await fetch(`/api/${tenantSlug}/store/redemptions`, {
         method: 'POST',

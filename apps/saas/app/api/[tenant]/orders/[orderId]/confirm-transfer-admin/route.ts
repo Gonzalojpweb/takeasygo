@@ -58,6 +58,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'El pedido no está esperando confirmación' }, { status: 400 })
     }
 
+    // prev del ORDER status, capturado antes de mutar (criterio único:
+    // lib/events-server.ts) — el guard de arriba ya asegura transición.
+    const previousStatus = order.status
+
     order.status = 'confirmed'
     order.payment.status = 'approved'
     order.payment.transferConfirmed = true
@@ -74,6 +78,12 @@ export async function PATCH(
     await order.save()
 
     finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
+
+    // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+    const { captureCheckoutCompletedFromOrder } = await import('@/lib/events-server')
+    await captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+      console.error('[confirm-transfer-admin] checkout_completed event error:', err)
+    )
     // Solo generar printJobs si no se generaron ya al confirmar el cliente
     const hasPendingPrintJobs = order.printJobs?.some(j => j.status === 'pending')
     if (!hasPendingPrintJobs) {

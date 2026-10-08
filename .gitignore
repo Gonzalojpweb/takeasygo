@@ -115,3 +115,7 @@ apps/sync/.env.local
 /TGO
 
 fase2.png
+
+# Artefactos de auditoría de datos (no versionar)
+/KEKEINFO
+

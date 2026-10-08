@@ -6,6 +6,25 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
+
+/** Resumen compacto para que el fallback client de order-success pueda emitir
+ *  checkout_completed si el server no llegó a hacerlo (mismo dedup por orderId). */
+interface CheckoutOrderSummary {
+  total?: number
+  payment?: { baseTotal?: number; method?: string }
+  orderMode?: string
+  items?: Array<{ quantity?: number }>
+}
+
+function checkoutSummary(order: CheckoutOrderSummary) {
+  return {
+    amount: order.payment?.baseTotal ?? order.total ?? 0,
+    quantity: order.items?.reduce((sum, item) => sum + (item.quantity ?? 1), 0) ?? 0,
+    orderMode: order.orderMode,
+    paymentMethod: order.payment?.method,
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -35,6 +54,8 @@ export async function GET(
         status: order.status,
         paymentStatus: order.payment.status,
         orderNumber: order.orderNumber,
+        orderId: order._id,
+        checkout: checkoutSummary(order),
         alreadyConfirmed: true,
       })
     }
@@ -44,6 +65,7 @@ export async function GET(
         status: order.status,
         paymentStatus: order.payment.status,
         orderNumber: order.orderNumber,
+        orderId: order._id,
       })
     }
 
@@ -88,6 +110,10 @@ export async function GET(
     }
 
     if (mpStatus === 'approved') {
+      // prev del ORDER status, capturado antes de mutar (criterio único:
+      // lib/events-server.ts) — polling repetido sobre pago aprobado no
+      // re-emite checkout_completed.
+      const previousStatus = order.status
       order.payment.status = 'approved'
       order.payment.mercadopagoData = { status: mpStatus } as any
       if (order.status === 'awaiting_payment') {
@@ -99,10 +125,17 @@ export async function GET(
       const { onOrderConfirmed } = await import('@/lib/printing')
       onOrderConfirmed(order).catch(() => {})
 
+      // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+      captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+        console.error('[verify-payment-by-number] checkout_completed event error:', err)
+      )
+
       return NextResponse.json({
         status: 'confirmed',
         paymentStatus: 'approved',
         orderNumber: order.orderNumber,
+        orderId: order._id,
+        checkout: checkoutSummary(order),
         justConfirmed: true,
       })
     }
@@ -117,6 +150,7 @@ export async function GET(
       status: order.status,
       paymentStatus: mpStatus,
       orderNumber: order.orderNumber,
+      orderId: order._id,
     })
   } catch (error: any) {
     console.error('[verify-payment-by-number] error:', error)

@@ -15,6 +15,7 @@ import Tenant from '@/models/Tenant'
 import { syncWalletPoints } from '@/lib/walletService'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
+import { writeCustomerEvent } from '@/lib/events-server'
 import mongoose from 'mongoose'
 
 export async function POST(
@@ -250,6 +251,23 @@ export async function POST(
       }
 
       await session.commitTransaction()
+
+      // ── reward_redeemed: SOLO server emite el canje real (post-commit) ──
+      writeCustomerEvent({
+        tenantId: tenant._id,
+        type: 'reward_redeemed',
+        phoneHash: member.phoneHash || undefined,
+        data: {
+          rewardId: storeItemId,
+          redeemType: 'store_item',
+          amount: item.pointsCost,
+          points: item.pointsCost,
+        },
+        metadata: {
+          source: 'loyalty',
+          ...(locationId ? { locationId } : {}),
+        },
+      }).catch(err => console.error('[Store Redemptions] reward_redeemed event error:', err))
 
       // Sincronizar con wallet (async, no bloqueante)
       if (member.wallet?.googleObjectId) {

@@ -487,6 +487,13 @@ export async function PATCH(
       await finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
       const { onOrderConfirmed } = await import('@/lib/printing')
       onOrderConfirmed(order).catch(() => {})
+
+      // checkout_completed (gate becameCompleted sobre previousStatus +
+      // dedup atómico por orderId — criterio único en lib/events-server.ts)
+      const { captureCheckoutCompletedFromOrder } = await import('@/lib/events-server')
+      await captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch((err) =>
+        console.error('[status] checkout_completed event error:', err)
+      )
     }
 
     // ── Notify SyncLayer of status change (so POS receives order:status_updated)

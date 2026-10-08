@@ -187,6 +187,8 @@ export default async function TrackingPage({ params, searchParams }: Props) {
 
         <TrackingAnalytics
           order={{ _id: order._id.toString(), total: order.total, itemsCount: order.items?.length || 0, orderMode: order.orderMode }}
+          orderStatus={order.status}
+          paymentMethod={order.payment?.method}
           rewardAdvanceApplied={rewardAdvanceApplied}
           rewardAdvanceConsolidated={rewardAdvanceConsolidated}
         />

@@ -12,6 +12,7 @@ import {
   TenantNotFoundError,
 } from '@/lib/payment-methods'
 import { notifyCashOrderCreated, applyStatusTransitionSideEffects } from '@/lib/order-side-effects'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 const ALLOWED_METHODS: PaymentMethod[] = ['mercadopago', 'kripton', 'transfer', 'cash']
 
@@ -205,6 +206,10 @@ export async function POST(
     // ── Efectivo: el pedido queda confirmado al instante ───────────────────
     // NO espera al cajero (la confirmación del cajero es para transferencia),
     // pero el cobro todavía no: payment queda pending hasta delivered.
+    // prev del ORDER status, capturado antes de mutar: solo emite
+    // checkout_completed si esta request es la que confirma por primera vez
+    // (criterio único en lib/events-server.ts).
+    const previousStatus = order.status
     if (method === 'cash') {
       order.status = 'confirmed'
       order.statusTimestamps.confirmedAt = new Date()
@@ -226,6 +231,10 @@ export async function POST(
       // MISMO aviso al admin que el checkout normal de efectivo.
       await notifyCashOrderCreated({ order, tenant, tenantSlug, customerName })
       await applyStatusTransitionSideEffects({ order, tenant })
+      // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+      await captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+        console.error('[change-payment-method] checkout_completed event error:', err)
+      )
     }
 
     return NextResponse.json({

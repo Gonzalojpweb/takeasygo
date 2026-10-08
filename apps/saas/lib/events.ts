@@ -29,7 +29,7 @@ function getAnonymousId(): string {
   return id
 }
 
-function getSessionId(): string {
+export function getSessionId(): string {
   if (typeof window === 'undefined') return ''
   const key = 'tgo-session'
   const now = Date.now()
@@ -57,7 +57,7 @@ function getSessionId(): string {
   return sessionId
 }
 
-function getDevice(): string {
+export function getDevice(): string {
   if (typeof window === 'undefined') return 'unknown'
   const ua = navigator.userAgent
   if (/Mobi|Android/i.test(ua)) return 'mobile'
@@ -65,7 +65,7 @@ function getDevice(): string {
   return 'desktop'
 }
 
-function isDebugMode(): boolean {
+export function isDebugMode(): boolean {
   if (typeof window === 'undefined') return false
   return window.location.search.includes('debug=events')
 }
@@ -88,7 +88,7 @@ interface EventPayload {
 
 let tenantSlugCache: string | null = null
 
-function getTenantSlug(): string {
+export function getTenantSlug(): string {
   if (tenantSlugCache) return tenantSlugCache
   if (typeof window === 'undefined') return ''
   // Extract from URL: /<tenant>/... or from next.config

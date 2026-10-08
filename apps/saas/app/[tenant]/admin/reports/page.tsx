@@ -9,6 +9,7 @@ import ReportsDateRange from '@/components/admin/ReportsDateRange'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import { buildTransferBreakdown } from '@/lib/reports'
 import { buildPeriodLabel, deltaPct, deltaPoints, fmtDate } from '@/lib/report-range'
+import { buildNavigationStats } from '@/lib/reports/navigation'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -122,6 +123,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellUserCountData,
     upsellOrderData,
     upsellTicketData,
+    navigationData,
   ] = await Promise.all([
     // Revenue y count del mes actual (sin cancelados)
     Order.aggregate([
@@ -380,6 +382,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       }},
       { $group: { _id: '$hasUpsell', avgTicket: { $avg: '$total' }, count: { $sum: 1 } } },
     ]),
+    // ── Navegación del menú (customerevents, rango del filtro) — solo full ──
+    isFullPlan ? buildNavigationStats(tenantId, periodStart, periodEnd) : Promise.resolve(null),
   ])
 
   const thisMonth = ordersThisMonth[0] || { total: 0, baseTotal: 0, surcharge: 0, platformFee: 0, count: 0 }
@@ -603,6 +607,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     avgTicketWithUpsell,
     avgTicketWithoutUpsell,
     totalCustomersInPeriod,
+    // Navegación del menú (embudo desde customerevents)
+    navigation: navigationData,
   }
 
   return (

@@ -13,7 +13,8 @@ import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCar
 import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import ReadOnlyCustomizationGroups from '@/components/menu/ReadOnlyCustomizationGroups'
 import { useClubMembership } from '@/hooks/useClubMembership'
-import { captureMenuOpened, captureDishViewed, capturePromotionApplied } from '@/lib/tia/events'
+import { capturePromotionApplied } from '@/lib/tia/events'
+import { trackMenuOpened, trackDishViewed, trackCartAdd, trackCartRemove } from '@/lib/track'
 import LocationBar from '@/components/menu/LocationBar'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
@@ -155,12 +156,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   }, [tenant.slug, location._id])
 
   useEffect(() => {
-    captureMenuOpened(location._id)
+    trackMenuOpened(location._id)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!modalItem) return
-    captureDishViewed({ _id: modalItem._id, name: tn(modalItem, 'name', locale), price: modalItem.price })
+    trackDishViewed({ _id: modalItem._id, name: tn(modalItem, 'name', locale), categoryName: modalItem.categoryName, price: modalItem.price })
   }, [modalItem]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const clubMembership = useClubMembership(tenant.slug, location._id)
@@ -271,6 +272,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           type: 'promotion',
         }]
       })
+      trackCartAdd({ promotionId: promotion._id, name: promotion.title, price: promotion.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
       toast.success(`${promotion.title} agregado al pedido`)
       capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, promotion.originalPrice ? Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100) : 0)
       return
@@ -313,6 +315,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           capturePromotionApplied({ _id: cartItem.menuItemId, type: 'promotion', title: itemName }, 0)
         }
         setCart(prev => [...prev, taggedItem])
+        trackCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: 1, hasCustomizations: true, source: 'menu', locationId: location._id })
         setCustomizingItem(null)
 
         if (promoUnitFlow.currentUnit < promoUnitFlow.totalUnits) {
@@ -343,6 +346,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
         if (existing) return prev.map(i => i.cartItemId === uniqueId ? { ...i, quantity: i.quantity + 1 } : i)
         return [...prev, taggedItem]
       })
+      trackCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: 'menu', locationId: location._id })
       setCustomizingItem(null)
       if (promoItemSelection) {
         const itemId = (cartItem as any)._id || itemName
@@ -358,11 +362,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   }
 
   function removeFromCart(cartItemId: string) {
+    const existing = cart.find(i => i.cartItemId === cartItemId)
+    // cart_remove = el producto sale del carrito por completo
+    const fullyRemoved = !existing || existing.quantity <= 1
     setCart(prev => {
-      const existing = prev.find(i => i.cartItemId === cartItemId)
-      if (existing && existing.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
+      const item = prev.find(i => i.cartItemId === cartItemId)
+      if (item && item.quantity > 1) return prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity - 1 } : i)
       return prev.filter(i => i.cartItemId !== cartItemId)
     })
+    if (existing && fullyRemoved) {
+      trackCartRemove({ menuItemId: existing.menuItemId, name: existing.name, quantity: existing.quantity, locationId: location._id })
+    }
   }
 
   function goToCheckout() {

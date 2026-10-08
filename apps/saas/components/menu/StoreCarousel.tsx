@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
-import { captureRewardViewed } from '@/lib/tia/events'
+import { trackRewardViewed } from '@/lib/track'
 
 interface StoreItem {
   _id: string
@@ -32,7 +32,7 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId }: 
 
   useEffect(() => {
     if (!loading && items.length > 0) {
-      captureRewardViewed({ type: 'store_item', currentPoints: memberPoints, pointsRequired: items[0]?.pointsCost })
+      trackRewardViewed({ type: 'store_item', currentPoints: memberPoints, pointsRequired: items[0]?.pointsCost, locationId, tenantSlug })
     }
   }, [loading]) // eslint-disable-line react-hooks/exhaustive-deps
 

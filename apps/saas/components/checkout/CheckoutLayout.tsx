@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { Clock, AlertTriangle, Star, Gift, X } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
-import { captureRewardRedeemed } from '@/lib/tia/events'
+import { trackCheckoutStarted, trackRewardInteraction } from '@/lib/track'
 
 interface Props {
   tenantSlug: string
@@ -60,6 +60,20 @@ function CheckoutLayoutInner() {
       }
     } catch {}
   }, [tenantSlug])
+
+  // Checkout iniciado: 1 por sesión al ENTRAR al checkout con carrito cargado
+  // (el cart se restaura en un effect del provider, por eso depende de cart.length).
+  // El guard vive en lib/track.ts (sessionStorage); el disparo en submit es
+  // ahora checkout_submitted.
+  useEffect(() => {
+    if (state.cart.length === 0) return
+    trackCheckoutStarted({
+      total,
+      itemsCount: state.cart.length,
+      orderMode: mode,
+      locationId: state.locationId,
+    })
+  }, [state.cart.length]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-select MercadoPago when reaching the payment step
   useEffect(() => {
@@ -130,7 +144,9 @@ function CheckoutLayoutInner() {
             onJoinClubChange={(join) => dispatch({ type: 'SET_JOIN_CLUB', join })}
             onSelectReward={(id) => {
               dispatch({ type: 'SET_SELECTED_REWARD', id })
-              if (id) captureRewardRedeemed({ _id: id, type: 'store_item', value: storeItems.find(i => i._id === id)?.pointsCost ?? 0 })
+              // Intención de usar el reward en el checkout — el canje real
+              // (reward_redeemed) lo emite server-side al confirmarse
+              if (id) trackRewardInteraction({ rewardId: id, type: 'store_item', value: storeItems.find(i => i._id === id)?.pointsCost ?? 0, action: 'add_to_cart', locationId: state.locationId })
             }}
             onBirthDateChange={(birthDate) => dispatch({ type: 'SET_FORM', form: { birthDate } })}
             onWalletClick={() => router.push(`/${tenantSlug}/club/lookup`)}

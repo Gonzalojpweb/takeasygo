@@ -6,6 +6,7 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 export async function GET(
   request: NextRequest,
@@ -27,12 +28,12 @@ export async function GET(
 
     // Si ya está confirmado, no necesitamos verificar
     if (order.status !== 'awaiting_payment') {
-      return NextResponse.json({ status: order.status, paymentStatus: order.payment.status })
+      return NextResponse.json({ status: order.status, paymentStatus: order.payment.status, orderId: order._id })
     }
 
     // Si no tiene mercadopagoId, no podemos verificar
     if (!order.payment.mercadopagoId) {
-      return NextResponse.json({ status: order.status, paymentStatus: order.payment.status })
+      return NextResponse.json({ status: order.status, paymentStatus: order.payment.status, orderId: order._id })
     }
 
     // ── Resolver cuenta MP desde Order (fuente de verdad) ───────────────────
@@ -53,6 +54,10 @@ export async function GET(
     const paymentClient = new Payment(client)
     const paymentData = await paymentClient.get({ id: order.payment.mercadopagoId })
 
+    // prev del ORDER status, capturado antes de mutar (criterio único:
+    // lib/events-server.ts) — relecturas con pago ya aprobado no re-emiten.
+    const previousStatus = order.status
+
     // Actualizar el status según la respuesta de Mercado Pago
     order.payment.status = paymentData.status as any
     order.payment.mercadopagoData = paymentData as any
@@ -71,12 +76,17 @@ export async function GET(
       finalizeHiddenRewardClaims(order._id, order.customer?.phoneHash).catch(() => {})
       const { onOrderConfirmed } = await import('@/lib/printing')
       onOrderConfirmed(order).catch(() => {})
+      // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+      captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+        console.error('[verify-payment] checkout_completed event error:', err)
+      )
     }
 
     return NextResponse.json({ 
       status: order.status, 
       paymentStatus: order.payment.status,
-      mpStatus: paymentData.status 
+      mpStatus: paymentData.status,
+      orderId: order._id 
     })
   } catch (error: any) {
     console.error('[verify-payment] error:', error)

@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Location from '@/models/Location'
+import CustomerEvent from '@/models/CustomerEvent'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
@@ -96,6 +97,58 @@ async function fetchTrend(event: string, days = 30, tenantId?: string): Promise<
 
 async function fetchMenuOpened(tenantId: string): Promise<number> {
   return fetchTrend('menu.opened', 30, tenantId)
+}
+
+// ── Embudo de navegación desde Mongo (customerevents) ────────────────────────
+// Fuente dual-write instrumentada en Fase 0+1: eventos deduplicados (checkout_completed
+// único por orden) y sin dependencia de PostHog. Ventana 30d, igual que fetchFunnel.
+
+const NAV_FUNNEL_TYPES = [
+  'menu_opened',
+  'product_view',
+  'cart_add',
+  'checkout_started',
+  'checkout_completed',
+] as const
+
+export async function fetchNavigationFunnel(
+  tid: mongoose.Types.ObjectId,
+  since: Date,
+): Promise<{ funnel: ConversionFunnelData; mostViewed: { name: string; count: number }[] } | null> {
+  const [counts, mostViewed] = await Promise.all([
+    CustomerEvent.aggregate<{ _id: string; count: number }>([
+      { $match: { tenantId: tid, createdAt: { $gte: since }, type: { $in: [...NAV_FUNNEL_TYPES] } } },
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+    ]),
+    CustomerEvent.aggregate<{ name: string; count: number }>([
+      {
+        $match: {
+          tenantId: tid,
+          createdAt: { $gte: since },
+          type: 'product_view',
+          'data.itemName': { $exists: true },
+        },
+      },
+      { $group: { _id: '$data.itemName', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 10 },
+      { $project: { name: '$_id', count: 1, _id: 0 } },
+    ]),
+  ])
+
+  if (counts.length === 0) return null
+
+  const byType = new Map(counts.map((row) => [row._id, row.count]))
+  return {
+    funnel: {
+      menuOpened: byType.get('menu_opened') ?? 0,
+      dishViewed: byType.get('product_view') ?? 0,
+      dishAdded: byType.get('cart_add') ?? 0,
+      checkoutStarted: byType.get('checkout_started') ?? 0,
+      orderCompleted: byType.get('checkout_completed') ?? 0,
+    },
+    mostViewed,
+  }
 }
 
 export interface DailySummaryData {
@@ -410,12 +463,14 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
   }
 
   // PostHog: funnel + visits + best sellers (filtered by tenant)
-  const [funnel, menuOpenedCount, bsViewed, bsClicked, bsAdded] = await Promise.all([
+  // + embudo de navegación desde Mongo (fuente primaria; PostHog es fallback)
+  const [funnel, menuOpenedCount, bsViewed, bsClicked, bsAdded, navFunnel] = await Promise.all([
     fetchFunnel(tenantId),
     fetchMenuOpened(tenantId),
     fetchTrend('best_seller.viewed', 30, tenantId),
     fetchTrend('best_seller.clicked', 30, tenantId),
     fetchTrend('best_seller.added', 30, tenantId),
+    fetchNavigationFunnel(tid, thirtyDaysAgo),
   ])
 
   const t3 = Date.now()
@@ -446,7 +501,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
       todayTakeawayOrders,
       todayDeliveryOrders,
     },
-    conversionFunnel: {
+    conversionFunnel: navFunnel?.funnel ?? {
       menuOpened: funnel?.menuOpened ?? menuOpenedCount,
       dishViewed: funnel?.dishViewed ?? 0,
       dishAdded: funnel?.dishAdded ?? 0,
@@ -455,7 +510,7 @@ export async function fetchDashboardMetrics(tenantId: string): Promise<TiaMetric
     },
     topProducts: {
       mostSold: topSold,
-      mostViewed: [],
+      mostViewed: navFunnel?.mostViewed ?? [],
     },
     clubGrowth: {
       totalMembers,

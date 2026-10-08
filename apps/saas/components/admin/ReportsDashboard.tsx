@@ -9,12 +9,13 @@ import {
     History, ArrowUpRight, ArrowDownRight, Award,
     Package, FileSpreadsheet, FileText, Loader2, Calendar,
     Clock, XCircle, Zap, RefreshCw, CreditCard, AlertCircle,
-    Printer, PlusCircle, CheckCircle2, Banknote
+    Printer, PlusCircle, CheckCircle2, Banknote, Eye
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { toast } from 'sonner'
 import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
+import type { NavigationStats } from '@/lib/reports/navigation'
 
 interface Props {
     stats: {
@@ -78,6 +79,8 @@ interface Props {
         avgTicketWithUpsell: number
         avgTicketWithoutUpsell: number
         totalCustomersInPeriod: number
+        // Navegación del menú (customerevents) — solo plan full
+        navigation: NavigationStats | null
     }
     topItems: any[]
     recentOrders: any[]
@@ -1021,6 +1024,13 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </motion.div>
             )}
 
+            {/* ── Navegación del menú (embudo desde customerevents) ── */}
+            {stats.navigation && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+                    <NavigationFunnelCard nav={stats.navigation} />
+                </motion.div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
                 {/* ── Top Product Rankings ──────────────────────────────── */}
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
@@ -1624,5 +1634,80 @@ function StatCard({ title, value, desc, icon, trend, color, index }: any) {
                 </CardContent>
             </Card>
         </motion.div>
+    )
+}
+
+function NavigationFunnelCard({ nav }: { nav: NavigationStats }) {
+    const steps: { label: string; value: number; rate: number | null }[] = [
+        { label: 'Menú abierto', value: nav.menuOpened, rate: null },
+        { label: 'Platos vistos', value: nav.productView, rate: nav.conversion.menuToView },
+        { label: 'Agregados al carrito', value: nav.cartAdd, rate: nav.conversion.viewToAdd },
+        { label: 'Checkout iniciado', value: nav.checkoutStarted, rate: nav.conversion.addToCheckout },
+        { label: 'Pedido enviado', value: nav.checkoutSubmitted, rate: nav.conversion.checkoutToSubmitted },
+        { label: 'Pedido completado', value: nav.checkoutCompleted, rate: nav.conversion.submittedToCompleted },
+    ]
+    const maxViewed = Math.max(...nav.mostViewed.map(v => v.count), 1)
+
+    return (
+        <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
+            <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-500/10 flex items-center justify-center text-sky-500">
+                        <Eye size={24} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                        <CardTitle className="text-xl font-bold tracking-tight">Navegación del Menú</CardTitle>
+                        <p className="text-xs text-muted-foreground font-medium">
+                            Embudo de navegación · {nav.uniqueSessions.toLocaleString('es-AR')} sesiones únicas
+                        </p>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-4">
+                    <p className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Embudo</p>
+                    {steps.map((step) => (
+                        <div key={step.label}>
+                            <div className="flex justify-between text-[9px] font-bold text-muted-foreground/60 mb-0.5">
+                                <span>{step.label}</span>
+                                <span className="flex items-center gap-2 tabular-nums">
+                                    {step.rate !== null && (
+                                        <span className="text-sky-500/80">{step.rate}% ↓</span>
+                                    )}
+                                    {step.value}
+                                </span>
+                            </div>
+                            <div className="h-1 bg-muted rounded-full overflow-hidden">
+                                <div
+                                    className="h-full rounded-full bg-sky-500"
+                                    style={{ width: `${nav.menuOpened > 0 ? Math.min((step.value / nav.menuOpened) * 100, 100) : 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                    {nav.menuOpened === 0 && (
+                        <p className="text-xs text-muted-foreground/60 pt-2">Sin eventos de navegación en el período.</p>
+                    )}
+                </div>
+                <div className="space-y-4">
+                    <p className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Platos más vistos</p>
+                    {nav.mostViewed.length === 0 ? (
+                        <p className="text-xs text-muted-foreground/60 pt-2">Sin vistas de platos en el período.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {nav.mostViewed.map((item) => (
+                                <MiniBar
+                                    key={item.name}
+                                    label={item.name}
+                                    value={item.count}
+                                    total={maxViewed}
+                                    color="bg-sky-500"
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     )
 }

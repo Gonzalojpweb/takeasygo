@@ -52,6 +52,8 @@ export interface ICustomerEvent extends Document {
     found?: boolean
     points?: number
     redeemType?: string
+    /** Sub-acción de reward_interaction (tap | open_detail | add_to_cart | advance_offered | advance_accepted) */
+    action?: string
   }
   metadata: {
     source: 'order' | 'posthog' | 'posthog_sync' | 'explore' | 'loyalty' | 'cron' | 'manual' | 'client_side'
@@ -66,14 +68,17 @@ export interface ICustomerEvent extends Document {
 
 const CustomerEventSchema = new Schema<ICustomerEvent>(
   {
-    phoneHash: { type: String, required: true },
+    // Anónimo hasta login: eventos de navegación sin teléfono llegan con ''
+    // (el CIS vincula por phoneHash cuando existe — nunca es obligatorio)
+    phoneHash: { type: String, default: '' },
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     type: {
       type: String,
       enum: [
         // Core funnel
-        'order_completed', 'product_view', 'cart_add',
-        'reward_redeemed', 'checkout_started', 'checkout_completed',
+        'order_completed', 'product_view', 'cart_add', 'cart_remove',
+        'reward_redeemed', 'reward_viewed', 'reward_interaction',
+        'checkout_started', 'checkout_submitted', 'checkout_completed',
         'menu_opened',
         // CIS internal
         'segment_changed', 'signal_detected', 'health_score_changed',
@@ -115,6 +120,7 @@ const CustomerEventSchema = new Schema<ICustomerEvent>(
       found: { type: Boolean, default: undefined },
       points: { type: Number, default: undefined },
       redeemType: { type: String, default: undefined },
+      action: { type: String, default: undefined },
     },
     metadata: {
       source: {
@@ -138,6 +144,16 @@ CustomerEventSchema.index({ tenantId: 1, type: 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, 'data.menuItemId': 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, 'metadata.sessionId': 1 })
+
+// Dedup atómico de checkout_completed: un solo evento por orden y tenant,
+// aunque webhooks/polling reintnten. Patrón único+parcial (ver Order.posId).
+CustomerEventSchema.index(
+  { tenantId: 1, type: 1, 'data.orderId': 1 },
+  {
+    unique: true,
+    partialFilterExpression: { type: 'checkout_completed', 'data.orderId': { $exists: true } },
+  }
+)
 
 // TTL index: purgar eventos después de 2 años
 CustomerEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 63072000 }) // 2 años

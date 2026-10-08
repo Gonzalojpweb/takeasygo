@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
+import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 export async function GET(
   request: NextRequest,
@@ -63,6 +64,11 @@ export async function GET(
         const payment = mpSearch.results?.find(r => r.status === 'approved')
         
         if (payment) {
+          // prev del ORDER status, capturado antes de mutar: reconcile solo
+          // emite checkout_completed si esta es la PRIMERA confirmación
+          // (criterio único en lib/events-server.ts) — una orden ya
+          // confirmada con payment pending (ej. efectivo) no re-emite.
+          const previousStatus = order.status
           // Iniciar transacción para el healing
           const session = await mongoose.startSession()
           await session.withTransaction(async () => {
@@ -92,6 +98,10 @@ export async function GET(
           })
           await session.endSession()
           finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
+          // checkout_completed post-commit (gate becameCompleted + dedup atómico)
+          captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+            console.error('[reconcile] checkout_completed event error:', err)
+          )
           results.orders.healed++
         }
       } catch (err) {

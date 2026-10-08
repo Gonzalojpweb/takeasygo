@@ -73,6 +73,34 @@ export function captureCheckoutStarted(cart: CartInfo) {
   })
 }
 
+export function captureCheckoutSubmitted(cart: CartInfo) {
+  posthog.capture('checkout.submitted', {
+    cart_total: cart.total,
+    cart_items_count: cart.itemsCount,
+    order_mode: cart.orderMode || '',
+    phoneHash: cart.phoneHash || '',
+  })
+}
+
+export function captureCheckoutCompleted(order: OrderInfo) {
+  posthog.capture('checkout.completed', {
+    order_id: order._id,
+    order_total: order.total,
+    payment_method: order.paymentMethod || '',
+    items_count: order.itemsCount,
+    order_mode: order.orderMode || '',
+    phoneHash: order.phoneHash || '',
+  })
+}
+
+export function captureCartRemoved(item: { menuItemId: string; name: string; quantity?: number }) {
+  posthog.capture('cart.removed', {
+    dish_id: item.menuItemId,
+    dish_name: item.name,
+    quantity: item.quantity || 1,
+  })
+}
+
 export function captureOrderCompleted(order: OrderInfo) {
   posthog.capture('order.completed', {
     order_id: order._id,
@@ -131,6 +159,20 @@ export function captureRewardRedeemed(reward: RewardInfo) {
     reward_id: reward._id || '',
     reward_type: reward.type || '',
     reward_value: reward.value || 0,
+  })
+}
+
+// Intención de interacción (NO es canje — el canje real es reward.redeemed,
+// emitido server-side cuando se confirma)
+export function captureRewardInteracted(
+  reward: RewardInfo,
+  action: 'tap' | 'open_detail' | 'add_to_cart' | 'advance_offered' | 'advance_accepted'
+) {
+  posthog.capture('reward.interacted', {
+    reward_id: reward._id || '',
+    reward_type: reward.type || '',
+    reward_value: reward.value || 0,
+    action,
   })
 }
 

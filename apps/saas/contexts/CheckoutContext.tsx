@@ -4,6 +4,7 @@ import { createContext, useContext, useCallback, useRef, useReducer, useEffect, 
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type { CartItem } from '@/types/cart'
+import { trackCartRemove, trackCartAdd } from '@/lib/track'
 
 export interface DeliveryAddress {
   street: string
@@ -734,6 +735,11 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   }, [])
 
   const decreaseQty = useCallback((cartItemId: string) => {
+    const item = stateRef.current.cart.find(i => i.cartItemId === cartItemId)
+    // Última unidad → el producto sale del carrito → cart_remove
+    if (item && item.quantity === 1) {
+      trackCartRemove({ menuItemId: item.menuItemId, name: item.name, quantity: 1, locationId: stateRef.current.locationId })
+    }
     dispatch({ type: 'SET_CART', cart: stateRef.current.cart.reduce((acc, i) => {
       if (i.cartItemId !== cartItemId) { acc.push(i); return acc }
       if (i.quantity === 1) return acc
@@ -743,6 +749,10 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   }, [])
 
   const removeItem = useCallback((cartItemId: string) => {
+    const item = stateRef.current.cart.find(i => i.cartItemId === cartItemId)
+    if (item) {
+      trackCartRemove({ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, locationId: stateRef.current.locationId })
+    }
     dispatch({ type: 'SET_CART', cart: stateRef.current.cart.filter(i => i.cartItemId !== cartItemId) })
   }, [])
 
@@ -771,6 +781,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         takeawayOriginalPrice: item.takeawayOriginalPrice,
       }] })
     }
+    trackCartAdd({ menuItemId: item._id, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId: prev.locationId })
     dispatch({ type: 'SET_UPSERT_HINTS', hints: prev.upsellHints.filter(h => h._id !== item._id) })
   }, [])
 
