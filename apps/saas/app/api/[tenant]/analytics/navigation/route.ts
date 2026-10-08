@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { buildPeriodLabel } from '@/lib/report-range'
+import { navigationCache } from '@/lib/analytics/navigation-cache'
 
 /**
  * GET /api/[tenant]/analytics/navigation
@@ -39,12 +40,6 @@ const NAV_TYPES = [
 
 type NavType = (typeof NAV_TYPES)[number]
 
-const cache = new Map<string, { at: number; body: unknown }>()
-
-export function clearNavigationCache() {
-  cache.clear()
-}
-
 function resolveDays(searchParams: URLSearchParams): number {
   const raw = Number(searchParams.get('days'))
   if (!Number.isFinite(raw) || raw <= 0) return DEFAULT_WINDOW_DAYS
@@ -77,7 +72,7 @@ export async function GET(
 
     const days = resolveDays(request.nextUrl.searchParams)
     const cacheKey = `${tenant._id.toString()}|${days}`
-    const cached = cache.get(cacheKey)
+    const cached = navigationCache.get(cacheKey)
     if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
       return NextResponse.json(cached.body, {
         headers: {
@@ -234,7 +229,7 @@ export async function GET(
       },
     }
 
-    cache.set(cacheKey, { at: Date.now(), body })
+    navigationCache.set(cacheKey, { at: Date.now(), body })
 
     return NextResponse.json(body, {
       headers: {
