@@ -4,7 +4,8 @@ import './setup'
 
 import Tenant from '@/models/Tenant'
 import CustomerEvent from '@/models/CustomerEvent'
-import { GET, clearNavigationCache } from '@/app/api/[tenant]/analytics/navigation/route'
+import { GET } from '@/app/api/[tenant]/analytics/navigation/route'
+import { clearNavigationCache } from '@/lib/analytics/navigation-cache'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 
