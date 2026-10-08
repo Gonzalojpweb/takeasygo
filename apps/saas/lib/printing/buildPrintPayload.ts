@@ -1,5 +1,6 @@
 import { renderOrderTicket } from './ticket-renderer'
 import { safeDecrypt } from '@/lib/crypto'
+import Location from '@/models/Location'
 import type { IPrintJob } from '@/models/Order'
 import type { Types } from 'mongoose'
 
@@ -58,7 +59,7 @@ interface OrderForPrint {
     city: string
   }
   payment?: { method?: string }
-  location?: { locationName?: string }
+  location?: { locationName?: string; timezone?: string }
   toObject?: () => any
 }
 
@@ -90,10 +91,20 @@ export async function buildPrintPayload(
       }
     : { name: '', phone: '', email: '' }
 
+  // Sede de la orden: nombre para el header del ticket y timezone para las
+  // fechas (el renderer formatea en la zona de la sede, no en UTC).
+  const location = await Location.findOne({ _id: order.locationId })
+    .select('name timezone')
+    .lean()
+
   // Armar objeto order con customer desencriptado
   const orderData = {
     ...(order.toObject ? order.toObject() : order),
     customer,
+    location: {
+      locationName: location?.name,
+      timezone: location?.timezone,
+    },
   }
 
   const printJobs: IPrintJob[] = []
