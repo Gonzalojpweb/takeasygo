@@ -1,9 +1,11 @@
 import Order from '@/models/Order'
 import { toPesos } from '@takeasygo/business'
+import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import iconv from 'iconv-lite'
 
 export interface PreCloseData {
   locationName: string
+  timezone?: string
   from: string
   to: string
   generatedAt: string
@@ -162,19 +164,20 @@ function money(v: number): string {
   return toPesos(v).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-function formatDateRange(isoFrom: string, isoTo: string): string {
+function formatDateRange(isoFrom: string, isoTo: string, timeZone: string): string {
   const f = new Date(isoFrom)
   const t = new Date(isoTo)
-  const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric' }
+  const opts: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone }
   return `${f.toLocaleDateString('es-AR', opts)} -> ${t.toLocaleDateString('es-AR', opts)}`
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+function formatTime(iso: string, timeZone: string): string {
+  return new Date(iso).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone })
 }
 
 export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): string {
   const chunks: Buffer[] = []
+  const tz = data.timezone || DEFAULT_TIMEZONE
 
   chunks.push(ESC_POS.INIT, ESC_POS.CODE_PAGE)
   chunks.push(ESC_POS.ALIGN_CENTER)
@@ -198,8 +201,8 @@ export function buildPreCloseBuffer(data: PreCloseData, columns: number = 32): s
   chunks.push(ESC_POS.BOLD_ON)
   chunks.push(buf(`Periodo:\n`))
   chunks.push(ESC_POS.BOLD_OFF)
-  chunks.push(buf(`  ${formatDateRange(data.from, data.to)}\n`))
-  chunks.push(buf(`  Hora: ${formatTime(data.generatedAt)}\n`))
+  chunks.push(buf(`  ${formatDateRange(data.from, data.to, tz)}\n`))
+  chunks.push(buf(`  Hora: ${formatTime(data.generatedAt, tz)}\n`))
   chunks.push(buf(`\n${lineStr}\n`))
 
   // ── Summary ──────────────────────────────────────────────────────

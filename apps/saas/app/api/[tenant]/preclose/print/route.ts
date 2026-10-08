@@ -68,6 +68,7 @@ export async function POST(
       toDate,
       location.name
     )
+    data.timezone = location.timezone
 
     // Generate ESC/POS buffer (base64)
     const columns = printer.paperWidth === 80 ? 48 : 32

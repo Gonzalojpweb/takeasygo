@@ -1233,7 +1233,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 pr-2" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 sm:gap-2 pr-2 flex-wrap" onClick={e => e.stopPropagation()}>
                         <AnimatePresence mode="wait">
                           {editingCategory === category._id ? (
                             <motion.div
@@ -1255,24 +1255,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               key="normal-actions"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="flex gap-1"
+                              className="flex gap-1 flex-wrap"
                             >
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2"
+                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2 whitespace-nowrap"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setShowBulkModal(category._id)
                                 }}
                               >
                                 <Sparkles size={14} />
-                                Ajustar Precios
+                                <span className="hidden sm:inline">Ajustar Precios</span>
+                                <span className="sm:hidden">Precios</span>
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2"
+                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2 whitespace-nowrap"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   const anyEnabled = (category.items || []).some((i: any) => i.isBusinessAvailable) ||
@@ -1283,8 +1284,8 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 <Building2 size={14} />
                                 {((category.items || []).some((i: any) => i.isBusinessAvailable) ||
                                   (category.subcategories || []).some((s: any) => (s.items || []).some((i: any) => i.isBusinessAvailable)))
-                                  ? 'Quitar Business'
-                                  : 'Activar Business'
+                                  ? <><span className="hidden sm:inline">Quitar Business</span><span className="sm:hidden">Quitar</span></>
+                                  : <><span className="hidden sm:inline">Activar Business</span><span className="sm:hidden">Activar</span></>
                                 }
                               </Button>
                               <input

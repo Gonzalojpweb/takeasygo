@@ -1,6 +1,7 @@
 import { TicketBuilder } from './escpos-builder'
 import type { CodepageName } from './encoding'
 import { toPesos } from '@takeasygo/business'
+import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 
 // ============================================================================
 // Server-side ESC/POS Ticket Renderer
@@ -93,7 +94,7 @@ interface OrderDoc {
     apt?: string
     city: string
   }
-  location?: { locationName?: string }
+  location?: { locationName?: string; timezone?: string }
   payment?: { method?: string }
 }
 
@@ -157,6 +158,10 @@ export function renderOrderTicket(
   }
   const settings: PrintSettings = { ...defaults, ...(printer.printSettings?.[role] || {}) }
 
+  // Timezone de la sede para las fechas del ticket. Sin esto, Node formatea
+  // con el TZ del proceso (UTC en Vercel) y el ticket sale +3h desfasado.
+  const tz = order.location?.timezone || DEFAULT_TIMEZONE
+
   // Filtrar items por rol
   // forceAllItems: ignora el filtro por rol e imprime el pedido COMPLETO
   // (ticket resumen para la BARRA cuando los items no matchean su rol).
@@ -204,7 +209,7 @@ export function renderOrderTicket(
 
   // ── Separator + date ────────────────────────────────────────────────
   t.ruleDouble()
-  t.text(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR')}`)
+  t.text(`Fecha: ${new Date(order.createdAt).toLocaleString('es-AR', { timeZone: tz })}`)
 
   // ── Order mode ──────────────────────────────────────────────────────
   if (order.orderMode) {
@@ -232,8 +237,8 @@ export function renderOrderTicket(
   // ── Scheduled pickup ────────────────────────────────────────────────
   if (order.orderTiming === 'scheduled' && order.scheduledPickupAt) {
     const d = new Date(order.scheduledPickupAt)
-    const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
-    const date = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    const time = d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
+    const date = d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: tz })
     t.text(`PROGRAMADO: ${date} ${time} hs`, { bold: true })
   }
 
