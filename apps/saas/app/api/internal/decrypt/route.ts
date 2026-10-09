@@ -2,7 +2,8 @@
 // POST /api/internal/decrypt — Descifrado de campos encriptados
 // ─────────────────────────────────────────────────────────────────────────────
 // Accesible SOLO desde red interna (Sync Layer → SaaS).
-// Autenticado con INTERNAL_API_SECRET compartido (no JWT de usuario).
+// Autenticado con el secreto interno compartido (INTERNAL_API_SECRET o
+// SYNC_LAYER_SECRET; no JWT de usuario).
 // Rate limited agresivamente. Logueado en auditoría.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ import { connectDB } from '@/lib/mongoose'
 import { decrypt } from '@/lib/crypto'
 import { rateLimit } from '@/lib/rateLimit'
 import { logAudit } from '@/lib/audit'
+import { hasInternalSecretConfigured, matchesInternalBearer } from '@/lib/internal-secret'
 import AuditLog from '@/models/AuditLog'
 
 interface DecryptField {
@@ -21,21 +23,18 @@ interface DecryptField {
 const MAX_FIELDS_PER_REQUEST = 20
 
 export async function POST(request: NextRequest) {
-  // 1. Shared secret authentication
-  const authHeader = request.headers.get('authorization')
-  const sharedSecret = process.env.INTERNAL_API_SECRET
-
-  if (!sharedSecret) {
+  // 1. Shared secret authentication (SYNC_LAYER_SECRET o INTERNAL_API_SECRET)
+  if (!hasInternalSecretConfigured()) {
     console.error('[internal/decrypt] INTERNAL_API_SECRET not configured')
     return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
   }
 
-  if (!authHeader || authHeader !== `Bearer ${sharedSecret}`) {
+  if (!matchesInternalBearer(request.headers.get('authorization'))) {
     await logAudit({
       tenantId: null,
       action: 'internal_decrypt_unauthorized',
       entity: 'internal',
-      details: { reason: 'Invalid or missing INTERNAL_API_SECRET' },
+      details: { reason: 'Invalid or missing internal secret' },
       request,
     })
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
