@@ -2,7 +2,9 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import type { Product, OrderItem } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useTables } from "../../hooks/useTables"
-import { reserveTable } from "../../services/table"
+import { useOrders } from "../../hooks/useOrders"
+import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
+import { db } from "../../db/dexie"
 import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useLayout } from "../layout/LayoutContext"
@@ -29,11 +31,13 @@ export function WaiterDashboard() {
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
   const [deliveryChecked, setDeliveryChecked] = useState<Record<string, boolean>>({})
+  const [sending, setSending] = useState(false)
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables } = useTables()
+  const { tables, markNeedsBill, occupyTable, bindTableOrder } = useTables()
+  const { createOrder, confirmOrder } = useOrders()
   const { products, categories } = useMenu()
-  const { commands, pendingCommands, startPreparing, markReady } = useKitchenCommands()
+  const { commands, pendingCommands, startPreparing, markReady, confirmAndSendToKitchen } = useKitchenCommands()
 
   const selectedTable = useMemo(
     () => tables.find((t) => t.id === selectedTableId),
@@ -123,22 +127,62 @@ export function WaiterDashboard() {
     setScene("pedido")
   }, [configProduct])
 
-  const handleSendToKitchen = useCallback(() => {
-    showToast("✓ Pedido enviado a cocina", "success")
-    setCart([])
-    setScene("mesa")
-  }, [showToast])
+  const handleSendToKitchen = useCallback(async () => {
+    if (sending) return
+    if (!selectedTableId) {
+      showToast("Elegí una mesa antes de enviar", "error")
+      return
+    }
+    if (cart.length === 0) {
+      showToast("El pedido está vacío", "error")
+      return
+    }
+    setSending(true)
+    try {
+      await sendWaiterOrderToKitchen(
+        {
+          createOrder,
+          readTable: (tableId) => db.diningTable.get(tableId),
+          occupyTable,
+          bindTableOrder,
+          confirmOrder,
+          sendToKitchen: confirmAndSendToKitchen,
+        },
+        {
+          tableId: selectedTableId,
+          items: cart.map((item) => ({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+            ...(item.modifiers ? { modifiers: item.modifiers } : {}),
+            ...(item.notes ? { notes: item.notes } : {}),
+          })),
+        }
+      )
+      showToast("✓ Pedido enviado a cocina", "success")
+      setCart([])
+      setScene("mesa")
+    } catch (err) {
+      console.error("[Waiter] sendToKitchen failed:", err)
+      showToast("Error al enviar el pedido a cocina", "error")
+    } finally {
+      setSending(false)
+    }
+  }, [sending, selectedTableId, cart, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, showToast])
 
   const handleSendBill = useCallback(async () => {
-    if (!selectedTableId || !selectedTable) return
+    if (!selectedTableId) return
     try {
-      await reserveTable(selectedTable.tenantId, selectedTableId)
-      showToast("✓ Cuenta enviada a Counter", "success")
+      await markNeedsBill(selectedTableId, true)
+      showToast("✓ Cuenta solicitada — avisá al Counter", "success")
       setScene("cierre")
-    } catch {
-      showToast("Error al enviar cuenta", "error")
+    } catch (err) {
+      console.error("[Waiter] sendBill failed:", err)
+      showToast("Error al solicitar la cuenta", "error")
     }
-  }, [selectedTableId, selectedTable, showToast])
+  }, [selectedTableId, markNeedsBill, showToast])
 
   const handleNewSale = useCallback(() => {
     setCart([])
@@ -222,9 +266,9 @@ export function WaiterDashboard() {
               onRemoveItem={handleRemoveItem}
               total={cartTotal}
               primaryAction={{
-                label: "Enviar a cocina",
+                label: sending ? "Enviando…" : "Enviar a cocina",
                 onClick: handleSendToKitchen,
-                disabled: cart.length === 0,
+                disabled: cart.length === 0 || sending,
               }}
             />
           ),
@@ -372,7 +416,7 @@ export function WaiterDashboard() {
         })
         break
     }
-  }, [scene, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, mesaOrders, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
+  }, [scene, sending, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, mesaOrders, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
 
   return (
     <>
@@ -729,7 +773,7 @@ export function WaiterDashboard() {
             <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Operación finalizada</div>
             <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
-              La mesa {selectedTable?.number ?? "?"} fue cerrada. El cobro se procesó en Counter.
+              La cuenta de la mesa {selectedTable?.number ?? "?"} fue pedida. El Counter la procesa para el cobro.
             </div>
             <button className="btn btn-primary" onClick={handleNewSale} style={{ width: "100%" }}>
               → Volver a mis mesas
