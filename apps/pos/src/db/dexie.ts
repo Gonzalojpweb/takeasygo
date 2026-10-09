@@ -48,7 +48,7 @@ export interface PendingMovementRecord {
   relatedOrderId?: string
   channel: CashChannel
   paymentMethod: PaymentMethod
-  source: 'takeasygo_sync' | 'manual'
+  source: 'takeasygo_sync' | 'manual' | 'counter_sale'
   createdAt: Date
 }
 

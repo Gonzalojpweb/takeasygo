@@ -614,8 +614,21 @@ export function CounterDashboard() {
         }
       }
 
-      for (const method of methods) {
-        await processPayment(order.id, Math.ceil(cartTotal / methods.length), `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}`, method)
+      // Registro en caja por método: relatedOrderId lleva `#n` cuando hay
+      // varios métodos (el índice único del server es por relatedOrderId:
+      // sin el sufijo, la parte 2 del cobro chocaría con la 1 y no se
+      // registraría). Un solo método → relatedOrderId crudo = order.id.
+      for (let i = 0; i < methods.length; i++) {
+        const method = methods[i]
+        const isSplit = methods.length > 1
+        await processPayment(
+          order.id,
+          Math.ceil(cartTotal / methods.length),
+          `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}` +
+            (isSplit ? ` (parte ${i + 1}/${methods.length})` : ""),
+          method,
+          isSplit ? `${order.id}#${i}` : undefined
+        )
       }
 
       if (tenantId) {
