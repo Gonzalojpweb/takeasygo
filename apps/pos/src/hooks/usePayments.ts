@@ -2,6 +2,7 @@ import { useState, useCallback } from "react"
 import type { PaymentMethod } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
 import { resolvePaymentMethod } from "../services/payment"
+import { registerCounterSale } from "../services/counter-sale"
 
 export function usePayments() {
   const { state } = useAuth()
@@ -13,12 +14,13 @@ export function usePayments() {
 
   const processPayment = useCallback(
     async (
-      _orderId: string,
-      _amount: number,
-      _description: string,
-      method: PaymentMethod
+      orderId: string,
+      amount: number,
+      description: string,
+      method: PaymentMethod,
+      relatedOrderId?: string
     ) => {
-      if (!jwt) throw new Error("Not authenticated")
+      if (!jwt || !tenantId) throw new Error("Not authenticated")
 
       setLoading(true)
       setError(null)
@@ -32,7 +34,21 @@ export function usePayments() {
           return { method: resolved, status: "pending_terminal" }
         }
 
-        // Efectivo — completado inmediatamente
+        // Efectivo: el cajón recibió plata → dejar el rastro en caja (o en
+        // la cola local si no hay caja / el server no responde). Nunca corta
+        // el cobro: la venta ya sucedió, el bookkeeping va aparte.
+        try {
+          await registerCounterSale({
+            tenantId,
+            amount,
+            paymentMethod: method,
+            reason: description,
+            relatedOrderId: relatedOrderId ?? orderId,
+          })
+        } catch (err) {
+          console.error("[payments] registerCounterSale failed:", err)
+        }
+
         return { method: resolved, status: "completed" }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Payment failed"
