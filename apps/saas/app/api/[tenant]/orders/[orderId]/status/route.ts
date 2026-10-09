@@ -21,6 +21,7 @@ import { captureOrderStatusChanged } from '@/lib/events'
 import { resolveOrderAlerts } from '@/lib/compliance-alerts'
 import { incrementCommissionBalance, revertCommissionBalance } from '@/lib/commission-balance'
 import { allowedTransitionsFrom } from '@/lib/order-transitions'
+import { matchesInternalSecret } from '@/lib/internal-secret'
 import webpush from 'web-push'
 
 webpush.setVapidDetails(
@@ -42,9 +43,8 @@ const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTim
 
 /** Check if request uses internal secret auth (SyncLayer → SaaS) */
 function isInternalAuth(request: NextRequest): boolean {
-  const internalSecret = request.headers.get('x-internal-secret') ?? ''
-  const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
-  return !!expectedSecret && internalSecret === expectedSecret
+  // Acepta SYNC_LAYER_SECRET o INTERNAL_API_SECRET (ambos nombres conviven).
+  return matchesInternalSecret(request.headers.get('x-internal-secret'))
 }
 
 export async function PATCH(

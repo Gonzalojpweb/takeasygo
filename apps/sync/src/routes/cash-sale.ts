@@ -1,4 +1,4 @@
-import { Router } from "express"
+import { Router, type Request, type Response, type NextFunction } from "express"
 import { z } from "zod"
 import type { Queue as BullQueue } from "bullmq"
 import { CashSaleEventModel } from "@takeasygo/db"
@@ -19,9 +19,13 @@ import { enqueueCashSaleDelivery, type CashSaleJobData } from "../queues/cash-sa
 // 8. Manager puede reintentar vía POST /:eventId/retry
 //
 // Auth:
-// - POST / (crear): Internal API secret (server-to-server)
-// - PATCH /:id/deliver: Internal API secret (POS ACK)
+// - POST / (crear): secreto interno server-to-server — acepta X-Internal-Secret
+//   (como lo envía notifyCashSale del SaaS) o Authorization: Bearer <secret>
+//   (estilo de los helpers internos). Antes solo Bearer → 401 garantizado.
+// - PATCH /:id/deliver: secreto interno (server-to-server) O Bearer JWT del POS
+//   con check de tenant — el POS envía su JWT de usuario, no el secreto.
 // - GET /, POST /:id/retry: JWT auth (POS o SaaS admin)
+// Fail-closed: sin secreto configurado, el auth interno nunca matchea.
 // ============================================================================
 
 import { authMiddleware } from "../auth/middleware"
@@ -35,11 +39,29 @@ const cashSaleSchema = z.object({
   timestamp: z.string().datetime().optional(),
 })
 
-function verifyInternalAuth(req: any): boolean {
-  const header = req.headers.authorization
-  if (!header?.startsWith("Bearer ")) return false
-  const token = header.slice(7)
-  return token === config.internalApiSecret
+function providedInternalSecret(req: Request): string {
+  // Dos estilos de header ya conviven en el repo: X-Internal-Secret (SaaS
+  // notifyCashSale y workers) y Authorization: Bearer (helpers internos).
+  const headerSecret = req.headers["x-internal-secret"]
+  if (typeof headerSecret === "string" && headerSecret) return headerSecret
+  const bearer = req.headers.authorization
+  if (bearer?.startsWith("Bearer ")) return bearer.slice(7)
+  return ""
+}
+
+function verifyInternalAuth(req: Request): boolean {
+  const provided = providedInternalSecret(req)
+  if (!provided) return false
+  // Cualquiera de los dos nombres de env cuenta como secreto válido.
+  const candidates = [config.internalApiSecret, process.env.SYNC_LAYER_SECRET]
+    .filter((s): s is string => !!s)
+  return candidates.includes(provided)
+}
+
+// ACK del deliver: server-to-server (secreto interno) o POS (Bearer JWT).
+function deliverAuth(req: Request, res: Response, next: NextFunction) {
+  if (verifyInternalAuth(req)) return next()
+  return authMiddleware(req, res, next)
 }
 
 export function cashSaleRouter(
@@ -143,26 +165,34 @@ export function cashSaleRouter(
   /**
    * PATCH /api/v1/cash-sale/:eventId/deliver
    *
-   * Marcado como delivered cuando el POS confirma recepción.
-   * Llamado desde el POS vía flush/replay o directamente.
+   * Marcado como delivered cuando el POS confirma recepción (ACK).
+   * Auth: secreto interno (server-to-server) o Bearer JWT del POS — el POS
+   * solo puede ACK eventos de su propio tenant.
    */
-  router.patch("/:eventId/deliver", async (req, res) => {
-    if (!verifyInternalAuth(req)) {
-      return res.status(401).json({ error: "Unauthorized" })
+  router.patch("/:eventId/deliver", deliverAuth, async (req, res) => {
+    try {
+      const { eventId } = req.params
+
+      // Leer primero: el check de tenant debe ocurrir ANTES de mutar.
+      const event = await CashSaleEventModel.findById(eventId)
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" })
+      }
+      if (req.auth && event.tenantId !== req.auth.tenantId) {
+        return res.status(403).json({ error: "Tenant mismatch" })
+      }
+
+      await CashSaleEventModel.findByIdAndUpdate(
+        eventId,
+        { status: "delivered" },
+        { new: true }
+      )
+
+      return res.status(200).json({ status: "delivered", eventId })
+    } catch (err) {
+      console.error("[cash-sale] Deliver error:", err)
+      return res.status(500).json({ error: "Internal server error" })
     }
-
-    const { eventId } = req.params
-    const event = await CashSaleEventModel.findByIdAndUpdate(
-      eventId,
-      { status: "delivered" },
-      { new: true }
-    )
-
-    if (!event) {
-      return res.status(404).json({ error: "Event not found" })
-    }
-
-    return res.status(200).json({ status: "delivered", eventId })
   })
 
   /**
