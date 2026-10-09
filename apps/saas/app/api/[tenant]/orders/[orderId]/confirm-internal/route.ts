@@ -4,12 +4,13 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { confirmOrderPaymentCore } from '@/lib/sync-layer'
+import { matchesInternalSecret } from '@/lib/internal-secret'
 
 /**
  * POST /{tenant}/orders/{orderId}/confirm-internal
  *
  * Internal endpoint called by the SyncLayer worker when confirming an order.
- * Auth: Bearer token = SYNC_LAYER_SECRET (internal API secret, not JWT).
+ * Auth: X-Internal-Secret = SYNC_LAYER_SECRET o INTERNAL_API_SECRET (no JWT).
  *
  * Uses confirmOrderPaymentCore() which skips confirmOrderInSyncLayer
  * (already done by the SyncLayer) and goes directly to:
@@ -23,10 +24,9 @@ export async function POST(
   try {
     const { tenant: tenantSlug, orderId } = await params
 
-    // Auth: X-Internal-Secret header = SYNC_LAYER_SECRET
-    const internalSecret = request.headers.get('x-internal-secret') ?? ''
-    const expectedSecret = process.env.SYNC_LAYER_SECRET ?? ''
-    if (!expectedSecret || internalSecret !== expectedSecret) {
+    // Auth: X-Internal-Secret — acepta SYNC_LAYER_SECRET o INTERNAL_API_SECRET
+    // (los dos nombres ya conviven entre despliegues; debe coincidir el valor).
+    if (!matchesInternalSecret(request.headers.get('x-internal-secret'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

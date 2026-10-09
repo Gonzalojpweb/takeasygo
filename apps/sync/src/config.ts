@@ -46,7 +46,11 @@ export const config = {
   })(),
 
   internalApiSecret: (() => {
-    const val = process.env.INTERNAL_API_SECRET ?? ""
+    // Ambos nombres de env ya conviven en los despliegues (Vercel firma con
+    // SYNC_LAYER_SECRET en confirm-internal/status; EC2 envía INTERNAL_API_SECRET).
+    // Alias para que el valor —no el nombre de la variable— sea lo único que
+    // debe alinearse entre despliegues.
+    const val = process.env.INTERNAL_API_SECRET ?? process.env.SYNC_LAYER_SECRET ?? ""
     return val
   })(),
   saasBaseUrl: process.env.SAAS_BASE_URL ?? "http://localhost:3000",
