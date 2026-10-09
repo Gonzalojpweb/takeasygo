@@ -4,7 +4,6 @@ import { useAuth } from "./hooks/useAuth"
 import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
-import { IncomingOrdersDashboard } from "./components/IncomingOrders/IncomingOrdersDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
 import { SalesDashboard } from "./components/Sales/SalesDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
@@ -14,7 +13,7 @@ import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import {
-  LayoutGrid, Utensils, ShoppingBag, Bike, Banknote, BarChart3,
+  LayoutGrid, Utensils, Bike, Banknote, BarChart3,
 } from "lucide-react"
 import {
   startConnectivityMonitoring,
@@ -41,7 +40,7 @@ import { playOrderNotification } from "./services/notification-sound"
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 
-type Context = "counter" | "waiter" | "incoming" | "flota" | "caja" | "ventas"
+type Context = "counter" | "waiter" | "flota" | "caja" | "ventas"
 
 interface NavItem {
   id: string
@@ -52,7 +51,6 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { id: "counter", icon: LayoutGrid, label: "Counter" },
   { id: "waiter", icon: Utensils, label: "Waiter" },
-  { id: "incoming", icon: ShoppingBag, label: "Pedidos" },
   { id: "flota", icon: Bike, label: "Flota" },
   { id: "caja", icon: Banknote, label: "Caja" },
   { id: "ventas", icon: BarChart3, label: "Ventas" },
@@ -315,7 +313,6 @@ function AppShell({
       <main className="workspace">
         {activeContext === "counter" && <CounterDashboard />}
         {activeContext === "waiter" && <WaiterDashboard />}
-        {activeContext === "incoming" && <IncomingOrdersDashboard />}
         {activeContext === "flota" && <FlotaWidget />}
         {activeContext === "caja" && <CashDashboard />}
         {activeContext === "ventas" && <SalesDashboard />}
