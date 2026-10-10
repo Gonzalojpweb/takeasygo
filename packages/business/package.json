@@ -8,7 +8,8 @@
     ".": "./dist/index.js",
     "./browser": "./dist/browser.js",
     "./sync-events": "./dist/sync-events.js",
-    "./jwt": "./dist/jwt.js"
+    "./jwt": "./dist/jwt.js",
+    "./mongo": "./dist/mongo.js"
   },
   "scripts": {
     "build": "tsc",

@@ -8,6 +8,8 @@ function readPem(filename: string): string {
   return readFileSync(filepath, "utf-8").trim()
 }
 
+import { assertMongoDbName } from "@takeasygo/business"
+
 function validatePem(value: string, label: string): string {
   if (!value.includes("-----BEGIN ") || !value.includes("-----END ")) {
     throw new Error(
@@ -23,7 +25,13 @@ export const config = {
   port: parseInt(process.env.SYNC_PORT ?? "3001", 10),
   env: process.env.NODE_ENV ?? "development",
 
-  mongoUri: process.env.MONGODB_URI ?? "",
+  mongoUri: (() => {
+    const uri = process.env.MONGODB_URI ?? ""
+    // URI vacía: ya la maneja index.ts con su propio mensaje. El guard aplica
+    // cuando el URI existe pero no declara nombre de base.
+    if (uri) assertMongoDbName(uri)
+    return uri
+  })(),
 
   redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
 
