@@ -396,6 +396,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@takeasygo/business':
+        specifier: workspace:*
+        version: link:../business
       '@takeasygo/types':
         specifier: workspace:*
         version: link:../types

@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import { assertMongoDbName } from "@takeasygo/business"
 
 const MONGODB_URI = process.env.MONGODB_URI
 
@@ -8,6 +9,7 @@ export async function connectMongo(): Promise<void> {
   if (isConnected) return
   if (!MONGODB_URI)
     throw new Error("MONGODB_URI environment variable is not set")
+  assertMongoDbName(MONGODB_URI)
   await mongoose.connect(MONGODB_URI, {
     maxPoolSize: 20,
     minPoolSize: 2,
