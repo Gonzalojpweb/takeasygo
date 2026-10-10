@@ -18,7 +18,7 @@ import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
-import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
+import { findMpAccountById, getActiveMpAccount, resolveWebhookProcessAccount } from '@/lib/mercadopago'
 import type { ResolvedMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
@@ -278,30 +278,29 @@ export async function POST(
     }
 
     // ── 10. Resolver cuenta final para procesar ─────────────────────────────
-    //    accountForSecret = the account whose signature matched (from try-all-secrets)
-    //    processAccount = the account to use for SDK calls (prefer Order's mpAccountId)
-    //
-    //    Cases:
-    //    - Tenant has zero accounts → caught earlier (401 at candidates.length === 0)
-    //    - Signature matches → accountForSecret is set
-    //    - Order has mpAccountId pointing to existing account → use that
-    //    - Order has mpAccountId pointing to DELETED account → 200 + alert (permanent, retry won't fix)
-    //    - Order has no mpAccountId → use accountForSecret (try-all-secrets resolved it)
-    let processAccount = accountForSecret
-    if (resolvedAccountId) {
-      const orderAccount = findMpAccountById(tenant, resolvedAccountId)
-      if (orderAccount) {
-        processAccount = orderAccount
-      } else {
-        // Order.mpAccountId references deleted account — permanent config error
-        // 200 + alert: retrying won't fix a deleted account
-        console.warn(`[Webhook MP][${traceId}] Order.mpAccountId=${resolvedAccountId} NO existe en tenant.mpAccounts | tenant=${tenantSlug} | order=${orderIdForLog}`)
-        sendSecurityAlert(tenantSlug, 'Order.mpAccountId huérfano — revisión manual requerida', {
-          resolvedAccountId, orderId: orderIdForLog, mpPaymentId, tenantSlug, traceId,
-        })
-        return NextResponse.json({ received: true, note: 'Account not found — manual review needed' })
-      }
+    //    Fuente de verdad = Order.payment.mpAccountId (ver lib/mercadopago.ts).
+    //    NO se re-resuelve por el ?account= ni por el modo/config actual del
+    //    tenant: un external_reference manipulado o un cambio de config no
+    //    redirigen el pago a otra cuenta.
+    const accountDecision = resolveWebhookProcessAccount({
+      tenant,
+      orderMpAccountId: resolvedAccountId,
+      orderNumber: orderIdForLog,
+      signatureMatchedAccount: accountForSecret,
+      urlAccount,
+    })
+
+    if (accountDecision.status === 'orphan') {
+      // Order.mpAccountId references deleted account — permanent config error
+      // 200 + alert: retrying won't fix a deleted account
+      console.warn(`[Webhook MP][${traceId}] Order.mpAccountId=${accountDecision.accountId} NO existe en tenant.mpAccounts | tenant=${tenantSlug} | order=${orderIdForLog}`)
+      sendSecurityAlert(tenantSlug, 'Order.mpAccountId huérfano — revisión manual requerida', {
+        resolvedAccountId: accountDecision.accountId, orderId: orderIdForLog, mpPaymentId, tenantSlug, traceId,
+      })
+      return NextResponse.json({ received: true, note: 'Account not found — manual review needed' })
     }
+
+    const processAccount = accountDecision.account
     // processAccount is guaranteed non-null here: try-all-secrets already matched a signature
 
     console.info(`[Webhook MP][${traceId}] Processing | tenant=${tenantSlug} | mpId=${mpPaymentId} | order=${orderIdForLog} | accountId=${processAccount.accountId}`)
