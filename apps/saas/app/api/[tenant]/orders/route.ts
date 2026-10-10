@@ -11,6 +11,8 @@ import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
+import { getStrictLocationIdMode } from '@/lib/feature-flags'
 import { createOrderSchema } from '@/lib/schemas'
 import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
@@ -135,6 +137,9 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
     const locationId = request.nextUrl.searchParams.get('locationId')
+    if (locationId && !mongoose.isValidObjectId(locationId)) {
+      return NextResponse.json({ error: 'locationId inválido' }, { status: 400 })
+    }
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -145,8 +150,25 @@ export async function GET(
     const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null, status: { $nin: ['cancelled', 'open'] } }
     if (locationId) filter.locationId = locationId
 
-    // Restrict by assignedLocations for non-admin users
     const sessionUser = await getSessionUser(request)
+
+    // Oleada 1 (flag de 3 valores off|log|enforce): aislamiento estricto por sede.
+    //   - locationId ajeno al scope del usuario => 403 (enforce) / log (log)
+    //   - admin con sedes asignadas => listado restringido a sus sedes (solo enforce)
+    const scopeMode = getStrictLocationIdMode(tenant as any)
+    if (scopeMode !== 'off') {
+      const scopeError = enforceLocationScope(sessionUser, locationId)
+      if (scopeError) {
+        if (scopeMode === 'enforce') return scopeError
+        logScopeAllowed({ route: 'GET /orders', tenant: tenantSlug, locationId, userId: sessionUser?.id, role: sessionUser?.role })
+      }
+      const scopedAdminLocs = sessionUser?.role === 'admin' ? sessionUser.assignedLocations ?? [] : []
+      if (scopeMode === 'enforce' && scopedAdminLocs.length > 0 && !locationId) {
+        filter.locationId = { $in: scopedAdminLocs }
+      }
+    }
+
+    // Restrict by assignedLocations for non-admin users
     if (sessionUser && sessionUser.role !== 'admin' && sessionUser.role !== 'superadmin') {
       const locs = sessionUser.assignedLocations ?? []
       if (locs.length > 0) {
@@ -401,6 +423,10 @@ export async function POST(
       )
     }
 
+    if (!body.locationId || !mongoose.isValidObjectId(body.locationId)) {
+      return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
+    }
+
     const location = await Location.findOne({
       _id: body.locationId,
       tenantId: tenant._id,
@@ -408,6 +434,21 @@ export async function POST(
     })
     if (!location) {
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
+    }
+
+    // Oleada 1 (flag de 3 valores off|log|enforce): un operador con scope de sede
+    // (ej. token POS de L1) no puede crear pedidos en otra sede. El checkout
+    // público no tiene sesión (scopeUser null) y no se ve afectado.
+    const scopeMode = getStrictLocationIdMode(tenant as any)
+    if (scopeMode !== 'off') {
+      const scopeUser = await getSessionUser(request)
+      if (scopeUser) {
+        const scopeError = enforceLocationScope(scopeUser, body.locationId)
+        if (scopeError) {
+          if (scopeMode === 'enforce') return scopeError
+          logScopeAllowed({ route: 'POST /orders', tenant: tenantSlug, locationId: body.locationId, userId: scopeUser.id, role: scopeUser.role })
+        }
+      }
     }
 
     if (location.status === 'paused') {
