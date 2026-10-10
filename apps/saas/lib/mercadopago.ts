@@ -143,6 +143,57 @@ export function findMpAccountById(
 }
 
 /**
+ * Decisión de cuenta a usar al procesar un webhook de pago MP.
+ *
+ * Propiedad de seguridad (multisede): la FUENTE DE VERDAD es el
+ * `payment.mpAccountId` guardado en la Order al crear la preferencia — NUNCA
+ * se re-resuelve la cuenta por el modo/config actual del tenant. Esto evita
+ * que un `external_reference` manipulado, un `?account=` falsificado o un
+ * cambio de configuración posterior redirijan el pago a la cuenta equivocada.
+ *
+ * Orden de resolución:
+ *   1. Order.payment.mpAccountId existe y la cuenta existe → esa cuenta.
+ *   2. Order.payment.mpAccountId existe pero la cuenta fue borrada → 'orphan'
+ *      (error de configuración permanente: 200 + alerta, reintentar no arregla).
+ *   3. Order sin mpAccountId → cuenta cuya firma validó (fallback legado).
+ */
+export type WebhookAccountDecision =
+  | {
+      status: 'process'
+      account: ResolvedMpAccount
+      accountSource: 'order' | 'signature'
+      hintMismatch: boolean
+      orderNumber: string | null
+    }
+  | {
+      status: 'orphan'
+      accountId: string
+      hintMismatch: boolean
+      orderNumber: string | null
+    }
+
+export function resolveWebhookProcessAccount(params: {
+  tenant: any
+  orderMpAccountId: string | null
+  orderNumber: string | null
+  signatureMatchedAccount: ResolvedMpAccount
+  urlAccount: string | null
+}): WebhookAccountDecision {
+  const { tenant, orderMpAccountId, orderNumber, signatureMatchedAccount, urlAccount } = params
+  const hintMismatch = !!urlAccount && !!orderMpAccountId && urlAccount !== orderMpAccountId
+
+  if (orderMpAccountId) {
+    const orderAccount = findMpAccountById(tenant, orderMpAccountId)
+    if (!orderAccount) {
+      return { status: 'orphan', accountId: orderMpAccountId, hintMismatch, orderNumber }
+    }
+    return { status: 'process', account: orderAccount, accountSource: 'order', hintMismatch, orderNumber }
+  }
+
+  return { status: 'process', account: signatureMatchedAccount, accountSource: 'signature', hintMismatch, orderNumber }
+}
+
+/**
  * Returns a MercadoPagoConfig client using the active account's credentials.
  * Falls back to legacy mercadopago.accessToken for unmigrated tenants.
  */

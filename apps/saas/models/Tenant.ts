@@ -147,6 +147,12 @@ export interface ITenant extends Document {
     /** POS bundle activo: cuando es true, los pedidos se envían al Sync Layer para el POS */
     posEnabled: boolean
   }
+  /**
+   * Feature flags por tenant (clave plana con namespace, ej:
+   * 'multisede.strictLocationId'). Resolución: env de emergencia > flags > default.
+   * Ver apps/saas/lib/feature-flags.ts.
+   */
+  flags?: Record<string, boolean | string | number | null | undefined>
   business: {
     enabled: boolean
     activatedAt: Date | null
@@ -564,6 +570,9 @@ const TenantSchema = new Schema<ITenant>(
       posLocationGate: { type: Boolean, default: false },
       posEnabled: { type: Boolean, default: false },
     },
+    // Feature flags por tenant (ver lib/feature-flags.ts). Mixed para permitir
+    // claves planas con namespace (ej: 'multisede.strictLocationId') sin nesting.
+    flags: { type: Schema.Types.Mixed, default: {} },
     business: {
       enabled: { type: Boolean, default: false },
       activatedAt: { type: Date, default: null },

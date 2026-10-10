@@ -8,6 +8,7 @@ import { LocationModel } from "@takeasygo/db"
 import { config } from "../config"
 import { isJtiDenied } from "../auth/jtiDenylist"
 import { registerSocket, unregisterSocket, socketAuthExpired, sweepSockets } from "./registry"
+import { resolveSocketRooms } from "./rooms"
 
 export function createSocketServer(
   httpServer: HttpServer,
@@ -87,17 +88,15 @@ export function createSocketServer(
 
       socket.data.auth = payload
 
-      // Generic device room (needed for sync:pending_events hub re-sync).
-      socket.join(`tenant:${payload.tenantId}:${payload.deviceType}`)
+      // Aislamiento de salas por sede (ver ./rooms.ts):
+      //  - POS multi-sede entra SOLO a su sala de location (no a la genérica).
+      //  - POS single-sede legacy entra a la sala genérica del tenant.
+      for (const room of resolveSocketRooms(payload)) {
+        socket.join(room)
+      }
 
       if (payload.locationId) {
-        // Multi-sede POS: joins ONLY its location room — receives only its own
-        // orders. The generic `tenant:{id}` room is intentionally NOT joined.
-        socket.join(`tenant:${payload.tenantId}:location:${payload.locationId}`)
         markPosSeen(payload.tenantId, payload.locationId)
-      } else {
-        // Single-sede POS (legacy): generic tenant room, current behavior.
-        socket.join(`tenant:${payload.tenantId}`)
       }
 
       next()

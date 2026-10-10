@@ -1,10 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
+import mongoose from 'mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import Counter from '@/models/Counter'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
+import { getStrictLocationIdMode } from '@/lib/feature-flags'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
@@ -55,6 +58,22 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
     const locationId = searchParams.get('locationId')
+
+    if (locationId) {
+      if (!mongoose.isValidObjectId(locationId)) {
+        return NextResponse.json({ error: 'locationId inválido' }, { status: 400 })
+      }
+      // Oleada 1: aislamiento estricto por sede (flag de 3 valores off|log|enforce).
+      const scopeMode = getStrictLocationIdMode(tenant as any)
+      if (scopeMode !== 'off') {
+        const user = await getSessionUser(request)
+        const scopeError = enforceLocationScope(user, locationId)
+        if (scopeError) {
+          if (scopeMode === 'enforce') return scopeError
+          logScopeAllowed({ route: 'GET /reservas', tenant: tenantSlug, locationId, userId: user?.id, role: user?.role })
+        }
+      }
+    }
 
     const filter: any = { tenantId: tenant._id }
     if (date) filter.date = date
