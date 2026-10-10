@@ -2,8 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   resolveMongoDbName,
   assertMongoDbName,
-  isProdDefaultDbName,
-  PROD_DEFAULT_DB_NAME,
 } from '@takeasygo/business'
 
 describe('resolveMongoDbName', () => {
@@ -50,13 +48,5 @@ describe('assertMongoDbName', () => {
     expect(() => assertMongoDbName('')).toThrow(/no incluye un nombre de base/)
     expect(() => assertMongoDbName(undefined)).toThrow(/no incluye un nombre de base/)
     expect(() => assertMongoDbName(null)).toThrow(/no incluye un nombre de base/)
-  })
-})
-
-describe('isProdDefaultDbName', () => {
-  it('reconoce el default de producción', () => {
-    expect(isProdDefaultDbName('test')).toBe(true)
-    expect(PROD_DEFAULT_DB_NAME).toBe('test')
-    expect(isProdDefaultDbName('takeasygo-staging')).toBe(false)
   })
 })
