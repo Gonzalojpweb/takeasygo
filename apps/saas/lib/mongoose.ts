@@ -1,10 +1,13 @@
 import mongoose from 'mongoose'
+import { assertMongoDbName } from '@takeasygo/business'
 
 const MONGODB_URI = process.env.MONGODB_URI as string
 
 if (!MONGODB_URI) {
   throw new Error('MONGODB_URI no está definido en las variables de entorno')
 }
+
+assertMongoDbName(MONGODB_URI)
 
 interface MongooseCache {
   conn: typeof mongoose | null
