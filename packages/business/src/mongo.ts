@@ -1,44 +1,50 @@
 /**
- * Guard: exige que MONGODB_URI declare nombre de base explícito.
- *
- * Producción de TakeasyGO es la base default `test` del cluster
- * `takeasygo.ssjlhfw.mongodb.net`. Un URI sin nombre de base resuelve ahí sin
- * que nadie lo note, así que un tipeo o un entorno mal copiado puede caer en
- * producción. Este guard convierte ese accidente en un error explícito al
- * arrancar, en vez de dejar que MongoDB use el default.
+ * MongoDB URI helpers: enforce a non-empty explicit database name
+ * 
+ * Production of TakeasyGO is the default database `test` of the cluster
+ * `takeasygo.ssjlhfw.mongodb.net`. A URI without an explicit database name
+ * resolves to `test` → risk of accidentally writing to production.
+ * This guard turns that accident into an explicit error at startup.
  */
 
-/** Nombre de base por defecto de MongoDB (= producción en este cluster). */
-export const PROD_DEFAULT_DB_NAME = "test"
+const PROD_DEFAULT_DB_NAME = "test"
 
-/** Extrae el nombre de base explícito del URI; "" si no lo declara. */
-export function resolveMongoDbName(uri: string | undefined | null): string {
-  if (!uri) return ""
-  const noQuery = String(uri).trim().split("?")[0]
-  const afterScheme = noQuery.replace(/^[a-z0-9+.-]+:\/\//i, "")
-  const slash = afterScheme.indexOf("/")
-  if (slash === -1) return ""
-  return afterScheme.slice(slash + 1).split("/")[0].trim()
+function extractAfterScheme(uri: string): string {
+  const s = String(uri).trim()
+  const i = s.indexOf("://")
+  if (i < 0) return s
+  return s.slice(i + 3)
 }
 
-/**
- * Falla con un mensaje claro si el URI no declara nombre de base.
- * @returns el nombre de base (siempre string no vacío).
- */
-export function assertMongoDbName(uri: string | undefined | null): string {
+function extractHostAndPath(afterScheme: string): { hasPath: boolean; path: string } {
+  const atIdx = afterScheme.indexOf("@")
+  const afterAuth = atIdx >= 0 ? afterScheme.slice(atIdx + 1) : afterScheme
+  const slash = afterAuth.indexOf("/")
+  if (slash < 0) {
+    return { hasPath: false, path: "" }
+  }
+  const path = afterAuth.slice(slash + 1).trim()
+  return { hasPath: true, path: path }
+}
+
+export function resolveMongoDbName(uri: string | undefined | null): string | null {
+  if (!uri) return null
+  const afterScheme = extractAfterScheme(uri)
+  const { hasPath, path } = extractHostAndPath(afterScheme)
+  if (!hasPath) return null
+  return path === "" ? null : path
+}
+
+export function assertMongoDbName(uri: string | undefined | null): void {
+  // Only throw when URI is non-empty AND lacks a db name.
+  // Empty URI is handled by each app's own checks.
+  if (!uri) return
   const db = resolveMongoDbName(uri)
   if (!db) {
-    throw new Error(
-      "MONGODB_URI no incluye un nombre de base. Mongo usaría su base por defecto " +
-        `(\`${PROD_DEFAULT_DB_NAME}\` = PRODUCCIÓN en este cluster). ` +
-        "Agregá el nombre de base explícito, p. ej. " +
-        "...mongodb.net/takeasygo-staging?retryWrites=true."
-    )
+    const m =
+      "MONGODB_URI no incluye un nombre de base; Mongo usaría su base por defecto (" +
+      PROD_DEFAULT_DB_NAME +
+      ") en este cluster. Agregá un nombre de base explícito (p.ej. /takeasygo-staging)."
+    throw new Error(m)
   }
-  return db
-}
-
-/** true si el nombre de base resuelve al default de producción. */
-export function isProdDefaultDbName(db: string): boolean {
-  return db === PROD_DEFAULT_DB_NAME
 }

@@ -9,7 +9,11 @@
     "./browser": "./dist/browser.js",
     "./sync-events": "./dist/sync-events.js",
     "./jwt": "./dist/jwt.js",
-    "./mongo": "./dist/mongo.js"
+    "./mongo": "./dist/mongo.js",
+    "./src/mongo": {
+      "types": "./src/mongo.ts"
+    },
+    "PROD_DEFAULT_DB_NAME": "./dist/PROD_DEFAULT_DB_NAME.d.ts"
   },
   "scripts": {
     "build": "tsc",
