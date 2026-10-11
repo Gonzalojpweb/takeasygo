@@ -18,17 +18,14 @@
 import mongoose from 'mongoose'
 import { randomBytes } from 'node:crypto'
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { join } from 'node:path'
+import bcrypt from 'bcryptjs'
 import User from '../../models/User'
 
 const ALLOWED_DB = 'takeasygo-staging'
 const TEST_ROLES = ['admin', 'manager', 'staff', 'cashier', 'seller', 'waiter'] as const
 const TEST_TENANTS = ['palmyra', 'lacasetta-focaccia'] as const
 const PROD_DB_NAME = 'test'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 /** Copiado de scripts/audit/_safety.mjs (evita importar .mjs sin tipos). */
 function resolveDbName(uri: string, explicitDb?: string | null): string {
@@ -93,10 +90,12 @@ async function main() {
           continue
         }
         const password = `${randomBytes(18).toString('base64url')}!Aa1`
+        // models/User.ts NO tiene hook pre-save: el hash debe ser explícito
+        const passwordHash = await bcrypt.hash(password, 10)
         await User.create({
           name: `Test ${t.slug} ${role} S${idx + 1}`,
           email,
-          password,
+          password: passwordHash,
           role,
           tenantId: t._id,
           assignedLocations: [loc._id],
@@ -109,7 +108,8 @@ async function main() {
     }
   }
 
-  // Credenciales: FUERA del repo (temp) + copia gitignored (.env.* → gitignore)
+  // Credenciales: SOLO fuera del repo (TEMP). No escribir en el directorio
+  // del proyecto: está en Dropbox y se sincronizaría.
   const credPaths: string[] = []
   if (credentials.length > 0) {
     const payload = {
@@ -123,10 +123,6 @@ async function main() {
     const tempFile = join(tempDir, 'test-users-credentials.json')
     writeFileSync(tempFile, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
     credPaths.push(tempFile)
-
-    const localFile = join(__dirname, '..', '..', '.env.test-users.local')
-    writeFileSync(localFile, JSON.stringify(payload, null, 2), { encoding: 'utf8', mode: 0o600 })
-    credPaths.push(localFile)
   }
 
   const after = { users: await db.collection('users').countDocuments({}) }
