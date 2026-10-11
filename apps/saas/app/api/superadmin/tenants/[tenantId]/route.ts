@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { auth } from '@/lib/auth'
@@ -136,12 +137,22 @@ export async function DELETE(
     const { tenantId } = await params
     await connectDB()
 
-    const tenant = await Tenant.findByIdAndDelete(tenantId)
+    const tenant = await Tenant.findById(tenantId)
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    return NextResponse.json({ ok: true })
+    // Cascade: desactivar usuarios del tenant antes de borrarlo para que
+    // ninguna cuenta quede "viva" apuntando a un tenant inexistente.
+    // Reversible: reactivalos con isActive: true si el delete falla.
+    const deactivated = await User.updateMany(
+      { tenantId: tenant._id },
+      { $set: { isActive: false } }
+    )
+
+    await Tenant.findByIdAndDelete(tenantId)
+
+    return NextResponse.json({ ok: true, deactivatedUsers: deactivated.modifiedCount })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

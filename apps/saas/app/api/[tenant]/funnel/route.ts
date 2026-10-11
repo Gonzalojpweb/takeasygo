@@ -4,6 +4,7 @@ import CustomerEvent from '@/models/CustomerEvent'
 import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { requireAuth } from '@/lib/apiAuth'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/funnel — Behavioral funnel metrics from MongoDB
@@ -31,6 +32,10 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     const tenantId = tenant._id
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)

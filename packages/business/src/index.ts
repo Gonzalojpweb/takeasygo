@@ -67,4 +67,4 @@ export {
   type RawMenuItem,
   type RawCustomizationGroup,
 } from "./menu-flatten"
-export { resolveMongoDbName, assertMongoDbName } from "./mongo"
+export { resolveMongoDbName, assertMongoDbName, isProdDefaultDbName, PROD_DEFAULT_DB_NAME } from "./mongo"

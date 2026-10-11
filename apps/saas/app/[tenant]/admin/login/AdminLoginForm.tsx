@@ -4,6 +4,7 @@ import { signIn, getSession } from 'next-auth/react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
+import { SUPPORT_EMAIL } from '@/lib/support'
 
 interface Props {
   tenantSlug: string
@@ -42,7 +43,10 @@ export default function AdminLoginForm({
       redirect: false,
     })
 
-    if (result?.error) {
+    if (result?.code === 'tenant_missing') {
+      setError(`Tu cuenta no tiene un negocio asociado. Escribinos a ${SUPPORT_EMAIL} y lo revisamos.`)
+      setLoading(false)
+    } else if (result?.error) {
       setError('Email o contraseña incorrectos')
       setLoading(false)
     } else {

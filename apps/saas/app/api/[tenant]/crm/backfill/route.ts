@@ -5,6 +5,7 @@ import Order from '@/models/Order'
 import Consumer from '@/models/Consumer'
 import { safeDecrypt, hashPhone, hashEmail, encrypt } from '@/lib/crypto'
 import { canAccess } from '@/lib/plans'
+import { requireCronSecretOrAdmin } from '@/lib/apiAuth'
 
 interface OrderGroup {
   phoneHash: string
@@ -30,6 +31,11 @@ export async function GET(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // Cerrado: era anónimo (reescribe Consumers desde órdenes). Ahora
+    // cron (CRON_SECRET) o admin del tenant.
+    const authError = await requireCronSecretOrAdmin(request, String(tenant._id))
+    if (authError) return authError
 
     if (!canAccess(tenant.plan, 'crm')) {
       return NextResponse.json({ error: 'CRM no disponible en tu plan actual.' }, { status: 403 })

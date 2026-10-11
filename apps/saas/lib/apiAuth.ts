@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'node:crypto'
 import { extractBearerToken, verifyPosToken } from '@/lib/posJwt'
 
 /**
@@ -95,6 +96,36 @@ export async function requireSuperAdmin() {
   }
 
   return null
+}
+
+/**
+ * Bearer contra CRON_SECRET (comparación timing-safe). Fail-closed: sin
+ * secreto configurado no matchea nada. Mismo patrón que los crons de
+ * /api/cron/* (p.ej. purge-soft-deleted, reconcile-payments).
+ */
+export async function requireCronSecret(request: NextRequest) {
+  const secret = process.env.CRON_SECRET
+  const authHeader = request.headers.get('authorization')
+  if (!secret || !authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const provided = Buffer.from(authHeader.slice(7))
+  const expected = Buffer.from(secret)
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  return null
+}
+
+/**
+ * Para rutas legacy sin sesión que también las corre un cron/worker:
+ * acepta CRON_SECRET (proceso de servidor) o sesión admin del tenant
+ * (futuro botón de panel). Anónimo y otros roles quedan fuera.
+ */
+export async function requireCronSecretOrAdmin(request: NextRequest, tenantId: string) {
+  const cronError = await requireCronSecret(request)
+  if (!cronError) return null
+  return requireAdminRole(request, tenantId)
 }
 
 export async function requireAdminRole(request: NextRequest, tenantId: string) {

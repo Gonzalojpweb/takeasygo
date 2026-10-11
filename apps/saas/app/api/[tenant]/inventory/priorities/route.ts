@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import { getDailyPriorities } from "@/lib/inventory"
+import { requireAuth } from "@/lib/apiAuth"
 
 // ============================================================================
 // GET /api/[tenant]/inventory/priorities — Ranking diario de prioridades EER
@@ -21,6 +22,10 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     const { searchParams } = new URL(request.url)
     const topN = Math.min(parseInt(searchParams.get("top") || "8", 10), 20)
