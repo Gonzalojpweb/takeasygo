@@ -1,9 +1,9 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import CorporateAccount from '@/models/CorporateAccount'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { requireCorpAccess } from '@/lib/corpAuth'
 
 export async function DELETE(
   request: NextRequest,
@@ -12,6 +12,9 @@ export async function DELETE(
   try {
     const { tenant: tenantSlug, token, itemIndex } = await params
     await connectDB()
+
+    const authz = await requireCorpAccess(request, tenantSlug, { requireRole: 'admin' })
+    if (!authz.ok) return authz.response
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
     if (!tenant) {
@@ -27,19 +30,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Sesión grupal no encontrada o ya cerrada' }, { status: 404 })
     }
 
-    // Validate request comes from company admin
-    const body = await request.json()
-    const email = body?.email?.toLowerCase().trim()
-    if (!email) {
-      return NextResponse.json({ error: 'Email requerido' }, { status: 400 })
-    }
-
-    const corpAccount = await CorporateAccount.findOne({
-      _id: order.corporateAccountId,
-      status: 'active',
-    }).lean()
-
-    if (!corpAccount || corpAccount.companyAdminEmail.toLowerCase() !== email) {
+    if (String(order.corporateAccountId) !== String(authz.access.account._id)) {
       return NextResponse.json({ error: 'Solo el mail de empresa puede eliminar items' }, { status: 403 })
     }
 

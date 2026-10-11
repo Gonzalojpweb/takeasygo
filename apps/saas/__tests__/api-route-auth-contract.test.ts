@@ -18,7 +18,7 @@ import { join } from 'node:path'
 const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 
 const GUARD_RE =
-  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\bgetSessionUser\b|\bposRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b/
+  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b/
 
 const OPEN_BY_DESIGN = new Set([
   // PÚBLICO por diseño (carta, cotizaciones, eventos, feedback, promo)
@@ -66,19 +66,11 @@ const OPEN_BY_DESIGN = new Set([
   'promotions/loyalty-register/route.ts',
   'reservas/preference/route.ts',
 
-  // STAFF-empresa B2B por email (decisión de modelo, tanda 6 corp)
-  'business/corp/employees/route.ts',
-  'business/corp/employees/[email]/route.ts',
-  'business/corp/orders/route.ts',
-  'business/corp/orders/export/route.ts',
-  'business/corp/summary/route.ts',
-  'business/group-session/route.ts',
+  // STAFF-empresa B2B: cerradas con requireCorpAccess (sesión NextAuth +
+  // companyAdminEmail/employeeEmails + acceso al tenant). Siguen abiertas
+  // solo el consumo por token de sesión grupal y la puerta de entrada
+  // verify-email (rate limit propio).
   'business/group-session/[token]/route.ts',
-  'business/group-session/[token]/cancel/route.ts',
-  'business/group-session/[token]/confirm/route.ts',
-  'business/group-session/[token]/extend/route.ts',
-  'business/group-session/[token]/items/route.ts',
-  'business/group-session/[token]/items/[itemIndex]/route.ts',
   'business/verify-email/route.ts',
 
   // PENDIENTES de decisión (no cerrar todavía)

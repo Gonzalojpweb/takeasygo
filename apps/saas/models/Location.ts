@@ -130,6 +130,14 @@ export interface ILocation extends Document {
     /** Última vez que un dispositivo POS de la sede reportó heartbeat */
     lastSeenAt?: Date | null
   }
+  /** Agente de impresión (printer-agent) de esta sede */
+  printerAgent?: {
+    /** SHA-256 del token del agente (token solo se ve al generar/rotar) */
+    secretHash?: string | null
+    lastSeenAt?: Date | null
+    version?: string | null
+    tokenPresent?: boolean
+  }
   scheduledOrdersConfig?: {
     enabled: boolean
     maxAdvanceHours: number
@@ -328,6 +336,15 @@ settings: {
     pausedReason: { type: String, default: null },
     pos: {
       lastSeenAt: { type: Date, default: null },
+    },
+    printerAgent: {
+      type: {
+        secretHash:   { type: String, default: null },
+        lastSeenAt:   { type: Date, default: null },
+        version:      { type: String, default: null },
+        tokenPresent: { type: Boolean, default: false },
+      },
+      default: { secretHash: null, lastSeenAt: null, version: null, tokenPresent: false },
     },
     scheduledOrdersConfig: {
       enabled: { type: Boolean, default: false },

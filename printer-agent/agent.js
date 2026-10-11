@@ -32,7 +32,8 @@ let config = {
     tenantSlug: null,
     locationId: null,
     pollInterval: 15000,
-    autoUpdate: false
+    autoUpdate: false,
+    agentToken: null
 };
 
 if (fs.existsSync(CONFIG_PATH)) {
@@ -54,6 +55,13 @@ if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
     console.log('    Ejecuta SETUP.bat para configurar el agente.');
     console.log('');
     process.exit(1);
+}
+
+// Headers comunes de todo request al SaaS (poll + confirmaciones)
+function agentHeaders() {
+    const h = { 'X-Agent-Version': LOCAL_VERSION };
+    if (config.agentToken) h['X-Agent-Token'] = config.agentToken;
+    return h;
 }
 
 // ============================================================================
@@ -853,7 +861,7 @@ function processPreCloseJob(preCloseJob) {
             printerName: preCloseJob.printerName,
             success: false,
             errorMsg: `Impresora "${preCloseJob.printerName}" no encontrada`
-        }).catch(() => {});
+        }, { headers: agentHeaders() }).catch(() => {});
         return;
     }
 
@@ -867,7 +875,7 @@ function processPreCloseJob(preCloseJob) {
                 printerName: printer.name,
                 success,
                 errorMsg
-            });
+            }, { headers: agentHeaders() });
             console.log(`[CLOUD] PreClose ${preCloseJob._id} sincronizado`);
         } catch (e) {
             console.error(`[CLOUD ERROR] No se pudo confirmar pre-close: ${e.message}`);
@@ -885,7 +893,7 @@ async function reportJobFailure(job, errorMsg) {
             printJobId: job.printJobId,
             success: false,
             errorMsg,
-        });
+        }, { headers: agentHeaders() });
         console.log(`[CLOUD] Job ${job.printJobId} marcado como fallido`);
     } catch (e) {
         console.error(`[CLOUD ERROR] No se pudo reportar fallo: ${e.message}`);
@@ -908,7 +916,7 @@ async function poll() {
     try {
         const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs?locationId=${config.locationId}`;
         const response = await axios.get(url, {
-            headers: { 'X-Agent-Version': LOCAL_VERSION }
+            headers: agentHeaders()
         });
         const data = response.data;
 
@@ -944,7 +952,7 @@ async function poll() {
                             printJobId: job.printJobId,
                             success,
                             errorMsg
-                        });
+                        }, { headers: agentHeaders() });
                         console.log(`[CLOUD] Job ${job.printJobId} sincronizado`);
                     } catch (e) {
                         console.error(`[CLOUD ERROR] No se pudo sincronizar job: ${e.message}`);
@@ -1007,7 +1015,7 @@ async function poll() {
                                         role: role,
                                         success,
                                         errorMsg
-                                    });
+                                    }, { headers: agentHeaders() });
                                 } catch (e) {
                                     console.error(`[CLOUD ERROR] ${e.message}`);
                                 }
@@ -1048,6 +1056,7 @@ Sede:      ${config.locationId}
 API:       ${config.apiUrl}
 Intervalo: ${config.pollInterval}ms (adaptativo: ${MIN_INTERVAL}ms - ${MAX_INTERVAL}ms)
 AutoUpdate: ${config.autoUpdate ? 'HABILITADO' : 'DESHABILITADO'}
+Token:      ${config.agentToken ? 'configurado' : 'sin configurar'}
 Version:   ${LOCAL_VERSION}
 ------------------------------------------
 `);

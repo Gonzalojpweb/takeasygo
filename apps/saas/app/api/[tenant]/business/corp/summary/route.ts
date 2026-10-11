@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import CorporateAccount from '@/models/CorporateAccount'
+import { requireCorpAccess } from '@/lib/corpAuth'
 
 export async function GET(
   request: NextRequest,
@@ -12,35 +12,22 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    const authz = await requireCorpAccess(request, tenantSlug)
+    if (!authz.ok) return authz.response
+
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
     const { searchParams } = new URL(request.url)
-    const corporateAccountId = searchParams.get('corporateAccountId')
-    const email = searchParams.get('email')
     const periodStart = searchParams.get('periodStart')
     const periodEnd = searchParams.get('periodEnd')
-
-    if (!corporateAccountId || !email) {
-      return NextResponse.json({ error: 'Faltan parámetros de autenticación' }, { status: 400 })
-    }
-
-    const corpAccount = await CorporateAccount.findOne({
-      _id: corporateAccountId,
-      tenantId: tenant._id,
-      status: 'active',
-      companyAdminEmail: email.toLowerCase().trim(),
-    }).lean()
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
 
     const filter: Record<string, any> = {
       tenantId: tenant._id,
       deletedAt: null,
-      corporateAccountId: corpAccount._id,
+      corporateAccountId: authz.access.account._id,
       orderMode: 'business',
       status: { $nin: ['open', 'cancelled'] },
     }
