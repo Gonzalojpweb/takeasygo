@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt } from '@/lib/crypto'
+import { signMpOauthState } from '@/lib/mp-oauth-state'
 
 /**
  * GET /api/[tenant]/admin/mp-oauth/connect
@@ -11,6 +12,9 @@ import { decrypt } from '@/lib/crypto'
  * Redirects the tenant admin to MercadoPago OAuth authorization page.
  * The tenant will be asked to authorize TakeasyGO to act as a marketplace.
  * Uses OAuth credentials from PlatformConfig (configured by superadmin).
+ *
+ * Requiere sesión de admin (o superadmin) PERTENECIENTE al tenant de la URL.
+ * El state va firmado (HMAC + exp) y el callback valida firma + sesión + tenant.
  */
 export async function GET(
   request: NextRequest,
@@ -21,6 +25,15 @@ export async function GET(
   const session = await auth()
   if (!session?.user) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const role = session.user.role
+  const isSuperAdmin = role === 'superadmin'
+  if (!isSuperAdmin && role !== 'admin') {
+    return NextResponse.json({ error: 'Acceso denegado. Se requiere rol de administrador.' }, { status: 403 })
+  }
+  if (!isSuperAdmin && session.user.tenantSlug !== tenantSlug) {
+    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
   }
 
   await connectDB()
@@ -36,10 +49,10 @@ export async function GET(
     return NextResponse.json({ error: 'OAuth no configurado. El superadmin debe configurar las credenciales OAuth en la plataforma.' }, { status: 500 })
   }
 
-  // State includes tenant slug for verification in callback
-  // accountId is optional — if provided, OAuth will save tokens to that specific account
+  // State firmado: HMAC + nonce + expiración, atado al tenant de la URL.
+  // accountId es opcional — si viene, el callback guarda los tokens en esa cuenta.
   const urlAccountId = request.nextUrl.searchParams.get('accountId')
-  const state = Buffer.from(JSON.stringify({ tenantSlug, accountId: urlAccountId || undefined, ts: Date.now() })).toString('base64url')
+  const state = signMpOauthState({ tenantSlug, accountId: urlAccountId })
 
   const authUrl = new URL('https://auth.mercadopago.com/authorization')
   authUrl.searchParams.set('client_id', MP_APP_ID)
