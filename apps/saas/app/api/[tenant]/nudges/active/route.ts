@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import mongoose from "mongoose"
 import { getActiveNudges, dismissNudge } from "@/lib/nudge-engine"
 import { connectDB } from "@/lib/mongoose"
+import { rateLimit } from "@/lib/rateLimit"
 
 export const dynamic = "force-dynamic"
 
@@ -21,11 +22,17 @@ function tenantFilter(tenantSlug: string) {
  * POST: Dismiss a nudge
  */
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
     const { tenant: tenantSlug } = await params
+
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const { success } = await rateLimit(`nudges:${tenantSlug}:${ip}`, 30, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
 
     await connectDB()
 
@@ -48,7 +55,7 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
@@ -57,6 +64,12 @@ export async function POST(
 
     if (!nudgeId) {
       return NextResponse.json({ error: "nudgeId is required" }, { status: 400 })
+    }
+
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const { success } = await rateLimit(`nudges-dismiss:${tenantSlug}:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
     }
 
     await connectDB()

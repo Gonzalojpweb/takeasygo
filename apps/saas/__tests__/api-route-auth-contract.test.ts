@@ -47,7 +47,7 @@ const OPEN_BY_DESIGN = new Set([
   'loyalty/lookup/route.ts',
   'loyalty/register/route.ts',
   'menu/items/[itemId]/like/route.ts',
-  'nudges/active/route.ts',
+  'nudges/active/route.ts', // rate limit por IP (GET 30/min, POST dismiss 10/min)
   'orders/lookup-by-phone/route.ts', // rate limit 5/min + hashPhone
   'orders/verify-payment-by-number/route.ts', // fallback checkout; rate limit 10/min por número+IP
   'orders/[orderId]/cancel-awaiting/route.ts',
@@ -57,7 +57,7 @@ const OPEN_BY_DESIGN = new Set([
   'orders/[orderId]/confirm-internal/route.ts',
   'orders/[orderId]/external-confirm/route.ts',
   'orders/[orderId]/payment-options/route.ts',
-  'orders/[orderId]/rapiboy-debug/route.ts',
+  'orders/[orderId]/rapiboy-debug/route.ts', // dev-only: 404 en producción (NODE_ENV/VERCEL_ENV)
   'orders/[orderId]/rate/route.ts',
   'orders/[orderId]/track/route.ts',
   'orders/[orderId]/verify-payment/route.ts', // fallback checkout; rate limit 10/min por orden+IP
