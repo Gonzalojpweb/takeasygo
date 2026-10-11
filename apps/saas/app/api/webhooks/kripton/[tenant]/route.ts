@@ -23,6 +23,15 @@ export async function POST(
   const { tenant: tenantSlug } = await params
 
   try {
+    // Fase 1 (log): observar si Kripton llega a enviar headers de firma.
+    // Mientras no haya doc/secret de firma, la única validación real es la
+    // cross-validation contra la API de Kripton más abajo (no confiamos del body).
+    const sigHeaders = ['x-signature', 'x-kripton-signature', 'x-webhook-signature', 'x-hub-signature']
+      .filter((h) => request.headers.get(h))
+    if (sigHeaders.length > 0) {
+      console.warn(`[Webhook Kripton][${tenantSlug}] headers de firma presentes: ${sigHeaders.join(', ')} — evaluar enforce si el proveedor confirmó firma`)
+    }
+
     await connectDB()
     const body = await request.json()
 
