@@ -74,26 +74,32 @@ export async function GET(
 
     // ── Fase 1 (solo registro): heartbeat del agente + observación del
     //    token. NO se bloquea por token ausente/inválido todavía.
+    //    Escritura/log a lo sumo 1 vez por minuto por sede (el poll es
+    //    cada 5 s en horario de servicio).
     const agentToken = request.headers.get('x-agent-token')
-    let tokenStatus: 'match' | 'invalid' | 'missing' = 'missing'
-    if (agentToken) {
-      const presentedHash = crypto.createHash('sha256').update(agentToken).digest('hex')
-      const expectedHash = location.printerAgent?.secretHash
-      tokenStatus = expectedHash && timingSafeEqualHex(presentedHash, expectedHash) ? 'match' : 'invalid'
-    }
-    console.log(
-      `[print-jobs] poll tenant=${tenantSlug} location=${location.name} v=${agentVersion ?? '?'} token=${tokenStatus}`
-    )
-    await Location.updateOne(
-      { _id: location._id },
-      {
-        $set: {
-          'printerAgent.lastSeenAt': new Date(),
-          'printerAgent.version': agentVersion ?? null,
-          'printerAgent.tokenPresent': Boolean(agentToken),
-        },
+    const lastSeenAt = location.printerAgent?.lastSeenAt
+    const shouldRecord = !lastSeenAt || Date.now() - new Date(lastSeenAt).getTime() >= 60_000
+    if (shouldRecord) {
+      let tokenStatus: 'match' | 'invalid' | 'missing' = 'missing'
+      if (agentToken) {
+        const presentedHash = crypto.createHash('sha256').update(agentToken).digest('hex')
+        const expectedHash = location.printerAgent?.secretHash
+        tokenStatus = expectedHash && timingSafeEqualHex(presentedHash, expectedHash) ? 'match' : 'invalid'
       }
-    )
+      console.log(
+        `[print-jobs] poll tenant=${tenantSlug} location=${location.name} v=${agentVersion ?? '?'} token=${tokenStatus}`
+      )
+      await Location.updateOne(
+        { _id: location._id },
+        {
+          $set: {
+            'printerAgent.lastSeenAt': new Date(),
+            'printerAgent.version': agentVersion ?? null,
+            'printerAgent.tokenPresent': Boolean(agentToken),
+          },
+        }
+      )
+    }
 
     const printers = await Printer.find({
       tenantId: tenant._id,
