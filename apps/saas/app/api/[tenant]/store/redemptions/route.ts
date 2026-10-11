@@ -16,7 +16,45 @@ import { syncWalletPoints } from '@/lib/walletService'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { writeCustomerEvent } from '@/lib/events-server'
+import { verifyMemberToken } from '@/lib/memberToken'
+import { getSessionUser } from '@/lib/apiAuth'
 import mongoose from 'mongoose'
+
+/**
+ * La identidad del miembro NO viene del body/query (antes cualquiera con un
+ * memberId ajeno podía canjear puntos). Se resuelve por:
+ *  1. `x-member-token` (JWT del club, flujo menú público), o
+ *  2. sesión NextAuth con match de tenant + member linkeado al userId
+ *     (flujo app /app/profile/club).
+ */
+async function resolveMemberId(
+  request: NextRequest,
+  tenantId: mongoose.Types.ObjectId
+): Promise<string | NextResponse> {
+  const token = request.headers.get('x-member-token')
+  if (token) {
+    const verification = await verifyMemberToken(token)
+    if (!verification.valid) {
+      return NextResponse.json({ error: 'Token de miembro inválido' }, { status: 401 })
+    }
+    if (verification.payload.tenantId !== tenantId.toString()) {
+      return NextResponse.json({ error: 'Token de otro tenant' }, { status: 403 })
+    }
+    return verification.payload.memberId
+  }
+
+  const user = await getSessionUser(request)
+  if (user?.id && user.tenantId === tenantId.toString()) {
+    const member = await LoyaltyMember.findOne({
+      userId: user.id,
+      tenantId,
+      status: 'active',
+    }).select('_id')
+    if (member) return member._id.toString()
+  }
+
+  return NextResponse.json({ error: 'Token de miembro requerido' }, { status: 401 })
+}
 
 export async function POST(
   request: NextRequest,
@@ -41,11 +79,15 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { memberId, storeItemId, locationId } = body
+    const { storeItemId, locationId } = body
 
-    if (!memberId || !storeItemId) {
-      return NextResponse.json({ error: 'Faltan memberId y storeItemId' }, { status: 400 })
+    if (!storeItemId) {
+      return NextResponse.json({ error: 'Falta storeItemId' }, { status: 400 })
     }
+
+    const resolvedMemberId = await resolveMemberId(request, tenant._id)
+    if (resolvedMemberId instanceof NextResponse) return resolvedMemberId
+    const memberId = resolvedMemberId
 
     // Rate limiting: max 5 intentos de canje por miembro en 60 segundos
     const rl = await rateLimit(`redeem:${tenantSlug}:${memberId}`, 5, 60_000)
@@ -315,16 +357,14 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const resolvedMemberId = await resolveMemberId(request, tenant._id)
+    if (resolvedMemberId instanceof NextResponse) return resolvedMemberId
+
     const { searchParams } = new URL(request.url)
-    const memberId = searchParams.get('memberId')
     const status = searchParams.get('status')
     const locationId = searchParams.get('locationId')
 
-    if (!memberId) {
-      return NextResponse.json({ error: 'Se requiere memberId' }, { status: 400 })
-    }
-
-    const query: any = { tenantId: tenant._id, memberId }
+    const query: any = { tenantId: tenant._id, memberId: resolvedMemberId }
     if (status) query.status = status
     if (locationId) query.locationId = locationId
 

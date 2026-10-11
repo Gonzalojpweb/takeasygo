@@ -2,15 +2,24 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
+import { rateLimit } from '@/lib/rateLimit'
 
-// Endpoint público — el cliente confirma que retiró su pedido
-// No requiere autenticación; el orderId está en la URL y solo funciona si el pedido está en estado 'ready'
+// Endpoint público (tracking sin sesión). El `x-tracking-token` es
+// obligatorio: sin él, conocer el orderId bastaba para marcar el retiro
+// y concretar el cobro en efectivo.
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
 ) {
   try {
     const { tenant: tenantSlug, orderId } = await params
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+
+    const { success } = await rateLimit(`pickup:${tenantSlug}:${orderId}:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiados intentos. Esperá un momento.' }, { status: 429 })
+    }
+
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
@@ -18,9 +27,18 @@ export async function PATCH(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    const trackingToken = request.headers.get('x-tracking-token')
+    if (!trackingToken) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    }
+
+    if (!order.trackingToken || order.trackingToken !== trackingToken) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
     }
 
     if (order.status !== 'ready') {

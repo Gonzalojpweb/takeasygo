@@ -18,7 +18,7 @@ import { join } from 'node:path'
 const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 
 const GUARD_RE =
-  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\bgetSessionUser\b|\bposRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)/
+  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\bgetSessionUser\b|\bposRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b/
 
 const OPEN_BY_DESIGN = new Set([
   // PÚBLICO por diseño (carta, cotizaciones, eventos, feedback, promo)
@@ -48,22 +48,19 @@ const OPEN_BY_DESIGN = new Set([
   'loyalty/register/route.ts',
   'menu/items/[itemId]/like/route.ts',
   'nudges/active/route.ts',
-  'orders/lookup-by-phone/route.ts',
-  'orders/verify-payment-by-number/route.ts',
+  'orders/lookup-by-phone/route.ts', // rate limit 5/min + hashPhone
+  'orders/verify-payment-by-number/route.ts', // fallback checkout; rate limit 10/min por número+IP
   'orders/[orderId]/cancel-awaiting/route.ts',
   'orders/[orderId]/cancel-by-client/route.ts',
   'orders/[orderId]/cart-restore/route.ts',
   'orders/[orderId]/change-payment-method/route.ts',
   'orders/[orderId]/confirm-internal/route.ts',
-  'orders/[orderId]/confirm-transfer-client/route.ts',
   'orders/[orderId]/external-confirm/route.ts',
   'orders/[orderId]/payment-options/route.ts',
-  'orders/[orderId]/pickup/route.ts',
   'orders/[orderId]/rapiboy-debug/route.ts',
-  'orders/[orderId]/rapiboy-price-accept/route.ts',
   'orders/[orderId]/rate/route.ts',
   'orders/[orderId]/track/route.ts',
-  'orders/[orderId]/verify-payment/route.ts',
+  'orders/[orderId]/verify-payment/route.ts', // fallback checkout; rate limit 10/min por orden+IP
   'payments/create-kripton-preference/route.ts',
   'payments/create-preference/route.ts',
   'promotions/loyalty-register/route.ts',
@@ -85,9 +82,8 @@ const OPEN_BY_DESIGN = new Set([
   'business/verify-email/route.ts',
 
   // PENDIENTES de decisión (no cerrar todavía)
-  'menu/translate-all/route.ts', // lo usa el menú público (vista de cliente)
-  'print-jobs/route.ts', // agente de impresora sin sesión; requiere token de agente
-  'store/redemptions/route.ts', // memberId en body; requiere x-member-token
+  'menu/translate-all/route.ts', // lo usa el menú público; rate limit IP 5/min + caché por sede
+  'print-jobs/route.ts', // agente de impresora sin sesión; requiere token de agente (fase 1 log)
 ])
 
 function listRouteFiles(dir: string, prefix = ''): string[] {

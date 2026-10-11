@@ -6,6 +6,7 @@ import { sendWhatsApp } from '@/lib/whatsapp'
 import { safeDecrypt } from '@/lib/crypto'
 import { toPesos } from '@takeasygo/business'
 import { sendAdminPushNotification } from '@/lib/push'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function PATCH(
   request: NextRequest,
@@ -13,6 +14,14 @@ export async function PATCH(
 ) {
   try {
     const { tenant: tenantSlug, orderId } = await params
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+
+    const { success } = await rateLimit(
+      `transfer-client:${tenantSlug}:${orderId}:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiados intentos. Esperá un momento.' }, { status: 429 })
+    }
+
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })
@@ -20,9 +29,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
+    // Endpoint público (tracking sin sesión): x-tracking-token obligatorio.
+    const trackingToken = request.headers.get('x-tracking-token')
+    if (!trackingToken) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    }
+
+    if (!order.trackingToken || order.trackingToken !== trackingToken) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
     }
 
     if (order.payment.method !== 'transfer') {

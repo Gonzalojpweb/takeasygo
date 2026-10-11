@@ -26,12 +26,11 @@ interface Redemption {
 
 interface Props {
   tenantSlug: string
-  memberId: string
   onBack: () => void
   menuUrl?: string
 }
 
-export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }: Props) {
+export default function MyRedemptions({ tenantSlug, onBack, menuUrl }: Props) {
   const haptic = useHaptic()
   const router = useRouter()
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
@@ -46,10 +45,14 @@ export default function MyRedemptions({ tenantSlug, memberId, onBack, menuUrl }:
     setLoading(true)
     try {
       const params = new URLSearchParams()
-      params.append('memberId', memberId)
       if (filterStatus !== 'all') params.append('status', filterStatus)
 
-      const res = await fetch(`/api/${tenantSlug}/store/redemptions?${params}`)
+      const memberToken = typeof window !== 'undefined'
+        ? localStorage.getItem(`club_token_${tenantSlug}`)
+        : null
+      const res = await fetch(`/api/${tenantSlug}/store/redemptions?${params}`, {
+        headers: memberToken ? { 'x-member-token': memberToken } : {},
+      })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error al cargar redenciones')
       setRedemptions(data.redemptions || [])

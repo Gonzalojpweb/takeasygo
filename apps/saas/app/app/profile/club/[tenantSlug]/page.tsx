@@ -214,7 +214,6 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
       ) : currentTab === 'canjes' && clubData?.member ? (
         <MyRedemptions
           tenantSlug={tenantSlug}
-          memberId={clubData.member.id}
           onBack={() => router.replace(`${pathname}?tab=club`)}
           menuUrl={menuUrl ?? undefined}
         />
