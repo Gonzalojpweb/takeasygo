@@ -1475,7 +1475,8 @@ export async function POST(
         member,
         body.rewardItems.map((r: any) => r.storeItemId),
         body.loyaltyPointsRequired ?? 0,
-        tenant
+        tenant,
+        body.locationId
       )
 
       if (!validation.valid) {

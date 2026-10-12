@@ -88,7 +88,8 @@ export async function validateCheckoutRewards(
   member: any,
   rewardItemIds: string[],
   loyaltyPointsRequired: number,
-  tenant: any
+  tenant: any,
+  locationId?: string
 ): Promise<{ valid: boolean; error?: string; resolved: any[]; microSosRequired?: boolean }> {
   if (!rewardItemIds || rewardItemIds.length === 0) {
     return { valid: true, resolved: [] }
@@ -97,14 +98,16 @@ export async function validateCheckoutRewards(
     return { valid: false, error: 'Puntos requeridos inválidos', resolved: [] }
   }
 
+  // Buscar items que estén disponibles en la ubicación especificada o globalmente
+  const locationQuery = locationId
+    ? { $or: [{ locationId: null }, { locationId: { $exists: false } }, { locationId }] }
+    : { $or: [{ locationId: null }, { locationId: { $exists: false } }] }
+
   const items = await StoreItem.find({
     _id: { $in: rewardItemIds },
     tenantId: tenant._id,
     isActive: true,
-    $or: [
-      { locationId: null },
-      { locationId: { $exists: false } },
-    ],
+    ...locationQuery,
   }).lean()
 
   if (items.length !== rewardItemIds.length) {

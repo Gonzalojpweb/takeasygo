@@ -46,6 +46,7 @@ interface Props {
   clubName?: string
   onBack?: () => void
   menuUrl?: string
+  isAuthenticated?: boolean // Indica si el usuario está autenticado vía NextAuth
 }
 
 const CATEGORIES = [
@@ -56,7 +57,7 @@ const CATEGORIES = [
   { value: 'experience', label: 'Experiencia', icon: '🎟️' },
 ]
 
-export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, clubName, onBack, menuUrl }: Props) {
+export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, clubName, onBack, menuUrl, isAuthenticated = false }: Props) {
   const haptic = useHaptic()
   const router = useRouter()
   const [items, setItems] = useState<StoreItem[]>([])
@@ -110,9 +111,12 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     const clicked = items.find(i => i._id === itemId)
     trackRewardInteraction({ rewardId: itemId, type: 'store_item', value: clicked?.pointsCost, action: 'tap', tenantSlug })
     try {
-      const memberToken = typeof window !== 'undefined'
+      // Si está autenticado vía NextAuth, no enviamos el token (el backend usará la sesión)
+      // Si no está autenticado, intentamos usar el token de localStorage
+      const memberToken = !isAuthenticated && typeof window !== 'undefined'
         ? localStorage.getItem(`club_token_${tenantSlug}`)
         : null
+
       const res = await fetch(`/api/${tenantSlug}/store/redemptions`, {
         method: 'POST',
         headers: {

@@ -29,9 +29,10 @@ interface Props {
   clubName?: string
   onBack: () => void
   menuUrl?: string
+  isAuthenticated?: boolean
 }
 
-export default function MyRedemptions({ tenantSlug, clubName, onBack, menuUrl }: Props) {
+export default function MyRedemptions({ tenantSlug, clubName, onBack, menuUrl, isAuthenticated = false }: Props) {
   const haptic = useHaptic()
   const router = useRouter()
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
@@ -48,9 +49,12 @@ export default function MyRedemptions({ tenantSlug, clubName, onBack, menuUrl }:
       const params = new URLSearchParams()
       if (filterStatus !== 'all') params.append('status', filterStatus)
 
-      const memberToken = typeof window !== 'undefined'
+      // Si está autenticado vía NextAuth, no enviamos el token (el backend usará la sesión)
+      // Si no está autenticado, intentamos usar el token de localStorage
+      const memberToken = !isAuthenticated && typeof window !== 'undefined'
         ? localStorage.getItem(`club_token_${tenantSlug}`)
         : null
+
       const res = await fetch(`/api/${tenantSlug}/store/redemptions?${params}`, {
         headers: memberToken ? { 'x-member-token': memberToken } : {},
       })
