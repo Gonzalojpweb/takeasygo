@@ -1,0 +1,20 @@
+name: data-guard
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  block-data-dumps:
+    name: Bloquear volcados de datos de clientes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: audit-data-* no debe estar trackeado
+        run: |
+          if git ls-files | grep -E '(^|/)audit-data-[^/]+/'; then
+            echo "::error::El repo incluye archivos bajo carpetas audit-data-* (datos de clientes). Evidencias van FUERA del repo."
+            exit 1
+          fi
+          echo "OK: sin volcados de datos trackeados."
