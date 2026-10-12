@@ -173,7 +173,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
           }}
         >
           <ArrowLeft size={18} />
-          VOLVER AL MENU DE {clubData?.clubName?.toUpperCase() || 'CLUB'}
+          Volver a opciones de {clubData?.clubName?.toUpperCase() || 'CLUB'}
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -239,7 +239,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
               }}
             >
               <ArrowLeft size={18} />
-              VOLVER AL MENU DE {clubData?.clubName?.toUpperCase() || 'CLUB'}
+              Volver a opciones de {clubData?.clubName?.toUpperCase() || 'CLUB'}
             </button>
 
             {menuUrl && (
