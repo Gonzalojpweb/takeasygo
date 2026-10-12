@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import bcrypt from 'bcryptjs'
 
-export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'waiter' | 'consumer' | 'seller'
+export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'consumer' | 'seller'
 
 export interface IUser extends Document {
   name: string
@@ -75,7 +75,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier', 'waiter', 'consumer', 'seller'],
+      enum: ['superadmin', 'admin', 'manager', 'staff', 'cashier', 'waiter', 'host', 'auditor', 'consumer', 'seller'],
       required: true,
       default: 'consumer',
     },
