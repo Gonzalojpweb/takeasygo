@@ -1000,11 +1000,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
       {/* Global Actions */}
       <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="px-4 py-1.5 border-2 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Badge variant="outline" className="px-3 sm:px-4 py-1.5 border-2 border-primary/20 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest whitespace-nowrap">
             {currentMenu?.categories?.length || 0} Categorías
           </Badge>
-          <p className="text-muted-foreground text-sm font-medium tabular-nums">
+          <p className="text-muted-foreground text-xs sm:text-sm font-medium tabular-nums">
             {currentMenu?.categories?.reduce((acc: number, cat: any) => {
               const direct = cat.items?.length || 0
               const sub = (cat.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
@@ -1017,15 +1017,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
           <Button
             onClick={() => setShowImport(true)}
             variant="outline"
-            className="border-2 border-border/80 rounded-xl font-bold text-xs px-5 hover:bg-muted transition-all"
+            className="border-2 border-border/80 rounded-xl font-bold text-xs px-3 sm:px-5 hover:bg-muted transition-all"
           >
-            <Upload size={14} className="mr-2" /> Importar
+            <Upload size={14} className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Importar</span>
           </Button>
           <Button
             onClick={() => setShowAddCategory(true)}
-            className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-5 shadow-lg shadow-primary/20 transition-all active:scale-95"
+            className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl px-3 sm:px-5 shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
-            <Plus size={16} className="mr-2 stroke-[3px]" /> Nueva categoría
+            <Plus size={16} className="mr-1 sm:mr-2 stroke-[3px]" /> <span className="hidden sm:inline">Nueva categoría</span><span className="sm:hidden">Nueva</span>
           </Button>
         </div>
       </div>
@@ -1033,7 +1033,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       {/* Global Search */}
       {currentMenu && (
         <div className="relative">
-          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Search size={16} className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <input
             type="text"
             placeholder="Buscar producto, categoría o tag..."
@@ -1049,7 +1049,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                 expandedBeforeSearchRef.current = [...expandedCategories]
               }
             }}
-            className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-2xl pl-12 pr-12 py-3.5 outline-none shadow-sm transition-all"
+            className="w-full bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-sm font-medium rounded-2xl pl-10 sm:pl-12 pr-10 sm:pr-12 py-3 sm:py-3.5 outline-none shadow-sm transition-all"
           />
           {globalSearch && (
             <>
@@ -1059,11 +1059,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                   setExpandedCategories(expandedBeforeSearchRef.current)
                   setGlobalSearch('')
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
+                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs p-1"
               >
                 ✕
               </button>
-              <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest tabular-nums">
+              <span className="absolute right-9 sm:right-12 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest tabular-nums hidden sm:inline">
                 {(() => {
                   const q = globalSearch.toLowerCase()
                   let count = 0
@@ -1179,25 +1179,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                     )}
                     onClick={() => toggleCategory(category._id)}
                   >
-                    <div className="p-6 flex items-center justify-between">
-                      <div className="flex items-center gap-5 flex-1 min-w-0">
+                    <div className="p-4 sm:p-6 flex items-center justify-between">
+                      <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                         <div
                           className={cn(
-                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm",
+                            "w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center transition-all duration-500 shadow-sm flex-shrink-0",
                             isExpanded ? "bg-primary text-white scale-110" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
                           )}
                         >
                           {category.imageUrl ? (
                             <img src={category.imageUrl} alt="" className="w-full h-full object-cover rounded-2xl" />
                           ) : (
-                            <Layers size={20} className={isExpanded ? "animate-pulse" : ""} />
+                            <Layers size={16} className={isExpanded ? "animate-pulse sm:size-20" : "sm:size-20"} />
                           )}
                         </div>
 
                         <div className="flex-1 min-w-0">
                           {editingCategory === category._id ? (
                             <input
-                              className="bg-white border-2 border-primary focus:border-primary text-foreground text-lg font-bold rounded-xl px-4 py-1 outline-none w-full max-w-sm shadow-inner"
+                              className="bg-white border-2 border-primary focus:border-primary text-foreground text-base sm:text-lg font-bold rounded-xl px-3 sm:px-4 py-1 outline-none w-full max-w-sm shadow-inner"
                               value={editingCategoryName}
                               onChange={e => setEditingCategoryName(e.target.value)}
                               onClick={e => e.stopPropagation()}
@@ -1205,26 +1205,26 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               autoFocus
                             />
                           ) : (
-                            <div className="flex items-center gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                               <h3 className={cn(
-                                "text-xl tracking-tight transition-colors truncate",
+                                "text-base sm:text-xl tracking-tight transition-colors truncate",
                                 isExpanded ? "font-bold text-foreground" : "font-semibold"
                               )}>
                                 {category.name}
                               </h3>
-                              <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70">
+                              <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70 flex-shrink-0">
                                 {(() => {
                                    const subcatItems = (category.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
                                    return (category.items || []).length + subcatItems
                                 })()} items
                               </Badge>
                               {!category.isAvailable && (
-                                <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
                                   No disponible
                                 </Badge>
                               )}
                               {category.isBusinessAvailable && (
-                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
                                   Business
                                 </Badge>
                               )}
@@ -1854,12 +1854,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                               ]).filter((i: any) => i._id !== item._id)}
                                                             />
                                                           ) : (
-                                                            <div className="flex items-center justify-between gap-2">
-                                                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                                              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
                                                                 <GripVertical size={12} className="text-muted-foreground/30 cursor-grab active:cursor-grabbing flex-shrink-0" />
                                                                 <div className="flex-1 min-w-0">
-                                                                  <p className="text-sm font-bold text-foreground">{item.name}</p>
-                                                                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                                  <p className="text-sm font-bold text-foreground truncate">{item.name}</p>
+                                                                  <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 flex-wrap">
                                                                     <span className="text-xs font-bold tabular-nums" style={{color: 'var(--primary)'}}>${toPesos(item.price).toLocaleString('es-AR')}</span>
                                                                     {item.takeawayPrice && item.takeawayPrice !== item.price && (
                                                                       <span className="text-[10px] font-bold text-orange-600">TA ${toPesos(item.takeawayPrice).toLocaleString('es-AR')}</span>
@@ -1870,7 +1870,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                                   </div>
                                                                 </div>
                                                               </div>
-                                                              <div className="flex items-center gap-1">
+                                                              <div className="flex items-center gap-1 flex-shrink-0">
                                                                 <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg"
                                                                   onClick={() => {
                                                                     setEditingItem(item._id)
@@ -2021,9 +2021,9 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                           allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])]).filter((i: any) => i._id !== item._id)}
                                         />
                                       ) : (
-                                        <div className="flex items-center justify-between gap-4">
-                                          <div className="flex items-center gap-4 flex-1 min-w-0 py-2">
-                                            <div className="h-14 w-14 rounded-2xl bg-muted overflow-hidden flex-shrink-0 border border-border shadow-inner">
+                                        <div className="flex items-center justify-between gap-2 sm:gap-4">
+                                          <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 py-2">
+                                            <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl bg-muted overflow-hidden flex-shrink-0 border border-border shadow-inner">
                                               {item.imageUrl ? (
                                                 <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
                                               ) : (
@@ -2032,71 +2032,76 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 </div>
                                               )}
                                             </div>
-      
+
                                             <div className="flex-1 min-w-0">
                                               <div className="flex items-center gap-2 flex-wrap">
-                                                <p className="text-foreground text-base font-bold tracking-tight">{item.name}</p>
+                                                <p className="text-foreground text-sm sm:text-base font-bold tracking-tight truncate">{item.name}</p>
                                                 {item.isFeatured && (
-                                                  <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                                  <Badge className="bg-amber-100 text-amber-600 hover:bg-amber-100 border-amber-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
                                                     ★ Destacado
                                                   </Badge>
                                                 )}
                                                 {!item.isAvailable && (
-                                                  <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4">
+                                                  <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
                                                     No disponible
                                                   </Badge>
                                                 )}
                                               </div>
-                                              <p className="text-muted-foreground text-xs font-medium truncate opacity-80">{item.description || 'Sin descripción'}</p>
-                                              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                              <p className="text-muted-foreground text-xs font-medium truncate opacity-80 hidden sm:block">{item.description || 'Sin descripción'}</p>
+                                              <div className="flex items-center gap-1.5 sm:gap-3 mt-1.5 flex-wrap">
                                                 <div className="flex items-center gap-1.5">
-                                                  <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest">Dine-in:</span>
+                                                  <span className="text-[9px] font-black text-muted-foreground/40 uppercase tracking-widest hidden sm:inline">Dine-in:</span>
                                                   <span className="text-foreground font-bold tabular-nums text-sm">${toPesos(item.price).toLocaleString('es-AR')}</span>
                                                 </div>
                                                 {item.takeawayPrice && item.takeawayPrice !== item.price && (
-                                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-orange-50 border border-orange-200">
-                                                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none">Takeaway:</span>
+                                                  <div className="flex items-center gap-1 px-1.5 sm:gap-1.5 sm:px-2 py-0.5 rounded-lg bg-orange-50 border border-orange-200">
+                                                    <span className="text-[9px] font-black text-orange-600 uppercase tracking-widest leading-none hidden sm:inline">Takeaway:</span>
                                                     <span className="text-orange-600 font-bold tabular-nums text-sm leading-none">${toPesos(item.takeawayPrice).toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
                                                 {item.businessPrice != null && (
-                                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
-                                                    <span className="text-[9px] font-black text-primary uppercase tracking-widest leading-none">Corp:</span>
+                                                  <div className="flex items-center gap-1 px-1.5 sm:gap-1.5 sm:px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20">
+                                                    <span className="text-[9px] font-black text-primary uppercase tracking-widest leading-none hidden sm:inline">Corp:</span>
                                                     <span className="text-primary font-bold tabular-nums text-sm leading-none">${toPesos(item.businessPrice).toLocaleString('es-AR')}</span>
                                                   </div>
                                                 )}
                                                 <div className="flex gap-1 flex-wrap">
-                                                  {item.tags?.map((tag: string) => (
+                                                  {item.tags?.slice(0, 2).map((tag: string) => (
                                                     <span key={tag} className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
                                                       {tag}
                                                     </span>
                                                   ))}
+                                                  {item.tags && item.tags.length > 2 && (
+                                                    <span className="text-[10px] font-bold text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded-lg border border-border/40">
+                                                      +{item.tags.length - 2}
+                                                    </span>
+                                                  )}
                                                 </div>
                                               </div>
                                             </div>
                                           </div>
-      
-                                          <div className="flex items-center gap-1 pr-2">
+
+                                          <div className="flex items-center gap-1 pr-2 flex-shrink-0">
                                             <Button
                                               size="icon"
                                               variant="ghost"
                                               title={item.isAvailable ? 'Deshabilitar item' : 'Habilitar item'}
                                               className={cn(
-                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                "h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 rounded-xl transition-all",
                                                 item.isAvailable
                                                   ? "text-emerald-500 hover:bg-emerald-500/10"
                                                   : "text-orange-400 hover:bg-orange-400/10"
                                               )}
                                               onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
                                             >
-                                              {item.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                                              <Eye size={16} className="sm:size-18" />
                                             </Button>
                                             <Button
                                               size="icon"
                                               variant="ghost"
                                               title={item.isTakeawayAvailable !== false ? 'Deshabilitar takeaway' : 'Habilitar takeaway'}
                                               className={cn(
-                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                "h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 rounded-xl transition-all hidden sm:flex",
                                                 item.isTakeawayAvailable !== false
                                                   ? "text-sky-500 hover:bg-sky-500/10"
                                                   : "text-muted-foreground/40 hover:text-sky-500/50"
@@ -2109,12 +2114,12 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               size="icon"
                                               variant="ghost"
                                               className={cn(
-                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                "h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 rounded-xl transition-all",
                                                 item.isFeatured ? "text-amber-500 scale-105" : "text-muted-foreground hover:text-amber-500"
                                               )}
                                               onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
                                             >
-                                              <Star size={18} fill={item.isFeatured ? "currentColor" : "none"} />
+                                              <Star size={16} className="sm:size-18" fill={item.isFeatured ? "currentColor" : "none"} />
                                             </Button>
 
                                             <Button
@@ -2122,20 +2127,20 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               variant="ghost"
                                               title={item.isBusinessAvailable ? 'Deshabilitar Business' : 'Habilitar Business'}
                                               className={cn(
-                                                "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                                "h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 rounded-xl transition-all",
                                                 (item.isBusinessAvailable ?? false)
                                                   ? "text-primary hover:bg-primary/10"
                                                   : "text-muted-foreground/40 hover:text-primary/50"
                                               )}
                                               onClick={() => handleToggleBusinessAvailable(category._id, item._id, item.isBusinessAvailable ?? false)}
                                             >
-                                              <Building2 size={16} />
+                                              <Building2 size={14} className="sm:size-16" />
                                             </Button>
 
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                              className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
                                               onClick={() => {
                                                 setEditingItem(item._id)
                                                 setEditingItemData({
@@ -2167,26 +2172,26 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 })
                                               }}
                                             >
-                                              <Pencil size={18} />
+                                              <Pencil size={16} className="sm:size-18" />
                                             </Button>
 
                                             <Button
                                               size="icon"
                                               variant="ghost"
                                               title="Reemplazar ingrediente"
-                                              className="h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
+                                              className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl hidden sm:flex"
                                               onClick={() => setShowSubstituteModal({ item, categoryId: category._id })}
                                             >
-                                              <ArrowLeftRight size={18} />
+                                              <ArrowLeftRight size={16} className="sm:size-18" />
                                             </Button>
 
                                             <Button
                                               size="icon"
                                               variant="ghost"
-                                              className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                                              className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
                                               onClick={() => handleDeleteItem(category._id, item._id)}
                                             >
-                                              <Trash2 size={18} />
+                                              <Trash2 size={16} className="sm:size-18" />
                                             </Button>
                                           </div>
                                         </div>
