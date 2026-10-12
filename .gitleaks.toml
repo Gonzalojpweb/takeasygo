@@ -1,0 +1,15 @@
+# Config de gitleaks: solo se permiten estos paths (datos de staging/test,
+# sin secretos reales). Todo lo demás se reporta.
+[allowlist]
+description = "Excepciones puntuales y justificadas"
+paths = [
+  '''apps/saas/__tests__/integration/setup\.ts$''',
+  '''apps/saas/scripts/qr-promo-e2e/evidence\.md$''',
+  # TEMPORAL — hallazgos en el historial que desaparecen con la purga
+  # (borrar estas lineas despues de ejecutar git filter-repo + force-push):
+  '''apps/saas/audit-data-keke-larry/''',
+  '''apps/saas/lib/migrations/corporateaccounts_backup_2026-09-01\.json$''',
+  '''apps/sync/\.env\.example$''',
+  '''TECNICAL/ICOUPDATE\.MD$''',
+  '''clientes_carga\.csv$''',
+]
