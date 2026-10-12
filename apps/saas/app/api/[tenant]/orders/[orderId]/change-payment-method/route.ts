@@ -229,13 +229,13 @@ export async function POST(
 
     if (method === 'cash') {
       // MISMO aviso al admin que el checkout normal de efectivo.
-      await notifyCashOrderCreated({ order, tenant, tenantSlug, customerName })
-      await applyStatusTransitionSideEffects({ order, tenant })
-      // checkout_completed (gate becameCompleted + dedup atómico por orderId)
-      await captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
-        console.error('[change-payment-method] checkout_completed event error:', err)
-      )
-    }
+        await notifyCashOrderCreated({ order, tenant, tenantSlug, customerName })
+        await applyStatusTransitionSideEffects({ order, tenant })
+        // checkout_completed (gate becameCompleted + dedup atómico por orderId)
+        await captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
+          console.error('[change-payment-method] checkout_completed event error:', err)
+        )
+      }
 
     return NextResponse.json({
       ok: true,

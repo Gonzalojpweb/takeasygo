@@ -95,6 +95,7 @@ async function checkWebhookSignature(request: NextRequest, paymentId: string): P
   console.error(`[commission-webhook] firma ausente o inválida (mode=${mode}, paymentId=${paymentId}) — rechazado`)
   return false
 }
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))

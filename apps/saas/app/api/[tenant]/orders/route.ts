@@ -1894,9 +1894,9 @@ export async function POST(
     await syncOrderAfterStatusSet({
       order,
       tenant,
-      items: resolvedItems,
-      locationId: body.locationId,
-    })
+        items: resolvedItems,
+        locationId: body.locationId,
+      })
 
     // ── checkout_completed para órdenes creadas YA confirmadas ────────
     // (efectivo / business deferred). Criterio único en lib/events-server.ts:
