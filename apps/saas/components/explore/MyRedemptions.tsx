@@ -26,11 +26,12 @@ interface Redemption {
 
 interface Props {
   tenantSlug: string
+  clubName?: string
   onBack: () => void
   menuUrl?: string
 }
 
-export default function MyRedemptions({ tenantSlug, onBack, menuUrl }: Props) {
+export default function MyRedemptions({ tenantSlug, clubName, onBack, menuUrl }: Props) {
   const haptic = useHaptic()
   const router = useRouter()
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
@@ -122,19 +123,29 @@ export default function MyRedemptions({ tenantSlug, onBack, menuUrl }: Props) {
         <button
           onClick={() => { haptic.impact('light'); onBack() }}
           aria-label="Volver"
-          className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
-          style={{ color: 'var(--tgo-text-primary)' }}
+          className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+          style={{
+            color: 'var(--tgo-text-primary)',
+            backgroundColor: 'var(--tgo-card)',
+            borderColor: 'var(--tgo-border)',
+            borderRadius: 'var(--tgo-radius-md)',
+          }}
         >
           <ArrowLeft size={18} />
-          Volver
+          VOLVER AL MENU DE {clubName?.toUpperCase() || 'CLUB'}
         </button>
 
         {menuUrl && (
           <button
             onClick={() => { haptic.impact('light'); router.push(menuUrl) }}
             aria-label="Volver al menú"
-            className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
-            style={{ color: 'var(--tgo-text-primary)' }}
+            className="mb-4 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+            style={{
+              color: 'var(--tgo-text-primary)',
+              backgroundColor: 'var(--tgo-card)',
+              borderColor: 'var(--tgo-border)',
+              borderRadius: 'var(--tgo-radius-md)',
+            }}
           >
             <ArrowLeft size={18} />
             Volver al Menú

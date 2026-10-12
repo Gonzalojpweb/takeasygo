@@ -43,6 +43,7 @@ interface Props {
     secondaryColor: string
     logoUrl: string
   }
+  clubName?: string
   onBack?: () => void
   menuUrl?: string
 }
@@ -55,7 +56,7 @@ const CATEGORIES = [
   { value: 'experience', label: 'Experiencia', icon: '🎟️' },
 ]
 
-export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, onBack, menuUrl }: Props) {
+export default function StoreView({ tenantSlug, memberId, memberPoints, memberTier, tenantBranding, clubName, onBack, menuUrl }: Props) {
   const haptic = useHaptic()
   const router = useRouter()
   const [items, setItems] = useState<StoreItem[]>([])
@@ -151,6 +152,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     return (
       <MyRedemptions
         tenantSlug={tenantSlug}
+        clubName={clubName}
         onBack={() => setShowMyRedemptions(false)}
         menuUrl={menuUrl}
       />
@@ -222,9 +224,16 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
               <button
                 onClick={() => { haptic.impact('light'); onBack() }}
                 aria-label="Volver al club"
-                className="text-white hover:bg-white/10 transition-colors p-2"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+                style={{
+                  color: 'white',
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  borderRadius: 'var(--tgo-radius-md)',
+                }}
               >
-                <ArrowLeft size={24} />
+                <ArrowLeft size={18} />
+                VOLVER AL MENU DE {clubName?.toUpperCase() || 'CLUB'}
               </button>
             )}
             <h1 className="text-3xl font-black text-white tracking-tight">
@@ -236,9 +245,15 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
             <button
               onClick={() => { haptic.impact('light'); router.push(menuUrl) }}
               aria-label="Volver al menú"
-              className="w-fit mb-4 text-white hover:bg-white/10 transition-colors px-4 py-2 text-sm font-medium"
+              className="w-fit mb-4 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+              style={{
+                color: 'white',
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                borderColor: 'rgba(255,255,255,0.3)',
+                borderRadius: 'var(--tgo-radius-md)',
+              }}
             >
-              <ArrowLeft size={18} className="mr-2 inline" />
+              <ArrowLeft size={18} />
               Volver al Menú
             </button>
           )}
