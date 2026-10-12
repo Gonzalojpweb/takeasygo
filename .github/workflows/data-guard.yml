@@ -5,16 +5,30 @@ on:
   pull_request:
 
 jobs:
-  block-data-dumps:
-    name: Bloquear volcados de datos de clientes
+  block-sensitive-files:
+    name: Bloquear datos de clientes y secretos
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: audit-data-* no debe estar trackeado
+      - name: audit-data-*, clientes_carga.csv, .env, .pem, .key no deben estar trackeados
         run: |
-          if git ls-files | grep -E '(^|/)audit-data-[^/]+/'; then
-            echo "::error::El repo incluye archivos bajo carpetas audit-data-* (datos de clientes). Evidencias van FUERA del repo."
+          BAD=$(git ls-files | grep -E '(^|/)audit-data-[^/]+/|(^|/)clientes_carga\.csv$|(^|/)\.env$|(^|/)\.env\.[^e]|(^|/)\.env\.[^e].*|\.pem$|\.key$' | grep -v '\.env\.example$' || true)
+          if [ -n "$BAD" ]; then
+            echo "::error::Archivos sensibles trackeados en el repo:"
+            echo "$BAD"
             exit 1
           fi
-          echo "OK: sin volcados de datos trackeados."
+          echo "OK: sin archivos sensibles trackeados."
+
+  gitleaks:
+    name: Gitleaks (push y PR)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

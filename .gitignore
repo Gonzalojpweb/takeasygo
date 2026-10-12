@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 .pnp.*
 package-lock.json
@@ -57,7 +57,7 @@ takeasygo_extracted*
 /TECNICAL
 /PAUSED
 /MARKETING
-/CAMPAÑAS
+/CAMPAÃ‘AS
 /RED
 /TESTER
 /SOS
@@ -89,7 +89,7 @@ patch_menu.js
 .kilo
 .turbo
 
-# RSA Keys — nunca al repo
+# RSA Keys â€” nunca al repo
 apps/sync/keys.private.pem
 apps/sync/keys.public.pem
 
@@ -116,8 +116,13 @@ apps/sync/.env.local
 
 fase2.png
 
-# Artefactos de auditoría de datos (no versionar)
+# Artefactos de auditorÃ­a de datos (no versionar)
 /KEKEINFO
 audit-data-*/
 **/audit-data-*/
 
+
+# Volcados de datos de clientes (nunca en el repo)
+clientes_carga.csv
+*.pem
+*.key
