@@ -1,18 +1,19 @@
 import mongoose from 'mongoose'
-import { assertMongoDbName } from '@takeasygo/business'
+import { resolveMongoDbName } from '@takeasygo/business'
 
 const MONGODB_URI = process.env.MONGODB_URI as string
 
-// `next build` importa los route handlers para "collect page data": en ese
-// fase no hay proceso runtime ni base real, así que el guard solo aplica a
-// procesos que van a tocar la base (el check se repite en connectDB).
-const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build'
-
-if (!IS_BUILD_PHASE) {
-  if (!MONGODB_URI) {
-    throw new Error('MONGODB_URI no está definido en las variables de entorno')
-  }
-  assertMongoDbName(MONGODB_URI)
+// NOTA: este módulo NO valida en import time. `next build` importa páginas y
+// rutas para "collect page data" (y ejecuta generateStaticParams), y el env
+// de build no es un proceso runtime — cualquier throw en top-level mata el
+// build de Vercel. Además producción corre por diseño sobre la base default
+// del cluster (URI sin nombre), así que exigir nombre de base en la app
+// rompería la app en producción: la validación estricta vive solo en los
+// scripts de audit (allowlist staging).
+if (MONGODB_URI && !resolveMongoDbName(MONGODB_URI)) {
+  console.warn(
+    '[mongoose] MONGODB_URI no incluye nombre de base (se usará la base default del cluster)'
+  )
 }
 
 interface MongooseCache {
@@ -36,8 +37,6 @@ export async function connectDB() {
   if (!MONGODB_URI) {
     throw new Error('MONGODB_URI no está definido en las variables de entorno')
   }
-  // Guard en runtime: nunca conectar a una base sin nombre (prod = default).
-  assertMongoDbName(MONGODB_URI)
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {
