@@ -1,2 +1,3 @@
+node .husky/checks/block-data-dumps.mjs
 npx turbo lint --filter=./apps/saas --filter=./packages/...
     
