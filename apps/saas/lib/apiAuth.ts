@@ -23,6 +23,9 @@ function toSessionFromPosToken(payload: {
   return {
     id: payload.sub,
     role: payload.role,
+    // El JWT del POS no lleva email: las rutas que lo necesiten (corp)
+    // lo rechazan con 401 al venir vacío.
+    email: null,
     tenantId: payload.tenantId,
     tenantSlug: null,
     assignedLocation: payload.locationId ?? null,
@@ -46,6 +49,7 @@ export async function getSessionUser(request?: NextRequest) {
       return {
         id: token.id as string,
         role: token.role as string,
+        email: (token.email as string | null | undefined) ?? null,
         tenantId: token.tenantId as string | null,
         tenantSlug: token.tenantSlug as string | null,
         assignedLocation: token.assignedLocation as string | null,
