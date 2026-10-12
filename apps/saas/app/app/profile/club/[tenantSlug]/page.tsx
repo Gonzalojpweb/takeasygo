@@ -164,11 +164,16 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
         <button
           onClick={() => router.back()}
           aria-label="Volver atrás"
-          className="w-fit mb-6 flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: 'var(--tgo-text-muted)' }}
+          className="w-fit mb-6 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+          style={{
+            color: 'var(--tgo-text-primary)',
+            backgroundColor: 'var(--tgo-card)',
+            borderColor: 'var(--tgo-border)',
+            borderRadius: 'var(--tgo-radius-md)',
+          }}
         >
-          <ArrowLeft size={20} />
-          Volver
+          <ArrowLeft size={18} />
+          VOLVER AL MENU DE {clubData?.clubName?.toUpperCase() || 'CLUB'}
         </button>
 
         <div className="flex-1 flex flex-col items-center justify-center text-center">
@@ -208,12 +213,14 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
             secondaryColor: clubData.branding.secondaryColor,
             logoUrl: '',
           } : undefined}
+          clubName={clubData.clubName}
           onBack={() => router.replace(`${pathname}?tab=club`)}
           menuUrl={menuUrl ?? undefined}
         />
       ) : currentTab === 'canjes' && clubData?.member ? (
         <MyRedemptions
           tenantSlug={tenantSlug}
+          clubName={clubData.clubName}
           onBack={() => router.replace(`${pathname}?tab=club`)}
           menuUrl={menuUrl ?? undefined}
         />
@@ -223,19 +230,29 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
             <button
               onClick={() => router.back()}
               aria-label="Volver atrás"
-              className="w-fit mb-4 flex items-center gap-2 text-sm font-medium transition-colors"
-              style={{ color: 'var(--tgo-text-muted)' }}
+              className="w-fit mb-4 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+              style={{
+                color: 'var(--tgo-text-primary)',
+                backgroundColor: 'var(--tgo-card)',
+                borderColor: 'var(--tgo-border)',
+                borderRadius: 'var(--tgo-radius-md)',
+              }}
             >
-              <ArrowLeft size={20} />
-              Volver
+              <ArrowLeft size={18} />
+              VOLVER AL MENU DE {clubData?.clubName?.toUpperCase() || 'CLUB'}
             </button>
 
             {menuUrl && (
               <button
                 onClick={() => router.push(menuUrl)}
                 aria-label="Volver al menú"
-                className="w-fit mb-4 flex items-center gap-2 text-sm font-medium transition-colors"
-                style={{ color: 'var(--tgo-text-muted)' }}
+                className="w-fit mb-4 flex items-center gap-2 px-4 py-2 text-sm font-bold transition-all border-2"
+                style={{
+                  color: 'var(--tgo-text-primary)',
+                  backgroundColor: 'var(--tgo-card)',
+                  borderColor: 'var(--tgo-border)',
+                  borderRadius: 'var(--tgo-radius-md)',
+                }}
               >
                 <ArrowLeft size={18} />
                 Volver al Menú
