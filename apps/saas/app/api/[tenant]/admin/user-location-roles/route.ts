@@ -65,6 +65,29 @@ function isNextResponse(x: unknown): x is NextResponse {
   return x instanceof NextResponse
 }
 
+// Sedes propias de un manager: filas activas con locationId no nulo.
+async function managerOwnLocations(tenantId: string, actorId: string): Promise<Set<string>> {
+  const rows = await UserLocationRole.find({
+    tenantId,
+    userId: actorId,
+    locationId: { $ne: null },
+    isActive: true,
+  })
+    .lean()
+  return new Set(rows.map((r) => String(r.locationId)))
+}
+
+// Es el último usuario con rol admin del tenant?
+async function isLastTenantAdmin(tenantId: string, userId: string): Promise<boolean> {
+  const others = await User.countDocuments({
+    tenantId,
+    role: 'admin',
+    isActive: true,
+    _id: { $ne: userId },
+  })
+  return others === 0
+}
+
 // ============================================================================
 // GET /api/[tenant]/admin/user-location-roles?userId=…
 // ============================================================================
@@ -127,14 +150,30 @@ export async function POST(
       return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
     }
 
+    // Nadie edita sus propias filas
+    if (userId === actor.id) {
+      return NextResponse.json({ error: 'No podés modificar tus propios roles' }, { status: 403 })
+    }
+
     const isAdminLevel = rank >= ROLE_RANK.admin
     // Nadie asigna un rol mayor o igual al suyo (salvo admin/superadmin)
     if (!isAdminLevel && (ROLE_RANK[role] ?? 0) >= rank) {
       return NextResponse.json({ error: 'No podés asignar un rol igual o mayor al tuyo' }, { status: 403 })
     }
+    // admin y auditor solo los asigna un admin
+    if (!isAdminLevel && (role === 'admin' || role === 'auditor')) {
+      return NextResponse.json({ error: 'Solo un admin puede asignar este rol' }, { status: 403 })
+    }
     // El acceso a todo el tenant solo lo da un admin
     if (locationId == null && !isAdminLevel) {
       return NextResponse.json({ error: 'Solo un admin puede asignar roles de todo el tenant' }, { status: 403 })
+    }
+    // Un manager solo asigna dentro de sus propias sedes
+    if (!isAdminLevel && locationId != null) {
+      const own = await managerOwnLocations(tenant._id.toString(), actor.id)
+      if (!own.has(String(locationId))) {
+        return NextResponse.json({ error: 'Solo podés asignar en tus propias sedes' }, { status: 403 })
+      }
     }
 
     const target = await User.findOne({ _id: userId, tenantId: tenant._id })
@@ -147,6 +186,18 @@ export async function POST(
 
     const key = { tenantId: tenant._id, userId: target._id, locationId }
     const previous = await UserLocationRole.findOne(key).lean()
+
+    // El tenant no puede quedarse sin admin: no se degrada la fila de
+    // tenant del último admin
+    const prev = previous as { role?: string; locationId?: unknown } | null
+    if (
+      prev?.role === 'admin' &&
+      prev.locationId == null &&
+      role !== 'admin' &&
+      (await isLastTenantAdmin(tenant._id.toString(), String(target._id)))
+    ) {
+      return NextResponse.json({ error: 'No se puede dejar el tenant sin admin' }, { status: 403 })
+    }
 
     const row = await UserLocationRole.findOneAndUpdate(
       key,
