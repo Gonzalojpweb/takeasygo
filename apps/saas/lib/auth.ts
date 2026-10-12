@@ -2,12 +2,32 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import Email from 'next-auth/providers/email'
+import { CredentialsSignin } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { connectDB } from '@/lib/mongoose'
 import { authConfig } from '@/lib/auth.config'
 import { Redis } from '@upstash/redis'
 import { rateLimit } from '@/lib/rateLimit'
 import { adapter } from '@/lib/auth-adapter'
+
+/** Login rechazado: la cuenta no tiene (o perdió) un tenant activo. */
+class TenantMissingSignin extends CredentialsSignin {
+  code = 'tenant_missing'
+}
+
+/**
+ * Regla: los logins por contraseña (staff) requieren un tenant activo.
+ * - superadmin: exento (acceso global, tenantId nulo por diseño).
+ * - Cuenta con tenantId nulo/inexistente (p.ej. huérfana tras borrar un
+ *   tenant) no puede entrar; el formulario muestra un mensaje a soporte.
+ */
+async function assertTenantUsable(user: { role?: string; tenantId?: unknown }) {
+  if (user.role === 'superadmin') return
+  if (!user.tenantId) throw new TenantMissingSignin()
+  const { default: Tenant } = await import('@/models/Tenant')
+  const tenant = await Tenant.findById(user.tenantId).select('_id status').lean<{ status?: string }>()
+  if (!tenant || tenant.status === 'deleted') throw new TenantMissingSignin()
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter,
@@ -99,6 +119,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await connectDB()
           const user = await User.findOne({ email, isActive: true })
           if (!user) return null
+          await assertTenantUsable(user)
 
           let tenantSlug: string | null = null
           if (user.tenantId) {
@@ -141,6 +162,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         )
 
         if (!passwordMatch) return null
+
+        await assertTenantUsable(user)
 
         // Resolve tenant slug for redirect after login
         let tenantSlug: string | null = null

@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
 import { generateRecommendations } from '@/lib/tia/recommendations'
+import { requireAuth } from '@/lib/apiAuth'
 
 async function getTenant(tenantSlug: string) {
   const Tenant = (await import('@/models/Tenant')).default
   return Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id plan').lean() as any
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
   await connectDB()
 
@@ -17,8 +18,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
 
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
+
   try {
-    const { insightId, action } = await req.json()
+    const { insightId, action } = await request.json()
 
     if (!insightId || !['read', 'dismiss', 'resolve'].includes(action)) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
@@ -61,7 +66,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ te
   }
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
 
   await connectDB()
@@ -71,11 +76,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }
 
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
+
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
   const isPremium = tenant.plan === 'full'
-  const status = req.nextUrl.searchParams.get('status') ?? 'active'
+  const status = request.nextUrl.searchParams.get('status') ?? 'active'
 
   try {
     const query: any = {
@@ -84,7 +93,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
       generatedAt: { $gte: todayStart },
     }
 
-    const type = req.nextUrl.searchParams.get('type')
+    const type = request.nextUrl.searchParams.get('type')
     if (type) query.type = type
 
     let insights = await TiaInsight.find(query)

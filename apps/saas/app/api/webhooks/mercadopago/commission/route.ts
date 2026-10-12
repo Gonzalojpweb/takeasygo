@@ -1,9 +1,10 @@
+import crypto from 'node:crypto'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import CommissionSettlement from '@/models/CommissionSettlement'
 import ProcessedWebhookEvents from '@/models/ProcessedWebhookEvents'
-import { getPlatformMPClient } from '@/lib/mp-platform'
+import { getPlatformMPClient, getPlatformWebhookSecret } from '@/lib/mp-platform'
 import { Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { toPesos } from '@takeasygo/business'
@@ -17,7 +18,83 @@ import { toPesos } from '@takeasygo/business'
  *  2. Crea un CommissionSettlement
  *  3. Decrementa tenant.commissionBalance.transfer
  *  4. Limpia el flag payment.commissionBalanceAdded en las órdenes saldadas
+ *
+ * Firma: MP firma los webhooks de la app de plataforma con HMAC-SHA256
+ * (header x-signature, manifest id/request-id/ts) usando el secret del panel.
+ * Rollout por MP_COMMISSION_WEBHOOK_MODE: 'log' (default, solo registra),
+ * 'warn' (rechaza si falta o es inválida), 'enforce' (idem warn, definitivo).
  */
+
+type WebhookMode = 'log' | 'warn' | 'enforce'
+
+function webhookMode(): WebhookMode {
+  const mode = process.env.MP_COMMISSION_WEBHOOK_MODE
+  return mode === 'warn' || mode === 'enforce' ? mode : 'log'
+}
+
+function verifyMercadoPagoSignature(
+  signatureHeader: string | null,
+  requestId: string | null,
+  dataId: string | number | null | undefined,
+  secret: string
+): boolean {
+  if (!signatureHeader || !requestId || dataId == null) return false
+
+  const parts: Record<string, string> = {}
+  for (const part of signatureHeader.split(',')) {
+    const [key, value] = part.split('=')
+    if (key && value) parts[key.trim()] = value.trim()
+  }
+
+  const { ts, v1 } = parts
+  if (!ts || !v1) return false
+
+  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`
+  const expected = crypto.createHmac('sha256', secret).update(manifest).digest('hex')
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(v1, 'hex'))
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Fase log: solo registra. Fase warn/enforce: rechaza si el secret está
+ * configurado y la firma falta o no valida. Sin secret configurado no se
+ * puede validar (no se inventa): se registra y se procesa.
+ */
+async function checkWebhookSignature(request: NextRequest, paymentId: string): Promise<boolean> {
+  const mode = webhookMode()
+  let secret: string | null = null
+  try {
+    secret = await getPlatformWebhookSecret()
+  } catch {
+    secret = null
+  }
+
+  if (!secret) {
+    console.warn('[commission-webhook] platform webhook secret no configurado; se procesa sin validar firma')
+    return true
+  }
+
+  const signatureHeader = request.headers.get('x-signature')
+  const requestId = request.headers.get('x-request-id')
+  const valid = verifyMercadoPagoSignature(signatureHeader, requestId, paymentId, secret)
+
+  if (valid) return true
+
+  if (mode === 'log') {
+    console.warn(
+      `[commission-webhook] firma ausente o inválida (mode=log, paymentId=${paymentId}, ` +
+      `hasHeader=${!!signatureHeader}, hasRequestId=${!!requestId}) — se procesa igual`
+    )
+    return true
+  }
+
+  console.error(`[commission-webhook] firma ausente o inválida (mode=${mode}, paymentId=${paymentId}) — rechazado`)
+  return false
+}
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}))
@@ -31,6 +108,10 @@ export async function POST(request: NextRequest) {
     const paymentId = data?.id
     if (!paymentId) {
       return NextResponse.json({ received: true })
+    }
+
+    if (!(await checkWebhookSignature(request, String(paymentId)))) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     await connectDB()

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import { computeBenchmarks } from '@/lib/tia/benchmark'
+import { requireAuth } from '@/lib/apiAuth'
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
 
   await connectDB()
@@ -12,6 +13,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if (!tenant) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404, headers: { 'Cache-Control': 'no-cache' } })
   }
+
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
 
   if (!['buy', 'full'].includes(tenant.plan)) {
     return NextResponse.json({ error: 'TIA not available for this plan' }, { status: 403, headers: { 'Cache-Control': 'no-cache' } })

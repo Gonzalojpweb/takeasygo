@@ -2,16 +2,15 @@ import { connectDB } from '@/lib/mongoose'
 import mongoose from 'mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import CorporateAccount from '@/models/CorporateAccount'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
-import { hashPhone } from '@/lib/crypto'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
-import { corporateHasAccess, getTenantPaymentConfig } from '@/lib/corporateAccess'
+import { getTenantPaymentConfig } from '@/lib/corporateAccess'
+import { requireCorpAccess } from '@/lib/corpAuth'
 import crypto from 'crypto'
 
-// Only company admin email can start a group session
+// Only company admin can start a group session
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -20,42 +19,27 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
+    const authz = await requireCorpAccess(request, tenantSlug, { requireRole: 'admin' })
+    if (!authz.ok) return authz.response
+    const corpAccount = authz.access.account
+    const normalizedEmail = authz.access.user.email
+
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
     const body = await request.json()
-    const { email, locationId, corporateAccountId } = body
+    const { locationId } = body
 
-    if (!email || !locationId || !corporateAccountId) {
+    if (!locationId) {
       return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 })
     }
-
-    const normalizedEmail = email.toLowerCase().trim()
 
     // Validate location belongs to tenant
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true }).lean()
     if (!location) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
-    }
-
-    // Validate corporate account with multi-tenant access
-    const corpAccount = await CorporateAccount.findOne({
-      _id: corporateAccountId,
-      status: 'active',
-    }).lean()
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Cuenta corporativa no encontrada o suspendida' }, { status: 403 })
-    }
-
-    if (!corporateHasAccess(corpAccount, tenant._id)) {
-      return NextResponse.json({ error: 'Cuenta corporativa no tiene acceso a este tenant' }, { status: 403 })
-    }
-
-    // Only the company admin email can start a group session
-    if (corpAccount.companyAdminEmail.toLowerCase().trim() !== normalizedEmail) {
-      return NextResponse.json({ error: 'Solo el email corporativo puede abrir un pedido grupal' }, { status: 403 })
     }
 
     // Check for existing open session for this account

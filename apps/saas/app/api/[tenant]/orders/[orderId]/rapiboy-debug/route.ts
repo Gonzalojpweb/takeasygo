@@ -4,11 +4,22 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 
+// Endpoint de debug: expone config de la sede (incl. rapiboyConfig).
+// Deshabilitado en producción (bloqueado también en Vercel preview).
+function isProductionEnv() {
+  if (process.env.VERCEL_ENV === 'production') return true
+  return process.env.NODE_ENV === 'production' && !process.env.VERCEL_ENV
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string; orderId: string }> }
 ) {
   try {
+    if (isProductionEnv()) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const { tenant: tenantSlug, orderId } = await params
     await connectDB()
 

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +15,16 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug, orderId } = await params
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+
+    // Fallback público de checkout (polling): limita consultas por orden+IP
+    // para no facilitar enumeración del estado de pago por orderId.
+    const { success } = await rateLimit(
+      `verify-pay:${tenantSlug}:${orderId}:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
+    }
+
     await connectDB()
 
     const tenant = await Tenant.findOne({ slug: tenantSlug })

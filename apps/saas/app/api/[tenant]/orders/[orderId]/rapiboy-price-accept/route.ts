@@ -1,4 +1,6 @@
-// Endpoint público para que el cliente acepte o rechace el nuevo precio de Rapiboy
+// Endpoint público (tracking sin sesión) — el cliente acepta o rechaza la
+// nueva cotización de Rapiboy. Requiere x-tracking-token como sus hermanos
+// del tracking; sin él conocer el orderId bastaba para aceptar/rechazar.
 // POST: accept (aceptar) o reject (rechazar)
 // GET: status (consultar estado de la cotización)
 import { connectDB } from '@/lib/mongoose'
@@ -27,10 +29,18 @@ export async function GET(
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    const trackingToken = request.headers.get('x-tracking-token')
+    if (!trackingToken) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('deliveryProvider payment.status payment.method orderNumber')
+      .select('trackingToken deliveryProvider payment.status payment.method orderNumber')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!order.trackingToken || order.trackingToken !== trackingToken) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
+    }
 
     const rapiboy = order.deliveryProvider?.rapiboy
     if (!rapiboy) {
@@ -83,8 +93,16 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+    const trackingToken = request.headers.get('x-tracking-token')
+    if (!trackingToken) {
+      return NextResponse.json({ error: 'Token requerido' }, { status: 401 })
+    }
+
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (!order.trackingToken || order.trackingToken !== trackingToken) {
+      return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
+    }
 
     const rapiboy = order.deliveryProvider?.rapiboy
     if (!rapiboy || rapiboy.quoteStatus !== 'pending_customer_accept') {

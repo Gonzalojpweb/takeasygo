@@ -10,6 +10,7 @@ import mongoose from 'mongoose'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
+import { requireCronSecretOrAdmin } from '@/lib/apiAuth'
 
 export async function GET(
   request: NextRequest,
@@ -21,6 +22,10 @@ export async function GET(
     await connectDB()
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+
+    // Cerrado: era anónimo. Ahora cron (CRON_SECRET) o admin del tenant.
+    const authError = await requireCronSecretOrAdmin(request, String(tenant._id))
+    if (authError) return authError
 
     if (!tenant.mercadopago.isConfigured || !tenant.mercadopago.accessToken) {
       return NextResponse.json({ error: 'MercadoPago no configurado' }, { status: 400 })

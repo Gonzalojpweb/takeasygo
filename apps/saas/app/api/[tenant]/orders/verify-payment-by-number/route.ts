@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
+import { rateLimit } from '@/lib/rateLimit'
 
 /** Resumen compacto para que el fallback client de order-success pueda emitir
  *  checkout_completed si el server no llegó a hacerlo (mismo dedup por orderId). */
@@ -35,6 +36,14 @@ export async function GET(
     const orderNumber = request.nextUrl.searchParams.get('orderNumber')
     if (!orderNumber) {
       return NextResponse.json({ error: 'orderNumber requerido' }, { status: 400 })
+    }
+
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    // Fallback público de checkout (polling): limita consultas por número+IP.
+    const { success } = await rateLimit(
+      `verify-pay-num:${tenantSlug}:${orderNumber}:${ip}`, 10, 60_000)
+    if (!success) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
     }
 
     await connectDB()

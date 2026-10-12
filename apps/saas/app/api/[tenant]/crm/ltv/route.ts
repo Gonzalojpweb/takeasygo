@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import CustomerProfile from '@/models/CustomerProfile'
 import { canAccess } from '@/lib/plans'
 import { safeDecrypt } from '@/lib/crypto'
+import { requireAuth } from '@/lib/apiAuth'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/crm/ltv — Dashboard consolidado de LTV por segmento
@@ -21,6 +22,10 @@ export async function GET(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     if (!canAccess(tenant.plan, 'crm')) {
       return NextResponse.json({ error: 'CRM no disponible en tu plan actual.' }, { status: 403 })

@@ -109,10 +109,16 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     const clicked = items.find(i => i._id === itemId)
     trackRewardInteraction({ rewardId: itemId, type: 'store_item', value: clicked?.pointsCost, action: 'tap', tenantSlug })
     try {
+      const memberToken = typeof window !== 'undefined'
+        ? localStorage.getItem(`club_token_${tenantSlug}`)
+        : null
       const res = await fetch(`/api/${tenantSlug}/store/redemptions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ memberId, storeItemId: itemId }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(memberToken ? { 'x-member-token': memberToken } : {}),
+        },
+        body: JSON.stringify({ storeItemId: itemId }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -145,7 +151,6 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
     return (
       <MyRedemptions
         tenantSlug={tenantSlug}
-        memberId={memberId}
         onBack={() => setShowMyRedemptions(false)}
         menuUrl={menuUrl}
       />

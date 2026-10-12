@@ -5,6 +5,7 @@ import type { Insight, SilConfig } from '@/lib/tia/types'
 import { detectAnomaliesInSeries } from '@/lib/tia/sil/anomaly'
 import { analyzeTrend } from '@/lib/tia/sil/trend'
 import { toPesos } from '@takeasygo/business'
+import { requireAuth } from '@/lib/apiAuth'
 
 const CONFIG: SilConfig = {
   minSampleSize: 10,
@@ -12,12 +13,12 @@ const CONFIG: SilConfig = {
   trendMinPoints: 5,
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
 
   let body: { productName?: string; days?: number }
   try {
-    body = await req.json()
+    body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
@@ -33,6 +34,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (!tenant) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
+
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
 
   try {
     const metrics = await fetchDashboardMetrics(tenant._id.toString())

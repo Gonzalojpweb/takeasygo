@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
-import CorporateAccount from '@/models/CorporateAccount'
+import { requireCorpAccess } from '@/lib/corpAuth'
 
 export async function DELETE(
   request: NextRequest,
@@ -11,29 +11,9 @@ export async function DELETE(
     const { tenant: tenantSlug, email: employeeEmailToRemove } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-
-    const body = await request.json()
-    const corporateAccountId = body?.corporateAccountId
-    const adminEmail = body?.email
-
-    if (!corporateAccountId || !adminEmail) {
-      return NextResponse.json({ error: 'Faltan parámetros de autenticación' }, { status: 400 })
-    }
-
-    // Server-side validation: only companyAdmin can remove employees
-    const corpAccount = await CorporateAccount.findOne({
-      _id: corporateAccountId,
-      tenantId: tenant._id,
-      status: 'active',
-      companyAdminEmail: adminEmail.toLowerCase().trim(),
-    })
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const authz = await requireCorpAccess(request, tenantSlug, { requireRole: 'admin' })
+    if (!authz.ok) return authz.response
+    const corpAccount = authz.access.account
 
     const normalizedEmail = decodeURIComponent(employeeEmailToRemove).toLowerCase().trim()
 

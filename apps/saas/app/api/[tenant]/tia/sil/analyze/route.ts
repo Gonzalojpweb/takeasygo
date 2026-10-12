@@ -3,8 +3,9 @@ import { connectDB } from '@/lib/mongoose'
 import { fetchDashboardMetrics } from '@/lib/tia/metrics'
 import { runSilAnalysis } from '@/lib/tia/sil/engine'
 import TiaInsight from '@/models/TiaInsight'
+import { requireAuth } from '@/lib/apiAuth'
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
 
   await connectDB()
@@ -14,6 +15,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ ten
   if (!tenant) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
+
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
 
   const isPremium = tenant.plan === 'full'
 

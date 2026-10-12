@@ -6,6 +6,7 @@ import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
 import { getImpactSummary } from '@/lib/impact'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
@@ -15,6 +16,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
 
   if (!phone && !userId) {
     return NextResponse.json({ error: 'phone or userId requerido' }, { status: 400 })
+  }
+
+  // Rate limit por IP y por identificador consultado.
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+  const identifier = phone ?? userId ?? 'unknown'
+  const [byIp, byId] = await Promise.all([
+    rateLimit(`impact:${tenantSlug}:ip:${ip}`, 20, 60_000),
+    rateLimit(`impact:${tenantSlug}:id:${identifier}`, 20, 60_000),
+  ])
+  if (!byIp.success || !byId.success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
   }
 
   await connectDB()

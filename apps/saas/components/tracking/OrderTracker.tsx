@@ -294,11 +294,12 @@ export default function OrderTracker({
   }, [rapiboyQuoteStatus, rapiboyPendingQuoteTimestamp])
 
   const handleRapiboyAccept = useCallback(async () => {
+    if (!trackingToken) return
     setRapiboyAcceptLoading(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/rapiboy-price-accept`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-tracking-token': trackingToken },
         body: JSON.stringify({ action: 'accept' }),
       })
       if (!res.ok) {
@@ -318,14 +319,15 @@ export default function OrderTracker({
     } finally {
       setRapiboyAcceptLoading(false)
     }
-  }, [tenantSlug, orderId, playNotification])
+  }, [tenantSlug, orderId, trackingToken, playNotification])
 
   const handleRapiboyReject = useCallback(async () => {
+    if (!trackingToken) return
     setRapiboyRejectLoading(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/rapiboy-price-accept`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-tracking-token': trackingToken },
         body: JSON.stringify({ action: 'reject' }),
       })
       if (!res.ok) {
@@ -340,7 +342,7 @@ export default function OrderTracker({
     } finally {
       setRapiboyRejectLoading(false)
     }
-  }, [tenantSlug, orderId, playNotification])
+  }, [tenantSlug, orderId, trackingToken, playNotification])
 
   const isScheduledPending = orderTiming === 'scheduled' && scheduledStatus === 'pending_schedule'
 
@@ -1047,7 +1049,10 @@ export default function OrderTracker({
               }
               setConfirmTransferLoading(true)
               try {
-                const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/confirm-transfer-client`, { method: 'PATCH' })
+                const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/confirm-transfer-client`, {
+                  method: 'PATCH',
+                  headers: trackingToken ? { 'x-tracking-token': trackingToken } : {},
+                })
                 if (!res.ok) {
                   const err = await res.json()
                   throw new Error(err.error || 'Error')
@@ -1114,6 +1119,7 @@ export default function OrderTracker({
             onConfirmed={() => setStatus('delivered')}
             customerName={initialCustomerName}
             ratingToken={ratingToken}
+            trackingToken={trackingToken}
             orderNumber={orderNumber}
             reviewUrl={initialReviewUrl}
             orderItems={orderItems}

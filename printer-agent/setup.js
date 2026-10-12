@@ -115,6 +115,11 @@ async function main() {
   const pollInterval = await ask(`Intervalo de polling en ms [${config.pollInterval || 15000}]: `);
   config.pollInterval = parseInt(pollInterval) || config.pollInterval || 15000;
 
+  const agentToken = await ask(`Token del agente de la sede (Enter para omitir)${config.agentToken ? ' [ya configurado, Enter mantiene]' : ''}: `);
+  if (agentToken.trim()) {
+    config.agentToken = agentToken.trim();
+  }
+
   config.autoUpdate = false;
 
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));

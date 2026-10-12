@@ -11,6 +11,7 @@ import {
   createRecipesBatch,
   getOnboardingStatus,
 } from "@/lib/inventory/recipe-inference"
+import { requireAuth } from "@/lib/apiAuth"
 
 // ============================================================================
 // POST /api/[tenant]/inventory/onboarding — Progressive Zero-Setup
@@ -36,6 +37,10 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     const { searchParams } = new URL(request.url)
     const action = searchParams.get("action") ?? "infer"
@@ -77,6 +82,10 @@ export async function POST(
     if (!tenant) {
       return NextResponse.json({ error: "Tenant no encontrado" }, { status: 404 })
     }
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     const body = await request.json()
     const results: Record<string, unknown> = {}

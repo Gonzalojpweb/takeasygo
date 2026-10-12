@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
+import { requireAuth } from '@/lib/apiAuth'
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
   await connectDB()
 
@@ -11,6 +12,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ tena
   if (!tenant) {
     return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
   }
+
+  // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+  const authError = await requireAuth(request, String(tenant._id))
+  if (authError) return authError
 
   try {
     const todayStart = new Date()

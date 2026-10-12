@@ -7,6 +7,7 @@ import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
 import { resolvePrintLeadMinutes } from '@/lib/printing/printTiming'
+import crypto from 'node:crypto'
 
 const MAX_ATTEMPTS = 3
 
@@ -70,6 +71,35 @@ export async function GET(
 
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+
+    // ── Fase 1 (solo registro): heartbeat del agente + observación del
+    //    token. NO se bloquea por token ausente/inválido todavía.
+    //    Escritura/log a lo sumo 1 vez por minuto por sede (el poll es
+    //    cada 5 s en horario de servicio).
+    const agentToken = request.headers.get('x-agent-token')
+    const lastSeenAt = location.printerAgent?.lastSeenAt
+    const shouldRecord = !lastSeenAt || Date.now() - new Date(lastSeenAt).getTime() >= 60_000
+    if (shouldRecord) {
+      let tokenStatus: 'match' | 'invalid' | 'missing' = 'missing'
+      if (agentToken) {
+        const presentedHash = crypto.createHash('sha256').update(agentToken).digest('hex')
+        const expectedHash = location.printerAgent?.secretHash
+        tokenStatus = expectedHash && timingSafeEqualHex(presentedHash, expectedHash) ? 'match' : 'invalid'
+      }
+      console.log(
+        `[print-jobs] poll tenant=${tenantSlug} location=${location.name} v=${agentVersion ?? '?'} token=${tokenStatus}`
+      )
+      await Location.updateOne(
+        { _id: location._id },
+        {
+          $set: {
+            'printerAgent.lastSeenAt': new Date(),
+            'printerAgent.version': agentVersion ?? null,
+            'printerAgent.tokenPresent': Boolean(agentToken),
+          },
+        }
+      )
+    }
 
     const printers = await Printer.find({
       tenantId: tenant._id,
@@ -350,4 +380,11 @@ function compareVersions(a: string, b: string): number {
     if (na < nb) return -1
   }
   return 0
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const bufA = Buffer.from(a)
+  const bufB = Buffer.from(b)
+  if (bufA.length !== bufB.length) return false
+  return crypto.timingSafeEqual(bufA, bufB)
 }

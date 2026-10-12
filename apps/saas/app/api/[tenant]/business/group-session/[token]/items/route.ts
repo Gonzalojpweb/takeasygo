@@ -1,11 +1,11 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import CorporateAccount from '@/models/CorporateAccount'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
+import { requireCorpAccess } from '@/lib/corpAuth'
 
 export async function POST(
   request: NextRequest,
@@ -14,6 +14,10 @@ export async function POST(
   try {
     const { tenant: tenantSlug, token } = await params
     await connectDB()
+
+    const authz = await requireCorpAccess(request, tenantSlug)
+    if (!authz.ok) return authz.response
+    const normalizedEmail = authz.access.user.email
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
     if (!tenant) {
@@ -33,29 +37,16 @@ export async function POST(
       return NextResponse.json({ error: 'La sesión grupal expiró' }, { status: 410 })
     }
 
-    const body = await request.json()
-    const { email, items } = body
-
-    if (!email || !items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 })
-    }
-
-    const normalizedEmail = email.toLowerCase().trim()
-
-    // Validate email belongs to the same corporate account
-    const corpAccount = await CorporateAccount.findOne({
-      _id: order.corporateAccountId,
-      status: 'active',
-    }).lean()
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Cuenta corporativa no encontrada' }, { status: 403 })
-    }
-
-    const isCompanyAdmin = corpAccount.companyAdminEmail.toLowerCase() === normalizedEmail
-    const isEmployee = corpAccount.employeeEmails.some(e => e.toLowerCase() === normalizedEmail)
-
-    if (!isCompanyAdmin && !isEmployee) {
+    // La sesión grupal debe pertenecer a la cuenta corporativa del usuario
+    if (String(order.corporateAccountId) !== String(authz.access.account._id)) {
       return NextResponse.json({ error: 'Este email no pertenece a la empresa de esta sesión' }, { status: 403 })
+    }
+
+    const body = await request.json()
+    const { items } = body
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: 'Faltan datos requeridos' }, { status: 400 })
     }
 
     // Validate menu and resolve prices server-side

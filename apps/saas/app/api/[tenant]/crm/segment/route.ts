@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import { canAccess } from '@/lib/plans'
 import { resegmentateAll } from '@/lib/cis/segmentation'
+import { requireAuth } from '@/lib/apiAuth'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/[tenant]/crm/segment — Re-segmentar todos los clientes
@@ -21,6 +22,10 @@ export async function POST(
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     if (!canAccess(tenant.plan, 'crm')) {
       return NextResponse.json({ error: 'CRM no disponible en tu plan actual.' }, { status: 403 })

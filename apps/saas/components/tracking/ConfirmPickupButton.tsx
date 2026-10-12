@@ -24,6 +24,7 @@ interface Props {
   onConfirmed?: () => void
   customerName?: string
   ratingToken?: string | null
+  trackingToken?: string | null
   orderNumber?: string
   reviewUrl?: string | null
   orderItems: OrderItem[]
@@ -39,6 +40,7 @@ export default function ConfirmPickupButton({
   onConfirmed,
   customerName,
   ratingToken,
+  trackingToken = null,
   orderNumber,
   reviewUrl,
   orderItems,
@@ -55,6 +57,7 @@ export default function ConfirmPickupButton({
     try {
       const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/pickup`, {
         method: 'PATCH',
+        headers: trackingToken ? { 'x-tracking-token': trackingToken } : {},
       })
       if (!res.ok) {
         const data = await res.json()

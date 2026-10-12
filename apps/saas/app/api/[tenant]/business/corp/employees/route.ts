@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import CorporateAccount from '@/models/CorporateAccount'
+import { requireCorpAccess } from '@/lib/corpAuth'
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -15,17 +16,14 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
+    const authz = await requireCorpAccess(request, tenantSlug, { requireRole: 'admin' })
+    if (!authz.ok) return authz.response
+    const corpAccount = authz.access.account
 
     const body = await request.json()
-    const corporateAccountId = body?.corporateAccountId
-    const adminEmail = body?.email
     const rawEmails = body?.newEmployeeEmails
 
-    if (!corporateAccountId || !adminEmail || !rawEmails || !Array.isArray(rawEmails) || rawEmails.length === 0) {
+    if (!rawEmails || !Array.isArray(rawEmails) || rawEmails.length === 0) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     }
 
@@ -44,15 +42,9 @@ export async function POST(
       }
     }
 
-    // Only the company admin can add employees
-    const corpAccount = await CorporateAccount.findOne({
-      _id: corporateAccountId,
-      tenantId: tenant._id,
-      status: 'active',
-      companyAdminEmail: adminEmail.toLowerCase().trim(),
-    })
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
     // Validate all emails before inserting
@@ -75,7 +67,7 @@ export async function POST(
 
       // Check for conflict with other companies in the same tenant
       const conflict = await CorporateAccount.findOne({
-        _id: { $ne: corporateAccountId },
+        _id: { $ne: corpAccount._id },
         tenantId: tenant._id,
         $or: [
           { companyAdminEmail: email },
@@ -91,11 +83,11 @@ export async function POST(
     }
 
     await CorporateAccount.updateOne(
-      { _id: corporateAccountId },
+      { _id: corpAccount._id },
       { $addToSet: { employeeEmails: { $each: normalizedEmails } } }
     )
 
-    const updated = await CorporateAccount.findById(corporateAccountId).lean()
+    const updated = await CorporateAccount.findById(corpAccount._id).lean()
 
     const addedCount = normalizedEmails.length
     return NextResponse.json({
@@ -115,32 +107,12 @@ export async function GET(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const corporateAccountId = searchParams.get('corporateAccountId')
-    const email = searchParams.get('email')
-
-    if (!corporateAccountId || !email) {
-      return NextResponse.json({ error: 'Faltan parámetros de autenticación' }, { status: 400 })
-    }
-
-    const corpAccount = await CorporateAccount.findOne({
-      _id: corporateAccountId,
-      tenantId: tenant._id,
-      status: 'active',
-      companyAdminEmail: email.toLowerCase().trim(),
-    }).lean()
-    if (!corpAccount) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const authz = await requireCorpAccess(request, tenantSlug, { requireRole: 'admin' })
+    if (!authz.ok) return authz.response
 
     return NextResponse.json({
-      employees: corpAccount.employeeEmails,
-      companyAdminEmail: corpAccount.companyAdminEmail,
+      employees: authz.access.account.employeeEmails,
+      companyAdminEmail: authz.access.account.companyAdminEmail,
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
+import { requireAuth } from '@/lib/apiAuth'
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +18,10 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    // Cerrado (hardening): ruta STAFF que estaba sin sesión.
+    const authError = await requireAuth(request, String(tenant._id))
+    if (authError) return authError
 
     const person = await DeliveryPerson.findOne({
       _id: id,

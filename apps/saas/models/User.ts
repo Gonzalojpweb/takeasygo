@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import bcrypt from 'bcryptjs'
 
 export type UserRole = 'superadmin' | 'admin' | 'manager' | 'staff' | 'cashier' | 'waiter' | 'consumer' | 'seller'
 
@@ -155,6 +156,20 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ email: 1 })
 UserSchema.index({ phone: 1 }, { sparse: true })
 UserSchema.index({ tenantId: 1, role: 1 })
+
+// Hash bcrypt completo: $2a/$2b/$2x/$2y + costo 2 dígitos + 53 chars del
+// digest (60 en total). Un string que solo "empiece" con $2 pero no cumple
+// el formato NO es un hash: se trata como texto plano y se cifra.
+const BCRYPT_HASH_RE = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/
+
+// Cifrar contraseña en texto plano al guardar (bcrypt ~$2b$). Los hashes ya
+// cifrados (formato bcrypt completo) no se tocan. Solo aplica vía save(); los
+// updates directos sobre el campo password deben usar save() o hashear.
+UserSchema.pre('save', async function () {
+  if (!this.isModified('password') || !this.password) return
+  if (BCRYPT_HASH_RE.test(this.password)) return
+  this.password = await bcrypt.hash(this.password, 10)
+})
 
 const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema)
 export default User
