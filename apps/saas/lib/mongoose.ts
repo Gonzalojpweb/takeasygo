@@ -3,11 +3,17 @@ import { assertMongoDbName } from '@takeasygo/business'
 
 const MONGODB_URI = process.env.MONGODB_URI as string
 
-if (!MONGODB_URI) {
-  throw new Error('MONGODB_URI no está definido en las variables de entorno')
-}
+// `next build` importa los route handlers para "collect page data": en ese
+// fase no hay proceso runtime ni base real, así que el guard solo aplica a
+// procesos que van a tocar la base (el check se repite en connectDB).
+const IS_BUILD_PHASE = process.env.NEXT_PHASE === 'phase-production-build'
 
-assertMongoDbName(MONGODB_URI)
+if (!IS_BUILD_PHASE) {
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI no está definido en las variables de entorno')
+  }
+  assertMongoDbName(MONGODB_URI)
+}
 
 interface MongooseCache {
   conn: typeof mongoose | null
@@ -26,6 +32,12 @@ if (!global.mongoose) {
 
 export async function connectDB() {
   if (cached.conn) return cached.conn
+
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI no está definido en las variables de entorno')
+  }
+  // Guard en runtime: nunca conectar a una base sin nombre (prod = default).
+  assertMongoDbName(MONGODB_URI)
 
   if (!cached.promise) {
     cached.promise = mongoose.connect(MONGODB_URI, {
