@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
+import { auth } from '@/lib/auth'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
 import { encrypt, decrypt } from '@/lib/crypto'
+import { verifyMpOauthState } from '@/lib/mp-oauth-state'
 
 /**
  * GET /api/mp-oauth/callback
@@ -10,6 +12,11 @@ import { encrypt, decrypt } from '@/lib/crypto'
  * MercadoPago OAuth callback. Exchanges the authorization code for an
  * access_token + refresh_token and stores them (encrypted) in the Tenant.
  * Uses OAuth credentials from PlatformConfig (configured by superadmin).
+ *
+ * Seguridad:
+ *  - state firmado (HMAC + exp) emitido por /admin/mp-oauth/connect;
+ *  - sesión de admin obligatoria;
+ *  - el tenant del state debe coincidir con el de la sesión (superadmin exceptuado).
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,25 +25,42 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
 
+    const session = await auth()
+    const sessionUser = session?.user ?? null
+    const isSuperAdmin = sessionUser?.role === 'superadmin'
+
+    const failRedirect = (tenantSlugHint?: string) => {
+      const slug = sessionUser?.tenantSlug ?? tenantSlugHint ?? null
+      const path = slug ? `/${slug}/admin/settings?mp_oauth=error` : '/admin?mp_oauth=error'
+      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}${path}`)
+    }
+
     if (error) {
       console.error('[MP OAuth callback] error from MP:', error)
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
+      return failRedirect()
     }
 
     if (!code || !state) {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
+      return failRedirect()
     }
 
-    // Decode state to get tenantSlug
-    let tenantSlug: string
-    let accountId: string | undefined
-    try {
-      const decoded = JSON.parse(Buffer.from(state, 'base64url').toString('utf-8'))
-      tenantSlug = decoded.tenantSlug
-      accountId = decoded.accountId
-      if (!tenantSlug) throw new Error('Missing tenantSlug')
-    } catch {
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
+    // State firmado: firma inválida, malformado o expirado → no se procesa nada.
+    const stateObj = verifyMpOauthState(state)
+    if (!stateObj) {
+      console.error('[MP OAuth callback] state inválido o expirado')
+      return failRedirect()
+    }
+    const tenantSlug: string = stateObj.tenantSlug
+    const accountId: string | undefined = stateObj.accountId
+
+    // Sesión obligatoria y perteneciente al tenant del state.
+    if (!sessionUser) {
+      console.error('[MP OAuth callback] sin sesión')
+      return failRedirect(tenantSlug)
+    }
+    if (!isSuperAdmin && sessionUser.tenantSlug !== tenantSlug) {
+      console.error('[MP OAuth callback] sesión pertenece a otro tenant')
+      return failRedirect(tenantSlug)
     }
 
     await connectDB()
