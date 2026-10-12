@@ -155,8 +155,8 @@ await anonField('reservations', {
 await anonField('deliverypeople', {
   name: (v) => (v ? fakeName(v) : v),
   phone: (v) => (v ? fakePhone(v) : v),
-  tokenHash: (v) => (v ? rehash(v) : v),
-  tokenPrefix: (v) => (v ? 'anon-' + h(String(v)).slice(0, 8) : v),
+  tokenHash: (v, d) => rehash(v ?? String(d._id)),
+  tokenPrefix: (v, d) => 'anon-' + h(String(v ?? d._id)).slice(0, 8),
 })
 
 await anonField('corporateaccounts', {
