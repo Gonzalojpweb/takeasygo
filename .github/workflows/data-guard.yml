@@ -11,15 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: audit-data-*, clientes_carga.csv, .env, .pem, .key no deben estar trackeados
-        run: |
-          BAD=$(git ls-files | grep -E '(^|/)audit-data-[^/]+/|(^|/)clientes_carga\.csv$|(^|/)\.env$|(^|/)\.env\.[^e]|(^|/)\.env\.[^e].*|\.pem$|\.key$' | grep -v '\.env\.example$' || true)
-          if [ -n "$BAD" ]; then
-            echo "::error::Archivos sensibles trackeados en el repo:"
-            echo "$BAD"
-            exit 1
-          fi
-          echo "OK: sin archivos sensibles trackeados."
+      - name: Guard de archivos sensibles (mismo script que el pre-commit)
+        run: node .husky/checks/block-data-dumps.mjs --all
 
   gitleaks:
     name: Gitleaks (push y PR)
@@ -32,3 +25,4 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
