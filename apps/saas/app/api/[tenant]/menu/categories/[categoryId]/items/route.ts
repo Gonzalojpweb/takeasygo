@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
 
@@ -19,6 +20,13 @@ export async function POST(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const { locationId, name, description, price, takeawayPrice, businessPrice, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, subcategoryId, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds } = await request.json()
 
@@ -88,6 +96,13 @@ export async function PUT(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds } = body

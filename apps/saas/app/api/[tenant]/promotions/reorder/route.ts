@@ -3,7 +3,7 @@ import Tenant from '@/models/Tenant'
 import Promotion from '@/models/Promotion'
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionOrAdmin } from '@/lib/rbac'
 
 export async function PUT(
   request: NextRequest,
@@ -20,14 +20,19 @@ export async function PUT(
 
     await connectDB()
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .lean<{ _id: string }>()
+      .lean<{ _id: string; flags?: Record<string, boolean | string | number | null | undefined> }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAdminRole(request, tenant._id.toString())
-    if (authError) return authError
+    // Flag off: admin-only (como siempre). Flag on: matriz v3 → admin+manager.
+    const guardError = await enforcePermissionOrAdmin(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'promotions.write',
+    })
+    if (guardError) return guardError
 
     const { orderedIds } = await request.json()
 

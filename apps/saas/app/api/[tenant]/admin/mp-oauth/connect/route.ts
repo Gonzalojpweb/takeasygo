@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt } from '@/lib/crypto'
 import { signMpOauthState } from '@/lib/mp-oauth-state'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 
 /**
  * GET /api/[tenant]/admin/mp-oauth/connect
@@ -37,6 +38,16 @@ export async function GET(
   }
 
   await connectDB()
+
+  // Matriz v3 (flag rbac.sedeScope): payments.configure es solo admin.
+  // Sin doc de tenant no hay flags → se omite el enforce (conducta previa).
+  const tenant = await Tenant.findOne({ slug: tenantSlug })
+  const permError = await enforcePermissionForRequest(request, {
+    tenant,
+    tenantId: tenant?._id?.toString() ?? '',
+    permission: 'payments.configure',
+  })
+  if (permError) return permError
 
   // Get OAuth credentials from PlatformConfig (configured by superadmin)
   const platformConfig = await PlatformConfig.findById('platform').lean() as any

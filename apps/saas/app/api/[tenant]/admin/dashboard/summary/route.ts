@@ -9,6 +9,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { enforcePermissionForRequest } from '@/lib/rbac'
+import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,8 +46,8 @@ export async function GET(
     const Tenant = TenantMod.default
 
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id cachedScores commissionBalance commissionThreshold')
-      .lean<{ _id: any; cachedScores?: { icoScore: number | null; capacityScore: number | null }; commissionBalance?: { transfer: number }; commissionThreshold?: number }>()
+      .select('_id cachedScores commissionBalance commissionThreshold flags')
+      .lean<{ _id: any; cachedScores?: { icoScore: number | null; capacityScore: number | null }; commissionBalance?: { transfer: number }; commissionThreshold?: number; flags?: Record<string, boolean | string | number | null | undefined> }>()
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -54,6 +56,22 @@ export async function GET(
     if (token.role !== 'superadmin' && token.tenantId?.toString() !== tenant._id.toString()) {
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
     }
+
+    // Consolidado (todas las sedes): exige reports.view_consolidated (admin+auditor).
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'reports.view_consolidated',
+    })
+    if (permError) return permError
+
+    logAudit({
+      tenantId: tenant._id.toString(),
+      action: 'reports.view_consolidated',
+      entity: 'dashboard',
+      details: { route: 'admin/dashboard/summary' },
+      request,
+    })
 
     const tenantId = tenant._id
     const now = new Date()

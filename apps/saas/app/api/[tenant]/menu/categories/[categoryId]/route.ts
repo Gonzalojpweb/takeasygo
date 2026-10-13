@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { NextRequest, NextResponse } from 'next/server'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
@@ -19,6 +20,13 @@ export async function PUT(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole, disabledGroupIds, disabledOptionIds } = await request.json()
 
@@ -68,6 +76,13 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const locationId = request.nextUrl.searchParams.get('locationId')
 

@@ -3,6 +3,7 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 const VALID_MODES = ['takeaway', 'delivery', 'dine-in', 'business'] as const
@@ -20,6 +21,13 @@ export async function PATCH(
 
     const roleError = await requireAdminRole(request, tenant._id.toString())
     if (roleError) return roleError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'settings.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { locationId } = body

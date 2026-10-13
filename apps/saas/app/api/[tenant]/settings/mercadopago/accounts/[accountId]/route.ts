@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { encrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 /**
@@ -22,6 +23,13 @@ export async function PUT(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const account = tenant.mpAccounts?.find((a: any) => a._id?.toString() === accountId)
     if (!account) {
@@ -76,6 +84,13 @@ export async function DELETE(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const account = tenant.mpAccounts?.find((a: any) => a._id?.toString() === accountId)
     if (!account) {

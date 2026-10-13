@@ -3,7 +3,8 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionOrAdmin } from '@/lib/rbac'
 
 const MAX_AGE_HOURS = 24
 
@@ -23,10 +24,13 @@ export async function POST(
   const authError = await requireAuth(request, tenant._id.toString())
   if (authError) return authError
 
-  const user = await getSessionUser(request)
-  if (!user || (user.role !== 'admin' && user.role !== 'superadmin')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-  }
+  // Flag off: admin-only (como siempre). Flag on: matriz v3 → admin+manager.
+  const guardError = await enforcePermissionOrAdmin(request, {
+    tenant,
+    tenantId: tenant._id.toString(),
+    permission: 'orders.cancel',
+  })
+  if (guardError) return guardError
 
   const cutoffDate = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000)
 

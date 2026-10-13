@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import type { Types } from 'mongoose'
 import mongoose from 'mongoose'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { NextRequest } from 'next/server'
 
 type MenuCategory = {
@@ -23,7 +24,7 @@ export async function PUT(
     
     await connectDB()
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .lean<{ _id: Types.ObjectId }>()
+      .lean<{ _id: Types.ObjectId; flags?: Record<string, boolean | string | number | null | undefined> }>()
     
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
@@ -31,6 +32,13 @@ export async function PUT(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const { 
       locationId, 

@@ -3,6 +3,8 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
+import { logAudit } from '@/lib/audit'
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { safeDecrypt } from '@/lib/crypto'
@@ -58,6 +60,23 @@ export async function GET(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    // Consolidado (todas las sedes, sin filtro de ubicación): exige
+    // reports.view_consolidated (admin+auditor) en lugar de reports.read.
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'reports.view_consolidated',
+    })
+    if (permError) return permError
+
+    logAudit({
+      tenantId: tenant._id.toString(),
+      action: 'reports.view_consolidated',
+      entity: 'reports',
+      details: { route: 'reports/download' },
+      request,
+    })
 
     const sp = request.nextUrl.searchParams
     const format = sp.get('format') || 'excel'

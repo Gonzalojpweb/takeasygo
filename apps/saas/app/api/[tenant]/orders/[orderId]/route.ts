@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { safeDecrypt } from '@/lib/crypto'
 
@@ -76,6 +77,13 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'orders.cancel',
+    })
+    if (permError) return permError
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {

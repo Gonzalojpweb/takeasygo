@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 /**
@@ -20,6 +21,13 @@ export async function GET(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const accounts = (tenant.transferAccounts || []).map((acc: any) => ({
       _id: acc._id?.toString(),
@@ -59,6 +67,13 @@ export async function POST(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const { label, alias, cbu, cvu, bankName, holderName, isActive } = await request.json()
 
@@ -138,6 +153,13 @@ export async function PUT(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const { accountId } = await request.json()
     if (!accountId) {

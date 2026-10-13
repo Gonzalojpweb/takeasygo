@@ -1,4 +1,11 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+
+// rbac.ts importa @/lib/apiAuth (para los helpers de ruta), que a su vez
+// carga next-auth — no debe resolverse en unit tests (en integración ya lo
+// mockea setup.ts).
+vi.mock('@/lib/auth', () => ({ auth: vi.fn() }))
+vi.mock('next-auth/jwt', () => ({ getToken: vi.fn() }))
+
 import {
   ROLE_PERMISSIONS,
   roleHasPermission,
@@ -64,33 +71,101 @@ describe('matriz de permisos por rol de sede', () => {
     expect(roleHasPermission('host', 'orders.write')).toBe(false)
   })
 
-  it('auditor (contador): solo lectura, jamás escritura ni apertura de caja', () => {
+  it('auditor (contador): solo lectura, jamás escritura ni dinero en efectivo', () => {
     for (const perm of ROLE_PERMISSIONS.auditor) {
-      expect(perm.endsWith('.read')).toBe(true)
+      // Lectura: *.read, más rooms.access (unirse a salas en tiempo real)
+      // y reports.view_consolidated (ver el consolidado de sedes).
+      expect(
+        perm.endsWith('.read') || perm === 'rooms.access' || perm === 'reports.view_consolidated'
+      ).toBe(true)
     }
     expect(roleHasPermission('auditor', 'orders.read')).toBe(true)
     expect(roleHasPermission('auditor', 'reports.read')).toBe(true)
+    expect(roleHasPermission('auditor', 'reports.view_consolidated')).toBe(true)
     expect(roleHasPermission('auditor', 'audit.read')).toBe(true)
-    expect(roleHasPermission('auditor', 'cash.movements.read')).toBe(true)
+    expect(roleHasPermission('auditor', 'reservations.read')).toBe(true)
+    expect(roleHasPermission('auditor', 'cash.movements.read')).toBe(false)
     expect(roleHasPermission('auditor', 'orders.write')).toBe(false)
     expect(roleHasPermission('auditor', 'cash.open')).toBe(false)
     expect(roleHasPermission('auditor', 'cash.close')).toBe(false)
     expect(roleHasPermission('auditor', 'cash.movements.write')).toBe(false)
     expect(roleHasPermission('auditor', 'settings.write')).toBe(false)
+    expect(roleHasPermission('auditor', 'settings.read')).toBe(false)
   })
 
-  it('cashier cierra caja pero no gestiona usuarios ni settings', () => {
+  it('cashier: caja, pedidos y reservas, sin reports.read ni users/settings', () => {
+    expect(roleHasPermission('cashier', 'orders.write')).toBe(true)
     expect(roleHasPermission('cashier', 'cash.close')).toBe(true)
     expect(roleHasPermission('cashier', 'cash.movements.write')).toBe(true)
+    expect(roleHasPermission('cashier', 'reports.cash')).toBe(true)
+    expect(roleHasPermission('cashier', 'reservations.write')).toBe(true)
+    expect(roleHasPermission('cashier', 'reports.read')).toBe(false)
+    expect(roleHasPermission('cashier', 'orders.cancel')).toBe(false)
     expect(roleHasPermission('cashier', 'users.write')).toBe(false)
     expect(roleHasPermission('cashier', 'settings.write')).toBe(false)
   })
 
-  it('manager no gestiona usuarios ni settings.write (eso es de admin)', () => {
-    expect(roleHasPermission('manager', 'users.write')).toBe(false)
-    expect(roleHasPermission('manager', 'settings.write')).toBe(false)
+  it('manager v3: gestiona usuarios y settings no-sensibles', () => {
+    expect(roleHasPermission('manager', 'users.write')).toBe(true)
+    expect(roleHasPermission('manager', 'settings.write')).toBe(true)
     expect(roleHasPermission('manager', 'orders.cancel')).toBe(true)
     expect(roleHasPermission('manager', 'reports.read')).toBe(true)
+    expect(roleHasPermission('manager', 'discounts.write')).toBe(true)
+    expect(roleHasPermission('manager', 'payments.configure')).toBe(false)
+    expect(roleHasPermission('manager', 'fiscal.configure')).toBe(false)
+    expect(roleHasPermission('manager', 'reports.view_consolidated')).toBe(false)
+  })
+
+  it('matriz v3: orders.cancel solo admin+manager', () => {
+    expect(roleHasPermission('admin', 'orders.cancel')).toBe(true)
+    expect(roleHasPermission('manager', 'orders.cancel')).toBe(true)
+    expect(roleHasPermission('staff', 'orders.cancel')).toBe(false)
+    expect(roleHasPermission('cashier', 'orders.cancel')).toBe(false)
+  })
+
+  it('matriz v3: cash.* solo admin+manager+cashier', () => {
+    for (const perm of ['cash.open', 'cash.close', 'cash.movements.read', 'cash.movements.write'] as const) {
+      expect(roleHasPermission('admin', perm)).toBe(true)
+      expect(roleHasPermission('manager', perm)).toBe(true)
+      expect(roleHasPermission('cashier', perm)).toBe(true)
+      expect(roleHasPermission('staff', perm)).toBe(false)
+      expect(roleHasPermission('auditor', perm)).toBe(false)
+      expect(roleHasPermission('waiter', perm)).toBe(false)
+    }
+  })
+
+  it('matriz v3: reports.read admin+manager+auditor; reports.cash +cashier', () => {
+    expect(roleHasPermission('admin', 'reports.read')).toBe(true)
+    expect(roleHasPermission('manager', 'reports.read')).toBe(true)
+    expect(roleHasPermission('auditor', 'reports.read')).toBe(true)
+    expect(roleHasPermission('cashier', 'reports.read')).toBe(false)
+    expect(roleHasPermission('seller', 'reports.read')).toBe(false)
+    expect(roleHasPermission('admin', 'reports.cash')).toBe(true)
+    expect(roleHasPermission('manager', 'reports.cash')).toBe(true)
+    expect(roleHasPermission('cashier', 'reports.cash')).toBe(true)
+    expect(roleHasPermission('auditor', 'reports.cash')).toBe(false)
+    expect(roleHasPermission('auditor', 'reports.view_consolidated')).toBe(true)
+    expect(roleHasPermission('manager', 'reports.view_consolidated')).toBe(false)
+  })
+
+  it('matriz v3: reservations.view incluye auditor/host; write +cashier; delete admin+manager', () => {
+    expect(roleHasPermission('auditor', 'reservations.read')).toBe(true)
+    expect(roleHasPermission('host', 'reservations.read')).toBe(true)
+    expect(roleHasPermission('cashier', 'reservations.write')).toBe(true)
+    expect(roleHasPermission('host', 'reservations.write')).toBe(true)
+    expect(roleHasPermission('cashier', 'reservations.delete')).toBe(false)
+    expect(roleHasPermission('manager', 'reservations.delete')).toBe(true)
+    expect(roleHasPermission('admin', 'reservations.delete')).toBe(true)
+  })
+
+  it('matriz v3: payments/fiscal.configure solo admin; rooms.access en todos los roles', () => {
+    expect(roleHasPermission('admin', 'payments.configure')).toBe(true)
+    expect(roleHasPermission('admin', 'fiscal.configure')).toBe(true)
+    expect(roleHasPermission('manager', 'payments.configure')).toBe(false)
+    expect(roleHasPermission('manager', 'fiscal.configure')).toBe(false)
+    for (const role of LOCATION_ROLES) {
+      expect(roleHasPermission(role, 'rooms.access')).toBe(true)
+    }
   })
 
   it('roles desconocidos no tienen permisos', () => {
@@ -261,7 +336,7 @@ describe('userHasPermission — flag on (user_location_roles)', () => {
 })
 
 describe('enforcePermission', () => {
-  it('devuelve null si está permitido y 403 si no', async () => {
+  it('flag off (default): devuelve null sin validar (sin cambio de conducta)', async () => {
     expect(
       await enforcePermission({
         user: { role: 'admin' },
@@ -271,12 +346,74 @@ describe('enforcePermission', () => {
       })
     ).toBeNull()
 
+    // Ni siquiera un consumer recibe 403: con flag off la defensa son los
+    // guards de siempre (requireAuth/requireAdminRole).
+    expect(
+      await enforcePermission({
+        user: { role: 'consumer' },
+        tenant: {},
+        tenantId: 't1',
+        permission: 'orders.write' as Permission,
+      })
+    ).toBeNull()
+    expect(findMock).not.toHaveBeenCalled()
+  })
+
+  it('flag on: null si la matriz lo permite y 403 si no', async () => {
+    process.env[ENV_KEY] = 'true'
+
+    // admin sin fila: fallback legacy => permitido.
+    findMock.mockReturnValueOnce([])
+    expect(
+      await enforcePermission({
+        user: { _id: 'u1', role: 'admin' },
+        tenant: {},
+        tenantId: 't1',
+        permission: 'orders.write' as Permission,
+      })
+    ).toBeNull()
+
+    // staff con fila: puede orders.write...
+    findMock.mockReturnValueOnce([{ role: 'staff', locationId: null }])
+    expect(
+      await enforcePermission({
+        user: { _id: 'u2', role: 'staff' },
+        tenant: {},
+        tenantId: 't1',
+        permission: 'orders.write' as Permission,
+      })
+    ).toBeNull()
+
+    // ...pero no cash.close (matriz v3).
+    findMock.mockReturnValueOnce([{ role: 'staff', locationId: null }])
     const res = await enforcePermission({
+      user: { _id: 'u2', role: 'staff' },
+      tenant: {},
+      tenantId: 't1',
+      permission: 'cash.close' as Permission,
+    })
+    expect(res?.status).toBe(403)
+
+    // consumer sin id: nunca tiene fila => 403.
+    const consumerRes = await enforcePermission({
       user: { role: 'consumer' },
       tenant: {},
       tenantId: 't1',
       permission: 'orders.write' as Permission,
     })
-    expect(res?.status).toBe(403)
+    expect(consumerRes?.status).toBe(403)
+  })
+
+  it('flag on: superadmin pasa sin consultar la DB', async () => {
+    process.env[ENV_KEY] = 'true'
+    expect(
+      await enforcePermission({
+        user: { role: 'superadmin' },
+        tenant: {},
+        tenantId: 't1',
+        permission: 'fiscal.configure' as Permission,
+      })
+    ).toBeNull()
+    expect(findMock).not.toHaveBeenCalled()
   })
 })

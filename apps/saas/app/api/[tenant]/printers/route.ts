@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -43,6 +44,13 @@ export async function POST(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'printjobs.manage',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { locationId, name, connectionType, ip, port, roles, paperWidth } = body

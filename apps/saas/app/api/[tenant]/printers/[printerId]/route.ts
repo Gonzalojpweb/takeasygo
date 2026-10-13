@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -17,6 +18,13 @@ export async function PATCH(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'printjobs.manage',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { name, connectionType, ip, port, roles, paperWidth, isActive } = body
@@ -51,6 +59,13 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'printjobs.manage',
+    })
+    if (permError) return permError
 
     const printer = await Printer.findOneAndDelete({ _id: printerId, tenantId: tenant._id })
     if (!printer) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })

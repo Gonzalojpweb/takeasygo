@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongoose"
 import Tenant from "@/models/Tenant"
 import { capturePhysicalCount, getSKUsForVerification } from "@/lib/inventory"
 import { requireAuth, getSessionUser } from "@/lib/apiAuth"
+import { enforcePermissionForRequest } from '@/lib/rbac'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/physical-count — Registrar conteo físico
@@ -29,6 +30,13 @@ export async function POST(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'inventory.write',
+    })
+    if (permError) return permError
 
     // El actor se deriva SIEMPRE del token: nunca del body del request.
     const sessionUser = await getSessionUser(request)

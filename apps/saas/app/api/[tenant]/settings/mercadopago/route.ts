@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 export async function GET(
@@ -18,6 +19,13 @@ export async function GET(
 
       const authError = await requireAdminRole(request, tenant._id.toString())
 if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     return NextResponse.json({
       isConfigured: tenant.mercadopago.isConfigured,
@@ -56,6 +64,13 @@ export async function POST(
 
       const authError = await requireAdminRole(request, tenant._id.toString())
 if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'payments.configure',
+    })
+    if (permError) return permError
 
     const { accessToken, publicKey, webhookSecret } = await request.json()
 

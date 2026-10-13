@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import ClubDiscount from '@/models/ClubDiscount'
 import Tenant from '@/models/Tenant'
 
@@ -28,10 +29,17 @@ export async function GET(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id flags')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'discounts.write',
+    })
+    if (permError) return permError
 
     const discount = await ClubDiscount.findOne({
       tenantId: tenant._id,
@@ -70,10 +78,17 @@ export async function POST(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id flags')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'discounts.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { scope, categoryIds, subcategoryIds, itemIds, discountPercent, cooldownHours, maxRedemptions, maxUsesPerConsumer, activeDays, scheduledStart, scheduledEnd, activeTimeStart, activeTimeEnd } = body
@@ -159,10 +174,17 @@ export async function DELETE(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id flags')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'discounts.write',
+    })
+    if (permError) return permError
 
     const result = await ClubDiscount.updateMany(
       { tenantId: tenant._id, active: true },
