@@ -24,8 +24,8 @@ import mongoose from 'mongoose'
  * La identidad del miembro NO viene del body/query (antes cualquiera con un
  * memberId ajeno podía canjear puntos). Se resuelve por:
  *  1. `x-member-token` (JWT del club, flujo menú público), o
- *  2. sesión NextAuth con match de tenant + member linkeado al userId
- *     (flujo app /app/profile/club).
+ *  2. sesión NextAuth con miembro linkeado al userId (flujo app
+ *     /app/profile/club), con fallback por email + auto-link.
  */
 async function resolveMemberId(
   request: NextRequest,
@@ -43,14 +43,35 @@ async function resolveMemberId(
     return verification.payload.memberId
   }
 
+  // Sesión NextAuth. Los consumidores de la app tienen tenantId nulo por
+  // diseño (auth.config.ts), así que NO se filtra por user.tenantId: la
+  // query del miembro ya va scoping por el tenantId de la URL.
   const user = await getSessionUser(request)
-  if (user?.id && user.tenantId === tenantId.toString()) {
+  if (user?.id) {
     const member = await LoyaltyMember.findOne({
       userId: user.id,
       tenantId,
       status: 'active',
     }).select('_id')
     if (member) return member._id.toString()
+
+    // Fallback: miembro creado en checkout/onboarding sin userId (solo
+    // email). Linkear al pasar — misma lógica que /loyalty/me.
+    const emailLower = user.email?.toLowerCase().trim()
+    if (emailLower) {
+      const byEmail = await LoyaltyMember.findOne({
+        email: emailLower,
+        tenantId,
+        status: 'active',
+      }).select('_id')
+      if (byEmail) {
+        await LoyaltyMember.updateOne(
+          { _id: byEmail._id },
+          { $set: { userId: user.id } }
+        )
+        return byEmail._id.toString()
+      }
+    }
   }
 
   return NextResponse.json({ error: 'Token de miembro requerido' }, { status: 401 })

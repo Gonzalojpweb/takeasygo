@@ -377,4 +377,82 @@ describe('store/redemptions — identidad por x-member-token o sesión', () => {
     expect(res.status).not.toBe(401)
     expect(res.status).not.toBe(403)
   })
+
+  it('POST resuelve sesión de consumidor (tenantId null) por userId — flujo app', async () => {
+    const userId = new mongoose.Types.ObjectId()
+    const linked = await LoyaltyMember.create({
+      tenantId: tenant._id,
+      name: 'Consumer Member',
+      phone: '+5491177778888',
+      status: 'active',
+      userId,
+      loyalty: { points: 200 },
+    })
+    // Los consumidores de la app tienen tenantId nulo por diseño (auth.config.ts);
+    // el gate user.tenantId === tenantId rompía el canje desde /app/profile/club.
+    sessionUser = { id: String(userId), role: 'user', tenantId: null, email: 'consumer@test.com' }
+
+    const item = await StoreItem.create({
+      tenantId: tenant._id,
+      name: 'Empanada',
+      category: 'food',
+      description: 'Carne a cuchillo',
+      imageUrl: 'https://x/emp.png',
+      pointsCost: 100,
+      cashValue: 1000,
+      isActive: true,
+    })
+
+    const res = await redeemPost(
+      new Request(`http://x/api/${SLUG}/store/redemptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeItemId: item._id.toString() }),
+      }) as any,
+      tenantParams()
+    )
+    // 401 = no resolvió identidad (el bug); 500 = resolvió pero la transacción no existe en standalone
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+    expect(linked.userId).toBeDefined()
+  })
+
+  it('POST con sesión sin miembro linkeado linkea por email (fallback)', async () => {
+    const userId = new mongoose.Types.ObjectId()
+    const member = await LoyaltyMember.create({
+      tenantId: tenant._id,
+      name: 'Email Member',
+      phone: '+5491188889999',
+      email: 'emailmember@test.com',
+      status: 'active',
+      loyalty: { points: 150 },
+    })
+    // Email con mayúsculas y espacio: el fallback debe normalizarlo igual que /loyalty/me
+    sessionUser = { id: String(userId), role: 'user', tenantId: null, email: 'EmailMember@Test.com ' }
+
+    const item = await StoreItem.create({
+      tenantId: tenant._id,
+      name: 'Chopp',
+      category: 'drink',
+      description: 'Chopp de 500ml',
+      imageUrl: 'https://x/chopp2.png',
+      pointsCost: 100,
+      cashValue: 1200,
+      isActive: true,
+    })
+
+    const res = await redeemPost(
+      new Request(`http://x/api/${SLUG}/store/redemptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeItemId: item._id.toString() }),
+      }) as any,
+      tenantParams()
+    )
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+
+    const fresh = await LoyaltyMember.findById(member._id)
+    expect(String(fresh!.userId)).toBe(String(userId))
+  })
 })
