@@ -10,6 +10,8 @@ import ExcelJS from 'exceljs'
 import { safeDecrypt } from '@/lib/crypto'
 import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import { toPesos } from '@takeasygo/business'
+import { buildReportStats, isBilledOrder } from '@/lib/report-stats'
+import { computePeriodCommissions } from '@/lib/commissions'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -123,51 +125,34 @@ export async function GET(
     }))
 
     // ─── Data endpoint for client-side PDF ──────────────────────────────────
+    // Devuelve las MISMAS cifras precalculadas que usa el Excel para que ambos
+    // formatos muestren exactamente los mismos números (fuente única: lib).
     if (format === 'data') {
-      return NextResponse.json({ orders, from: from.toISOString(), to: to.toISOString(), tenantSlug })
+      const stats = buildReportStats(orders, timezone)
+      const commissions = await computePeriodCommissions(tenant._id, from, to)
+      return NextResponse.json({
+        orders,
+        stats,
+        commissions,
+        from: from.toISOString(),
+        to: to.toISOString(),
+        tenantSlug,
+        timezone,
+      })
     }
 
-    // ─── Excel generation ────────────────────────────────────────────────────
-    const active = orders.filter(o => o.status !== 'cancelled')
-    const cancelled = orders.filter(o => o.status === 'cancelled')
-    const totalRevenue = active.reduce((s, o) => s + o.total, 0)
-    const totalNetRevenue = active.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
-    const totalSurcharge = active.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
-    const avgTicket = active.length > 0 ? totalRevenue / active.length : 0
-    const avgTicketNet = active.length > 0 ? totalNetRevenue / active.length : 0
+    // ─── Cifras compartidas (fuente única de verdad) ────────────────────────
+    const stats = buildReportStats(orders, timezone)
+    const commissions = await computePeriodCommissions(tenant._id, from, to)
+    const active = orders.filter(isBilledOrder)
+    const totalRevenue = stats.grossRevenue
+    const totalNetRevenue = stats.netRevenue
+    const totalSurcharge = stats.surchargeRevenue
 
-    // Daily breakdown
-    const dailyMap: Record<string, { count: number; total: number }> = {}
-    active.forEach(o => {
-      const day = new Date(o.createdAt).toLocaleDateString('es-AR', { timeZone: timezone })
-      if (!dailyMap[day]) dailyMap[day] = { count: 0, total: 0 }
-      dailyMap[day].count++
-      dailyMap[day].total += o.total
-    })
-
-    // Top items
-    const itemMap: Record<string, { quantity: number; revenue: number }> = {}
-    active.forEach(o => {
-      o.items.forEach((item: any) => {
-        if (!itemMap[item.name]) itemMap[item.name] = { quantity: 0, revenue: 0 }
-        itemMap[item.name].quantity += item.quantity
-        itemMap[item.name].revenue += item.subtotal
-      })
-    })
-    const topItems = Object.entries(itemMap)
-      .sort((a, b) => b[1].quantity - a[1].quantity)
-
-    // Payment method breakdown
-    const methodMap: Record<string, { orders: number; revenue: number; baseRevenue: number; surcharge: number }> = {}
-    active.forEach(o => {
-      const m = o.payment?.method || 'desconocido'
-      if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0, baseRevenue: 0, surcharge: 0 }
-      methodMap[m].orders++
-      methodMap[m].revenue += o.total
-      methodMap[m].baseRevenue += o.payment?.baseTotal || o.total
-      methodMap[m].surcharge += o.payment?.surchargeAmount || 0
-    })
-    const methodEntries = Object.entries(methodMap).sort((a, b) => b[1].revenue - a[1].revenue)
+    const transferComm = commissions.transfer
+    // Neto después de comisiones: bruto − comisiones auto-cobradas (MP/Kripton)
+    // − comisión de transferencia (ya pagada + pendiente, las dos se adeudan).
+    const netAfterCommissions = totalRevenue - stats.autoCollectedFee - commissions.total
 
     const workbook = new ExcelJS.Workbook()
     workbook.creator = 'TakeAsyGo'
@@ -215,30 +200,52 @@ export async function GET(
     styleHeader(summaryHeaders.getCell(1))
     styleHeader(summaryHeaders.getCell(2))
 
-    const summaryRows = [
-      ['Total de órdenes (período)', orders.length],
-      ['Órdenes activas', active.length],
-      ['Órdenes canceladas', cancelled.length],
-      ['Ventas brutas (con recargos)', totalRevenue],
-      ['Ventas netas (real restaurante)', totalNetRevenue],
-      ['Recargos (costo operativo)', totalSurcharge],
-      ['Ticket promedio bruto', avgTicket],
-      ['Ticket promedio neto', avgTicketNet],
-      ['Mes anterior (comparativo)', '—'],
+    // kind: 'currency' = formato $, 'count' = número entero, 'text' = texto libre
+    const summaryRows: { label: string; value: number | string; kind: 'currency' | 'count' | 'text' }[] = [
+      { label: 'Total de órdenes (período)', value: stats.totalOrders, kind: 'count' },
+      { label: 'Órdenes que facturan (no canceladas, pago válido)', value: stats.billedOrders, kind: 'count' },
+      { label: 'Órdenes canceladas (NO suman a ingresos)', value: stats.cancelledOrders, kind: 'count' },
+      { label: '  ↳ monto cancelado (no facturado)', value: toPesos(stats.cancelledAmount), kind: 'currency' },
+      { label: 'Órdenes con pago rechazado/cancelado (NO suman)', value: stats.rejectedPaymentOrders, kind: 'count' },
+      { label: '  ↳ monto por pago rechazado (no facturado)', value: toPesos(stats.rejectedAmount), kind: 'currency' },
+      { label: 'Órdenes esperando pago del cliente (NO suman)', value: stats.awaitingPaymentOrders, kind: 'count' },
+      { label: '  ↳ monto esperando pago (no facturado)', value: toPesos(stats.awaitingPaymentAmount), kind: 'currency' },
+      { label: 'Órdenes con pago pendiente de confirmar', value: stats.pendingPaymentOrders, kind: 'count' },
+      { label: '  ↳ monto pendiente de confirmar cobro', value: toPesos(stats.pendingPaymentAmount), kind: 'currency' },
+      { label: 'Ventas brutas facturadas (con recargos)', value: toPesos(totalRevenue), kind: 'currency' },
+      { label: 'Ventas netas de carta (sin recargos)', value: toPesos(totalNetRevenue), kind: 'currency' },
+      { label: 'Recargos por método de pago (cubren fees)', value: toPesos(totalSurcharge), kind: 'currency' },
+      { label: 'Ticket promedio bruto', value: toPesos(stats.avgTicketGross), kind: 'currency' },
+      { label: 'Ticket promedio neto', value: toPesos(stats.avgTicketNet), kind: 'currency' },
+      { label: 'Comisiones TakeasyGO — cobradas solas (MP/Kripton)', value: toPesos(stats.autoCollectedFee), kind: 'currency' },
+      { label: 'Comisiones TakeasyGO — transferencia ya pagadas', value: toPesos(transferComm.settled), kind: 'currency' },
+      { label: 'Comisiones TakeasyGO — transferencia pendientes de pagar', value: toPesos(transferComm.pending), kind: 'currency' },
+      { label: 'Neto al restaurante (después de todas las comisiones)', value: toPesos(netAfterCommissions), kind: 'currency' },
     ]
 
-    summaryRows.forEach(([label, value], i) => {
+    summaryRows.forEach(({ label, value, kind }, i) => {
       const row = ws1.addRow([label, value])
-      row.getCell(1).font = { bold: true }
+      row.getCell(1).font = { bold: !label.startsWith('  ') }
       if (i % 2 === 0) {
         row.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
         row.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
       }
-      if (typeof value === 'number' && (label as string).includes('$') || label === 'Ventas brutas (con recargos)' || label === 'Ventas netas (real restaurante)' || label === 'Recargos MP (costo operativo)' || label === 'Ticket promedio bruto' || label === 'Ticket promedio neto') {
-        styleCurrency(row.getCell(2))
-      }
+      if (kind === 'currency') styleCurrency(row.getCell(2))
+      if (kind === 'count') row.getCell(2).numFmt = '#,##0'
       row.height = 22
     })
+
+    // Nota aclaratoria al pie del resumen
+    ws1.addRow([])
+    const notaRow = ws1.addRow([
+      'Nota: MercadoPago y Kripton descuentan su propio fee de procesamiento además de la comisión ' +
+      'TakeasyGO; ese fee del procesador está cubierto por el recargo que paga el cliente. ' +
+      'Las comisiones de transferencia se pagan desde el panel de administración.',
+    ])
+    ws1.mergeCells(notaRow.number, 1, notaRow.number, 2)
+    notaRow.getCell(1).font = { italic: true, size: 9, color: { argb: '666666' } }
+    notaRow.getCell(1).alignment = { wrapText: true, vertical: 'top' }
+    notaRow.height = 42
 
     // ── Sheet 2: DETALLE DE ÓRDENES ──────────────────────────────────────────
     const ws2 = workbook.addWorksheet('Órdenes')
@@ -252,8 +259,10 @@ export async function GET(
       { header: 'Items', key: 'items', width: 40 },
       { header: 'Subtotales', key: 'subtotals', width: 18 },
       { header: 'Precio carta', key: 'baseTotal', width: 14 },
-      { header: 'Recargo MP', key: 'surcharge', width: 14 },
+      { header: 'Recargo', key: 'surcharge', width: 14 },
       { header: 'Total', key: 'total', width: 14 },
+      { header: 'Método', key: 'method', width: 14 },
+      { header: 'Comisión TO', key: 'platformFee', width: 14 },
       { header: 'Estado', key: 'status', width: 16 },
       { header: 'Pago', key: 'payment', width: 14 },
       { header: 'Notas', key: 'notes', width: 30 },
@@ -263,10 +272,13 @@ export async function GET(
     headerRow2.eachCell(cell => styleHeader(cell))
     headerRow2.height = 28
 
+    const REJECTED_BG = 'FFFFE4E4'
+
     orders.forEach((order, idx) => {
       const itemsStr = order.items.map((i: any) => `${i.quantity}x ${i.name}`).join(' | ')
       const subtotalsStr = order.items.map((i: any) => `$${fmt(i.subtotal)}`).join(' | ')
       const isCancelled = order.status === 'cancelled'
+      const isRejected = !isCancelled && (order.payment?.status === 'rejected' || order.payment?.status === 'cancelled')
 
       const row = ws2.addRow({
         n: idx + 1,
@@ -280,14 +292,19 @@ export async function GET(
         baseTotal: toPesos(order.payment?.baseTotal || order.total),
         surcharge: toPesos(order.payment?.surchargeAmount || 0),
         total: toPesos(order.total),
+        method: METHOD_LABELS[order.payment?.method] || order.payment?.method || '—',
+        platformFee: toPesos(order.payment?.platformFeeAmount || 0),
         status: STATUS_LABELS[order.status] || order.status,
         payment: PAYMENT_LABELS[order.payment?.status] || order.payment?.status,
-        notes: order.notes || '',
+        notes: isRejected
+          ? `⚠ No factura: el pago fue ${PAYMENT_LABELS[order.payment?.status] || order.payment?.status}. ${order.notes || ''}`.trim()
+          : order.notes || '',
       })
 
       row.getCell('total').numFmt = '"$"#,##0.00'
       row.getCell('baseTotal').numFmt = '"$"#,##0.00'
       row.getCell('surcharge').numFmt = '"$"#,##0.00'
+      row.getCell('platformFee').numFmt = '"$"#,##0.00'
       row.alignment = { vertical: 'top', wrapText: true }
       row.height = 36
 
@@ -296,6 +313,11 @@ export async function GET(
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: CANCELLED_BG } }
           cell.font = { color: { argb: 'FF999999' }, italic: true }
         })
+      } else if (isRejected) {
+        row.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: REJECTED_BG } }
+          cell.font = { color: { argb: 'FFB91C1C' } }
+        })
       } else if (idx % 2 === 0) {
         row.eachCell(cell => {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
@@ -303,7 +325,7 @@ export async function GET(
       }
     })
 
-    ws2.autoFilter = { from: 'A1', to: 'N1' }
+    ws2.autoFilter = { from: 'A1', to: 'P1' }
 
     // ── Sheet 3: ITEMS MÁS VENDIDOS ──────────────────────────────────────────
     const ws3 = workbook.addWorksheet('Items más vendidos')
@@ -317,8 +339,8 @@ export async function GET(
     ws3.getRow(1).eachCell(cell => styleHeader(cell))
     ws3.getRow(1).height = 28
 
-    topItems.forEach(([name, data], i) => {
-      const row = ws3.addRow({ rank: i + 1, name, quantity: data.quantity, revenue: toPesos(data.revenue) })
+    stats.topItems.forEach((item, i) => {
+      const row = ws3.addRow({ rank: i + 1, name: item.name, quantity: item.quantity, revenue: toPesos(item.revenue) })
       row.getCell('revenue').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
@@ -339,13 +361,13 @@ export async function GET(
     ws4.getRow(1).eachCell(cell => styleHeader(cell))
     ws4.getRow(1).height = 28
 
-    const dailyEntries = Object.entries(dailyMap).sort((a, b) =>
-      new Date(a[0].split('/').reverse().join('-')).getTime() -
-      new Date(b[0].split('/').reverse().join('-')).getTime()
+    const dailyEntries = stats.daily.slice().sort((a, b) =>
+      new Date(a.date.split('/').reverse().join('-')).getTime() -
+      new Date(b.date.split('/').reverse().join('-')).getTime()
     )
 
-    dailyEntries.forEach(([date, data], i) => {
-      const row = ws4.addRow({ date, count: data.count, total: toPesos(data.total) })
+    dailyEntries.forEach((d, i) => {
+      const row = ws4.addRow({ date: d.date, count: d.orders, total: toPesos(d.gross) })
       row.getCell('total').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
@@ -375,21 +397,34 @@ export async function GET(
       { header: 'Método', key: 'method', width: 22 },
       { header: 'Órdenes', key: 'orders', width: 12 },
       { header: 'Bruto', key: 'revenue', width: 18 },
-      { header: 'Neto', key: 'baseRevenue', width: 18 },
+      { header: 'Neto carta', key: 'baseRevenue', width: 18 },
       { header: 'Recargo', key: 'surcharge', width: 14 },
+      { header: 'Comisión TO', key: 'platformFee', width: 16 },
+      { header: 'Neto restaurante', key: 'netToRestaurant', width: 20 },
       { header: '% del total', key: 'pct', width: 14 },
     ]
 
     ws5.getRow(1).eachCell(cell => styleHeader(cell))
     ws5.getRow(1).height = 28
 
-    methodEntries.forEach(([method, data], i) => {
-      const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
-      const label = METHOD_LABELS[method] || method
-      const row = ws5.addRow({ method: label, orders: data.orders, revenue: toPesos(data.revenue), baseRevenue: toPesos(data.baseRevenue), surcharge: toPesos(data.surcharge), pct: `${pct}%` })
+    stats.methods.forEach((m, i) => {
+      const pct = totalRevenue > 0 ? Math.round((m.gross / totalRevenue) * 100) : 0
+      const label = METHOD_LABELS[m.method] || m.method
+      const row = ws5.addRow({
+        method: label,
+        orders: m.orders,
+        revenue: toPesos(m.gross),
+        baseRevenue: toPesos(m.net),
+        surcharge: toPesos(m.surcharge),
+        platformFee: toPesos(m.platformFee),
+        netToRestaurant: toPesos(m.netToRestaurant),
+        pct: `${pct}%`,
+      })
       row.getCell('revenue').numFmt = '"$"#,##0.00'
       row.getCell('baseRevenue').numFmt = '"$"#,##0.00'
       row.getCell('surcharge').numFmt = '"$"#,##0.00'
+      row.getCell('platformFee').numFmt = '"$"#,##0.00'
+      row.getCell('netToRestaurant').numFmt = '"$"#,##0.00'
       row.height = 22
       if (i % 2 === 0) {
         row.eachCell(cell => {
@@ -399,25 +434,153 @@ export async function GET(
     })
 
     // Totals row
+    const totalPlatformFee = stats.methods.reduce((s, m) => s + m.platformFee, 0)
+    const totalNetToRestaurant = stats.methods.reduce((s, m) => s + m.netToRestaurant, 0)
     const totalRow5 = ws5.addRow({
       method: 'TOTAL',
-      orders: active.length,
+      orders: stats.billedOrders,
       revenue: toPesos(totalRevenue),
       baseRevenue: toPesos(totalNetRevenue),
       surcharge: toPesos(totalSurcharge),
+      platformFee: toPesos(totalPlatformFee),
+      netToRestaurant: toPesos(totalNetToRestaurant),
       pct: '100%',
     })
     totalRow5.getCell('method').font = { bold: true, color: { argb: PRIMARY } }
     totalRow5.getCell('orders').font = { bold: true }
-    totalRow5.getCell('revenue').numFmt = '"$"#,##0.00'
-    totalRow5.getCell('revenue').font = { bold: true, color: { argb: PRIMARY } }
-    totalRow5.getCell('baseRevenue').numFmt = '"$"#,##0.00'
-    totalRow5.getCell('baseRevenue').font = { bold: true, color: { argb: PRIMARY } }
-    totalRow5.getCell('surcharge').numFmt = '"$"#,##0.00'
-    totalRow5.getCell('surcharge').font = { bold: true, color: { argb: PRIMARY } }
+    for (const col of ['revenue', 'baseRevenue', 'surcharge', 'platformFee', 'netToRestaurant'] as const) {
+      totalRow5.getCell(col).numFmt = '"$"#,##0.00'
+      totalRow5.getCell(col).font = { bold: true, color: { argb: PRIMARY } }
+    }
     totalRow5.getCell('pct').font = { bold: true }
     totalRow5.eachCell(cell => {
       cell.border = { top: { style: 'medium', color: { argb: PRIMARY } } }
+    })
+
+    // ── Sheet 6: COMISIONES Y CONCILIACIÓN ────────────────────────────────────
+    // Usa computePeriodCommissions — la MISMA fuente que el panel de admin —
+    // para que los números del reporte cierren exactamente contra el panel.
+    const ws6 = workbook.addWorksheet('Comisiones')
+    ws6.columns = [{ width: 34 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 16 }, { width: 34 }]
+
+    const commTitle = ws6.addRow(['Comisiones TakeasyGO — Conciliación del período'])
+    ws6.mergeCells('A1:F1')
+    commTitle.getCell(1).font = { bold: true, size: 14, color: { argb: PRIMARY } }
+    commTitle.height = 30
+
+    const commHowItWorks = ws6.addRow([
+      'Mercado Pago y Kripton se cobran SOLOS con cada pago (marketplace_fee): siempre figuran 100% ' +
+      'cobradas. La comisión de transferencia (delivery) la paga el restaurante desde el panel.',
+    ])
+    ws6.mergeCells('A2:F2')
+    commHowItWorks.getCell(1).font = { italic: true, size: 9, color: { argb: '666666' } }
+    commHowItWorks.getCell(1).alignment = { wrapText: true, vertical: 'top' }
+    commHowItWorks.height = 32
+
+    ws6.addRow([])
+    const commHeaders = ws6.addRow(['Método', 'Órdenes', 'Total comisión', 'Ya cobrada', 'Pendiente', 'Cómo se cobra'])
+    commHeaders.eachCell(cell => styleHeader(cell))
+    commHeaders.height = 28
+
+    const COMM_HOW: Record<string, string> = {
+      mercadopago: 'Automático con cada pago aprobado',
+      kripton: 'Automático con cada pago aprobado',
+      transfer: 'El restaurante la paga desde el panel',
+    }
+
+    commissions.breakdown.forEach((m, i) => {
+      const row = ws6.addRow({
+        method: METHOD_LABELS[m.method] || m.method,
+        orders: m.orderCount,
+        total: toPesos(m.total),
+        settled: toPesos(m.settled),
+        pending: toPesos(m.pending),
+        how: COMM_HOW[m.method] || '—',
+      })
+      for (const col of ['total', 'settled', 'pending'] as const) row.getCell(col).numFmt = '"$"#,##0.00'
+      row.height = 22
+      if (i % 2 === 0) {
+        row.eachCell(cell => {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
+        })
+      }
+    })
+
+    const commTotalRow = ws6.addRow({
+      method: 'TOTAL',
+      orders: commissions.orderCount,
+      total: toPesos(commissions.total),
+      settled: toPesos(commissions.settled),
+      pending: toPesos(commissions.pending),
+      how: '',
+    })
+    commTotalRow.getCell('method').font = { bold: true, color: { argb: PRIMARY } }
+    for (const col of ['total', 'settled', 'pending'] as const) {
+      commTotalRow.getCell(col).numFmt = '"$"#,##0.00'
+      commTotalRow.getCell(col).font = { bold: true, color: { argb: PRIMARY } }
+    }
+    commTotalRow.eachCell(cell => {
+      cell.border = { top: { style: 'medium', color: { argb: PRIMARY } } }
+    })
+
+    // Semanas de transferencia (corte lunes a domingo)
+    if (commissions.weekly.length > 0) {
+      ws6.addRow([])
+      const wkTitle = ws6.addRow(['Comisiones de transferencia — semana a semana (lunes a domingo)'])
+      ws6.mergeCells(`A${wkTitle.number}:F${wkTitle.number}`)
+      wkTitle.getCell(1).font = { bold: true, size: 11, color: { argb: PRIMARY } }
+
+      const wkHeaders = ws6.addRow(['Semana', 'Órdenes', 'Comisión', 'Ya pagada', 'Pendiente', ''])
+      wkHeaders.eachCell(cell => styleHeader(cell))
+      wkHeaders.height = 24
+
+      commissions.weekly.forEach((w, i) => {
+        const row = ws6.addRow({
+          week: `${w.weekStart.toLocaleDateString('es-AR', { timeZone: timezone })} → ${w.weekEnd.toLocaleDateString('es-AR', { timeZone: timezone })}`,
+          orders: w.orderCount,
+          total: toPesos(w.total),
+          settled: toPesos(w.settled),
+          pending: toPesos(w.pending),
+        })
+        for (const col of ['total', 'settled', 'pending'] as const) row.getCell(col).numFmt = '"$"#,##0.00'
+        row.height = 20
+        if (i % 2 === 0) {
+          row.eachCell(cell => {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ROW_ALT } }
+          })
+        }
+      })
+    }
+
+    // Ajuste por settlements viejos sin detalle de órdenes
+    if (commissions.unattributedSettled > 0) {
+      ws6.addRow([])
+      const adjRow = ws6.addRow([
+        'Ajuste: pagos registrados anteriores sin detalle de órdenes (ya descontados del pendiente)',
+        '',
+        toPesos(commissions.unattributedSettled),
+      ])
+      adjRow.getCell(3).numFmt = '"$"#,##0.00'
+      adjRow.getCell(1).font = { italic: true, size: 9, color: { argb: '666666' } }
+    }
+
+    // Cierre: total bruto − comisiones = neto al restaurante
+    ws6.addRow([])
+    const cierreTitle = ws6.addRow(['Cómo cierra la cuenta del período'])
+    cierreTitle.getCell(1).font = { bold: true, size: 11, color: { argb: PRIMARY } }
+    const cierreRows: { label: string; value: number }[] = [
+      { label: 'Ventas brutas facturadas', value: totalRevenue },
+      { label: '− Comisiones TakeasyGO cobradas solas (MP/Kripton)', value: -stats.autoCollectedFee },
+      { label: '− Comisiones TakeasyGO de transferencia (todas las del período)', value: -commissions.total },
+      { label: '= Neto al restaurante', value: netAfterCommissions },
+    ]
+    cierreRows.forEach(({ label, value }, i) => {
+      const row = ws6.addRow([label, toPesos(value)])
+      row.getCell(2).numFmt = '"$"#,##0.00'
+      if (i === cierreRows.length - 1) {
+        row.getCell(1).font = { bold: true }
+        row.getCell(2).font = { bold: true, color: { argb: PRIMARY } }
+      }
     })
 
     // ── Return Excel ─────────────────────────────────────────────────────────

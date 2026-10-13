@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
 import { decrypt } from '@/lib/crypto'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
@@ -30,10 +31,15 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
+    // Incluye tenants con mpAccounts[] (multi-cuenta, el modelo actual) Y
+    // tenants legacy sin migrar (mercadopago.isConfigured). Antes solo se
+    // escaneaba el path legacy y los tenants migrados nunca se sanaban.
     const tenants = await Tenant.find({
       isActive: true,
-      'mercadopago.isConfigured': true,
-      'mercadopago.accessToken': { $exists: true, $ne: null },
+      $or: [
+        { 'mpAccounts.0': { $exists: true } },
+        { 'mercadopago.isConfigured': true },
+      ],
     }).lean() as any[]
 
     const results = {
@@ -50,7 +56,9 @@ export async function GET(request: NextRequest) {
 
     for (const tenant of tenants) {
       try {
-        const accessToken = decrypt(tenant.mercadopago.accessToken)
+        const account = getActiveMpAccount(tenant)
+        if (!account?.accessToken) continue
+        const accessToken = decrypt(account.accessToken)
         const client = new MercadoPagoConfig({ accessToken })
         const paymentClient = new Payment(client)
 

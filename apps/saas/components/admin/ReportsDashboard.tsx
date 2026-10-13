@@ -16,6 +16,13 @@ import { toPesos } from '@takeasygo/business/browser'
 import { toast } from 'sonner'
 import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 import type { NavigationStats } from '@/lib/reports/navigation'
+import type { ReportStats, ReportOrderLike } from '@/lib/report-stats'
+import type { PeriodCommissions } from '@/lib/commissions'
+
+type PdfOrder = ReportOrderLike & {
+    orderNumber: string
+    customer?: { name?: string; phone?: string }
+}
 
 interface Props {
     stats: {
@@ -190,10 +197,16 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
     async function handleDownloadPdf() {
         setLoadingPdf(true)
         try {
-            // 1. Fetch data
+            // 1. Fetch data — el servidor devuelve las MISMAS cifras que usa el
+            //    Excel (stats) + las comisiones del panel (commissions), así el
+            //    PDF y el Excel cierran exactamente igual.
             const res = await fetch(`/api/${tenantSlug}/reports/download?format=data&from=${from}&to=${to}`)
             if (!res.ok) throw new Error()
-            const { orders }: { orders: any[] } = await res.json()
+            const { orders, stats: rs, commissions: comm } = await res.json() as {
+                orders: PdfOrder[]
+                stats: ReportStats
+                commissions: PeriodCommissions
+            }
 
             // 2. Dynamic imports (avoids SSR issues)
             const { default: jsPDF } = await import('jspdf')
@@ -202,6 +215,19 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
             const pageW = doc.internal.pageSize.getWidth()
             const PR = 99, PG = 102, PB = 241   // primary color rgb
+
+            const METHOD_LABELS: Record<string, string> = {
+                mercadopago: 'Mercado Pago',
+                kripton: 'Kripton',
+                transfer: 'Transferencia',
+                cash: 'Efectivo',
+            }
+            const COMM_HOW: Record<string, string> = {
+                mercadopago: 'Automático con cada pago',
+                kripton: 'Automático con cada pago',
+                transfer: 'La paga el restaurante desde el panel',
+            }
+            const isRejectedPayment = (s: string | null | undefined) => s === 'rejected' || s === 'cancelled'
 
             // ── Header ─────────────────────────────────────────────────────
             doc.setFillColor(30, 27, 75)
@@ -221,23 +247,17 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             let y = 36
 
             // ── Summary boxes ──────────────────────────────────────────────
-            const activeOrders = orders.filter(o => o.status !== 'cancelled')
-            const cancelledOrders = orders.filter(o => o.status === 'cancelled')
-            const totalRevenue = activeOrders.reduce((s, o) => s + o.total, 0)
-            const totalNetRevenue = activeOrders.reduce((s, o) => s + (o.payment?.baseTotal || o.total), 0)
-            const totalSurcharge = activeOrders.reduce((s, o) => s + (o.payment?.surchargeAmount || 0), 0)
-            const avgTicket = activeOrders.length > 0 ? totalRevenue / activeOrders.length : 0
-            const avgTicketNet = activeOrders.length > 0 ? totalNetRevenue / activeOrders.length : 0
-
             const boxes = [
-                { label: 'Órdenes totales', value: orders.length.toString() },
-                { label: 'Órdenes activas', value: activeOrders.length.toString() },
-                { label: 'Canceladas', value: cancelledOrders.length.toString() },
-                { label: 'Ventas brutas', value: `$${fmt(totalRevenue)}` },
-                { label: 'Ventas netas', value: `$${fmt(totalNetRevenue)}` },
-                { label: 'Recargos', value: `$${fmt(totalSurcharge)}` },
-                { label: 'Ticket prom. bruto', value: `$${fmt(avgTicket)}` },
-                { label: 'Ticket prom. neto', value: `$${fmt(avgTicketNet)}` },
+                { label: 'Órdenes totales', value: rs.totalOrders.toString() },
+                { label: 'Que facturan', value: rs.billedOrders.toString() },
+                { label: 'Canceladas (no facturan)', value: rs.cancelledOrders.toString() },
+                { label: 'Pago rechazado (no factura)', value: rs.rejectedPaymentOrders.toString() },
+                { label: 'Esperando pago (no facturan)', value: rs.awaitingPaymentOrders.toString() },
+                { label: 'Ventas brutas', value: `$${fmt(rs.grossRevenue)}` },
+                { label: 'Neto carta', value: `$${fmt(rs.netRevenue)}` },
+                { label: 'Recargos', value: `$${fmt(rs.surchargeRevenue)}` },
+                { label: 'Comisiones TO', value: `$${fmt(comm.total)}` },
+                { label: 'Neto restaurante', value: `$${fmt(rs.grossRevenue - rs.autoCollectedFee - comm.total)}` },
             ]
 
             const boxW = (pageW - 28) / boxes.length
@@ -247,15 +267,26 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 doc.roundedRect(x, y, boxW - 4, 18, 3, 3, 'F')
                 doc.setTextColor(PR, PG, PB)
                 doc.setFont('helvetica', 'bold')
-                doc.setFontSize(13)
+                doc.setFontSize(11)
                 doc.text(box.value, x + (boxW - 4) / 2, y + 9, { align: 'center' })
                 doc.setFont('helvetica', 'normal')
-                doc.setFontSize(7)
+                doc.setFontSize(6.5)
                 doc.setTextColor(100, 100, 120)
                 doc.text(box.label, x + (boxW - 4) / 2, y + 14, { align: 'center' })
             })
 
-            y += 26
+            y += 24
+
+            // Nota aclaratoria
+            doc.setFont('helvetica', 'italic')
+            doc.setFontSize(7)
+            doc.setTextColor(120, 120, 140)
+            doc.text(
+                'Las órdenes canceladas y los pagos rechazados/cancelados NO suman a los ingresos facturados. ' +
+                'Mercado Pago y Kripton cobran su comisión automáticamente con cada pago.',
+                14, y
+            )
+            y += 6
 
             // ── Orders table ───────────────────────────────────────────────
             doc.setFont('helvetica', 'bold')
@@ -266,60 +297,57 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
 
             autoTable(doc, {
                 startY: y,
-                head: [['#', 'N° Orden', 'Fecha', 'Cliente', 'Teléfono', 'Items', 'Precio carta', 'Recargo', 'Total', 'Estado', 'Pago']],
+                head: [['#', 'N° Orden', 'Fecha', 'Cliente', 'Teléfono', 'Items', 'Precio carta', 'Recargo', 'Total', 'Método', 'Comisión TO', 'Estado', 'Pago']],
                 body: orders.map((o, i) => [
                     i + 1,
                     o.orderNumber,
                     fmtDate(o.createdAt),
                     o.customer?.name || '—',
                     o.customer?.phone || '—',
-                    o.items.map((it: any) => `${it.quantity}x ${it.name}`).join(', '),
+                    (o.items || []).map(it => `${it.quantity}x ${it.name}`).join(', '),
                     `$${fmt(o.payment?.baseTotal || o.total)}`,
                     o.payment?.surchargeAmount ? `+$${fmt(o.payment.surchargeAmount)}` : '—',
                     `$${fmt(o.total)}`,
+                    METHOD_LABELS[o.payment?.method || ''] || o.payment?.method || '—',
+                    `$${fmt(o.payment?.platformFeeAmount || 0)}`,
                     STATUS_LABELS[o.status] || o.status,
-                    PAYMENT_LABELS[o.payment?.status] || o.payment?.status || '—',
+                    PAYMENT_LABELS[o.payment?.status || ''] || o.payment?.status || '—',
                 ]),
-                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
-                bodyStyles: { fontSize: 7, cellPadding: 2 },
+                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
+                bodyStyles: { fontSize: 6.5, cellPadding: 1.5 },
                 alternateRowStyles: { fillColor: [245, 244, 255] },
                 didParseCell(data) {
                     if (data.section === 'body') {
                         const row = orders[data.row.index]
+                        const rejected = row && row.status !== 'cancelled' && isRejectedPayment(row.payment?.status)
                         if (row?.status === 'cancelled') {
                             data.cell.styles.textColor = [160, 160, 160]
                             data.cell.styles.fontStyle = 'italic'
+                        } else if (rejected) {
+                            data.cell.styles.textColor = [185, 28, 28]
                         }
                         if (data.column.index === 8) {
                             data.cell.styles.fontStyle = 'bold'
-                            data.cell.styles.textColor = [PR, PG, PB]
+                            if (!rejected && row?.status !== 'cancelled') {
+                                data.cell.styles.textColor = [PR, PG, PB]
+                            }
                         }
                     }
                 },
-                    columnStyles: {
-                        0: { cellWidth: 8 }, 1: { cellWidth: 20 }, 2: { cellWidth: 26 },
-                        3: { cellWidth: 26 }, 4: { cellWidth: 20 }, 5: { cellWidth: 'auto' },
-                        6: { cellWidth: 20 }, 7: { cellWidth: 16 }, 8: { cellWidth: 20 },
-                        9: { cellWidth: 18 }, 10: { cellWidth: 16 },
-                    },
-                    margin: { left: 14, right: 14 },
-                    showFoot: 'lastPage',
-                    foot: [['', '', '', '', '', 'TOTAL', `$${fmt(totalNetRevenue)}`, '', `$${fmt(totalRevenue)}`, '', '']],
-                    footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
+                columnStyles: {
+                    0: { cellWidth: 7 }, 1: { cellWidth: 18 }, 2: { cellWidth: 22 },
+                    3: { cellWidth: 22 }, 4: { cellWidth: 18 }, 5: { cellWidth: 'auto' },
+                    6: { cellWidth: 18 }, 7: { cellWidth: 14 }, 8: { cellWidth: 18 },
+                    9: { cellWidth: 18 }, 10: { cellWidth: 16 }, 11: { cellWidth: 16 }, 12: { cellWidth: 14 },
+                },
+                margin: { left: 14, right: 14 },
+                showFoot: 'lastPage',
+                foot: [['', '', '', '', '', 'TOTAL (facturan)', `$${fmt(rs.netRevenue)}`, '', `$${fmt(rs.grossRevenue)}`, '', '', '', '']],
+                footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 6.5 },
             })
 
             // ── Top items — nueva página ────────────────────────────────────
-            const itemMap: Record<string, { quantity: number; revenue: number }> = {}
-            activeOrders.forEach(o => {
-                o.items.forEach((it: any) => {
-                    if (!itemMap[it.name]) itemMap[it.name] = { quantity: 0, revenue: 0 }
-                    itemMap[it.name].quantity += it.quantity
-                    itemMap[it.name].revenue += it.subtotal
-                })
-            })
-            const topItemsData = Object.entries(itemMap).sort((a, b) => b[1].quantity - a[1].quantity)
-
-            if (topItemsData.length > 0) {
+            if (rs.topItems.length > 0) {
                 doc.addPage()
                 doc.setFillColor(30, 27, 75)
                 doc.rect(0, 0, pageW, 16, 'F')
@@ -331,7 +359,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 autoTable(doc, {
                     startY: 24,
                     head: [['#', 'Producto', 'Cantidad', 'Ingresos generados']],
-                    body: topItemsData.map(([name, data], i) => [i + 1, name, data.quantity, `$${fmt(data.revenue)}`]),
+                    body: rs.topItems.map((item, i) => [i + 1, item.name, item.quantity, `$${fmt(item.revenue)}`]),
                     headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
                     bodyStyles: { fontSize: 9 },
                     alternateRowStyles: { fillColor: [245, 244, 255] },
@@ -344,23 +372,8 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 })
             }
 
-            // ── Payment method breakdown ──────────────────────────────────
-            const methodMap: Record<string, { orders: number; revenue: number }> = {}
-            const methodLabels: Record<string, string> = {
-                mercadopago: 'Mercado Pago',
-                kripton: 'Kripton',
-                transfer: 'Transferencia',
-                cash: 'Efectivo',
-            }
-            activeOrders.forEach(o => {
-                const m = o.payment?.method || 'desconocido'
-                if (!methodMap[m]) methodMap[m] = { orders: 0, revenue: 0 }
-                methodMap[m].orders++
-                methodMap[m].revenue += o.total
-            })
-            const methodEntries = Object.entries(methodMap).sort((a, b) => b[1].revenue - a[1].revenue)
-
-            if (methodEntries.length > 0) {
+            // ── Payment method breakdown (idéntico a la hoja Excel) ────────
+            if (rs.methods.length > 0) {
                 doc.addPage()
                 doc.setFillColor(30, 27, 75)
                 doc.rect(0, 0, pageW, 16, 'F')
@@ -371,27 +384,156 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
 
                 autoTable(doc, {
                     startY: 24,
-                    head: [['Método', 'Órdenes', 'Ingresos', '% del total']],
-                    body: methodEntries.map(([method, data]) => {
-                        const pct = totalRevenue > 0 ? Math.round((data.revenue / totalRevenue) * 100) : 0
-                        const label = methodLabels[method] || method
-                        return [label, data.orders, `$${fmt(data.revenue)}`, `${pct}%`]
+                    head: [['Método', 'Órdenes', 'Bruto', 'Neto carta', 'Recargo', 'Comisión TO', 'Neto restaurante', '% del total']],
+                    body: rs.methods.map(m => {
+                        const pct = rs.grossRevenue > 0 ? Math.round((m.gross / rs.grossRevenue) * 100) : 0
+                        return [
+                            METHOD_LABELS[m.method] || m.method,
+                            m.orders,
+                            `$${fmt(m.gross)}`,
+                            `$${fmt(m.net)}`,
+                            `$${fmt(m.surcharge)}`,
+                            `$${fmt(m.platformFee)}`,
+                            `$${fmt(m.netToRestaurant)}`,
+                            `${pct}%`,
+                        ]
                     }),
                     headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
-                    bodyStyles: { fontSize: 9 },
+                    bodyStyles: { fontSize: 8 },
                     alternateRowStyles: { fillColor: [245, 244, 255] },
                     columnStyles: {
                         0: { cellWidth: 'auto' },
-                        1: { halign: 'center', cellWidth: 30 },
-                        2: { halign: 'right', fontStyle: 'bold', textColor: [PR, PG, PB], cellWidth: 40 },
-                        3: { halign: 'center', cellWidth: 26 },
+                        1: { halign: 'center', cellWidth: 20 },
+                        2: { halign: 'right', cellWidth: 28 },
+                        3: { halign: 'right', cellWidth: 26 },
+                        4: { halign: 'right', cellWidth: 22 },
+                        5: { halign: 'right', cellWidth: 24 },
+                        6: { halign: 'right', fontStyle: 'bold', textColor: [PR, PG, PB], cellWidth: 30 },
+                        7: { halign: 'center', cellWidth: 22 },
                     },
                     margin: { left: 14, right: 14 },
                     showFoot: 'lastPage',
-                    foot: [['TOTAL', activeOrders.length, `$${fmt(totalRevenue)}`, '100%']],
+                    foot: [[
+                        'TOTAL',
+                        rs.billedOrders,
+                        `$${fmt(rs.grossRevenue)}`,
+                        `$${fmt(rs.netRevenue)}`,
+                        `$${fmt(rs.surchargeRevenue)}`,
+                        `$${fmt(rs.autoCollectedFee + comm.transfer.total)}`,
+                        `$${fmt(rs.grossRevenue - rs.autoCollectedFee - comm.total)}`,
+                        '100%',
+                    ]],
                     footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
                 })
             }
+
+            // ── Comisiones y conciliación (misma fuente que el panel) ───────
+            doc.addPage()
+            doc.setFillColor(30, 27, 75)
+            doc.rect(0, 0, pageW, 16, 'F')
+            doc.setTextColor(255, 255, 255)
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(12)
+            doc.text('Comisiones TakeasyGO — Conciliación', 14, 11)
+
+            doc.setFont('helvetica', 'italic')
+            doc.setFontSize(7.5)
+            doc.setTextColor(120, 120, 140)
+            doc.text(
+                'Mercado Pago y Kripton se cobran solos con cada pago (siempre 100% cobradas). ' +
+                'La comisión de transferencia (delivery) la paga el restaurante desde el panel.',
+                14, 22
+            )
+
+            autoTable(doc, {
+                startY: 28,
+                head: [['Método', 'Órdenes', 'Total comisión', 'Ya cobrada', 'Pendiente', 'Cómo se cobra']],
+                body: comm.breakdown.map(m => [
+                    METHOD_LABELS[m.method] || m.method,
+                    m.orderCount,
+                    `$${fmt(m.total)}`,
+                    `$${fmt(m.settled)}`,
+                    `$${fmt(m.pending)}`,
+                    COMM_HOW[m.method] || '—',
+                ]),
+                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+                bodyStyles: { fontSize: 8 },
+                alternateRowStyles: { fillColor: [245, 244, 255] },
+                columnStyles: {
+                    0: { cellWidth: 'auto' },
+                    1: { halign: 'center', cellWidth: 20 },
+                    2: { halign: 'right', cellWidth: 28 },
+                    3: { halign: 'right', cellWidth: 26 },
+                    4: { halign: 'right', cellWidth: 24 },
+                    5: { cellWidth: 48 },
+                },
+                margin: { left: 14, right: 14 },
+                showFoot: 'lastPage',
+                foot: [['TOTAL', comm.orderCount, `$${fmt(comm.total)}`, `$${fmt(comm.settled)}`, `$${fmt(comm.pending)}`, '']],
+                footStyles: { fillColor: [PR, PG, PB], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+            })
+
+            let commY = (doc as any).lastAutoTable.finalY + 10
+
+            // Semanas de transferencia
+            if (comm.weekly.length > 0) {
+                doc.setFont('helvetica', 'bold')
+                doc.setFontSize(9)
+                doc.setTextColor(30, 27, 75)
+                doc.text('Transferencias — semana a semana (lunes a domingo)', 14, commY)
+
+                autoTable(doc, {
+                    startY: commY + 3,
+                    head: [['Semana', 'Órdenes', 'Comisión', 'Ya pagada', 'Pendiente']],
+                    body: comm.weekly.map(w => [
+                        `${w.weekStart.toLocaleDateString('es-AR')} → ${w.weekEnd.toLocaleDateString('es-AR')}`,
+                        w.orderCount,
+                        `$${fmt(w.total)}`,
+                        `$${fmt(w.settled)}`,
+                        `$${fmt(w.pending)}`,
+                    ]),
+                    headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 8 },
+                    alternateRowStyles: { fillColor: [245, 244, 255] },
+                    columnStyles: {
+                        0: { cellWidth: 'auto' },
+                        1: { halign: 'center', cellWidth: 20 },
+                        2: { halign: 'right', cellWidth: 28 },
+                        3: { halign: 'right', cellWidth: 26 },
+                        4: { halign: 'right', cellWidth: 24 },
+                    },
+                    margin: { left: 14, right: 14 },
+                })
+                commY = (doc as any).lastAutoTable.finalY + 10
+            }
+
+            // Cierre: bruto − comisiones = neto
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(9)
+            doc.setTextColor(30, 27, 75)
+            doc.text('Cómo cierra la cuenta del período', 14, commY)
+
+            autoTable(doc, {
+                startY: commY + 3,
+                head: [['Concepto', 'Monto']],
+                body: [
+                    ['Ventas brutas facturadas', `$${fmt(rs.grossRevenue)}`],
+                    ['− Comisiones TakeasyGO cobradas solas (MP/Kripton)', `$${fmt(rs.autoCollectedFee)}`],
+                    ['− Comisiones TakeasyGO de transferencia (período completo)', `$${fmt(comm.total)}`],
+                    ['= Neto al restaurante', `$${fmt(rs.grossRevenue - rs.autoCollectedFee - comm.total)}`],
+                ],
+                headStyles: { fillColor: [30, 27, 75], textColor: [255, 255, 255], fontStyle: 'bold' },
+                bodyStyles: { fontSize: 8 },
+                alternateRowStyles: { fillColor: [245, 244, 255] },
+                columnStyles: { 1: { halign: 'right', cellWidth: 40 } },
+                margin: { left: 14, right: 14 },
+                didParseCell(data) {
+                    if (data.section === 'body' && data.row.index === 3) {
+                        data.cell.styles.fontStyle = 'bold'
+                        data.cell.styles.textColor = [PR, PG, PB]
+                    }
+                },
+            })
 
             // ── Page numbers ───────────────────────────────────────────────
             const totalPages = (doc as any).internal.getNumberOfPages()

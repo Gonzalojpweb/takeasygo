@@ -97,6 +97,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const rangeLabel = hasRange ? buildPeriodLabel(fromParam!, toParam!) : 'Mes actual'
   const prevRangeLabel = hasRange ? buildPeriodLabel(fmtDate(prevStart), fmtDate(prevEnd)) : 'mes anterior'
 
+  // Regla de facturación (misma que lib/report-stats y el Excel/PDF): excluye
+  // órdenes canceladas, órdenes awaiting_payment (aún sin pagar) Y pagos
+  // rechazados/cancelados. Los pagos 'pending' de órdenes confirmadas sí
+  // cuentan (ventas entregadas en curso de cobro) — nada de ingreso fantasma.
+  const BILLED_MATCH = {
+    status: { $nin: ['cancelled', 'awaiting_payment'] },
+    'payment.status': { $nin: ['rejected', 'cancelled'] },
+  }
+
   const [
     ordersThisMonth,
     ordersLastMonth,
@@ -125,19 +134,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     upsellTicketData,
     navigationData,
   ] = await Promise.all([
-    // Revenue y count del mes actual (sin cancelados)
+    // Revenue y count del mes actual (solo lo que factura)
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $group: { _id: null, total: { $sum: '$total' }, baseTotal: { $sum: '$payment.baseTotal' }, surcharge: { $sum: '$payment.surchargeAmount' }, platformFee: { $sum: '$payment.platformFeeAmount' }, count: { $sum: 1 } } }
     ]),
     // Período anterior
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, ...BILLED_MATCH } },
       { $group: { _id: null, total: { $sum: '$total' }, baseTotal: { $sum: '$payment.baseTotal' }, surcharge: { $sum: '$payment.surchargeAmount' }, platformFee: { $sum: '$payment.platformFeeAmount' }, count: { $sum: 1 } } }
     ]),
     // Top 5 ítems
     Order.aggregate([
-      { $match: { tenantId, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, ...BILLED_MATCH } },
       { $unwind: '$items' },
       { $group: { _id: '$items.name', total: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
       { $sort: { total: -1 } },
@@ -168,7 +177,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
     // Distribución horaria completa — solo full
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $group: { _id: { $hour: { date: '$createdAt', timezone } }, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]) : Promise.resolve([]),
@@ -248,7 +257,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
       // Revenue por categoría — solo full
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $unwind: '$items' },
       { $group: {
         _id: '$items.categoryName',
@@ -260,7 +269,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
       // Tendencia diaria — solo full (usa mes calendario; se oculta en rango custom)
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: startOfMonth }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: startOfMonth }, ...BILLED_MATCH } },
       { $group: {
         _id: { $dayOfMonth: { date: '$createdAt', timezone } },
         revenue: { $sum: '$total' },
@@ -270,7 +279,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
       // Revenue por sede — solo full
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $lookup: {
         from: 'locations',
         localField: 'locationId',
@@ -285,9 +294,9 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       }},
       { $sort: { revenue: -1 } },
     ]) : Promise.resolve([]),
-    // Upsell adds — solo full, rango activo del filtro (sin cancelados ni borrados)
+    // Upsell adds — solo full, rango activo del filtro (solo lo que factura)
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, deletedAt: null } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH, deletedAt: null } },
       { $unwind: '$items' },
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: { name: '$items.name', source: '$items.addedFrom' }, adds: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
@@ -301,7 +310,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
     // Upsell adds del período anterior (para el delta) — solo full
     isFullPlan ? Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, status: { $ne: 'cancelled' }, deletedAt: null } },
+      { $match: { tenantId, createdAt: { $gte: prevStart, $lte: prevEnd }, ...BILLED_MATCH, deletedAt: null } },
       { $unwind: '$items' },
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: null, adds: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
@@ -315,7 +324,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]) : Promise.resolve([]),
       // Ventas por método de pago — todos los planes
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $group: {
         _id: '$payment.method',
         orders: { $sum: 1 },
@@ -327,9 +336,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       { $sort: { revenue: -1 } },
     ]),
       // Desglose diario de comisión por transferencia — todos los planes
-    // Solo pedidos delivery: takeaway+transferencia no genera comisión de plataforma
+    // Solo pedidos delivery con pago aprobado: coincide exactamente con la
+    // fuente única de comisiones (lib/commissions.ts) que exige pago approved.
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, 'payment.method': 'transfer', orderMode: 'delivery' } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' }, 'payment.status': 'approved', 'payment.method': 'transfer', orderMode: 'delivery' } },
       { $group: {
         _id: { $dayOfMonth: { date: '$createdAt', timezone } },
         revenue: { $sum: '$total' },
@@ -344,7 +354,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     (() => {
       const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1, 0, 0, 0, 0)
       return Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: twelveMonthsAgo }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, createdAt: { $gte: twelveMonthsAgo }, ...BILLED_MATCH } },
         { $group: {
           _id: { year: { $year: { date: '$createdAt', timezone } }, month: { $month: { date: '$createdAt', timezone } } },
           revenue: { $sum: '$total' },
@@ -356,7 +366,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     })(),
     // ── Upsell vs Menú Común: usuarios con upsell ─────────────────────
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $unwind: '$items' },
       { $match: { 'items.addedFrom': { $in: UPSELL_SOURCES } } },
       { $group: { _id: '$customer.phoneHash' } },
@@ -364,7 +374,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]),
     // ── Upsell vs Menú Común: pedidos con upsell ──────────────────────
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $addFields: {
         hasUpsell: {
           $gt: [{ $size: { $filter: { input: '$items', as: 'item', cond: { $in: ['$$item.addedFrom', UPSELL_SOURCES] } } } }, 0],
@@ -374,7 +384,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ]),
     // ── Upsell vs Menú Común: ticket promedio con/sin upsell ──────────
     Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, createdAt: { $gte: periodStart, $lte: periodEnd }, ...BILLED_MATCH } },
       { $addFields: {
         hasUpsell: {
           $gt: [{ $size: { $filter: { input: '$items', as: 'item', cond: { $in: ['$$item.addedFrom', UPSELL_SOURCES] } } } }, 0],
