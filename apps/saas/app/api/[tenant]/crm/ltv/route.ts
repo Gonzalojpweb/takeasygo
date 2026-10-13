@@ -5,6 +5,8 @@ import CustomerProfile from '@/models/CustomerProfile'
 import { canAccess } from '@/lib/plans'
 import { safeDecrypt } from '@/lib/crypto'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
+import { logAudit } from '@/lib/audit'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/crm/ltv — Dashboard consolidado de LTV por segmento
@@ -26,6 +28,22 @@ export async function GET(
     // Cerrado (hardening): ruta STAFF que estaba sin sesión.
     const authError = await requireAuth(request, String(tenant._id))
     if (authError) return authError
+
+    // Consolidado (todas las sedes): exige reports.view_consolidated (admin+auditor).
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: String(tenant._id),
+      permission: 'reports.view_consolidated',
+    })
+    if (permError) return permError
+
+    logAudit({
+      tenantId: String(tenant._id),
+      action: 'reports.view_consolidated',
+      entity: 'crm',
+      details: { route: 'crm/ltv' },
+      request,
+    })
 
     if (!canAccess(tenant.plan, 'crm')) {
       return NextResponse.json({ error: 'CRM no disponible en tu plan actual.' }, { status: 403 })

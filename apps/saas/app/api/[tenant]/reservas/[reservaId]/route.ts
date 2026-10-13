@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { rateLimit } from '@/lib/rateLimit'
 import { safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation, sendReservationCancellation } from '@/lib/reservationNotifications'
@@ -54,6 +55,13 @@ export async function PUT(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'reservations.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { status } = body

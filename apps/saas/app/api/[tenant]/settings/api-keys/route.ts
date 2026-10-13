@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { generateApiKey, hashApiKey, sanitizeApiKeysForClient, canAddMoreKeys } from '@/lib/apiKeyAuth'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 /**
@@ -22,6 +23,13 @@ export async function GET(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'settings.write',
+    })
+    if (permError) return permError
 
     return NextResponse.json({
       keys: sanitizeApiKeysForClient(tenant.externalApiKeys || [])
@@ -48,6 +56,13 @@ export async function POST(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'settings.write',
+    })
+    if (permError) return permError
 
     if (!canAddMoreKeys(tenant)) {
       return NextResponse.json({ error: 'Límite de API Keys alcanzado (máx 10)' }, { status: 400 })
@@ -102,6 +117,13 @@ export async function DELETE(
 
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'settings.write',
+    })
+    if (permError) return permError
 
     const { keyHashPreview } = await request.json() // Identificador enviado desde el cliente
 

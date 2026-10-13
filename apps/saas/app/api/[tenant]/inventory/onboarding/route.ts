@@ -12,6 +12,7 @@ import {
   getOnboardingStatus,
 } from "@/lib/inventory/recipe-inference"
 import { requireAuth } from "@/lib/apiAuth"
+import { enforcePermissionForRequest } from '@/lib/rbac'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/onboarding — Progressive Zero-Setup
@@ -86,6 +87,13 @@ export async function POST(
     // Cerrado (hardening): ruta STAFF que estaba sin sesión.
     const authError = await requireAuth(request, String(tenant._id))
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'inventory.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const results: Record<string, unknown> = {}

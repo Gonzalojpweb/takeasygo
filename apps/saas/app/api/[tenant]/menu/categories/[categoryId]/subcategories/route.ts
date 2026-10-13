@@ -3,6 +3,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
 
@@ -19,6 +20,13 @@ export async function POST(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const { locationId, name, description, imageUrl, printRole, customizationGroups, availabilityMode, availabilitySchedule } = await request.json()
 
@@ -68,6 +76,13 @@ export async function PUT(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
+
     const body = await request.json()
     const { locationId, subcategoryId, name, description, imageUrl, sortOrder, printRole, customizationGroups, availabilityMode, availabilitySchedule } = body
 
@@ -114,6 +129,13 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'menu.write',
+    })
+    if (permError) return permError
 
     const locationId = request.nextUrl.searchParams.get('locationId')
     const subcategoryId = request.nextUrl.searchParams.get('subcategoryId')

@@ -5,7 +5,7 @@ import Printer from '@/models/Printer'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { aggregateOrdersForRange, buildPreCloseBuffer } from '@/lib/preclose-report'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminRole } from '@/lib/apiAuth'
+import { enforcePermissionOrAdmin } from '@/lib/rbac'
 
 /**
  * POST /api/[tenant]/preclose/print
@@ -23,8 +23,13 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAdminRole(request, tenant._id.toString())
-    if (authError) return authError
+    // Flag off: admin-only (como siempre). Flag on: matriz v3 → admin+manager.
+    const guardError = await enforcePermissionOrAdmin(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'printjobs.manage',
+    })
+    if (guardError) return guardError
 
     const { from, to, printerName } = await request.json()
 

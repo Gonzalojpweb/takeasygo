@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { getCashReconciliationSummary } from '@/lib/cash-reconciliation'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 
 /**
  * GET /{tenant}/cash-reconciliation
@@ -23,6 +24,13 @@ export async function GET(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'reports.cash',
+    })
+    if (permError) return permError
 
     const daysBack = Number(request.nextUrl.searchParams.get('days')) || 7
     const summary = await getCashReconciliationSummary(tenant._id.toString(), daysBack)

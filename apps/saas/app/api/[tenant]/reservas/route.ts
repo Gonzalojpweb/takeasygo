@@ -6,6 +6,7 @@ import Reservation from '@/models/Reservation'
 import Counter from '@/models/Counter'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
 import { getStrictLocationIdMode } from '@/lib/feature-flags'
 import { rateLimit } from '@/lib/rateLimit'
@@ -58,6 +59,14 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const date = searchParams.get('date')
     const locationId = searchParams.get('locationId')
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      locationId,
+      permission: 'reservations.read',
+    })
+    if (permError) return permError
 
     if (locationId) {
       if (!mongoose.isValidObjectId(locationId)) {

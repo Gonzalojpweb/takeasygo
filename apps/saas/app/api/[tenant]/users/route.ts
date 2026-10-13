@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 
 // Roles que un admin puede crear — nunca puede escalar a admin ni superadmin
 const ALLOWED_ROLES = ['manager', 'staff', 'cashier'] as const
@@ -21,6 +22,13 @@ export async function GET(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'users.read',
+    })
+    if (permError) return permError
 
     const users = await User.find({ tenantId: tenant._id }).select('-password')
     return NextResponse.json({ users })
@@ -42,6 +50,13 @@ export async function POST(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'users.write',
+    })
+    if (permError) return permError
 
     const { name, email, password, role, assignedLocations = [] } = await request.json()
 

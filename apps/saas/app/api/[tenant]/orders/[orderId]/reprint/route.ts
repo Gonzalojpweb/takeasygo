@@ -3,7 +3,8 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Printer from '@/models/Printer'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { buildPrintPayload } from '@/lib/printing'
 
 const VALID_ROLES = ['kitchen', 'bar', 'cashier'] as const
@@ -53,6 +54,21 @@ export async function POST(
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+
+    // Sede (solo con flag rbac.sedeScope on; con flag off = como antes, sin
+    // check de sede): si el usuario tiene sedes asignadas, la orden debe ser
+    // de una de ellas.
+    if (isFlagEnabled(tenant, FLAGS.RBAC_SEDE_SCOPE)) {
+      const user = await getSessionUser(request)
+      const userLocs = (user?.assignedLocations ?? []).map(l => String(l))
+      if (
+        userLocs.length > 0 &&
+        order.locationId &&
+        !userLocs.includes(String(order.locationId))
+      ) {
+        return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+      }
+    }
 
     const body = (await request.json().catch(() => ({}))) as ReprintBody
     const printerId = body.printerId

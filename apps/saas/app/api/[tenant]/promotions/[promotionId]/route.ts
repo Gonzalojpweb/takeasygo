@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 export async function GET(
@@ -52,6 +53,13 @@ export async function PUT(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'promotions.write',
+    })
+    if (permError) return permError
+
     const body = await request.json()
 
     const promotion = await Promotion.findOneAndUpdate(
@@ -95,6 +103,13 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'promotions.write',
+    })
+    if (permError) return permError
 
     const promotion = await Promotion.findOneAndDelete({ 
       _id: promotionId, 

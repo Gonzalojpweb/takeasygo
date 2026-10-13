@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,6 +23,13 @@ export async function PATCH(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'settings.write',
+    })
+    if (permError) return permError
 
     const body = await request.json()
     const { whatsappPhone, notifyOnOrder, notifyOnReservation, cis } = body
