@@ -120,6 +120,8 @@ export async function GET(request: NextRequest) {
         collectedBy: s.collectedBy,
         notes: s.notes || '',
         status: s.status,
+        orderCount: Array.isArray(s.orderIds) ? s.orderIds.length : 0,
+        orderIds: Array.isArray(s.orderIds) ? s.orderIds.map(String) : [],
       })),
       tenants: tenants.map((t: any) => ({
         _id: t._id.toString(),

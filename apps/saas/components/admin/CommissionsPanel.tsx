@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Clock, CheckCircle2, AlertTriangle,
-  CreditCard, Loader2, ArrowRight, FileText, Info, Scale, ArrowDown,
+  CreditCard, Loader2, ArrowRight, Info, Scale, ArrowDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -74,24 +74,8 @@ interface CommissionData {
 
 /* ── Settlements endpoint ── */
 interface Settlement {
-  from: string
-  to: string
   amountCollected: number
-  collectedBy: string
   collectedAt: string
-  notes: string
-  orderCount: number
-}
-
-/* ── Weekly Statements endpoint ── */
-interface WeeklyStatement {
-  weekStart: string
-  weekEnd: string
-  amount: number
-  status: 'pendiente' | 'pagado' | 'vencido'
-  closedAt: string
-  paidAt: string | null
-  orderCount: number
 }
 
 const METHOD_INFO: Record<string, { label: string; desc: string; className: string }> = {
@@ -121,12 +105,6 @@ function methodInfo(method: string) {
   return METHOD_INFO[method] ?? { label: method, desc: 'Medio de pago no identificado.', className: '' }
 }
 
-const STATUS_STYLES: Record<string, { label: string; className: string }> = {
-  pendiente: { label: 'Pendiente', className: 'bg-amber-100 text-amber-700' },
-  pagado: { label: 'Pagado', className: 'bg-green-100 text-green-700' },
-  vencido: { label: 'Vencido', className: 'bg-red-100 text-red-700' },
-}
-
 export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string }) {
   const defaults = getDefaultDates()
   const [from, setFrom] = useState(defaults.from)
@@ -135,12 +113,10 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
   const [status, setStatus] = useState<CommissionStatus | null>(null)
   const [data, setData] = useState<CommissionData | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
-  const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatement[]>([])
 
   const [loadingStatus, setLoadingStatus] = useState(true)
   const [loadingData, setLoadingData] = useState(true)
   const [loadingSettlements, setLoadingSettlements] = useState(true)
-  const [loadingStatements, setLoadingStatements] = useState(true)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -201,25 +177,9 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
     }
   }, [tenantSlug])
 
-  /* ── Fetch weekly statements ── */
-  const fetchWeeklyStatements = useCallback(async () => {
-    try {
-      setLoadingStatements(true)
-      const res = await fetch(`/api/${tenantSlug}/commissions/weekly-statements`)
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error)
-      setWeeklyStatements(json.statements || [])
-    } catch {
-      // silent
-    } finally {
-      setLoadingStatements(false)
-    }
-  }, [tenantSlug])
-
   useEffect(() => { fetchStatus() }, [fetchStatus])
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchSettlements() }, [fetchSettlements])
-  useEffect(() => { fetchWeeklyStatements() }, [fetchWeeklyStatements])
 
   /* ── Pay handler ── */
   async function handlePay() {
@@ -279,17 +239,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
           </p>
         </div>
       )}
-      {balance < 0 && (
-        <div className="flex items-center gap-3 rounded-2xl border border-red-300 bg-red-50 px-5 py-3.5 text-sm text-red-800">
-          <AlertTriangle size={18} className="shrink-0 text-red-500" />
-          <p>
-            <b className="font-semibold">Tu balance histórico está en negativo ($${fmt(balance)}).</b>{' '}
-            Significa que se registraron pagos de comisiones por más dinero del que acumulaste
-            (por ejemplo, ajustes manuales del equipo TakeasyGO). No es un saldo que debas pagar.
-            Si creés que hay un error, contactanos.
-          </p>
-        </div>
-      )}
+
 
       {/* ── Selector de período ── */}
       <Card className="rounded-2xl border shadow-sm p-5">
@@ -401,27 +351,36 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex items-center justify-between sm:flex-1">
             <div className="flex items-center gap-3">
-              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', balance < 0 ? 'bg-red-100' : 'bg-primary/10')}>
-                <DollarSign size={16} className={balance < 0 ? 'text-red-600' : 'text-primary'} />
+              <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center', balance > 0 ? 'bg-amber-100' : 'bg-green-100')}>
+                <DollarSign size={16} className={balance > 0 ? 'text-amber-600' : 'text-green-600'} />
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Balance histórico de transferencias</p>
-                <p className="text-2xl font-bold tabular-nums mt-0.5">
-                  {loadingStatus ? '…' : `$${fmt(balance)}`}
+                <p className={cn('text-2xl font-bold tabular-nums mt-0.5', balance > 0 ? 'text-amber-600' : 'text-green-600')}>
+                  {loadingStatus ? '…' : balance > 0 ? `$${fmt(balance)}` : '$0,00'}
                 </p>
               </div>
             </div>
-            {threshold != null && (
+            {threshold != null && balance > 0 && (
               <Badge variant="outline" className="text-xs">
                 Umbral de aviso: ${fmt(threshold)}
               </Badge>
             )}
           </div>
           <p className="text-[11px] text-muted-foreground sm:max-w-md">
-            Comisiones por transferencia acumuladas <b>desde siempre</b> que todavía no se saldaron.
-            Sube cuando se confirma una orden por transferencia; baja cuando pagás (el botón «Pagar»
-            o un pago registrado por TakeasyGO) y cuando se cancela una orden. Es un contador
-            distinto del período de arriba: no cambia al mover las fechas.
+            {balance > 0 ? (
+              <>
+                Comisiones por transferencia acumuladas <b>desde siempre</b> que todavía no se saldaron.
+                Sube cuando se confirma una orden por transferencia; baja cuando pagás (el botón «Pagar»
+                o un pago registrado por TakeasyGO) y cuando se cancela una orden. Es un contador
+                distinto del período de arriba: no cambia al mover las fechas.
+              </>
+            ) : (
+              <>
+                No tenés comisiones por transferencia sin pagar: todo lo acumulado ya fue saldado.
+                Este contador no cambia al mover las fechas del período.
+              </>
+            )}
           </p>
         </div>
       </Card>
@@ -562,8 +521,8 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
           <div>
             <CardTitle className="text-base font-semibold">Pagos registrados</CardTitle>
             <p className="text-xs text-muted-foreground font-normal mt-1">
-              Pagos de comisiones ya hechos (vía MercadoPago desde este panel, o registrados por el
-              equipo TakeasyGO). Cada pago cubre las órdenes indicadas: por eso reducen el «Pendiente».
+              Pagos de comisiones por transferencia que ya hiciste (botón «Pagar») o que registró el
+              equipo TakeasyGO. Cada pago reduce lo que figura como «Pendiente».
             </p>
           </div>
           {!loadingSettlements && (
@@ -577,24 +536,20 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/40 bg-muted/30">
-                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Período que cubre</th>
-                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto</th>
-                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
-                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Registrado por</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Fecha</th>
-                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Notas</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto pagado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
                 {loadingSettlements ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center">
+                    <td colSpan={2} className="px-5 py-8 text-center">
                       <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
                     </td>
                   </tr>
                 ) : settlements.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
+                    <td colSpan={2} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <CheckCircle2 size={32} className="opacity-30" />
                         <p className="text-sm font-medium">Todavía no registraste pagos de comisiones</p>
@@ -604,17 +559,10 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
                 ) : (
                   settlements.map((s, i) => (
                     <tr key={i} className="hover:bg-muted/40 transition-colors">
-                      <td className="px-5 py-4 text-sm font-medium">
-                        {format(new Date(s.from), 'dd/MM/yyyy', { locale: es })} –{' '}
-                        {format(new Date(s.to), 'dd/MM/yyyy', { locale: es })}
+                      <td className="px-5 py-4 text-sm text-muted-foreground">
+                        {format(new Date(s.collectedAt), "dd 'de' MMMM yyyy, HH:mm", { locale: es })}
                       </td>
                       <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amountCollected)}</td>
-                      <td className="px-5 py-4 text-right text-sm text-muted-foreground tabular-nums">{s.orderCount || '—'}</td>
-                      <td className="px-5 py-4 text-sm">{s.collectedBy}</td>
-                      <td className="px-5 py-4 text-sm text-muted-foreground">
-                        {format(new Date(s.collectedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
-                      </td>
-                      <td className="px-5 py-4 text-sm text-muted-foreground">{s.notes || '—'}</td>
                     </tr>
                   ))
                 )}
@@ -624,82 +572,6 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
         </CardContent>
       </Card>
 
-      {/* ── Weekly Statements ── */}
-      <Card className="rounded-2xl border shadow-sm overflow-hidden">
-        <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <FileText size={16} className="text-muted-foreground" />
-              Cierres semanales (informativo)
-            </CardTitle>
-            <p className="text-xs text-muted-foreground font-normal mt-1">
-              Resumen automático de cada semana (se genera los lunes) con las comisiones de
-              transferencia de esa semana. Es solo un recordatorio: no es un cobro adicional —
-              lo que se paga es lo del botón «Pagar».
-            </p>
-          </div>
-          {!loadingStatements && (
-            <Badge variant="secondary" className="text-xs font-medium">
-              {weeklyStatements.length} semanas
-            </Badge>
-          )}
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border/40 bg-muted/30">
-                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Semana</th>
-                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto</th>
-                  <th className="px-5 py-3 text-center text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Estado</th>
-                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
-                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Cerrado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30">
-                {loadingStatements ? (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center">
-                      <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
-                    </td>
-                  </tr>
-                ) : weeklyStatements.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-16 text-center">
-                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                        <FileText size={32} className="opacity-30" />
-                        <p className="text-sm font-medium">Aún no hay cierres semanales</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  weeklyStatements.map((s, i) => {
-                    const statusStyle = STATUS_STYLES[s.status] || STATUS_STYLES.pendiente
-                    return (
-                      <tr key={i} className="hover:bg-muted/40 transition-colors">
-                        <td className="px-5 py-4 text-sm font-medium">
-                          {format(new Date(s.weekStart), 'dd/MM', { locale: es })} –{' '}
-                          {format(new Date(s.weekEnd), 'dd/MM/yyyy', { locale: es })}
-                        </td>
-                        <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amount)}</td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold', statusStyle.className)}>
-                            {statusStyle.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-right text-sm text-muted-foreground">{s.orderCount}</td>
-                        <td className="px-5 py-4 text-sm text-muted-foreground">
-                          {format(new Date(s.closedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      // Calcular monto vencido de semanas anteriores
+      // Calcular semanas anteriores pendientes (solo cantidad: el monto exacto vive en el panel)
       const vencidos = await WeeklyCommissionStatement.aggregate([
         {
           $match: {
@@ -102,35 +102,27 @@ export async function GET(request: NextRequest) {
         {
           $group: {
             _id: null,
-            totalVencido: { $sum: '$amount' },
             countVencido: { $sum: 1 },
           },
         },
       ])
 
-      const totalVencido = vencidos[0]?.totalVencido || 0
       const countVencido = vencidos[0]?.countVencido || 0
-      const totalDeuda = statement.amount + totalVencido
-
-      // Formatear montos para el display (centavos → pesos)
-      const semanaMonto = (statement.amount / 100).toFixed(2)
-      const vencidoMonto = (totalVencido / 100).toFixed(2)
-      const totalMonto = (totalDeuda / 100).toFixed(2)
 
       // Fechas para display
       const fmt = (d: Date) => `${d.getUTCDate()}/${d.getUTCMonth() + 1}/${d.getUTCFullYear()}`
       const semanaLabel = `${fmt(statement.weekStart)} — ${fmt(statement.weekEnd)}`
 
-      // Construir contenido HTML
+      // Construir contenido HTML. Ojo: NO cotizamos montos congelados acá —
+      // el único monto exacto es el del panel del tenant (cálculo en vivo).
       let content = `<p>Hola <b>${tenant.name}</b>,</p>`
-      content += `<p>Tu comisión semanal por transferencias (${semanaLabel}) es de <b>$${semanaMonto}</b>.</p>`
+      content += `<p>Tu cierre semanal de comisiones por transferencias (${semanaLabel}) ya está disponible.</p>`
 
       if (countVencido > 0) {
-        content += `<p style="color:#dc2626;">⚠ Tenés <b>${countVencido} semana(s) anterior(es) vencida(s)</b> por <b>$${vencidoMonto}</b>.</p>`
-        content += `<p><b>Total a pagar: $${totalMonto}</b></p>`
+        content += `<p style="color:#dc2626;">⚠ Tenés <b>${countVencido} semana(s) anterior(es)</b> de comisiones sin pagar.</p>`
       }
 
-      content += `<p>Por favor realiza el pago para evitar que se acumule.</p>`
+      content += `<p>Ingresá a tu panel para ver el monto exacto pendiente y pagar cuando quieras.</p>`
       content += `<p><a href="/${tenant.slug}/admin/commissions" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:700;font-size:13px;">Ver mis comisiones</a></p>`
 
       // Anti-duplicado: verificar si ya existe un anuncio reciente para este tenant

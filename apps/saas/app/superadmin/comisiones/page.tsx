@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Fragment } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Search, CheckCircle2, Clock,
   Building2, Loader2, AlertTriangle, FileText, CreditCard,
-  ArrowRightLeft, Info,
+  ArrowRightLeft, Info, ChevronDown, ChevronRight, Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
@@ -67,6 +67,18 @@ interface Settlement {
   collectedBy: string
   notes: string
   status: string
+  orderCount: number
+  orderIds: string[]
+}
+
+interface SettlementOrder {
+  _id: string
+  orderNumber: string
+  method: string
+  fee: number
+  total: number
+  status: string
+  confirmedAt: string | null
 }
 
 interface TenantInfo {
@@ -120,6 +132,10 @@ export default function SuperAdminComisionesPage() {
   const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatement[]>([])
   const [loadingStatements, setLoadingStatements] = useState(true)
   const [markingPaid, setMarkingPaid] = useState<string | null>(null)
+
+  const [expandedSettlement, setExpandedSettlement] = useState<string | null>(null)
+  const [settlementOrders, setSettlementOrders] = useState<Record<string, SettlementOrder[]>>({})
+  const [loadingOrders, setLoadingOrders] = useState<string | null>(null)
 
   const [globalData, setGlobalData] = useState<any>(null)
   const [loadingGlobal, setLoadingGlobal] = useState(true)
@@ -187,6 +203,25 @@ export default function SuperAdminComisionesPage() {
     }
     fetchWeeklyStatements()
   }, [])
+
+  async function handleToggleSettlementOrders(s: Settlement) {
+    if (expandedSettlement === s._id) {
+      setExpandedSettlement(null)
+      return
+    }
+    setExpandedSettlement(s._id)
+    if (settlementOrders[s._id] || !s.orderIds?.length) return
+    try {
+      setLoadingOrders(s._id)
+      const res = await fetch(`/api/superadmin/commissions/settlement-orders?ids=${s.orderIds.join(',')}`)
+      const json = await res.json()
+      if (res.ok) setSettlementOrders(prev => ({ ...prev, [s._id]: json.orders || [] }))
+    } catch {
+      // silent
+    } finally {
+      setLoadingOrders(null)
+    }
+  }
 
   async function handleMarkAsPaid(statementId: string, tenantName: string) {
     if (!confirm(`¿Confirmar pago de comisiones para ${tenantName}?`)) return
@@ -476,7 +511,15 @@ export default function SuperAdminComisionesPage() {
       {/* ── Settlements History ── */}
       <Card className="rounded-2xl border shadow-sm overflow-hidden">
         <CardHeader className="border-b border-border/40 p-5 flex flex-row items-center justify-between">
-          <CardTitle className="text-base font-semibold">Historial de Saldos</CardTitle>
+          <div>
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <Receipt size={16} className="text-muted-foreground" />
+              Historial de cobros de comisiones
+            </CardTitle>
+            <p className="text-xs text-muted-foreground font-normal mt-1">
+              Cada cobro registrado, con las órdenes concretas que cubre (click en una fila para ver el detalle de conciliación).
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -486,15 +529,17 @@ export default function SuperAdminComisionesPage() {
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Período</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Comercio</th>
                   <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Monto</th>
+                  <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Cobrado por</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Fecha</th>
+                  <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Notas</th>
                   <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Estado</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
                 {settlements.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-16 text-center">
+                    <td colSpan={8} className="px-5 py-16 text-center">
                       <div className="flex flex-col items-center gap-3 text-muted-foreground">
                         <Clock size={32} className="opacity-30" />
                         <p className="text-sm font-medium">No hay saldos registrados en este período</p>
@@ -506,22 +551,84 @@ export default function SuperAdminComisionesPage() {
                     .sort((a, b) => new Date(b.collectedAt).getTime() - new Date(a.collectedAt).getTime())
                     .map((s) => {
                       const tenant = tenants.find((t) => t._id === s.tenantId)
+                      const expanded = expandedSettlement === s._id
+                      const orders = settlementOrders[s._id]
                       return (
-                        <tr key={s._id} className="hover:bg-muted/40 transition-colors">
-                          <td className="px-5 py-4 text-sm font-medium">
-                            {format(new Date(s.from), 'dd/MM/yyyy', { locale: es })} –{' '}
-                            {format(new Date(s.to), 'dd/MM/yyyy', { locale: es })}
-                          </td>
-                          <td className="px-5 py-4 text-sm font-medium">{tenant?.name || s.tenantId}</td>
-                          <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amountCollected)}</td>
-                          <td className="px-5 py-4 text-sm">{s.collectedBy}</td>
-                          <td className="px-5 py-4 text-sm text-muted-foreground">
-                            {format(new Date(s.collectedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
-                          </td>
-                          <td className="px-5 py-4">
-                            <StatusBadge status={s.status} />
-                          </td>
-                        </tr>
+                        <Fragment key={s._id}>
+                          <tr
+                            className={cn('hover:bg-muted/40 transition-colors cursor-pointer', expanded && 'bg-muted/30')}
+                            onClick={() => handleToggleSettlementOrders(s)}
+                          >
+                            <td className="px-5 py-4 text-sm font-medium">
+                              {format(new Date(s.from), 'dd/MM/yyyy', { locale: es })} –{' '}
+                              {format(new Date(s.to), 'dd/MM/yyyy', { locale: es })}
+                            </td>
+                            <td className="px-5 py-4 text-sm font-medium">{tenant?.name || s.tenantId}</td>
+                            <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(s.amountCollected)}</td>
+                            <td className="px-5 py-4 text-right">
+                              <span className="inline-flex items-center gap-1 text-sm text-muted-foreground tabular-nums">
+                                {s.orderCount || '—'}
+                                {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-sm">{s.collectedBy}</td>
+                            <td className="px-5 py-4 text-sm text-muted-foreground">
+                              {format(new Date(s.collectedAt), 'dd/MM/yyyy HH:mm', { locale: es })}
+                            </td>
+                            <td className="px-5 py-4 text-sm text-muted-foreground max-w-[200px] truncate">{s.notes || '—'}</td>
+                            <td className="px-5 py-4">
+                              <StatusBadge status={s.status} />
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr className="bg-muted/20">
+                              <td colSpan={8} className="px-8 py-4">
+                                {loadingOrders === s._id ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 size={14} className="animate-spin" /> Cargando órdenes…
+                                  </div>
+                                ) : !orders || orders.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Sin detalle de órdenes: este cobro fue registrado sin ordenes asociadas (pago viejo o ajuste manual).
+                                  </p>
+                                ) : (
+                                  <div className="overflow-x-auto rounded-xl border border-border/40">
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="border-b border-border/40 bg-background/50">
+                                          <th className="px-4 py-2 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Orden</th>
+                                          <th className="px-4 py-2 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Confirmada</th>
+                                          <th className="px-4 py-2 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Método</th>
+                                          <th className="px-4 py-2 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Total orden</th>
+                                          <th className="px-4 py-2 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Comisión cubierta</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-border/20">
+                                        {orders.map((o) => (
+                                          <tr key={o._id}>
+                                            <td className="px-4 py-2 font-mono text-xs font-semibold">#{o.orderNumber}</td>
+                                            <td className="px-4 py-2 text-xs text-muted-foreground">
+                                              {o.confirmedAt ? format(new Date(o.confirmedAt), 'dd/MM/yyyy HH:mm', { locale: es }) : '—'}
+                                            </td>
+                                            <td className="px-4 py-2 text-xs">{o.method}</td>
+                                            <td className="px-4 py-2 text-right tabular-nums">${fmt(o.total)}</td>
+                                            <td className="px-4 py-2 text-right font-semibold tabular-nums">${fmt(o.fee)}</td>
+                                          </tr>
+                                        ))}
+                                        <tr className="bg-muted/30 font-bold">
+                                          <td colSpan={4} className="px-4 py-2 text-xs">Total comisiones cubiertas</td>
+                                          <td className="px-4 py-2 text-right tabular-nums">
+                                            ${fmt(orders.reduce((sum, o) => sum + o.fee, 0))}
+                                          </td>
+                                        </tr>
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       )
                     })
                 )}
