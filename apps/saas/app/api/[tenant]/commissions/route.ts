@@ -76,6 +76,15 @@ export async function GET(
         pending: toPesos(period.transfer.pending),
         orderCount: period.transfer.orderCount,
       },
+      weekly: period.weekly.map((w) => ({
+        weekStart: w.weekStart.toISOString(),
+        weekEnd: w.weekEnd.toISOString(),
+        orderCount: w.orderCount,
+        settledOrderCount: w.settledOrderCount,
+        total: toPesos(w.total),
+        settled: toPesos(w.settled),
+        pending: toPesos(w.pending),
+      })),
       unattributedSettled: toPesos(period.unattributedSettled),
     })
   } catch (error) {

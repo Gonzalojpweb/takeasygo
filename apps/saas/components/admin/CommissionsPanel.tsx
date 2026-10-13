@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DollarSign, Calendar, Clock, CheckCircle2, AlertTriangle,
-  CreditCard, Loader2, ArrowRight, Info, Scale, ArrowDown,
+  CreditCard, Loader2, ArrowRight, Info, Scale, ArrowDown, CalendarClock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
@@ -59,6 +59,16 @@ interface MethodBreakdown {
   count: number
 }
 
+interface TransferWeek {
+  weekStart: string
+  weekEnd: string
+  orderCount: number
+  settledOrderCount: number
+  total: number
+  settled: number
+  pending: number
+}
+
 interface CommissionData {
   from: string
   to: string
@@ -69,6 +79,7 @@ interface CommissionData {
   settledOrderCount: number
   breakdown: MethodBreakdown[]
   transfer: { total: number; settled: number; pending: number; orderCount: number }
+  weekly: TransferWeek[]
   unattributedSettled: number
 }
 
@@ -76,6 +87,21 @@ interface CommissionData {
 interface Settlement {
   amountCollected: number
   collectedAt: string
+}
+
+/* ── Weekly Statements endpoint (solo fechas de corte y estado) ── */
+interface WeeklyStatementInfo {
+  weekStart: string
+  status: 'pendiente' | 'pagado' | 'vencido'
+  closedAt: string
+}
+
+/** Fecha UTC "YYYY-MM-DD" (los statements guardan el lunes en UTC). */
+function utcDateString(d: Date) {
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 const METHOD_INFO: Record<string, { label: string; desc: string; className: string }> = {
@@ -86,12 +112,12 @@ const METHOD_INFO: Record<string, { label: string; desc: string; className: stri
   },
   mercadopago: {
     label: 'MercadoPago',
-    desc: 'Comisión cobrada automáticamente con cada pago aprobado de MercadoPago.',
+    desc: 'Comisión cobrada automáticamente con cada pago aprobado de MercadoPago. Siempre figura como pagada al 100%: se cobra sola.',
     className: 'text-primary',
   },
   kripton: {
     label: 'Kripton',
-    desc: 'Comisión cobrada automáticamente con cada pago aprobado con Kripton.',
+    desc: 'Comisión cobrada automáticamente con cada pago aprobado con Kripton. Siempre figura como pagada al 100%: se cobra sola.',
     className: 'text-purple-500',
   },
   cash: {
@@ -113,6 +139,7 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
   const [status, setStatus] = useState<CommissionStatus | null>(null)
   const [data, setData] = useState<CommissionData | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [weeklyStatements, setWeeklyStatements] = useState<WeeklyStatementInfo[]>([])
 
   const [loadingStatus, setLoadingStatus] = useState(true)
   const [loadingData, setLoadingData] = useState(true)
@@ -177,9 +204,21 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
     }
   }, [tenantSlug])
 
+  /* ── Fetch weekly statements (solo fechas de corte y estado) ── */
+  const fetchWeeklyStatements = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/commissions/weekly-statements`)
+      const json = await res.json()
+      if (res.ok) setWeeklyStatements(json.statements || [])
+    } catch {
+      // silent
+    }
+  }, [tenantSlug])
+
   useEffect(() => { fetchStatus() }, [fetchStatus])
   useEffect(() => { fetchData() }, [fetchData])
   useEffect(() => { fetchSettlements() }, [fetchSettlements])
+  useEffect(() => { fetchWeeklyStatements() }, [fetchWeeklyStatements])
 
   /* ── Pay handler ── */
   async function handlePay() {
@@ -341,7 +380,8 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
           <p className="text-[11px] text-muted-foreground mt-2">
             Parte de esas comisiones que ya saldaste: cubre las órdenes de{' '}
             <b>{data?.settledOrderCount ?? 0}</b> pagos registrados que caen dentro del período.
-            Ver «Pagos registrados» más abajo.
+            Ver «Pagos registrados» más abajo. <b>MercadoPago y Kripton se cobran automáticamente
+            con cada pago: esas comisiones siempre aparecen pagadas al 100%.</b>
           </p>
         </Card>
       </div>
@@ -412,7 +452,9 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
               <span className="font-semibold tabular-nums">${fmt(data.total)}</span>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">− Ya pagado (pagos registrados que cubren órdenes del período)</span>
+              <span className="text-muted-foreground">
+                − Ya pagado (MP y Kripton se cobran solos; transferencias = tus pagos registrados)
+              </span>
               <span className="font-semibold tabular-nums text-green-600">${fmt(data.settled)}</span>
             </div>
             <div className="border-t border-border/40 pt-2 flex items-center justify-between text-sm font-bold">
@@ -505,6 +547,103 @@ export default function CommissionsPanel({ tenantSlug }: { tenantSlug: string })
                         <td className="px-5 py-3 text-right tabular-nums">${fmt(data.total)}</td>
                         <td className="px-5 py-3 text-right tabular-nums text-green-600">${fmt(data.settled)}</td>
                         <td className="px-5 py-3 text-right tabular-nums">${fmt(data.pending)}</td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Transferencias semana a semana ── */}
+      {!error && data && data.weekly.length > 0 && (
+        <Card className="rounded-2xl border shadow-sm overflow-hidden">
+          <CardHeader className="border-b border-border/40 p-5">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <CalendarClock size={16} className="text-muted-foreground" />
+              Comisiones por transferencia — semana a semana
+            </CardTitle>
+            <p className="text-xs text-muted-foreground font-normal mt-1">
+              Así se acumula semana a semana (lunes a domingo) lo que se paga por transferencia.
+              El cierre automático se genera <b>los lunes</b> y el recordatorio de pago llega <b>los martes</b>.
+              Los montos se calculan en vivo con los mismos datos que el resto de la página: si pagás una
+              semana, se descuenta al instante. MercadoPago y Kripton no aparecen acá porque se cobran
+              solos con cada pago.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border/40 bg-muted/30">
+                    <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Semana</th>
+                    <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Órdenes</th>
+                    <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Comisión</th>
+                    <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Ya pagado</th>
+                    <th className="px-5 py-3 text-right text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Pendiente</th>
+                    <th className="px-5 py-3 text-center text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Estado</th>
+                    <th className="px-5 py-3 text-left text-[10px] uppercase font-black tracking-widest text-muted-foreground/50">Corte</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30">
+                  {loadingData ? (
+                    <tr>
+                      <td colSpan={7} className="px-5 py-8 text-center">
+                        <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
+                      </td>
+                    </tr>
+                  ) : (
+                    <>
+                      {data.weekly.map((w) => {
+                        const weekDate = w.weekStart.slice(0, 10)
+                        const stmt = weeklyStatements.find(s => utcDateString(new Date(s.weekStart)) === weekDate)
+                        const isPaid = w.pending <= 0
+                        return (
+                          <tr key={w.weekStart} className="hover:bg-muted/40 transition-colors">
+                            <td className="px-5 py-4 text-sm font-medium">
+                              {format(new Date(w.weekStart), 'dd/MM', { locale: es })} –{' '}
+                              {format(new Date(w.weekEnd), 'dd/MM/yyyy', { locale: es })}
+                            </td>
+                            <td className="px-5 py-4 text-right text-sm text-muted-foreground tabular-nums">{w.orderCount}</td>
+                            <td className="px-5 py-4 text-right font-black tabular-nums">${fmt(w.total)}</td>
+                            <td className="px-5 py-4 text-right text-sm tabular-nums text-green-600">${fmt(w.settled)}</td>
+                            <td className={cn('px-5 py-4 text-right font-black tabular-nums', isPaid ? 'text-muted-foreground' : 'text-amber-600')}>
+                              ${fmt(w.pending)}
+                            </td>
+                            <td className="px-5 py-4 text-center">
+                              <span className={cn(
+                                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold',
+                                isPaid ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                              )}>
+                                {isPaid ? 'Saldado' : 'Pendiente'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-4 text-xs text-muted-foreground">
+                              {stmt ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  {format(new Date(stmt.closedAt), 'dd/MM/yyyy', { locale: es })}
+                                  {stmt.status === 'vencido' && (
+                                    <span className="inline-flex px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-red-100 text-red-700">Vencido</span>
+                                  )}
+                                </span>
+                              ) : (
+                                'Pendiente de cierre'
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                      <tr className="bg-muted/40 font-bold">
+                        <td className="px-5 py-3 text-sm">Total</td>
+                        <td className="px-5 py-3 text-right text-sm tabular-nums">{data.transfer.orderCount}</td>
+                        <td className="px-5 py-3 text-right tabular-nums">${fmt(data.transfer.total)}</td>
+                        <td className="px-5 py-3 text-right tabular-nums text-green-600">${fmt(data.transfer.settled)}</td>
+                        <td className="px-5 py-3 text-right tabular-nums">${fmt(data.transfer.pending)}</td>
+                        <td colSpan={2} className="px-5 py-3 text-[11px] font-normal text-muted-foreground">
+                          = lo de la card «Transferencias sin pagar»
+                        </td>
                       </tr>
                     </>
                   )}

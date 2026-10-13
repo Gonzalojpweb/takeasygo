@@ -35,6 +35,19 @@ export interface TransferPending {
   orderCount: number
 }
 
+export interface TransferWeekRow {
+  /** lunes 00:00 (hora local) del bucket */
+  weekStart: Date
+  /** domingo 23:59:59.999 (hora local) del bucket */
+  weekEnd: Date
+  orderCount: number
+  settledOrderCount: number
+  /** centavos */
+  total: number
+  settled: number
+  pending: number
+}
+
 export interface PeriodCommissions {
   from: Date
   to: Date
@@ -46,13 +59,24 @@ export interface PeriodCommissions {
   pending: number
   breakdown: MethodCommissionRow[]
   transfer: MethodCommissionRow
+  /** transferencias agrupadas por semana (lunes a domingo, hora local) */
+  weekly: TransferWeekRow[]
   /** settlements solapados sin detalle de órdenes (datos viejos), en centavos */
   unattributedSettled: number
 }
 
 interface RawOrder {
   _id: Types.ObjectId
+  createdAt: Date
   payment?: { method?: string | null; platformFeeAmount?: number | null } | null
+}
+
+/** Lunes 00:00 (hora local) de la semana que contiene a `d`. */
+function getLocalMonday(d: Date): Date {
+  const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const day = r.getDay() // 0=domingo
+  r.setDate(r.getDate() - (day === 0 ? 6 : day - 1))
+  return r
 }
 
 async function loadPeriodData(tenantId: Types.ObjectId | string, from: Date, to: Date) {
@@ -64,7 +88,7 @@ async function loadPeriodData(tenantId: Types.ObjectId | string, from: Date, to:
       'payment.status': 'approved',
       createdAt: { $gte: from, $lte: to },
     })
-      .select('_id payment.method payment.platformFeeAmount')
+      .select('_id createdAt payment.method payment.platformFeeAmount')
       .lean<RawOrder[]>(),
     CommissionSettlement.find({ tenantId, from: { $lte: to }, to: { $gte: from } })
       .select('amountCollected orderIds')
@@ -92,7 +116,22 @@ export async function computePeriodCommissions(
   const { orders, settledIds, unattributedSettled } = await loadPeriodData(tenantId, from, to)
 
   const rows = new Map<string, MethodCommissionRow>()
-  const unsettled: { method: string; fee: number }[] = []
+  const unsettled: { method: string; fee: number; week?: TransferWeekRow }[] = []
+  const weeks = new Map<number, TransferWeekRow>()
+
+  const getWeekRow = (createdAt: Date): TransferWeekRow => {
+    const monday = getLocalMonday(createdAt)
+    const key = monday.getTime()
+    let row = weeks.get(key)
+    if (!row) {
+      const weekEnd = new Date(monday)
+      weekEnd.setDate(weekEnd.getDate() + 7)
+      weekEnd.setMilliseconds(weekEnd.getMilliseconds() - 1)
+      row = { weekStart: monday, weekEnd, orderCount: 0, settledOrderCount: 0, total: 0, settled: 0, pending: 0 }
+      weeks.set(key, row)
+    }
+    return row
+  }
 
   let total = 0
   let settled = 0
@@ -119,14 +158,29 @@ export async function computePeriodCommissions(
       settledOrderCount += 1
       row.settled += fee
       row.settledOrderCount += 1
+      if (method === 'transfer') {
+        const week = getWeekRow(o.createdAt)
+        week.orderCount += 1
+        week.settledOrderCount += 1
+        week.total += fee
+        week.settled += fee
+      }
     } else {
       row.pending += fee
-      unsettled.push({ method, fee })
+      if (method === 'transfer') {
+        const week = getWeekRow(o.createdAt)
+        week.orderCount += 1
+        week.total += fee
+        week.pending += fee
+        unsettled.push({ method, fee, week })
+      } else {
+        unsettled.push({ method, fee })
+      }
     }
   }
 
   // Descuenta settlements sin orderIds (datos viejos) del pendiente, en orden,
-  // manteniendo exacto: total = settled + pending por método.
+  // manteniendo exacto: total = settled + pending por método y por semana.
   let remaining = unattributedSettled
   for (const u of unsettled) {
     if (remaining <= 0) break
@@ -136,6 +190,10 @@ export async function computePeriodCommissions(
     row.pending -= deduct
     row.settled += deduct
     settled += deduct
+    if (u.week) {
+      u.week.pending -= deduct
+      u.week.settled += deduct
+    }
     remaining -= deduct
   }
 
@@ -158,6 +216,7 @@ export async function computePeriodCommissions(
     pending: Math.max(0, total - settled),
     breakdown: Array.from(rows.values()).sort((a, b) => b.total - a.total),
     transfer: rows.get('transfer') ?? zeroRow('transfer'),
+    weekly: Array.from(weeks.values()).sort((a, b) => a.weekStart.getTime() - b.weekStart.getTime()),
     unattributedSettled,
   }
 }

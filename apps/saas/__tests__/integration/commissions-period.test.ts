@@ -139,6 +139,49 @@ describe('computePeriodCommissions', () => {
     expect(period.total).toBe(0)
     expect(period.orderCount).toBe(0)
   })
+
+  it('agrupa transferencias semana a semana y las sumas cierran contra el total transfer', async () => {
+    // 2026-10-05 es lunes; 2026-10-12 también
+    const o1 = await makeOrder({ createdAt: d('2026-10-05T12:00:00Z'), method: 'transfer', fee: 1000 })
+    await makeOrder({ createdAt: d('2026-10-08T12:00:00Z'), method: 'transfer', fee: 2000 })
+    await makeOrder({ createdAt: d('2026-10-12T12:00:00Z'), method: 'transfer', fee: 500 })
+    // MP no entra en el desglose semanal de transferencias
+    await makeOrder({ createdAt: d('2026-10-06T12:00:00Z'), method: 'mercadopago', fee: 9999 })
+
+    await makeSettlement({ from: FROM, to: TO, amountCollected: 1000, orderIds: [o1._id.toString()] })
+
+    const period = await computePeriodCommissions(TENANT_A, FROM, TO)
+
+    expect(period.weekly).toHaveLength(2)
+    const [semana1, semana2] = period.weekly
+
+    expect(semana1.total).toBe(3000)
+    expect(semana1.settled).toBe(1000)
+    expect(semana1.pending).toBe(2000)
+    expect(semana1.orderCount).toBe(2)
+    expect(semana1.total).toBe(semana1.settled + semana1.pending)
+
+    expect(semana2.total).toBe(500)
+    expect(semana2.pending).toBe(500)
+    expect(semana2.orderCount).toBe(1)
+
+    // Las sumas semanales cierran exactamente contra la fila transfer del período
+    expect(period.weekly.reduce((s, w) => s + w.total, 0)).toBe(period.transfer.total)
+    expect(period.weekly.reduce((s, w) => s + w.settled, 0)).toBe(period.transfer.settled)
+    expect(period.weekly.reduce((s, w) => s + w.pending, 0)).toBe(period.transfer.pending)
+  })
+
+  it('el ajuste por settlements viejos sin orderIds también descuenta de la semana', async () => {
+    await makeOrder({ createdAt: d('2026-10-07T12:00:00Z'), method: 'transfer', fee: 4000 })
+    await makeSettlement({ from: FROM, to: TO, amountCollected: 1500, orderIds: [] })
+
+    const period = await computePeriodCommissions(TENANT_A, FROM, TO)
+    expect(period.weekly).toHaveLength(1)
+    expect(period.weekly[0].total).toBe(4000)
+    expect(period.weekly[0].settled).toBe(1500)
+    expect(period.weekly[0].pending).toBe(2500)
+    expect(period.weekly[0].pending).toBe(period.transfer.pending)
+  })
 })
 
 describe('computeTransferPayable', () => {
