@@ -7,7 +7,7 @@ const platformConfig = {
 
 describe('calculateFinalTotal - transferencia', () => {
   const tenant = {
-    paymentSurcharges: { transfer: { feePercent: 2 } }, // Incluso si existiera feePercent en paymentSurcharges, transferencia no cobra recargo tenant
+    paymentSurcharges: { transfer: { feePercent: 0 } }, // sin recargo propio del comercio
     transfer: { commissionPercent: 1.5 }, // 1.5% comisión de plataforma TakeasyGO
   }
 
@@ -26,6 +26,30 @@ describe('calculateFinalTotal - transferencia', () => {
     expect(r.surchargeAmount).toBe(1020)
     expect(r.platformFeeAmount).toBe(1020) // platformFeeAmount = surchargeAmount
     expect(r.finalTotal).toBe(71020) // 70000 + 1020
+  })
+
+  it('Transferencia + Delivery + recargo propio del comercio → cliente paga ambos, a TakeasyGO solo le corresponde su comisión', () => {
+    const tenantConRecargo = {
+      paymentSurcharges: { transfer: { feePercent: 2 } }, // 2% recargo propio (del negocio)
+      transfer: { commissionPercent: 1.5 }, // 1.5% comisión TakeasyGO
+    }
+    const r = calculateFinalTotal(70000, 'transfer', tenantConRecargo, platformConfig, undefined, 'delivery')
+    expect(r.surchargePercent).toBe(3.5) // 2% + 1.5%
+    expect(r.surchargeAmount).toBe(2450) // 3.5% de 70000
+    expect(r.finalTotal).toBe(72450)
+    // La comisión de TakeasyGO es SOLO su 1.5%: el 2% propio queda en el negocio
+    expect(r.platformFeeAmount).toBe(1050)
+  })
+
+  it('Transferencia + Takeaway + recargo propio → NO cobra NINGÚN monto extra (Precio de Carta)', () => {
+    const tenantConRecargo = {
+      paymentSurcharges: { transfer: { feePercent: 5 } },
+      transfer: { commissionPercent: 1.5 },
+    }
+    const r = calculateFinalTotal(70000, 'transfer', tenantConRecargo, platformConfig, undefined, 'takeaway')
+    expect(r.finalTotal).toBe(70000)
+    expect(r.surchargeAmount).toBe(0)
+    expect(r.platformFeeAmount).toBe(0)
   })
 
   it('Transferencia + Takeaway → NO cobra NINGÚN monto extra (0% recargo, 0% comisión = Precio de Carta)', () => {

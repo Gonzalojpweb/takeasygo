@@ -92,23 +92,29 @@ export function calculateFinalTotal(
   deliveryCost?: number
 ): PricingResult {
   // ── Transferencia: se maneja aparte porque recargo (cliente) y comisión (restaurante) pueden diferir ──
-  // El recargo que paga el cliente ES la comisión de TakeasyGO cuando es > 0%.
-  // Si el tenant configuró 0%, la comisión igual existe (% default de plataforma),
-  // pero la absorbe el restaurante (surchargeAmount = 0, platformFeeAmount > 0).
+  // El cliente paga la suma de dos porcentajes (solo en delivery):
+  //  - la comisión de plataforma TakeasyGO (tenant.transfer.commissionPercent o % default), y
+  //  - el recargo propio opcional del comercio (tenant.paymentSurcharges.transfer.feePercent).
+  // A TakeasyGO le corresponde solo la comisión de plataforma; el recargo propio
+  // queda en el negocio. Si ambos son 0%, la comisión de plataforma igual existe
+  // (% default) pero la absorbe el restaurante (surchargeAmount = 0, platformFeeAmount > 0).
   // El recargo se calcula solo sobre subtotal (sin delivery) — delivery es passthrough.
   if (paymentMethod === 'transfer') {
     if (orderMode !== 'delivery') {
       return { baseTotal, surchargePercent: 0, surchargeAmount: 0, finalTotal: baseTotal, platformFeeAmount: 0 }
     }
 
-    const surchargePercent = tenant.transfer?.commissionPercent ?? 0
+    const merchantFeePercent = tenant.paymentSurcharges?.transfer?.feePercent ?? 0
+    const platformPercent = tenant.transfer?.commissionPercent ?? 0
+    const surchargePercent = merchantFeePercent + platformPercent
+
     const subtotal = baseTotal - (deliveryCost ?? 0)
     const surchargeAmount = Math.round(subtotal * surchargePercent / 100)
     const finalTotal = baseTotal + surchargeAmount
 
     // Comisión: usar % del tenant si es > 0, si no el % default de plataforma
-    const commissionPercent = surchargePercent > 0
-      ? surchargePercent
+    const commissionPercent = platformPercent > 0
+      ? platformPercent
       : (overridePlatformFeePercent ?? platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
     const platformFeeAmount = Math.ceil(subtotal * commissionPercent / 100)
 

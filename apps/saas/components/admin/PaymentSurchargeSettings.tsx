@@ -13,9 +13,11 @@ interface Props {
     transfer: { feePercent: number }
   }
   takeasygoFeePercent: number
+  /** Comisión de plataforma TakeasyGO para transferencia (la define el superadmin). */
+  transferPlatformFeePercent: number
 }
 
-export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges, takeasygoFeePercent }: Props) {
+export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges, takeasygoFeePercent, transferPlatformFeePercent }: Props) {
   const sc = initialSurcharges || { mercadopago: { feePercent: 0 }, kripton: { feePercent: 0 }, transfer: { feePercent: 0 } }
   const [mpFee, setMpFee] = useState(sc.mercadopago?.feePercent ?? 0)
   const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
@@ -147,7 +149,17 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
           </div>
           <p className="text-xs text-emerald-700">
             La comisión de plataforma por transferencia la define el superadmin por tenant y no se edita aquí.
+            Tu recargo propio se suma a esa comisión y solo aplica a pedidos <b>delivery</b> (en retiras no hay recargo).
           </p>
+          {trFee > 0 && (
+            <div className="bg-white rounded-lg p-2.5 border border-emerald-100">
+              <p className="text-xs text-emerald-800">
+                Ejemplo (delivery): precio de carta $10.000 → cliente paga{' '}
+                <strong>${Math.ceil(10000 * (1 + (trFee + transferPlatformFeePercent) / 100)).toLocaleString('es-AR')}</strong>{' '}
+                (tu recargo {trFee}% + comisión TakeasyGO {transferPlatformFeePercent}%). Tu recargo queda en el negocio.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

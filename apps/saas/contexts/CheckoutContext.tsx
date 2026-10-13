@@ -717,7 +717,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
   // Transferencia: mismo cálculo que el server (lib/pricing.ts) — recargo solo
-  // sobre el subtotal sin delivery, y solo con la comisión del tenant.
+  // sobre el subtotal sin delivery, con la comisión del tenant + recargo propio del comercio.
   const transferSurchargePercent = state.paymentSurcharges['transfer'] ?? 0
   const activeSurchargePercent = state.selectedPaymentMethod === 'transfer'
     ? transferSurchargePercent
