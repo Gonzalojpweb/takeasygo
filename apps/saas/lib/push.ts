@@ -140,6 +140,49 @@ export async function sendAdminPushNotification(
   }
 }
 
+/**
+ * Notificación push a los admins del tenant cuando un miembro crea un canje
+ * en la tienda. Mismo gate y patrón que sendAdminPushNotification; el tag
+ * `redemption-{id}` evita duplicados del mismo canje.
+ */
+export async function sendAdminRedemptionPushNotification(
+  tenantId: string,
+  plan: string,
+  tenantName: string,
+  tenantSlug: string,
+  redemptionId: string,
+  memberName: string,
+  itemName: string,
+  points: number
+): Promise<void> {
+  const adminSubs = canAccess(plan as Plan, 'adminPushNotifications')
+    ? await PushSubscription.find({ tenantId }).lean()
+    : []
+  if (adminSubs.length === 0) return
+
+  const payload = JSON.stringify({
+    title: `🎉 Nuevo canje en ${tenantName}`,
+    body: `${memberName} canjeó ${itemName} — ${points} pts`,
+    icon: '/tgoicon-192.png',
+    badge: '/tgoicon-192.png',
+    url: `/${tenantSlug}/admin/store`,
+    tag: `redemption-${redemptionId}`,
+  })
+
+  for (const sub of adminSubs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        payload
+      )
+    } catch (err: any) {
+      if (err?.statusCode === 410) {
+        await PushSubscription.deleteOne({ _id: sub._id }).catch(() => {})
+      }
+    }
+  }
+}
+
 export async function getSubscribersByPhoneHashes(
   tenantId: string,
   phoneHashes: string[]

@@ -53,6 +53,7 @@ interface Props {
   dineInOnly?: boolean
   unreadAnnouncements?: number
   commissionBadge?: number
+  pendingRedemptions?: number
   businessEnabled?: boolean
   crmEnabled?: boolean
   assignedLocations?: string[]
@@ -117,7 +118,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -161,7 +162,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/go-plus`, label: 'GO+', icon: Zap, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/wallet`, label: 'Wallet', icon: Smartphone, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
-        { href: `${base}/store`, label: 'Tienda', icon: Gift, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
+        { href: `${base}/store`, label: 'Tienda', icon: Gift, roles: ['admin', 'manager'], feature: 'loyaltyClub', badge: pendingRedemptions },
         { href: `${base}/hidden-rewards`, label: 'Recompensas Escondidas', icon: Gift, roles: ['admin'] },
         { href: `${base}/notificaciones`, label: 'Notificaciones', icon: Bell, roles: ['admin', 'manager'] },
         ...(crmEnabled ? [{ href: `${base}/crm`, label: 'CRM', icon: Users, roles: ['admin', 'manager'] }] : []),

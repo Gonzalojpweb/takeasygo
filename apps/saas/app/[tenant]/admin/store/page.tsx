@@ -7,10 +7,11 @@ import StoreManager from '@/components/admin/StoreManager'
 import StoreSettings from '@/components/admin/StoreSettings'
 import RedemptionValidator from '@/components/admin/RedemptionValidator'
 import RedemptionHistory from '@/components/admin/RedemptionHistory'
+import PendingRedemptions from '@/components/admin/PendingRedemptions'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Plan } from '@/lib/plans'
 import type { Types } from 'mongoose'
-import { Package, QrCode, Settings, History } from 'lucide-react'
+import { Package, QrCode, Settings, History, Inbox } from 'lucide-react'
 
 interface PageProps {
   params: Promise<{ tenant: string }>
@@ -78,8 +79,12 @@ export default async function StorePage({ params }: PageProps) {
         </p>
       </div>
 
-      <Tabs defaultValue="validator" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-5 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
+          <TabsTrigger value="pending" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <Inbox className="mr-2 h-4 w-4" />
+            Solicitudes
+          </TabsTrigger>
           <TabsTrigger value="validator" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <QrCode className="mr-2 h-4 w-4" />
             Validar Canje
@@ -97,6 +102,10 @@ export default async function StorePage({ params }: PageProps) {
             Configuración
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pending" className="mt-0">
+          <PendingRedemptions tenantSlug={tenantSlug} />
+        </TabsContent>
 
         <TabsContent value="validator" className="mt-0">
           <RedemptionValidator tenantSlug={tenantSlug} />

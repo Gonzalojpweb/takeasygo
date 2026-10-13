@@ -18,6 +18,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { canAccess, type Plan } from '@/lib/plans'
+import { countPendingRedemptions } from '@/lib/store-redemptions'
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
@@ -139,6 +140,16 @@ export default async function AdminLayout({
     }
   }
 
+  // Badge "Tienda": canjes pendientes. Solo roles que ven el link del sidebar.
+  let pendingRedemptions = 0
+  if (tenantDoc && ['admin', 'manager'].includes(session.user.role ?? '')) {
+    try {
+      pendingRedemptions = await countPendingRedemptions(tenantDoc._id)
+    } catch {
+      pendingRedemptions = 0
+    }
+  }
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
@@ -147,6 +158,7 @@ export default async function AdminLayout({
     dineInOnly,
     unreadAnnouncements,
     commissionBadge,
+    pendingRedemptions,
     businessEnabled,
     crmEnabled,
     assignedLocations: session.user.assignedLocations ?? [],

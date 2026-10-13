@@ -18,6 +18,7 @@ vi.mock('@/lib/whatsapp', () => ({
 
 vi.mock('@/lib/push', () => ({
   sendAdminPushNotification: vi.fn().mockResolvedValue(undefined),
+  sendAdminRedemptionPushNotification: vi.fn().mockResolvedValue(undefined),
 }))
 
 const onOrderConfirmedMock = vi.fn().mockResolvedValue(undefined)

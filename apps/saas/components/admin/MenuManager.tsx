@@ -1190,7 +1190,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                           {category.imageUrl ? (
                             <img src={category.imageUrl} alt="" className="w-full h-full object-cover rounded-2xl" />
                           ) : (
-                            <Layers size={16} className={isExpanded ? "animate-pulse sm:size-20" : "sm:size-20"} />
+                            <Layers size={16} className={isExpanded ? "animate-pulse sm:size-[20px]" : "sm:size-[20px]"} />
                           )}
                         </div>
 
@@ -2094,7 +2094,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               )}
                                               onClick={() => handleToggleItemAvailability(category._id, item._id, item.isAvailable ?? true)}
                                             >
-                                              <Eye size={16} className="sm:size-18" />
+                                              <Eye size={16} className="sm:size-[18px]" />
                                             </Button>
                                             <Button
                                               size="icon"
@@ -2119,7 +2119,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               )}
                                               onClick={() => handleToggleFeatured(category._id, item._id, item.isFeatured ?? false)}
                                             >
-                                              <Star size={16} className="sm:size-18" fill={item.isFeatured ? "currentColor" : "none"} />
+                                              <Star size={16} className="sm:size-[18px]" fill={item.isFeatured ? "currentColor" : "none"} />
                                             </Button>
 
                                             <Button
@@ -2134,7 +2134,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               )}
                                               onClick={() => handleToggleBusinessAvailable(category._id, item._id, item.isBusinessAvailable ?? false)}
                                             >
-                                              <Building2 size={14} className="sm:size-16" />
+                                              <Building2 size={14} className="sm:size-[16px]" />
                                             </Button>
 
                                             <Button
@@ -2172,7 +2172,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                 })
                                               }}
                                             >
-                                              <Pencil size={16} className="sm:size-18" />
+                                              <Pencil size={16} className="sm:size-[18px]" />
                                             </Button>
 
                                             <Button
@@ -2182,7 +2182,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl hidden sm:flex"
                                               onClick={() => setShowSubstituteModal({ item, categoryId: category._id })}
                                             >
-                                              <ArrowLeftRight size={16} className="sm:size-18" />
+                                              <ArrowLeftRight size={16} className="sm:size-[18px]" />
                                             </Button>
 
                                             <Button
@@ -2191,7 +2191,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                               className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
                                               onClick={() => handleDeleteItem(category._id, item._id)}
                                             >
-                                              <Trash2 size={16} className="sm:size-18" />
+                                              <Trash2 size={16} className="sm:size-[18px]" />
                                             </Button>
                                           </div>
                                         </div>

@@ -45,7 +45,7 @@ vi.mock('@takeasygo/business', () => ({
 
 // ── Import after mocks ───────────────────────────────────────────────────────
 
-import { sendAdminPushNotification } from '@/lib/push'
+import { sendAdminPushNotification, sendAdminRedemptionPushNotification } from '@/lib/push'
 
 const TENANT_ID = '507f1f77bcf86cd799439011'
 
@@ -117,6 +117,74 @@ describe('sendAdminPushNotification', () => {
 
     await sendAdminPushNotification(
       TENANT_ID, 'buy', 'Mi Local', 'milocal', 'ORD-123', 5000, 'Juan'
+    )
+
+    expect(mocks.mockSendNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe('sendAdminRedemptionPushNotification', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.mockSetVapidDetails.mockReturnValue(undefined)
+    mocks.mockDeleteOne.mockResolvedValue(undefined)
+  })
+
+  it('no consulta ni envía nada si el plan no incluye adminPushNotifications', async () => {
+    mocks.mockCanAccess.mockReturnValue(false)
+    mocks.mockFindLean.mockResolvedValue([])
+
+    await sendAdminRedemptionPushNotification(
+      TENANT_ID, 'trial', 'Mi Local', 'milocal', 'red1', 'María', 'Cachapa', 150
+    )
+
+    expect(mocks.mockFind).not.toHaveBeenCalled()
+    expect(mocks.mockSendNotification).not.toHaveBeenCalled()
+  })
+
+  it('envía a todos los admins suscriptos cuando el plan lo permite', async () => {
+    mocks.mockCanAccess.mockReturnValue(true)
+    mocks.mockFindLean.mockResolvedValue([
+      { _id: 's1', endpoint: 'e1', p256dh: 'p1', auth: 'a1' },
+      { _id: 's2', endpoint: 'e2', p256dh: 'p2', auth: 'a2' },
+    ])
+    mocks.mockSendNotification.mockResolvedValue({ statusCode: 201 })
+
+    await sendAdminRedemptionPushNotification(
+      TENANT_ID, 'premium', 'Mi Local', 'milocal', 'red1', 'María', 'Cachapa', 150
+    )
+
+    expect(mocks.mockFind).toHaveBeenCalledWith({ tenantId: TENANT_ID })
+    expect(mocks.mockSendNotification).toHaveBeenCalledTimes(2)
+
+    const callArgs = mocks.mockSendNotification.mock.calls[0]
+    const payload = JSON.parse(callArgs[1])
+    expect(payload.title).toBe('🎉 Nuevo canje en Mi Local')
+    expect(payload.body).toBe('María canjeó Cachapa — 150 pts')
+    expect(payload.url).toBe('/milocal/admin/store')
+    expect(payload.tag).toBe('redemption-red1')
+  })
+
+  it('elimina la suscripción si el push devuelve 410 (Gone)', async () => {
+    mocks.mockCanAccess.mockReturnValue(true)
+    mocks.mockFindLean.mockResolvedValue([
+      { _id: 's1', endpoint: 'e1', p256dh: 'p1', auth: 'a1' },
+    ])
+    mocks.mockSendNotification.mockRejectedValue({ statusCode: 410 })
+
+    await sendAdminRedemptionPushNotification(
+      TENANT_ID, 'premium', 'Mi Local', 'milocal', 'red1', 'María', 'Cachapa', 150
+    )
+
+    expect(mocks.mockDeleteOne).toHaveBeenCalledWith({ _id: 's1' })
+  })
+
+  it('no envía nada si no hay suscripciones (early return)', async () => {
+    mocks.mockCanAccess.mockReturnValue(true)
+    mocks.mockFindLean.mockResolvedValue([])
+
+    await sendAdminRedemptionPushNotification(
+      TENANT_ID, 'premium', 'Mi Local', 'milocal', 'red1', 'María', 'Cachapa', 150
     )
 
     expect(mocks.mockSendNotification).not.toHaveBeenCalled()

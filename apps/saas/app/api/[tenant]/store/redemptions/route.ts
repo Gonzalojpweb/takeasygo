@@ -16,6 +16,7 @@ import { syncWalletPoints } from '@/lib/walletService'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { writeCustomerEvent } from '@/lib/events-server'
+import { sendAdminRedemptionPushNotification } from '@/lib/push'
 import { verifyMemberToken } from '@/lib/memberToken'
 import { getSessionUser } from '@/lib/apiAuth'
 import mongoose from 'mongoose'
@@ -331,6 +332,19 @@ export async function POST(
           ...(locationId ? { locationId } : {}),
         },
       }).catch(err => console.error('[Store Redemptions] reward_redeemed event error:', err))
+
+      // Push al admin: canje recién creado. Fire-and-forget — el canje ya
+      // está commiteado, un fallo de push jamás lo revierte.
+      sendAdminRedemptionPushNotification(
+        tenant._id.toString(),
+        tenant.plan,
+        tenant.name,
+        tenantSlug,
+        redemption._id.toString(),
+        member.name,
+        item.name,
+        item.pointsCost
+      ).catch(err => console.error('[Store Redemptions] admin redemption push error:', err))
 
       // Sincronizar con wallet (async, no bloqueante)
       if (member.wallet?.googleObjectId) {
