@@ -23,10 +23,14 @@
 //   - cash.* queda solo admin+manager+cashier (staff pierde; auditor ya no lee
 //     movimientos de caja: su lectura de caja es vía reports.cash/reports.read).
 //   - reservations: +auditor en lectura, +cashier en escritura; nuevo
-//     reservations.delete (admin+manager).
+//     reservations.delete (admin+manager). El mozo (waiter) SOLO lee
+//     reservas — corrección Gonzalo 2026-10-13: pierde reservations.write
+//     (la creación es endpoint público, no requiere permiso de rol).
 //   - reports: reports.read admin+manager+auditor (cashier y seller lo pierden);
 //     nuevos reports.cash (admin+manager+cashier) y
-//     reports.view_consolidated (admin+auditor).
+//     reports.view_consolidated (admin+auditor). El consolidado es de ÁMBITO
+//     TENANT: exige fila ULR tenant-wide (locationId:null); un auditor de una
+//     sola sede no lo ve (corrección Gonzalo 2026-10-13).
 //   - users.write y settings.write para manager (settings no-sensibles: las
 //     rutas sensibles conservan requireAdminRole — admin only).
 //   - nuevos admin-only: payments.configure, fiscal.configure.
@@ -162,7 +166,10 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
     'kitchen.read',
     'menu.read',
     'reservations.read',
-    'reservations.write',
+    // Corrección Gonzalo 2026-10-13: el mozo SOLO ve reservas (lectura).
+    // No tiene reservations.write (actualizar estado) ni delete. La creación
+    // de reservas es endpoint público (POST /reservas) y no requiere permiso
+    // de rol, así que no hay un "crear" de rol que separar del "actualizar".
     'rooms.access',
   ],
   host: [
@@ -193,6 +200,15 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
 const ROLE_PERMISSION_SETS = Object.fromEntries(
   LOCATION_ROLES.map(r => [r, new Set(ROLE_PERMISSIONS[r])])
 ) as unknown as Record<LocationRole, ReadonlySet<Permission>>
+
+/**
+ * Permisos de ÁMBITO TENANT: solo se conceden con una fila ULR tenant-wide
+ * (locationId:null). Una fila de sede específica NO los otorga y NO hay
+ * fallback legacy para ellos. Motivo: el consolidado (reports.view_consolidated)
+ * cruza datos de TODAS las sedes — un rol asignado a una sola sede (p.ej. un
+ * auditor de Recoleta) no debe ver los números del tenant entero.
+ */
+const TENANT_WIDE_PERMISSIONS: ReadonlySet<Permission> = new Set(['reports.view_consolidated'])
 
 export function roleHasPermission(role: string | null | undefined, permission: Permission): boolean {
   if (!role || !(role in ROLE_PERMISSION_SETS)) return false
@@ -267,6 +283,19 @@ export async function userHasPermission(args: {
 
   const uid = userIdString(user)
   if (!uid) return false
+
+  // Permisos de ámbito tenant (consolidado): requieren fila ULR tenant-wide.
+  // Una fila de sede específica no los concede y no hay fallback legacy.
+  if (TENANT_WIDE_PERMISSIONS.has(permission)) {
+    const tenantRows = await UserLocationRole.find({
+      tenantId,
+      userId: uid,
+      isActive: true,
+      locationId: null,
+      role: { $in: LOCATION_ROLES },
+    }).lean()
+    return tenantRows.some(r => roleHasPermission(r.role, permission))
+  }
 
   const query: Record<string, unknown> = {
     tenantId,

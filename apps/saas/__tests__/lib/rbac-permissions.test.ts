@@ -55,6 +55,9 @@ describe('matriz de permisos por rol de sede', () => {
     expect(roleHasPermission('waiter', 'orders.read')).toBe(true)
     expect(roleHasPermission('waiter', 'menu.read')).toBe(true)
     expect(roleHasPermission('waiter', 'reservations.read')).toBe(true)
+    // Corrección Gonzalo 2026-10-13: el mozo solo VE reservas (lectura).
+    expect(roleHasPermission('waiter', 'reservations.write')).toBe(false)
+    expect(roleHasPermission('waiter', 'reservations.delete')).toBe(false)
     expect(roleHasPermission('waiter', 'kitchen.read')).toBe(true)
     expect(roleHasPermission('waiter', 'cash.open')).toBe(false)
     expect(roleHasPermission('waiter', 'cash.close')).toBe(false)
@@ -294,6 +297,45 @@ describe('userHasPermission — flag on (user_location_roles)', () => {
         tenantId: 't1',
         locationId: 'L1',
         permission: 'cash.movements.write',
+      })
+    ).resolves.toBe(false)
+  })
+
+  it('consolidado: auditor de UNA sede no ve el consolidado; auditor tenant-wide sí', async () => {
+    // reports.view_consolidated es de ÁMBITO TENANT: exige fila ULR
+    // locationId:null. Un auditor asignado solo a L1 no debe verlo.
+    // 1) Auditor con fila de sede (locationId:'L1') => DENY (no hay fila tenant-wide).
+    findMock.mockReturnValueOnce([]) // la query tenant-wide no matchea su fila de sede
+    await expect(
+      userHasPermission({
+        user: { _id: 'u1', role: 'auditor' },
+        tenant: tenantOn,
+        tenantId: 't1',
+        permission: 'reports.view_consolidated',
+      })
+    ).resolves.toBe(false)
+    // La query debe haber buscado específicamente locationId:null (tenant-wide).
+    expect(findMock.mock.calls[0][0].locationId).toBeNull()
+
+    // 2) Auditor tenant-wide (fila locationId:null) => ALLOW.
+    findMock.mockReturnValueOnce([{ role: 'auditor', locationId: null }])
+    await expect(
+      userHasPermission({
+        user: { _id: 'u2', role: 'auditor' },
+        tenant: tenantOn,
+        tenantId: 't1',
+        permission: 'reports.view_consolidated',
+      })
+    ).resolves.toBe(true)
+
+    // 3) manager tenant-wide NO ve consolidado (matriz: no lo tiene).
+    findMock.mockReturnValueOnce([{ role: 'manager', locationId: null }])
+    await expect(
+      userHasPermission({
+        user: { _id: 'u3', role: 'manager' },
+        tenant: tenantOn,
+        tenantId: 't1',
+        permission: 'reports.view_consolidated',
       })
     ).resolves.toBe(false)
   })
