@@ -216,6 +216,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
           clubName={clubData.clubName}
           onBack={() => router.replace(`${pathname}?tab=club`)}
           menuUrl={menuUrl ?? undefined}
+          isAuthenticated={true}
         />
       ) : currentTab === 'canjes' && clubData?.member ? (
         <MyRedemptions
@@ -223,6 +224,7 @@ function ClubContent({ tenantSlug }: { tenantSlug: string }) {
           clubName={clubData.clubName}
           onBack={() => router.replace(`${pathname}?tab=club`)}
           menuUrl={menuUrl ?? undefined}
+          isAuthenticated={true}
         />
       ) : (
         <>

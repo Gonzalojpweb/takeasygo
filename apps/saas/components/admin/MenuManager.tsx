@@ -1179,7 +1179,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                     )}
                     onClick={() => toggleCategory(category._id)}
                   >
-                    <div className="p-4 sm:p-6 flex items-center justify-between">
+                    <div className="p-4 sm:p-6 flex items-start sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-3 sm:gap-5 flex-1 min-w-0">
                         <div
                           className={cn(
@@ -1205,26 +1205,26 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               autoFocus
                             />
                           ) : (
-                            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                            <div className="flex items-center gap-1.5 sm:gap-3 flex-wrap">
                               <h3 className={cn(
-                                "text-base sm:text-xl tracking-tight transition-colors truncate",
+                                "text-sm sm:text-xl tracking-tight transition-colors truncate",
                                 isExpanded ? "font-bold text-foreground" : "font-semibold"
                               )}>
                                 {category.name}
                               </h3>
-                              <Badge variant="secondary" className="bg-muted px-2 font-bold tabular-nums text-[10px] uppercase tracking-wide opacity-70 flex-shrink-0">
+                              <Badge variant="secondary" className="bg-muted px-1 sm:px-2 font-bold tabular-nums text-[8px] sm:text-[10px] uppercase tracking-wide opacity-70 flex-shrink-0">
                                 {(() => {
                                    const subcatItems = (category.subcategories || []).reduce((s: number, sc: any) => s + (sc.items?.length || 0), 0)
                                    return (category.items || []).length + subcatItems
                                 })()} items
                               </Badge>
                               {!category.isAvailable && (
-                                <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
+                                <Badge className="bg-orange-100 text-orange-600 border-orange-200 text-[8px] sm:text-[9px] font-black uppercase tracking-tighter px-1 sm:px-1.5 py-0 h-3.5 sm:h-4 flex-shrink-0">
                                   No disponible
                                 </Badge>
                               )}
                               {category.isBusinessAvailable && (
-                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0 h-4 flex-shrink-0">
+                                <Badge className="bg-primary/10 text-primary border-primary/20 text-[8px] sm:text-[9px] font-black uppercase tracking-tighter px-1 sm:px-1.5 py-0 h-3.5 sm:h-4 flex-shrink-0">
                                   Business
                                 </Badge>
                               )}
@@ -1233,7 +1233,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 sm:gap-2 pr-2 flex-wrap" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center gap-1 sm:gap-2 pr-2 flex-wrap mt-2 sm:mt-0" onClick={e => e.stopPropagation()}>
                         <AnimatePresence mode="wait">
                           {editingCategory === category._id ? (
                             <motion.div
@@ -1243,11 +1243,11 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               exit={{ opacity: 0, scale: 0.8 }}
                               className="flex gap-1"
                             >
-                              <Button size="icon" variant="ghost" className="h-10 w-10 text-emerald-500 hover:bg-emerald-500/10 rounded-xl" onClick={() => handleEditCategory(category._id)}>
-                                <Check size={20} strokeWidth={3} />
+                              <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-10 sm:w-10 text-emerald-500 hover:bg-emerald-500/10 rounded-xl" onClick={() => handleEditCategory(category._id)}>
+                                <Check size={16} strokeWidth={3} />
                               </Button>
-                              <Button size="icon" variant="ghost" className="h-10 w-10 text-muted-foreground hover:bg-muted/50 rounded-xl" onClick={() => setEditingCategory(null)}>
-                                <X size={20} strokeWidth={3} />
+                              <Button size="icon" variant="ghost" className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground hover:bg-muted/50 rounded-xl" onClick={() => setEditingCategory(null)}>
+                                <X size={16} strokeWidth={3} />
                               </Button>
                             </motion.div>
                           ) : (
@@ -1255,25 +1255,25 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               key="normal-actions"
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="flex gap-1 flex-wrap"
+                              className="flex gap-1 flex-wrap justify-end"
                             >
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2 whitespace-nowrap"
+                                className="h-7 w-7 sm:h-8 sm:w-auto text-[10px] sm:text-[11px] font-bold text-muted-foreground hover:text-primary gap-1 sm:gap-2 whitespace-nowrap p-1 sm:px-2"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   setShowBulkModal(category._id)
                                 }}
                               >
-                                <Sparkles size={14} />
+                                <Sparkles size={12} />
                                 <span className="hidden sm:inline">Ajustar Precios</span>
                                 <span className="sm:hidden">Precios</span>
                               </Button>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-[11px] font-bold text-muted-foreground hover:text-primary gap-2 whitespace-nowrap"
+                                className="h-7 w-7 sm:h-8 sm:w-auto text-[10px] sm:text-[11px] font-bold text-muted-foreground hover:text-primary gap-1 sm:gap-2 whitespace-nowrap p-1 sm:px-2"
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   const anyEnabled = (category.items || []).some((i: any) => i.isBusinessAvailable) ||
@@ -1281,7 +1281,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   handleBulkToggleBusiness(category._id, !anyEnabled)
                                 }}
                               >
-                                <Building2 size={14} />
+                                <Building2 size={12} />
                                 {((category.items || []).some((i: any) => i.isBusinessAvailable) ||
                                   (category.subcategories || []).some((s: any) => (s.items || []).some((i: any) => i.isBusinessAvailable)))
                                   ? <><span className="hidden sm:inline">Quitar Business</span><span className="sm:hidden">Quitar</span></>
@@ -1299,15 +1299,15 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                 size="icon"
                                 variant="ghost"
                                 title="Cambiar imagen"
-                                className="h-10 w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
+                                className="h-7 w-7 sm:h-10 sm:w-10 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-xl"
                                 onClick={() => document.getElementById(`cat-img-${category._id}`)?.click()}
                               >
-                                <Camera size={18} />
+                                <Camera size={14} />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-10 w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
+                                className="h-7 w-7 sm:h-10 sm:w-10 text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl"
                                 onClick={() => {
                                   setEditingCategory(category._id)
                                   setEditingCategoryName(category.name)
@@ -1324,28 +1324,28 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                   }
                                 }}
                               >
-                                <Pencil size={18} />
+                                <Pencil size={14} />
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 title={category.isAvailable ? 'Deshabilitar categoría' : 'Habilitar categoría'}
                                 className={cn(
-                                  "h-10 w-10 rounded-xl transition-all",
+                                  "h-7 w-7 sm:h-10 sm:w-10 rounded-xl transition-all",
                                   category.isAvailable
                                     ? "text-emerald-500 hover:bg-emerald-500/10"
                                     : "text-orange-400 hover:bg-orange-400/10"
                                 )}
                                 onClick={() => handleToggleCategoryAvailability(category._id, category.isAvailable ?? true)}
                               >
-                                {category.isAvailable ? <Eye size={18} /> : <EyeOff size={18} />}
+                                {category.isAvailable ? <Eye size={14} /> : <EyeOff size={14} />}
                               </Button>
                               <Button
                                 size="icon"
                                 variant="ghost"
                                 title={category.isBusinessAvailable ? 'Deshabilitar Business' : 'Habilitar Business'}
                                 className={cn(
-                                  "h-10 w-10 flex-shrink-0 rounded-xl transition-all",
+                                  "h-7 w-7 sm:h-10 sm:w-10 flex-shrink-0 rounded-xl transition-all",
                                   category.isBusinessAvailable
                                     ? "text-primary hover:bg-primary/10"
                                     : "text-muted-foreground/40 hover:text-primary/50"
@@ -1371,17 +1371,17 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                               <Button
                                 size="icon"
                                 variant="ghost"
-                                className="h-10 w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
+                                className="h-7 w-7 sm:h-10 sm:w-10 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl"
                                 onClick={() => handleDeleteCategory(category._id)}
                               >
-                                <Trash2 size={18} />
+                                <Trash2 size={14} />
                               </Button>
-                              <div className="w-px h-6 bg-border/60 mx-1" />
+                              <div className="w-px h-6 bg-border/60 mx-0.5" />
                               <div className={cn(
-                                "h-10 w-10 flex items-center justify-center transition-transform duration-500",
+                                "h-7 w-7 sm:h-10 sm:w-10 flex items-center justify-center transition-transform duration-500",
                                 isExpanded ? "rotate-180 text-primary" : "text-muted-foreground"
                               )}>
-                                <ChevronDown size={20} strokeWidth={3} />
+                                <ChevronDown size={16} strokeWidth={3} />
                               </div>
                             </motion.div>
                           )}

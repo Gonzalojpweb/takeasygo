@@ -96,7 +96,7 @@ vi.mock('@/lib/availability', () => ({
 }))
 
 vi.mock('@/lib/loyalty', () => ({
-  validateCheckoutRewards: vi.fn().mockReturnValue({ valid: true, items: [] }),
+  validateCheckoutRewards: vi.fn().mockReturnValue({ valid: true, resolved: [] }),
 }))
 
 vi.mock('@/lib/plans', () => ({
