@@ -31,6 +31,7 @@ export async function GET(
     const settlements = await CommissionSettlement.find({ tenantId: tenant._id })
       .sort({ collectedAt: -1 })
       .limit(50)
+      .select('from to amountCollected collectedBy collectedAt notes orderIds')
       .lean()
 
     return NextResponse.json({
@@ -41,6 +42,7 @@ export async function GET(
         collectedBy: s.collectedBy,
         collectedAt: s.collectedAt,
         notes: s.notes,
+        orderCount: s.orderIds?.length ?? 0,
       })),
     })
   } catch (error: any) {

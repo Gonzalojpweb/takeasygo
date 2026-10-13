@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Order from '@/models/Order'
-import CommissionSettlement from '@/models/CommissionSettlement'
 import { requireAdminRole, getSessionUser } from '@/lib/apiAuth'
 import User from '@/models/User'
 import { getPlatformMPClient } from '@/lib/mp-platform'
 import { Preference } from 'mercadopago'
 import { toPesos } from '@takeasygo/business'
+import { computeTransferPayable } from '@/lib/commissions'
 
 /**
  * POST /api/{tenant}/commissions/pay
@@ -54,46 +53,20 @@ export async function POST(
     const from = fromParam ? parseLocal(fromParam) : new Date(now.getFullYear(), now.getMonth(), 1)
     const to = toParam ? parseLocal(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
 
-    // Obtener settlements existentes en el rango para restar
-    const settlements = await CommissionSettlement.find({
-      tenantId: tenant._id,
-      from: { $lte: to },
-      to: { $gte: from },
-    }).lean()
-
-    const settledOrderIds = new Set<string>()
-    let settledAmount = 0
-    for (const s of settlements) {
-      settledAmount += s.amountCollected
-      for (const id of s.orderIds) settledOrderIds.add(id)
+    if (from.getTime() > to.getTime()) {
+      return NextResponse.json(
+        { error: 'Rango inválido: la fecha de inicio debe ser anterior o igual a la de fin' },
+        { status: 400 }
+      )
     }
 
-    // Agregar comisiones de transferencia en el rango
+    // Monto exacto = transferencia del período no cubiertas por pagos registrados.
+    // Misma fórmula que GET /commissions (transfer.pending) — el botón del panel
+    // y el webhook de MP liquidan este mismo número.
     // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
     // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
-    const agg = await Order.aggregate([
-      {
-        $match: {
-          tenantId: tenant._id,
-          deletedAt: null,
-          status: { $ne: 'cancelled' },
-          'payment.status': 'approved',
-          'payment.method': 'transfer',
-          createdAt: { $gte: from, $lte: to },
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$payment.platformFeeAmount' },
-          count: { $sum: 1 },
-          orderIds: { $push: '$_id' },
-        },
-      },
-    ])
-
-    const totalCommission = agg.length > 0 ? agg[0].total : 0
-    const pending = totalCommission - settledAmount
+    const payable = await computeTransferPayable(tenant._id, from, to)
+    const pending = payable.pendingCents
 
     if (pending <= 0) {
       return NextResponse.json(
@@ -101,11 +74,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    // Obtener IDs de órdenes no saldadas
-    const unsettledOrderIds = agg.length > 0
-      ? agg[0].orderIds.filter((id: any) => !settledOrderIds.has(id.toString()))
-      : []
 
     // Crear Preferencia MP con credenciales de la plataforma
     const { client } = await getPlatformMPClient()
@@ -149,7 +117,7 @@ export async function POST(
       amount: toPesos(pending),
       from: from.toISOString(),
       to: to.toISOString(),
-      orderCount: unsettledOrderIds.length,
+      orderCount: payable.orderCount,
     })
   } catch (error: any) {
     console.error('[commissions/pay]', error)

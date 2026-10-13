@@ -103,8 +103,6 @@ export async function GET(
       icoHistory, orders30Count,
       // Metodos de pago
       paymentData,
-      // Comisiones
-      pendingCommissions,
       // Menu actividad
       mostSoldRaw, menuDoc, totalOrders30,
       // Calificaciones
@@ -152,17 +150,6 @@ export async function GET(
         { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: '$payment.method', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
         { $sort: { revenue: -1 } },
-      ]),
-      // Comisiones
-      Order.aggregate([
-        {
-          $match: {
-            tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-            status: { $ne: 'cancelled' }, 'payment.status': 'approved',
-            'payment.method': 'transfer', orderMode: 'delivery',
-          },
-        },
-        { $group: { _id: null, total: { $sum: '$payment.platformFeeAmount' }, count: { $sum: 1 } } },
       ]),
       // Menu actividad - most sold
       Order.aggregate([
@@ -255,8 +242,12 @@ export async function GET(
     }))
 
     // ── Process Comisiones ──
-    const pending = pendingCommissions[0]?.total ?? 0
-    const commissionOrderCount = pendingCommissions[0]?.count ?? 0
+    // Misma fórmula que el panel de comisiones y el banner (lib/commissions):
+    // transferencias del mes menos las ya cubiertas por pagos registrados.
+    const { computeTransferPayable } = await import('@/lib/commissions')
+    const transferPayable = await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
+    const pending = transferPayable.pendingCents
+    const commissionOrderCount = transferPayable.orderCount
     const balance = tenant.commissionBalance?.transfer ?? 0
     const threshold = tenant.commissionThreshold ?? null
 

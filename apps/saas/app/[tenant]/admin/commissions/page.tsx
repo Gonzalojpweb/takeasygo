@@ -29,7 +29,7 @@ export default async function CommissionsPage({
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Comisiones</h1>
-          <p className="text-xs text-muted-foreground font-medium">Balance, historial y pago de comisiones de plataforma</p>
+          <p className="text-xs text-muted-foreground font-medium">Qué se cobra, cuánto ya pagaste y cuánto falta — todo explicado y con los números que cierran</p>
         </div>
       </div>
 

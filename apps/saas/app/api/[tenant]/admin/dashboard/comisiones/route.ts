@@ -54,38 +54,20 @@ export async function GET(
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
     }
 
-    const OrderMod = await import('@/models/Order')
-    const Order = OrderMod.default
-
     const tenantId = tenant._id
 
-    // Calculate pending transfer commissions for current month
+    // Transferencias sin pagar del mes actual — misma fórmula que el panel de
+    // comisiones (lib/commissions): órdenes transfer del período menos las que
+    // ya están cubiertas por un pago registrado. En CENTAVOS (igual que antes).
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-    const pendingData = await Order.aggregate([
-      {
-        $match: {
-          tenantId,
-          createdAt: { $gte: startOfMonth, $lte: endOfMonth },
-          status: { $ne: 'cancelled' },
-          'payment.status': 'approved',
-          'payment.method': 'transfer',
-          orderMode: 'delivery',
-        },
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: '$payment.platformFeeAmount' },
-          count: { $sum: 1 },
-        },
-      },
-    ])
+    const { computeTransferPayable } = await import('@/lib/commissions')
+    const payable = await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
 
-    const pending = pendingData[0]?.total ?? 0
-    const orderCount = pendingData[0]?.count ?? 0
+    const pending = payable.pendingCents
+    const orderCount = payable.orderCount
 
     // Cumulative balance (lifetime)
     const balance = tenant.commissionBalance?.transfer ?? 0

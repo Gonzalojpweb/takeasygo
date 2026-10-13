@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
-import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
-import CommissionSettlement from '@/models/CommissionSettlement'
 import { requireAuth } from '@/lib/apiAuth'
 import { toPesos } from '@takeasygo/business'
+import { computePeriodCommissions } from '@/lib/commissions'
 
+/**
+ * GET /api/{tenant}/commissions?from=YYYY-MM-DD&to=YYYY-MM-DD
+ *
+ * Comisiones del período con cierre exacto (lib/commissions.ts):
+ *   total = settled + pending  (por método y en general)
+ *
+ * - total:   comisión de TakeasyGO de las órdenes aprobadas del período (todos
+ *            los métodos). Efectivo genera $0.
+ * - settled: parte de esas comisiones cuyas órdenes ya están cubiertas por un
+ *            pago registrado (settlement con esas órdenes adentro).
+ * - pending: total - settled (nunca negativo).
+ * - transfer.pending: lo que el admin puede pagar con el botón de este panel.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -32,95 +44,39 @@ export async function GET(
 
     const now = new Date()
     const from = fromParam ? parseLocal(fromParam) : new Date(now.getFullYear(), now.getMonth(), 1)
-    const to = toParam ? parseLocal(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    const to = toParam ? parseLocal(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
 
-    // Get settlements in range to subtract
-    const settlements = await CommissionSettlement.find({
-      tenantId: tenant._id,
-      from: { $lte: to },
-      to: { $gte: from },
-    }).lean()
-
-    const settledOrderIds = new Set<string>()
-    let settledAmount = 0
-    for (const s of settlements) {
-      settledAmount += s.amountCollected
-      for (const id of s.orderIds) settledOrderIds.add(id)
+    if (from.getTime() > to.getTime()) {
+      return NextResponse.json(
+        { error: 'Rango inválido: la fecha de inicio debe ser anterior o igual a la de fin' },
+        { status: 400 }
+      )
     }
 
-    // Aggregate commissions by method
-    const agg = await Order.aggregate([
-      {
-        $match: {
-          tenantId: tenant._id,
-          deletedAt: null,
-          status: { $ne: 'cancelled' },
-          'payment.status': 'approved',
-          createdAt: { $gte: from, $lte: to },
-        },
-      },
-      {
-        $group: {
-          _id: '$payment.method',
-          total: { $sum: '$payment.platformFeeAmount' },
-          count: { $sum: 1 },
-          daily: {
-            $push: {
-              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-              amount: '$payment.platformFeeAmount',
-              method: '$payment.method',
-              orderId: '$_id',
-            },
-          },
-        },
-      },
-    ])
-
-    let total = 0
-    const breakdown: Record<string, { amount: number; count: number }> = {}
-    const dailyMap: Record<string, { date: string; amount: number; method: string }[]> = {}
-
-    for (const a of agg) {
-      total += a.total
-      breakdown[a._id || 'unknown'] = { amount: a.total, count: a.count }
-      for (const d of a.daily) {
-        if (!dailyMap[d.date]) dailyMap[d.date] = []
-        dailyMap[d.date].push({ date: d.date, amount: d.amount, method: d.method })
-      }
-    }
-
-    const dailyBreakdown = Object.entries(dailyMap)
-      .map(([date, items]) => ({
-        date,
-        total: items.reduce((s, i) => s + i.amount, 0),
-        breakdown: items.reduce((acc, i) => {
-          acc[i.method] = (acc[i.method] || 0) + i.amount
-          return acc
-        }, {} as Record<string, number>),
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    const pending = total - settledAmount
+    const period = await computePeriodCommissions(tenant._id, from, to)
 
     return NextResponse.json({
       from: from.toISOString(),
       to: to.toISOString(),
-      total: toPesos(total),
-      settled: toPesos(settledAmount),
-      pending: toPesos(pending),
-      breakdown: Object.entries(breakdown).map(([method, data]) => ({
-        method,
-        amount: toPesos(data.amount),
-        count: data.count,
+      total: toPesos(period.total),
+      settled: toPesos(period.settled),
+      pending: toPesos(period.pending),
+      orderCount: period.orderCount,
+      settledOrderCount: period.settledOrderCount,
+      breakdown: period.breakdown.map((r) => ({
+        method: r.method,
+        amount: toPesos(r.total),
+        settled: toPesos(r.settled),
+        pending: toPesos(r.pending),
+        count: r.orderCount,
       })),
-      dailyBreakdown: dailyBreakdown.map((d) => ({
-        date: d.date,
-        total: toPesos(d.total),
-        breakdown: Object.entries(d.breakdown).map(([method, amount]) => ({
-          method,
-          amount: toPesos(amount),
-        })),
-      })),
+      transfer: {
+        total: toPesos(period.transfer.total),
+        settled: toPesos(period.transfer.settled),
+        pending: toPesos(period.transfer.pending),
+        orderCount: period.transfer.orderCount,
+      },
+      unattributedSettled: toPesos(period.unattributedSettled),
     })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
