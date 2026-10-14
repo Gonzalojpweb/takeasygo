@@ -4,11 +4,12 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import Counter from '@/models/Counter'
+import { nextPerLocationNumber } from '@/lib/perLocationNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
-import { getStrictLocationIdMode } from '@/lib/feature-flags'
+import { getStrictLocationIdMode, isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
@@ -229,13 +230,23 @@ export async function POST(
       }, { status: 409 })
     }
 
-    // Generate reservation number (atomic counter)
-    const counter = await Counter.findOneAndUpdate(
-      { tenantId: tenant._id },
-      { $inc: { seq: 1 } },
-      { upsert: true, new: true }
-    )
-    const reservationNumber = `R${String(counter.seq).padStart(4, '0')}`
+    // Generate reservation number: perLocation (flag ON) o legacy (flag OFF)
+    let reservationNumber: string
+    if (isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)) {
+      reservationNumber = await nextPerLocationNumber({
+        tenantId: tenant._id,
+        locationId,
+        type: 'reservation',
+        locationName: location.name,
+      })
+    } else {
+      const counter = await Counter.findOneAndUpdate(
+        { tenantId: tenant._id },
+        { $inc: { seq: 1 } },
+        { upsert: true, new: true }
+      )
+      reservationNumber = `R${String(counter.seq).padStart(4, '0')}`
+    }
 
     // Se cobra solo si el admin dejó los pagos activos y hay seña > 0.
     const minPayment = reservationConfig.minPayment ?? 0

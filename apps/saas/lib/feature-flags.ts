@@ -31,6 +31,9 @@ export const FLAGS = {
   /** B1 sede en caja, cierres y auditoría: habilita el scoping por sede en
    *  rutas admin de caja/reconciliación/auditoría y el backfill de locationId. */
   CASH_SEDE: 'multisede.cashSede',
+  /** Numeración por sede de pedidos y reservas: contadores atómicos
+   *  (tenant, sede) con prefijo de sede. Off = formato actual sin cambios. */
+  NUMBERING_PER_LOCATION: 'numbering.perLocation',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

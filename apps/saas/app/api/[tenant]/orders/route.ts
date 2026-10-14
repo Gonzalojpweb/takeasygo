@@ -9,10 +9,11 @@ import CorporateAccount from '@/models/CorporateAccount'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
 import { generateOrderNumber } from '@/lib/orderNumber'
+import { nextPerLocationNumber } from '@/lib/perLocationNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
-import { getStrictLocationIdMode } from '@/lib/feature-flags'
+import { getStrictLocationIdMode, isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { createOrderSchema } from '@/lib/schemas'
 import { encrypt, safeDecrypt, hashPhone } from '@/lib/crypto'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
@@ -1684,10 +1685,24 @@ export async function POST(
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
     const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
 
+    // ── orderNumber: perLocation (flag ON) o legacy (flag OFF) ───────
+    let orderNumber: string
+    if (isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)) {
+      const locDoc = await Location.findById(body.locationId).select('name').lean() as { name: string } | null
+      orderNumber = await nextPerLocationNumber({
+        tenantId: tenant._id,
+        locationId: body.locationId,
+        type: 'order',
+        locationName: locDoc?.name ?? 'LOC',
+      })
+    } else {
+      orderNumber = generateOrderNumber(tenantSlug)
+    }
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId: body.locationId,
-      orderNumber: generateOrderNumber(tenantSlug),
+      orderNumber,
       status: initialStatus,
       orderMode: body.mode,
       items: resolvedItems,
