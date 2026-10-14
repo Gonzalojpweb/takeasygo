@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { FONT_ROLES, FONT_INSTANCES } from '@/lib/fonts'
+import { FONT_ROLES, FONT_INSTANCES, getGoogleFontUrl } from '@/lib/fonts'
 
 interface FontConfig {
   source: string
@@ -28,6 +28,7 @@ export default function TenantFontLoader({ fonts, children }: Props) {
 
   const cssVars: Record<string, string> = {}
   const googleFontClasses: string[] = []
+  const googleFontUrls: string[] = []
   const customFontFaces: string[] = []
   let adobeProjectId: string | null = null
 
@@ -41,10 +42,14 @@ export default function TenantFontLoader({ fonts, children }: Props) {
     if (source === 'google' && family) {
       const instance = FONT_INSTANCES[family]
       if (instance) {
-        googleFontClasses.push(instance.className)
+        if (instance.className) googleFontClasses.push(instance.className)
         cssVars[varName] = instance.style.fontFamily
       } else {
-        cssVars[varName] = `${family}, sans-serif`
+        cssVars[varName] = `'${family}', sans-serif`
+      }
+      const fontUrl = getGoogleFontUrl(family)
+      if (fontUrl && !googleFontUrls.includes(fontUrl)) {
+        googleFontUrls.push(fontUrl)
       }
     }
 
@@ -74,13 +79,23 @@ export default function TenantFontLoader({ fonts, children }: Props) {
   }
 
   const hasVars = Object.keys(cssVars).length > 0
+  const hasGoogle = googleFontUrls.length > 0
   const hasAdobe = !!adobeProjectId
   const hasCustom = customFontFaces.length > 0
 
-  if (!hasVars && !hasAdobe && !hasCustom) return <>{children}</>
+  if (!hasVars && !hasGoogle && !hasAdobe && !hasCustom) return <>{children}</>
 
   return (
     <>
+      {hasGoogle && (
+        <>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          {googleFontUrls.map(url => (
+            <link key={url} rel="stylesheet" href={url} />
+          ))}
+        </>
+      )}
       {hasAdobe && (
         <link
           rel="stylesheet"

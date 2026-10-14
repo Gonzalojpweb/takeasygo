@@ -23,7 +23,7 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com",
-      "style-src 'self' 'unsafe-inline' https://use.typekit.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.typekit.net",
       "img-src 'self' data: blob: https://res.cloudinary.com https://api.dicebear.com https://images.unsplash.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://www.google.com",
       "media-src 'self' blob: https://res.cloudinary.com",
       "font-src 'self' https://fonts.gstatic.com https://use.typekit.net data:",

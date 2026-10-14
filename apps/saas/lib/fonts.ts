@@ -1,25 +1,72 @@
-import {
-  Inter,
-  DM_Sans,
-  Plus_Jakarta_Sans,
-  Playfair_Display,
-  Lora,
-} from 'next/font/google'
+// ── Google Fonts configuration ──────────────────────────────────────────
+// Rather than using `next/font/google` at build time (which fails in CI/Vercel
+// when Google CDN serves extensionless dynamic kit URLs causing `next/font` parser crash),
+// we provide font definitions, css variables, and CDN links loaded on demand.
 
-// ── Google Fonts (self-hosted via next/font) ────────────────────────────
-export const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-export const dmSans = DM_Sans({ subsets: ['latin'], weight: ['300', '400', '500', '700'], variable: '--font-dm-sans' })
-export const plusJakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-plus-jakarta-sans' })
-export const playfairDisplay = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair-display' })
-export const lora = Lora({ subsets: ['latin'], variable: '--font-lora' })
+export interface FontInstanceLike {
+  className: string
+  variable: string
+  style: { fontFamily: string }
+}
 
-/** Map from curated font ID → next/font instance. Used by TenantFontLoader to force @font-face loading. */
-export const FONT_INSTANCES: Record<string, typeof inter> = {
+export const inter: FontInstanceLike = {
+  className: '',
+  variable: '--font-inter',
+  style: { fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+}
+
+export const dmSans: FontInstanceLike = {
+  className: '',
+  variable: '--font-dm-sans',
+  style: { fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+}
+
+export const plusJakartaSans: FontInstanceLike = {
+  className: '',
+  variable: '--font-plus-jakarta-sans',
+  style: { fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" },
+}
+
+export const playfairDisplay: FontInstanceLike = {
+  className: '',
+  variable: '--font-playfair-display',
+  style: { fontFamily: "'Playfair Display', Georgia, serif" },
+}
+
+export const lora: FontInstanceLike = {
+  className: '',
+  variable: '--font-lora',
+  style: { fontFamily: "'Lora', Georgia, serif" },
+}
+
+/** Map from curated font ID → font instance. Used by TenantFontLoader and typography components. */
+export const FONT_INSTANCES: Record<string, FontInstanceLike> = {
   inter,
   'dm-sans': dmSans,
   'plus-jakarta-sans': plusJakartaSans,
   'playfair-display': playfairDisplay,
   lora,
+}
+
+export const GOOGLE_FONT_URLS: Record<string, string> = {
+  inter: 'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap',
+  'dm-sans': 'https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&display=swap',
+  'plus-jakarta-sans': 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap',
+  'playfair-display': 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap',
+  lora: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap',
+}
+
+export function getGoogleFontUrl(idOrFamily: string): string | null {
+  if (GOOGLE_FONT_URLS[idOrFamily]) {
+    return GOOGLE_FONT_URLS[idOrFamily]
+  }
+  const fontDef = FONT_MAP.get(idOrFamily)
+  const familyName = fontDef?.family || idOrFamily
+  if (familyName) {
+    const encoded = encodeURIComponent(familyName)
+    return `https://fonts.googleapis.com/css2?family=${encoded}:wght@300;400;500;600;700&display=swap`
+  }
+  return null
 }
 
 export type FontSource = 'google' | 'adobe' | 'custom'
