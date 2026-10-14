@@ -2,8 +2,9 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import UserLocationRole, { LOCATION_ROLES } from '@/models/UserLocationRole'
 import Location from '@/models/Location'
+import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminRole } from '@/lib/apiAuth'
+import { requireAdminRole, getSessionUser } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 
 // GET — lista asignaciones de roles por sede del tenant, con nombre de usuario y sede
@@ -27,9 +28,16 @@ export async function GET(
       .sort({ createdAt: -1 })
       .lean()
 
-    const serialized = ulrs.map((u: any) => ({
+    const serialized = ulrs.map((u: {
+      _id: { toString(): string }
+      userId: { _id?: { toString(): string }; toString(): string; name?: string; email?: string } | null
+      locationId: { _id?: { toString(): string }; toString(): string; name?: string } | null
+      role: string
+      isActive: boolean
+      createdAt: Date
+    }) => ({
       _id: u._id.toString(),
-      userId: u.userId?._id?.toString() ?? u.userId?.toString(),
+      userId: u.userId?._id?.toString() ?? u.userId?.toString() ?? '',
       userName: u.userId?.name ?? 'Desconocido',
       userEmail: u.userId?.email ?? '',
       locationId: u.locationId?._id?.toString() ?? null,
@@ -60,15 +68,34 @@ export async function POST(
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
 
+    const sessionUser = await getSessionUser(request)
+    const currentUserId = sessionUser?.id?.toString()
+
     const { userId, locationId = null, role, isActive = true } = await request.json()
 
     if (!userId || typeof userId !== 'string') {
       return NextResponse.json({ error: 'userId es requerido' }, { status: 400 })
     }
 
+    // Regla: nadie edita ni crea sus propias filas
+    if (currentUserId && userId === currentUserId) {
+      return NextResponse.json(
+        { error: 'No podés modificar tu propia asignación de roles.' },
+        { status: 403 }
+      )
+    }
+
     if (!ROLE_VALID.includes(role)) {
       return NextResponse.json(
         { error: `Rol inválido. Roles permitidos: ${ROLE_VALID.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    // Regla: tenant-wide (locationId:null) solo para rol admin
+    if (locationId === null && role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Un rol tenant-wide (todas las sedes) solo puede ser admin.' },
         { status: 400 }
       )
     }
@@ -85,10 +112,40 @@ export async function POST(
     }
 
     // Verificar que el usuario pertenece al tenant
-    const User = (await import('@/models/User')).default
     const user = await User.findOne({ _id: userId, tenantId: tenant._id })
     if (!user) {
       return NextResponse.json({ error: 'El usuario no pertenece a este tenant' }, { status: 400 })
+    }
+
+    // Regla: no dejar tenant sin admin activo
+    // Si estamos quitando admin (cambiando rol o desactivando) de esta fila,
+    // verificar que quede al menos otro admin activo (ULR o User.role legacy).
+    const existing = await UserLocationRole.findOne({ tenantId: tenant._id, userId, locationId })
+    const removingAdmin =
+      existing &&
+      existing.role === 'admin' &&
+      existing.isActive &&
+      (role !== 'admin' || !isActive)
+
+    if (removingAdmin) {
+      const otherAdminUlr = await UserLocationRole.findOne({
+        tenantId: tenant._id,
+        role: 'admin',
+        isActive: true,
+        _id: { $ne: existing._id },
+      })
+      const otherLegacyAdmin = await User.findOne({
+        tenantId: tenant._id,
+        role: 'admin',
+        isActive: true,
+        _id: { $ne: userId },
+      })
+      if (!otherAdminUlr && !otherLegacyAdmin) {
+        return NextResponse.json(
+          { error: 'No se puede quitar el último admin del tenant.' },
+          { status: 400 }
+        )
+      }
     }
 
     const ulr = await UserLocationRole.findOneAndUpdate(
