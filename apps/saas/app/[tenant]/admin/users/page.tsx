@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import type { Types } from 'mongoose'
 import UsersManager from '@/components/admin/UsersManager'
+import RoleLocationManager from '@/components/admin/RoleLocationManager'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
@@ -55,15 +56,26 @@ export default async function UsersPage() {
     name: l.name,
   }))
 
+  const serializedUsers = JSON.parse(JSON.stringify(users))
+
   return (
-    <div>
-      <h1 className="text-white text-2xl font-bold mb-6">Usuarios</h1>
-      <UsersManager
-        users={JSON.parse(JSON.stringify(users))}
-        tenantSlug={tenantSlug || ''}
-        tenantId={tenantId.toString()}
-        locations={serializedLocations}
-      />
+    <div className="space-y-10">
+      <div>
+        <h1 className="text-white text-2xl font-bold mb-6">Usuarios</h1>
+        <UsersManager
+          users={serializedUsers}
+          tenantSlug={tenantSlug || ''}
+          tenantId={tenantId.toString()}
+          locations={serializedLocations}
+        />
+      </div>
+      <div>
+        <RoleLocationManager
+          tenantSlug={tenantSlug || ''}
+          users={serializedUsers.map((u: any) => ({ _id: u._id, name: u.name, email: u.email }))}
+          locations={serializedLocations}
+        />
+      </div>
     </div>
   )
 }
