@@ -43,6 +43,7 @@ import type { Plan, Feature } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { getLocationColor } from '@/lib/location-colors'
+import { clientRoleHasPermission, MENU_PERMISSIONS } from '@/lib/rbac-client'
 
 interface Props {
   tenantSlug: string
@@ -58,6 +59,7 @@ interface Props {
   crmEnabled?: boolean
   assignedLocations?: string[]
   locations?: { _id: string; name: string; colorIndex?: number }[]
+  rbacSedeScope?: boolean
 }
 
 interface NavItem {
@@ -118,10 +120,23 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [] }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
+
+  // Filtra un item del menú: con flag ON usa permisos (rbac-client),
+  // con flag OFF usa el array roles legacy (comportamiento sin-cambio).
+  function isItemVisible(item: NavItem, effectiveRole: string): boolean {
+    if (rbacSedeScope) {
+      const suffix = item.href === base ? '' : item.href.replace(`${base}/`, '')
+      const requiredPerm = MENU_PERMISSIONS[suffix]
+      if (requiredPerm) {
+        return clientRoleHasPermission(effectiveRole, requiredPerm)
+      }
+    }
+    return item.roles.includes(effectiveRole)
+  }
 
   const groups: NavGroup[] = [
     {
@@ -219,7 +234,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
           {/* Nav — Vertical: icon + text below */}
           <nav className="flex-1 px-2 py-2 overflow-y-auto min-h-0 flex flex-col items-center gap-1 admin-nav-scroll">
             {groups.map((group, groupIdx) => {
-              const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
+              const visibleItems = group.items.filter(item => isItemVisible(item, effectiveRole))
               if (visibleItems.length === 0) return null
 
               return (
@@ -325,7 +340,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
           {/* Nav — Full with groups and separators */}
           <nav className="flex-1 px-3 overflow-y-auto min-h-0 admin-nav-scroll">
             {groups.map((group, groupIdx) => {
-              const visibleItems = group.items.filter(item => item.roles.includes(effectiveRole))
+              const visibleItems = group.items.filter(item => isItemVisible(item, effectiveRole))
               if (visibleItems.length === 0) return null
 
               return (

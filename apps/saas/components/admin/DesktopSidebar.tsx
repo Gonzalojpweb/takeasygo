@@ -3,12 +3,13 @@
 import { useSidebarState } from './SidebarWrapper'
 import AdminSidebar from './AdminSidebar'
 import { cn } from '@/lib/utils'
+import type { Plan } from '@/lib/plans'
 
 interface DesktopSidebarProps {
   tenantSlug: string
   userRole: string
   userName: string
-  plan: any
+  plan: Plan
   dineInOnly?: boolean
   unreadAnnouncements?: number
   commissionBadge?: number
@@ -17,6 +18,7 @@ interface DesktopSidebarProps {
   crmEnabled?: boolean
   assignedLocations?: string[]
   locations?: { _id: string; name: string }[]
+  rbacSedeScope?: boolean
 }
 
 export default function DesktopSidebar(props: DesktopSidebarProps) {

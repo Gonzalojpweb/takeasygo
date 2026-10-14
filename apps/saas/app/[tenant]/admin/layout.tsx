@@ -19,6 +19,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { canAccess, type Plan } from '@/lib/plans'
 import { countPendingRedemptions } from '@/lib/store-redemptions'
+import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
@@ -76,7 +77,7 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold')
+    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
     .lean<{
       _id: mongoose.Types.ObjectId
       plan?: Plan
@@ -85,6 +86,7 @@ export default async function AdminLayout({
       branding?: { primaryColor?: string; backgroundColor?: string; textColor?: string; logoUrl?: string }
       commissionBalance?: { transfer?: number }
       commissionThreshold?: number | null
+      flags?: Record<string, boolean | string | number | null | undefined>
     }>()
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
@@ -150,6 +152,8 @@ export default async function AdminLayout({
     }
   }
 
+  const rbacSedeScope = isFlagEnabled(tenantDoc, FLAGS.RBAC_SEDE_SCOPE)
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
@@ -163,6 +167,7 @@ export default async function AdminLayout({
     crmEnabled,
     assignedLocations: session.user.assignedLocations ?? [],
     locations: sidebarLocations,
+    rbacSedeScope,
   }
 
   return (
