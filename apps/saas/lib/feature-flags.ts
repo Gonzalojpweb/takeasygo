@@ -34,6 +34,9 @@ export const FLAGS = {
   /** Numeración por sede de pedidos y reservas: contadores atómicos
    *  (tenant, sede) con prefijo de sede. Off = formato actual sin cambios. */
   NUMBERING_PER_LOCATION: 'numbering.perLocation',
+  /** Mercado Pago por sede: cada Location usa su propia cuenta MP
+   *  (Location.settings.mpAccountId). Off = cuenta activa del tenant (shared). */
+  MP_PER_LOCATION: 'mp.perLocation',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

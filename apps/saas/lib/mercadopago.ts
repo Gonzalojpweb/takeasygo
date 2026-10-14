@@ -1,6 +1,7 @@
 import { MercadoPagoConfig } from 'mercadopago'
 import { decrypt } from '@/lib/crypto'
 import { connectDB } from '@/lib/mongoose'
+import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import Tenant from '@/models/Tenant'
 
 /**
@@ -81,16 +82,28 @@ export function isOAuthValid(account: ResolvedMpAccount): boolean {
 /**
  * Resolves the MP account for a specific location.
  *
- * Priority:
- *  1. locationMpAccountId → look up that exact account in tenant.mpAccounts[]
- *  2. null/undefined → fallback to getActiveMpAccount(tenant)
- *  3. Account not found → null (fail closed, caller must handle)
+ * Comportamiento según flag `mp.perLocation` y `tenant.mpMode`:
+ *  - Flag OFF (default): SIEMPRE cuenta activa del tenant (shared).
+ *    El override de la sede se ignora — comportamiento idéntico al actual.
+ *  - Flag ON + mpMode 'shared': cuenta activa del tenant (sin cambios).
+ *  - Flag ON + mpMode 'perLocation':
+ *      1. locationMpAccountId → esa cuenta exacta en tenant.mpAccounts[]
+ *      2. Sin override → fallback a getActiveMpAccount(tenant)
+ *      3. Cuenta no existe → null (fail closed)
  */
 export function getMpAccountForLocation(
   tenant: any,
   locationMpAccountId?: string | null
 ): ResolvedMpAccount | null {
-  // Explicit account override on the location
+  const perLocationEnabled =
+    isFlagEnabled(tenant, FLAGS.MP_PER_LOCATION) && tenant.mpMode === 'perLocation'
+
+  // Flag OFF o modo shared: usar cuenta activa (ignorar override)
+  if (!perLocationEnabled) {
+    return getActiveMpAccount(tenant)
+  }
+
+  // Flag ON + perLocation: respetar override de la sede
   if (locationMpAccountId) {
     const match = tenant.mpAccounts?.find(
       (a: any) => a._id?.toString() === locationMpAccountId
@@ -112,7 +125,7 @@ export function getMpAccountForLocation(
     }
   }
 
-  // No override: use tenant-level active account
+  // Sin override: fallback a cuenta activa del tenant
   return getActiveMpAccount(tenant)
 }
 

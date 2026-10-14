@@ -20,6 +20,7 @@ import { sendAdminPushNotification } from '@/lib/push'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount, resolveWebhookProcessAccount } from '@/lib/mercadopago'
 import type { ResolvedMpAccount } from '@/lib/mercadopago'
+import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
 webpush.setVapidDetails(
@@ -255,14 +256,33 @@ export async function POST(
     // ── 8. Resolver cuenta desde Order (fuente de verdad) ───────────────────
     let resolvedAccountId: string | null = null
     let orderIdForLog: string | null = null
+    let orderLocationId: string | null = null
     if (!externalRef.startsWith('reserva_')) {
       const order = await Order.findOne({ orderNumber: externalRef, tenantId: tenant._id })
-        .select('payment.mpAccountId orderNumber')
+        .select('payment.mpAccountId orderNumber locationId')
         .lean()
       if (order) {
         resolvedAccountId = (order as any).payment?.mpAccountId ?? null
         orderIdForLog = order.orderNumber
+        orderLocationId = order.locationId ? String(order.locationId) : null
       }
+    }
+
+    // ── 8b. Validación sede (flag mp.perLocation + mpMode perLocation) ─────
+    //    Cuando el modo es perLocation, toda orden debe tener locationId.
+    //    Sin sede no se puede determinar a qué cuenta MP corresponde.
+    if (
+      isFlagEnabled(tenant, FLAGS.MP_PER_LOCATION) &&
+      tenant.mpMode === 'perLocation' &&
+      !externalRef.startsWith('reserva_') &&
+      orderIdForLog &&
+      !orderLocationId
+    ) {
+      console.warn(`[Webhook MP][${traceId}] Orden sin locationId en modo perLocation | tenant=${tenantSlug} | order=${orderIdForLog}`)
+      sendSecurityAlert(tenantSlug, 'Orden sin locationId en modo perLocation MP', {
+        orderId: orderIdForLog, mpPaymentId, tenantSlug, traceId,
+      })
+      return NextResponse.json({ received: true, note: 'Order missing locationId — manual review needed' }, { status: 422 })
     }
 
     // ── 9. Cruzar ?account= con Order (hint vs reality) ─────────────────────

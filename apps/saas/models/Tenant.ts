@@ -219,6 +219,12 @@ export interface ITenant extends Document {
     oauthAuthorizedAt?: Date | null
     createdAt: Date
   }[]
+  /** Modo de cuentas MP:
+   *  - 'shared' (default): todas las sedes usan la cuenta activa del tenant.
+   *  - 'perLocation': cada sede usa Location.settings.mpAccountId (con
+   *    fallback a la cuenta activa si la sede no tiene override).
+   *  Solo tiene efecto cuando el flag mp.perLocation está ON. */
+  mpMode?: 'shared' | 'perLocation'
   // ── Google Contacts Sync ───────────────────────────────────────────────
   googleContacts: {
     accessToken: string | null     // OAuth access_token (encrypted AES-256-GCM)
@@ -632,6 +638,13 @@ const TenantSchema = new Schema<ITenant>(
         createdAt:         { type: Date, default: Date.now },
       }],
       default: [],
+    },
+    /** Modo de cuentas MP: 'shared' (default) o 'perLocation'.
+     *  Solo tiene efecto con el flag mp.perLocation ON. */
+    mpMode: {
+      type: String,
+      enum: ['shared', 'perLocation'],
+      default: 'shared',
     },
     // ── Google Contacts Sync ───────────────────────────────────────────────
     googleContacts: {
