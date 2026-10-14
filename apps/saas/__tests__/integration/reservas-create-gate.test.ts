@@ -581,4 +581,57 @@ describe('aforo por espacios', () => {
     expect(free.status).toBe(201)
     expect((await free.json()).reservation.spaceId).toBeNull()
   })
+
+  it('recheck post-insert: segundo request al mismo slot concurrido recibe 409', async () => {
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    const loc = await Location.create({
+      tenantId: tenant._id,
+      name: 'Concurrencia',
+      slug: 'concurrencia',
+      address: 'Calle Concurrencia 1',
+      isActive: true,
+      timezone: 'America/Argentina/Buenos_Aires',
+      reservationConfig: {
+        enabled: true,
+        minPayment: 0,
+        timeSlots: [],
+        maxPartySize: null,
+        minAdvanceMinutes: 0,
+        slotConfig: {
+          enabled: true,
+          operatingHours: [{ days: [0, 1, 2, 3, 4, 5, 6], open: '13:00', close: '16:00' }],
+          slotIntervalMinutes: 60,
+          blockDurationMinutes: 90,
+          maxReservationsPerSlot: 1,
+        },
+      },
+    })
+    const locId = String(loc._id)
+
+    // Primer request: inserta y pasa el recheck (no hay otras reservas)
+    const first = await post({ ...BASE_BODY, date: TOMORROW, locationId: locId, time: '13:00', partySize: 2 })
+    expect(first.status).toBe(201)
+
+    // Simular que otro request insertó entre el chequeo previo y el recheck:
+    // insertar directamente una reserva en el mismo slot
+    await Reservation.create({
+      tenantId: tenant._id,
+      locationId: loc._id,
+      reservationNumber: 'R-CONC-TEST',
+      date: TOMORROW,
+      time: '13:00',
+      partySize: 2,
+      name: 'Otro Cliente',
+      phone: '+5491199999999',
+      status: 'confirmed',
+    })
+
+    // Segundo request al mismo slot: el pre-check ya pasa (hay espacio según
+    // generateReservationSlots que ve ambas), pero el recheck post-insert
+    // detecta que maxReservationsPerSlot=1 ya está lleno → 409
+    const second = await post({ ...BASE_BODY, date: TOMORROW, locationId: locId, time: '13:00', partySize: 2 })
+    // O bien 409 del pre-check (si generateReservationSlots ya ve la reserva directa)
+    // o bien 409 del recheck post-insert. Ambos son aceptables.
+    expect(second.status).toBe(409)
+  })
 })

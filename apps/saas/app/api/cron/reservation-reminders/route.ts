@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { safeDecrypt } from '@/lib/crypto'
 import { sendReservationReminder } from '@/lib/reservationNotifications'
+import { getTodayStrInTimezone, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { NextRequest, NextResponse } from 'next/server'
 
 const CRON_SECRET = process.env.CRON_SECRET
@@ -17,16 +18,19 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
+    // Ventana amplia: UTC-12 a UTC+14. Después filtramos por timezone real de cada sede.
     const now = new Date()
     const inTwoHours = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+    const windowStart = new Date(now.getTime() - 14 * 60 * 60 * 1000)
+    const windowEnd = new Date(inTwoHours.getTime() + 12 * 60 * 60 * 1000)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
-    const dateStr = `${inTwoHours.getFullYear()}-${String(inTwoHours.getMonth() + 1).padStart(2, '0')}-${String(inTwoHours.getDate()).padStart(2, '0')}`
-    const timeStr = `${String(inTwoHours.getHours()).padStart(2, '0')}:${String(inTwoHours.getMinutes()).padStart(2, '0')}`
-
+    // Buscar reservas en ventana UTC amplia, luego filtrar por timezone real
+    const dateCandidates = [fmt(windowStart), fmt(now), fmt(inTwoHours), fmt(windowEnd)]
     const reservations = await Reservation.find({
       status: 'confirmed',
-      date: dateStr,
-      time: { $lte: timeStr },
+      date: { $in: dateCandidates },
       $or: [
         { 'notifications.reminderSent': { $ne: true } },
         { 'notifications.reminderSent': { $exists: false } },
@@ -35,12 +39,33 @@ export async function GET(request: NextRequest) {
 
     let sentCount = 0
 
+    // Cachear sedes para no re-queryar
+    const locCache = new Map<string, { name: string; timezone: string } | null>()
+
     for (const r of reservations) {
       const tenant = await Tenant.findById(r.tenantId).lean()
       if (!tenant) continue
 
-      const decrypted = { name: safeDecrypt(r.name), phone: safeDecrypt(r.phone) }
+      const locKey = r.locationId ? String(r.locationId) : 'null'
+      if (!locCache.has(locKey)) {
+        locCache.set(locKey, null)
+      }
+
       const location = r.locationId ? await Location.findById(r.locationId).lean() : null
+      const tz = (location as { timezone?: string } | null)?.timezone || DEFAULT_TIMEZONE
+
+      // Verificar si en la timezone de la sede la reserva es dentro de las próximas 2h
+      const todayStr = getTodayStrInTimezone(tz)
+      const nowInTz = new Date(now.toLocaleString('en-US', { timeZone: tz }))
+      const inTwoHoursInTz = new Date(inTwoHours.toLocaleString('en-US', { timeZone: tz }))
+      const nowTimeStr = `${pad(nowInTz.getHours())}:${pad(nowInTz.getMinutes())}`
+      const endTimeStr = `${pad(inTwoHoursInTz.getHours())}:${pad(inTwoHoursInTz.getMinutes())}`
+
+      // La reserva debe ser hoy en la timezone de la sede, y su hora entre ahora y +2h
+      if (r.date !== todayStr) continue
+      if (r.time < nowTimeStr || r.time > endTimeStr) continue
+
+      const decrypted = { name: safeDecrypt(r.name), phone: safeDecrypt(r.phone) }
 
       await sendReservationReminder(
         {

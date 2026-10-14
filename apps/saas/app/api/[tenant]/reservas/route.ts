@@ -311,6 +311,39 @@ export async function POST(
           { status: 409 }
         )
       }
+    } else if (reservationConfig.slotConfig?.enabled) {
+      // Modo automático (sin espacios): recheck post-insert para maxReservationsPerSlot.
+      // Dos requests concurrentes pueden pasar el chequeo previo e insertar ambos.
+      const sc = reservationConfig.slotConfig
+      const after = await Reservation.find({
+        locationId,
+        date,
+        time,
+        status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
+      }).lean()
+      // Contar solo reservas cuyo bloque [time, time+blockDuration) se solape con la nueva
+      const [reqH, reqM] = time.split(':').map(Number)
+      const reqStart = reqH * 60 + reqM
+      const reqEnd = reqStart + blockDuration
+      let overlapping = 0
+      for (const r of after) {
+        if (String(r._id) === String(reservation._id)) continue
+        const [rH, rM] = r.time.split(':').map(Number)
+        const rStart = rH * 60 + rM
+        const rEnd = rStart + blockDuration
+        if (reqStart < rEnd && rStart < reqEnd) overlapping++
+      }
+      const maxPerSlot = sc?.maxReservationsPerSlot ?? 1
+      if (overlapping >= maxPerSlot) {
+        await Reservation.deleteOne({ _id: reservation._id })
+        return NextResponse.json(
+          {
+            error: 'El horario seleccionado ya no está disponible. Elegí otro.',
+            availableSlots: [],
+          },
+          { status: 409 }
+        )
+      }
     }
 
     const isFree = paymentAmount <= 0
