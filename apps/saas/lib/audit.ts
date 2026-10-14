@@ -6,6 +6,7 @@ interface AuditOptions {
   action: string
   entity: string
   entityId?: string
+  locationId?: string | null
   details?: Record<string, any>
   request?: NextRequest
   // Provide these to skip the internal auth() call (use in signIn/signOut events)
@@ -62,6 +63,7 @@ export async function logAudit(options: AuditOptions): Promise<void> {
       action: options.action,
       entity: options.entity,
       entityId: options.entityId ?? null,
+      locationId: options.locationId ?? null,
       details: options.details ?? {},
       ip,
     })

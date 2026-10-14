@@ -13,6 +13,7 @@ export interface CashSaleEventDocument extends Document {
   attempts: number
   lastAttemptAt?: Date
   lastError?: string
+  locationId?: string
   createdAt: Date
 }
 
@@ -34,6 +35,8 @@ export const CashSaleEventSchema = new Schema<CashSaleEventDocument>(
     attempts: { type: Number, required: true, default: 0 },
     lastAttemptAt: { type: Date },
     lastError: { type: String },
+    // B1 sede en caja: opcional (backfill desde Order por fases).
+    locationId: { type: String },
   },
   { timestamps: true }
 )

@@ -28,6 +28,10 @@ export interface SyncOrderDocument extends Document {
   customerId?: string
   notes?: string
   paymentMethod?: string
+  /** B1: true si locationId fue inferido en backfill (no viene del dato original). */
+  locationInferred?: boolean
+  /** B1: motivo de la inferencia de sede (backfill). */
+  locationInferenceReason?: string
   createdAt: Date
   updatedAt: Date
   syncedAt?: Date
@@ -75,6 +79,9 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
     customerId: { type: String },
     notes: { type: String },
     paymentMethod: { type: String },
+    // B1 sede en sync_orders: marca de inferencia en backfill.
+    locationInferred: { type: Boolean, default: false },
+    locationInferenceReason: { type: String },
     syncedAt: { type: Date },
   },
   { timestamps: true }

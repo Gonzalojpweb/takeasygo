@@ -8,6 +8,7 @@ export interface IAuditLog extends Document {
   action: string
   entity: string
   entityId: string | null
+  locationId: mongoose.Types.ObjectId | null
   details: Record<string, any>
   ip: string
   createdAt: Date
@@ -22,6 +23,8 @@ const AuditLogSchema = new Schema<IAuditLog>(
     action: { type: String, required: true },
     entity: { type: String, required: true },
     entityId: { type: String, default: null },
+    // B1 sede en auditoría: opcional (backfill por fases detrás de flag).
+    locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
     details: { type: Schema.Types.Mixed, default: {} },
     ip: { type: String, default: '' },
   },

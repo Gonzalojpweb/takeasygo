@@ -7,6 +7,7 @@ export interface ZReportRecordDocument extends Document {
   closedAt: Date
   zReport: Record<string, unknown>
   shareToken: string
+  locationId?: string
   createdAt: Date
 }
 
@@ -18,6 +19,8 @@ export const ZReportRecordSchema = new Schema<ZReportRecordDocument>(
     closedAt: { type: Date, required: true },
     zReport: { type: Schema.Types.Mixed, required: true },
     shareToken: { type: String, required: true },
+    // B1 sede en cierres: opcional (backfill desde CashRegister por fases).
+    locationId: { type: String },
   },
   { timestamps: true }
 )

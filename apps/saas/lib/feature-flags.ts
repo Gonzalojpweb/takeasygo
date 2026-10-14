@@ -28,6 +28,9 @@ export const FLAGS = {
   RBAC_SEDE_SCOPE: 'rbac.sedeScope',
   /** Config en 3 capas system -> tenant -> sede (Location.settings override). */
   CONFIG_LAYERS: 'config.layers',
+  /** B1 sede en caja, cierres y auditoría: habilita el scoping por sede en
+   *  rutas admin de caja/reconciliación/auditoría y el backfill de locationId. */
+  CASH_SEDE: 'multisede.cashSede',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]
