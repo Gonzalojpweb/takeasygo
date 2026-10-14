@@ -486,7 +486,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     startY: commY + 3,
                     head: [['Semana', 'Órdenes', 'Comisión', 'Ya pagada', 'Pendiente']],
                     body: comm.weekly.map(w => [
-                        `${w.weekStart.toLocaleDateString('es-AR')} → ${w.weekEnd.toLocaleDateString('es-AR')}`,
+                        `${new Date(w.weekStart).toLocaleDateString('es-AR')} → ${new Date(w.weekEnd).toLocaleDateString('es-AR')}`,
                         w.orderCount,
                         `$${fmt(w.total)}`,
                         `$${fmt(w.settled)}`,
