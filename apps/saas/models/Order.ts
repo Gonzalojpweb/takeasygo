@@ -510,7 +510,6 @@ const OrderSchema = new Schema(
     orderNumber: {
       type: String,
       required: true,
-      unique: true,
     },
     status: {
       type: String,
@@ -827,6 +826,10 @@ const OrderSchema = new Schema(
 
 OrderSchema.index({ tenantId: 1, createdAt: -1 })
 OrderSchema.index({ tenantId: 1, locationId: 1, createdAt: -1 })
+OrderSchema.index(
+  { tenantId: 1, orderNumber: 1 },
+  { unique: true, name: 'uniq_tenant_ordernumber' }
+)
 OrderSchema.index({ tenantId: 1, 'customer.phoneHash': 1 })  // tasa de recompra
 OrderSchema.index({ tenantId: 1, scheduledPickupAt: 1, scheduledStatus: 1 })
 OrderSchema.index({ groupSessionToken: 1 }, { sparse: true })

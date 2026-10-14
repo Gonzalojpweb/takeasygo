@@ -72,9 +72,13 @@ const ReservationSchema = new Schema<IReservation>(
 )
 
 ReservationSchema.index({ tenantId: 1, date: 1 })
+ReservationSchema.index(
+  { tenantId: 1, locationId: 1, reservationNumber: 1 },
+  { unique: true, name: 'uniq_tenant_sede_resnumber' }
+)
 
 if (process.env.NODE_ENV !== 'production') {
-  delete (mongoose.models as any).Reservation
+  delete (mongoose.models as Record<string, unknown>).Reservation
 }
 
 const Reservation = mongoose.models.Reservation as mongoose.Model<IReservation> ||

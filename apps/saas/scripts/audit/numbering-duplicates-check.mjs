@@ -34,39 +34,39 @@ async function scan() {
 
   const report = { mode: 'scan', db: effectiveDb, scannedAt: new Date().toISOString() }
 
-  // ── orderNumber duplicados ─────────────────────────────────────────
+  // ── orderNumber duplicados (mismo tenant) ──────────────────────────
   const orderDupes = await db.collection('orders').aggregate([
-    { $group: { _id: '$orderNumber', count: { $sum: 1 }, ids: { $push: '$_id' } } },
+    { $group: { _id: { tenantId: '$tenantId', orderNumber: '$orderNumber' }, count: { $sum: 1 }, ids: { $push: '$_id' } } },
     { $match: { count: { $gt: 1 } } },
     { $sort: { count: -1 } },
   ]).toArray()
   report.orderNumber = {
     total: await db.collection('orders').countDocuments({}),
-    duplicados: orderDupes.length,
+    duplicadosMismoTenant: orderDupes.length,
     ejemplos: orderDupes.slice(0, 10).map(d => ({
-      orderNumber: d._id,
+      tenantId: String(d._id.tenantId),
+      orderNumber: d._id.orderNumber,
       count: d.count,
       ids: d.ids.map(String),
     })),
-    // ¿Ya existe índice único en orderNumber? (el modelo lo declara)
     indiceUnicoDeclarado: true,
   }
 
-  // ── reservationNumber duplicados ───────────────────────────────────
+  // ── reservationNumber duplicados (mismo tenant) ────────────────────
   const resDupes = await db.collection('reservations').aggregate([
-    { $group: { _id: '$reservationNumber', count: { $sum: 1 }, ids: { $push: '$_id' } } },
+    { $group: { _id: { tenantId: '$tenantId', reservationNumber: '$reservationNumber' }, count: { $sum: 1 }, ids: { $push: '$_id' } } },
     { $match: { count: { $gt: 1 } } },
     { $sort: { count: -1 } },
   ]).toArray()
   report.reservationNumber = {
     total: await db.collection('reservations').countDocuments({}),
-    duplicados: resDupes.length,
+    duplicadosMismoTenant: resDupes.length,
     ejemplos: resDupes.slice(0, 10).map(d => ({
-      reservationNumber: d._id,
+      tenantId: String(d._id.tenantId),
+      reservationNumber: d._id.reservationNumber,
       count: d.count,
       ids: d.ids.map(String),
     })),
-    // El modelo NO declara índice único en reservationNumber
     indiceUnicoDeclarado: false,
   }
 
