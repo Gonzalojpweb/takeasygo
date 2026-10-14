@@ -225,6 +225,10 @@ export interface ITenant extends Document {
    *    fallback a la cuenta activa si la sede no tiene override).
    *  Solo tiene efecto cuando el flag mp.perLocation está ON. */
   mpMode?: 'shared' | 'perLocation'
+  /** Timezone por defecto del tenant (capa intermedia en config.layers).
+   *  null/ausente = hereda del sistema (America/Argentina/Buenos_Aires).
+   *  Las sedes pueden overridear con Location.timezone. */
+  timezone?: string | null
   // ── Google Contacts Sync ───────────────────────────────────────────────
   googleContacts: {
     accessToken: string | null     // OAuth access_token (encrypted AES-256-GCM)
@@ -645,6 +649,12 @@ const TenantSchema = new Schema<ITenant>(
       type: String,
       enum: ['shared', 'perLocation'],
       default: 'shared',
+    },
+    /** Timezone por defecto del tenant (capa intermedia en config.layers).
+     *  null = hereda del sistema. Las sedes pueden overridear. */
+    timezone: {
+      type: String,
+      default: null,
     },
     // ── Google Contacts Sync ───────────────────────────────────────────────
     googleContacts: {
