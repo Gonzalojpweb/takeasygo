@@ -109,12 +109,8 @@ async function main() {
     return
   }
 
-  // Drop índice viejo global en orderNumber
-  if (hasOldOrderUnique) {
-    await db.collection('orders').dropIndex('orderNumber_1')
-    report.droppedOldOrderIndex = true
-    console.log('Drop índice viejo orderNumber_1 ✓')
-  }
+  // ORDEN: crear nuevos PRIMERO, drop viejo DESPUÉS.
+  // Así nunca hay un momento sin unicidad activa.
 
   // Crear índice nuevo orders
   if (!hasNewOrderUnique) {
@@ -134,6 +130,13 @@ async function main() {
     )
     report.createdReservationIndex = true
     console.log('Create índice uniq_tenant_sede_resnumber ✓')
+  }
+
+  // Drop índice viejo global en orderNumber (recién después de crear el nuevo)
+  if (hasOldOrderUnique) {
+    await db.collection('orders').dropIndex('orderNumber_1')
+    report.droppedOldOrderIndex = true
+    console.log('Drop índice viejo orderNumber_1 ✓')
   }
 
   // Verificar índices después

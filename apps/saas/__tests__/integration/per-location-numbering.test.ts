@@ -30,6 +30,8 @@ beforeEach(async () => {
   tenantId = new mongoose.Types.ObjectId()
   recoletaId = new mongoose.Types.ObjectId()
   saavedraId = new mongoose.Types.ObjectId()
+  // mongodb-memory-server no auto-crea índices del schema
+  await PerLocationCounter.createIndexes()
 })
 
 describe('sedePrefix', () => {

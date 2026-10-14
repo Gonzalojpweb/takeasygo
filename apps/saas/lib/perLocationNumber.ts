@@ -33,9 +33,11 @@ export function sedePrefix(locationName: string): string {
 /**
  * Asigna el siguiente número de forma atómica para (tenant, sede, type).
  *
- * findOneAndUpdate con $inc + upsert es atómico en MongoDB: varias
- * llamadas concurrentes para la misma clave reciben secuencias distintas
- * sin colisiones ni saltos.
+ * findOneAndUpdate con $inc + upsert es atómico en MongoDB para docs
+ * existentes. Para la PRIMERA llamada concurrente (upsert), dos requests
+ * pueden intentar crear el doc a la vez → el índice único en
+ * (tenantId, locationId, type) hace que uno falle con duplicate key.
+ * Se reintenta: en el retry el doc ya existe y el $inc es atómico.
  *
  * @returns string con el número formateado (ej: "REC-0001" o "REC-R0001")
  */
@@ -47,11 +49,27 @@ export async function nextPerLocationNumber(args: {
 }): Promise<string> {
   const { tenantId, locationId, type, locationName } = args
 
-  const counter = await PerLocationCounter.findOneAndUpdate(
-    { tenantId, locationId, type },
-    { $inc: { seq: 1 } },
-    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
-  )
+  let counter: { seq: number } | null = null
+  const MAX_RETRIES = 3
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      counter = await PerLocationCounter.findOneAndUpdate(
+        { tenantId, locationId, type },
+        { $inc: { seq: 1 } },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
+      )
+      break
+    } catch (err: unknown) {
+      // Duplicate key = otro upsert concurrente creó el doc primero.
+      // El retry encontrará el doc existente y el $inc será atómico.
+      const code = (err as { code?: number })?.code
+      if (code === 11000 && attempt < MAX_RETRIES - 1) continue
+      throw err
+    }
+  }
+
+  if (!counter) throw new Error('nextPerLocationNumber: no se pudo asignar número')
 
   const prefix = sedePrefix(locationName)
   const seq = String(counter.seq).padStart(4, '0')
