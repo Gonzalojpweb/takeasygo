@@ -48,6 +48,19 @@ export async function POST(
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
     }
 
+    // ── Validar prefix (si se provee) ──────────────────────────────────
+    if (body.prefix !== undefined && body.prefix !== null && body.prefix !== '') {
+      const prefix = String(body.prefix).toUpperCase().trim()
+      if (!/^[A-Z0-9]{2,4}$/.test(prefix)) {
+        return NextResponse.json({ error: 'El prefijo debe tener 2-4 caracteres alfanuméricos mayúsculas' }, { status: 400 })
+      }
+      const existing = await Location.findOne({ tenantId: tenant._id, prefix, _id: { $ne: body._id } }).select('_id').lean()
+      if (existing) {
+        return NextResponse.json({ error: `El prefijo "${prefix}" ya está en uso en otra sede` }, { status: 409 })
+      }
+      body.prefix = prefix
+    }
+
     let geoWarning: string | null = null
 
     if (request.headers.get('x-onboarding') === '1') {

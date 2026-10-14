@@ -56,8 +56,8 @@ beforeEach(async () => {
 describe('Ambigüedad de lookups por orderNumber', () => {
   it('dos tenants con misma sede nombre: mismo número, lookups separados por tenantId', async () => {
     // Simular: ambos tenants generan REC-0001 para su "Recoleta"
-    const numA = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const numB = await nextPerLocationNumber({ tenantId: tenantB, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
+    const numA = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const numB = await nextPerLocationNumber({ tenantId: tenantB, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
 
     // Mismo número (ambos REC-0001)
     expect(numA).toBe('REC-0001')
@@ -80,8 +80,8 @@ describe('Ambigüedad de lookups por orderNumber', () => {
   })
 
   it('dos sedes del mismo tenant: PREFIXes distintos, lookup inequívoco', async () => {
-    const numRec = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const numSaa = await nextPerLocationNumber({ tenantId: tenantA, locationId: saavedraId, type: 'order', locationName: 'Saavedra' })
+    const numRec = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const numSaa = await nextPerLocationNumber({ tenantId: tenantA, locationId: saavedraId, type: 'order', location: { name: 'Saavedra' } })
 
     // Prefijos distintos
     expect(numRec).toBe('REC-0001')
@@ -107,7 +107,7 @@ describe('Ambigüedad de lookups por orderNumber', () => {
     await Order.create(orderData(tenantA, recoletaId, legacyNumber, 'Legacy', '555', 'hashL', 100))
 
     // Orden per-location (PREFIX-NNNN)
-    const perLocNumber = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
+    const perLocNumber = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
     await Order.create(orderData(tenantA, recoletaId, perLocNumber, 'PerLoc', '666', 'hashP', 200))
 
     // Ambos lookups son inequívocos
@@ -121,7 +121,7 @@ describe('Ambigüedad de lookups por orderNumber', () => {
 
   it('índice único (tenantId, orderNumber) previene duplicados cross-sede del mismo tenant', async () => {
     // Primera orden en Recoleta
-    const num1 = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
+    const num1 = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
     await Order.create(orderData(tenantA, recoletaId, num1, 'Primera', '777', 'hash1', 100))
 
     // Intentar crear otra orden con el MISMO número en el mismo tenant → debe fallar
@@ -131,8 +131,8 @@ describe('Ambigüedad de lookups por orderNumber', () => {
 
 describe('Ambigüedad de lookups por reservationNumber', () => {
   it('dos tenants con misma sede: mismo número, reservas separadas', async () => {
-    const numA = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
-    const numB = await nextPerLocationNumber({ tenantId: tenantB, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
+    const numA = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
+    const numB = await nextPerLocationNumber({ tenantId: tenantB, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
 
     expect(numA).toBe('REC-R0001')
     expect(numB).toBe('REC-R0001')
@@ -161,7 +161,7 @@ describe('Ambigüedad de lookups por reservationNumber', () => {
   })
 
   it('índice único (tenantId, locationId, reservationNumber) previene duplicados', async () => {
-    const num = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
+    const num = await nextPerLocationNumber({ tenantId: tenantA, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
     await Reservation.create({
       tenantId: tenantA, locationId: recoletaId, reservationNumber: num,
       date: '2026-10-20', time: '20:00', partySize: 2,

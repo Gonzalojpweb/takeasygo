@@ -4,6 +4,9 @@ export interface ILocation extends Document {
   tenantId: mongoose.Types.ObjectId
   name: string
   slug: string
+  /** Prefijo corto para numeración por sede (2-4 chars alfanuméricos mayúsculas).
+   *  Único dentro del tenant. Autogenerado del nombre si no se setea. */
+  prefix?: string
   address: string
   phone: string
   hours: string
@@ -171,6 +174,16 @@ const LocationSchema = new Schema<ILocation>(
       lowercase: true,
       trim: true,
       match: [/^[a-z0-9-]+$/, 'El slug solo puede contener letras minúsculas, números y guiones'],
+    },
+    /** Prefijo corto para numeración por sede (2-4 chars alfanuméricos mayúsculas).
+     *  Único dentro del tenant. Se usa en orderNumber/reservationNumber
+     *  cuando el flag numbering.perLocation está ON.
+     *  Si no se setea al crear, se autogenera del nombre. */
+    prefix: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      match: [/^[A-Z0-9]{2,4}$/, 'El prefijo debe tener 2-4 caracteres alfanuméricos mayúsculas'],
     },
     address: {
       type: String,
@@ -390,6 +403,12 @@ settings: {
 
 // El slug debe ser único dentro del mismo tenant
 LocationSchema.index({ tenantId: 1, slug: 1 }, { unique: true })
+
+// El prefijo de numeración debe ser único dentro del mismo tenant
+LocationSchema.index(
+  { tenantId: 1, prefix: 1 },
+  { unique: true, partialFilterExpression: { prefix: { $type: 'string' } } }
+)
 
 // Índice geoespacial para consultas de proximidad (sparse: solo indexa docs con geo)
 LocationSchema.index({ geo: '2dsphere' }, { sparse: true })

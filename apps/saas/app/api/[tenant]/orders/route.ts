@@ -1688,12 +1688,12 @@ export async function POST(
     // ── orderNumber: perLocation (flag ON) o legacy (flag OFF) ───────
     let orderNumber: string
     if (isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)) {
-      const locDoc = await Location.findById(body.locationId).select('name').lean() as { name: string } | null
+      const locDoc = await Location.findById(body.locationId).select('name prefix').lean() as { name: string; prefix?: string } | null
       orderNumber = await nextPerLocationNumber({
         tenantId: tenant._id,
         locationId: body.locationId,
         type: 'order',
-        locationName: locDoc?.name ?? 'LOC',
+        location: { name: locDoc?.name ?? 'LOC', prefix: locDoc?.prefix },
       })
     } else {
       orderNumber = generateOrderNumber(tenantSlug)

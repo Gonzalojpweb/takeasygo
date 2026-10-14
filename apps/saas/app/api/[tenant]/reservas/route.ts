@@ -237,7 +237,7 @@ export async function POST(
         tenantId: tenant._id,
         locationId,
         type: 'reservation',
-        locationName: location.name,
+        location: { name: location.name, prefix: (location as any).prefix },
       })
     } else {
       const counter = await Counter.findOneAndUpdate(

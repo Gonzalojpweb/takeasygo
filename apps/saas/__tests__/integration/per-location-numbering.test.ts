@@ -20,7 +20,7 @@ vi.mock('@/lib/mongoose', () => ({
 }))
 
 import PerLocationCounter from '@/models/PerLocationCounter'
-import { nextPerLocationNumber, sedePrefix } from '@/lib/perLocationNumber'
+import { nextPerLocationNumber, sedePrefix, resolveSedePrefix } from '@/lib/perLocationNumber'
 
 let tenantId: mongoose.Types.ObjectId
 let recoletaId: mongoose.Types.ObjectId
@@ -49,6 +49,23 @@ describe('sedePrefix', () => {
   })
 })
 
+describe('resolveSedePrefix', () => {
+  it('usa location.prefix si está guardado', () => {
+    expect(resolveSedePrefix({ prefix: 'CEN', name: 'Centro' })).toBe('CEN')
+    expect(resolveSedePrefix({ prefix: 'NOR', name: 'Norte' })).toBe('NOR')
+  })
+
+  it('fallback al nombre si prefix es null/undefined', () => {
+    expect(resolveSedePrefix({ prefix: null, name: 'Recoleta' })).toBe('REC')
+    expect(resolveSedePrefix({ name: 'Saavedra' })).toBe('SAA')
+  })
+
+  it('fallback al nombre si prefix tiene formato inválido', () => {
+    expect(resolveSedePrefix({ prefix: 'X', name: 'Recoleta' })).toBe('REC')
+    expect(resolveSedePrefix({ prefix: 'TOOLONG', name: 'Recoleta' })).toBe('REC')
+  })
+})
+
 describe('Concurrencia — órdenes por sede', () => {
   it('20 órdenes concurrentes en 2 sedes: sin colisiones, sin saltos, secuencias separadas', async () => {
     const CONCURRENT = 20
@@ -62,7 +79,7 @@ describe('Concurrencia — órdenes por sede', () => {
           tenantId,
           locationId: useRecoleta ? recoletaId : saavedraId,
           type: 'order',
-          locationName: useRecoleta ? 'Recoleta' : 'Saavedra',
+          location: { name: useRecoleta ? 'Recoleta' : 'Saavedra' },
         })
       )
     }
@@ -106,7 +123,7 @@ describe('Concurrencia — reservas por sede', () => {
           tenantId,
           locationId: useRecoleta ? recoletaId : saavedraId,
           type: 'reservation',
-          locationName: useRecoleta ? 'Recoleta' : 'Saavedra',
+          location: { name: useRecoleta ? 'Recoleta' : 'Saavedra' },
         })
       )
     }
@@ -137,12 +154,12 @@ describe('Concurrencia — reservas por sede', () => {
 describe('Aislamiento de tipos', () => {
   it('orders y reservations del mismo (tenant, sede) tienen secuencias independientes', async () => {
     // 3 órdenes + 3 reservas en la misma sede
-    const o1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const o2 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const o3 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const r1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
-    const r2 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
-    const r3 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', locationName: 'Recoleta' })
+    const o1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const o2 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const o3 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const r1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
+    const r2 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
+    const r3 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'reservation', location: { name: 'Recoleta' } })
 
     expect(o1).toBe('REC-0001')
     expect(o2).toBe('REC-0002')
@@ -157,10 +174,51 @@ describe('Aislamiento de tenants', () => {
   it('dos tenants con la misma sede nombre tienen secuencias separadas', async () => {
     const tenant2 = new mongoose.Types.ObjectId()
 
-    const t1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
-    const t2 = await nextPerLocationNumber({ tenantId: tenant2, locationId: recoletaId, type: 'order', locationName: 'Recoleta' })
+    const t1 = await nextPerLocationNumber({ tenantId, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
+    const t2 = await nextPerLocationNumber({ tenantId: tenant2, locationId: recoletaId, type: 'order', location: { name: 'Recoleta' } })
 
     expect(t1).toBe('REC-0001')
     expect(t2).toBe('REC-0001') // misma sede, tenant distinto → misma secuencia
+  })
+})
+
+describe('Prefijo guardado vs derivado', () => {
+  it('sede con prefix guardado usa ese prefix, no el del nombre', async () => {
+    const num = await nextPerLocationNumber({
+      tenantId,
+      locationId: recoletaId,
+      type: 'order',
+      location: { name: 'Recoleta Centro', prefix: 'CEN' },
+    })
+    expect(num).toBe('CEN-0001')
+  })
+
+  it('sede sin prefix guardado deriva del nombre (fallback)', async () => {
+    const num = await nextPerLocationNumber({
+      tenantId,
+      locationId: recoletaId,
+      type: 'order',
+      location: { name: 'Recoleta', prefix: null },
+    })
+    expect(num).toBe('REC-0001')
+  })
+
+  it('dos sedes con nombre parecido pero prefix distinto → números distintos', async () => {
+    const numA = await nextPerLocationNumber({
+      tenantId,
+      locationId: recoletaId,
+      type: 'order',
+      location: { name: 'Recoleta Centro', prefix: 'REC' },
+    })
+    const numB = await nextPerLocationNumber({
+      tenantId,
+      locationId: saavedraId,
+      type: 'order',
+      location: { name: 'Recoleta Norte', prefix: 'REN' },
+    })
+
+    expect(numA).toBe('REC-0001')
+    expect(numB).toBe('REN-0001')
+    expect(numA).not.toBe(numB)
   })
 })

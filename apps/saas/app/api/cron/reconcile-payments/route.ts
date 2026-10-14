@@ -3,7 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
 import { decrypt } from '@/lib/crypto'
-import { getActiveMpAccount } from '@/lib/mercadopago'
+import { getActiveMpAccount, findMpAccountById } from '@/lib/mercadopago'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
@@ -56,11 +56,9 @@ export async function GET(request: NextRequest) {
 
     for (const tenant of tenants) {
       try {
-        const account = getActiveMpAccount(tenant)
-        if (!account?.accessToken) continue
-        const accessToken = decrypt(account.accessToken)
-        const client = new MercadoPagoConfig({ accessToken })
-        const paymentClient = new Payment(client)
+        // Cuenta activa como fallback (cuando la orden no tiene mpAccountId)
+        const activeAccount = getActiveMpAccount(tenant)
+        const activeToken = activeAccount?.accessToken ? decrypt(activeAccount.accessToken) : null
 
         const pendingOrders = await Order.find({
           tenantId: tenant._id,
@@ -74,6 +72,22 @@ export async function GET(request: NextRequest) {
 
         for (const order of pendingOrders) {
           try {
+            // ── Resolver cuenta: mpAccountId de la orden primero ─────────
+            //    (recupera pagos huérfanos del webhook)
+            let orderToken = activeToken
+            const orderMpAccountId = order.payment?.mpAccountId
+            if (orderMpAccountId) {
+              const orderAccount = findMpAccountById(tenant, orderMpAccountId)
+              if (orderAccount?.accessToken) {
+                orderToken = decrypt(orderAccount.accessToken)
+              }
+              // Si la cuenta fue borrada (orphan), activeToken queda como
+              // fallback — la búsqueda por external_reference funciona si
+            }
+            if (!orderToken) continue
+
+            const client = new MercadoPagoConfig({ accessToken: orderToken })
+            const paymentClient = new Payment(client)
             const mpSearch = await paymentClient.search({
               options: {
                 external_reference: order.orderNumber,

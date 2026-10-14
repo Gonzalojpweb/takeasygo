@@ -21,6 +21,8 @@ import type { Types } from 'mongoose'
 
 /**
  * Deriva el prefijo corto de una sede a partir de su nombre.
+ * Solo se usa como fallback cuando la sede no tiene `prefix` guardado
+ * (tenants existentes creados antes del campo).
  * Toma los primeros 3 caracteres alfanuméricos, en mayúsculas.
  * Si el nombre no tiene caracteres alfanuméricos, usa "LOC".
  */
@@ -28,6 +30,17 @@ export function sedePrefix(locationName: string): string {
   const clean = locationName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
   const prefix = clean.slice(0, 3)
   return prefix.length >= 2 ? prefix : 'LOC'
+}
+
+/**
+ * Resuelve el prefijo de una sede: usa `location.prefix` si está guardado,
+ * si no deriva del nombre (fallback para tenants existentes).
+ */
+export function resolveSedePrefix(location: { prefix?: string | null; name: string }): string {
+  if (location.prefix && /^[A-Z0-9]{2,4}$/.test(location.prefix)) {
+    return location.prefix
+  }
+  return sedePrefix(location.name)
 }
 
 /**
@@ -39,15 +52,18 @@ export function sedePrefix(locationName: string): string {
  * (tenantId, locationId, type) hace que uno falle con duplicate key.
  * Se reintenta: en el retry el doc ya existe y el $inc es atómico.
  *
+ * El prefijo se resuelve con `resolveSedePrefix`: usa `location.prefix`
+ * si está guardado, si no deriva del nombre (fallback tenants existentes).
+ *
  * @returns string con el número formateado (ej: "REC-0001" o "REC-R0001")
  */
 export async function nextPerLocationNumber(args: {
   tenantId: Types.ObjectId | string
   locationId: Types.ObjectId | string
   type: NumberingType
-  locationName: string
+  location: { prefix?: string | null; name: string }
 }): Promise<string> {
-  const { tenantId, locationId, type, locationName } = args
+  const { tenantId, locationId, type, location } = args
 
   let counter: { seq: number } | null = null
   const MAX_RETRIES = 3
@@ -71,7 +87,7 @@ export async function nextPerLocationNumber(args: {
 
   if (!counter) throw new Error('nextPerLocationNumber: no se pudo asignar número')
 
-  const prefix = sedePrefix(locationName)
+  const prefix = resolveSedePrefix(location)
   const seq = String(counter.seq).padStart(4, '0')
 
   if (type === 'order') {

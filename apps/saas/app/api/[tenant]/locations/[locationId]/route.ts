@@ -72,6 +72,29 @@ export async function PUT(
       }
     }
 
+    // ── Validate prefix si viene ─────────────────────────────────────────────
+    if (body?.prefix !== undefined && body.prefix !== null && body.prefix !== '') {
+      const prefix = String(body.prefix).toUpperCase().trim()
+      if (!/^[A-Z0-9]{2,4}$/.test(prefix)) {
+        return NextResponse.json(
+          { error: 'El prefijo debe tener 2-4 caracteres alfanuméricos mayúsculas' },
+          { status: 400 }
+        )
+      }
+      const existing = await Location.findOne({
+        tenantId: tenant._id,
+        prefix,
+        _id: { $ne: locationId },
+      }).select('_id').lean()
+      if (existing) {
+        return NextResponse.json(
+          { error: `El prefijo "${prefix}" ya está en uso en otra sede` },
+          { status: 409 }
+        )
+      }
+      body.prefix = prefix
+    }
+
     // ── Validate reservationConfig.minAdvanceMinutes si viene ──────────────
     if (body?.reservationConfig && 'minAdvanceMinutes' in body.reservationConfig) {
       const v = body.reservationConfig.minAdvanceMinutes
