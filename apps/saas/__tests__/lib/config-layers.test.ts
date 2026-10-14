@@ -86,7 +86,7 @@ describe('resolveLocationConfig', () => {
   it('flag OFF: solo location → system', () => {
     const result = resolveLocationConfig({
       flagEnabled: false,
-      tenant: { ...baseTenant, timezone: 'America/Cordoba', settings: { acceptsOrders: false, estimatedPickupTime: 30 } },
+      tenant: { timezone: 'America/Cordoba', settings: { acceptsOrders: false, estimatedPickupTime: 30 } },
       location: { timezone: null, settings: { acceptsOrders: null, estimatedPickupTime: null } },
     })
 

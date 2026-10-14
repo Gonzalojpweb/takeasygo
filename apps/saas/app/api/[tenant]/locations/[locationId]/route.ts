@@ -81,6 +81,26 @@ export async function PUT(
           { status: 400 }
         )
       }
+
+      // ── Bloquear cambio de prefijo después del primer número emitido ──
+      const currentLoc = await Location.findById(locationId).select('prefix').lean() as { prefix?: string } | null
+      if (currentLoc?.prefix && currentLoc.prefix !== prefix) {
+        // ¿Ya hay órdenes o reservas con números que usen este prefijo?
+        const Order = (await import('@/models/Order')).default
+        const Reservation = (await import('@/models/Reservation')).default
+        const prefixRegex = new RegExp(`^${currentLoc.prefix}-`)
+        const [orderCount, resCount] = await Promise.all([
+          Order.countDocuments({ tenantId: tenant._id, locationId, orderNumber: prefixRegex }),
+          Reservation.countDocuments({ tenantId: tenant._id, locationId, reservationNumber: prefixRegex }),
+        ])
+        if (orderCount > 0 || resCount > 0) {
+          return NextResponse.json(
+            { error: `No se puede cambiar el prefijo: ya se emitieron ${orderCount + resCount} números con "${currentLoc.prefix}"` },
+            { status: 409 }
+          )
+        }
+      }
+
       const existing = await Location.findOne({
         tenantId: tenant._id,
         prefix,

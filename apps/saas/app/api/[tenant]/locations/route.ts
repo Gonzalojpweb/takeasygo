@@ -84,6 +84,11 @@ export async function POST(
       body.slug = slugifyOrFallback(body.name, body.slug)
     }
 
+    // ── Timezone: sede nueva hereda del tenant si no se provee ──────────
+    if (!body.timezone) {
+      body.timezone = (tenant as any).timezone || 'America/Argentina/Buenos_Aires'
+    }
+
     let location
     if (request.headers.get('x-onboarding') === '1') {
       // Reenvío idempotente: un prospecto rechazado que vuelve a editar recae en
