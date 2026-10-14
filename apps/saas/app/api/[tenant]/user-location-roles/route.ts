@@ -92,13 +92,10 @@ export async function POST(
       )
     }
 
-    // Regla: tenant-wide (locationId:null) solo para rol admin
-    if (locationId === null && role !== 'admin') {
-      return NextResponse.json(
-        { error: 'Un rol tenant-wide (todas las sedes) solo puede ser admin.' },
-        { status: 400 }
-      )
-    }
+    // Nota: locationId:null (tenant-wide) puede llevar CUALQUIER rol.
+    // El acceso a todo el tenant lo da solo un admin (requireAdminRole ya
+    // validó que quien asigna es admin/superadmin). La fila puede ser
+    // auditor, manager, cashier, etc. (necesario para consolidado y migración).
 
     // Validar que la sede pertenece al tenant (si no es null)
     if (locationId !== null) {

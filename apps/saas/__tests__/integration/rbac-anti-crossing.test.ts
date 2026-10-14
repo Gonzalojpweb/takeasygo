@@ -336,3 +336,96 @@ describe('Anti-cruce 7 — waiter solo lee reservas', () => {
     }))).toBe(false)
   })
 })
+
+describe('Anti-cruce 8 — tenant-wide puede llevar cualquier rol (corrección Gonzalo 2026-10-13)', () => {
+  it('auditor tenant-wide: reports.view_consolidated=true (consolidado), reports.read=true, users.write=false', async () => {
+    const twAuditor = new mongoose.Types.ObjectId()
+    await UserLocationRole.create({
+      tenantId: tenant._id,
+      userId: twAuditor,
+      locationId: null,
+      role: 'auditor',
+      isActive: true,
+    })
+
+    // Consolidado: solo con fila tenant-wide → true
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twAuditor, role: 'auditor', assignedLocations: [] },
+      locationId: null,
+      permission: 'reports.view_consolidated',
+    }))).toBe(true)
+
+    // reports.read: auditor lo tiene en matriz
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twAuditor, role: 'auditor', assignedLocations: [] },
+      locationId: null,
+      permission: 'reports.read',
+    }))).toBe(true)
+
+    // users.write: auditor NO lo tiene
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twAuditor, role: 'auditor', assignedLocations: [] },
+      locationId: null,
+      permission: 'users.write',
+    }))).toBe(false)
+  })
+
+  it('manager tenant-wide: settings.write=true, users.write=true, reports.view_consolidated=false', async () => {
+    const twManager = new mongoose.Types.ObjectId()
+    await UserLocationRole.create({
+      tenantId: tenant._id,
+      userId: twManager,
+      locationId: null,
+      role: 'manager',
+      isActive: true,
+    })
+
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twManager, role: 'manager', assignedLocations: [] },
+      locationId: null,
+      permission: 'settings.write',
+    }))).toBe(true)
+
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twManager, role: 'manager', assignedLocations: [] },
+      locationId: null,
+      permission: 'users.write',
+    }))).toBe(true)
+
+    // manager NO tiene reports.view_consolidated en matriz v3
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twManager, role: 'manager', assignedLocations: [] },
+      locationId: null,
+      permission: 'reports.view_consolidated',
+    }))).toBe(false)
+  })
+
+  it('cashier tenant-wide: cash.movements.write=true, reservations.write=true, reports.view_consolidated=false', async () => {
+    const twCashier = new mongoose.Types.ObjectId()
+    await UserLocationRole.create({
+      tenantId: tenant._id,
+      userId: twCashier,
+      locationId: null,
+      role: 'cashier',
+      isActive: true,
+    })
+
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twCashier, role: 'cashier', assignedLocations: [] },
+      locationId: null,
+      permission: 'cash.movements.write',
+    }))).toBe(true)
+
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twCashier, role: 'cashier', assignedLocations: [] },
+      locationId: null,
+      permission: 'reservations.write',
+    }))).toBe(true)
+
+    expect(await userHasPermission(baseArgs({
+      user: { _id: twCashier, role: 'cashier', assignedLocations: [] },
+      locationId: null,
+      permission: 'reports.view_consolidated',
+    }))).toBe(false)
+  })
+})

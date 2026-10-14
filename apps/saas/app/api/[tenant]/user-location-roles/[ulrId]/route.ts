@@ -81,13 +81,9 @@ export async function PATCH(
           { status: 400 }
         )
       }
-      // Regla: tenant-wide (locationId:null) solo admin
-      if (ulr.locationId === null && role !== 'admin') {
-        return NextResponse.json(
-          { error: 'Un rol tenant-wide (todas las sedes) solo puede ser admin.' },
-          { status: 400 }
-        )
-      }
+      // Nota: locationId:null (tenant-wide) puede llevar CUALQUIER rol.
+      // El acceso tenant-wide lo da solo un admin (requireAdminRole ya validó
+      // que quien edita es admin/superadmin).
     }
 
     // Regla: no dejar tenant sin admin
