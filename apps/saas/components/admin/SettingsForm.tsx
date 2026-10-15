@@ -1952,6 +1952,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     ))}
                   </div>
 
+                  {/* ── Zona horaria del comercio (capa intermedia) ── */}
+                  <TenantTimezoneSettings
+                    tenantSlug={tenantSlug}
+                    initialTimezone={(tenant as any).timezone ?? null}
+                  />
+
                   <div className="flex gap-4 p-6 bg-primary/5 rounded-3xl border border-primary/10">
                     <AlertCircle className="text-primary shrink-0 mt-0.5" size={18} />
                     <p className="text-xs text-primary/80 font-medium leading-relaxed">
@@ -1971,6 +1977,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     isConfigured={tenant.mercadopago?.isConfigured}
                     mpOAuth={tenant.mpOAuth}
                     mpAccounts={tenant.mpAccounts}
+                    mpMode={(tenant as any).mpMode}
+                    mpPerLocationEnabled={(tenant as any).flags?.['mp.perLocation'] === true}
                   />
                 </div>
               </TabsContent>
@@ -3312,6 +3320,91 @@ function LocationPrefixTimezone({
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar prefijo y zona horaria'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// TenantTimezoneSettings — Zona horaria del comercio (capa intermedia)
+// ============================================================================
+const TZ_LIST = [
+  'America/Argentina/Buenos_Aires',
+  'America/Argentina/Cordoba',
+  'America/Argentina/Mendoza',
+  'America/Argentina/Tucuman',
+  'America/Bogota',
+  'America/Mexico_City',
+  'America/Santiago',
+  'America/Lima',
+  'America/Montevideo',
+  'America/Sao_Paulo',
+  'Europe/Madrid',
+  'Europe/Rome',
+  'US/Eastern',
+  'US/Central',
+  'US/Pacific',
+]
+
+function TenantTimezoneSettings({
+  tenantSlug,
+  initialTimezone,
+}: {
+  tenantSlug: string
+  initialTimezone: string | null
+}) {
+  const [tz, setTz] = useState(initialTimezone ?? 'America/Argentina/Buenos_Aires')
+  const [saving, setSaving] = useState(false)
+  const isInherited = !initialTimezone
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/settings/profile`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ timezone: tz }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'No se pudo guardar')
+        return
+      }
+      toast.success('Zona horaria del comercio guardada')
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-white border-2 border-border/60 rounded-2xl space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Globe size={14} className="text-primary" />
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+            Zona horaria del comercio
+          </label>
+        </div>
+        <Badge variant={isInherited ? 'secondary' : 'outline'} className="text-[9px]">
+          {isInherited ? 'Sistema' : 'Propio'}
+        </Badge>
+      </div>
+      <select
+        value={tz}
+        onChange={e => setTz(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-xl border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+      >
+        {TZ_LIST.map(t => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <p className="text-[10px] text-muted-foreground/50">
+        Las sedes sin zona horaria propia heredan este valor. Las sedes con timezone propio muestran &quot;Propio&quot;.
+      </p>
+      <Button onClick={handleSave} disabled={saving} size="sm" variant="outline" aria-busy={saving}>
+        {saving ? 'Guardando...' : 'Guardar zona horaria'}
       </Button>
     </div>
   )
