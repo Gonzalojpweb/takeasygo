@@ -21,7 +21,7 @@ vi.mock('@/lib/mongoose', () => ({
 
 import PerLocationCounter from '@/models/PerLocationCounter'
 import Location from '@/models/Location'
-import { nextPerLocationNumber, sedePrefix, resolveSedePrefix, allLocationsHavePrefix } from '@/lib/perLocationNumber'
+import { nextPerLocationNumber, sedePrefix, resolveSedePrefix, allLocationsHavePrefix, enableNumberingPerLocation } from '@/lib/perLocationNumber'
 
 let tenantId: mongoose.Types.ObjectId
 let recoletaId: mongoose.Types.ObjectId
@@ -252,6 +252,28 @@ describe('Prefijo guardado vs derivado', () => {
         tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'X',
       })
       expect(await allLocationsHavePrefix(tid)).toBe(false)
+    })
+  })
+
+  describe('enableNumberingPerLocation (interruptor con guard)', () => {
+    it('todas las sedes con prefix → ok', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      await Location.create({ tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'AAA' })
+      const result = await enableNumberingPerLocation(tid)
+      expect(result.ok).toBe(true)
+    })
+
+    it('una sede sin prefix → se niega con mensaje claro', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      await Location.create({ tenantId: tid, name: 'Recoleta', slug: 'recoleta', address: 'x', isActive: true, prefix: 'REC' })
+      await Location.create({ tenantId: tid, name: 'Saavedra', slug: 'saavedra', address: 'x', isActive: true })
+      const result = await enableNumberingPerLocation(tid)
+      expect(result.ok).toBe(false)
+      if (!result.ok) {
+        expect(result.error).toContain('Saavedra')
+        expect(result.error).toContain('sin prefijo')
+        expect(result.missing).toEqual(['Saavedra'])
+      }
     })
   })
 })

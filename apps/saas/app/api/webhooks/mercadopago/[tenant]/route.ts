@@ -6,6 +6,7 @@ import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
 import ProcessedWebhookEvents from '@/models/ProcessedWebhookEvents'
+import SecurityAlertThrottle from '@/models/SecurityAlertThrottle'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
 import { escapeHtml } from '@/lib/email'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
@@ -65,20 +66,32 @@ function verifyMercadoPagoSignature(
 
 /**
  * Envía alerta when security events occur. Fire-and-forget.
- * Rate limit: máx 1 email por tenant cada 60 min (in-memory, por proceso).
+ * Rate limit en DB (no in-memory: Vercel no comparte memoria entre instancias).
+ * Máx 1 email por (tenant, tipo de alerta) cada 60 min.
  */
 const ALERT_EMAIL = 'takeasygo.latam@gmail.com'
 const ALERT_COOLDOWN_MS = 60 * 60 * 1000
-const lastAlertSent = new Map<string, number>()
 
 async function sendSecurityAlert(tenantSlug: string, message: string, details: Record<string, any>) {
   try {
     console.warn(`[SECURITY ALERT][${tenantSlug}] ${message}`, details)
 
-    const now = Date.now()
-    const last = lastAlertSent.get(tenantSlug) ?? 0
-    if (now - last < ALERT_COOLDOWN_MS) return
-    lastAlertSent.set(tenantSlug, now)
+    // Rate limit en DB: atomic check-and-set
+    const key = `${tenantSlug}:${message.slice(0, 60)}`
+    const now = new Date()
+    const throttled = await SecurityAlertThrottle.findOneAndUpdate(
+      { key, lastSentAt: { $gt: new Date(now.getTime() - ALERT_COOLDOWN_MS) } },
+      { $setOnInsert: { key, lastSentAt: now } },
+      { upsert: false }
+    ).lean()
+    if (throttled) return // aún dentro del cooldown
+
+    // Marcar como enviada (insert o update)
+    await SecurityAlertThrottle.updateOne(
+      { key },
+      { $set: { lastSentAt: now }, $setOnInsert: { key } },
+      { upsert: true }
+    )
 
     const { sendEmail } = await import('@/lib/email')
     const detailsHtml = Object.entries(details)

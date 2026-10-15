@@ -361,6 +361,13 @@ export async function POST(
       }
     }
 
+    // ════════════════════════════════════════════════════════════════════
+    // ORDEN CRÍTICO: la confirmación al cliente y la creación de la
+    // preferencia de cobro (seña) ocurren SOLO después del chequeo de
+    // concurrencia. Si el request es descartado (409), nunca se cobra ni
+    // se notifica al cliente.
+    // ════════════════════════════════════════════════════════════════════
+
     const isFree = paymentAmount <= 0
     if (isFree) {
       await sendReservationConfirmation(

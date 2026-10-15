@@ -42,6 +42,38 @@ export async function allLocationsHavePrefix(tenantId: Types.ObjectId | string):
 }
 
 /**
+ * Intenta habilitar numbering.perLocation para un tenant.
+ * Se niega si falta prefijo en alguna sede activa.
+ *
+ * @returns { ok: true } si se puede habilitar
+ *          { ok: false, error: mensaje claro, missing: nombres de sedes sin prefijo }
+ */
+export async function enableNumberingPerLocation(
+  tenantId: Types.ObjectId | string
+): Promise<{ ok: true } | { ok: false; error: string; missing: string[] }> {
+  const missingLocs = await Location.find({
+    tenantId,
+    isActive: true,
+    $or: [
+      { prefix: { $exists: false } },
+      { prefix: null },
+      { prefix: '' },
+      { prefix: { $not: /^[A-Z0-9]{2,4}$/ } },
+    ],
+  }).select('name').lean()
+
+  if (missingLocs.length > 0) {
+    const names = missingLocs.map(l => l.name)
+    return {
+      ok: false,
+      error: `No se puede activar numeración por sede: ${names.length} sede(s) sin prefijo. Asigná un prefijo a: ${names.join(', ')}. Usá el script location-prefix-backfill.mjs para asignarlos automáticamente.`,
+      missing: names,
+    }
+  }
+  return { ok: true }
+}
+
+/**
  * Deriva el prefijo corto de una sede a partir de su nombre.
  * Solo se usa como fallback cuando la sede no tiene `prefix` guardado
  * (tenants existentes creados antes del campo).
