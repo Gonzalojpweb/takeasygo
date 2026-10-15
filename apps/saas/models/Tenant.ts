@@ -846,7 +846,7 @@ const TenantSchema = new Schema<ITenant>(
     },
     // ── Balance de comisiones pendientes ──────────────────────────────────
     commissionBalance: {
-      transfer: { type: Number, default: 0, min: 0 },
+      transfer: { type: Number, default: 0 },
     },
     commissionThreshold: { type: Number, default: null, min: 0 },
   },
