@@ -21,17 +21,22 @@ import { verifyMpOauthState } from '@/lib/mp-oauth-state'
 export async function GET(request: NextRequest) {
   // ── Host canónico ───────────────────────────────────────────────────
   // MercadoPago redirige al host exacto del redirect_uri registrado (puede
-  // ser takeasygo.com sin www) y la cookie de sesión NextAuth es host-only
-  // (vive en www.takeasygo.com, o al revés). Si el callback llega al host
-  // "equivocado", auth() no ve la sesión y el hardening rechazaba por
-  // "sin sesión" → mp_oauth=error. Re-emitimos al host de NEXTAUTH_URL
-  // conservando query (code/state/error): mismo proceso, misma sesión.
+  // ser takeasygo.com sin www) y la cookie de sesión NextAuth es host-only.
+  // Si el callback llega a un host totalmente ajeno al de NEXTAUTH_URL,
+  // re-emitimos conservando query (code/state/error).
+  //
+  // OJO: variaciones www <-> sin-www del MISMO dominio NO redirigen aquí —
+  // Vercel ya unifica con un 308 del apex al www; redirigir nosotros crearía
+  // un loop infinito (308 Vercel <-> 307 app). NEXTAUTH_URL sin www en Vercel
+  // + este redirect = ERR_TOO_MANY_REDIRECTS.
   const reqUrl = new URL(request.url)
   const canonicalBase = process.env.NEXTAUTH_URL
   if (canonicalBase) {
     try {
-      const canonicalHost = new URL(canonicalBase).host
-      if (canonicalHost && canonicalHost !== reqUrl.host) {
+      const root = (h: string) => h.replace(/^www\./, '')
+      const canonicalHost = root(new URL(canonicalBase).host)
+      const requestHost = root(reqUrl.host)
+      if (canonicalHost && requestHost && canonicalHost !== requestHost) {
         return NextResponse.redirect(
           `${canonicalBase.replace(/\/+$/, '')}/api/mp-oauth/callback${reqUrl.search}`,
           307
