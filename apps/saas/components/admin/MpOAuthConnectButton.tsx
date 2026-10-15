@@ -9,6 +9,34 @@ interface Props {
   authorizedAt?: string | null
 }
 
+// Traduce el reason= que manda el callback a un mensaje accionable.
+function reasonMsg(reason: string | null): string {
+  switch (reason) {
+    case 'no_session':
+      return 'Tu sesión no se mantuvo al volver de MercadoPago. Volvé a entrar en otra pestaña y reintentá.'
+    case 'bad_state':
+      return 'El enlace de autorización expiró (dura 10 minutos). Volvé a intentarlo.'
+    case 'mp_denied':
+      return 'Autorización cancelada o rechazada en MercadoPago.'
+    case 'missing_code_or_state':
+      return 'MercadoPago devolvió la autorización incompleta. Volvé a intentarlo.'
+    case 'tenant_mismatch':
+      return 'La sesión pertenece a otro comercio. Entrá con la cuenta correcta.'
+    case 'no_credentials':
+      return 'Faltan credenciales OAuth de MercadoPago en la plataforma (las carga el superadmin).'
+    case 'exchange_failed':
+      return 'MercadoPago rechazó la autorización: la Redirect URI registrada en MP debe coincidir exactamente con la de la plataforma (https://www.takeasygo.com/api/mp-oauth/callback).'
+    case 'exchange_network_error':
+      return 'Sin conexión con MercadoPago. Volvé a intentarlo.'
+    case 'no_access_token':
+      return 'MercadoPago no devolvió el token de acceso. Volvé a intentarlo.'
+    case 'db_save_failed':
+      return 'Error guardando la autorización. Reintentá en unos minutos.'
+    default:
+      return 'No se pudo autorizar el Split de Pagos. Volvé a intentarlo.'
+  }
+}
+
 export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialConnected, authorizedAt }: Props) {
   const [connected, setConnected] = useState(initialConnected)
   const [connecting, setConnecting] = useState(false)
@@ -19,6 +47,7 @@ export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialC
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const result = params.get('mp_oauth')
+    const reason = params.get('reason')
     if (result === 'success') {
       setConnected(true)
       // Clean URL
@@ -26,9 +55,10 @@ export default function MpOAuthConnectButton({ tenantSlug, isConnected: initialC
       url.searchParams.delete('mp_oauth')
       window.history.replaceState({}, '', url.toString())
     } else if (result === 'error') {
-      setErrorMsg('No se pudo autorizar el Split de Pagos. Volvé a intentarlo.')
+      setErrorMsg(reasonMsg(reason))
       const url = new URL(window.location.href)
       url.searchParams.delete('mp_oauth')
+      url.searchParams.delete('reason')
       window.history.replaceState({}, '', url.toString())
     }
   }, [])

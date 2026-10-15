@@ -118,6 +118,29 @@ describe('mp-oauth connect — sesión de admin + tenant match + state firmado',
 })
 
 describe('mp-oauth callback — firma + sesión + tenant match', () => {
+  it('host distinto al de NEXTAUTH_URL → re-emite al host canónico con la query (307)', async () => {
+    // MP redirige al host del redirect_uri registrado (p.ej. sin www); la
+    // sesión vive en el host de NEXTAUTH_URL. El callback debe re-emitir
+    // antes de tocar auth()/código.
+    authMock.mockClear()
+    authMock.mockResolvedValue(null)
+    const req = new Request('http://otro-host.ejemplo/api/mp-oauth/callback?code=cod-1&state=abc') as any
+    const res = await callbackGET(req)
+    expect(res.status).toBe(307)
+    const loc = res.headers.get('location')!
+    expect(loc).toBe(`${BASE}/api/mp-oauth/callback?code=cod-1&state=abc`)
+    expect(authMock).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('host ya canónico → NO redirige y continúa el flujo normal', async () => {
+    authMock.mockResolvedValue(session('admin', 'palmyra'))
+    const res = await callbackGET(callbackReq('cualquiera'))
+    // state inválido → error normal (no el re-emit de host)
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toContain('reason=bad_state')
+  })
+
   it('state sin firmar (formato viejo) → error, sin canjear código', async () => {
     authMock.mockResolvedValue(session('admin', 'palmyra'))
     const legacy = Buffer.from(JSON.stringify({ tenantSlug: 'palmyra', ts: Date.now() })).toString('base64url')

@@ -19,8 +19,31 @@ import { verifyMpOauthState } from '@/lib/mp-oauth-state'
  *  - el tenant del state debe coincidir con el de la sesión (superadmin exceptuado).
  */
 export async function GET(request: NextRequest) {
+  // ── Host canónico ───────────────────────────────────────────────────
+  // MercadoPago redirige al host exacto del redirect_uri registrado (puede
+  // ser takeasygo.com sin www) y la cookie de sesión NextAuth es host-only
+  // (vive en www.takeasygo.com, o al revés). Si el callback llega al host
+  // "equivocado", auth() no ve la sesión y el hardening rechazaba por
+  // "sin sesión" → mp_oauth=error. Re-emitimos al host de NEXTAUTH_URL
+  // conservando query (code/state/error): mismo proceso, misma sesión.
+  const reqUrl = new URL(request.url)
+  const canonicalBase = process.env.NEXTAUTH_URL
+  if (canonicalBase) {
+    try {
+      const canonicalHost = new URL(canonicalBase).host
+      if (canonicalHost && canonicalHost !== reqUrl.host) {
+        return NextResponse.redirect(
+          `${canonicalBase.replace(/\/+$/, '')}/api/mp-oauth/callback${reqUrl.search}`,
+          307
+        )
+      }
+    } catch {
+      // NEXTAUTH_URL inválido: seguir sin redirección (no romper el callback).
+    }
+  }
+
   try {
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = reqUrl
     const code  = searchParams.get('code')
     const state = searchParams.get('state')
     const error = searchParams.get('error')
@@ -29,26 +52,34 @@ export async function GET(request: NextRequest) {
     const sessionUser = session?.user ?? null
     const isSuperAdmin = sessionUser?.role === 'superadmin'
 
-    const failRedirect = (tenantSlugHint?: string) => {
+    // reason = código de diagnóstico que la UI muestra al usuario (y que
+    // permite identificar exactamente qué rama falló si persiste el error).
+    const failRedirect = (reason: string, tenantSlugHint?: string) => {
       const slug = sessionUser?.tenantSlug ?? tenantSlugHint ?? null
-      const path = slug ? `/${slug}/admin/settings?mp_oauth=error` : '/admin?mp_oauth=error'
+      const path = slug
+        ? `/${slug}/admin/settings?mp_oauth=error&reason=${encodeURIComponent(reason)}`
+        : `/admin?mp_oauth=error&reason=${encodeURIComponent(reason)}`
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}${path}`)
     }
+    const failAt = (reason: string, slug: string) =>
+      NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}/${slug}/admin/settings?mp_oauth=error&reason=${encodeURIComponent(reason)}`
+      )
 
     if (error) {
       console.error('[MP OAuth callback] error from MP:', error)
-      return failRedirect()
+      return failRedirect('mp_denied')
     }
 
     if (!code || !state) {
-      return failRedirect()
+      return failRedirect('missing_code_or_state')
     }
 
     // State firmado: firma inválida, malformado o expirado → no se procesa nada.
     const stateObj = verifyMpOauthState(state)
     if (!stateObj) {
       console.error('[MP OAuth callback] state inválido o expirado')
-      return failRedirect()
+      return failRedirect('bad_state')
     }
     const tenantSlug: string = stateObj.tenantSlug
     const accountId: string | undefined = stateObj.accountId
@@ -56,11 +87,11 @@ export async function GET(request: NextRequest) {
     // Sesión obligatoria y perteneciente al tenant del state.
     if (!sessionUser) {
       console.error('[MP OAuth callback] sin sesión')
-      return failRedirect(tenantSlug)
+      return failRedirect('no_session', tenantSlug)
     }
     if (!isSuperAdmin && sessionUser.tenantSlug !== tenantSlug) {
       console.error('[MP OAuth callback] sesión pertenece a otro tenant')
-      return failRedirect(tenantSlug)
+      return failRedirect('tenant_mismatch', tenantSlug)
     }
 
     await connectDB()
@@ -75,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     if (!MP_APP_ID || !MP_APP_SECRET) {
       console.error('[MP OAuth] Missing credentials - cannot exchange code')
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
+      return failAt('no_credentials', tenantSlug)
     }
 
     // Exchange code for token
@@ -95,18 +126,18 @@ export async function GET(request: NextRequest) {
       if (!res.ok) {
         const detail = await res.text()
         console.error('[MP OAuth] token exchange failed:', detail)
-        return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
+        return failAt('exchange_failed', tenantSlug)
       }
       tokenData = await res.json()
     } catch (err) {
       console.error('[MP OAuth] network error:', err)
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
+      return failAt('exchange_network_error', tenantSlug)
     }
 
     const { access_token, refresh_token, expires_in } = tokenData
     if (!access_token) {
       console.error('[MP OAuth] No access_token in response')
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
+      return failAt('no_access_token', tenantSlug)
     }
 
     try {
@@ -148,13 +179,13 @@ export async function GET(request: NextRequest) {
       }
     } catch (dbErr) {
       console.error('[MP OAuth] DB save failed:', dbErr)
-      return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=error`)
+      return failAt('db_save_failed', tenantSlug)
     }
 
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=success`)
   } catch (err) {
     console.error('[MP OAuth] unhandled error:', err)
-    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error`)
+    return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/admin?mp_oauth=error&reason=unhandled`)
   }
 }
 
