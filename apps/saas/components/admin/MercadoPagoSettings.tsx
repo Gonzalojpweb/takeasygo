@@ -221,7 +221,6 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
                 El modo por sede está deshabilitado. Contactá al administrador para activarlo.
               </p>
             )}
-            {mode === 'mpMode' && null}
             {mpPerLocationEnabled && (
               <div className="flex items-center justify-between pt-2">
                 <span className="text-xs text-muted-foreground">
@@ -239,11 +238,15 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ mpMode: mode }),
                       })
-                      if (!res.ok) throw new Error()
+                      const data = await res.json().catch(() => ({}))
+                      if (!res.ok) {
+                        toast.error(data.error || 'Error al cambiar modo')
+                        return
+                      }
                       toast.success(`Modo cambiado a ${mode === 'perLocation' ? 'por sede' : 'compartido'}`)
                       router.refresh()
                     } catch {
-                      toast.error('Error al cambiar modo')
+                      toast.error('Error de conexión')
                     } finally {
                       setLoading(false)
                     }

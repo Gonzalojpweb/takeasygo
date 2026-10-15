@@ -3365,12 +3365,21 @@ function TenantTimezoneSettings({
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ timezone: tz }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
         toast.error(data.error || 'No se pudo guardar')
         return
       }
-      toast.success('Zona horaria del comercio guardada')
+      if (data.timezoneImpact) {
+        const imp = data.timezoneImpact
+        toast.success(
+          `Zona horaria guardada. ${imp.willInheritNew} sede(s) heredan el nuevo valor` +
+          (imp.willChangeTime > 0 ? `, ${imp.willChangeTime} sede(s) cambian de hora` : '') +
+          (imp.haveOwnTimezone > 0 ? `, ${imp.haveOwnTimezone} sede(s) con zona propia no se afectan` : '')
+        )
+      } else {
+        toast.success('Zona horaria del comercio guardada')
+      }
     } catch {
       toast.error('Error de conexión')
     } finally {
