@@ -120,6 +120,8 @@ export interface ITenant extends Document {
       cardBgColor?: string
       badgeBgColor?: string
     }
+    /** Color de fondo para contenedores de sección (Destacados, Club) - estilo nativo tipo PedidosYa */
+    sectionContainerColor?: string
   }
   profile: {
     menuDescription: string
@@ -559,6 +561,7 @@ const TenantSchema = new Schema<ITenant>(
           badgeBgColor: '#ef4444',
         }),
       },
+      sectionContainerColor: { type: String, default: '' },
     },
     profile: {
       menuDescription: { type: String, default: '' },

@@ -37,6 +37,7 @@ import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 import PromotionStories from '@/components/menu/PromotionStories'
 import AppStoryViewer, { type AppStoryItem } from '@/components/menu/AppStoryViewer'
+import { SectionContainer } from '@/components/menu/SectionContainer'
 
 interface Props {
   tenant: any
@@ -1123,8 +1124,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
         {/* Featured strip — shown first so repeat customers reach products immediately */}
         {featuredItems.length > 0 && (
-          <section className="mb-8 rounded-2xl overflow-hidden border" style={{ borderColor: primary + '25' }}>
-            <div className="px-4 py-3 border-b" style={{ borderColor: primary + '25', backgroundColor: primary + '10' }}>
+          <SectionContainer variant="default" sectionContainerColor={branding.sectionContainerColor}>
+            <div className="px-4 py-3 border-b mb-3" style={{ borderColor: primary + '25', backgroundColor: primary + '10' }}>
               <p className="text-base font-semibold uppercase tracking-widest" style={{ color: primary }}>
                 {t.featured}
               </p>
@@ -1178,7 +1179,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                 )
               })}
             </div>
-          </section>
+          </SectionContainer>
         )}
 
         {/* Promotions Section — hidden for company admin in business mode */}
@@ -1786,8 +1787,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
         {/* ── Club membership badge (hidden for company admin in business mode) ── */}
         {mounted && clubMembership.isMember && !isAdminCorp && (
-          <div className="border-t px-4 py-3 max-w-2xl mx-auto"
-            style={{ borderColor: primary + '20' }}>
+          <SectionContainer variant="club" primaryColor={primary} sectionContainerColor={branding.sectionContainerColor}>
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <Link
                 href={`/${tenant.slug}/club/lookup`}
@@ -1808,7 +1808,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                 </Link>
               )}
             </div>
-          </div>
+          </SectionContainer>
         )}
 
         <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"

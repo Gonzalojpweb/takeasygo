@@ -108,8 +108,11 @@ async function main() {
   const byRole = new Map()
   for (const r of rows) {
     const d = r.details || {}
+    // Rol efectivo = fila ULR que causó la denegación (si existe); si no, el
+    // rol de la sesión. Es el eje de agrupación útil para decidir enforce.
+    const roleEff = d.effectiveRole || r.userRole || d.role || '?'
     const userKey = `${r.userName || r.userId || '?'}`
-    const u = byUser.get(userKey) || { user: userKey, userId: r.userId, role: r.userRole || d.role || '', count: 0, routes: new Set() }
+    const u = byUser.get(userKey) || { user: userKey, userId: r.userId, role: roleEff, count: 0, routes: new Set() }
     u.count++
     u.routes.add(d.route || '?')
     byUser.set(userKey, u)
@@ -123,8 +126,7 @@ async function main() {
     const perm = d.permission || '?'
     byPerm.set(perm, (byPerm.get(perm) || 0) + 1)
 
-    const role = r.userRole || d.role || '?'
-    byRole.set(role, (byRole.get(role) || 0) + 1)
+    byRole.set(roleEff, (byRole.get(roleEff) || 0) + 1)
   }
 
   const sortDesc = (m) => [...m.entries()].sort((a, b) => b[1] - a[1])
@@ -154,7 +156,9 @@ async function main() {
     muestras: rows.slice(0, 20).map((r) => ({
       cuando: r.createdAt,
       usuario: r.userName,
-      rol: r.userRole,
+      rolSesion: r.userRole,
+      rolEfectivo: r.details?.effectiveRole ?? null,
+      via: r.details?.via ?? null,
       ruta: r.details?.route,
       sede: r.locationId?.toString() ?? null,
       permiso: r.details?.permission,
@@ -194,7 +198,7 @@ async function main() {
       console.log('')
       console.log(' ÚLTIMAS MUESTRAS:')
       for (const m of report.muestras) {
-        console.log(`   ${new Date(m.cuando).toISOString()}  ${pad(m.usuario, 24)} ${pad(m.rol, 9)} ${pad(m.permiso, 22)} ${m.ruta}`)
+        console.log(`   ${new Date(m.cuando).toISOString()}  ${pad(m.usuario, 24)} ${pad(m.rolEfectivo ?? m.rolSesion, 9)} ${pad(m.permiso, 22)} ${m.ruta}`)
       }
       console.log('')
       console.log(' Decisión:')

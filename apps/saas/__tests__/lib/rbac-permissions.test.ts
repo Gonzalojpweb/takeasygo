@@ -553,13 +553,40 @@ describe('enforcePermission - modo sombra rbac.sedeScope (log)', () => {
         tenantId: 't1',
         action: 'rbac.shadow_denied',
         entity: 'permission',
+        locationId: null,
+        userId: 'u2',
+        userRole: 'staff',
         details: expect.objectContaining({
           route: '/api/t1/cash/close',
           permission: 'cash.close',
           role: 'staff',
+          // Rol efectivo (fila ULR) — el eje de agrupación del reporte.
+          effectiveRole: 'staff',
+          via: 'ulr',
         }),
-        userId: 'u2',
-        userRole: 'staff',
+      })
+    )
+  })
+
+  it('registra el rol EFECTIVO de la fila ULR aunque la sesión traiga otro rol', async () => {
+    process.env[ENV_KEY] = 'log'
+
+    // Sesión con role admin (token POS), fila ULR = staff en esta sede.
+    findMock.mockReturnValueOnce([{ role: 'staff', locationId: null }])
+    const res = await enforcePermission({
+      user: { _id: 'u-pos', role: 'admin' },
+      tenant: {},
+      tenantId: 't1',
+      locationId: 'L1',
+      permission: 'cash.close' as Permission,
+      route: '/api/t1/cash/close',
+    })
+
+    expect(res).toBeNull()
+    expect(logAuditMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userRole: 'admin',
+        details: expect.objectContaining({ effectiveRole: 'staff', via: 'ulr' }),
       })
     )
   })

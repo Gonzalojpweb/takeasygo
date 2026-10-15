@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview - Contenedores de Sección</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .preview-container {
+      max-width: 400px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    }
+
+    .header {
+      background: #f5f5f5;
+      padding: 16px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .header-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: #999;
+    }
+
+    .nav-dots {
+      display: flex;
+      gap: 16px;
+      padding: 12px 16px;
+      overflow-x: auto;
+      border-top: 1px solid #e5e5e5;
+    }
+
+    .nav-dot {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #f5f5f5;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #666;
+    }
+
+    .nav-dot.active {
+      background: #F74211;
+      color: white;
+    }
+
+    /* Section Container - Default (Destacados) */
+    .section-container-default {
+      background: #f5f5f5;
+      border-radius: 24px;
+      margin: 16px;
+      padding: 16px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 12px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid rgba(247, 66, 17, 0.15);
+      background: rgba(247, 66, 17, 0.1);
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #F74211;
+    }
+
+    .featured-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-bottom: 1px solid rgba(247, 66, 17, 0.12);
+    }
+
+    .featured-item:last-child {
+      border-bottom: none;
+    }
+
+    .featured-image {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: #e5e5e5;
+      flex-shrink: 0;
+    }
+
+    .featured-info {
+      flex: 1;
+    }
+
+    .featured-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+
+    .featured-price {
+      font-weight: 700;
+      color: #F74211;
+      font-size: 14px;
+    }
+
+    /* Promociones - Sin container */
+    .promotions-section {
+      padding: 0 16px;
+      margin-bottom: 24px;
+    }
+
+    .promotions-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .promotions-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+
+    .promo-card {
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .promo-badge {
+      display: inline-block;
+      background: #F74211;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    /* Section Container - Club (con tinte de marca) */
+    .section-container-club {
+      background: rgba(247, 66, 17, 0.05);
+      border-radius: 24px;
+      margin: 16px;
+      padding: 16px;
+    }
+
+    .club-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #F74211;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    /* Menú principal - Sin container */
+    .menu-section {
+      padding: 0 16px;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 16px 12px;
+      margin-bottom: 16px;
+      border-bottom: 1px solid rgba(247, 66, 17, 0.3);
+    }
+
+    .category-title {
+      font-size: 20px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #F74211;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(247, 66, 17, 0.12);
+    }
+
+    .menu-item-image {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      background: #e5e5e5;
+      flex-shrink: 0;
+    }
+
+    .menu-item-info {
+      flex: 1;
+    }
+
+    .menu-item-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+
+    .menu-item-price {
+      font-weight: 700;
+      color: #F74211;
+      font-size: 14px;
+    }
+
+    .label {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1a1a;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 10;
+    }
+
+    .arrow {
+      position: absolute;
+      top: 50%;
+      right: 40px;
+      width: 40px;
+      height: 40px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10;
+    }
+
+    .description {
+      font-size: 12px;
+      color: #666;
+      margin-top: 24px;
+      text-align: center;
+      padding: 0 20px 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="preview-container">
+    <div class="label">Preview - Diseño con SectionContainer</div>
+    
+    <!-- Header -->
+    <div class="header">
+      <div class="header-title">🍕 Pizza Grill</div>
+      <div class="header-subtitle">Takeaway • Buenos Aires</div>
+    </div>
+
+    <!-- Category Nav -->
+    <div class="nav-dots">
+      <div class="nav-dot active">🍕</div>
+      <div class="nav-dot">🍔</div>
+      <div class="nav-dot">🥗</div>
+      <div class="nav-dot">🍝</div>
+      <div class="nav-dot">🍦</div>
+    </div>
+
+    <!-- SECCIÓN 1: Destacados (con SectionContainer - fondo neutro suave) -->
+    <div class="section-container-default">
+      <div class="section-header">
+        <span class="section-title">⭐ Destacados</span>
+      </div>
+      
+      <div class="featured-item">
+        <div class="featured-image"></div>
+        <div class="featured-info">
+          <div class="featured-name">Pizza Margarita Especial</div>
+          <div class="featured-price">$8.500</div>
+        </div>
+      </div>
+      
+      <div class="featured-item">
+        <div class="featured-image"></div>
+        <div class="featured-info">
+          <div class="featured-name">Hamburguesa Clásica</div>
+          <div class="featured-price">$7.200</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 2: Promociones (SIN container - ya tiene su banner amarillo) -->
+    <div class="promotions-section">
+      <div class="promotions-header">
+        <span style="color: #F74211;">🏷️</span>
+        <span class="promotions-title">Promociones</span>
+      </div>
+      
+      <div class="promo-card">
+        <div class="promo-badge">20% OFF</div>
+        <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">Combo Familia</div>
+        <div style="font-size: 12px; color: #666; margin-top: 4px;">2 pizzas + bebida</div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN 3: Club (con SectionContainer - tinte de marca 5%) -->
+    <div class="section-container-club">
+      <div class="club-badge">
+        🏆 Socio del Club — Juan Pérez
+      </div>
+    </div>
+
+    <!-- SECCIÓN 4: Menú principal (SIN container - fondo blanco puro) -->
+    <div class="menu-section">
+      <div class="category-header">
+        <span class="category-title">PIZZAS</span>
+      </div>
+      
+      <div class="menu-item">
+        <div class="menu-item-image"></div>
+        <div class="menu-item-info">
+          <div class="menu-item-name">Pizza Muzzarella</div>
+          <div class="menu-item-price">$6.500</div>
+        </div>
+      </div>
+      
+      <div class="menu-item">
+        <div class="menu-item-image"></div>
+        <div class="menu-item-info">
+          <div class="menu-item-name">Pizza Napolitana</div>
+          <div class="menu-item-price">$7.000</div>
+        </div>
+      </div>
+      
+      <div class="menu-item">
+        <div class="menu-item-image"></div>
+        <div class="menu-item-info">
+          <div class="menu-item-name">Pizza Fugazza</div>
+          <div class="menu-item-price">$7.500</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="description">
+      <strong>Notas:</strong><br>
+      • Destacados: contenedor gris suave (#f5f5f5)<br>
+      • Promociones: sin contenedor (banner propio)<br>
+      • Club: contenedor con tinte naranja 5%<br>
+      • Menú: sin contenedor (fondo blanco)<br>
+      • Aire entre secciones: 24px (my-6)
+    </div>
+  </div>
+</body>
+</html>

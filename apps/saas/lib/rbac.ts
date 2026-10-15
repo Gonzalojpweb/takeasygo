@@ -270,36 +270,52 @@ export function legacyHasPermission(user: RbacUser, permission: Permission): boo
 }
 
 /**
+ * Decisión de permiso con detalle — lo que usa el modo sombra para registrar
+ * QUÉ rol efectivo causó la denegación (fila ULR o legacy de sesión), no solo
+ * el rol del token.
+ */
+export interface PermissionDecision {
+  allowed: boolean
+  /** Rol efectivo que determinó la decisión (fila ULR; o rol de sesión en legacy). */
+  effectiveRole: string | null
+  /** Cómo se resolvió (para diagnóstico del reporte de sombra). */
+  via: 'superadmin' | 'ulr' | 'sin-fila-legacy' | 'sin-usuario'
+}
+
+/**
  * ¿El usuario tiene `permission` en `tenantId` para `locationId` (o para el
- * tenant entero si locationId es null)?
+ * tenant entero si locationId es null)? Versión con detalle; `userHasPermission`
+ * es el wrapper booleano.
  *
  * Con el flag off o sin datos en user_location_roles devuelve el resultado
  * legacy (no cambia conducta). Lanza si se usa con flag on y falla la DB —
  * las rutas que la usan ya manejan errores.
  */
-export async function userHasPermission(args: {
+export async function resolvePermission(args: {
   user: RbacUser | null | undefined
   tenant: FlaggedTenant | null | undefined
   tenantId: string
   locationId?: string | null
   permission: Permission
-}): Promise<boolean> {
+}): Promise<PermissionDecision> {
   const { user, tenant, tenantId, locationId, permission } = args
-  if (!user) return false
-  if (user.role === 'superadmin') return true
+  if (!user) return { allowed: false, effectiveRole: null, via: 'sin-usuario' }
+  if (user.role === 'superadmin') return { allowed: true, effectiveRole: 'superadmin', via: 'superadmin' }
 
   const flagOn = getRbacScopeMode(tenant) !== 'off'
   if (!flagOn) {
     // Fallback legacy + alcance de sede de la Oleada 1.
+    let allowed = true
     if (locationId) {
       const scoped = locationIds(user)
-      if (scoped.length > 0 && !scoped.includes(String(locationId))) return false
+      if (scoped.length > 0 && !scoped.includes(String(locationId))) allowed = false
     }
-    return legacyHasPermission(user, permission)
+    if (allowed) allowed = legacyHasPermission(user, permission)
+    return { allowed, effectiveRole: user.role ?? null, via: 'sin-fila-legacy' }
   }
 
   const uid = userIdString(user)
-  if (!uid) return false
+  if (!uid) return { allowed: false, effectiveRole: null, via: 'sin-usuario' }
 
   // Permisos de ámbito tenant (consolidado): requieren fila ULR tenant-wide.
   // Una fila de sede específica no los concede y no hay fallback legacy.
@@ -311,7 +327,11 @@ export async function userHasPermission(args: {
       locationId: null,
       role: { $in: LOCATION_ROLES },
     }).lean()
-    return tenantRows.some(r => roleHasPermission(r.role, permission))
+    return {
+      allowed: tenantRows.some(r => roleHasPermission(r.role, permission)),
+      effectiveRole: tenantRows.map(r => r.role).join('/') || null,
+      via: 'ulr',
+    }
   }
 
   const query: Record<string, unknown> = {
@@ -331,15 +351,31 @@ export async function userHasPermission(args: {
   if (rows.length > 0) {
     // Si hay fila de sede específica y tenant-wide, gana la más restrictiva
     // de las que matchean la acción.
-    return rows.some(r => roleHasPermission(r.role, permission))
+    return {
+      allowed: rows.some(r => roleHasPermission(r.role, permission)),
+      effectiveRole: rows.map(r => r.role).join('/'),
+      via: 'ulr',
+    }
   }
 
   // Sin fila: fallback legacy para no cortar el acceso de nadie durante el rollout.
+  let allowed = true
   if (locationId) {
     const scoped = locationIds(user)
-    if (scoped.length > 0 && !scoped.includes(String(locationId))) return false
+    if (scoped.length > 0 && !scoped.includes(String(locationId))) allowed = false
   }
-  return legacyHasPermission(user, permission)
+  if (allowed) allowed = legacyHasPermission(user, permission)
+  return { allowed, effectiveRole: user.role ?? null, via: 'sin-fila-legacy' }
+}
+
+export async function userHasPermission(args: {
+  user: RbacUser | null | undefined
+  tenant: FlaggedTenant | null | undefined
+  tenantId: string
+  locationId?: string | null
+  permission: Permission
+}): Promise<boolean> {
+  return (await resolvePermission(args)).allowed
 }
 
 /**
@@ -366,11 +402,11 @@ export async function enforcePermission(args: {
   const mode = getRbacScopeMode(args.tenant)
   if (mode === 'off') return null
 
-  const allowed = await userHasPermission(args)
-  if (allowed) return null
+  const decision = await resolvePermission(args)
+  if (decision.allowed) return null
 
   if (mode === 'log') {
-    await logShadowDenial(args)
+    await logShadowDenial(args, decision)
     return null
   }
   return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
@@ -379,21 +415,36 @@ export async function enforcePermission(args: {
 /**
  * Registro de una denegación SIMULADA (modo `log` de rbac.sedeScope).
  * Nunca lanza: logAudit ya traga errores de DB.
+ *
+ * `userRole` de la bitácora = rol de la SESIÓN (token). `details.effectiveRole`
+ * = rol efectivo que causó la denegación (fila ULR si existe) — es el que usa
+ * el reporte de sombra para agrupar.
  */
-async function logShadowDenial(args: {
-  user: RbacUser | null | undefined
-  tenantId: string
-  locationId?: string | null
-  permission: Permission
-  route?: string
-}): Promise<void> {
+async function logShadowDenial(
+  args: {
+    user: RbacUser | null | undefined
+    tenantId: string
+    locationId?: string | null
+    permission: Permission
+    route?: string
+  },
+  decision: PermissionDecision
+): Promise<void> {
   const userId = userIdString(args.user)
   const role = args.user?.role ?? ''
   const route = args.route ?? 'unknown'
 
   console.warn(
     '[rbac][sombra] DENEGACIÓN SIMULADA (modo log, no bloquea)',
-    JSON.stringify({ route, permission: args.permission, locationId: args.locationId ?? null, userId, role })
+    JSON.stringify({
+      route,
+      permission: args.permission,
+      locationId: args.locationId ?? null,
+      userId,
+      role,
+      effectiveRole: decision.effectiveRole,
+      via: decision.via,
+    })
   )
 
   await logAudit({
@@ -401,7 +452,13 @@ async function logShadowDenial(args: {
     action: 'rbac.shadow_denied',
     entity: 'permission',
     locationId: args.locationId ?? null,
-    details: { route, permission: args.permission, role },
+    details: {
+      route,
+      permission: args.permission,
+      role,
+      effectiveRole: decision.effectiveRole,
+      via: decision.via,
+    },
     // Pasado explícitamente: evita que logAudit llame a auth() (rutas con
     // Bearer POS no tienen sesión NextAuth).
     userId: userId ?? null,

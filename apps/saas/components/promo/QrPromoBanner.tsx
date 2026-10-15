@@ -15,7 +15,7 @@ interface QrPromoBannerProps {
 
 export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const pathname = usePathname()
-  const { promo, loading, show, loyaltyMsg, dismiss } = useQrPromo(tenantSlug)
+  const { promo, loading, show, loyaltyMsg, accentColor, tenantLogo, tenantName, dismiss } = useQrPromo(tenantSlug)
 
   const pathParts = pathname?.split('/').filter(Boolean) ?? []
   const isPublic = pathParts.length === 3
@@ -26,20 +26,28 @@ export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   if (loading || !show || !promo) return null
 
   return (
-    <PromoModal open={show} onClose={dismiss}>
+    <PromoModal
+      open={show}
+      onClose={dismiss}
+      tenantName={tenantName || undefined}
+      tenantLogo={tenantLogo || undefined}
+      accentColor={accentColor}
+    >
       <PromoHeader
         badgeLabel={promo.badgeLabel}
         title={promo.title}
+        accentColor={accentColor}
+        imageUrl={promo.imageUrl}
       />
 
       {promo.imageUrl && <PromoImage src={promo.imageUrl} alt={promo.title} />}
 
       {promo.type === 'discount' && (
-        <DiscountContent promo={promo} onContinue={dismiss} />
+        <DiscountContent promo={promo} onContinue={dismiss} accentColor={accentColor} />
       )}
 
       {promo.type === 'info' && (
-        <InfoContent promo={promo} onContinue={dismiss} />
+        <InfoContent promo={promo} onContinue={dismiss} accentColor={accentColor} />
       )}
 
       {promo.type === 'loyalty' && (
@@ -48,18 +56,20 @@ export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
           loyaltyMsg={loyaltyMsg}
           tenantSlug={tenantSlug}
           onClose={dismiss}
+          accentColor={accentColor}
         />
       )}
 
       <button
         onClick={dismiss}
-        className="text-xs font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors text-center py-3"
+        className="text-xs font-semibold transition-colors text-center py-3"
+        style={{ color: 'var(--tgo-text-muted, #A09A95)' }}
       >
         Seguir navegando
       </button>
 
       {promo.termsText && (
-        <p className="text-[10px] text-muted-foreground/50 text-center leading-relaxed px-6 pb-6">
+        <p className="text-[10px] text-center leading-relaxed px-6 pb-6" style={{ color: 'var(--tgo-text-muted, #A09A95)', opacity: 0.7 }}>
           {promo.termsText}
         </p>
       )}

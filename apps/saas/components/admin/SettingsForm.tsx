@@ -891,18 +891,19 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                         { label: 'Color de Fondo', key: 'backgroundColor', desc: 'Lienzo principal' },
                         { label: 'Cuerpo de Texto', key: 'textColor', desc: 'Legibilidad general' },
                         { label: 'Color Secundario', key: 'secondaryColor', desc: 'Elementos de apoyo' },
+                        { label: 'Contenedor Sección', key: 'sectionContainerColor', desc: 'Fondo de Destacados y Club' },
                       ].map(({ label, key, desc }) => (
                         <div key={key} className="space-y-2">
                           <label className={labelCls}>{label}</label>
                           <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border-2 border-border/40 hover:border-primary/20 transition-all group">
                             <div className="relative w-12 h-12 shrink-0">
-                              <input type="color" value={branding[key]}
+                              <input type="color" value={branding[key] || ''}
                                 onChange={e => setBranding((p: any) => ({ ...p, [key]: e.target.value }))}
                                 className="absolute inset-0 w-full h-full rounded-xl border-none p-0 bg-transparent cursor-pointer opacity-0 z-10" />
-                              <div className="w-full h-full rounded-xl border border-black/5 shadow-inner" style={{ backgroundColor: branding[key] }} />
+                              <div className="w-full h-full rounded-xl border border-black/5 shadow-inner" style={{ backgroundColor: branding[key] || '#f5f5f5' }} />
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm font-black tracking-tighter text-foreground tabular-nums uppercase">{branding[key]}</p>
+                              <p className="text-sm font-black tracking-tighter text-foreground tabular-nums uppercase">{branding[key] || 'No configurado'}</p>
                               <p className="text-[10px] text-muted-foreground font-bold">{desc}</p>
                             </div>
                           </div>

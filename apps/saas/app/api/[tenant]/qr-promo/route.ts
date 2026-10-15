@@ -73,7 +73,7 @@ export async function GET(
 
     await connectDB()
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('qrPromo loyaltyMessaging _id name')
+    const tenant = await Tenant.findOne({ slug: tenantSlug }).select('qrPromo loyaltyMessaging _id name branding')
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
     }
@@ -208,6 +208,10 @@ export async function GET(
     const discountPct = qrPromoConfig.discountPercentage || 0
     const subtitle = (qrPromoConfig.subtitle || '').replace('{discount}', String(discountPct))
 
+    const branding = (tenant as any).branding || {}
+    const accentColor = branding.primaryColor || '#F74211'
+    const tenantLogo = branding.logoUrl || null
+
     return NextResponse.json({
       show: true,
       promo: {
@@ -221,6 +225,8 @@ export async function GET(
       cooldownHours: qrPromoConfig.cooldownHours ?? 24,
       loyaltyMessaging: tenant.loyaltyMessaging,
       tenantName: tenant.name,
+      accentColor,
+      tenantLogo,
     })
   } catch (error) {
     console.error('QR Promo GET error:', error)
