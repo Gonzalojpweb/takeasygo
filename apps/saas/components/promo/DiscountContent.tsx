@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Info, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import type { QrPromoData } from './types'
 
 interface DiscountContentProps {
@@ -12,83 +12,88 @@ interface DiscountContentProps {
 
 export function DiscountContent({ promo, onContinue, accentColor = '#F74211' }: DiscountContentProps) {
   return (
-    <div className="flex flex-col items-center gap-6 px-6 py-8 text-center">
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1, duration: 0.5 }}
-        className="flex flex-wrap items-center justify-center gap-3"
+    <div className="flex flex-col items-center text-center px-5 pt-8 pb-6 space-y-4">
+      {/* Eyebrow */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.7 }}
+        transition={{ delay: 0.1, duration: 0.4 }}
+        className="text-[11px] tracking-[0.15em] uppercase opacity-70"
+        style={{ fontFamily: 'var(--tgo-font-body)' }}
       >
-        <span
-          className="text-[10px] font-black uppercase tracking-[0.1em] px-3 py-1 rounded-full"
-          style={{
-            backgroundColor: `${accentColor}10`,
-            color: accentColor,
-          }}
-        >
-          DISFRUTÁ
-        </span>
-        <span className="text-[20px] font-black text-white bg-emerald-500 p-2 rounded-full">
+        {promo.badgeLabel || 'SOLO POR HOY'}
+      </motion.p>
+
+      {/* Discount Badge (único) */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.4 }}
+      >
+        <span className="inline-block rounded-full bg-emerald-500 px-4 py-1.5 font-bold text-white text-[14px]">
           {promo.discountPercentage}% OFF
         </span>
       </motion.div>
 
-      <motion.p
-        initial={{ opacity: 0, y: 12 }}
+      {/* Título */}
+      <motion.h2
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.5 }}
-        className="text-xl font-bold leading-relaxed max-w-md"
-        style={{
-          color: 'var(--tgo-text-secondary, #6B6560)',
-          fontFamily: 'var(--tgo-type-body)',
+        transition={{ delay: 0.3, duration: 0.4 }}
+        className="text-[26px] font-bold leading-tight max-w-xs"
+        style={{ 
+          color: '#1a1a1a',
+          fontFamily: 'var(--tgo-font-display)'
+        }}
+      >
+        {promo.title}
+      </motion.h2>
+
+      {/* Copy */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 0.8, y: 0 }}
+        transition={{ delay: 0.4, duration: 0.4 }}
+        className="text-[14px] opacity-80 max-w-xs"
+        style={{ 
+          color: '#1a1a1a',
+          fontFamily: 'var(--tgo-font-body)'
         }}
       >
         {promo.subtitle.replace('{discount}', `${promo.discountPercentage}%`)}
       </motion.p>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.5 }}
-        className="flex gap-3 items-start rounded-2xl w-full max-w-[80%] text-left"
-        style={{
-          backgroundColor: 'var(--tgo-surface-1, #FAFAF8)',
-          border: `1px solid ${accentColor}30`,
-        }}
-      >
-        <Info size={18} className="flex-shrink-0" style={{ color: accentColor }} />
-        <div>
-          <p
-            className="text-xs font-semibold"
-            style={{ color: 'var(--tgo-text-primary, #1A1A1A)', fontFamily: 'var(--tgo-type-body-sm)' }}
-          >
-            {promo.takeawayWarningTitle || 'Exclusivo para takeaway'}
-          </p>
-          <p
-            className="text-[11px] mt-1 leading-normal"
-            style={{ color: 'var(--tgo-text-secondary, #6B6560)', fontFamily: 'var(--tgo-type-body-sm)' }}
-          >
-            {promo.takeawayWarningText || 'Válido solo para pedidos para llevar.'}
-          </p>
-        </div>
-      </motion.div>
-
+      {/* CTA */}
       <motion.button
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4, duration: 0.5 }}
-        whileTap={{ scale: 0.96 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        whileTap={{ scale: 0.98 }}
         onClick={onContinue}
-        className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150"
+        className="w-full h-12 rounded-full flex items-center justify-center gap-2 font-bold text-[14px] transition-all duration-150"
         style={{
           backgroundColor: accentColor,
-          color: '#FFFFFF',
-          boxShadow: `0 12px 24px -4px ${accentColor}66`,
+          color: '#1a1a1a',
+          fontFamily: 'var(--tgo-font-body)',
         }}
       >
         {promo.buttonText}
         <ArrowRight size={16} />
       </motion.button>
+
+      {/* Legales */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.5 }}
+        transition={{ delay: 0.6, duration: 0.4 }}
+        className="text-[11px] opacity-50 text-center"
+        style={{ 
+          color: '#1a1a1a',
+          fontFamily: 'var(--tgo-font-body)'
+        }}
+      >
+        {promo.termsText}
+      </motion.p>
     </div>
   )
 }
