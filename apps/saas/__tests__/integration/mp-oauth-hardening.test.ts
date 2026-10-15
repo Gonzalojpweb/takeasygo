@@ -141,6 +141,20 @@ describe('mp-oauth callback — firma + sesión + tenant match', () => {
     expect(res.headers.get('location')).toContain('reason=bad_state')
   })
 
+  it('www <-> sin-www del MISMO dominio → NO redirige (evita loop con el 308 de Vercel)', async () => {
+    // NEXTAUTH_URL apex (como en Vercel) + request en www: si redirigiéramos,
+    // Vercel re-redirige al www con 308 → loop ERR_TOO_MANY_REDIRECTS.
+    process.env.NEXTAUTH_URL = 'https://takeasygo.com'
+    authMock.mockClear()
+    authMock.mockResolvedValue(session('admin', 'palmyra'))
+    const req = new Request('https://www.takeasygo.com/api/mp-oauth/callback?code=cod-1&state=malo') as any
+    const res = await callbackGET(req)
+    expect(res.headers.get('location')).toContain('reason=bad_state')
+    expect(res.headers.get('location')).toContain('takeasygo.com')
+    // No re-emite al host: sigue el flujo normal (state inválido en este caso)
+    expect(res.headers.get('location')).not.toContain('/api/mp-oauth/callback')
+  })
+
   it('state sin firmar (formato viejo) → error, sin canjear código', async () => {
     authMock.mockResolvedValue(session('admin', 'palmyra'))
     const legacy = Buffer.from(JSON.stringify({ tenantSlug: 'palmyra', ts: Date.now() })).toString('base64url')
