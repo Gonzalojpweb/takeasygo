@@ -98,17 +98,26 @@ async function sendSecurityAlert(tenantSlug: string, message: string, details: R
       .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#6b6460;font-size:13px;">${escapeHtml(k)}</td><td style="padding:4px 0;color:#0d0b0a;font-size:13px;font-family:monospace;">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</td></tr>`)
       .join('')
 
-    await sendEmail(
-      ALERT_EMAIL,
-      `[Takeasygo][Seguridad] ${tenantSlug}: ${message}`,
-      `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
-        <h2 style="color:#0d0b0a;font-size:18px;margin:0 0 4px;">Alerta de seguridad — Webhook MP</h2>
-        <p style="color:#6b6460;font-size:14px;margin:0 0 16px;"><strong>Tenant:</strong> ${escapeHtml(tenantSlug)}</p>
-        <p style="color:#0d0b0a;font-size:14px;margin:0 0 16px;">${escapeHtml(message)}</p>
-        <table style="border-collapse:collapse;margin:0 0 16px;">${detailsHtml}</table>
-        <p style="color:#b0aaa6;font-size:12px;margin:0;">Alerta automática. Máximo 1 email por tenant cada 60 minutos.</p>
-      </div>`
-    ).catch(() => {})
+    try {
+      await sendEmail(
+        ALERT_EMAIL,
+        `[Takeasygo][Seguridad] ${tenantSlug}: ${message}`,
+        `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+          <h2 style="color:#0d0b0a;font-size:18px;margin:0 0 4px;">Alerta de seguridad — Webhook MP</h2>
+          <p style="color:#6b6460;font-size:14px;margin:0 0 16px;"><strong>Tenant:</strong> ${escapeHtml(tenantSlug)}</p>
+          <p style="color:#0d0b0a;font-size:14px;margin:0 0 16px;">${escapeHtml(message)}</p>
+          <table style="border-collapse:collapse;margin:0 0 16px;">${detailsHtml}</table>
+          <p style="color:#b0aaa6;font-size:12px;margin:0;">Alerta automática. Máximo 1 email por tenant cada 60 minutos.</p>
+        </div>`
+      )
+    } catch (emailErr) {
+      // Si el email falla, liberar la marca para poder reintentar
+      console.error(`[SECURITY ALERT] Email falló, liberando marca de rate limit:`, emailErr)
+      await SecurityAlertThrottle.updateOne(
+        { key },
+        { $set: { lastSentAt: new Date(0) } }
+      ).catch(() => {})
+    }
   } catch {
     // never throw
   }

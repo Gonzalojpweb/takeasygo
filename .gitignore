@@ -127,3 +127,4 @@ audit-data-*/
 !.agent/skills/**
 # Respaldos de datos
 *_backup_*.json
+backups/

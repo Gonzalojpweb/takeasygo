@@ -26,7 +26,9 @@
 //   apply: MONGODB_URI=... node location-prefix-backfill.mjs apply --tenant chopisburger --allow-prod
 //          (requiere aprobación previa y backup)
 //
-// El backup se guarda en ./backups/prefix-backup-<timestamp>.json
+// El backup se guarda FUERA del repo y Dropbox (default: C:\takeasygo-backups)
+// o en TAKEASYGO_BACKUP_DIR. El script bloquea si la carpeta está dentro
+// del repo o contiene "Dropbox".
 // ============================================================================
 
 import mongoose from 'mongoose'
@@ -193,7 +195,20 @@ async function main() {
     return
   }
 
-  const backupDir = path.join(process.cwd(), 'backups')
+  // Backup FUERA del repo y de Dropbox
+  const backupBase = process.env.TAKEASYGO_BACKUP_DIR || 'C:\\takeasygo-backups'
+  // Chequeo: bloquear carpetas de respaldo dentro del repo o Dropbox
+  const repoRoot = path.resolve(process.cwd())
+  const normalized = path.resolve(backupBase)
+  if (normalized.includes('Dropbox') || normalized.startsWith(repoRoot)) {
+    console.error(`BLOQUEADO: la carpeta de respaldo debe estar fuera del repo y Dropbox.`)
+    console.error(`  Especificada: ${normalized}`)
+    console.error(`  Repo: ${repoRoot}`)
+    console.error(`  Usá TAKEASYGO_BACKUP_DIR o la default C:\\takeasygo-backups`)
+    await mongoose.disconnect()
+    process.exit(2)
+  }
+  const backupDir = normalized
   if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
   const backupFile = path.join(backupDir, `prefix-backup-${timestamp}.json`)
