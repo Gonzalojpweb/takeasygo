@@ -149,15 +149,25 @@ export async function GET(request: NextRequest) {
       const tenant = await Tenant.findOne({ slug: tenantSlug })
       if (!tenant) throw new Error('Tenant not found')
 
+      // Helper seguro para encrypt
+      const safeEncrypt = (val: string | undefined) => {
+        try {
+          return val ? encrypt(val) : null
+        } catch {
+          return null
+        }
+      }
+
       // If accountId provided and exists in mpAccounts, update that specific account
       if (accountId && tenant.mpAccounts?.length) {
         const account = tenant.mpAccounts.find((a: any) => a._id?.toString() === accountId)
         if (account) {
-          account.oauthAccessToken = encrypt(access_token)
-          account.oauthRefreshToken = refresh_token ? encrypt(refresh_token) : null
+          account.oauthAccessToken = safeEncrypt(access_token)
+          account.oauthRefreshToken = safeEncrypt(refresh_token)
           account.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
           account.oauthIsConnected = true
           account.oauthAuthorizedAt = new Date()
+          tenant.markModified('mpAccounts')
           await tenant.save()
           console.log(`[MP OAuth] Saved to mpAccounts[${accountId}]`)
         } else {
@@ -171,20 +181,23 @@ export async function GET(request: NextRequest) {
         // accountId not provided but mpAccounts exists — save to first active account
         const activeAccount = tenant.mpAccounts.find((a: any) => a.isActive)
         if (activeAccount) {
-          activeAccount.oauthAccessToken = encrypt(access_token)
-          activeAccount.oauthRefreshToken = refresh_token ? encrypt(refresh_token) : null
+          activeAccount.oauthAccessToken = safeEncrypt(access_token)
+          activeAccount.oauthRefreshToken = safeEncrypt(refresh_token)
           activeAccount.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
           activeAccount.oauthIsConnected = true
           activeAccount.oauthAuthorizedAt = new Date()
+          tenant.markModified('mpAccounts')
           await tenant.save()
           console.log(`[MP OAuth] Saved to active mpAccounts[${activeAccount._id}]`)
         } else {
           await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
         }
       }
-    } catch (dbErr) {
+    } catch (dbErr: any) {
       console.error('[MP OAuth] DB save failed:', dbErr)
-      return failAt('db_save_failed', tenantSlug)
+      // Incluir mensaje de error real en el redirect para diagnóstico
+      const msg = dbErr?.message?.slice(0, 100) || 'unknown'
+      return failAt(`db_save_failed:${encodeURIComponent(msg)}`, tenantSlug)
     }
 
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=success`)

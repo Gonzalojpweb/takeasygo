@@ -25,11 +25,16 @@ import { allowedTransitionsFrom } from '@/lib/order-transitions'
 import { matchesInternalSecret } from '@/lib/internal-secret'
 import webpush from 'web-push'
 
-webpush.setVapidDetails(
-  'mailto:clickandthink1@gmail.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+try {
+  webpush.setVapidDetails(
+    'mailto:clickandthink1@gmail.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+} catch {
+  // Sin VAPID en el ambiente: Next importa todas las rutas al build y
+  // setVapidDetails revienta sin claves — no debe romper el build.
+}
 
 // Mapeo de status → campo de timestamp (para analytics de TPP)
 const STATUS_TIMESTAMP: Record<string, keyof import('@/models/Order').IStatusTimestamps> = {

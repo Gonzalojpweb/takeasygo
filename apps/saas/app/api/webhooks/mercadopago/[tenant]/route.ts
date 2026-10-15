@@ -25,11 +25,16 @@ import type { ResolvedMpAccount } from '@/lib/mercadopago'
 import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 
-webpush.setVapidDetails(
-  'mailto:clickandthink1@gmail.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+try {
+  webpush.setVapidDetails(
+    'mailto:clickandthink1@gmail.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+} catch {
+  // Sin VAPID en el ambiente: Next importa todas las rutas al build y
+  // setVapidDetails revienta sin claves — no debe romper el build.
+}
 
 const WEBHOOK_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000 // ±5 minutes
 
