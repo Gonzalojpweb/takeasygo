@@ -230,9 +230,12 @@ export async function POST(
       }, { status: 409 })
     }
 
-    // Generate reservation number: perLocation (flag ON) o legacy (flag OFF)
+    // Generate reservation number: perLocation (flag ON + prefijos completos) o legacy
     let reservationNumber: string
-    if (isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)) {
+    const { allLocationsHavePrefix } = await import('@/lib/perLocationNumber')
+    const numberingReady = isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)
+      && await allLocationsHavePrefix(tenant._id)
+    if (numberingReady) {
       reservationNumber = await nextPerLocationNumber({
         tenantId: tenant._id,
         locationId,
@@ -313,36 +316,48 @@ export async function POST(
       }
     } else if (reservationConfig.slotConfig?.enabled) {
       // Modo automático (sin espacios): recheck post-insert para maxReservationsPerSlot.
-      // Dos requests concurrentes pueden pasar el chequeo previo e insertar ambos.
+      // Con N requests concurrentes, todos insertan antes de que cualquiera corra
+      // el recheck. Se cuentan los solapes reales y solo el ÚLTIMO en llegar
+      // (mayor _id) se borra a sí mismo. Así exactamente maxPerSlot ganan.
       const sc = reservationConfig.slotConfig
+      const maxPerSlot = sc?.maxReservationsPerSlot ?? 1
+
+      // Breve espera para que todos los inserts concurrentes terminen
+      await new Promise(r => setTimeout(r, 50))
+
       const after = await Reservation.find({
         locationId,
         date,
         time,
         status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
       }).lean()
-      // Contar solo reservas cuyo bloque [time, time+blockDuration) se solape con la nueva
       const [reqH, reqM] = time.split(':').map(Number)
       const reqStart = reqH * 60 + reqM
       const reqEnd = reqStart + blockDuration
-      let overlapping = 0
-      for (const r of after) {
-        if (String(r._id) === String(reservation._id)) continue
+
+      // Filtrar solo las que se solapan con este slot
+      const overlapping = after.filter(r => {
         const [rH, rM] = r.time.split(':').map(Number)
         const rStart = rH * 60 + rM
         const rEnd = rStart + blockDuration
-        if (reqStart < rEnd && rStart < reqEnd) overlapping++
-      }
-      const maxPerSlot = sc?.maxReservationsPerSlot ?? 1
-      if (overlapping >= maxPerSlot) {
-        await Reservation.deleteOne({ _id: reservation._id })
-        return NextResponse.json(
-          {
-            error: 'El horario seleccionado ya no está disponible. Elegí otro.',
-            availableSlots: [],
-          },
-          { status: 409 }
-        )
+        return reqStart < rEnd && rStart < reqEnd
+      }).sort((a, b) => String(a._id).localeCompare(String(b._id)))
+
+      // Si hay más de maxPerSlot, las últimas (mayor _id) se borran
+      if (overlapping.length > maxPerSlot) {
+        const losers = overlapping.slice(maxPerSlot)
+        const myId = String(reservation._id)
+        const amLoser = losers.some(r => String(r._id) === myId)
+        if (amLoser) {
+          await Reservation.deleteOne({ _id: reservation._id })
+          return NextResponse.json(
+            {
+              error: 'El horario seleccionado ya no está disponible. Elegí otro.',
+              availableSlots: [],
+            },
+            { status: 409 }
+          )
+        }
       }
     }
 

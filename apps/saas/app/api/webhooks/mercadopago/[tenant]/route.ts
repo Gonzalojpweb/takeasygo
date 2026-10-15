@@ -7,6 +7,7 @@ import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
 import ProcessedWebhookEvents from '@/models/ProcessedWebhookEvents'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
+import { escapeHtml } from '@/lib/email'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
@@ -64,11 +65,37 @@ function verifyMercadoPagoSignature(
 
 /**
  * Envía alerta when security events occur. Fire-and-forget.
+ * Rate limit: máx 1 email por tenant cada 60 min (in-memory, por proceso).
  */
+const ALERT_EMAIL = 'takeasygo.latam@gmail.com'
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000
+const lastAlertSent = new Map<string, number>()
+
 async function sendSecurityAlert(tenantSlug: string, message: string, details: Record<string, any>) {
   try {
-    // TODO: wire to Slack/email webhook in production
     console.warn(`[SECURITY ALERT][${tenantSlug}] ${message}`, details)
+
+    const now = Date.now()
+    const last = lastAlertSent.get(tenantSlug) ?? 0
+    if (now - last < ALERT_COOLDOWN_MS) return
+    lastAlertSent.set(tenantSlug, now)
+
+    const { sendEmail } = await import('@/lib/email')
+    const detailsHtml = Object.entries(details)
+      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#6b6460;font-size:13px;">${escapeHtml(k)}</td><td style="padding:4px 0;color:#0d0b0a;font-size:13px;font-family:monospace;">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</td></tr>`)
+      .join('')
+
+    await sendEmail(
+      ALERT_EMAIL,
+      `[Takeasygo][Seguridad] ${tenantSlug}: ${message}`,
+      `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+        <h2 style="color:#0d0b0a;font-size:18px;margin:0 0 4px;">Alerta de seguridad — Webhook MP</h2>
+        <p style="color:#6b6460;font-size:14px;margin:0 0 16px;"><strong>Tenant:</strong> ${escapeHtml(tenantSlug)}</p>
+        <p style="color:#0d0b0a;font-size:14px;margin:0 0 16px;">${escapeHtml(message)}</p>
+        <table style="border-collapse:collapse;margin:0 0 16px;">${detailsHtml}</table>
+        <p style="color:#b0aaa6;font-size:12px;margin:0;">Alerta automática. Máximo 1 email por tenant cada 60 minutos.</p>
+      </div>`
+    ).catch(() => {})
   } catch {
     // never throw
   }

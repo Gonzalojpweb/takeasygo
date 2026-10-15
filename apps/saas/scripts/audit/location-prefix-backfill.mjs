@@ -22,9 +22,22 @@
 // ============================================================================
 
 import mongoose from 'mongoose'
-import { resolveDbName, guardAgainstProd } from './_safety.mjs'
+import { resolveDbName, guardAgainstProd, PROD_DB_NAME } from './_safety.mjs'
 
 const mode = process.argv[2] ?? 'scan'
+
+// En producción SOLO se permite scan (solo lectura). Apply está bloqueado.
+if (mode === 'apply') {
+  const uriCheck = process.env.MONGODB_URI
+  if (uriCheck) {
+    const dbCheck = resolveDbName(uriCheck, null)
+    if (dbCheck === PROD_DB_NAME) {
+      console.error('BLOQUEADO: apply no está permitido en producción (base test).')
+      console.error('Usá scan para verificar qué se asignaría.')
+      process.exit(2)
+    }
+  }
+}
 
 const uri = process.env.MONGODB_URI
 if (!uri) {

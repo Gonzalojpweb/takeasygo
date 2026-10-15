@@ -634,4 +634,108 @@ describe('aforo por espacios', () => {
     // o bien 409 del recheck post-insert. Ambos son aceptables.
     expect(second.status).toBe(409)
   })
+
+  it('concurrencia: 2 requests simultáneos al mismo slot → exactamente 1 gana', async () => {
+    vi.useRealTimers()
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    const loc = await Location.create({
+      tenantId: tenant._id,
+      name: 'Concurrencia2',
+      slug: 'concurrencia2',
+      address: 'Calle C2 1',
+      isActive: true,
+      timezone: 'America/Argentina/Buenos_Aires',
+      reservationConfig: {
+        enabled: true,
+        minPayment: 0,
+        timeSlots: [],
+        maxPartySize: null,
+        minAdvanceMinutes: 0,
+        slotConfig: {
+          enabled: true,
+          operatingHours: [{ days: [0, 1, 2, 3, 4, 5, 6], open: '13:00', close: '16:00' }],
+          slotIntervalMinutes: 60,
+          blockDurationMinutes: 90,
+          maxReservationsPerSlot: 1,
+        },
+      },
+    })
+    const locId = String(loc._id)
+
+    // Lanzar 2 requests simultáneos con Promise.all
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(FROZEN_NOW)
+    let results: Response[]
+    try {
+      results = await Promise.all([
+        reservasPost(req({ ...BASE_BODY, date: TOMORROW, locationId: locId, time: '13:00', partySize: 2, name: 'Cliente A', phone: '+549111111111' }), params),
+        reservasPost(req({ ...BASE_BODY, date: TOMORROW, locationId: locId, time: '13:00', partySize: 2, name: 'Cliente B', phone: '+549222222222' }), params),
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const statuses = results.map(r => r.status).sort()
+    // Exactamente uno gana (201), el otro pierde (409)
+    expect(statuses).toEqual([201, 409])
+  })
+
+  it('concurrencia: 10 requests simultáneos al mismo slot con max=1 → exactamente 1 gana', async () => {
+    vi.useRealTimers()
+    const tenant = (await Tenant.findOne({ slug: 'test-tenant' }))!
+    const loc = await Location.create({
+      tenantId: tenant._id,
+      name: 'Concurrencia10',
+      slug: 'concurrencia10',
+      address: 'Calle C10 1',
+      isActive: true,
+      timezone: 'America/Argentina/Buenos_Aires',
+      reservationConfig: {
+        enabled: true,
+        minPayment: 0,
+        timeSlots: [],
+        maxPartySize: null,
+        minAdvanceMinutes: 0,
+        slotConfig: {
+          enabled: true,
+          operatingHours: [{ days: [0, 1, 2, 3, 4, 5, 6], open: '13:00', close: '16:00' }],
+          slotIntervalMinutes: 60,
+          blockDurationMinutes: 90,
+          maxReservationsPerSlot: 1,
+        },
+      },
+    })
+    const locId = String(loc._id)
+
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(FROZEN_NOW)
+    let results: Response[]
+    try {
+      results = await Promise.all(
+        Array.from({ length: 10 }, (_, i) =>
+          reservasPost(
+            req({
+              ...BASE_BODY,
+              date: TOMORROW,
+              locationId: locId,
+              time: '13:00',
+              partySize: 2,
+              name: `Cliente ${i}`,
+              phone: `+54910000000${i}`,
+            }),
+            params
+          )
+        )
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+
+    const statuses = results.map(r => r.status)
+    const wins = statuses.filter(s => s === 201).length
+    const losses = statuses.filter(s => s === 409).length
+    // Exactamente uno gana, 9 pierden. Nunca se rechazan las dos.
+    expect(wins).toBe(1)
+    expect(losses).toBe(9)
+  })
 })

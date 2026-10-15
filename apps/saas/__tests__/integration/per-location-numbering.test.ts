@@ -20,7 +20,8 @@ vi.mock('@/lib/mongoose', () => ({
 }))
 
 import PerLocationCounter from '@/models/PerLocationCounter'
-import { nextPerLocationNumber, sedePrefix, resolveSedePrefix } from '@/lib/perLocationNumber'
+import Location from '@/models/Location'
+import { nextPerLocationNumber, sedePrefix, resolveSedePrefix, allLocationsHavePrefix } from '@/lib/perLocationNumber'
 
 let tenantId: mongoose.Types.ObjectId
 let recoletaId: mongoose.Types.ObjectId
@@ -220,5 +221,37 @@ describe('Prefijo guardado vs derivado', () => {
     expect(numA).toBe('REC-0001')
     expect(numB).toBe('REN-0001')
     expect(numA).not.toBe(numB)
+  })
+
+  describe('allLocationsHavePrefix (guard para flag numbering.perLocation)', () => {
+    it('todas las sedes con prefix → true', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      await Location.create({ tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'AAA' })
+      await Location.create({ tenantId: tid, name: 'B', slug: 'b', address: 'x', isActive: true, prefix: 'BBB' })
+      expect(await allLocationsHavePrefix(tid)).toBe(true)
+    })
+
+    it('una sede sin prefix → false', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      await Location.create({ tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'AAA' })
+      await Location.create({ tenantId: tid, name: 'B', slug: 'b', address: 'x', isActive: true })
+      expect(await allLocationsHavePrefix(tid)).toBe(false)
+    })
+
+    it('sede inactiva sin prefix → true (no cuenta)', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      await Location.create({ tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'AAA' })
+      await Location.create({ tenantId: tid, name: 'B', slug: 'b', address: 'x', isActive: false })
+      expect(await allLocationsHavePrefix(tid)).toBe(true)
+    })
+
+    it('prefix con formato inválido → false', async () => {
+      const tid = new mongoose.Types.ObjectId()
+      // insertOne bypass mongoose validation para simular dato corrupto en DB
+      await mongoose.connection.db!.collection('locations').insertOne({
+        tenantId: tid, name: 'A', slug: 'a', address: 'x', isActive: true, prefix: 'X',
+      })
+      expect(await allLocationsHavePrefix(tid)).toBe(false)
+    })
   })
 })
