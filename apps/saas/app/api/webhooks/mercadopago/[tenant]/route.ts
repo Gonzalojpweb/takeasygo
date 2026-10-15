@@ -6,7 +6,9 @@ import Reservation from '@/models/Reservation'
 import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
 import ProcessedWebhookEvents from '@/models/ProcessedWebhookEvents'
+import SecurityAlertThrottle from '@/models/SecurityAlertThrottle'
 import { decrypt, safeDecrypt } from '@/lib/crypto'
+import { escapeHtml } from '@/lib/email'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
@@ -64,11 +66,58 @@ function verifyMercadoPagoSignature(
 
 /**
  * Envía alerta when security events occur. Fire-and-forget.
+ * Rate limit en DB (no in-memory: Vercel no comparte memoria entre instancias).
+ * Máx 1 email por (tenant, tipo de alerta) cada 60 min.
  */
+const ALERT_EMAIL = 'takeasygo.latam@gmail.com'
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000
+
 async function sendSecurityAlert(tenantSlug: string, message: string, details: Record<string, any>) {
   try {
-    // TODO: wire to Slack/email webhook in production
     console.warn(`[SECURITY ALERT][${tenantSlug}] ${message}`, details)
+
+    // Rate limit en DB: atomic check-and-set
+    const key = `${tenantSlug}:${message.slice(0, 60)}`
+    const now = new Date()
+    const throttled = await SecurityAlertThrottle.findOneAndUpdate(
+      { key, lastSentAt: { $gt: new Date(now.getTime() - ALERT_COOLDOWN_MS) } },
+      { $setOnInsert: { key, lastSentAt: now } },
+      { upsert: false }
+    ).lean()
+    if (throttled) return // aún dentro del cooldown
+
+    // Marcar como enviada (insert o update)
+    await SecurityAlertThrottle.updateOne(
+      { key },
+      { $set: { lastSentAt: now }, $setOnInsert: { key } },
+      { upsert: true }
+    )
+
+    const { sendEmail } = await import('@/lib/email')
+    const detailsHtml = Object.entries(details)
+      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#6b6460;font-size:13px;">${escapeHtml(k)}</td><td style="padding:4px 0;color:#0d0b0a;font-size:13px;font-family:monospace;">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</td></tr>`)
+      .join('')
+
+    try {
+      await sendEmail(
+        ALERT_EMAIL,
+        `[Takeasygo][Seguridad] ${tenantSlug}: ${message}`,
+        `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;">
+          <h2 style="color:#0d0b0a;font-size:18px;margin:0 0 4px;">Alerta de seguridad — Webhook MP</h2>
+          <p style="color:#6b6460;font-size:14px;margin:0 0 16px;"><strong>Tenant:</strong> ${escapeHtml(tenantSlug)}</p>
+          <p style="color:#0d0b0a;font-size:14px;margin:0 0 16px;">${escapeHtml(message)}</p>
+          <table style="border-collapse:collapse;margin:0 0 16px;">${detailsHtml}</table>
+          <p style="color:#b0aaa6;font-size:12px;margin:0;">Alerta automática. Máximo 1 email por tenant cada 60 minutos.</p>
+        </div>`
+      )
+    } catch (emailErr) {
+      // Si el email falla, liberar la marca para poder reintentar
+      console.error(`[SECURITY ALERT] Email falló, liberando marca de rate limit:`, emailErr)
+      await SecurityAlertThrottle.updateOne(
+        { key },
+        { $set: { lastSentAt: new Date(0) } }
+      ).catch(() => {})
+    }
   } catch {
     // never throw
   }

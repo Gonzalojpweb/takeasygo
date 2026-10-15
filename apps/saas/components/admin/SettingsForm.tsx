@@ -32,7 +32,7 @@ import {
   ImageIcon,
   Bell, PlusCircle, ShoppingBag, Coins, Banknote, Percent,
   ChevronLeft, ChevronRight, ChevronDown, Star,
-  HelpCircle,
+  HelpCircle, Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
@@ -891,18 +891,19 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                         { label: 'Color de Fondo', key: 'backgroundColor', desc: 'Lienzo principal' },
                         { label: 'Cuerpo de Texto', key: 'textColor', desc: 'Legibilidad general' },
                         { label: 'Color Secundario', key: 'secondaryColor', desc: 'Elementos de apoyo' },
+                        { label: 'Contenedor Sección', key: 'sectionContainerColor', desc: 'Fondo de Destacados y Club' },
                       ].map(({ label, key, desc }) => (
                         <div key={key} className="space-y-2">
                           <label className={labelCls}>{label}</label>
                           <div className="flex items-center gap-4 bg-white p-3 rounded-2xl border-2 border-border/40 hover:border-primary/20 transition-all group">
                             <div className="relative w-12 h-12 shrink-0">
-                              <input type="color" value={branding[key]}
+                              <input type="color" value={branding[key] || ''}
                                 onChange={e => setBranding((p: any) => ({ ...p, [key]: e.target.value }))}
                                 className="absolute inset-0 w-full h-full rounded-xl border-none p-0 bg-transparent cursor-pointer opacity-0 z-10" />
-                              <div className="w-full h-full rounded-xl border border-black/5 shadow-inner" style={{ backgroundColor: branding[key] }} />
+                              <div className="w-full h-full rounded-xl border border-black/5 shadow-inner" style={{ backgroundColor: branding[key] || '#f5f5f5' }} />
                             </div>
                             <div className="flex-1">
-                              <p className="text-sm font-black tracking-tighter text-foreground tabular-nums uppercase">{branding[key]}</p>
+                              <p className="text-sm font-black tracking-tighter text-foreground tabular-nums uppercase">{branding[key] || 'No configurado'}</p>
                               <p className="text-[10px] text-muted-foreground font-bold">{desc}</p>
                             </div>
                           </div>
@@ -1865,6 +1866,17 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </Button>
                         </div>
 
+                        {/* ── Prefijo y zona horaria ── */}
+                        <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
+                          <LocationPrefixTimezone
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initialPrefix={(loc as any).prefix ?? null}
+                            initialTimezone={(loc as any).timezone ?? null}
+                            tenantTimezone={(tenant as any).timezone ?? null}
+                          />
+                        </div>
+
                         {/* ── Delivery Config ── */}
                         {canAccess(plan as Plan, 'delivery') && (
                           <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
@@ -1941,6 +1953,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     ))}
                   </div>
 
+                  {/* ── Zona horaria del comercio (capa intermedia) ── */}
+                  <TenantTimezoneSettings
+                    tenantSlug={tenantSlug}
+                    initialTimezone={(tenant as any).timezone ?? null}
+                  />
+
                   <div className="flex gap-4 p-6 bg-primary/5 rounded-3xl border border-primary/10">
                     <AlertCircle className="text-primary shrink-0 mt-0.5" size={18} />
                     <p className="text-xs text-primary/80 font-medium leading-relaxed">
@@ -1960,6 +1978,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     isConfigured={tenant.mercadopago?.isConfigured}
                     mpOAuth={tenant.mpOAuth}
                     mpAccounts={tenant.mpAccounts}
+                    mpMode={(tenant as any).mpMode}
+                    mpPerLocationEnabled={(tenant as any).flags?.['mp.perLocation'] === true}
                   />
                 </div>
               </TabsContent>
@@ -3156,6 +3176,245 @@ function LocationMpAccountSettings({ locationId, tenantSlug, initialMpAccountId,
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar cuenta MP de la sede'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// LocationPrefixTimezone — Prefijo y zona horaria de la sede
+// ============================================================================
+const TIMEZONES = [
+  'America/Argentina/Buenos_Aires',
+  'America/Argentina/Cordoba',
+  'America/Argentina/Mendoza',
+  'America/Argentina/Tucuman',
+  'America/Bogota',
+  'America/Mexico_City',
+  'America/Santiago',
+  'America/Lima',
+  'America/Montevideo',
+  'America/Sao_Paulo',
+  'Europe/Madrid',
+  'Europe/Rome',
+  'US/Eastern',
+  'US/Central',
+  'US/Pacific',
+]
+
+function LocationPrefixTimezone({
+  locationId,
+  tenantSlug,
+  initialPrefix,
+  initialTimezone,
+  tenantTimezone,
+}: {
+  locationId: string
+  tenantSlug: string
+  initialPrefix: string | null
+  initialTimezone: string | null
+  tenantTimezone: string | null
+}) {
+  const [prefix, setPrefix] = useState(initialPrefix ?? '')
+  const [timezone, setTimezone] = useState(initialTimezone ?? '')
+  const [saving, setSaving] = useState(false)
+  const effectiveTz = tenantTimezone || 'America/Argentina/Buenos_Aires'
+  const tzIsInherited = !initialTimezone || initialTimezone === effectiveTz
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const body: Record<string, unknown> = {}
+      if (prefix !== (initialPrefix ?? '')) body.prefix = prefix.toUpperCase().trim()
+      if (timezone !== (initialTimezone ?? '')) body.timezone = timezone || effectiveTz
+
+      if (Object.keys(body).length === 0) {
+        toast.info('Sin cambios para guardar')
+        return
+      }
+
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'No se pudo guardar')
+        return
+      }
+      toast.success('Prefijo y zona horaria guardados')
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 mb-1">
+        <Tag size={12} className="text-primary" />
+        <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+          Identificación de la sede
+        </label>
+      </div>
+
+      {/* Prefijo */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">Prefijo de numeración</label>
+          {initialPrefix && (
+            <Badge variant="outline" className="text-[9px]">
+              {initialPrefix}
+            </Badge>
+          )}
+        </div>
+        <input
+          type="text"
+          value={prefix}
+          onChange={e => setPrefix(e.target.value.toUpperCase().slice(0, 4))}
+          placeholder="Ej: REC"
+          maxLength={4}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono uppercase"
+        />
+        <p className="text-[10px] text-muted-foreground/50">
+          2-4 caracteres alfanuméricos. Se usa para numerar pedidos y reservas (ej: REC-0001).
+        </p>
+        {initialPrefix && (
+          <p className="text-[10px] text-amber-600 flex items-center gap-1">
+            <AlertCircle size={10} />
+            Si ya se emitieron números con este prefijo, no se podrá cambiar.
+          </p>
+        )}
+      </div>
+
+      {/* Zona horaria */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium">Zona horaria</label>
+          <Badge variant={tzIsInherited ? 'secondary' : 'outline'} className="text-[9px]">
+            {tzIsInherited ? 'Heredado' : 'Propio'}
+          </Badge>
+        </div>
+        <select
+          value={timezone || effectiveTz}
+          onChange={e => setTimezone(e.target.value)}
+          className="w-full px-3 py-2 text-sm rounded-xl border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+        >
+          {TIMEZONES.map(tz => (
+            <option key={tz} value={tz}>{tz}</option>
+          ))}
+        </select>
+        <p className="text-[10px] text-muted-foreground/50">
+          {tzIsInherited
+            ? `Hereda del comercio: ${effectiveTz}`
+            : 'Esta sede usa su propia zona horaria.'}
+        </p>
+      </div>
+
+      <Button
+        onClick={handleSave}
+        disabled={saving}
+        size="sm"
+        className="w-full mt-2"
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar prefijo y zona horaria'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// TenantTimezoneSettings — Zona horaria del comercio (capa intermedia)
+// ============================================================================
+const TZ_LIST = [
+  'America/Argentina/Buenos_Aires',
+  'America/Argentina/Cordoba',
+  'America/Argentina/Mendoza',
+  'America/Argentina/Tucuman',
+  'America/Bogota',
+  'America/Mexico_City',
+  'America/Santiago',
+  'America/Lima',
+  'America/Montevideo',
+  'America/Sao_Paulo',
+  'Europe/Madrid',
+  'Europe/Rome',
+  'US/Eastern',
+  'US/Central',
+  'US/Pacific',
+]
+
+function TenantTimezoneSettings({
+  tenantSlug,
+  initialTimezone,
+}: {
+  tenantSlug: string
+  initialTimezone: string | null
+}) {
+  const [tz, setTz] = useState(initialTimezone ?? 'America/Argentina/Buenos_Aires')
+  const [saving, setSaving] = useState(false)
+  const isInherited = !initialTimezone
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/settings/profile`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ timezone: tz }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error || 'No se pudo guardar')
+        return
+      }
+      if (data.timezoneImpact) {
+        const imp = data.timezoneImpact
+        toast.success(
+          `Zona horaria guardada. ${imp.willInheritNew} sede(s) heredan el nuevo valor` +
+          (imp.willChangeTime > 0 ? `, ${imp.willChangeTime} sede(s) cambian de hora` : '') +
+          (imp.haveOwnTimezone > 0 ? `, ${imp.haveOwnTimezone} sede(s) con zona propia no se afectan` : '')
+        )
+      } else {
+        toast.success('Zona horaria del comercio guardada')
+      }
+    } catch {
+      toast.error('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-white border-2 border-border/60 rounded-2xl space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Globe size={14} className="text-primary" />
+          <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">
+            Zona horaria del comercio
+          </label>
+        </div>
+        <Badge variant={isInherited ? 'secondary' : 'outline'} className="text-[9px]">
+          {isInherited ? 'Sistema' : 'Propio'}
+        </Badge>
+      </div>
+      <select
+        value={tz}
+        onChange={e => setTz(e.target.value)}
+        className="w-full px-3 py-2 text-sm rounded-xl border border-border/60 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20"
+      >
+        {TZ_LIST.map(t => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <p className="text-[10px] text-muted-foreground/50">
+        Las sedes sin zona horaria propia heredan este valor. Las sedes con timezone propio muestran &quot;Propio&quot;.
+      </p>
+      <Button onClick={handleSave} disabled={saving} size="sm" variant="outline" aria-busy={saving}>
+        {saving ? 'Guardando...' : 'Guardar zona horaria'}
       </Button>
     </div>
   )

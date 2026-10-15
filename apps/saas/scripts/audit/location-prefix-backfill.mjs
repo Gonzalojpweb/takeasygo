@@ -14,27 +14,60 @@
 //
 // Modos (argv[2]):
 //   scan    → SOLO LECTURA: muestra qué prefijos se asignarían
-//   apply   → guarda los prefijos en DB
+//   apply   → guarda los prefijos en DB (requiere backup previo)
 //
-// Uso:
-//   MONGODB_URI=... node scripts/audit/location-prefix-backfill.mjs scan
-//   MONGODB_URI=... node scripts/audit/location-prefix-backfill.mjs apply
+// Flags:
+//   --tenant <slug>  → procesar solo un tenant (requerido para apply en prod)
+//   --db <nombre>    → nombre de base explícito
+//   --allow-prod     → override para apuntar a prod (requiere --tenant)
+//
+// Producción:
+//   scan:  MONGODB_URI=... node location-prefix-backfill.mjs scan --allow-prod
+//   apply: MONGODB_URI=... node location-prefix-backfill.mjs apply --tenant chopisburger --allow-prod
+//          (requiere aprobación previa y backup)
+//
+// El backup se guarda FUERA del repo y Dropbox (default: C:\takeasygo-backups)
+// o en TAKEASYGO_BACKUP_DIR. El script bloquea si la carpeta está dentro
+// del repo o contiene "Dropbox".
 // ============================================================================
 
 import mongoose from 'mongoose'
-import { resolveDbName, guardAgainstProd } from './_safety.mjs'
+import fs from 'fs'
+import path from 'path'
+import { resolveDbName, guardAgainstProd, PROD_DB_NAME } from './_safety.mjs'
 
 const mode = process.argv[2] ?? 'scan'
+const argv = process.argv.slice(3)
+
+function getFlag(name) {
+  const idx = argv.indexOf(name)
+  return idx >= 0 && idx + 1 < argv.length ? argv[idx + 1] : null
+}
+
+const tenantSlug = getFlag('--tenant')
+const dbArgIdx = argv.indexOf('--db')
+const dbName = dbArgIdx >= 0 ? argv[dbArgIdx + 1] : null
+
+// En producción: apply requiere --tenant (uno por vez, con aprobación)
+if (mode === 'apply') {
+  const uriCheck = process.env.MONGODB_URI
+  if (uriCheck) {
+    const dbCheck = resolveDbName(uriCheck, null)
+    if (dbCheck === PROD_DB_NAME) {
+      if (!tenantSlug) {
+        console.error('BLOQUEADO: apply en producción requiere --tenant <slug> (uno por vez).')
+        console.error('Ejemplo: node location-prefix-backfill.mjs apply --tenant chopisburger --allow-prod')
+        process.exit(2)
+      }
+    }
+  }
+}
 
 const uri = process.env.MONGODB_URI
 if (!uri) {
   console.error('Falta MONGODB_URI.')
   process.exit(1)
 }
-
-const argv = process.argv.slice(3)
-const dbArgIdx = argv.indexOf('--db')
-const dbName = dbArgIdx >= 0 ? argv[dbArgIdx + 1] : null
 
 /** Deriva prefijo base del nombre (misma lógica que sedePrefix en TS). */
 function derivePrefix(name) {
@@ -50,7 +83,7 @@ function uniquePrefix(base, usedSet) {
     const candidate = `${base.slice(0, 2)}${i}`
     if (!usedSet.has(candidate)) return candidate
   }
-  return null // no se pudo resolver
+  return null
 }
 
 async function main() {
@@ -59,9 +92,21 @@ async function main() {
   const effectiveDb = resolveDbName(uri, dbName)
   const db = mongoose.connection.useDb(effectiveDb).db
 
-  const report = { mode, db: effectiveDb, startedAt: new Date().toISOString() }
+  const report = { mode, db: effectiveDb, tenantSlug, startedAt: new Date().toISOString() }
 
-  const locations = await db.collection('locations').find({ isActive: true }).toArray()
+  // Filtrar por tenant si se indicó
+  let tenantFilter = { isActive: true }
+  if (tenantSlug) {
+    const tenant = await db.collection('tenants').findOne({ slug: tenantSlug })
+    if (!tenant) {
+      console.error(`Tenant "${tenantSlug}" no encontrado.`)
+      process.exit(1)
+    }
+    tenantFilter = { ...tenantFilter, tenantId: tenant._id }
+    report.tenantId = String(tenant._id)
+  }
+
+  const locations = await db.collection('locations').find(tenantFilter).toArray()
   report.locationsScanned = locations.length
 
   // Agrupar por tenant
@@ -77,14 +122,12 @@ async function main() {
   let aborted = false
 
   for (const [tenantId, locs] of byTenant) {
-    // Prefijos ya usados en este tenant (los que ya tienen prefix guardado)
     const usedSet = new Set()
     for (const loc of locs) {
       if (loc.prefix) usedSet.add(loc.prefix)
     }
 
     for (const loc of locs) {
-      // Ya tiene prefix → no se toca
       if (loc.prefix) {
         assignments.push({
           locationId: String(loc._id),
@@ -144,9 +187,44 @@ async function main() {
   }
 
   // ── APPLY ──────────────────────────────────────────────────────────
+  // Backup previo: guardar estado actual de las sedes que se van a modificar
+  const toAssign = assignments.filter(a => a.action === 'assign')
+  if (toAssign.length === 0) {
+    console.log(JSON.stringify({ ...report, applyResult: { updated: 0, note: 'nothing to assign' } }, null, 2))
+    await mongoose.disconnect()
+    return
+  }
+
+  // Backup FUERA del repo y de Dropbox
+  const backupBase = process.env.TAKEASYGO_BACKUP_DIR || 'C:\\takeasygo-backups'
+  // Chequeo: bloquear carpetas de respaldo dentro del repo o Dropbox
+  const repoRoot = path.resolve(process.cwd())
+  const normalized = path.resolve(backupBase)
+  if (normalized.includes('Dropbox') || normalized.startsWith(repoRoot)) {
+    console.error(`BLOQUEADO: la carpeta de respaldo debe estar fuera del repo y Dropbox.`)
+    console.error(`  Especificada: ${normalized}`)
+    console.error(`  Repo: ${repoRoot}`)
+    console.error(`  Usá TAKEASYGO_BACKUP_DIR o la default C:\\takeasygo-backups`)
+    await mongoose.disconnect()
+    process.exit(2)
+  }
+  const backupDir = normalized
+  if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true })
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const backupFile = path.join(backupDir, `prefix-backup-${timestamp}.json`)
+
+  const backupData = toAssign.map(a => ({
+    locationId: a.locationId,
+    name: a.name,
+    tenantId: a.tenantId,
+    prefixBefore: null, // no tenían prefix
+    prefixAfter: a.prefix,
+  }))
+  fs.writeFileSync(backupFile, JSON.stringify({ report, backup: backupData }, null, 2))
+  report.backupFile = backupFile
+
   let updated = 0
-  for (const a of assignments) {
-    if (a.action !== 'assign') continue
+  for (const a of toAssign) {
     await db.collection('locations').updateOne(
       { _id: new mongoose.Types.ObjectId(a.locationId) },
       { $set: { prefix: a.prefix } }
@@ -154,7 +232,7 @@ async function main() {
     updated++
   }
 
-  report.applyResult = { updated }
+  report.applyResult = { updated, backupFile }
   console.log(JSON.stringify(report, null, 2))
   await mongoose.disconnect()
 }

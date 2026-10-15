@@ -1,33 +1,80 @@
 'use client'
 
+import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 
 interface PromoHeaderProps {
   badgeLabel?: string
   title: string
+  accentColor?: string
+  imageUrl?: string
 }
 
-export function PromoHeader({ badgeLabel, title }: PromoHeaderProps) {
+export function PromoHeader({ badgeLabel, title, accentColor = '#F74211', imageUrl }: PromoHeaderProps) {
   return (
-    <div className="bg-primary rounded-t-2xl sm:rounded-t-2xl px-6 pt-6 pb-8 text-center relative overflow-hidden">
-      <div className="flex items-center justify-center gap-3 my-5">
-        <div className="size-8 rounded-lg bg-primary-foreground/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-          <img src="/tgoicon-192.png" alt="TakeAsyGo" className="size-8 object-contain" />
-        </div>
-        <span className="text-[12px] font-black tracking-[0.12em] text-primary-foreground/80 uppercase">
-          TakeAsyGo
-        </span>
-      </div>
-
-      {badgeLabel && (
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground/60 mb-2">
-          {badgeLabel}
-        </p>
+    <div
+      className="px-6 pt-6 pb-8 text-center relative overflow-hidden"
+      style={{ backgroundColor: accentColor }}
+    >
+      {imageUrl ? (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-6"
+        >
+          <div
+            className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mx-auto"
+            style={{ backgroundColor: `${accentColor}10` }}
+          >
+            <img
+              src={imageUrl}
+              alt="Promo"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          className="mb-6"
+        >
+          <div
+            className="w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center mx-auto"
+            style={{ backgroundColor: `${accentColor}10` }}
+          >
+            <img
+              src="/tgoicon-192.png"
+              alt="TakeAsyGo"
+              className="w-12 h-12 object-contain"
+            />
+          </div>
+        </motion.div>
       )}
 
-      <h3 className="text-xl sm:text-2xl font-black text-primary-foreground leading-tight tracking-tight min-w-[90%] mx-auto">
+      {badgeLabel && (
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3"
+          style={{ color: 'rgba(255, 255, 255, 0.8)' }}
+        >
+          {badgeLabel}
+        </motion.p>
+      )}
+
+      <motion.h3
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.5 }}
+        className="text-2xl font-black leading-tight tracking-tight min-w-[90%] mx-auto"
+        style={{ fontFamily: 'var(--tgo-type-section)', color: '#FFFFFF' }}
+      >
         {renderTitle(title)}
-      </h3>
+      </motion.h3>
     </div>
   )
 }
@@ -42,7 +89,7 @@ function renderTitle(title: string): ReactNode {
       <>
         {first}
         <br />
-        <span className="text-primary-foreground/90">{second.trim()}</span>
+        <span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>{second.trim()}</span>
       </>
     )
   }
@@ -55,7 +102,7 @@ function renderTitle(title: string): ReactNode {
       <>
         {first}
         <br />
-        <span className="text-primary-foreground/90">{second.trim()}</span>
+        <span style={{ color: 'rgba(255, 255, 255, 0.9)' }}>{second.trim()}</span>
       </>
     )
   }

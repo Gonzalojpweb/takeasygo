@@ -31,13 +31,16 @@ interface Props {
     authorizedAt?: string | null
   }
   mpAccounts?: MpAccount[]
+  mpMode?: 'shared' | 'perLocation'
+  mpPerLocationEnabled?: boolean
 }
 
-export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth, mpAccounts = [] }: Props) {
+export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth, mpAccounts = [], mpMode = 'shared', mpPerLocationEnabled = false }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null)
+  const [mode, setMode] = useState<'shared' | 'perLocation'>(mpPerLocationEnabled ? mpMode : 'shared')
 
   // ── Add new account ──
   const [newLabel, setNewLabel] = useState('')
@@ -173,6 +176,94 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
       </CardHeader>
 
       <CardContent className="p-8 space-y-8">
+        {/* ── Modo: compartido o por sede ── */}
+        {mpAccounts.length > 1 && (
+          <div className="space-y-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Modo de cuentas</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setMode('shared')}
+                disabled={!mpPerLocationEnabled}
+                className={cn(
+                  'p-4 rounded-2xl border-2 text-left transition-all',
+                  mode === 'shared'
+                    ? 'border-[#009EE3] bg-[#009EE3]/5'
+                    : 'border-border/60 bg-muted/20 hover:border-border',
+                  !mpPerLocationEnabled && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <p className="text-sm font-bold">Compartido</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Todas las sedes usan la cuenta activa.
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('perLocation')}
+                disabled={!mpPerLocationEnabled}
+                className={cn(
+                  'p-4 rounded-2xl border-2 text-left transition-all',
+                  mode === 'perLocation'
+                    ? 'border-[#009EE3] bg-[#009EE3]/5'
+                    : 'border-border/60 bg-muted/20 hover:border-border',
+                  !mpPerLocationEnabled && 'opacity-50 cursor-not-allowed'
+                )}
+              >
+                <p className="text-sm font-bold">Por sede</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Cada sede usa su propia cuenta de Mercado Pago.
+                </p>
+              </button>
+            </div>
+            {!mpPerLocationEnabled && (
+              <p className="text-[10px] text-muted-foreground/50">
+                El modo por sede está deshabilitado. Contactá al administrador para activarlo.
+              </p>
+            )}
+            {mpPerLocationEnabled && (
+              <div className="flex items-center justify-between pt-2">
+                <span className="text-xs text-muted-foreground">
+                  Modo actual: <strong>{mode === 'perLocation' ? 'Por sede' : 'Compartido'}</strong>
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={loading || mode === mpMode}
+                  onClick={async () => {
+                    setLoading(true)
+                    try {
+                      const res = await fetch(`/api/${tenantSlug}/settings/mercadopago`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ mpMode: mode }),
+                      })
+                      const data = await res.json().catch(() => ({}))
+                      if (!res.ok) {
+                        toast.error(data.error || 'Error al cambiar modo')
+                        return
+                      }
+                      toast.success(`Modo cambiado a ${mode === 'perLocation' ? 'por sede' : 'compartido'}`)
+                      router.refresh()
+                    } catch {
+                      toast.error('Error de conexión')
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
+                >
+                  {loading ? 'Guardando...' : 'Guardar modo'}
+                </Button>
+              </div>
+            )}
+            {mode === 'perLocation' && mpPerLocationEnabled && (
+              <p className="text-[11px] text-muted-foreground/70 bg-muted/30 rounded-xl p-3">
+                Seleccioná la cuenta de cada sede en la pestaña <strong>Sedes</strong>, dentro de cada tarjeta.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* ── Accounts List ── */}
         {mpAccounts.length > 0 && (
           <div className="space-y-3">

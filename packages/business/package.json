@@ -12,8 +12,7 @@
     "./mongo": "./dist/mongo.js",
     "./src/mongo": {
       "types": "./src/mongo.ts"
-    },
-    "PROD_DEFAULT_DB_NAME": "./dist/PROD_DEFAULT_DB_NAME.d.ts"
+    }
   },
   "scripts": {
     "build": "tsc",

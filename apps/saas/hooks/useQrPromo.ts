@@ -9,6 +9,9 @@ interface UseQrPromoReturn {
   loading: boolean
   show: boolean
   loyaltyMsg: LoyaltyMessaging | null
+  accentColor: string
+  tenantLogo: string | null
+  tenantName: string | null
   dismiss: () => void
 }
 
@@ -21,6 +24,9 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
   const [promo, setPromo] = useState<QrPromoData | null>(null)
   const [loading, setLoading] = useState(true)
   const [loyaltyMsg, setLoyaltyMsg] = useState<LoyaltyMessaging | null>(null)
+  const [accentColor, setAccentColor] = useState('#F74211')
+  const [tenantLogo, setTenantLogo] = useState<string | null>(null)
+  const [tenantName, setTenantName] = useState<string | null>(null)
   const resolvedSlug = useRef<string>('')
   const resolvedLocationId = useRef<string | null>(null)
 
@@ -55,6 +61,9 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
         setPromo(data.promo)
         setShow(true)
         if (data.loyaltyMessaging) setLoyaltyMsg(data.loyaltyMessaging)
+        if (data.accentColor) setAccentColor(data.accentColor)
+        if (data.tenantLogo) setTenantLogo(data.tenantLogo)
+        if (data.tenantName) setTenantName(data.tenantName)
 
         if (data.promo.type === 'discount') {
           sessionStorage.setItem('tgo-active-qr-promo', JSON.stringify({
@@ -94,5 +103,5 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
     })
   }, [tenantSlug, source])
 
-  return { promo, loading, show, loyaltyMsg, dismiss }
+  return { promo, loading, show, loyaltyMsg, accentColor, tenantLogo, tenantName, dismiss }
 }

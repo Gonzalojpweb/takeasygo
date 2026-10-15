@@ -1685,9 +1685,12 @@ export async function POST(
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
     const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
 
-    // ── orderNumber: perLocation (flag ON) o legacy (flag OFF) ───────
+    // ── orderNumber: perLocation (flag ON + prefijos completos) o legacy ──
     let orderNumber: string
-    if (isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)) {
+    const { allLocationsHavePrefix } = await import('@/lib/perLocationNumber')
+    const numberingReady = isFlagEnabled(tenant, FLAGS.NUMBERING_PER_LOCATION)
+      && await allLocationsHavePrefix(tenant._id)
+    if (numberingReady) {
       const locDoc = await Location.findById(body.locationId).select('name prefix').lean() as { name: string; prefix?: string } | null
       orderNumber = await nextPerLocationNumber({
         tenantId: tenant._id,
