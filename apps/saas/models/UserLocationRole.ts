@@ -74,6 +74,10 @@ if (process.env.NODE_ENV !== 'production') {
 
 const UserLocationRole =
   (mongoose.models.UserLocationRole as mongoose.Model<IUserLocationRole>) ||
-  mongoose.model<IUserLocationRole>('UserLocationRole', UserLocationRoleSchema)
+  // 3er arg FORZADO: sin él mongoose usaría `userlocationroles` (plural
+  // por defecto) y las filas reales del backfill (`user_location_roles`,
+  // ver scripts/audit/user-location-roles-apply.mjs) quedarían invisibles
+  // para la app: el flag rbac.sedeScope caería siempre al fallback legacy.
+  mongoose.model<IUserLocationRole>('UserLocationRole', UserLocationRoleSchema, 'user_location_roles')
 
 export default UserLocationRole

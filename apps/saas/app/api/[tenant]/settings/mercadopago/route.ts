@@ -4,6 +4,7 @@ import Location from '@/models/Location'
 import Order from '@/models/Order'
 import Reservation from '@/models/Reservation'
 import { encrypt, decrypt } from '@/lib/crypto'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
@@ -129,6 +130,20 @@ export async function PUT(
 
     // ── Protección: cambiar a perLocation requiere verificaciones ──
     if (mpMode === 'perLocation') {
+      // 0. Cuenta compartida válida (ajuste Gonzalo 2026-10): el sistema se
+      //    NIEGA a encender "por sede" si el tenant no tiene una cuenta
+      //    activa con credenciales (mismo criterio que getActiveMpAccount).
+      const hasSharedAccount = getActiveMpAccount(tenant) !== null
+      if (!hasSharedAccount) {
+        return NextResponse.json(
+          {
+            error:
+              'No se puede cambiar a "por sede": no hay ninguna cuenta de Mercado Pago activa con credenciales. Activá o configurá la cuenta compartida primero.',
+          },
+          { status: 409 }
+        )
+      }
+
       // 1. Cada sede activa debe tener cuenta elegida
       const activeLocations = await Location.find({ tenantId: tenant._id, isActive: true })
         .select('name settings.mpAccountId').lean()
