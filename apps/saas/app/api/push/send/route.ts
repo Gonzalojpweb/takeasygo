@@ -4,11 +4,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { auth } from '@/lib/auth'
 
-webpush.setVapidDetails(
-  'mailto:clickandthink1@gmail.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+try {
+  webpush.setVapidDetails(
+    'mailto:clickandthink1@gmail.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+} catch {
+  // Sin VAPID en el ambiente: Next importa todas las rutas al build y
+  // setVapidDetails revienta sin claves — no debe romper el build.
+}
 
 export async function POST(request: NextRequest) {
   try {

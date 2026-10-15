@@ -12,11 +12,16 @@ import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 
-webpush.setVapidDetails(
-  'mailto:clickandthink1@gmail.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+try {
+  webpush.setVapidDetails(
+    'mailto:clickandthink1@gmail.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+} catch {
+  // Sin VAPID en el ambiente: Next importa todas las rutas al build y
+  // setVapidDetails revienta sin claves — no debe romper el build.
+}
 
 const CRON_SECRET = process.env.CRON_SECRET
 const RECONCILE_WINDOW_MINUTES = 120

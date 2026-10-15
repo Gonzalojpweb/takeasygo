@@ -50,11 +50,16 @@ import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 
-webpush.setVapidDetails(
-  'mailto:clickandthink1@gmail.com',
-  process.env.VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+try {
+  webpush.setVapidDetails(
+    'mailto:clickandthink1@gmail.com',
+    process.env.VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+} catch {
+  // Sin VAPID en el ambiente: Next importa todas las rutas al build y
+  // setVapidDetails revienta sin claves — no debe romper el build.
+}
 
 // Gate E: ventana de frescura para el heartbeat del POS por sede.
 // Si una sede configuró posLocationGate y ninguna caja POS reportó
