@@ -1,5 +1,7 @@
 import { sendEmail } from './email'
+import { sendWhatsApp } from './whatsapp'
 import User from '@/models/User'
+import Tenant from '@/models/Tenant'
 import PushSubscription from '@/models/PushSubscription'
 import webpush from 'web-push'
 
@@ -95,6 +97,27 @@ function wrapHtml(bodyHtml: string): string {
   `
 }
 
+async function sendWhatsAppToClient(phone: string | undefined, body: string): Promise<void> {
+  if (!phone || !process.env.WHAPI_TOKEN) return
+  try {
+    await sendWhatsApp(phone, body)
+  } catch (e) {
+    console.error('[reservationNotifications] whatsapp client error:', e)
+  }
+}
+
+function reservationCardText(
+  r: ReservationInfo,
+  locationName?: string,
+  withNotes?: boolean
+): string {
+  const lines: string[] = [`📅 ${formatDate(r.date)}`, `🕐 ${r.time} hs`, `👥 ${r.partySize} personas`]
+  if (locationName) lines.push(`📍 ${locationName}`)
+  lines.push(`🔢 Código: #${r.reservationNumber}`)
+  if (withNotes && r.notes) lines.push(`📝 Notas: ${r.notes}`)
+  return lines.join('\n')
+}
+
 async function sendAdminNotification(
   tenantId: string,
   reservation: ReservationInfo,
@@ -144,6 +167,22 @@ async function sendAdminNotification(
   await Promise.allSettled(
     admins.map(admin => sendEmail(admin.email, subject, html))
   )
+
+  // Cancelación → también al celular del local (igual que los pedidos).
+  // La "nueva reserva" ya sale por WhatsApp desde el POST de /reservas.
+  if (type === 'cancelled' && tenantId && process.env.WHAPI_TOKEN) {
+    try {
+      const tenantDoc = await Tenant.findById(tenantId).select('notifications').lean() as any
+      if (tenantDoc?.notifications?.whatsappPhone && tenantDoc.notifications.notifyOnReservation !== false) {
+        await sendWhatsApp(
+          tenantDoc.notifications.whatsappPhone,
+          `❌ *Reserva cancelada en ${tenant.name}*\n👤 ${reservation.name} - ${dateFormatted} ${reservation.time} hs\n👥 ${reservation.partySize} pers. · Código #${reservation.reservationNumber}`
+        )
+      }
+    } catch (e) {
+      console.error('[reservationNotifications] whatsapp admin error:', e)
+    }
+  }
 }
 
 export async function sendReservationConfirmation(
@@ -169,6 +208,10 @@ export async function sendReservationConfirmation(
   if (reservation.email) {
     await sendEmail(reservation.email, subject, wrapHtml(bodyHtml)).catch(() => {})
   }
+  await sendWhatsAppToClient(
+    reservation.phone,
+    `✅ *Reserva confirmada en ${tenant.name}*\n\nHola ${reservation.name}, tu reserva está confirmada.\n\n${reservationCardText(reservation, locationName, true)}\n\nTe esperamos 🎉`
+  )
   await sendPushToClientToken(reservation.clientToken, {
     title: `Reserva confirmada en ${tenant.name}`,
     body: `El ${dateFormatted} a las ${reservation.time} hs. Código: ${reservation.reservationNumber}`,
@@ -198,6 +241,10 @@ export async function sendReservationReminder(
   if (reservation.email) {
     await sendEmail(reservation.email, subject, wrapHtml(bodyHtml)).catch(() => {})
   }
+  await sendWhatsAppToClient(
+    reservation.phone,
+    `⏰ *Recordatorio de reserva*\n\nHola ${reservation.name}, te recordamos que tu reserva en ${tenant.name} es hoy.\n\n${reservationCardText(reservation, locationName, true)}\n\nSi necesitás cancelar o modificar, contactá al restaurante.`
+  )
   await sendPushToClientToken(reservation.clientToken, {
     title: `Recordatorio: ${tenant.name}`,
     body: `Tu reserva es hoy a las ${reservation.time} hs. Código: ${reservation.reservationNumber}`,
@@ -223,6 +270,10 @@ export async function sendReservationCancellation(
   if (reservation.email) {
     await sendEmail(reservation.email, subject, wrapHtml(bodyHtml)).catch(() => {})
   }
+  await sendWhatsAppToClient(
+    reservation.phone,
+    `❌ *Reserva cancelada en ${tenant.name}*\n\nHola ${reservation.name}, tu reserva del ${dateFormatted} a las ${reservation.time} hs fue cancelada.\n🔢 Código: #${reservation.reservationNumber}`
+  )
   await sendPushToClientToken(reservation.clientToken, {
     title: `Reserva cancelada en ${tenant.name}`,
     body: `Tu reserva del ${dateFormatted} a las ${reservation.time} fue cancelada`,
