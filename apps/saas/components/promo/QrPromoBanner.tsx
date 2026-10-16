@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation'
 import { useQrPromo } from '@/hooks/useQrPromo'
 import { PromoModal } from './PromoModal'
+import { PromoHeader } from './PromoHeader'
+import { PromoImage } from './PromoImage'
 import { DiscountContent } from './DiscountContent'
 import { InfoContent } from './InfoContent'
 import { LoyaltyContent } from './LoyaltyContent'
@@ -31,6 +33,15 @@ export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
       tenantLogo={tenantLogo || undefined}
       accentColor={accentColor}
     >
+      <PromoHeader
+        badgeLabel={promo.badgeLabel}
+        title={promo.title}
+        accentColor={accentColor}
+        imageUrl={promo.imageUrl}
+      />
+
+      {promo.imageUrl && <PromoImage src={promo.imageUrl} alt={promo.title} />}
+
       {promo.type === 'discount' && (
         <DiscountContent promo={promo} onContinue={dismiss} accentColor={accentColor} />
       )}
@@ -49,7 +60,15 @@ export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
         />
       )}
 
-      {promo.type !== 'discount' && promo.termsText && (
+      <button
+        onClick={dismiss}
+        className="text-xs font-semibold transition-colors text-center py-3"
+        style={{ color: 'var(--tgo-text-muted, #A09A95)' }}
+      >
+        Seguir navegando
+      </button>
+
+      {promo.termsText && (
         <p className="text-[10px] text-center leading-relaxed px-6 pb-6" style={{ color: 'var(--tgo-text-muted, #A09A95)', opacity: 0.7 }}>
           {promo.termsText}
         </p>

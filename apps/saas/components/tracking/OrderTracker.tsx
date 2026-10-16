@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import ConfirmPickupButton from './ConfirmPickupButton'
@@ -37,22 +37,22 @@ const TRACKING_TO_LCS_EXPRESSION: Record<string, LcsFaceExpression> = {
 const STATUS_STEPS = ['awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered']
 
 const STATUS_INFO: Record<string, { label: string; description: string; emoji: string; pulse?: boolean }> = {
-  awaiting_payment: { label: 'Esperando pago', description: 'Completá el pago para confirmar tu pedido', emoji: '💳' },
-  awaiting_confirmation: { label: 'Esperando confirmación', description: 'El local está verificando tu pago', emoji: '⏳', pulse: true },
-  pending:   { label: 'Recibido',   description: 'Tu pedido fue recibido y está esperando confirmación', emoji: '📋' },
-  confirmed: { label: 'Confirmado', description: 'El restaurante confirmó tu pedido', emoji: '✅', pulse: true },
-  preparing: { label: 'Preparando', description: 'Tu pedido está siendo preparado', emoji: '👨‍🍳', pulse: true },
-  ready:     { label: '¡Listo!',    description: '¡Pasá a retirar tu pedido!', emoji: '🎉', pulse: true },
-  en_ruta:   { label: 'En camino',  description: 'El delivery está en camino a tu dirección', emoji: '🚗', pulse: true },
-  arrived:   { label: 'Llegó',      description: 'El delivery llegó a tu domicilio', emoji: '📍', pulse: true },
-  delivered: { label: 'Entregado',  description: 'Pedido entregado. ¡Que lo disfrutes!', emoji: '🍽️' },
-  cancelled: { label: 'Cancelado',  description: 'El pedido fue cancelado', emoji: '❌' },
+  awaiting_payment: { label: 'Esperando pago', description: 'CompletÃ¡ el pago para confirmar tu pedido', emoji: 'ðŸ’³' },
+  awaiting_confirmation: { label: 'Esperando confirmaciÃ³n', description: 'El local estÃ¡ verificando tu pago', emoji: 'â³', pulse: true },
+  pending:   { label: 'Recibido',   description: 'Tu pedido fue recibido y estÃ¡ esperando confirmaciÃ³n', emoji: 'ðŸ“‹' },
+  confirmed: { label: 'Confirmado', description: 'El restaurante confirmÃ³ tu pedido', emoji: 'âœ…', pulse: true },
+  preparing: { label: 'Preparando', description: 'Tu pedido estÃ¡ siendo preparado', emoji: 'ðŸ‘¨â€ðŸ³', pulse: true },
+  ready:     { label: 'Â¡Listo!',    description: 'Â¡PasÃ¡ a retirar tu pedido!', emoji: 'ðŸŽ‰', pulse: true },
+  en_ruta:   { label: 'En camino',  description: 'El delivery estÃ¡ en camino a tu direcciÃ³n', emoji: 'ðŸš—', pulse: true },
+  arrived:   { label: 'LlegÃ³',      description: 'El delivery llegÃ³ a tu domicilio', emoji: 'ðŸ“', pulse: true },
+  delivered: { label: 'Entregado',  description: 'Pedido entregado. Â¡Que lo disfrutes!', emoji: 'ðŸ½ï¸' },
+  cancelled: { label: 'Cancelado',  description: 'El pedido fue cancelado', emoji: 'âŒ' },
 }
 
 const PREPARING_MESSAGES = [
-  'Tu pedido está siendo preparado',
+  'Tu pedido estÃ¡ siendo preparado',
   'Estamos procesando tu pedido',
-  'El restaurante está trabajando en tu pedido',
+  'El restaurante estÃ¡ trabajando en tu pedido',
 ]
 
 interface Props {
@@ -92,7 +92,7 @@ interface Props {
     apt?: string
     city: string
   }
-  // ── Transferencia ─────────────────────────────────────────────────
+  // â”€â”€ Transferencia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   initialPaymentMethod?: string
   initialBaseTotal?: number
   initialSurchargePercent?: number
@@ -105,14 +105,16 @@ interface Props {
     cbu: string | null
     cvu: string | null
   } | null
-  initialReviewUrl?: string | null
+initialReviewUrl?: string | null
   orderItems: { _id: string; name: string; quantity: number; subtotal?: number; menuItemId?: string }[]
   orderTotal: number
-  // ── Retorno de MercadoPago (?status=... en la query string) ──────────────
+  // ── Retorno de MercadoPago (?status=... en la query string) ──
   // Se pasa desde la página de tracking cuando el cliente volvió del checkout
   // de MP con un resultado. Sirve para mostrar el motivo real del rechazo.
   mpReturnOutcome?: string | null
   mpStatusDetail?: string | null
+  // ── MercadoPago payment ID ──
+  initialMercadoPagoId?: string | null
 }
 
 function formatCountdown(target: string): string {
@@ -124,7 +126,7 @@ function formatCountdown(target: string): string {
 
 function formatScheduledDate(dateStr: string): string {
   const date = new Date(dateStr)
-  const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+  const dayNames = ['Domingo', 'Lunes', 'Martes', 'MiÃ©rcoles', 'Jueves', 'Viernes', 'SÃ¡bado']
   const monthNames = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
   const day = dayNames[date.getDay()]
   const d = date.getDate()
@@ -141,25 +143,28 @@ function buildWhatsAppLink(phone: string, opts: {
   orderMode?: string
   deliveryAddress?: { street: string; number: string; apt?: string; city: string }
   trackingUrl: string
+  paymentId?: string
 }): string {
-  const { customerName, orderNumber, amount, orderMode, deliveryAddress, trackingUrl } = opts
+  const { customerName, orderNumber, amount, orderMode, deliveryAddress, trackingUrl, paymentId } = opts
   const cleanPhone = phone.replace(/[^\d]/g, '')
 
   const modeLabel = orderMode === 'delivery' ? '🚚 DELIVERY' : '🥡 TAKE AWAY'
-  const totalFormatted = `$${toPesos(amount).toLocaleString('es-AR')}`
+  const totalFormatted = `${toPesos(amount).toLocaleString('es-AR')}`
 
   let msg = `Hola, soy ${customerName.trim() || 'un cliente'} y realicé el pedido #${orderNumber}.
 
 💵 *Monto total del pedido: ${totalFormatted}*
-(Incluye envío y recargo de transferencia cuando corresponde.)
-
-Les envío el comprobante de pago por el monto total del pedido.
+(Incluye envío y recargos cuando corresponde.)
 
 ${modeLabel}`
 
+  if (paymentId) {
+    msg += `\n💳 *Pago MercadoPago:* ${paymentId}`
+  }
+
   if (orderMode === 'delivery' && deliveryAddress) {
     const addr = deliveryAddress
-    msg += `\nDirección: ${addr.street} ${addr.number}${addr.apt ? `, ${addr.apt}` : ''}, ${addr.city}`
+    msg += `\nDirección: ${addr.street} ${addr.number}${addr.apt ? ', ' + addr.apt : ''}, ${addr.city}`
   }
 
   msg += `\n\nSeguimiento del pedido:\n${trackingUrl}`
@@ -200,6 +205,7 @@ export default function OrderTracker({
   initialTransferConfirmed,
   initialCustomerName = '',
   initialWhatsAppPhone,
+  initialMercadoPagoId,
   initialTransferData,
   initialReviewUrl = null,
   orderItems,
@@ -224,7 +230,7 @@ export default function OrderTracker({
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
   const [deliveryProviderType, setDeliveryProviderType] = useState<'own' | 'rapiboy' | null>(null)
   const [deliveryProviderTrackingUrl, setDeliveryProviderTrackingUrl] = useState<string | null>(null)
-  // ── Rapiboy price acceptance ──────────────────────────────────────
+  // â”€â”€ Rapiboy price acceptance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const [rapiboyQuoteStatus, setRapiboyQuoteStatus] = useState<string>('none')
   const [rapiboyCheckoutCost, setRapiboyCheckoutCost] = useState(0)
   const [rapiboyPendingQuoteCost, setRapiboyPendingQuoteCost] = useState(0)
@@ -232,7 +238,7 @@ export default function OrderTracker({
   const [rapiboyChargedToCustomer, setRapiboyChargedToCustomer] = useState(0)
   const [rapiboyAcceptLoading, setRapiboyAcceptLoading] = useState(false)
   const [rapiboyRejectLoading, setRapiboyRejectLoading] = useState(false)
-  // ── Transferencia (cache local que se actualiza vía polling) ──────
+  // â”€â”€ Transferencia (cache local que se actualiza vÃ­a polling) â”€â”€â”€â”€â”€â”€
   const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod || 'mercadopago')
   const [baseTotal, setBaseTotal] = useState(initialBaseTotal || 0)
   const [surchargePercent, setSurchargePercent] = useState(initialSurchargePercent || 0)
@@ -241,25 +247,32 @@ export default function OrderTracker({
   const [impactRegistered, setImpactRegistered] = useState(false)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
+  const [mercadoPagoId] = useState(initialMercadoPagoId || null)
   const redeemedFiredRef = useRef(false)
   const [confirmTransferLoading, setConfirmTransferLoading] = useState(false)
-  // ── Salida de emergencia para pedidos varados en awaiting_payment ─────
+  // â”€â”€ Salida de emergencia para pedidos varados en awaiting_payment â”€â”€â”€â”€â”€
   const [exitLoading, setExitLoading] = useState(false)
 
-  // Monto total real a transferir = baseTotal (incluye envío) + recargo de
-  // transferencia. Es el mismo cálculo que persiste el server en order.total.
-  // Fallback a orderTotal para órdenes viejas sin payment.baseTotal.
+  // Monto total real a transferir = baseTotal (incluye envÃ­o) + recargo de
+  // transferencia. Es el mismo cÃ¡lculo que persiste el server en order.total.
+  // Fallback a orderTotal para Ã³rdenes viejas sin payment.baseTotal.
   const transferTotal = (baseTotal || 0) + (surchargeAmount || 0) || orderTotal
-  const whatsAppLink = whatsAppPhone && paymentMethod === 'transfer'
+  const isTransfer = paymentMethod === 'transfer'
+  const isMercadoPago = paymentMethod === 'mercadopago' && mercadoPagoId
+  const showWhatsApp = whatsAppPhone && (isTransfer || isMercadoPago)
+  const amount = isTransfer ? transferTotal : orderTotal
+  const paymentId = isMercadoPago ? mercadoPagoId : undefined
+  const whatsAppLink = showWhatsApp
     ? buildWhatsAppLink(whatsAppPhone, {
         customerName: initialCustomerName,
         orderNumber,
-        amount: transferTotal,
+        amount,
         orderMode,
         deliveryAddress,
         trackingUrl: typeof window !== 'undefined'
           ? `${window.location.origin}/${tenantSlug}/tracking/${orderNumber}`
           : '',
+        paymentId,
       })
     : null
   const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -268,7 +281,7 @@ export default function OrderTracker({
 
   const [msgIndex, setMsgIndex] = useState(0)
 
-  // ── Rapiboy countdown ─────────────────────────────────────────────
+  // â”€â”€ Rapiboy countdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const ACCEPT_WINDOW_MS = 15 * 60 * 1000
   const [rapiboyCountdown, setRapiboyCountdown] = useState('')
 
@@ -312,7 +325,7 @@ export default function OrderTracker({
         setDeliveryProviderType('rapiboy')
       }
       setRapiboyQuoteStatus('accepted')
-      toast.success('¡Precio aceptado! El delivery está en camino.')
+      toast.success('Â¡Precio aceptado! El delivery estÃ¡ en camino.')
       playNotification()
     } catch (err: any) {
       toast.error(err.message || 'Error al aceptar el precio')
@@ -335,7 +348,7 @@ export default function OrderTracker({
         throw new Error(err.error || 'Error')
       }
       setRapiboyQuoteStatus('rejected')
-      toast.info('Envío cancelado. El restaurante se contactará para coordinar la entrega.')
+      toast.info('EnvÃ­o cancelado. El restaurante se contactarÃ¡ para coordinar la entrega.')
       playNotification()
     } catch (err: any) {
       toast.error(err.message || 'Error al rechazar el precio')
@@ -349,12 +362,12 @@ export default function OrderTracker({
   /**
    * Salida de emergencia: cancela un pedido varado en `awaiting_payment`.
    * Necesaria porque cuando MercadoPago falla en SU propio checkout no hay
-   * webhook ni back_url utilizable, y el cliente queda sin ninguna acción.
-   * El pedido nunca se cobró → no hay reembolso pendiente.
+   * webhook ni back_url utilizable, y el cliente queda sin ninguna acciÃ³n.
+   * El pedido nunca se cobrÃ³ â†’ no hay reembolso pendiente.
    */
   const handleCancelAwaiting = useCallback(async () => {
     if (!trackingToken) return
-    if (!confirm('¿Cancelar este pedido? No fue cobrado, así que no hay reembolso pendiente.')) return
+    if (!confirm('Â¿Cancelar este pedido? No fue cobrado, asÃ­ que no hay reembolso pendiente.')) return
     setExitLoading(true)
     try {
       const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/cancel-awaiting`, {
@@ -424,7 +437,7 @@ export default function OrderTracker({
     sessionStorage.removeItem(`cart_${tenantSlug}`)
   }, [tenantSlug])
 
-  // Verificar inmediatamente si está esperando pago al cargar
+  // Verificar inmediatamente si estÃ¡ esperando pago al cargar
   useEffect(() => {
     if (initialStatus === 'awaiting_payment') {
       poll()
@@ -441,7 +454,7 @@ export default function OrderTracker({
   }, [status, poll])
 
   // Countdown timer (actualiza cada 30s)
-  // Usa customerEstimatedReadyAt si está disponible (incluye demora informada por el restaurante)
+  // Usa customerEstimatedReadyAt si estÃ¡ disponible (incluye demora informada por el restaurante)
   const effectiveEstimatedReadyAt = customerEstimatedReadyAt ?? estimatedReadyAt
   useEffect(() => {
     if (!effectiveEstimatedReadyAt) return
@@ -456,7 +469,7 @@ export default function OrderTracker({
     const updateScheduleCountdown = () => {
       const diff = new Date(scheduledPickupAt).getTime() - Date.now()
       if (diff <= 0) {
-        setScheduleCountdown('Tu pedido está siendo activado...')
+        setScheduleCountdown('Tu pedido estÃ¡ siendo activado...')
         return
       }
       const hours = Math.floor(diff / 3_600_000)
@@ -472,7 +485,7 @@ export default function OrderTracker({
     return () => clearInterval(interval)
   }, [isScheduledPending, scheduledPickupAt])
 
-  // Evaluar si la ventana de cancelación está cerrada
+  // Evaluar si la ventana de cancelaciÃ³n estÃ¡ cerrada
   useEffect(() => {
     const check = () => {
       if (!confirmedAt) {
@@ -495,17 +508,17 @@ export default function OrderTracker({
     return () => clearInterval(interval)
   }, [confirmedAt, status])
 
-  // Momento 06 + 07: Sonido + notificación + haptic en cambios de estado clave
+  // Momento 06 + 07: Sonido + notificaciÃ³n + haptic en cambios de estado clave
   const prevStatusRef = useRef(status)
   const impactToastShown = useRef(false)
   useEffect(() => {
     if (status === 'confirmed' && prevStatusRef.current !== 'confirmed') {
       toast(
         <StatusNotificationCard
-          icon="✅"
+          icon="âœ…"
           iconBg="#10b981"
           title="Tu pedido fue confirmado"
-          description="El restaurante está procesando tu pedido"
+          description="El restaurante estÃ¡ procesando tu pedido"
         />,
         { duration: 6000, position: 'top-center' }
       )
@@ -515,10 +528,10 @@ export default function OrderTracker({
     if (status === 'ready' && prevStatusRef.current !== 'ready') {
       toast(
         <StatusNotificationCard
-          icon="🎉"
+          icon="ðŸŽ‰"
           iconBg="#3b82f6"
-          title="¡Tu pedido está listo!"
-          description="Pasá a retirar tu pedido"
+          title="Â¡Tu pedido estÃ¡ listo!"
+          description="PasÃ¡ a retirar tu pedido"
         />,
         { duration: 10000, position: 'top-center' }
       )
@@ -530,10 +543,10 @@ export default function OrderTracker({
       const name = deliveryPersonName ? ` (${deliveryPersonName})` : ''
       toast(
         <StatusNotificationCard
-          icon="🚗"
+          icon="ðŸš—"
           iconBg="#f59e0b"
           title={`Delivery en camino${name}`}
-          description="El delivery está yendo a tu dirección"
+          description="El delivery estÃ¡ yendo a tu direcciÃ³n"
         />,
         { duration: 8000, position: 'top-center' }
       )
@@ -543,10 +556,10 @@ export default function OrderTracker({
     if (status === 'arrived' && prevStatusRef.current !== 'arrived') {
       toast(
         <StatusNotificationCard
-          icon="📍"
+          icon="ðŸ“"
           iconBg="#10b981"
-          title="El delivery llegó"
-          description="Entregale el código de 6 dígitos al delivery"
+          title="El delivery llegÃ³"
+          description="Entregale el cÃ³digo de 6 dÃ­gitos al delivery"
         />,
         { duration: 10000, position: 'top-center' }
       )
@@ -556,7 +569,7 @@ export default function OrderTracker({
     prevStatusRef.current = status
   }, [status, playNotification])
 
-  // Momento 04: Notificar Reward Advance (uso o consolidación)
+  // Momento 04: Notificar Reward Advance (uso o consolidaciÃ³n)
   const advanceShownRef = useRef(false)
   useEffect(() => {
     if (advanceShownRef.current) return
@@ -566,10 +579,10 @@ export default function OrderTracker({
       if (navigator.vibrate) navigator.vibrate([80, 40, 80])
       toast(
         <StatusNotificationCard
-          icon="✅"
+          icon="âœ…"
           iconBg="#10b981"
           title="Reward Advance consolidado"
-          description="Tus puntos se actualizaron y tu saldo está al día. ¡Seguí acumulando!"
+          description="Tus puntos se actualizaron y tu saldo estÃ¡ al dÃ­a. Â¡SeguÃ­ acumulando!"
         />,
         { duration: 6000 }
       )
@@ -579,24 +592,24 @@ export default function OrderTracker({
       if (navigator.vibrate) navigator.vibrate([60, 30, 60])
       toast(
         <StatusNotificationCard
-          icon="✨"
+          icon="âœ¨"
           iconBg="#f59e0b"
           title="Reward Advance activado"
-          description="Te adelantamos los puntos para que disfrutes tu recompensa. Consolidalos en tu próxima compra."
+          description="Te adelantamos los puntos para que disfrutes tu recompensa. Consolidalos en tu prÃ³xima compra."
         />,
         { duration: 6000 }
       )
     }
   }, [rewardAdvanceApplied, rewardAdvanceConsolidated, playNotification])
 
-  // Impact toast — only when server confirms impact was registered
+  // Impact toast â€” only when server confirms impact was registered
   useEffect(() => {
     if (impactRegistered && !impactToastShown.current) {
       impactToastShown.current = true
       setTimeout(() => {
         toast(
           <StatusNotificationCard
-            icon="🌍"
+            icon="ðŸŒ"
             iconBg="#10b981"
             title="Generaste impacto"
             description="Tu orden apoya comercios locales"
@@ -607,12 +620,12 @@ export default function OrderTracker({
     }
   }, [impactRegistered])
 
-  // Momento 03: Notificar puntos ganados al cargar la página de tracking
+  // Momento 03: Notificar puntos ganados al cargar la pÃ¡gina de tracking
   const pointsShownRef = useRef(false)
   useEffect(() => {
     if (pointsEarnedFromOrder > 0 && loyaltyData && !pointsShownRef.current) {
       pointsShownRef.current = true
-      const cheapestItemCost = 0 // se podría calcular desde storeItems, omitido por simplicidad
+      const cheapestItemCost = 0 // se podrÃ­a calcular desde storeItems, omitido por simplicidad
       const progress = cheapestItemCost > 0
         ? (loyaltyData.points / cheapestItemCost) * 100
         : 50
@@ -630,23 +643,23 @@ export default function OrderTracker({
     }
   }, [pointsEarnedFromOrder, loyaltyData, clubName, playNotification])
 
-  // B9: Countdown 2:30 tras bambalina — cuando llega a cero, toast informativo
-  // Solo se ejecuta cuando el pedido está confirmado, sin modificar estados reales
+  // B9: Countdown 2:30 tras bambalina â€” cuando llega a cero, toast informativo
+  // Solo se ejecuta cuando el pedido estÃ¡ confirmado, sin modificar estados reales
   const [cancellationToastShown, setCancellationToastShown] = useState(false)
   useEffect(() => {
     if (status !== 'confirmed' || cancellationToastShown) return
     const timer = setTimeout(() => {
       toast(
         <StatusNotificationCard
-          icon="🔒"
+          icon="ðŸ”’"
           iconBg="#e11d48"
-          title="Tu pedido ya entró en preparación"
+          title="Tu pedido ya entrÃ³ en preparaciÃ³n"
           description="A partir de este momento ya no puede cancelarse"
         />,
         { duration: 5000, position: 'top-center' }
       )
       setCancellationToastShown(true)
-    }, 3 * 60 * 1000) // 3 min — unificado con cancellationClosed
+    }, 3 * 60 * 1000) // 3 min â€” unificado con cancellationClosed
     return () => clearTimeout(timer)
   }, [status, cancellationToastShown])
 
@@ -679,7 +692,7 @@ export default function OrderTracker({
       <div className="text-center mb-10">
         {isScheduledPending ? (
           <>
-            <div className="text-6xl mb-4">📅</div>
+            <div className="text-6xl mb-4">ðŸ“…</div>
             <h1 className="text-2xl font-black mb-2">Pedido programado</h1>
             {scheduledPickupAt && (
               <p className="text-sm opacity-60 mb-3">
@@ -688,11 +701,11 @@ export default function OrderTracker({
             )}
             {scheduleCountdown && (
               <p className="text-sm font-semibold" style={{ color: primaryColor }}>
-                ⏱ {scheduleCountdown}
+                â± {scheduleCountdown}
               </p>
             )}
             <p className="mt-3 text-xs opacity-40">
-              Tu pedido comenzará a prepararse cerca de la hora programada
+              Tu pedido comenzarÃ¡ a prepararse cerca de la hora programada
             </p>
           </>
         ) : (
@@ -741,15 +754,15 @@ export default function OrderTracker({
         {/* Tiempo estimado */}
         {effectiveEstimatedReadyAt && ['confirmed', 'preparing'].includes(status) && (
           <p className="mt-3 text-sm font-semibold" style={{ color: primaryColor }}>
-            ⏱ Listo {countdown}
+            â± Listo {countdown}
           </p>
         )}
 
-        {/* Indicador de actualización en vivo */}
+        {/* Indicador de actualizaciÃ³n en vivo */}
         {!['delivered', 'cancelled'].includes(status) && lastChecked && (
           <p className="mt-2 text-xs opacity-30 flex items-center justify-center gap-1.5">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-            <span>Actualiza automáticamente · última vez {lastChecked.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+            <span>Actualiza automÃ¡ticamente Â· Ãºltima vez {lastChecked.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
           </p>
         )}
       </div>
@@ -791,7 +804,7 @@ export default function OrderTracker({
               </div>
             ))}
           </div>
-          {/* Línea de progreso */}
+          {/* LÃ­nea de progreso */}
           <div className="h-1 rounded-full w-full mx-auto" style={{ backgroundColor: primaryColor + '20' }}>
             <div
               className="h-1 rounded-full transition-all duration-700"
@@ -804,7 +817,7 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* Client confirm button — report stuck orders */}
+      {/* Client confirm button â€” report stuck orders */}
       {trackingToken && !['delivered', 'cancelled'].includes(status) && (
         <div className="mb-6 text-center">
           <ClientConfirmButton
@@ -819,7 +832,7 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* Botón cancelar pedido (transfer/efectivo, dentro de ventana de 3 min) */}
+      {/* BotÃ³n cancelar pedido (transfer/efectivo, dentro de ventana de 3 min) */}
       {!cancellationClosed && status !== 'cancelled' && status !== 'delivered' &&
         (paymentMethod === 'transfer' || paymentMethod === 'cash') &&
         (paymentMethod === 'cash'
@@ -836,43 +849,43 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* ── SALIDA DE EMERGENCIA: pedido varado en "esperando pago" ─────────
+      {/* â”€â”€ SALIDA DE EMERGENCIA: pedido varado en "esperando pago" â”€â”€â”€â”€â”€â”€â”€â”€â”€
           Cuando MercadoPago falla en su propio checkout no se crea el payment,
-          así que no hay webhook ni back_url utilizable: el tracking se quedaba
-          en "Esperando pago" sin ninguna acción y el cliente no tenía forma de
+          asÃ­ que no hay webhook ni back_url utilizable: el tracking se quedaba
+          en "Esperando pago" sin ninguna acciÃ³n y el cliente no tenÃ­a forma de
           salir (ni cancelar, ni reintentar, ni pedir de nuevo por el 409).
-          Se calcula on-read en cada carga/polling — NO depende del cron diario. */}
+          Se calcula on-read en cada carga/polling â€” NO depende del cron diario. */}
       {status === 'awaiting_payment' && trackingToken && (
         <div className="mb-6 rounded-2xl border-2 p-5 space-y-4"
           style={{ borderColor: primaryColor + '40', backgroundColor: primaryColor + '08' }}>
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
               style={{ backgroundColor: primaryColor + '15' }}>
-              <span className="text-base">💳</span>
+              <span className="text-base">ðŸ’³</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm" style={{ color: textColor }}>
                 {paymentMethod === 'transfer'
-                  ? '¿No vas a realizar la transferencia?'
+                  ? 'Â¿No vas a realizar la transferencia?'
                   : 'Tu pedido sigue sin pagar'}
               </p>
               <p className="text-xs mt-1 leading-relaxed" style={{ opacity: 0.6 }}>
                 {paymentMethod === 'transfer'
-                  ? 'Si no vas a transferir, cancelá el pedido para liberarlo.'
-                  : 'Ningún pago se acreditó. Podés reintentar con otro método o cancelarlo y volver a pedir cuando quieras.'}
+                  ? 'Si no vas a transferir, cancelÃ¡ el pedido para liberarlo.'
+                  : 'NingÃºn pago se acreditÃ³. PodÃ©s reintentar con otro mÃ©todo o cancelarlo y volver a pedir cuando quieras.'}
               </p>
               {paymentMethod !== 'transfer' && mpReturnOutcome === 'rejected' && (
                 <p className="text-xs mt-2 font-semibold" style={{ color: primaryColor }}>
-                  MercadoPago rechazó el pago
+                  MercadoPago rechazÃ³ el pago
                   {mpStatusDetail ? ` (${mpStatusDetail})` : ''}.
                 </p>
               )}
             </div>
           </div>
 
-          {/* Segunda salida: cambiar el método de pago conservando el pedido.
+          {/* Segunda salida: cambiar el mÃ©todo de pago conservando el pedido.
               Va por encima de cancelar porque cancelar obliga a rearmar el
-              carrito desde cero. El botón de cancelar queda como última
+              carrito desde cero. El botÃ³n de cancelar queda como Ãºltima
               instancia, abajo. */}
           <PaymentMethodRetry
             tenantSlug={tenantSlug}
@@ -897,13 +910,13 @@ export default function OrderTracker({
               className="flex-1 py-3 rounded-2xl font-bold text-sm text-center transition-colors border"
               style={{ borderColor: primaryColor + '40', color: primaryColor }}
             >
-              Volver al menú
+              Volver al menÃº
             </a>
           </div>
         </div>
       )}
 
-      {/* Mensaje de cancelación cerrada */}
+      {/* Mensaje de cancelaciÃ³n cerrada */}
       {cancellationClosed && (        <div className="mb-8 rounded-2xl p-5 border"
           style={{ backgroundColor: primaryColor + '08', borderColor: primaryColor + '25' }}>
           <div className="flex items-start gap-3">
@@ -913,35 +926,35 @@ export default function OrderTracker({
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-bold text-sm" style={{ color: textColor }}>
-                Ventana de cancelación cerrada
+                Ventana de cancelaciÃ³n cerrada
               </p>
               <p className="text-xs mt-1 leading-relaxed" style={{ opacity: 0.6 }}>
-                Tu pedido ya está en preparación y no puede ser cancelado.
-                Si necesitás asistencia, contactá al restaurante directamente.
+                Tu pedido ya estÃ¡ en preparaciÃ³n y no puede ser cancelado.
+                Si necesitÃ¡s asistencia, contactÃ¡ al restaurante directamente.
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── RAPIBOY: Costo de envío actualizado — aceptar/rechazar ── */}
+      {/* â”€â”€ RAPIBOY: Costo de envÃ­o actualizado â€” aceptar/rechazar â”€â”€ */}
       {rapiboyQuoteStatus === 'pending_customer_accept' && rapiboyPendingQuoteCost > 0 && (
         <div className="mb-8 rounded-2xl p-5 border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm">
           <div className="text-center">
-            <div className="text-4xl mb-3 animate-pulse">🔄</div>
-            <h3 className="font-bold text-base text-amber-900 mb-2">Costo de envío actualizado</h3>
+            <div className="text-4xl mb-3 animate-pulse">ðŸ”„</div>
+            <h3 className="font-bold text-base text-amber-900 mb-2">Costo de envÃ­o actualizado</h3>
             <p className="text-sm text-amber-800 mb-3">
-              Tu envío original era de <strong>${toPesos(rapiboyChargedToCustomer).toLocaleString('es-AR')}</strong>.
-              Due a tráfico, el costo real es <strong>${toPesos(rapiboyPendingQuoteCost).toLocaleString('es-AR')}</strong>.
+              Tu envÃ­o original era de <strong>${toPesos(rapiboyChargedToCustomer).toLocaleString('es-AR')}</strong>.
+              Due a trÃ¡fico, el costo real es <strong>${toPesos(rapiboyPendingQuoteCost).toLocaleString('es-AR')}</strong>.
             </p>
             {rapiboyCountdown && rapiboyCountdown !== 'Expirado' && (
               <p className="text-xs text-amber-700 font-semibold mb-4">
-                ⏱ Aceptá el nuevo precio en los próximos {rapiboyCountdown}
+                â± AceptÃ¡ el nuevo precio en los prÃ³ximos {rapiboyCountdown}
               </p>
             )}
             {rapiboyCountdown === 'Expirado' && (
               <p className="text-xs text-red-600 font-semibold mb-4">
-                ⏱ La cotización expiró
+                â± La cotizaciÃ³n expirÃ³
               </p>
             )}
             <div className="flex gap-3 justify-center">
@@ -969,13 +982,13 @@ export default function OrderTracker({
               </button>
             </div>
             <p className="text-[10px] text-amber-600 mt-3">
-              Si rechazás, el restaurante coordinará la entrega con flota propia.
+              Si rechazÃ¡s, el restaurante coordinarÃ¡ la entrega con flota propia.
             </p>
           </div>
         </div>
       )}
 
-      {/* ── TRANSFERENCIA: awaiting_payment — mostrar datos bancarios + botón confirmar ── */}
+      {/* â”€â”€ TRANSFERENCIA: awaiting_payment â€” mostrar datos bancarios + botÃ³n confirmar â”€â”€ */}
       {paymentMethod === 'transfer' && status === 'awaiting_payment' && transferData && (
         <div className="mb-8 rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 p-5 space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
@@ -1027,17 +1040,17 @@ export default function OrderTracker({
 
           <div className="rounded-xl bg-amber-50 border-2 border-amber-200 p-4 space-y-2">
             <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-              <span>⚠️</span>
-              Antes de continuar, seguí estos pasos:
+              <span>âš ï¸</span>
+              Antes de continuar, seguÃ­ estos pasos:
             </p>
             <div className="space-y-1.5 text-xs text-amber-800">
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">1</span>
-                <span>Hacé la transferencia por <strong>${toPesos(transferTotal).toLocaleString('es-AR')}</strong> (monto total del pedido, con envío y cargos incluidos) desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
+                <span>HacÃ© la transferencia por <strong>${toPesos(transferTotal).toLocaleString('es-AR')}</strong> (monto total del pedido, con envÃ­o y cargos incluidos) desde tu banco usando el <strong>Alias</strong> o <strong>CBU</strong> de arriba.</span>
               </p>
               <p className="flex items-start gap-2">
                 <span className="font-bold bg-amber-200 text-amber-900 w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[10px]">2</span>
-                <span>Tocá el botón de abajo para enviarnos el comprobante por WhatsApp y confirmar el pago.</span>
+                <span>TocÃ¡ el botÃ³n de abajo para enviarnos el comprobante por WhatsApp y confirmar el pago.</span>
               </p>
             </div>
           </div>
@@ -1082,17 +1095,17 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* ── TRANSFERENCIA: awaiting_confirmation — card llamativa ── */}
+      {/* â”€â”€ TRANSFERENCIA: awaiting_confirmation â€” card llamativa â”€â”€ */}
       {paymentMethod === 'transfer' && status === 'awaiting_confirmation' && (
         <div className="mb-8 rounded-2xl border-2 border-blue-400 bg-gradient-to-br from-blue-600 to-indigo-700 p-6 shadow-xl text-white relative overflow-hidden">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)]" />
           </div>
           <div className="relative z-10 text-center">
-            <div className="text-5xl mb-4 animate-pulse">⏳</div>
-            <h2 className="text-xl font-black mb-2">Esperando confirmación</h2>
+            <div className="text-5xl mb-4 animate-pulse">â³</div>
+            <h2 className="text-xl font-black mb-2">Esperando confirmaciÃ³n</h2>
             <p className="text-blue-100 text-sm mb-4">
-              El local está verificando tu pago por transferencia. Te notificaremos cuando esté confirmado.
+              El local estÃ¡ verificando tu pago por transferencia. Te notificaremos cuando estÃ© confirmado.
             </p>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 text-sm font-semibold">
               <span className="w-2 h-2 rounded-full bg-green-300 animate-pulse" />
@@ -1102,12 +1115,12 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* CTA: confirmar retiro (takeaway) o código delivery */}
+      {/* CTA: confirmar retiro (takeaway) o cÃ³digo delivery */}
       {status === 'ready' && orderMode !== 'delivery' && (
         <div className="mb-8 rounded-2xl p-5"
           style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
           <p className="text-sm font-semibold mb-4 text-center opacity-70">
-            Acercate a retirar tu pedido y confirmá cuando lo tengas
+            Acercate a retirar tu pedido y confirmÃ¡ cuando lo tengas
           </p>
           <ConfirmPickupButton
             orderId={orderId}
@@ -1142,7 +1155,7 @@ export default function OrderTracker({
       {orderMode === 'delivery' && deliveryAddress && (
         <div className="mb-4 rounded-2xl p-4"
           style={{ backgroundColor: primaryColor + '08', border: `1px solid ${primaryColor}20` }}>
-          <p className="text-xs opacity-50 uppercase tracking-widest font-bold mb-1">Dirección de entrega</p>
+          <p className="text-xs opacity-50 uppercase tracking-widest font-bold mb-1">DirecciÃ³n de entrega</p>
           <p className="text-sm font-semibold">
             {deliveryAddress.street} {deliveryAddress.number}
             {deliveryAddress.apt ? `, ${deliveryAddress.apt}` : ''}
@@ -1156,10 +1169,10 @@ export default function OrderTracker({
         <div className="mb-8 rounded-2xl p-5"
           style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
           <div className="text-center">
-            <div className="text-5xl mb-3 animate-bounce">🚗</div>
+            <div className="text-5xl mb-3 animate-bounce">ðŸš—</div>
             <p className="font-bold text-lg mb-1">Delivery en camino</p>
             {deliveryPersonName && (
-              <p className="text-sm opacity-70">{deliveryPersonName} está yendo a tu domicilio</p>
+              <p className="text-sm opacity-70">{deliveryPersonName} estÃ¡ yendo a tu domicilio</p>
             )}
             {deliveryProviderType === 'rapiboy' && deliveryProviderTrackingUrl && (
               <a
@@ -1169,12 +1182,12 @@ export default function OrderTracker({
                 className="mt-3 inline-block text-sm font-semibold underline"
                 style={{ color: primaryColor }}
               >
-                Seguí tu delivery en tiempo real →
+                SeguÃ­ tu delivery en tiempo real â†’
               </a>
             )}
             {deliveryCode && (
               <div className="mt-4">
-                <p className="text-xs opacity-50 mb-2">Código de entrega (mostralo al delivery)</p>
+                <p className="text-xs opacity-50 mb-2">CÃ³digo de entrega (mostralo al delivery)</p>
                 <div className="inline-block px-6 py-3 rounded-2xl bg-white text-3xl font-black tracking-widest shadow-sm"
                   style={{ color: primaryColor }}>
                   {deliveryCode}
@@ -1190,12 +1203,12 @@ export default function OrderTracker({
         <div className="mb-8 rounded-2xl p-5"
           style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
           <div className="text-center">
-            <div className="text-5xl mb-3">📍</div>
-            <p className="font-bold text-lg mb-1">Delivery llegó</p>
-            <p className="text-sm opacity-70 mb-4">El delivery está en tu domicilio</p>
+            <div className="text-5xl mb-3">ðŸ“</div>
+            <p className="font-bold text-lg mb-1">Delivery llegÃ³</p>
+            <p className="text-sm opacity-70 mb-4">El delivery estÃ¡ en tu domicilio</p>
             {deliveryCode && (
               <div>
-                <p className="text-xs opacity-50 mb-2">Entregale este código al delivery</p>
+                <p className="text-xs opacity-50 mb-2">Entregale este cÃ³digo al delivery</p>
                 <div className="inline-block px-6 py-3 rounded-2xl bg-white text-3xl font-black tracking-widest shadow-sm"
                   style={{ color: primaryColor }}>
                   {deliveryCode}
@@ -1261,7 +1274,7 @@ export default function OrderTracker({
         </div>
       )}
 
-      {/* Modal de cancelación */}
+      {/* Modal de cancelaciÃ³n */}
       {trackingToken && (
         <CancelOrderModal
           open={showCancelModal}
