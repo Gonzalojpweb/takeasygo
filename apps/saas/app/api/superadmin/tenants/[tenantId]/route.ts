@@ -28,8 +28,21 @@ export async function PUT(
     // 2. Extraer campos anidados que no están en el body plano
     const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, transferCommissionPercent, transferEnabled, features, ...flatBody } = body
 
-    // 3. Construir update con dot-notation
-    const updateSet: Record<string, any> = { ...flatBody }
+    // 2b. ALLOWLIST: solo campos que el form de edición envía.
+    // Nunca aplicar el body completo ({...flatBody}) — un request crafted
+    // podría pisar mpAccounts/mercadopago/mpOAuth y robar los cobros.
+    const ALLOWED_FLAT_FIELDS = new Set([
+      'name', 'slug', 'plan', 'isActive', 'isOperational', 'alwaysVisible',
+      'takeasygoCommissionOverride',
+    ])
+    const updateSet: Record<string, any> = {}
+    for (const key of Object.keys(flatBody)) {
+      if (ALLOWED_FLAT_FIELDS.has(key)) {
+        updateSet[key] = flatBody[key]
+      } else {
+        console.warn(`[superadmin/tenants PUT] Campo no permitido ignorado: ${key}`)
+      }
+    }
     if (transferEnabled !== undefined) {
       updateSet['transfer.enabled'] = !!transferEnabled
     }
