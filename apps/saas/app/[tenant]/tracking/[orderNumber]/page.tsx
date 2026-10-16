@@ -157,6 +157,7 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialTransferConfirmed={order.payment?.transferConfirmed}
           initialCustomerName={safeDecrypt(order.customer?.name) || ''}
           initialWhatsAppPhone={tenant.notifications?.whatsappPhone ?? null}
+          initialMercadoPagoId={order.payment?.mercadopagoId ?? null}
           initialTransferData={(() => {
             if (order.payment?.method !== 'transfer' || !tenant.transfer?.enabled) return null
             const activeAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
