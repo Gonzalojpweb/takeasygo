@@ -8,7 +8,36 @@ import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 300
+
+// En Vercel build no hay MONGODB_URI: si falla, devolvemos [] y la página
+// se genera on-demand (ISR) en el primer request en runtime.
+export async function generateStaticParams() {
+  try {
+    await connectDB()
+
+    const tenants = await Tenant.find({ isActive: true }).select('slug').lean()
+    const tenantsArr = tenants as any[]
+
+    const params = await Promise.all(
+      tenantsArr.map(async (tenant) => {
+        const locations = await Location.find({
+          tenantId: tenant._id,
+          isActive: true,
+        }).select('_id').lean()
+
+        return (locations as any[]).map((loc) => ({
+          tenant: tenant.slug,
+          locationId: loc._id.toString(),
+        }))
+      }),
+    )
+
+    return params.flat()
+  } catch {
+    return []
+  }
+}
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
