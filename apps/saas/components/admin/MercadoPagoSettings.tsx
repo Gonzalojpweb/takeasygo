@@ -20,7 +20,10 @@ interface MpAccount {
   hasWebhookSecret: boolean
   oauthIsConnected: boolean
   oauthAuthorizedAt?: string | null
+  oauthExpiresAt?: string | null
   createdAt: string
+  mpUserId?: number | null
+  oauthMpUserId?: number | null
 }
 
 interface Props {
@@ -293,9 +296,30 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
                     {acc.label}
                   </p>
                   <p className="text-[10px] text-muted-foreground/60">
-                    {acc.oauthIsConnected ? 'OAuth conectado' : 'Solo credenciales API'}
+                    {(() => {
+                      // Réplica de isOAuthValid() de lib/mercadopago.ts:76-79
+                      const oauthValid = !!acc.oauthIsConnected &&
+                        (!acc.oauthExpiresAt || new Date(acc.oauthExpiresAt).getTime() > Date.now())
+                      if (oauthValid && acc.hasAccessToken) {
+                        return `Cobros vía OAuth (user_id ${acc.oauthMpUserId ?? 'desconocido'})`
+                      }
+                      if (oauthValid) {
+                        return `Cobros vía OAuth (user_id ${acc.oauthMpUserId ?? 'desconocido'}) · sin token manual`
+                      }
+                      if (acc.hasAccessToken) {
+                        return `Cobros vía token manual (user_id ${acc.mpUserId ?? 'desconocido'})`
+                      }
+                      return 'Sin credenciales de cobro'
+                    })()}
                     {acc.isActive && ' · Activa'}
                   </p>
+                  {(acc.mpUserId != null || acc.oauthMpUserId != null) && (
+                    <p className="text-[10px] text-muted-foreground/50">
+                      {acc.mpUserId != null && <>Token manual: MP #{acc.mpUserId}</>}
+                      {acc.mpUserId != null && acc.oauthMpUserId != null && ' · '}
+                      {acc.oauthMpUserId != null && <>OAuth: MP #{acc.oauthMpUserId}</>}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => {

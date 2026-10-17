@@ -40,7 +40,21 @@ export async function PUT(
     const updateSet: Record<string, any> = {}
 
     if (body.label != null) updateSet['mpAccounts.$.label'] = body.label
-    if (body.accessToken) updateSet['mpAccounts.$.accessToken'] = encrypt(body.accessToken)
+    if (body.accessToken) {
+      updateSet['mpAccounts.$.accessToken'] = encrypt(body.accessToken)
+      // Resolver user_id del token nuevo para trazabilidad
+      try {
+        const meRes = await fetch('https://api.mercadopago.com/users/me', {
+          headers: { Authorization: `Bearer ${body.accessToken}` },
+        })
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          updateSet['mpAccounts.$.mpUserId'] = typeof meData?.id === 'number' ? meData.id : null
+        }
+      } catch {
+        // sin red o token inválido — mpUserId queda como estaba
+      }
+    }
     if (body.publicKey) updateSet['mpAccounts.$.publicKey'] = encrypt(body.publicKey)
     if (body.webhookSecret) updateSet['mpAccounts.$.webhookSecret'] = encrypt(body.webhookSecret)
 

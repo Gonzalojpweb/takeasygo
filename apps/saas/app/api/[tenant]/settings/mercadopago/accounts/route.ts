@@ -40,6 +40,8 @@ export async function GET(
       oauthIsConnected: !!acc.oauthIsConnected,
       oauthAuthorizedAt: acc.oauthAuthorizedAt,
       createdAt: acc.createdAt,
+      mpUserId: acc.mpUserId ?? null,
+      oauthMpUserId: acc.oauthMpUserId ?? null,
     }))
 
     return NextResponse.json({ accounts })
@@ -85,6 +87,21 @@ export async function POST(
       )
     }
 
+    // Resolver user_id de MP del token manual (para trazabilidad y chequeo de
+    // unicidad en el callback OAuth). Si /users/me falla, se guarda null sin bloquear.
+    let mpUserId: number | null = null
+    try {
+      const meRes = await fetch('https://api.mercadopago.com/users/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        mpUserId = typeof meData?.id === 'number' ? meData.id : null
+      }
+    } catch {
+      // sin red o token inválido — no bloquea la creación
+    }
+
     // Determine if this account should be active
     const isFirst = !tenant.mpAccounts?.length
     const shouldBeActive = isFirst || isActive === true
@@ -97,6 +114,7 @@ export async function POST(
       webhookSecret: encrypt(webhookSecret),
       isActive: shouldBeActive,
       createdAt: new Date(),
+      mpUserId,
     }
 
     if (shouldBeActive) {

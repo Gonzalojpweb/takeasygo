@@ -143,12 +143,35 @@ export async function GET(request: NextRequest) {
     if (!access_token) {
       console.error('[MP OAuth] No access_token in response')
       return failAt('no_access_token', tenantSlug)
+<<<<<<< HEAD
+=======
+    }
+
+    // ── Identificar el user_id de MP del token OAuth nuevo ──────────────────
+    // Sin esta validación, el token queda atado a la cuenta MP con sesión
+    // abierta en el navegador del admin (bug: pagos acreditados en cuenta
+    // ajena/del dueño de la plataforma).
+    let oauthUserId: number | null = null
+    try {
+      const meRes = await fetch('https://api.mercadopago.com/users/me', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      })
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        oauthUserId = typeof meData?.id === 'number' ? meData.id : null
+      } else {
+        console.warn(`[MP OAuth] /users/me HTTP ${meRes.status} para token nuevo`)
+      }
+    } catch (meErr: any) {
+      console.warn('[MP OAuth] /users/me network error:', meErr?.message)
+>>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
     }
 
     try {
       const tenant = await Tenant.findOne({ slug: tenantSlug })
       if (!tenant) throw new Error('Tenant not found')
 
+<<<<<<< HEAD
       // Helper seguro para encrypt
       const safeEncrypt = (val: string | undefined) => {
         try {
@@ -171,13 +194,19 @@ export async function GET(request: NextRequest) {
           await tenant.save()
           console.log(`[MP OAuth] Saved to mpAccounts[${accountId}]`)
         } else {
+=======
+      // Resolver la cuenta destino (misma lógica que antes)
+      let targetAccount: any = null
+      if (accountId && tenant.mpAccounts?.length) {
+        targetAccount = tenant.mpAccounts.find((a: any) => a._id?.toString() === accountId)
+        if (!targetAccount) {
+>>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
           console.warn(`[MP OAuth] accountId ${accountId} not found in mpAccounts, falling back to mpOAuth`)
-          await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
         }
       } else if (!tenant.mpAccounts?.length) {
-        // No mpAccounts — legacy mode: save to mpOAuth
-        await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
+        targetAccount = null // legacy
       } else {
+<<<<<<< HEAD
         // accountId not provided but mpAccounts exists — save to first active account
         const activeAccount = tenant.mpAccounts.find((a: any) => a.isActive)
         if (activeAccount) {
@@ -193,6 +222,91 @@ export async function GET(request: NextRequest) {
           await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
         }
       }
+=======
+        targetAccount = tenant.mpAccounts.find((a: any) => a.isActive) ?? null
+        if (!targetAccount) {
+          console.warn('[MP OAuth] no active account found, falling back to mpOAuth')
+        }
+      }
+
+      // ── Validación 1: user_id del OAuth vs user_id del token manual ───────
+      // Si la cuenta tiene credenciales manuales, el OAuth debe apuntar al
+      // MISMO user_id de MP. Si difiere, NO se guarda (el admin autorizó
+      // con la cuenta MP equivocada).
+      if (targetAccount?.accessToken) {
+        let manualUserId: number | null = null
+        try {
+          const manualToken = decrypt(targetAccount.accessToken)
+          const manualRes = await fetch('https://api.mercadopago.com/users/me', {
+            headers: { Authorization: `Bearer ${manualToken}` },
+          })
+          if (manualRes.ok) {
+            const manualData = await manualRes.json()
+            manualUserId = typeof manualData?.id === 'number' ? manualData.id : null
+          }
+        } catch {
+          // Token manual no descifra o /users/me falla — no se puede comparar.
+          // No bloqueamos por eso (token manual puede estar vencido), pero se loguea.
+          console.warn('[MP OAuth] no se pudo resolver user_id del token manual para comparar')
+        }
+
+        if (oauthUserId != null && manualUserId != null && oauthUserId !== manualUserId) {
+          console.error(
+            `[MP OAuth] user_id_mismatch tenant=${tenantSlug} account=${targetAccount._id} ` +
+            `oauth=${oauthUserId} manual=${manualUserId} — NO se guarda`
+          )
+          return failAt('user_id_mismatch', tenantSlug)
+        }
+      }
+
+      // ── Validación 2: unicidad — ese user_id no puede estar en OTRO tenant ─
+      if (oauthUserId != null) {
+        const otherTenant = await Tenant.findOne({
+          _id: { $ne: tenant._id },
+          $or: [
+            { 'mpAccounts.oauthMpUserId': oauthUserId },
+            { 'mpAccounts.mpUserId': oauthUserId },
+            { 'mpOAuth.mpUserId': oauthUserId },
+            { 'mercadopago.mpUserId': oauthUserId },
+          ],
+        }).select('slug').lean()
+
+        if (otherTenant) {
+          console.error(
+            `[MP OAuth] user_id_conflict tenant=${tenantSlug} user_id=${oauthUserId} ` +
+            `ya asociado a tenant=${(otherTenant as any).slug} — NO se guarda`
+          )
+          return failAt('user_id_conflict', tenantSlug)
+        }
+      }
+
+      // ── Cifrar ANTES de asignar: si encrypt falla, NO se pisa nada ────────
+      // (antes safeEncrypt devolvía null y se guardaba null encima del token)
+      let encAccessToken: string, encRefreshToken: string | null = null
+      try {
+        encAccessToken = encrypt(access_token)
+        encRefreshToken = refresh_token ? encrypt(refresh_token) : null
+      } catch (encErr: any) {
+        console.error('[MP OAuth] encrypt failed — token NO sobrescrito:', encErr?.message)
+        return failAt('encrypt_failed', tenantSlug)
+      }
+
+      if (targetAccount) {
+        targetAccount.oauthAccessToken = encAccessToken
+        targetAccount.oauthRefreshToken = encRefreshToken
+        targetAccount.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
+        targetAccount.oauthIsConnected = true
+        targetAccount.oauthAuthorizedAt = new Date()
+        targetAccount.oauthMpUserId = oauthUserId
+        tenant.markModified('mpAccounts')
+        await tenant.save()
+        console.log(
+          `[MP OAuth] Saved to mpAccounts[${targetAccount._id}] oauthMpUserId=${oauthUserId ?? 'unknown'}`
+        )
+      } else {
+        await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in, oauthUserId)
+      }
+>>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
     } catch (dbErr: any) {
       console.error('[MP OAuth] DB save failed:', dbErr)
       // Incluir mensaje de error real en el redirect para diagnóstico
@@ -211,7 +325,8 @@ async function saveLegacyMpOAuth(
   tenant: any,
   accessToken: string,
   refreshToken: string | undefined,
-  expiresIn: number
+  expiresIn: number,
+  mpUserId: number | null
 ) {
   await Tenant.findOneAndUpdate(
     { slug: tenant.slug },
@@ -221,7 +336,8 @@ async function saveLegacyMpOAuth(
       'mpOAuth.expiresAt': expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
       'mpOAuth.authorizedAt': new Date(),
       'mpOAuth.isConnected': true,
+      'mpOAuth.mpUserId': mpUserId,
     }
   )
-  console.log('[MP OAuth] Saved to legacy mpOAuth')
+  console.log(`[MP OAuth] Saved to legacy mpOAuth mpUserId=${mpUserId ?? 'unknown'}`)
 }

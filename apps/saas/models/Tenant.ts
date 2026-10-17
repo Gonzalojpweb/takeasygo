@@ -194,6 +194,8 @@ export interface ITenant extends Document {
     publicKey: string | null
     webhookSecret: string | null
     isConfigured: boolean
+    /** user_id de MP al que pertenece el accessToken (resuelto vía /users/me) */
+    mpUserId?: number | null
   }
   /** OAuth credentials for Marketplace Split Payments (marketplace_fee) */
   mpOAuth: {
@@ -204,6 +206,8 @@ export interface ITenant extends Document {
     isConnected: boolean
     /** Per-tenant commission override (null = use global platformFeePercent) */
     commissionPercent?: number | null
+    /** user_id de MP al que pertenece el token OAuth */
+    mpUserId?: number | null
   }
   /** Multi-account MercadoPago — one active at a time */
   mpAccounts: {
@@ -220,6 +224,10 @@ export interface ITenant extends Document {
     oauthIsConnected?: boolean
     oauthAuthorizedAt?: Date | null
     createdAt: Date
+    /** user_id de MP al que pertenece el accessToken manual */
+    mpUserId?: number | null
+    /** user_id de MP al que pertenece el oauthAccessToken */
+    oauthMpUserId?: number | null
   }[]
   /** Modo de cuentas MP:
    *  - 'shared' (default): todas las sedes usan la cuenta activa del tenant.
@@ -618,6 +626,8 @@ const TenantSchema = new Schema<ITenant>(
       publicKey: { type: String, default: null },
       webhookSecret: { type: String, default: null },
       isConfigured: { type: Boolean, default: false },
+      /** user_id de MP al que pertenece el accessToken (resuelto vía /users/me) */
+      mpUserId: { type: Number, default: null },
     },
     /** OAuth para Split de Pagos (marketplace_fee) */
     mpOAuth: {
@@ -628,6 +638,8 @@ const TenantSchema = new Schema<ITenant>(
       isConnected:  { type: Boolean, default: false },
       /** Per-tenant commission override (null = usar global platformFeePercent) */
       commissionPercent: { type: Number, default: null, min: 0, max: 100 },
+      /** user_id de MP al que pertenece el token OAuth */
+      mpUserId: { type: Number, default: null },
     },
     // ── Multi-account MercadoPago ──────────────────────────────────────────
     mpAccounts: {
@@ -643,6 +655,10 @@ const TenantSchema = new Schema<ITenant>(
         oauthIsConnected:  { type: Boolean, default: false },
         oauthAuthorizedAt: { type: Date, default: null },
         createdAt:         { type: Date, default: Date.now },
+        /** user_id de MP al que pertenece el accessToken manual */
+        mpUserId:          { type: Number, default: null },
+        /** user_id de MP al que pertenece el oauthAccessToken */
+        oauthMpUserId:     { type: Number, default: null },
       }],
       default: [],
     },
@@ -846,7 +862,7 @@ const TenantSchema = new Schema<ITenant>(
     },
     // ── Balance de comisiones pendientes ──────────────────────────────────
     commissionBalance: {
-      transfer: { type: Number, default: 0, min: 0 },
+      transfer: { type: Number, default: 0 },
     },
     commissionThreshold: { type: Number, default: null, min: 0 },
   },
