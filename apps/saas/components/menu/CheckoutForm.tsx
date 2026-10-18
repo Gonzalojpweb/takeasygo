@@ -16,6 +16,17 @@ import { FeedbackProvider, useFeedback } from '@/components/feedback/FeedbackCon
 import FeedbackModal from '@/components/feedback/FeedbackModal'
 import { captureRewardAdvanceOffered, captureRewardAdvanceAccepted } from '@/lib/tia/events'
 import { trackCheckoutStarted, trackCheckoutSubmitted, trackCartAdd, trackCartRemove, trackRewardInteraction } from '@/lib/track'
+import {
+  normalizeStoredCart,
+  getRewardLines,
+  sumRewardPoints,
+  isRewardInCart,
+  addRewardLine,
+  removeRewardLine,
+  resolveMaxRewardsPerOrder,
+  buildRewardPayloadFromCart,
+} from '@/lib/cart-items'
+import { evaluateRewardRedemption } from '@takeasygo/business'
 
 const RETRY_SECONDS = 180
 
@@ -109,7 +120,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     role: string
     paymentMode: string
   } | null>(null)
-  const [selectedRewardItemId, setSelectedRewardItemId] = useState<string | null>(null)
+  const [maxRewardsPerOrder, setMaxRewardsPerOrder] = useState(1)
   const [rewardItemLoading, setRewardItemLoading] = useState(false)
   const [hiddenRewardClaims, setHiddenRewardClaims] = useState<Array<{ menuItemId: string; discountPercentage: number; rewardTitle: string }>>([])
   type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'error'
@@ -260,11 +271,15 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       router.back()
       return
     }
-    const parsedCart = JSON.parse(saved)
-    const cartWithType = parsedCart.map((item: any) => ({
-      ...item,
-      type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
-    }))
+    // Formato unificado de carrito: acepta el formato viejo (sin `type`) y
+    // normaliza las líneas de premio (type 'reward' → $0, cantidad 1).
+    let cartWithType: CartItem[] = []
+    try {
+      cartWithType = normalizeStoredCart(JSON.parse(saved))
+    } catch {
+      router.back()
+      return
+    }
     setCart(cartWithType)
 
     // Checkout iniciado: 1 por sesión al entrar (guard en lib/track.ts)
@@ -467,7 +482,11 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   useEffect(() => {
     if (!loyaltyMember || !loyaltyConfig?.enabled) {
       setStoreItems([])
-      setSelectedRewardItemId(null)
+      // Sin miembro activo no hay canje: los premios salen del carrito
+      setCart(prev => {
+        const kept = prev.filter(i => i.type !== 'reward')
+        return kept.length === prev.length ? prev : kept
+      })
       return
     }
     setRewardItemLoading(true)
@@ -478,6 +497,12 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       })
       .catch(() => {})
       .finally(() => setRewardItemLoading(false))
+
+    // Tope de premios por pedido (config público del store del tenant)
+    fetch(`/api/${tenantSlug}/store/config`)
+      .then(r => r.json())
+      .then(data => setMaxRewardsPerOrder(resolveMaxRewardsPerOrder(data?.config)))
+      .catch(() => {})
   }, [loyaltyMember, tenantSlug, loyaltyConfig?.enabled])
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
@@ -495,17 +520,21 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const qrDiscount = activeQrPromo ? Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100)) : 0
   const discountAmount = qrDiscount + hiddenRewardDiscount
 
-  // Calcular si el reward seleccionado necesita SOS
-  const selectedRewardItem = selectedRewardItemId
-    ? storeItems.find(i => i._id === selectedRewardItemId) ?? null
-    : null
+  // Premios en el carrito: el carrito es la única fuente de verdad de qué se canjea.
+  const rewardLines = getRewardLines(cart)
+  const rewardStoreItems = rewardLines
+    .map(line => storeItems.find(i => i._id === line.storeItemId))
+    .filter((i): i is StoreItem => Boolean(i))
+  const rewardPointsTotal = sumRewardPoints(cart)
+  // El resumen de líneas muestra solo platos; los premios van en su propia caja.
+  const menuCartLines = cart.filter(i => i.type !== 'reward')
 
-  const rewardNeedsAdvance = selectedRewardItem && loyaltyMember
-    ? loyaltyMember.points < selectedRewardItem.pointsCost
+  const rewardNeedsAdvance = rewardLines.length > 0 && loyaltyMember
+    ? loyaltyMember.points < rewardPointsTotal
     : false
 
   const missingPoints = rewardNeedsAdvance
-    ? (selectedRewardItem?.pointsCost ?? 0) - (loyaltyMember?.points ?? 0)
+    ? rewardPointsTotal - (loyaltyMember?.points ?? 0)
     : 0
 
   const effectiveAdvanceLimit = Math.min(
@@ -519,10 +548,42 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     && !loyaltyMember?.hasAdvanceActive
 
   useEffect(() => {
-    if (rewardNeedsAdvance && canUseSos && selectedRewardItem) {
+    if (rewardNeedsAdvance && canUseSos && rewardLines.length > 0) {
       captureRewardAdvanceOffered(missingPoints, loyaltyMember?.points ?? 0)
     }
-  }, [rewardNeedsAdvance, canUseSos, selectedRewardItem]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rewardNeedsAdvance, canUseSos, rewardLines.length]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Agrega o quita un premio del carrito (respeta el máximo por pedido y el
+   * saldo total de puntos con la misma regla que usa el server).
+   */
+  function toggleReward(item: { _id: string; name: string; imageUrl?: string; pointsCost: number }): 'added' | 'removed' | 'limit_reached' | 'not_enough_points' {
+    if (isRewardInCart(cart, item._id)) {
+      setCart(prev => removeRewardLine(prev, item._id))
+      return 'removed'
+    }
+    if (rewardLines.length >= maxRewardsPerOrder) {
+      toast.error(maxRewardsPerOrder === 1
+        ? 'Solo podés canjear 1 premio por pedido'
+        : `Podés canjear hasta ${maxRewardsPerOrder} premios por pedido`)
+      return 'limit_reached'
+    }
+    const decision = evaluateRewardRedemption({
+      mode: 'checkout',
+      pointsBalance: loyaltyMember?.points ?? 0,
+      pointsRequired: rewardPointsTotal + item.pointsCost,
+      advanceLimit: loyaltyConfig?.sosLimit ?? 0,
+      advanceMaxLimit: loyaltyConfig?.sosMaxLimit ?? 0,
+      hasPendingAdvance: loyaltyMember?.hasAdvanceActive ?? false,
+    })
+    if (!decision.valid) {
+      toast.error(`Te faltan ${rewardPointsTotal + item.pointsCost - (loyaltyMember?.points ?? 0)} puntos para este premio`)
+      return 'not_enough_points'
+    }
+    setCart(prev => addRewardLine(prev, item))
+    trackRewardInteraction({ rewardId: item._id, type: 'store_item', value: item.pointsCost, action: 'add_to_cart', locationId })
+    return 'added'
+  }
 
   function increaseQty(cartItemId: string) {
     setCart(prev => prev.map(i => i.cartItemId === cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
@@ -622,9 +683,9 @@ async function handleSubmit(e: React.FormEvent) {
         joinClub: joinClub && loyaltyConfig?.enabled,
         qrPromoApplied: !!activeQrPromo,
         promoSlug: activeQrPromo?.promoSlug ?? undefined,
-        ...(selectedRewardItemId && selectedRewardItem
-          ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
-          : {}),
+        // Los premios del carrito viajan como rewardItems (el server arma la
+        // línea $0 dentro de la orden a partir de ellos).
+        ...(buildRewardPayloadFromCart(cart) ?? {}),
         source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
         sessionId: sessionStorage.getItem('hr_sessionId') || undefined,
         ...(mode === 'business' && businessInfo ? {
@@ -850,9 +911,9 @@ async function handleSubmit(e: React.FormEvent) {
                 Volver al menú
               </button>
             </div>
-          ) : (
+          ) : menuCartLines.length === 0 ? null : (
             <div className="space-y-3">
-              {cart.map((item: CartItem) => {
+              {menuCartLines.map((item: CartItem) => {
                 const hasCustomizations = item.customizations.length > 0
                 return (
                   <div key={item.cartItemId} className="flex items-start gap-3">
@@ -918,20 +979,30 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           )}
 
-          {selectedRewardItem && (
-            <div className="mt-2 flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
+          {/* Premios en el carrito (líneas $0 con costo en puntos) */}
+          {rewardStoreItems.map(r => (
+            <div key={r._id} className="mt-2 flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
               <div className="flex items-center gap-2 min-w-0">
-                {selectedRewardItem.imageUrl && (
-                  <img src={selectedRewardItem.imageUrl} alt={selectedRewardItem.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
+                {r.imageUrl && (
+                  <img src={r.imageUrl} alt={r.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-emerald-800 truncate">{selectedRewardItem.name}</p>
-                  <p className="text-[10px] text-emerald-600 font-medium">Canjeado con {selectedRewardItem.pointsCost} pts</p>
+                  <p className="text-sm font-semibold text-emerald-800 truncate">{r.name}</p>
+                  <p className="text-[10px] text-emerald-600 font-medium">Canje con {r.pointsCost} pts</p>
                 </div>
               </div>
-              <span className="text-sm font-bold text-emerald-700 flex-shrink-0">$0</span>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => toggleReward(r)}
+                  className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+                >
+                  Quitar
+                </button>
+                <span className="text-sm font-bold text-emerald-700">$0</span>
+              </div>
             </div>
-          )}
+          ))}
 
           {cart.length > 0 && (
             <div className="border-t border-zinc-200 mt-4 pt-3 flex justify-between font-bold">
@@ -1314,10 +1385,13 @@ async function handleSubmit(e: React.FormEvent) {
                       className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory scrollbar-thin"
                     >
                       {storeItems.map(item => {
-                        const isSelected = selectedRewardItemId === item._id
-                        const enoughPoints = loyaltyMember.points >= item.pointsCost
+                        const isSelected = isRewardInCart(rewardLines, item._id)
+                        // La disponibilidad se evalúa sobre el total proyectado del
+                        // carrito (todos los premios), no sobre el ítem aislado.
+                        const projectedPoints = rewardPointsTotal + (isSelected ? 0 : item.pointsCost)
+                        const enoughPoints = (loyaltyMember?.points ?? 0) >= projectedPoints
+                        const itemMissingPoints = Math.max(0, projectedPoints - (loyaltyMember?.points ?? 0))
                         const needsAdvance = !enoughPoints
-                        const itemMissingPoints = item.pointsCost - (loyaltyMember?.points ?? 0)
                         const canAdvance = needsAdvance && effectiveAdvanceLimit > 0
                           && itemMissingPoints <= effectiveAdvanceLimit
                           && !loyaltyMember?.hasAdvanceActive
@@ -1329,15 +1403,8 @@ async function handleSubmit(e: React.FormEvent) {
                           >
                           <button
                             type="button"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedRewardItemId(null)
-                              } else if (enoughPoints || canAdvance) {
-                                setSelectedRewardItemId(item._id)
-                                trackRewardInteraction({ rewardId: item._id, type: 'store_item', value: item.pointsCost, action: 'add_to_cart', locationId })
-                              }
-                            }}
-                            disabled={!enoughPoints && !canAdvance}
+                            onClick={() => { toggleReward(item) }}
+                            disabled={!isSelected && !enoughPoints && !canAdvance}
                             className={cn(
                               "flex-shrink-0 w-50 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-500",
                               isSelected
@@ -1360,16 +1427,16 @@ async function handleSubmit(e: React.FormEvent) {
                               <span className="text-xs font-semibold text-zinc-600">{item.pointsCost} pts</span>
                             </div>
                             {isSelected && enoughPoints && (
-                              <span className="mt-1 block text-[10px] font-bold text-green-600">✓ Canjeado</span>
+                              <span className="mt-1 block text-[10px] font-bold text-green-600">✓ En el carrito</span>
                             )}
                             {isSelected && !enoughPoints && (
                               <span className="mt-1 block text-[10px] font-bold text-amber-600">Con Reward Advance</span>
                             )}
                             {!isSelected && !enoughPoints && canAdvance && (
-                              <span className="mt-1 block text-[10px] font-medium text-amber-500">Faltan {item.pointsCost - loyaltyMember.points} pts</span>
+                              <span className="mt-1 block text-[10px] font-medium text-amber-500">Faltan {itemMissingPoints} pts</span>
                             )}
                             {!isSelected && !enoughPoints && !canAdvance && (
-                              <span className="mt-1 block text-[10px] font-medium text-zinc-400">Te faltan {item.pointsCost - loyaltyMember.points} pts</span>
+                              <span className="mt-1 block text-[10px] font-medium text-zinc-400">Te faltan {itemMissingPoints} pts</span>
                             )}
                             </button>
                           </motion.div>
@@ -1379,7 +1446,7 @@ async function handleSubmit(e: React.FormEvent) {
                   )}
 
                   {/* Info de Reward Advance (SOS) */}
-                  {selectedRewardItem && rewardNeedsAdvance && (
+                  {rewardLines.length > 0 && rewardNeedsAdvance && (
                     <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
                       <div className="flex items-start gap-2">
                         {/* <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" /> */}
@@ -1490,15 +1557,15 @@ async function handleSubmit(e: React.FormEvent) {
                 </div>
               ) : null
             })()}
-            {selectedRewardItem && (
-              <div className="flex justify-between text-sm text-emerald-600 font-semibold">
+            {rewardStoreItems.map(r => (
+              <div key={r._id} className="flex justify-between text-sm text-emerald-600 font-semibold">
                 <span className="flex items-center gap-1">
                   <Gift size={12} />
-                  {selectedRewardItem.name} (Canje)
+                  {r.name} (Canje · {r.pointsCost} pts)
                 </span>
                 <span>$0</span>
               </div>
-            )}
+            ))}
             {deliveryMode && deliveryQuote.withinRange && (
               <div className="flex justify-between text-sm text-zinc-500">
                 <span className="flex items-center gap-1">🚚 Envío</span>

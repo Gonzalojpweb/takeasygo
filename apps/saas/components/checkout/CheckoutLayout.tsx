@@ -16,7 +16,10 @@ import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { Clock, AlertTriangle, Star, Gift, X } from 'lucide-react'
 import { terminos, privacidad } from '@/lib/legal-content'
-import { trackCheckoutStarted, trackRewardInteraction } from '@/lib/track'
+import { trackCheckoutStarted } from '@/lib/track'
+import { toast } from 'sonner'
+import { isRewardInCart, type ToggleRewardStatus, type RewardCartItemInput } from '@/lib/cart-items'
+import type { CartItem } from '@/types/cart'
 
 interface Props {
   tenantSlug: string
@@ -40,8 +43,8 @@ export default function CheckoutLayout(props: Props) {
 
 function CheckoutLayoutInner() {
   const router = useRouter()
-  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, selectedRewardItem, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData, hiddenRewardClaims } = useCheckout()
-  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, cashEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
+  const { state, dispatch, steps, effectiveTime, delayEnabled, extraMinutes, delayMessage, rewardLines, rewardStoreItems, rewardPointsTotal, maxRewardsPerOrder, toggleReward, subtotal, discountAmount, deliveryCost, baseTotal, total, activeSurchargePercent, missingPoints, canUseSos, effectiveAdvanceLimit, tenantName, transferData, hiddenRewardClaims } = useCheckout()
+  const { currentStep, activeOrderNumber, tenantSlug, deliveryMode, mode, loyaltyMember, loyaltyConfig, joinClub, walletEnabled, storeItems, rewardItemLoading, pointsLookupLoading, kriptonEnabled, transferEnabled, cashEnabled, selectedPaymentMethod, scheduleOrder, activeQrPromo, estimatedTimeInfo, deliveryQuote } = state
 
   const [legalModal, setLegalModal] = useState<'terminos' | 'privacidad' | null>(null)
   const [storedName, setStoredName] = useState<string | null>(null)
@@ -133,20 +136,26 @@ function CheckoutLayoutInner() {
             joinClub={joinClub}
             walletEnabled={walletEnabled}
             storeItems={storeItems}
-            selectedRewardItemId={selectedRewardItemId}
+            rewardLines={rewardLines}
+            rewardPointsTotal={rewardPointsTotal}
+            maxRewardsPerOrder={maxRewardsPerOrder}
             rewardItemLoading={rewardItemLoading}
             pointsLookupLoading={pointsLookupLoading}
-            selectedRewardItem={selectedRewardItem}
             missingPoints={missingPoints}
             canUseSos={canUseSos}
             effectiveAdvanceLimit={effectiveAdvanceLimit}
             tenantSlug={tenantSlug}
             onJoinClubChange={(join) => dispatch({ type: 'SET_JOIN_CLUB', join })}
-            onSelectReward={(id) => {
-              dispatch({ type: 'SET_SELECTED_REWARD', id })
-              // Intención de usar el reward en el checkout — el canje real
-              // (reward_redeemed) lo emite server-side al confirmarse
-              if (id) trackRewardInteraction({ rewardId: id, type: 'store_item', value: storeItems.find(i => i._id === id)?.pointsCost ?? 0, action: 'add_to_cart', locationId: state.locationId })
+            onToggleReward={(item) => {
+              const status = toggleReward(item)
+              if (status === 'limit_reached') {
+                toast.error(maxRewardsPerOrder === 1
+                  ? 'Solo podés canjear 1 premio por pedido'
+                  : `Podés canjear hasta ${maxRewardsPerOrder} premios por pedido`)
+              } else if (status === 'not_enough_points') {
+                toast.error('Te faltan puntos para este premio')
+              }
+              return status
             }}
             onBirthDateChange={(birthDate) => dispatch({ type: 'SET_FORM', form: { birthDate } })}
             onWalletClick={() => router.push(`/${tenantSlug}/club/lookup`)}
@@ -170,7 +179,7 @@ function CheckoutLayoutInner() {
           subtotal={subtotal}
           discountAmount={discountAmount}
           activeQrPromo={activeQrPromo}
-          selectedRewardItem={selectedRewardItem}
+          rewardStoreItems={rewardStoreItems}
           deliveryQuote={deliveryQuote}
           deliveryCost={deliveryCost}
           baseTotal={baseTotal}
@@ -248,19 +257,21 @@ function EstimatedTimeDisplay({ effectiveTime, delayEnabled, delayMessage, extra
 
 function LoyaltySection(props: {
   loyaltyMember: any; loyaltyConfig: any; joinClub: boolean; walletEnabled: boolean
-  storeItems: any[]; selectedRewardItemId: string | null; rewardItemLoading: boolean; pointsLookupLoading: boolean
-  selectedRewardItem: any; missingPoints: number; canUseSos: boolean; effectiveAdvanceLimit: number
+  storeItems: any[]; rewardLines: CartItem[]; rewardPointsTotal: number; maxRewardsPerOrder: number
+  rewardItemLoading: boolean; pointsLookupLoading: boolean
+  missingPoints: number; canUseSos: boolean; effectiveAdvanceLimit: number
   tenantSlug: string
   onJoinClubChange: (join: boolean) => void
-  onSelectReward: (id: string | null) => void
+  onToggleReward: (item: RewardCartItemInput) => ToggleRewardStatus
   onBirthDateChange: (birthDate: string) => void
   onWalletClick: () => void
 }) {
   const {
     loyaltyMember, loyaltyConfig, joinClub, walletEnabled,
-    storeItems, selectedRewardItemId, rewardItemLoading, pointsLookupLoading,
-    selectedRewardItem, missingPoints, canUseSos, effectiveAdvanceLimit, tenantSlug,
-    onJoinClubChange, onSelectReward, onBirthDateChange, onWalletClick,
+    storeItems, rewardLines, rewardPointsTotal, maxRewardsPerOrder,
+    rewardItemLoading, pointsLookupLoading,
+    missingPoints, canUseSos, effectiveAdvanceLimit, tenantSlug,
+    onJoinClubChange, onToggleReward, onBirthDateChange, onWalletClick,
   } = props
 
   if (!loyaltyConfig?.enabled) return null
@@ -325,24 +336,24 @@ function LoyaltySection(props: {
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
               {storeItems.map(item => {
-                const isSelected = selectedRewardItemId === item._id
-                const enoughPoints = loyaltyMember.points >= item.pointsCost
+                const isSelected = isRewardInCart(rewardLines, item._id)
+                // La disponibilidad se evalúa sobre el total proyectado del
+                // carrito (todos los premios), no sobre el ítem aislado.
+                const projectedPoints = rewardPointsTotal + (isSelected ? 0 : item.pointsCost)
+                const enoughPoints = (loyaltyMember?.points ?? 0) >= projectedPoints
+                const itemMissingPoints = Math.max(0, projectedPoints - (loyaltyMember?.points ?? 0))
                 const needsAdvance = !enoughPoints
-                const itemMissingPoints = item.pointsCost - (loyaltyMember?.points ?? 0)
                 const canAdvance = needsAdvance && effectiveAdvanceLimit > 0 && itemMissingPoints <= effectiveAdvanceLimit && !loyaltyMember?.hasAdvanceActive
 
                 return (
                   <button
                     key={item._id}
                     type="button"
-                    onClick={() => {
-                      if (isSelected) { onSelectReward(null) }
-                      else if (enoughPoints || canAdvance) { onSelectReward(item._id) }
-                    }}
-                    disabled={!enoughPoints && !canAdvance}
+                    onClick={() => { onToggleReward(item) }}
+                    disabled={!isSelected && !enoughPoints && !canAdvance}
                     className={cn(
                       'flex-shrink-0 w-50 snap-start rounded-2xl border-2 p-3 text-left transition-all duration-500',
-                      isSelected ? 'border-zinc-900 bg-zinc-50' : !enoughPoints && !canAdvance ? 'border-zinc-100 bg-zinc-50 opacity-50 grayscale cursor-not-allowed' : 'border-zinc-200 bg-white hover:border-zinc-300',
+                      isSelected ? 'border-zinc-900 bg-zinc-50' : !isSelected && !enoughPoints && !canAdvance ? 'border-zinc-100 bg-zinc-50 opacity-50 grayscale cursor-not-allowed' : 'border-zinc-200 bg-white hover:border-zinc-300',
                     )}
                   >
                     {item.imageUrl && <img src={item.imageUrl} alt={item.name} className="w-full h-20 object-cover rounded-xl mb-2" />}
@@ -351,7 +362,7 @@ function LoyaltySection(props: {
                       <Star size={11} className="fill-amber-400 text-amber-400" />
                       <span className="text-xs font-semibold text-zinc-600">{item.pointsCost} pts</span>
                     </div>
-                    {isSelected && enoughPoints && <span className="mt-1 block text-[10px] font-bold text-green-600">✓ Canjeado</span>}
+                    {isSelected && enoughPoints && <span className="mt-1 block text-[10px] font-bold text-green-600">✓ En el carrito</span>}
                     {isSelected && !enoughPoints && <span className="mt-1 block text-[10px] font-bold text-amber-600">Con Reward Advance</span>}
                     {!isSelected && !enoughPoints && canAdvance && <span className="mt-1 block text-[10px] font-medium text-amber-500">Faltan {itemMissingPoints} pts</span>}
                     {!isSelected && !enoughPoints && !canAdvance && <span className="mt-1 block text-[10px] font-medium text-zinc-400">Te faltan {itemMissingPoints} pts</span>}
@@ -360,7 +371,7 @@ function LoyaltySection(props: {
               })}
             </div>
           )}
-          {selectedRewardItem && !selectedRewardItem._id && canUseSos && (
+          {rewardLines.length > 0 && canUseSos && (
             <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
               <p className="text-xs font-bold text-amber-800">Te adelantamos {missingPoints} pts para que disfrutes tu recompensa hoy.</p>
               <p className="text-[11px] text-amber-600 mt-0.5">Disfrutá tu canje a 0$. Consolidá tu progreso en tu próxima compra.</p>
@@ -489,7 +500,7 @@ function PaymentConfirmation(props: {
   subtotal: number
   discountAmount: number
   activeQrPromo: any
-  selectedRewardItem: any
+  rewardStoreItems: any[]
   deliveryQuote: any
   deliveryCost: number
   baseTotal: number
@@ -501,7 +512,7 @@ function PaymentConfirmation(props: {
   const {
     mode, deliveryMode, tenantName,
     selectedPaymentMethod, kriptonEnabled, transferEnabled, cashEnabled,
-    subtotal, discountAmount, activeQrPromo, selectedRewardItem,
+    subtotal, discountAmount, activeQrPromo, rewardStoreItems,
     deliveryQuote, deliveryCost, baseTotal, total,
     activeSurchargePercent, transferData,
     onPaymentMethodChange,
@@ -718,15 +729,15 @@ function PaymentConfirmation(props: {
             <span>-${toPesos(clubDiscountAmount).toLocaleString('es-AR')}</span>
           </div>
         )}
-        {selectedRewardItem && (
-          <div className="flex justify-between text-sm text-emerald-600 font-semibold">
+        {rewardStoreItems.map(r => (
+          <div key={r._id} className="flex justify-between text-sm text-emerald-600 font-semibold">
             <span className="flex items-center gap-1">
               <Gift size={12} />
-              {selectedRewardItem.name} (Canje)
+              {r.name} (Canje · {r.pointsCost} pts)
             </span>
             <span>$0</span>
           </div>
-        )}
+        ))}
         {state.selectedPaymentMethod === 'cash' && cashDiscount > 0 && (
           <div className="flex justify-between text-sm text-green-600 font-semibold">
             <span className="flex items-center gap-1">

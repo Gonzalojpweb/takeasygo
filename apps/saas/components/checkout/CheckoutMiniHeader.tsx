@@ -78,6 +78,9 @@ export default function CheckoutMiniHeader() {
                       {item.customizationSummary && (
                         <p className="text-xs text-zinc-400 break-words mt-0.5">{item.customizationSummary}</p>
                       )}
+                      {item.type === 'reward' && item.pointsCost ? (
+                        <p className="text-xs text-emerald-600 font-semibold mt-0.5">Canje con {item.pointsCost} pts</p>
+                      ) : null}
                     </div>
                     <span className="text-sm font-semibold text-zinc-800 shrink-0 pt-0.5">
                       ${toPesos(item.price * item.quantity).toLocaleString('es-AR')}

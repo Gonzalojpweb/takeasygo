@@ -106,7 +106,9 @@ interface Props {
     cvu: string | null
   } | null
 initialReviewUrl?: string | null
-  orderItems: { _id: string; name: string; quantity: number; subtotal?: number; menuItemId?: string }[]
+  orderItems: { _id: string; name: string; quantity: number; subtotal?: number; menuItemId?: string; type?: 'reward'; pointsCost?: number }[]
+  /** Premios canjeados con el pedido (nombre/pts/estado, sin código). */
+  rewardRedemptions?: { storeItemId: string; name: string; imageUrl?: string | null; pointsUsed: number; status: string }[]
   orderTotal: number
   // ── Retorno de MercadoPago (?status=... en la query string) ──
   // Se pasa desde la página de tracking cuando el cliente volvió del checkout
@@ -209,6 +211,7 @@ export default function OrderTracker({
   initialTransferData,
   initialReviewUrl = null,
   orderItems,
+  rewardRedemptions = [],
   orderTotal,
   mpReturnOutcome = null,
   mpStatusDetail = null,
@@ -1290,7 +1293,15 @@ export default function OrderTracker({
           <div className="space-y-2">
             {orderItems.map((item) => (
               <div key={item._id} className="flex justify-between text-sm">
-                <span className="opacity-80">{item.quantity}x {item.name}</span>
+                <span className="opacity-80">
+                  {item.quantity}x {item.name}
+                  {item.type === 'reward' && (
+                    <span className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+                      style={{ backgroundColor: primaryColor + '18', color: primaryColor }}>
+                      Canje · {item.pointsCost ?? '—'} pts
+                    </span>
+                  )}
+                </span>
                 {item.subtotal != null && (
                   <span className="font-medium">${toPesos(item.subtotal).toLocaleString('es-AR')}</span>
                 )}
@@ -1302,6 +1313,42 @@ export default function OrderTracker({
             <span>Total</span>
             <span style={{ color: primaryColor }}>${toPesos(orderTotal).toLocaleString('es-AR')}</span>
           </div>
+
+          {/* Premios canjeados: nombre, puntos y estado (sin código de retiro) */}
+          {rewardRedemptions.length > 0 && (
+            <div className="mt-3 pt-3 border-t space-y-2" style={{ borderColor: primaryColor + '20' }}>
+              <h3 className="font-semibold text-sm opacity-50 uppercase tracking-wide">Tus premios</h3>
+              {rewardRedemptions.map((reward) => (
+                <div key={reward.storeItemId} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="opacity-80 flex items-center gap-2 min-w-0">
+                    {reward.imageUrl && (
+                      <img src={reward.imageUrl} alt="" className="w-6 h-6 rounded-full object-cover shrink-0" />
+                    )}
+                    <span className="truncate">{reward.name}</span>
+                    <span className="font-semibold shrink-0" style={{ color: primaryColor }}>
+                      {reward.pointsUsed} pts
+                    </span>
+                  </span>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+                    style={
+                      reward.status === 'claimed'
+                        ? { backgroundColor: '#16a34a18', color: '#16a34a' }
+                        : reward.status === 'pending'
+                          ? { backgroundColor: primaryColor + '18', color: primaryColor }
+                          : { backgroundColor: '#6b728018', color: '#6b7280' }
+                    }>
+                    {reward.status === 'claimed'
+                      ? 'Entregado'
+                      : reward.status === 'pending'
+                        ? 'Pendiente'
+                        : reward.status === 'expired'
+                          ? 'Vencido'
+                          : 'Cancelado'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

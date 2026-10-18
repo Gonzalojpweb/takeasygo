@@ -60,6 +60,37 @@ export default async function TrackingPage({ params, searchParams }: Props) {
   const rewardAdvanceApplied = order.rewardAdvanceApplied === true
   let rewardAdvanceConsolidated = false
 
+  // Premios del pedido: nombre/pts/estado para el bloque "Tu premio".
+  // SIN redemptionCode (no corresponde mostrarlo en el seguimiento).
+  let rewardRedemptions: Array<{
+    storeItemId: string
+    name: string
+    imageUrl: string | null
+    pointsUsed: number
+    status: string
+  }> = []
+  if (order.rewardItems?.length > 0) {
+    const StoreRedemption = (await import('@/models/StoreRedemption')).default
+    const reds = await StoreRedemption.find({ tenantId: tenant._id, orderId: order._id })
+      .select('storeItemId pointsUsed status')
+      .populate('storeItemId', 'name imageUrl')
+      .lean() as Array<{
+        storeItemId: { _id?: unknown; name?: string; imageUrl?: string } | unknown
+        pointsUsed: number
+        status: string
+      }>
+    rewardRedemptions = reds.map(r => {
+      const populated = r.storeItemId as { _id?: unknown; name?: string; imageUrl?: string }
+      return {
+        storeItemId: populated?._id?.toString() ?? (typeof r.storeItemId === 'object' ? '' : String(r.storeItemId ?? '')),
+        name: populated?.name || 'Premio',
+        imageUrl: populated?.imageUrl ?? null,
+        pointsUsed: r.pointsUsed,
+        status: r.status,
+      }
+    })
+  }
+
   if (tenant.loyalty?.enabled && order.customer?.phoneHash) {
     const LoyaltyMember = (await import('@/models/LoyaltyMember')).default
     member = await LoyaltyMember.findOne({
@@ -165,12 +196,20 @@ export default async function TrackingPage({ params, searchParams }: Props) {
             return t ? { alias: t.alias, cbu: t.cbu, cvu: t.cvu } : null
           })()}
           initialReviewUrl={location?.googleBusiness?.reviewUrl ?? null}
+          rewardRedemptions={rewardRedemptions}
           orderItems={order.items.map((item: any) => ({
             _id: item._id?.toString() ?? '',
             name: item.name,
             quantity: item.quantity,
             subtotal: item.subtotal,
             menuItemId: item.menuItemId?.toString(),
+            type: item.itemType === 'reward' ? 'reward' as const : undefined,
+            pointsCost: item.itemType === 'reward'
+              ? order.rewardItems?.find(
+                  (r: { storeItemId: unknown; pointsCost?: number }) =>
+                    String(r.storeItemId) === String(item.storeItemId)
+                )?.pointsCost
+              : undefined,
           }))}
           orderTotal={order.total}
           mpReturnOutcome={parseMpReturnOutcome(resolvedSearchParams)}

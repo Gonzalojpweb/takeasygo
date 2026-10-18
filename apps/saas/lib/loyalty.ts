@@ -5,7 +5,7 @@ import Order from '@/models/Order'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import { syncWalletPoints } from '@/lib/walletService'
-import { toPesos } from '@takeasygo/business'
+import { toPesos, evaluateRewardRedemption, computeMicroAdvance } from '@takeasygo/business'
 
 /**
  * Get the loyalty points config for a specific location.
@@ -136,41 +136,26 @@ export async function validateCheckoutRewards(
     }
   }
 
-  const projectedBalance = (member.loyalty?.points ?? 0) - loyaltyPointsRequired
+  // Decisión de saldo / adelanto / micro-adelanto: regla única compartida en
+  // @takeasygo/business (también la usa el canje standalone y el POS).
+  const decision = evaluateRewardRedemption({
+    mode: 'checkout',
+    pointsBalance: member.loyalty?.points ?? 0,
+    pointsRequired: loyaltyPointsRequired,
+    advanceLimit: tenant.loyalty?.sosLimit ?? 0,
+    advanceMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
+    hasPendingAdvance: member.sosConfig?.hasPendingSos,
+  })
 
-  // Tiene puntos de sobra — sin advance, sin micro-SOS
-  if (projectedBalance > 0) {
-    return { valid: true, resolved }
-  }
-
-  // Tiene exactamente los puntos necesarios — sin advance explícito,
-  // pero se aplicará micro-SOS para forzar retorno
-  if (projectedBalance === 0) {
-    return { valid: true, resolved, microSosRequired: true }
-  }
-
-  // No alcanzan: evaluar Reward Advance (antes llamado SOS)
-  const missingPoints = Math.abs(projectedBalance)
-  const sosMaxLimit = tenant.loyalty?.sosMaxLimit ?? 0
-  const effectiveAdvanceLimit = Math.min(tenant.loyalty?.sosLimit ?? 0, sosMaxLimit)
-
-  if (effectiveAdvanceLimit <= 0 || missingPoints > effectiveAdvanceLimit) {
+  if (!decision.valid) {
     return {
       valid: false,
-      error: `Te faltan ${missingPoints} puntos para canjear este premio. Límite de adelanto: ${effectiveAdvanceLimit > 0 ? effectiveAdvanceLimit : 'no disponible'}.`,
+      error: decision.error ?? 'No podés canjear este premio con tu saldo actual.',
       resolved: [],
     }
   }
 
-  if (member.sosConfig?.hasPendingSos) {
-    return {
-      valid: false,
-      error: 'Tenés un adelanto de puntos pendiente. Completá una compra para consolidar tu saldo antes de canjear.',
-      resolved: [],
-    }
-  }
-
-  return { valid: true, resolved }
+  return { valid: true, resolved, microSosRequired: decision.microAdvanceRequired }
 }
 
 export async function processRewardDeduction(
@@ -209,8 +194,7 @@ export async function processRewardDeduction(
   // Micro-SOS: si el saldo queda en exactamente 0 y no se usó SOS explícito,
   // forzar un adelanto pequeño para que el miembro siempre tenga deuda que consolidar
   if (newBalance === 0 && !isAdvance) {
-    const sosLimit = tenant.loyalty?.sosLimit ?? 250
-    const microSosAmount = Math.min(Math.ceil(totalPointsCost * 0.2), sosLimit)
+    const microSosAmount = computeMicroAdvance(totalPointsCost, tenant.loyalty?.sosLimit ?? 250)
 
     member.loyalty.points = -microSosAmount
     member.sosConfig.hasPendingSos = true
@@ -259,14 +243,31 @@ export async function processRewardDeduction(
 
 /**
  * Revert reward redemptions when an order is cancelled or payment fails.
- * - Cancels pending StoreRedemption records (matched by memberId + storeItemId)
+ * - Cancels pending StoreRedemption records (matched by orderId; legacy ones
+ *   without orderId fall back to member + storeItemId + creation window)
  * - Restores StoreItem stock
  * - If points were already deducted (rewardDeductionProcessed), restores them
  */
 export async function revertRewardRedemptions(order: any, tenant: any, session?: mongoose.ClientSession) {
   if (!order.rewardItems || order.rewardItems.length === 0) return
 
-  // Find the loyalty member to match pending redemptions
+  const storeItemIds = order.rewardItems.map((r: any) => r.storeItemId).filter(Boolean)
+
+  // 1. Canjes vinculados a esta orden (source: 'checkout'). Es el camino nuevo
+  //    y el único correcto: no depende de que exista el miembro.
+  if (order._id) {
+    const byOrder = await StoreRedemption.updateMany(
+      { orderId: order._id, status: 'pending' },
+      { $set: { status: 'cancelled' } },
+      { session }
+    )
+    if (byOrder.modifiedCount > 0) {
+      console.log(`[Loyalty] Reverted ${byOrder.modifiedCount} StoreRedemptions for order ${order.orderNumber}`)
+    }
+  }
+
+  // Sin phoneHash no hay miembro: no hay puntos que devolver, pero el stock
+  // igual se restaura más abajo.
   if (!order.customer?.phoneHash) return
 
   const query: any = {
@@ -281,24 +282,28 @@ export async function revertRewardRedemptions(order: any, tenant: any, session?:
   const member = await LoyaltyMember.findOne(query).session(session || null)
   if (!member) return
 
-  // 1. Cancel pending StoreRedemptions for this member + store items
-  const storeItemIds = order.rewardItems.map((r: any) => r.storeItemId).filter(Boolean)
-  if (storeItemIds.length > 0) {
+  // 2. Canjes LEGACY (creados antes de existir orderId). Se acotan por ventana
+  //    de creación para no cancelar un canje standalone independiente del mismo
+  //    miembro y del mismo premio.
+  if (storeItemIds.length > 0 && order.createdAt) {
+    const windowStart = new Date(new Date(order.createdAt).getTime() - 10 * 60 * 1000)
     const redemptionResult = await StoreRedemption.updateMany(
       {
         memberId: member._id,
         storeItemId: { $in: storeItemIds },
         status: 'pending',
+        $or: [{ orderId: null }, { orderId: { $exists: false } }],
+        createdAt: { $gte: windowStart },
       },
       { $set: { status: 'cancelled' } },
       { session }
     )
     if (redemptionResult.modifiedCount > 0) {
-      console.log(`[Loyalty] Reverted ${redemptionResult.modifiedCount} StoreRedemptions for order ${order.orderNumber}`)
+      console.log(`[Loyalty] Reverted ${redemptionResult.modifiedCount} legacy StoreRedemptions for order ${order.orderNumber}`)
     }
   }
 
-  // 2. Restore StoreItem stock
+  // 3. Restore StoreItem stock
   for (const reward of order.rewardItems) {
     if (reward.storeItemId) {
       await StoreItem.updateOne(
@@ -309,7 +314,7 @@ export async function revertRewardRedemptions(order: any, tenant: any, session?:
     }
   }
 
-  // 3. If points were already deducted, restore them
+  // 4. If points were already deducted, restore them
   if (order.rewardDeductionProcessed) {
     const pointsToRestore = order.rewardItems.reduce(
       (sum: number, r: any) => sum + (r.pointsCost || 0), 0

@@ -180,6 +180,7 @@ export default function StoreView({ tenantSlug, memberId, memberPoints, memberTi
           setRedeemedItem(null)
           fetchData()
         }}
+        menuUrl={menuUrl}
       />
     )
   }

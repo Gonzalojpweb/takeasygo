@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { CheckCircle, QrCode, Share2, ArrowLeft, Clock, Copy, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
@@ -13,10 +14,13 @@ interface Props {
   item: any
   member: any
   onBack: () => void
+  /** Menú del local: "Volver" lleva al menú (guarda §7). Sin menuUrl → onBack. */
+  menuUrl?: string
 }
 
-export default function RedemptionSuccess({ tenantSlug, redemption, item, member, onBack }: Props) {
+export default function RedemptionSuccess({ tenantSlug, redemption, item, member, onBack, menuUrl }: Props) {
   const haptic = useHaptic()
+  const router = useRouter()
   const [copied, setCopied] = useState(false)
   const { play: playPop } = useNotificationSound('/pop.mp3')
 
@@ -75,7 +79,11 @@ export default function RedemptionSuccess({ tenantSlug, redemption, item, member
       <div className="max-w-md mx-auto">
         <div className="flex gap-2 mb-4">
           <button
-            onClick={() => { haptic.impact('light'); onBack() }}
+            onClick={() => {
+              haptic.impact('light')
+              if (menuUrl) router.push(menuUrl)
+              else onBack()
+            }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors"
             style={{ color: 'var(--tgo-text-primary)' }}
           >

@@ -30,7 +30,15 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
 import { captureUpsellImpression } from '@/lib/events'
-import { trackMenuOpened, trackCartAdd, trackCartRemove } from '@/lib/track'
+import { trackMenuOpened, trackCartAdd, trackCartRemove, trackRewardInteraction } from '@/lib/track'
+import {
+  normalizeStoredCart,
+  getRewardLines,
+  sumRewardPoints,
+  isRewardInCart,
+  addRewardLine,
+  resolveMaxRewardsPerOrder,
+} from '@/lib/cart-items'
 import { motion } from 'framer-motion'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
@@ -138,13 +146,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     if (typeof window === 'undefined') return []
     try {
       const saved = sessionStorage.getItem(`cart_${tenant.slug}`)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        return parsed.map((item: any) => ({
-          ...item,
-          type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
-        }))
-      }
+      if (saved) return normalizeStoredCart(JSON.parse(saved))
     } catch {}
     return []
   })
@@ -200,6 +202,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [promotions, setPromotions] = useState<any[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
+  // Canje en checkout (store.maxRewardsPerOrder / store.enableCheckoutRedemption)
+  const [checkoutRedemption, setCheckoutRedemption] = useState<{ enabled: boolean; maxPerOrder: number }>({
+    enabled: false,
+    maxPerOrder: 1,
+  })
   const [promoSlotSelection, setPromoSlotSelection] = useState<{
     promo: any
     slotStates: Record<number, { selectedItems: any[]; completed: boolean }>
@@ -333,6 +340,31 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       setMemberPoints(clubMembership.points)
     }
   }, [clubMembership.isMember, clubMembership.points])
+
+  // Config pública del store: habilita "agregar al carrito" y el tope de premios
+  useEffect(() => {
+    let cancelled = false
+    fetch(`/api/${tenant.slug}/store/config`)
+      .then(r => r.json())
+      .then((data: { config?: { enableCheckoutRedemption?: boolean; maxRewardsPerOrder?: number | null } }) => {
+        if (cancelled) return
+        const cfg = data?.config
+        setCheckoutRedemption({
+          enabled: Boolean(cfg?.enableCheckoutRedemption),
+          maxPerOrder: resolveMaxRewardsPerOrder(cfg),
+        })
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [tenant.slug])
+
+  // Estado de los premios en el carrito del menú (fuente de verdad compartida
+  // con el checkout vía sessionStorage)
+  const rewardLines = getRewardLines(cart)
+  const rewardPointsInCart = sumRewardPoints(cart)
+  const rewardLimitReached = rewardLines.length >= checkoutRedemption.maxPerOrder
+  const rewardPointsAvailable = Math.max(0, memberPoints - rewardPointsInCart)
+  const rewardCheckoutActive = checkoutRedemption.enabled && clubMembership.isMember
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
@@ -823,6 +855,39 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     }
   }
 
+  /**
+   * Agrega un premio de la tienda al carrito (línea $0 + costo en puntos).
+   * El menú exige saldo suficiente para los premios ya en el carrito; el
+   * Reward Advance se arma desde el picker del checkout (donde está la config).
+   */
+  function addRewardToCart(item: { _id: string; name: string; imageUrl?: string; pointsCost: number }) {
+    if (isRewardInCart(cart, item._id)) {
+      toast.info('Ya agregaste este premio a tu pedido')
+      return
+    }
+    if (rewardLimitReached) {
+      toast.error(checkoutRedemption.maxPerOrder === 1
+        ? 'Solo podés canjear 1 premio por pedido'
+        : `Podés canjear hasta ${checkoutRedemption.maxPerOrder} premios por pedido`)
+      return
+    }
+    const projectedPoints = rewardPointsInCart + item.pointsCost
+    if (projectedPoints > memberPoints) {
+      toast.error(`Te faltan ${projectedPoints - memberPoints} puntos para este premio`)
+      return
+    }
+    setCart(prev => addRewardLine(prev, item))
+    playAddSound()
+    trackRewardInteraction({
+      rewardId: item._id,
+      type: 'store_item',
+      value: item.pointsCost,
+      action: 'add_to_cart',
+      locationId: location._id,
+    })
+    toast.success(`${item.name} agregado a tu pedido`)
+  }
+
   function buildHalfPriceContext(item: any): typeof halfPriceContext {
     // Check if this item has a "Grande" variant — prerequisite for half-and-half
     const hasGrande = item.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0)
@@ -1207,7 +1272,18 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         )}
 
         {/* Store Points Carousel — hidden for company admin in business mode */}
-        {!isAdminCorp && <StoreCarousel tenantSlug={tenant.slug} memberPoints={memberPoints} locationId={location._id} />}
+        {!isAdminCorp && (
+          <StoreCarousel
+            tenantSlug={tenant.slug}
+            memberPoints={memberPoints}
+            locationId={location._id}
+            rewardEnabled={rewardCheckoutActive}
+            rewardPointsAvailable={rewardPointsAvailable}
+            rewardLimitReached={rewardLimitReached}
+            cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
+            onAddReward={addRewardToCart}
+          />
+        )}
 
         {/* Best Sellers */}
         {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -1944,7 +2020,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         <Minus size={13} />
                       </button>
                       <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                      {item.customizations.length === 0 && (
+                      {item.type !== 'reward' && item.customizations.length === 0 && (
                         <button onClick={() => addPlainToCart(item)}
                           className="w-7 h-7 rounded-full flex items-center justify-center"
                           style={{ backgroundColor: primary, color: bg }}>
@@ -1960,8 +2036,19 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                             Promo
                           </span>
                         )}
+                        {item.type === 'reward' && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none"
+                            style={{ backgroundColor: primary + '20', color: primary }}>
+                            Canje
+                          </span>
+                        )}
                         <span className="text-sm truncate block">{item.name}</span>
                       </div>
+                      {item.type === 'reward' && item.pointsCost ? (
+                        <span className="text-[10px] font-semibold block mt-0.5" style={{ color: primary }}>
+                          Canje con {item.pointsCost} pts
+                        </span>
+                      ) : null}
                       {(item as any)._promotionShortDescription && (
                         <span className="text-[10px] opacity-40 truncate block italic">{(item as any)._promotionShortDescription}</span>
                       )}

@@ -4,24 +4,27 @@ import { useCheckout } from '@/contexts/CheckoutContext'
 import { toPesos } from '@takeasygo/business/browser'
 
 export default function OrderSummaryWithUpsell() {
-  const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, selectedRewardItem, hiddenRewardClaims, clubDiscount, clubDiscountAmount } = useCheckout()
-  const { cart, upsellHints, activeQrPromo, deliveryMode, deliveryQuote } = state
+const { state, subtotal, baseTotal, increaseQty, decreaseQty, removeItem, addHintToCart, discountAmount, rewardStoreItems, toggleReward, hiddenRewardClaims, clubDiscount, clubDiscountAmount } = useCheckout()
+const { cart, upsellHints, activeQrPromo, deliveryMode, deliveryQuote } = state
+// Los premios se listan en su propia caja (abajo), no como renglones con cantidad.
+const menuCartLines = cart.filter(i => i.type !== 'reward')
 
-  if (cart.length === 0) {
-    return (
-      <div className="py-6 text-center text-zinc-400 text-sm">
-        Tu carrito está vacío.
-      </div>
-    )
-  }
-
+if (cart.length === 0) {
   return (
-    <div>
-      <h2 className="font-semibold text-sm text-zinc-500 uppercase tracking-wide mb-2">Resumen</h2>
+    <div className="py-6 text-center text-zinc-400 text-sm">
+      Tu carrito está vacío.
+    </div>
+  )
+}
 
-      {/* Cart items */}
-      <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
-        {cart.map((item) => {
+return (
+  <div>
+    <h2 className="font-semibold text-sm text-zinc-500 uppercase tracking-wide mb-2">Resumen</h2>
+
+    {/* Cart items */}
+    {menuCartLines.length > 0 && (
+    <div className="bg-zinc-50 rounded-2xl p-4 space-y-3">
+      {menuCartLines.map((item) => {
           const hasCustomizations = item.customizations.length > 0
           return (
             <div key={item.cartItemId} className="flex items-start gap-3">
@@ -80,22 +83,32 @@ export default function OrderSummaryWithUpsell() {
           )
         })}
       </div>
+    )}
 
-      {/* Reward selected */}
-      {selectedRewardItem && (
-        <div className="mt-2 flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
+    {/* Rewards in cart (redeemed as $0 lines) */}
+      {rewardStoreItems.map(r => (
+        <div key={r._id} className="mt-2 flex items-center justify-between py-2 px-3 bg-emerald-50 rounded-xl border border-emerald-200">
           <div className="flex items-center gap-2 min-w-0">
-            {selectedRewardItem.imageUrl && (
-              <img src={selectedRewardItem.imageUrl} alt={selectedRewardItem.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
+            {r.imageUrl && (
+              <img src={r.imageUrl} alt={r.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
             )}
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-emerald-800 truncate">{selectedRewardItem.name}</p>
-              <p className="text-[10px] text-emerald-600 font-medium">Canjeado con {selectedRewardItem.pointsCost} pts</p>
+              <p className="text-sm font-semibold text-emerald-800 truncate">{r.name}</p>
+              <p className="text-[10px] text-emerald-600 font-medium">Canje con {r.pointsCost} pts</p>
             </div>
           </div>
-          <span className="text-sm font-bold text-emerald-700 flex-shrink-0">$0</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => toggleReward(r)}
+              className="text-[10px] font-bold text-emerald-700 hover:text-emerald-900 underline"
+            >
+              Quitar
+            </button>
+            <span className="text-sm font-bold text-emerald-700">$0</span>
+          </div>
         </div>
-      )}
+      ))}
 
       {/* Price breakdown */}
       <div className="pt-3 space-y-2">

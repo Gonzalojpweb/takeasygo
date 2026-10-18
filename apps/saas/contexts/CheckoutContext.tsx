@@ -4,7 +4,19 @@ import { createContext, useContext, useCallback, useRef, useReducer, useEffect, 
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type { CartItem } from '@/types/cart'
-import { trackCartRemove, trackCartAdd } from '@/lib/track'
+import { trackCartRemove, trackCartAdd, trackRewardInteraction } from '@/lib/track'
+import {
+  normalizeStoredCart,
+  getRewardLines,
+  sumRewardPoints,
+  resolveMaxRewardsPerOrder,
+  isRewardInCart,
+  removeRewardLine,
+  addRewardLine,
+  type RewardCartItemInput,
+  type ToggleRewardStatus,
+} from '@/lib/cart-items'
+import { evaluateRewardRedemption } from '@takeasygo/business'
 
 export interface DeliveryAddress {
   street: string
@@ -96,7 +108,8 @@ export interface CheckoutState {
   pointsLookupLoading: boolean
   storeItems: StoreItem[]
   businessInfo: BusinessInfo | null
-  selectedRewardItemId: string | null
+  /** Cuántos premios por pedido permite el tenant (config store.maxRewardsPerOrder). */
+  maxRewardsPerOrder: number
   rewardItemLoading: boolean
   loyaltyConfig: LoyaltyConfig | null
   joinClub: boolean
@@ -140,7 +153,7 @@ type CheckoutAction =
   | { type: 'SET_ACTIVE_ORDER'; orderNumber: string | null }
   | { type: 'SET_LOYALTY_MEMBER'; member: any | null }
   | { type: 'SET_STORE_ITEMS'; items: StoreItem[] }
-  | { type: 'SET_SELECTED_REWARD'; id: string | null }
+  | { type: 'SET_MAX_REWARDS_PER_ORDER'; max: number }
   | { type: 'SET_LOYALTY_CONFIG'; config: LoyaltyConfig | null }
   | { type: 'SET_JOIN_CLUB'; join: boolean }
   | { type: 'SET_SCHEDULED_ORDERS_CONFIG'; config: ScheduledOrdersConfig | null }
@@ -190,7 +203,15 @@ interface CheckoutContextValue {
   extraMinutes: number
   delayMessage: string
   qrEligibleSubtotal: number
-  selectedRewardItem: StoreItem | null
+  /** Líneas de premio (type === 'reward') presentes en el carrito. */
+  rewardLines: CartItem[]
+  /** Ítems de la tienda que representan esas líneas (resueltos contra storeItems). */
+  rewardStoreItems: StoreItem[]
+  /** Suma de puntos que costarían los premios del carrito. */
+  rewardPointsTotal: number
+  maxRewardsPerOrder: number
+  /** Agrega/quita un premio del carrito (respeta el máximo por pedido y el saldo de puntos). */
+  toggleReward: (item: RewardCartItemInput) => ToggleRewardStatus
   rewardNeedsAdvance: boolean
   missingPoints: number
   canUseSos: boolean
@@ -222,7 +243,7 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_ACTIVE_ORDER': return { ...state, activeOrderNumber: action.orderNumber }
     case 'SET_LOYALTY_MEMBER': return { ...state, loyaltyMember: action.member }
     case 'SET_STORE_ITEMS': return { ...state, storeItems: action.items }
-    case 'SET_SELECTED_REWARD': return { ...state, selectedRewardItemId: action.id }
+    case 'SET_MAX_REWARDS_PER_ORDER': return { ...state, maxRewardsPerOrder: action.max }
     case 'SET_LOYALTY_CONFIG': return { ...state, loyaltyConfig: action.config }
     case 'SET_JOIN_CLUB': return { ...state, joinClub: action.join }
     case 'SET_SCHEDULED_ORDERS_CONFIG': return { ...state, scheduledOrdersConfig: action.config }
@@ -277,7 +298,7 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     pointsLookupLoading: false,
     storeItems: [],
     businessInfo: null,
-    selectedRewardItemId: null,
+    maxRewardsPerOrder: 1,
     rewardItemLoading: false,
     loyaltyConfig: null,
     joinClub: false,
@@ -333,12 +354,15 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
       router.back()
       return
     }
-    const parsedCart = JSON.parse(saved)
-    const cartWithType = parsedCart.map((item: any) => ({
-      ...item,
-      type: item.type || (item.promotionId ? 'promotion' : 'menuItem'),
-    }))
-    dispatch({ type: 'SET_CART', cart: cartWithType })
+    // Formato unificado de carrito: acepta el formato viejo (sin `type`) y
+    // normaliza las líneas de premio (type 'reward' → $0, cantidad 1).
+    let cart: CartItem[] = []
+    try {
+      cart = normalizeStoredCart(JSON.parse(saved))
+    } catch {
+      cart = []
+    }
+    dispatch({ type: 'SET_CART', cart })
 
     // ── Re-armado desde un pedido cancelado ──────────────────────────────
     // Un cliente que cancela un pedido varado vuelve al checkout con su
@@ -595,7 +619,10 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     const s = stateRef.current
     if (!s.loyaltyMember || !s.loyaltyConfig?.enabled) {
       dispatch({ type: 'SET_STORE_ITEMS', items: [] })
-      dispatch({ type: 'SET_SELECTED_REWARD', id: null })
+      // Sin miembro activo no hay canje: los premios salen del carrito
+      if (s.cart.some(i => i.type === 'reward')) {
+        dispatch({ type: 'SET_CART', cart: s.cart.filter(i => i.type !== 'reward') })
+      }
       return
     }
     dispatch({ type: 'SET_REWARD_LOADING', loading: true })
@@ -606,6 +633,14 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
       })
       .catch(() => {})
       .finally(() => dispatch({ type: 'SET_REWARD_LOADING', loading: false }))
+
+    // Tope de premios por pedido (config público del store del tenant)
+    fetch(`/api/${tenantSlug}/store/config`)
+      .then(r => r.json())
+      .then(data =>
+        dispatch({ type: 'SET_MAX_REWARDS_PER_ORDER', max: resolveMaxRewardsPerOrder(data?.config) })
+      )
+      .catch(() => {})
   }, [state.loyaltyMember, state.loyaltyConfig?.enabled, tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset delivery quote when address changes
@@ -616,13 +651,6 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
       dispatch({ type: 'SET_DELIVERY_CONFIRMED', confirmed: false })
     }
   }, [state.deliveryAddress])
-
-  // SOS tracking (derived values)
-  useEffect(() => {
-    if (selectedRewardItem && rewardNeedsAdvance && canUseSos) {
-      // Track reward advance offer (no-op for now)
-    }
-  }, [state.selectedRewardItemId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const steps = stepsMap[state.mode === 'delivery' ? 'delivery' : 'takeaway'] || stepsMap.takeaway
 
@@ -689,16 +717,19 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     ? Math.floor(subtotal * (state.cashDiscountPercent / 100))
     : 0
 
-  const selectedRewardItem = state.selectedRewardItemId
-    ? state.storeItems.find(i => i._id === state.selectedRewardItemId) ?? null
-    : null
+  // Premios en el carrito: el carrito es la única fuente de verdad de qué se canjea.
+  const rewardLines = getRewardLines(state.cart)
+  const rewardStoreItems = rewardLines
+    .map(line => state.storeItems.find(i => i._id === line.storeItemId))
+    .filter((i): i is StoreItem => Boolean(i))
+  const rewardPointsTotal = sumRewardPoints(state.cart)
 
-  const rewardNeedsAdvance = selectedRewardItem && state.loyaltyMember
-    ? state.loyaltyMember.points < selectedRewardItem.pointsCost
+  const rewardNeedsAdvance = rewardLines.length > 0 && state.loyaltyMember
+    ? state.loyaltyMember.points < rewardPointsTotal
     : false
 
   const missingPoints = rewardNeedsAdvance
-    ? (selectedRewardItem?.pointsCost ?? 0) - (state.loyaltyMember?.points ?? 0)
+    ? rewardPointsTotal - (state.loyaltyMember?.points ?? 0)
     : 0
 
   const effectiveAdvanceLimit = Math.min(
@@ -785,12 +816,53 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     dispatch({ type: 'SET_UPSERT_HINTS', hints: prev.upsellHints.filter(h => h._id !== item._id) })
   }, [])
 
+  /**
+   * Agrega o quita un premio del carrito.
+   * Valida el máximo por pedido y el saldo total de puntos con la MISMA regla
+   * que usa el server, para que no haya sorpresas al confirmar el pedido.
+   */
+  const toggleReward = useCallback((item: RewardCartItemInput): ToggleRewardStatus => {
+    const prev = stateRef.current
+    const cart = prev.cart
+
+    if (isRewardInCart(cart, item._id)) {
+      dispatch({ type: 'SET_CART', cart: removeRewardLine(cart, item._id) })
+      return 'removed'
+    }
+
+    if (getRewardLines(cart).length >= prev.maxRewardsPerOrder) return 'limit_reached'
+
+    const projectedPoints = sumRewardPoints(cart) + item.pointsCost
+    const decision = evaluateRewardRedemption({
+      mode: 'checkout',
+      pointsBalance: prev.loyaltyMember?.points ?? 0,
+      pointsRequired: projectedPoints,
+      advanceLimit: prev.loyaltyConfig?.sosLimit ?? 0,
+      advanceMaxLimit: prev.loyaltyConfig?.sosMaxLimit ?? 0,
+      hasPendingAdvance: prev.loyaltyMember?.hasAdvanceActive ?? false,
+    })
+    if (!decision.valid) return 'not_enough_points'
+
+    dispatch({ type: 'SET_CART', cart: addRewardLine(cart, item) })
+    trackRewardInteraction({
+      rewardId: item._id,
+      type: 'store_item',
+      value: item.pointsCost,
+      action: 'add_to_cart',
+      locationId: prev.locationId,
+    })
+    return 'added'
+  }, [])
+
   const value: CheckoutContextValue = {
     state, dispatch, steps,
     increaseQty, decreaseQty, removeItem, addHintToCart,
     subtotal, discountAmount, deliveryCost, baseTotal, total,
     effectiveTime, delayEnabled, extraMinutes, delayMessage,
-    qrEligibleSubtotal, selectedRewardItem,
+    qrEligibleSubtotal,
+    rewardLines, rewardStoreItems, rewardPointsTotal,
+    maxRewardsPerOrder: state.maxRewardsPerOrder,
+    toggleReward,
     rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit,
     currentMode, modeDelay,
     tenantName: state.tenantName,

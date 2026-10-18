@@ -8,18 +8,19 @@ import { useRouter } from 'next/navigation'
 import { MapPin, Loader2, CheckCircle2 } from 'lucide-react'
 import { captureRewardAdvanceAccepted } from '@/lib/tia/events'
 import { trackCheckoutSubmitted } from '@/lib/track'
+import { buildRewardPayloadFromCart } from '@/lib/cart-items'
 
 type GeoStatus = 'idle' | 'loading' | 'granted' | 'denied' | 'error'
 
 export default function CheckoutPaymentFooter() {
-  const { state, dispatch, steps, baseTotal, total, subtotal, discountAmount, deliveryCost, selectedRewardItem, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit, transferData } = useCheckout()
+  const { state, dispatch, steps, baseTotal, total, subtotal, discountAmount, deliveryCost, rewardNeedsAdvance, missingPoints, canUseSos, effectiveAdvanceLimit, transferData } = useCheckout()
   const router = useRouter()
   const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle')
   const [pickupLocation, setPickupLocation] = useState<{ lat: number; lng: number } | null>(null)
   const {
     currentStep, cart, form, mode, deliveryMode, tenantSlug, locationId,
     scheduleOrder, scheduledPickupAt, deliveryAddress, deliveryQuote, deliveryConfirmed,
-    activeQrPromo, promoCode, joinClub, loyaltyConfig, selectedRewardItemId,
+    activeQrPromo, promoCode, joinClub, loyaltyConfig,
     kriptonEnabled, transferEnabled, selectedPaymentMethod, loading, redirectingToMp,
   } = state
 
@@ -133,9 +134,9 @@ export default function CheckoutPaymentFooter() {
         qrPromoApplied: !!activeQrPromo,
         promoSlug: activeQrPromo?.promoSlug ?? undefined,
         promoCode: promoCode || undefined,
-        ...(selectedRewardItemId && selectedRewardItem
-          ? { rewardItems: [{ storeItemId: selectedRewardItemId }], loyaltyPointsRequired: selectedRewardItem.pointsCost }
-          : {}),
+        // Los premios del carrito viajan como rewardItems (el server arma la
+        // línea $0 dentro de la orden a partir de ellos).
+        ...(buildRewardPayloadFromCart(cart) ?? {}),
         source: sessionStorage.getItem('tgo_attribution_source') || activeQrPromo?.source || undefined,
         sessionId: sessionStorage.getItem('hr_sessionId') || undefined,
         ...(deliveryMode ? {
