@@ -68,3 +68,14 @@ export {
   type RawCustomizationGroup,
 } from "./menu-flatten"
 export { resolveMongoDbName, assertMongoDbName, isProdDefaultDbName, PROD_DEFAULT_DB_NAME } from "./mongo"
+export {
+  type RewardRedemptionMode,
+  type RewardRejectionReason,
+  type RewardRedemptionInput,
+  type RewardRedemptionDecision,
+  PENDING_ADVANCE_ERROR,
+  MICRO_ADVANCE_RATIO,
+  computeMicroAdvance,
+  isPendingAdvanceBlocking,
+  evaluateRewardRedemption,
+} from "./rewards"

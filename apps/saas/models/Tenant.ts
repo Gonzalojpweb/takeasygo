@@ -334,6 +334,8 @@ export interface ITenant extends Document {
     redemptionExpiryHours?: number  // Horas para expirar código de canje
     /** Permitir canje de ítems de la tienda durante el checkout */
     enableCheckoutRedemption: boolean
+    /** Cantidad maxima de premios canjeables por pedido en checkout (default 1, tope tecnico 5) */
+    maxRewardsPerOrder?: number
     /** Ubicación asociada a la config de store (null = todas) */
     locationId?: string | null
   }
@@ -774,6 +776,7 @@ const TenantSchema = new Schema<ITenant>(
       allowOnlineRedemption: { type: Boolean, default: false },
       redemptionExpiryHours: { type: Number, default: 24, min: 1, max: 168 }, // 1 hora a 7 días
       enableCheckoutRedemption: { type: Boolean, default: false },
+      maxRewardsPerOrder: { type: Number, default: 1, min: 1, max: 5 },
       locationId: { type: String, default: null },
     },
     // ── Transferencia bancaria ─────────────────────────────────────────────
