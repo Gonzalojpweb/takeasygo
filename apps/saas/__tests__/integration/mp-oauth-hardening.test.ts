@@ -207,9 +207,12 @@ describe('mp-oauth callback — firma + sesión + tenant match', () => {
     const state = signMpOauthState({ tenantSlug: 'palmyra' }, AUTH_SECRET)
     const res = await callbackGET(callbackReq(state))
 
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    // 1) canje code → token, 2) /users/me para identificar oauthUserId
+    // (hardening fe3e374d: validar user_id antes de guardar)
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
     const [url] = fetchSpy.mock.calls[0]
     expect(String(url)).toContain('api.mercadopago.com/oauth/token')
+    expect(String(fetchSpy.mock.calls[1][0])).toContain('api.mercadopago.com/users/me')
     expect(res.headers.get('location')).toContain('palmyra/admin/settings?mp_oauth=success')
 
     const tenant = await Tenant.findOne({ slug: 'palmyra' }).lean<any>()

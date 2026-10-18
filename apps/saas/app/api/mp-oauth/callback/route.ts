@@ -143,8 +143,6 @@ export async function GET(request: NextRequest) {
     if (!access_token) {
       console.error('[MP OAuth] No access_token in response')
       return failAt('no_access_token', tenantSlug)
-<<<<<<< HEAD
-=======
     }
 
     // ── Identificar el user_id de MP del token OAuth nuevo ──────────────────
@@ -164,65 +162,22 @@ export async function GET(request: NextRequest) {
       }
     } catch (meErr: any) {
       console.warn('[MP OAuth] /users/me network error:', meErr?.message)
->>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
     }
 
     try {
       const tenant = await Tenant.findOne({ slug: tenantSlug })
       if (!tenant) throw new Error('Tenant not found')
 
-<<<<<<< HEAD
-      // Helper seguro para encrypt
-      const safeEncrypt = (val: string | undefined) => {
-        try {
-          return val ? encrypt(val) : null
-        } catch {
-          return null
-        }
-      }
-
-      // If accountId provided and exists in mpAccounts, update that specific account
-      if (accountId && tenant.mpAccounts?.length) {
-        const account = tenant.mpAccounts.find((a: any) => a._id?.toString() === accountId)
-        if (account) {
-          account.oauthAccessToken = safeEncrypt(access_token)
-          account.oauthRefreshToken = safeEncrypt(refresh_token)
-          account.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
-          account.oauthIsConnected = true
-          account.oauthAuthorizedAt = new Date()
-          tenant.markModified('mpAccounts')
-          await tenant.save()
-          console.log(`[MP OAuth] Saved to mpAccounts[${accountId}]`)
-        } else {
-=======
       // Resolver la cuenta destino (misma lógica que antes)
       let targetAccount: any = null
       if (accountId && tenant.mpAccounts?.length) {
         targetAccount = tenant.mpAccounts.find((a: any) => a._id?.toString() === accountId)
         if (!targetAccount) {
->>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
           console.warn(`[MP OAuth] accountId ${accountId} not found in mpAccounts, falling back to mpOAuth`)
         }
       } else if (!tenant.mpAccounts?.length) {
         targetAccount = null // legacy
       } else {
-<<<<<<< HEAD
-        // accountId not provided but mpAccounts exists — save to first active account
-        const activeAccount = tenant.mpAccounts.find((a: any) => a.isActive)
-        if (activeAccount) {
-          activeAccount.oauthAccessToken = safeEncrypt(access_token)
-          activeAccount.oauthRefreshToken = safeEncrypt(refresh_token)
-          activeAccount.oauthExpiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null
-          activeAccount.oauthIsConnected = true
-          activeAccount.oauthAuthorizedAt = new Date()
-          tenant.markModified('mpAccounts')
-          await tenant.save()
-          console.log(`[MP OAuth] Saved to active mpAccounts[${activeAccount._id}]`)
-        } else {
-          await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in)
-        }
-      }
-=======
         targetAccount = tenant.mpAccounts.find((a: any) => a.isActive) ?? null
         if (!targetAccount) {
           console.warn('[MP OAuth] no active account found, falling back to mpOAuth')
@@ -306,7 +261,6 @@ export async function GET(request: NextRequest) {
       } else {
         await saveLegacyMpOAuth(tenant, access_token, refresh_token, expires_in, oauthUserId)
       }
->>>>>>> 1902b71f1bd79b663605d8b2dde5980a57ccd5e1
     } catch (dbErr: any) {
       console.error('[MP OAuth] DB save failed:', dbErr)
       // Incluir mensaje de error real en el redirect para diagnóstico

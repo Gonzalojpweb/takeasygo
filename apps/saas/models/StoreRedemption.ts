@@ -38,7 +38,7 @@ export interface IStoreRedemption extends Document {
   // Metadata
   locationId?: mongoose.Types.ObjectId  // Dónde se reclamó (o sede del pedido)
   claimedAt?: Date
-  expiresAt?: Date
+  expiresAt?: Date | null
 
   createdAt: Date
   updatedAt: Date
