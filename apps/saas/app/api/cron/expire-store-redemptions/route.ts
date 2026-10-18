@@ -9,7 +9,8 @@
  *
  * URL: /api/cron/expire-store-redemptions
  * Método: GET (con header Authorization: Bearer CRON_SECRET)
- * Frecuencia: cada hora
+ * Frecuencia: una vez por día (plan Hobby de Vercel: máximo 1 ejecución diaria;
+ * el plan no permite cadencias mayores. El claim manual expira al instante).
  */
 
 import { connectDB } from '@/lib/mongoose'

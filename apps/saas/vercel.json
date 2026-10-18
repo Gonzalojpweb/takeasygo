@@ -31,7 +31,7 @@
     },
     {
       "path": "/api/cron/expire-store-redemptions",
-      "schedule": "15 * * * *"
+      "schedule": "15 1 * * *"
     },
     {
       "path": "/api/cron/weekly-commission-close",

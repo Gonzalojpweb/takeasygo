@@ -42,7 +42,7 @@
     },
     {
       "path": "/api/cron/expire-rapiboy-quotes",
-      "schedule": "* * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }

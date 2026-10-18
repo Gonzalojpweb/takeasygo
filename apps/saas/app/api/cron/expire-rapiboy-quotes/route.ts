@@ -1,5 +1,8 @@
 // Cron job: expirar cotizaciones de Rapiboy pendientes después de 15 minutos
-// Se ejecuta cada minuto via Vercel Cron Jobs
+// Se ejecuta una vez por día via Vercel Cron Jobs (plan Hobby: máx. 1/día).
+// La ventana de 15 min se revalida en el servidor al aceptar
+// (rapiboy-price-accept responde 410 si expiró), así que un barrido diario
+// no permite aceptar cotizaciones viejas: solo demora el flip y el push.
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
