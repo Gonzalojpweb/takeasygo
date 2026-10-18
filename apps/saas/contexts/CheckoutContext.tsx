@@ -620,7 +620,15 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     const phone = stateRef.current.form.phone
     if (phone.length < 8) {
       dispatch({ type: 'SET_LOYALTY_MEMBER', member: null })
-      dispatch({ type: 'SET_PHONE_LOOKUP_SETTLED', settled: true })
+      // SIN teléfono la identidad no está resuelta: settled queda FALSE para
+      // que el efecto de limpieza de premios no dispare con un "sin miembro"
+      // prematuro. Al montar, este effect corre con form.phone = '' ANTES de
+      // que el init aplique la precarga del clubPhone; si marcáramos true acá,
+      // el efecto de premios vería settled + member null + sesión ya cargada
+      // y BORRARÍA los premios del carrito del menú en el render siguiente
+      // (el lookup real recién estaría arrancando). Sin teléfono, el server
+      // rechaza el canje con un 400 visible en el submit.
+      dispatch({ type: 'SET_PHONE_LOOKUP_SETTLED', settled: false })
       return
     }
     // Teléfono válido: la identidad por celular aún NO está resuelta (queda

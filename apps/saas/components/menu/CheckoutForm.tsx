@@ -114,6 +114,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [walletEnabled, setWalletEnabled] = useState(false)
   const [pointsLookupLoading, setPointsLookupLoading] = useState(false)
   const [storeItems, setStoreItems] = useState<StoreItem[]>([])
+  const [phoneLookupSettled, setPhoneLookupSettled] = useState(false)
 
   const [businessInfo, setBusinessInfo] = useState<{
     corporateAccountId: string
@@ -421,9 +422,14 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   useEffect(() => {
     if (form.phone.length < 8) {
       setLoyaltyMember(null)
+      // Sin teléfono no hay identidad: settled=false evita que el efecto de
+      // limpieza de premios disprematuremente al montar (form.phone vacío
+      // mientras el lookup todavía no arrancó).
+      setPhoneLookupSettled(false)
       return
     }
 
+    setPhoneLookupSettled(false)
     const timer = setTimeout(async () => {
       setPointsLookupLoading(true)
       try {
@@ -441,6 +447,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         console.error('Loyalty lookup error', err)
       } finally {
         setPointsLookupLoading(false)
+        setPhoneLookupSettled(true)
       }
     }, 1000)
 
@@ -482,11 +489,15 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   useEffect(() => {
     if (!loyaltyMember || !loyaltyConfig?.enabled) {
       setStoreItems([])
-      // Sin miembro activo no hay canje: los premios salen del carrito
-      setCart(prev => {
-        const kept = prev.filter(i => i.type !== 'reward')
-        return kept.length === prev.length ? prev : kept
-      })
+      // Sin miembro activo no hay canje: los premios salen del carrito SOLO
+      // cuando un lookup con teléfono ya terminó sin member (settled). Al
+      // montar member=null y settled=false: el carrito del menú se conserva.
+      if (phoneLookupSettled && !loyaltyMember) {
+        setCart(prev => {
+          const kept = prev.filter(i => i.type !== 'reward')
+          return kept.length === prev.length ? prev : kept
+        })
+      }
       return
     }
     setRewardItemLoading(true)
@@ -503,7 +514,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       .then(r => r.json())
       .then(data => setMaxRewardsPerOrder(resolveMaxRewardsPerOrder(data?.config)))
       .catch(() => {})
-  }, [loyaltyMember, tenantSlug, loyaltyConfig?.enabled])
+  }, [loyaltyMember, tenantSlug, loyaltyConfig?.enabled, phoneLookupSettled])
 
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const qrEligibleSubtotal = cart
