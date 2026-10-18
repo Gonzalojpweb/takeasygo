@@ -10,9 +10,25 @@ import { trackCheckoutCompleted } from '@/lib/track'
 
 type VerifyState = 'verifying' | 'confirmed' | 'failed' | 'unverifiable'
 
+interface RewardSummaryItem {
+  name: string
+  points: number
+  status: string | null
+}
+
+function rewardStatusLabel(status: string | null): string {
+  switch (status) {
+    case 'claimed': return 'Entregado'
+    case 'expired': return 'Vencido'
+    case 'cancelled': return 'Cancelado'
+    default: return 'Pendiente'
+  }
+}
+
 export default function OrderSuccessPage() {
   const { tenant: tenantSlug, orderNumber } = useParams<{ tenant: string; orderNumber: string }>()
   const [state, setState] = useState<VerifyState>('verifying')
+  const [rewards, setRewards] = useState<RewardSummaryItem[]>([])
 
   useEffect(() => {
     sessionStorage.removeItem(`cart_${tenantSlug}`)
@@ -37,6 +53,9 @@ export default function OrderSuccessPage() {
 
         if (data.status === 'confirmed' || data.alreadyConfirmed) {
           setState('confirmed')
+          if (Array.isArray(data.reward) && data.reward.length > 0) {
+            setRewards(data.reward)
+          }
           // Fallback client de checkout_completed: el server ya emitió (dedup
           // atómico por orderId) o lo hará — duplicar no importa, no suma docs.
           if (data.orderId && data.checkout) {
@@ -96,6 +115,34 @@ export default function OrderSuccessPage() {
               <h1 className="text-2xl font-black mb-2 text-zinc-900">¡Pago exitoso!</h1>
               <p className="text-zinc-500 text-sm mb-1">Tu pedido fue confirmado</p>
               <p className="font-mono text-sm font-bold text-emerald-600 mb-8">#{orderNumber}</p>
+              {rewards.length > 0 && (
+                <div className="w-full mb-6 p-4 rounded-2xl bg-purple-50 border border-purple-100 text-left">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-purple-500 mb-2">
+                    Premios de tu pedido
+                  </p>
+                  <div className="space-y-1.5">
+                    {rewards.map((r, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="font-medium text-zinc-700 truncate">{r.name}</span>
+                        <span className="flex items-center gap-2 shrink-0">
+                          <span className="font-bold text-purple-600">{r.points} pts</span>
+                          <span
+                            className={
+                              r.status === 'claimed'
+                                ? 'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-100 text-emerald-700'
+                                : r.status === null || r.status === 'pending'
+                                  ? 'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-100 text-amber-700'
+                                  : 'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-zinc-100 text-zinc-500'
+                            }
+                          >
+                            {rewardStatusLabel(r.status)}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Link
                 href={`/${tenantSlug}/tracking/${orderNumber}`}
                 className="inline-block w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base"

@@ -661,6 +661,20 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                   <div key={i} className="flex items-center gap-2 text-xs text-purple-700">
                     <Gift size={12} className="shrink-0" />
                     <span>{r.storeItemName} ({r.pointsCost} pts)</span>
+                    {r.redemptionStatus && (
+                      <span
+                        className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-bold uppercase',
+                          r.redemptionStatus === 'claimed' ? 'bg-emerald-100 text-emerald-700' :
+                          r.redemptionStatus === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          'bg-zinc-100 text-zinc-500'
+                        )}
+                      >
+                        {r.redemptionStatus === 'claimed' ? 'Entregado' :
+                         r.redemptionStatus === 'pending' ? 'Pendiente' :
+                         r.redemptionStatus === 'expired' ? 'Vencido' : 'Cancelado'}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

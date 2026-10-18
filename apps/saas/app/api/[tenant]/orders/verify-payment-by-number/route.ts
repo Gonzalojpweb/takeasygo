@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
+import StoreRedemption from '@/models/StoreRedemption'
 import { decrypt } from '@/lib/crypto'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
@@ -24,6 +25,44 @@ function checkoutSummary(order: CheckoutOrderSummary) {
     quantity: order.items?.reduce((sum, item) => sum + (item.quantity ?? 1), 0) ?? 0,
     orderMode: order.orderMode,
     paymentMethod: order.payment?.method,
+  }
+}
+
+interface RewardSummaryItem {
+  name: string
+  points: number
+  status: string | null
+}
+
+interface RewardOrderSummary {
+  _id?: unknown
+  rewardItems?: Array<{ storeItemId?: unknown; storeItemName?: string; pointsCost?: number }>
+}
+
+/**
+ * Premios del pedido para la pantalla de éxito (nombre, puntos usados y
+ * estado del canje). Solo lectura sobre nuestras colecciones: no toca
+ * Mercado Pago ni la verificación del pago.
+ */
+async function rewardSummary(order: RewardOrderSummary): Promise<RewardSummaryItem[] | null> {
+  if (!order?.rewardItems?.length) return null
+  try {
+    const redemptions = await StoreRedemption.find({ orderId: order._id })
+      .select('storeItemId status')
+      .lean()
+    const statusByItem = new Map<string, string | null>()
+    for (const r of redemptions ?? []) {
+      const key = r?.storeItemId?.toString() ?? ''
+      statusByItem.set(key, r?.status ?? null)
+    }
+    return order.rewardItems.map(r => ({
+      name: r.storeItemName || '',
+      points: r.pointsCost || 0,
+      status: statusByItem.get(r.storeItemId?.toString() ?? '') ?? null,
+    }))
+  } catch (err) {
+    console.error('[verify-payment-by-number] rewardSummary error:', err)
+    return null
   }
 }
 
@@ -65,6 +104,7 @@ export async function GET(
         orderNumber: order.orderNumber,
         orderId: order._id,
         checkout: checkoutSummary(order),
+        reward: await rewardSummary(order),
         alreadyConfirmed: true,
       })
     }
@@ -145,6 +185,7 @@ export async function GET(
         orderNumber: order.orderNumber,
         orderId: order._id,
         checkout: checkoutSummary(order),
+        reward: await rewardSummary(order),
         justConfirmed: true,
       })
     }

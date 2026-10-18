@@ -1,34 +1,68 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export interface ClubMembership {
   isMember: boolean
   name: string
   points: number
+  /** Teléfono del miembro (cache/auth/JWT) — sin formato, tal cual se guardó. */
+  phone: string
   walletEnabled: boolean
   loading: boolean
+  /** Identifica al miembro en caliente (lookup por celular desde el menú). */
+  setMembership: (m: {
+    name: string
+    phone?: string
+    points: number
+    joinedAt?: string
+  }) => void
 }
 
 const STORAGE_KEY = (slug: string, locationId?: string | null) =>
   locationId ? `club_${slug}_${locationId}` : `club_${slug}`
 
-function readLocalMembership(tenantSlug: string, locationId?: string | null): { isMember: boolean; name: string; points: number } | null {
+function readLocalMembership(tenantSlug: string, locationId?: string | null): { isMember: boolean; name: string; points: number; phone: string } | null {
   if (typeof window === 'undefined' || !tenantSlug) return null
   try {
     const raw = localStorage.getItem(STORAGE_KEY(tenantSlug, locationId))
     if (!raw) return null
     const stored = JSON.parse(raw)
-    return { isMember: true, name: stored.name || '', points: stored.points || 0 }
+    return { isMember: true, name: stored.name || '', points: stored.points || 0, phone: stored.phone || '' }
   } catch {
     return null
   }
 }
 
 export function useClubMembership(tenantSlug: string, locationId?: string | null): ClubMembership {
-  const [state, setState] = useState<ClubMembership>({
-    isMember: false, name: '', points: 0, walletEnabled: false, loading: true,
+  const [state, setState] = useState<Omit<ClubMembership, 'setMembership'>>({
+    isMember: false, name: '', points: 0, phone: '', walletEnabled: false, loading: true,
   })
+
+  const setMembership = useCallback((m: {
+    name: string
+    phone?: string
+    points: number
+    joinedAt?: string
+  }) => {
+    if (!tenantSlug) return
+    try {
+      localStorage.setItem(STORAGE_KEY(tenantSlug, locationId), JSON.stringify({
+        name: m.name,
+        phone: m.phone || '',
+        points: m.points || 0,
+        joinedAt: m.joinedAt || new Date().toISOString(),
+      }))
+    } catch { /* storage no disponible: el estado en memoria sigue siendo válido */ }
+    setState(prev => ({
+      ...prev,
+      isMember: true,
+      name: m.name,
+      points: m.points || 0,
+      phone: m.phone || prev.phone,
+      loading: false,
+    }))
+  }, [tenantSlug, locationId])
 
   useEffect(() => {
     if (!tenantSlug) return
@@ -42,6 +76,7 @@ export function useClubMembership(tenantSlug: string, locationId?: string | null
         isMember: true,
         name: local.name,
         points: local.points,
+        phone: local.phone,
         walletEnabled: false,
         loading: false,
       })
@@ -75,6 +110,7 @@ export function useClubMembership(tenantSlug: string, locationId?: string | null
           isMember: true,
           name: data.member.name || '',
           points: data.member.points || 0,
+          phone: data.member.phone || '',
           walletEnabled: false,
           loading: false,
         })
@@ -94,6 +130,7 @@ export function useClubMembership(tenantSlug: string, locationId?: string | null
           isMember: true,
           name: data.member.name || '',
           points: data.member.points || 0,
+          phone: data.member.phone || '',
           walletEnabled: data.walletEnabled ?? false,
           loading: false,
         })
@@ -108,11 +145,13 @@ export function useClubMembership(tenantSlug: string, locationId?: string | null
       }),
     ]).then(() => {
       if (cancelled) return
-      // If neither endpoint returned a member, mark as not a member
+      // Si ninguna endpoint devolvió miembro, marcar como no-miembro — sin
+      // pisar una identificación inline posterior (lookup por celular en el
+      // carrusel del menú) que ya haya seteado el estado.
       if (!resolved) {
-        setState(prev => ({
-          isMember: false, name: '', points: 0, walletEnabled: false, loading: false,
-        }))
+        setState(prev => prev.isMember
+          ? { ...prev, loading: false }
+          : { isMember: false, name: '', points: 0, phone: '', walletEnabled: false, loading: false })
       }
     }).catch(() => {
       if (cancelled) return
@@ -122,5 +161,5 @@ export function useClubMembership(tenantSlug: string, locationId?: string | null
     return () => { cancelled = true }
   }, [tenantSlug, locationId])
 
-  return state
+  return { ...state, setMembership }
 }

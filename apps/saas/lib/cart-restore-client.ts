@@ -23,6 +23,43 @@ export const CART_KEY = (tenantSlug: string) => `cart_${tenantSlug}`
 export const FORM_KEY = (tenantSlug: string) => `checkoutForm_${tenantSlug}`
 export const STEP_KEY = (tenantSlug: string) => `checkoutStep_${tenantSlug}`
 
+// ── Teléfono identificado en el menú (carrito con premio) ───────────────────
+// El carrusel del menú identifica al miembro con un celular inline; este dato
+// se guarda en localStorage (persistente, no one-shot como FORM_KEY) para que
+// el CheckoutContext precargue el teléfono y su lookup por debounce deje al
+// miembro activo — si no, el contexto sacaría los premios del carrito por no
+// encontrar membresía.
+const CLUB_PHONE_KEY = (tenantSlug: string) => `tgo-club-phone_${tenantSlug}`
+
+export function saveClubPhoneForCheckout(
+  tenantSlug: string,
+  data: { countryCode: string; phone: string; name?: string }
+): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(CLUB_PHONE_KEY(tenantSlug), JSON.stringify(data))
+  } catch { /* storage no disponible */ }
+}
+
+export function readClubPhoneForCheckout(
+  tenantSlug: string
+): { countryCode: string; phone: string; name?: string } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(CLUB_PHONE_KEY(tenantSlug))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.phone) return null
+    return {
+      countryCode: parsed.countryCode || '+54',
+      phone: String(parsed.phone),
+      name: parsed.name || undefined,
+    }
+  } catch {
+    return null
+  }
+}
+
 export interface CartRestorePayload {
   orderNumber: string
   orderMode: string

@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { pendingVigenteFilter } from '@/lib/store-redemptions'
 
 const VALID_STATUS = new Set(['pending', 'claimed', 'expired', 'cancelled'])
 
@@ -43,10 +44,15 @@ export async function GET(
       return NextResponse.json({ error: 'Status inválido' }, { status: 400 })
     }
 
-    const redemptions = await StoreRedemption.find({
-      tenantId: tenant._id,
-      status: statusParam,
-    })
+    // Solicitudes = mismos criterios que el badge: SOLO canjes standalone,
+    // pendientes y vigentes (sin checkout — ese pedido se ve en el panel del
+    // pedido — y sin vencidos, aunque el cron no los haya barrido todavía).
+    const filter: Record<string, unknown> =
+      statusParam === 'pending'
+        ? { tenantId: tenant._id, ...pendingVigenteFilter() }
+        : { tenantId: tenant._id, status: statusParam }
+
+    const redemptions = await StoreRedemption.find(filter)
       .populate('memberId', 'name')
       .populate('storeItemId', 'name imageUrl pointsCost')
       .sort({ createdAt: -1 })

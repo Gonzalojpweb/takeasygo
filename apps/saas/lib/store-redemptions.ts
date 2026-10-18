@@ -7,6 +7,8 @@ import mongoose from 'mongoose'
 /**
  * Filtro compartido de canjes "pendientes vigentes" (badge Tienda y pestaña
  * Solicitudes del admin deben mostrar exactamente lo mismo):
+ * - source 'standalone': los canjes de checkout NO cuentan acá — ese pedido
+ *   se ve en el panel del pedido (no hay doble display ni doble conteo);
  * - status 'pending', y
  * - sin vencimiento (expiresAt null) o con vencimiento futuro.
  * Los vencidos no aparecen aunque el cron de expiración todavía no los
@@ -14,6 +16,7 @@ import mongoose from 'mongoose'
  */
 export function pendingVigenteFilter(now: Date = new Date()) {
   return {
+    source: 'standalone' as const,
     status: 'pending',
     $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
   }

@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
 import Rating from '@/models/Rating'
+import StoreRedemption from '@/models/StoreRedemption'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import { auth } from '@/lib/auth'
@@ -54,6 +55,25 @@ export default async function OrdersPage() {
     .sort({ createdAt: -1 })
     .lean()
 
+  // Estado de los canjes de premio del pedido (StoreRedemption) para que el
+  // panel muestre nombre + puntos + estado de cada premio.
+  const rewardOrderIds = orders
+    .filter((o: any) => (o.rewardItems?.length ?? 0) > 0)
+    .map((o: any) => o._id)
+  const redemptionStatusByOrder = new Map<string, Map<string, string>>()
+  if (rewardOrderIds.length > 0) {
+    const rewardRedemptions = await StoreRedemption.find({ tenantId, orderId: { $in: rewardOrderIds } })
+      .select('orderId storeItemId status')
+      .lean()
+    for (const r of rewardRedemptions as any[]) {
+      const orderKey = r.orderId?.toString()
+      const itemKey = r.storeItemId?.toString()
+      if (!orderKey || !itemKey) continue
+      if (!redemptionStatusByOrder.has(orderKey)) redemptionStatusByOrder.set(orderKey, new Map())
+      redemptionStatusByOrder.get(orderKey)!.set(itemKey, r.status)
+    }
+  }
+
   const locations = await Location.find({ tenantId }).lean()
 
   const locationMap = Object.fromEntries(
@@ -80,6 +100,11 @@ export default async function OrdersPage() {
       phone: safeDecrypt(o.customer.phone),
       email: safeDecrypt(o.customer.email),
     },
+    rewardItems: (o.rewardItems ?? []).map((r: any) => ({
+      ...r,
+      redemptionStatus:
+        redemptionStatusByOrder.get(o._id.toString())?.get(r.storeItemId?.toString() ?? '') ?? null,
+    })),
     locationName: locationMap[o.locationId?.toString()]?.name || 'Sede',
     locationLat: locationMap[o.locationId?.toString()]?.lat ?? null,
     locationLng: locationMap[o.locationId?.toString()]?.lng ?? null,

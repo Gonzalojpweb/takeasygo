@@ -17,6 +17,7 @@ import {
   type ToggleRewardStatus,
 } from '@/lib/cart-items'
 import { evaluateRewardRedemption } from '@takeasygo/business'
+import { readClubPhoneForCheckout } from '@/lib/cart-restore-client'
 
 export interface DeliveryAddress {
   street: string
@@ -106,6 +107,10 @@ export interface CheckoutState {
   loyaltyMember: any | null
   walletEnabled: boolean
   pointsLookupLoading: boolean
+  /** true = el lookup por celular no está en vuelo (resuelto o no aplica). */
+  phoneLookupSettled: boolean
+  /** true = el lookup por email de la sesión no está en vuelo (resuelto o no aplica). */
+  emailLookupSettled: boolean
   storeItems: StoreItem[]
   businessInfo: BusinessInfo | null
   /** Cuántos premios por pedido permite el tenant (config store.maxRewardsPerOrder). */
@@ -176,6 +181,8 @@ type CheckoutAction =
   | { type: 'SET_DELIVERY_CONFIRMED'; confirmed: boolean }
   | { type: 'SET_UPSERT_HINTS'; hints: any[] }
   | { type: 'SET_POINTS_LOOKUP_LOADING'; loading: boolean }
+  | { type: 'SET_PHONE_LOOKUP_SETTLED'; settled: boolean }
+  | { type: 'SET_EMAIL_LOOKUP_SETTLED'; settled: boolean }
   | { type: 'SET_REWARD_LOADING'; loading: boolean }
   | { type: 'SET_WALLET_ENABLED'; enabled: boolean }
   | { type: 'SET_BUSINESS_INFO'; info: BusinessInfo | null }
@@ -266,6 +273,8 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
     case 'SET_DELIVERY_CONFIRMED': return { ...state, deliveryConfirmed: action.confirmed }
     case 'SET_UPSERT_HINTS': return { ...state, upsellHints: action.hints }
     case 'SET_POINTS_LOOKUP_LOADING': return { ...state, pointsLookupLoading: action.loading }
+    case 'SET_PHONE_LOOKUP_SETTLED': return { ...state, phoneLookupSettled: action.settled }
+    case 'SET_EMAIL_LOOKUP_SETTLED': return { ...state, emailLookupSettled: action.settled }
     case 'SET_REWARD_LOADING': return { ...state, rewardItemLoading: action.loading }
     case 'SET_WALLET_ENABLED': return { ...state, walletEnabled: action.enabled }
     case 'SET_BUSINESS_INFO': return { ...state, businessInfo: action.info }
@@ -296,6 +305,8 @@ function createInitialState(tenantSlug: string, locationId: string, mode: 'takea
     loyaltyMember: null,
     walletEnabled: false,
     pointsLookupLoading: false,
+    phoneLookupSettled: false,
+    emailLookupSettled: false,
     storeItems: [],
     businessInfo: null,
     maxRewardsPerOrder: 1,
@@ -371,13 +382,34 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     // del cliente y el paso de destino. Se aplican UNA vez y se borran: si
     // el cliente sigue avanzando y vuelve atrás, no se le reimpone.
     const restoredForm = sessionStorage.getItem(`checkoutForm_${tenantSlug}`)
+    let restoredPhone = ''
     if (restoredForm) {
       try {
-        dispatch({ type: 'SET_FORM', form: JSON.parse(restoredForm) })
+        const parsed = JSON.parse(restoredForm)
+        restoredPhone = typeof parsed?.phone === 'string' ? parsed.phone : ''
+        dispatch({ type: 'SET_FORM', form: parsed })
       } catch {
         /* payload corrupto: se ignora y el cliente lo carga de nuevo */
       }
       sessionStorage.removeItem(`checkoutForm_${tenantSlug}`)
+    }
+
+    // Teléfono identificado en el menú (carrito con premio): si el form no
+    // trae teléfono propio, se precarga el del club para que el lookup por
+    // debounce del contexto resuelva al miembro activo ANTES de que el efecto
+    // de premios decida si los saca del carrito.
+    if (!restoredPhone) {
+      const clubPhone = readClubPhoneForCheckout(tenantSlug)
+      if (clubPhone) {
+        dispatch({
+          type: 'SET_FORM',
+          form: {
+            phone: clubPhone.phone,
+            countryCode: clubPhone.countryCode,
+            ...(clubPhone.name ? { name: clubPhone.name } : {}),
+          },
+        })
+      }
     }
 
     const rawStep = sessionStorage.getItem(`checkoutStep_${tenantSlug}`)
@@ -556,25 +588,31 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
 
   // Auto-fill from session
   useEffect(() => {
+    if (session === undefined) return // la sesión aún está cargando
     const name = session?.user?.name
     const email = session?.user?.email
-    if (email) {
-      dispatch({ type: 'SET_FORM', form: { email, name: name || email.split('@')[0] || '' } })
-
-      fetch(`/api/${tenantSlug}/loyalty/lookup?email=${encodeURIComponent(email)}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.member) {
-            dispatch({ type: 'SET_LOYALTY_MEMBER', member: data.member })
-            dispatch({ type: 'SET_WALLET_ENABLED', enabled: data.wallet?.enabled ?? false })
-            if (data.member.phone) {
-              const digits = data.member.phone.replace(/\D/g, '')
-              dispatch({ type: 'SET_FORM', form: { phone: digits.length > 10 ? digits.slice(-10) : digits } })
-            }
-          }
-        })
-        .catch(() => {})
+    if (!email) {
+      // Sin email no hay lookup por email: la identidad por email quedó resuelta.
+      dispatch({ type: 'SET_EMAIL_LOOKUP_SETTLED', settled: true })
+      return
     }
+    dispatch({ type: 'SET_EMAIL_LOOKUP_SETTLED', settled: false })
+    dispatch({ type: 'SET_FORM', form: { email, name: name || email.split('@')[0] || '' } })
+
+    fetch(`/api/${tenantSlug}/loyalty/lookup?email=${encodeURIComponent(email)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.member) {
+          dispatch({ type: 'SET_LOYALTY_MEMBER', member: data.member })
+          dispatch({ type: 'SET_WALLET_ENABLED', enabled: data.wallet?.enabled ?? false })
+          if (data.member.phone) {
+            const digits = data.member.phone.replace(/\D/g, '')
+            dispatch({ type: 'SET_FORM', form: { phone: digits.length > 10 ? digits.slice(-10) : digits } })
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => dispatch({ type: 'SET_EMAIL_LOOKUP_SETTLED', settled: true }))
   }, [session, tenantSlug])
 
   // Lookup loyalty member when phone changes — handled via effect inside context consumer or component
@@ -582,8 +620,12 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
     const phone = stateRef.current.form.phone
     if (phone.length < 8) {
       dispatch({ type: 'SET_LOYALTY_MEMBER', member: null })
+      dispatch({ type: 'SET_PHONE_LOOKUP_SETTLED', settled: true })
       return
     }
+    // Teléfono válido: la identidad por celular aún NO está resuelta (queda
+    // "false" mientras corre el debounce + fetch).
+    dispatch({ type: 'SET_PHONE_LOOKUP_SETTLED', settled: false })
     const timer = setTimeout(async () => {
       dispatch({ type: 'SET_POINTS_LOOKUP_LOADING', loading: true })
       try {
@@ -609,6 +651,7 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
         console.error('Loyalty lookup error', err)
       } finally {
         dispatch({ type: 'SET_POINTS_LOOKUP_LOADING', loading: false })
+        dispatch({ type: 'SET_PHONE_LOOKUP_SETTLED', settled: true })
       }
     }, 1000)
     return () => clearTimeout(timer)
@@ -617,31 +660,44 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   // Load store items when member changes
   useEffect(() => {
     const s = stateRef.current
-    if (!s.loyaltyMember || !s.loyaltyConfig?.enabled) {
-      dispatch({ type: 'SET_STORE_ITEMS', items: [] })
-      // Sin miembro activo no hay canje: los premios salen del carrito
-      if (s.cart.some(i => i.type === 'reward')) {
-        dispatch({ type: 'SET_CART', cart: s.cart.filter(i => i.type !== 'reward') })
-      }
+
+    if (s.loyaltyMember && s.loyaltyConfig?.enabled) {
+      dispatch({ type: 'SET_REWARD_LOADING', loading: true })
+      fetch(`/api/${tenantSlug}/store/items?isActive=true`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.items) dispatch({ type: 'SET_STORE_ITEMS', items: data.items })
+        })
+        .catch(() => {})
+        .finally(() => dispatch({ type: 'SET_REWARD_LOADING', loading: false }))
+
+      // Tope de premios por pedido (config público del store del tenant)
+      fetch(`/api/${tenantSlug}/store/config`)
+        .then(r => r.json())
+        .then(data =>
+          dispatch({ type: 'SET_MAX_REWARDS_PER_ORDER', max: resolveMaxRewardsPerOrder(data?.config) })
+        )
+        .catch(() => {})
       return
     }
-    dispatch({ type: 'SET_REWARD_LOADING', loading: true })
-    fetch(`/api/${tenantSlug}/store/items?isActive=true`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.items) dispatch({ type: 'SET_STORE_ITEMS', items: data.items })
-      })
-      .catch(() => {})
-      .finally(() => dispatch({ type: 'SET_REWARD_LOADING', loading: false }))
 
-    // Tope de premios por pedido (config público del store del tenant)
-    fetch(`/api/${tenantSlug}/store/config`)
-      .then(r => r.json())
-      .then(data =>
-        dispatch({ type: 'SET_MAX_REWARDS_PER_ORDER', max: resolveMaxRewardsPerOrder(data?.config) })
-      )
-      .catch(() => {})
-  }, [state.loyaltyMember, state.loyaltyConfig?.enabled, tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (s.loyaltyMember) return // miembro ok: esperando la config del club
+
+    // Sin miembro: "null" es PROVISIONAL mientras la identidad se resuelve
+    // (debounce + fetch por celular, fetch por email de la sesión o la sesión
+    // misma cargando). Recién cuando ambas rutas quedaron quietas se sacan
+    // los premios del carrito — si no, un lookup lento vaciaría carritos que
+    // sí tenían miembro.
+    if (session === undefined) return
+    if (!s.phoneLookupSettled) return
+    const sessionEmail = session?.user?.email
+    if (sessionEmail && !s.emailLookupSettled) return
+
+    dispatch({ type: 'SET_STORE_ITEMS', items: [] })
+    if (s.cart.some(i => i.type === 'reward')) {
+      dispatch({ type: 'SET_CART', cart: s.cart.filter(i => i.type !== 'reward') })
+    }
+  }, [state.loyaltyMember, state.loyaltyConfig?.enabled, state.phoneLookupSettled, state.emailLookupSettled, session, tenantSlug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset delivery quote when address changes
   useEffect(() => {

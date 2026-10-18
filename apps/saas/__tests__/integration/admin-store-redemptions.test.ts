@@ -139,6 +139,28 @@ describe('GET /api/{tenant}/admin/store/redemptions', () => {
     expect(data.redemptions[0].storeItemId.name).toBe('Cachapa')
     expect(data.redemptions[0].storeItemId.pointsCost).toBe(100)
   })
+
+  it('status=pending: SOLO standalone vigentes; excluye checkout y vencidos', async () => {
+    // Checkout: vive con el pedido → NO aparece en Solicitudes (se ve en el
+    // panel del pedido → sin doble display)
+    await makeRedemption(tenantA, { status: 'pending', source: 'checkout', expiresAt: null })
+    // Standalone vigente (+24hs por default)
+    await makeRedemption(tenantA, { status: 'pending', source: 'standalone' })
+    // Vencido sin barrer → no debe aparecer (igual que el badge)
+    await makeRedemption(tenantA, {
+      status: 'pending',
+      source: 'standalone',
+      expiresAt: new Date(Date.now() - 1000),
+    })
+
+    const res = await adminList(req(`/api/${SLUG_A}/admin/store/redemptions?status=pending`), params(SLUG_A))
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.redemptions).toHaveLength(1)
+    expect(data.redemptions[0].source).toBe('standalone')
+    expect(data.redemptions[0].expiresAt).toBeTruthy()
+    expect(new Date(data.redemptions[0].expiresAt).getTime()).toBeGreaterThan(Date.now())
+  })
 })
 
 describe('countPendingRedemptions (badge Tienda)', () => {
@@ -168,5 +190,17 @@ describe('countPendingRedemptions (badge Tienda)', () => {
 
     expect(await countPendingRedemptions(tenantA._id)).toBe(1)
     expect(await countPendingRedemptions(tenantB._id)).toBe(1)
+  })
+
+  it('NO cuenta canjes de checkout (el badge es solo standalone)', async () => {
+    await makeRedemption(tenantA, { status: 'pending', source: 'checkout', expiresAt: null })
+    await makeRedemption(tenantA, { status: 'pending', source: 'standalone' })
+    await makeRedemption(tenantA, {
+      status: 'pending',
+      source: 'standalone',
+      expiresAt: new Date(Date.now() - 1000),
+    })
+
+    expect(await countPendingRedemptions(tenantA._id)).toBe(1)
   })
 })

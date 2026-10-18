@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
+import { evaluateRewardRedemption } from '@takeasygo/business'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
@@ -19,8 +20,9 @@ import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/promotion-helpers'
-import StoreCarousel from '@/components/menu/StoreCarousel'
+import StoreCarousel, { type IdentifiedMember } from '@/components/menu/StoreCarousel'
 import PointsStickyBar from '@/components/menu/PointsStickyBar'
+import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
@@ -340,6 +342,22 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       setMemberPoints(clubMembership.points)
     }
   }, [clubMembership.isMember, clubMembership.points])
+
+  // El miembro ya identificado (JWT/auth/cache) deja su teléfono listo para
+  // el checkout: sin esto, el CheckoutContext no sabría quién es y sacaría
+  // los premios del carrito al no encontrar membresía. Solo ≥10 dígitos:
+  // hashPhone conserva los últimos 10, así que cualquier prefijo de país
+  // ficticio (+54) conserva el sufijo y hace match igual.
+  useEffect(() => {
+    if (!clubMembership.isMember) return
+    const digits = (clubMembership.phone || '').replace(/\D/g, '')
+    if (digits.length < 10) return
+    saveClubPhoneForCheckout(tenant.slug, {
+      countryCode: '+54',
+      phone: digits,
+      name: clubMembership.name,
+    })
+  }, [clubMembership.isMember, clubMembership.phone, clubMembership.name, tenant.slug])
 
   // Config pública del store: habilita "agregar al carrito" y el tope de premios
   useEffect(() => {
@@ -856,6 +874,27 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   /**
+   * Lookup exitoso del celular inline en el carrusel: identifica al miembro
+   * en caliente y deja el teléfono precargado para que el CheckoutContext lo
+   * reutilice (los premios del carrito sobreviven al checkout).
+   */
+  function handleMemberIdentified(m: IdentifiedMember) {
+    const fullPhone = `${m.countryCode}${m.phoneDigits}`
+    clubMembership.setMembership({
+      name: m.name,
+      phone: fullPhone,
+      points: m.points,
+      joinedAt: m.joinedAt,
+    })
+    saveClubPhoneForCheckout(tenant.slug, {
+      countryCode: m.countryCode,
+      phone: m.phoneDigits,
+      name: m.name,
+    })
+    toast.success(m.name ? `¡Hola ${m.name}! Ya podés canjear tus puntos` : '¡Identificado! Ya podés canjear tus puntos')
+  }
+
+  /**
    * Agrega un premio de la tienda al carrito (línea $0 + costo en puntos).
    * El menú exige saldo suficiente para los premios ya en el carrito; el
    * Reward Advance se arma desde el picker del checkout (donde está la config).
@@ -872,9 +911,25 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       return
     }
     const projectedPoints = rewardPointsInCart + item.pointsCost
-    if (projectedPoints > memberPoints) {
-      toast.error(`Te faltan ${projectedPoints - memberPoints} puntos para este premio`)
-      return
+    // Validación con la MISMA regla compartida que el server
+    // (evaluateRewardRedemption). El menú exige saldo completo: advanceLimit 0
+    // porque el Reward Advance solo se arma desde el picker del checkout.
+    if (projectedPoints > 0) {
+      const decision = evaluateRewardRedemption({
+        mode: 'checkout',
+        pointsBalance: memberPoints,
+        pointsRequired: projectedPoints,
+        advanceLimit: 0,
+        advanceMaxLimit: 0,
+      })
+      if (!decision.valid) {
+        toast.error(
+          decision.missingPoints
+            ? `Te faltan ${decision.missingPoints} puntos para este premio`
+            : decision.error || 'No podés canjear este premio con tu saldo actual'
+        )
+        return
+      }
     }
     setCart(prev => addRewardLine(prev, item))
     playAddSound()
@@ -1282,6 +1337,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             rewardLimitReached={rewardLimitReached}
             cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
             onAddReward={addRewardToCart}
+            identifyEnabled={
+              checkoutRedemption.enabled &&
+              (!clubMembership.isMember || !clubMembership.phone) &&
+              !clubMembership.loading
+            }
+            onMemberIdentified={handleMemberIdentified}
           />
         )}
 
