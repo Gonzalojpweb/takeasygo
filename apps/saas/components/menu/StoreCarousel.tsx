@@ -45,7 +45,7 @@ interface Props {
 
 const COUNTRY_CODES = ['+54', '+598', '+56', '+55', '+51', '+52', '+1', '+34', '+44', '+49', '+33', '+39']
 
-type LookupState = 'idle' | 'checking' | 'not_found' | 'error'
+  type LookupState = 'idle' | 'checking' | 'not_found' | 'rate_limited' | 'error'
 
 export default function StoreCarousel({ tenantSlug, memberPoints, locationId, rewardEnabled, rewardPointsAvailable, rewardLimitReached, cartRewardIds, onAddReward, identifyEnabled, onMemberIdentified }: Props) {
   const router = useRouter()
@@ -94,6 +94,8 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId, re
           })
         } else if (res.status === 404) {
           setLookupState('not_found')
+        } else if (res.status === 429) {
+          setLookupState('rate_limited')
         } else {
           setLookupState('error')
         }
@@ -180,6 +182,11 @@ export default function StoreCarousel({ tenantSlug, memberPoints, locationId, re
             <p className="text-xs font-medium text-red-500 mt-2 leading-snug">
               No encontramos un miembro activo con ese número. Si todavía no sos miembro,
               unite al club desde tu perfil.
+            </p>
+          )}
+          {lookupState === 'rate_limited' && (
+            <p className="text-xs font-medium text-amber-600 mt-2">
+              Demasiados intentos. Esperá un minuto y volvé a intentarlo.
             </p>
           )}
           {lookupState === 'error' && (
