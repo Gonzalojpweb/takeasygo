@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
+import { rateLimit } from '@/lib/rateLimit'
 
 export async function GET(
   request: NextRequest,
@@ -14,6 +15,21 @@ export async function GET(
     const phone = searchParams.get('phone')
     const publicId = searchParams.get('publicId')
     const locationId = searchParams.get('locationId')
+    const scope = searchParams.get('scope')
+
+    // scope=identify (identify inline en el menú): respuesta mínima de solo
+    // lectura con rate limit propio. Sin scope —el caso de checkout, admin y
+    // club lookup— NO se toca nada: mismo payload, sin rate limit nuevo.
+    if (scope === 'identify') {
+      const ip =
+        request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+        request.headers.get('x-real-ip') ||
+        'unknown'
+      const rl = await rateLimit(`loyalty-identify:${tenantSlug}:${ip}`, 10, 60_000)
+      if (!rl.success) {
+        return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
+      }
+    }
 
     await connectDB()
 
@@ -70,6 +86,15 @@ export async function GET(
     const hasAdvanceActive = member.sosConfig?.hasPendingSos === true
     const pointsPendingToConsolidate = hasAdvanceActive ? (member.sosConfig?.sosUsed ?? 0) : 0
     const uiPointsDisplay = Math.max(0, rawPoints)
+
+    // scope=identify: SOLO primer nombre y puntos. Nada de apellido, saldo
+    // pendiente, tier, historial, club ni wallet.
+    if (scope === 'identify') {
+      const firstName = String(member.name ?? '').trim().split(/\s+/)[0] || ''
+      return NextResponse.json({
+        member: { firstName, points: uiPointsDisplay },
+      })
+    }
 
     return NextResponse.json({
       member: {
