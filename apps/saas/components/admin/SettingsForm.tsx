@@ -242,8 +242,13 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     ]))
   )
   const [serviceHoursSaving, setServiceHoursSaving] = useState<string | null>(null)
-  const [activeServiceTab, setActiveServiceTab] = useState<'takeaway' | 'dineIn' | 'delivery'>('takeaway')
+  const [serviceTabMap, setServiceTabMap] = useState<Record<string, 'takeaway' | 'dineIn' | 'delivery'>>(() =>
+    Object.fromEntries(locations.map(l => [l._id, 'takeaway']))
+  )
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({})
+  const [expandedLocations, setExpandedLocations] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(locations.map(l => [l._id, true]))
+  )
 
   // Scheduled orders config state
   type ScheduledOrdersConfig = {
@@ -801,10 +806,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
   const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
   const spaceInputCls = "bg-white border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-lg px-2 h-8 outline-none transition-all"
 
-  if (!mounted) return <div className="max-w-6xl h-96 flex items-center justify-center"><Loader2 className="animate-spin text-primary/20" size={40} /></div>
+  if (!mounted) return <div className="max-w-[1600px] h-96 flex items-center justify-center"><Loader2 className="animate-spin text-primary/20" size={40} /></div>
 
   return (
-    <div className="max-w-6xl">
+    <div className="max-w-[1600px]">
       <Tabs defaultValue="branding" className="w-full" onValueChange={setActiveTab}>
         <div className="relative mb-2">
           {showLeftScroll && (
@@ -874,7 +879,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
             className="pt-4 pb-20"
           >
             {/* ── Identity ── */}
-            <TabsContent value="branding" className="m-0 mt-2">
+            <TabsContent value="branding" className="m-0 mt-2 max-w-6xl">
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-12 items-start">
                 <div className="space-y-8">
                   <section className="space-y-6">
@@ -1297,7 +1302,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
             </TabsContent>
 
             {/* ── Profile ── */}
-            <TabsContent value="profile" className="m-0 mt-2">
+            <TabsContent value="profile" className="m-0 mt-2 max-w-6xl">
               <div className="max-w-3xl space-y-10">
                 <section className="space-y-6">
                   <div className="flex items-center gap-3">
@@ -1391,40 +1396,50 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                   <span>incluye 1 sede. Actualizá a <strong>Crecimiento</strong> para agregar múltiples ubicaciones.</span>
                 </div>
               )}
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 [&>*:only-child]:col-span-full">
+              <div className="flex flex-col gap-6">
                 {locations.length === 0 ? (
-                  <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem] col-span-2">
+                  <Card className="border-2 border-dashed border-border/60 bg-muted/10 rounded-[2.5rem]">
                     <CardContent className="py-24 text-center">
                       <p className="text-muted-foreground font-bold">No hay sedes configuradas</p>
                     </CardContent>
                   </Card>
                 ) : (
-                  locations.map((loc: any) => (
+                  locations.map((loc: any) => {
+                    const svcTab = serviceTabMap[loc._id] ?? 'takeaway'
+                    const isExpanded = expandedLocations[loc._id] !== false
+                    return (
                     <Card key={loc._id} className="bg-card border-2 border-border/60 rounded-[2.5rem] overflow-hidden group hover:border-primary/30 transition-all shadow-md">
                       <CardHeader className="p-6 pb-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-muted group-hover:bg-primary/10 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedLocations(p => ({ ...p, [loc._id]: p[loc._id] === false }))}
+                          className="w-full flex flex-wrap items-center justify-between gap-3 text-left"
+                          aria-expanded={isExpanded}
+                        >
+                          <div className="flex items-center gap-4 min-w-0 flex-1">
+                            <div className="w-12 h-12 rounded-2xl bg-muted group-hover:bg-primary/10 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors shrink-0">
                               <MapPin size={24} />
                             </div>
-                            <div>
-                              <CardTitle className="text-xl font-bold tracking-tight">{loc.name}</CardTitle>
-                              <p className="text-xs text-muted-foreground font-medium mt-1">{loc.address}</p>
+                            <div className="min-w-0">
+                              <CardTitle className="text-xl font-bold tracking-tight break-words">{loc.name}</CardTitle>
+                              <p className="text-xs text-muted-foreground font-medium mt-1 break-words">{loc.address}</p>
                             </div>
                           </div>
-                          <Badge variant="outline" className="bg-muted px-3 border-border/60 font-black text-[9px] uppercase tracking-widest">
-                            {loc.settings?.orderModes?.length || 0} Modos
-                          </Badge>
-                        </div>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <Badge variant="outline" className="bg-muted px-3 border-border/60 font-black text-[11px] uppercase tracking-widest">
+                              {loc.settings?.orderModes?.length || 0} Modos
+                            </Badge>
+                            <ChevronDown size={18} className={cn('text-muted-foreground transition-transform', isExpanded ? 'rotate-180' : '')} />
+                          </div>
+                        </button>
                       </CardHeader>
+                      {isExpanded && (
                       <CardContent className="p-6 pt-4">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* ── Columna Izquierda: Información Básica ── */}
-                        <div className="space-y-4">
+                      <div className="@container grid grid-cols-1 [&>*]:min-w-0 @md:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4 gap-4">
                         <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
                           <div className="flex items-center gap-2 mb-3">
                             <Clock size={12} className="text-primary" />
-                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Horarios de Atención</label>
+                            <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Horarios de Atención</label>
                           </div>
                           <input
                             value={hoursMap[loc._id] ?? ''}
@@ -1433,7 +1448,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             className={cn(inputCls, "bg-white border-none shadow-inner h-10")}
                           />
                           <Button
-                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-auto min-h-9 py-2 whitespace-normal rounded-xl active:scale-95 transition-all shadow-lg text-xs"
                             onClick={() => handleSaveHours(loc._id)}
                             disabled={hoursLoading === loc._id}>
                             {hoursLoading === loc._id ? 'Sincronizando...' : 'Guardar Horarios'}
@@ -1444,7 +1459,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                         <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
                           <div className="flex items-center gap-2 mb-3">
                             <MapPin size={12} className="text-primary" />
-                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Google Maps</label>
+                            <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Google Maps</label>
                           </div>
                           <input
                             value={mapsUrlMap[loc._id] ?? ''}
@@ -1453,7 +1468,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             className={cn(inputCls, "bg-white border-none shadow-inner h-10")}
                           />
                           <Button
-                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-auto min-h-9 py-2 whitespace-normal rounded-xl active:scale-95 transition-all shadow-lg text-xs"
                             onClick={() => handleSaveMapsUrl(loc._id)}
                             disabled={mapsUrlLoading === loc._id}>
                             {mapsUrlLoading === loc._id ? 'Guardando...' : 'Guardar Link'}
@@ -1464,7 +1479,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                         <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
                           <div className="flex items-center gap-2 mb-3">
                             <Star size={12} className="text-primary" />
-                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Reseña Google</label>
+                            <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">Link Reseña Google</label>
                           </div>
                           <input
                             value={reviewUrlMap[loc._id] ?? ''}
@@ -1472,19 +1487,19 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             placeholder="https://search.google.com/local/writereview?placeid=..."
                             className={cn(inputCls, "bg-white border-none shadow-inner h-10")}
                           />
-                          <div className="mt-2 text-[10px] text-muted-foreground space-y-1">
-                            <p className="font-semibold text-foreground/70 text-[9px]">¿Cómo obtener este link?</p>
-                            <ol className="list-decimal list-inside space-y-0.5 opacity-70 text-[8px]">
+                          <div className="mt-2 text-[11px] text-muted-foreground space-y-1">
+                            <p className="font-semibold text-foreground/70 text-[11px]">¿Cómo obtener este link?</p>
+                            <ol className="list-decimal list-inside space-y-0.5 opacity-70 text-[11px]">
                               <li>Abri Google Maps y buscá tu restaurante</li>
                               <li>Hacé click en tu restaurante para abrir la ficha</li>
                               <li>Buscá el botón "Escribir una reseña" y hacé click</li>
                               <li>Se abre una pestaña nueva — copiá el link de esa pestaña</li>
                               <li>Pegalo acá y guardalo</li>
                             </ol>
-                            <p className="opacity-50 mt-1 text-[8px]">El link tiene que contener "google.com". Si no lo guardamos, verificá que sea el link correcto.</p>
+                            <p className="opacity-50 mt-1 text-[11px]">El link tiene que contener "google.com". Si no lo guardamos, verificá que sea el link correcto.</p>
                           </div>
                           <Button
-                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                            className="w-full mt-3 bg-zinc-900 border-zinc-800 text-white font-bold h-auto min-h-9 py-2 whitespace-normal rounded-xl active:scale-95 transition-all shadow-lg text-xs"
                             onClick={() => handleSaveReviewUrl(loc._id)}
                             disabled={reviewUrlLoading === loc._id}>
                             {reviewUrlLoading === loc._id ? 'Guardando...' : 'Guardar Link'}
@@ -1495,7 +1510,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                         <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl space-y-3">
                           <div className="flex items-center gap-2">
                             <Film size={12} className="text-primary" />
-                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                            <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
                               Portada del Menú
                             </label>
                           </div>
@@ -1525,7 +1540,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             {heroSaving === loc._id ? (
                               <div className="flex flex-col items-center gap-2 p-4">
                                 <Loader2 size={20} className="animate-spin text-primary" />
-                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
                                   Subiendo…
                                 </p>
                               </div>
@@ -1550,7 +1565,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 {/* Hover overlay */}
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl flex items-center justify-center gap-2">
                                   <Camera className="text-white" size={18} />
-                                  <span className="text-white text-[9px] font-black uppercase tracking-widest">
+                                  <span className="text-white text-[11px] font-black uppercase tracking-widest">
                                     Cambiar
                                   </span>
                                 </div>
@@ -1558,10 +1573,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             ) : (
                               <div className="flex flex-col items-center gap-2 p-3">
                                 <Film size={22} className="text-muted-foreground/40" />
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60 text-center">
                                   Click para subir imagen o video
                                 </p>
-                                <p className="text-[8px] text-muted-foreground/40">
+                                <p className="text-[11px] text-muted-foreground/40">
                                   JPG · PNG · MP4 · MOV
                                 </p>
                               </div>
@@ -1572,10 +1587,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           {heroMap[loc._id]?.url && (
                             <div className="flex items-center justify-between px-1">
                               <div>
-                                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/60">
                                   Mostrar logo en portada
                                 </p>
-                                <p className="text-[8px] text-muted-foreground/40 mt-0.5">
+                                <p className="text-[11px] text-muted-foreground/40 mt-0.5">
                                   Solo aplica al menú de salón
                                 </p>
                               </div>
@@ -1600,7 +1615,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           {heroMap[loc._id]?.url && (
                             <Button
                               variant="ghost"
-                              className="w-full text-destructive hover:bg-destructive/5 text-[9px] font-bold uppercase tracking-widest h-7"
+                              className="w-full text-destructive hover:bg-destructive/5 text-[11px] font-bold uppercase tracking-widest h-auto min-h-7 py-1.5 whitespace-normal"
                               disabled={heroSaving === loc._id}
                               onClick={() => handleHeroRemove(loc._id)}
                             >
@@ -1618,19 +1633,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             onUpdate={(g) => handleGalleryUpdate(loc._id, g)}
                           />
                         </div>
-                        </div>
 
-                        {/* ── Columna Derecha: Configuraciones Avanzadas ── */}
-                        <div className="space-y-4">
                         {/* ── Service Hours ── */}
                         <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl space-y-3">
                           <div className="flex items-center gap-2 mb-1">
-                            <Clock size={12} className="text-primary" />
-                            <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                            <Clock size={12} className="text-primary shrink-0" />
+                            <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
                               Horarios de servicio
                             </label>
                           </div>
-                          <p className="text-[10px] text-muted-foreground/50">Configurá cuándo acepta pedidos cada canal. Si no hay franjas, se asume siempre abierto.</p>
+                          <p className="text-[11px] text-muted-foreground/50">Configurá cuándo acepta pedidos cada canal. Si no hay franjas, se asume siempre abierto.</p>
 
                           {/* Tabs para tipos de servicio */}
                           <div className="flex gap-1 mb-3 bg-muted/50 p-1 rounded-xl">
@@ -1638,10 +1650,10 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                               <button
                                 key={svcType}
                                 type="button"
-                                onClick={() => setActiveServiceTab(svcType)}
+                                onClick={() => setServiceTabMap(p => ({ ...p, [loc._id]: svcType }))}
                                 className={cn(
-                                  'flex-1 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all',
-                                  activeServiceTab === svcType
+                                  'flex-1 min-w-0 px-2 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all whitespace-normal',
+                                  svcTab === svcType
                                     ? 'bg-white text-foreground shadow-sm'
                                     : 'text-muted-foreground hover:text-foreground/70'
                                 )}
@@ -1653,16 +1665,16 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
                           {/* Contenido del tab activo */}
                           <div className="space-y-2">
-                            {(serviceHoursMap[loc._id]?.[activeServiceTab] ?? []).map((slot, idx) => (
+                            {(serviceHoursMap[loc._id]?.[svcTab] ?? []).map((slot, idx) => (
                               <div key={idx} className="flex flex-col gap-2 p-3 bg-white rounded-xl border border-border/60 shadow-sm">
-                                <div className="flex items-center gap-1 flex-wrap">
+                                <div className="grid grid-cols-7 gap-1">
                                   {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((d, di) => (
                                     <button
                                       key={di}
                                       type="button"
-                                      onClick={() => toggleServiceDay(loc._id, activeServiceTab, idx, di)}
+                                      onClick={() => toggleServiceDay(loc._id, svcTab, idx, di)}
                                       className={cn(
-                                        'w-9 h-7 rounded-lg text-[10px] font-black uppercase tracking-tight transition-all',
+                                        'w-full min-w-0 h-7 rounded-lg text-[11px] font-black uppercase tracking-tight transition-all',
                                         slot.days.includes(di)
                                           ? 'bg-primary text-white shadow-sm'
                                           : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -1672,23 +1684,23 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     </button>
                                   ))}
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 items-center">
                                   <input
                                     type="time"
                                     value={slot.open}
-                                    onChange={e => updateServiceSlot(loc._id, activeServiceTab, idx, 'open', e.target.value)}
-                                    className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                    onChange={e => updateServiceSlot(loc._id, svcTab, idx, 'open', e.target.value)}
+                                    className="w-full min-w-0 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-2 py-1.5 outline-none transition-all"
                                   />
-                                  <span className="text-muted-foreground text-xs font-bold">—</span>
+                                  <span className="text-muted-foreground text-xs font-bold text-center">—</span>
                                   <input
                                     type="time"
                                     value={slot.close}
-                                    onChange={e => updateServiceSlot(loc._id, activeServiceTab, idx, 'close', e.target.value)}
-                                    className="flex-1 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-1.5 outline-none transition-all"
+                                    onChange={e => updateServiceSlot(loc._id, svcTab, idx, 'close', e.target.value)}
+                                    className="w-full min-w-0 bg-muted/40 border border-border/60 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-2 py-1.5 outline-none transition-all"
                                   />
                                   <button
                                     type="button"
-                                    onClick={() => removeServiceSlot(loc._id, activeServiceTab, idx)}
+                                    onClick={() => removeServiceSlot(loc._id, svcTab, idx)}
                                     className="h-8 w-8 flex items-center justify-center rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all shrink-0"
                                   >
                                     <Trash2 size={14} />
@@ -1699,20 +1711,20 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 type="button"
-                                onClick={() => addServiceSlot(loc._id, activeServiceTab)}
-                                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
+                                onClick={() => addServiceSlot(loc._id, svcTab)}
+                                className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors px-1 py-1"
                               >
                                 <Plus size={13} strokeWidth={3} />
                                 Agregar franja
                               </button>
-                              <span className="text-[9px] text-muted-foreground/50 italic">
+                              <span className="text-[11px] text-muted-foreground/50 italic">
                                 ¿Dos turnos el mismo día? Agregá una franja por cada uno
                               </span>
                             </div>
                           </div>
 
                           <Button
-                            className="w-full bg-zinc-900 border-zinc-800 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs mt-2"
+                            className="w-full bg-zinc-900 border-zinc-800 text-white font-bold h-auto min-h-9 py-2 whitespace-normal rounded-xl active:scale-95 transition-all shadow-lg text-xs mt-2"
                             onClick={() => handleSaveServiceHours(loc._id)}
                             disabled={serviceHoursSaving === loc._id}
                           >
@@ -1729,7 +1741,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           >
                             <div className="flex items-center gap-2">
                               <Clock size={12} className="text-primary" />
-                              <label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+                              <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
                                 Pedidos Programados
                               </label>
                             </div>
@@ -1742,7 +1754,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           {expandedSections[`${loc._id}-scheduled`] && (
                               <div className="space-y-3 pt-2">
                               <div className="flex items-center justify-between">
-                                <span className="text-[9px] text-muted-foreground/60">Habilitar pedidos programados</span>
+                                <span className="text-[11px] text-muted-foreground/60">Habilitar pedidos programados</span>
                                 <button
                                   type="button"
                                   onClick={() => setScheduledOrdersMap(prev => ({
@@ -1765,7 +1777,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             <div className="space-y-3">
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                  <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                     Anticipación mín. (min)
                                   </label>
                                   <input
@@ -1780,7 +1792,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                  <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                     Anticipación máx. (hs)
                                   </label>
                                   <input
@@ -1798,7 +1810,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                  <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                     Duración franja (min)
                                   </label>
                                   <select
@@ -1816,7 +1828,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                   </select>
                                 </div>
                                 <div>
-                                  <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                  <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                     Pedidos por franja
                                   </label>
                                   <input
@@ -1829,12 +1841,12 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                     }))}
                                     className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
                                   />
-                                  <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">0 = sin límite</p>
+                                  <p className="text-[11px] text-muted-foreground/40 mt-1 text-center">0 = sin límite</p>
                                 </div>
                               </div>
 
                               <div>
-                                <label className="text-[9px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
+                                <label className="text-[11px] uppercase font-black tracking-widest text-muted-foreground/50 mb-1 block">
                                   Imprimir con anticipación (min)
                                 </label>
                                 <input
@@ -1848,7 +1860,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                   }))}
                                   className={cn(inputCls, "bg-white border-none shadow-inner h-9 text-center text-xs")}
                                 />
-                                <p className="text-[8px] text-muted-foreground/40 mt-1 text-center">
+                                <p className="text-[11px] text-muted-foreground/40 mt-1 text-center">
                                   Minutos antes del retiro en que se imprime el ticket
                                 </p>
                               </div>
@@ -1858,7 +1870,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           )}
 
                           <Button
-                            className="w-full bg-zinc-900 text-white font-bold h-9 rounded-xl active:scale-95 transition-all shadow-lg text-xs"
+                            className="w-full bg-zinc-900 text-white font-bold h-auto min-h-9 py-2 whitespace-normal rounded-xl active:scale-95 transition-all shadow-lg text-xs"
                             onClick={() => handleSaveScheduledOrdersConfig(loc._id)}
                             disabled={scheduledOrdersSaving === loc._id}
                           >
@@ -1911,16 +1923,17 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </div>
                         )}
                         </div>
-                        </div>
                       </CardContent>
+                      )}
                     </Card>
-                  ))
+                    )
+                  })
                 )}
               </div>
             </TabsContent>
 
             {/* ── General Info ── */}
-            <TabsContent value="general" className="m-0 mt-2">
+            <TabsContent value="general" className="m-0 mt-2 max-w-6xl">
               <Card className="bg-muted/20 border-border/40 border-[3px] rounded-[3rem] p-10 max-w-2xl">
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-4">
@@ -1971,7 +1984,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
             {/* ── MercadoPago ── */}
             {canManageSensitiveSettings && (
-              <TabsContent value="mercadopago" className="m-0 mt-2">
+              <TabsContent value="mercadopago" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-3xl">
                   <MercadoPagoSettings
                     tenantSlug={tenantSlug}
@@ -1987,7 +2000,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
             {/* ── Kripton ── */}
             {canManageSensitiveSettings && (
-              <TabsContent value="kripton" className="m-0 mt-2">
+              <TabsContent value="kripton" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-3xl">
                   <KriptonSettings
                     tenantSlug={tenantSlug}
@@ -1998,7 +2011,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
             )}
 
             {/* ── Notificaciones WhatsApp ── */}
-            <TabsContent value="notifications" className="m-0 mt-2">
+            <TabsContent value="notifications" className="m-0 mt-2 max-w-6xl">
               <Card className="bg-muted/20 border-border/40 border-[3px] rounded-[3rem] p-10 max-w-2xl">
                 <div className="space-y-8">
                   <div className="flex items-center gap-4 mb-4">
@@ -2081,7 +2094,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
             {/* ── Transferencia ── */}
             {canAccess(plan as Plan, 'transferPayment') && canManageSensitiveSettings && (
-              <TabsContent value="transferencia" className="m-0 mt-2">
+              <TabsContent value="transferencia" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-3xl">
                   <TransferAccountsSettings
                     tenantSlug={tenantSlug}
@@ -2094,7 +2107,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
             {/* ── Efectivo ── */}
             {canAccess(plan as Plan, 'cashPayment') && tenant.features?.cashPaymentEnabledBySuperadmin && (
-              <TabsContent value="efectivo" className="m-0 mt-2">
+              <TabsContent value="efectivo" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-3xl">
                   <CashSettings
                     tenantSlug={tenantSlug}
@@ -2105,7 +2118,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
             )}
 
             {/* ── Recargos ── */}
-            <TabsContent value="recargos" className="m-0 mt-2">
+            <TabsContent value="recargos" className="m-0 mt-2 max-w-6xl">
               <div className="max-w-3xl">
                 <PaymentSurchargeSettings
                   tenantSlug={tenantSlug}
@@ -2118,7 +2131,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
 
             {/* ── Reservas ── */}
             {tenant.features?.reservations && (
-              <TabsContent value="reservas" className="m-0 mt-2">
+              <TabsContent value="reservas" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-3xl space-y-6">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -2730,7 +2743,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
             )}
             {/* ── POS Integration ── */}
             {canManageSensitiveSettings && (
-              <TabsContent value="pos" className="m-0 mt-2">
+              <TabsContent value="pos" className="m-0 mt-2 max-w-6xl">
                 <div className="max-w-2xl bg-muted/20 border border-border/40 p-8 rounded-[2.5rem] space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
