@@ -7,6 +7,7 @@ import PushSubscription from '@/models/PushSubscription'
 import { decrypt } from '@/lib/crypto'
 import { mapRapiboyStatus, isRapiboyStatusValid, isRapiboyTerminalStatus } from '@/lib/rapiboy/estados'
 import { sendPushToSubscription } from '@/lib/push'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 import crypto from 'crypto'
 
 // ─── Rapiboy Webhook ────────────────────────────────────────────────────────
@@ -176,6 +177,11 @@ export async function POST(
     }
 
     await order.save()
+
+    // Canjes de checkout del pedido: al entregar se reclaman solos.
+    if (takeasygoStatus === 'delivered') {
+      await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
+    }
 
     console.log(`[rapiboy-webhook] ✓ Order ${order.orderNumber} updated: ${previousStatus} → ${takeasygoStatus}`)
 

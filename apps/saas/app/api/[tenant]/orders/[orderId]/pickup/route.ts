@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 
 // Endpoint público (tracking sin sesión). El `x-tracking-token` es
 // obligatorio: sin él, conocer el orderId bastaba para marcar el retiro
@@ -62,6 +63,9 @@ export async function PATCH(
       const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
       registerCashSaleOnDelivery({ order, tenant })
     }
+
+    // Canjes de checkout del pedido: al retirar se reclaman solos.
+    await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
 
     return NextResponse.json({ order })
   } catch (error) {

@@ -6,6 +6,7 @@ import { decrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/audit'
 import { verifyPosWebhookSignature } from '@/lib/pos-webhook-signature'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 
 /**
  * Webhook genérico para recibir eventos de sistemas POS (FUDO, BISTROSOFT, etc.)
@@ -198,6 +199,11 @@ export async function POST(
     if (cashSaleToRegister) {
       const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
       registerCashSaleOnDelivery({ order, tenant })
+    }
+
+    // Canjes de checkout del pedido: al entregar se reclaman solos.
+    if (newStatus === 'delivered') {
+      await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
     }
 
     logAudit({

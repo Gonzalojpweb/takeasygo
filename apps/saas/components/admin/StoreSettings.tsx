@@ -19,6 +19,7 @@ interface StoreConfig {
   allowOnlineRedemption: boolean
   enableCheckoutRedemption: boolean
   redemptionExpiryHours: number
+  maxRewardsPerOrder: number
 }
 
 interface Props {
@@ -34,6 +35,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
     allowOnlineRedemption: false,
     enableCheckoutRedemption: false,
     redemptionExpiryHours: 24,
+    maxRewardsPerOrder: 1,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -59,6 +61,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
           allowOnlineRedemption: typeof fetchedConfig.allowOnlineRedemption === 'boolean' ? fetchedConfig.allowOnlineRedemption : false,
           enableCheckoutRedemption: typeof fetchedConfig.enableCheckoutRedemption === 'boolean' ? fetchedConfig.enableCheckoutRedemption : false,
           redemptionExpiryHours: typeof fetchedConfig.redemptionExpiryHours === 'number' ? fetchedConfig.redemptionExpiryHours : 24,
+          maxRewardsPerOrder: typeof fetchedConfig.maxRewardsPerOrder === 'number' ? fetchedConfig.maxRewardsPerOrder : 1,
         })
       }
     } catch (err: any) {
@@ -252,6 +255,36 @@ export default function StoreSettings({ tenantSlug }: Props) {
               checked={config.enableCheckoutRedemption ?? false}
               onCheckedChange={(checked) => setConfig({ ...config, enableCheckoutRedemption: checked })}
               className="data-[state=checked]:bg-emerald-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                <Settings size={20} />
+              </div>
+              <div className="flex-1">
+                <Label className="text-base font-bold" htmlFor="max-rewards-per-order">
+                  Premios por pedido
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Cuántos premios puede llevar un mismo pedido en checkout (1 a 5).
+                </p>
+              </div>
+            </div>
+            <Input
+              id="max-rewards-per-order"
+              type="number"
+              min={1}
+              max={5}
+              value={config.maxRewardsPerOrder}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  maxRewardsPerOrder: Math.min(5, Math.max(1, Number(e.target.value) || 1)),
+                })
+              }
+              className="w-20 text-center font-bold"
             />
           </div>
 

@@ -23,6 +23,7 @@ import { resolveOrderAlerts } from '@/lib/compliance-alerts'
 import { incrementCommissionBalance, revertCommissionBalance } from '@/lib/commission-balance'
 import { allowedTransitionsFrom } from '@/lib/order-transitions'
 import { matchesInternalSecret } from '@/lib/internal-secret'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 import webpush from 'web-push'
 
 try {
@@ -581,6 +582,11 @@ export async function PATCH(
     // Se ejecuta en background cuando un pedido se completa (delivered)
     // para recalcular el tiempo óptimo basado en datos reales
     if (status === 'delivered') {
+      // Canjes de checkout del pedido: al entregar se reclaman solos
+      // (decisión: claimed + claimedAt + locationId). Best-effort: nunca
+      // corta el guard del pedido.
+      await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
+
       // Cobro en efectivo concretado (pending → approved en este mismo
       // request): registrar la venta en caja + evento CIS. Fire-and-forget —
       // la respuesta del endpoint no depende del registro.

@@ -15,6 +15,8 @@
 
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
+import Tenant from '@/models/Tenant'
+import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
 
 const CRON_SECRET = process.env.CRON_SECRET
@@ -41,6 +43,7 @@ export async function GET(request: NextRequest) {
 
     let cancelledOrders = 0
     let partialCleans = 0
+    let revertedRewards = 0
 
     for (const order of splitOrders) {
       const payments = (order.payments as any[]) || []
@@ -60,6 +63,24 @@ export async function GET(request: NextRequest) {
           }
         )
         cancelledOrders++
+
+        // Revertir canjes de premios: si no, el stock queda descontado y el
+        // StoreRedemption queda pendiente sin pedido que lo respalde.
+        if ((order.rewardItems as any[])?.length > 0) {
+          try {
+            const fullOrder = await Order.findById(order._id)
+            const tenant = fullOrder ? await Tenant.findById(fullOrder.tenantId) : null
+            if (fullOrder && tenant) {
+              await revertRewardRedemptions(fullOrder, tenant)
+              revertedRewards++
+            }
+          } catch (e) {
+            console.error(
+              `[cancel-pending-group-payments] Failed to revert rewards for order ${order.orderNumber}:`,
+              e
+            )
+          }
+        }
       } else {
         // Has approved payments — cancel only the pending sub-payments
         // and remove their items from the order
@@ -112,6 +133,7 @@ export async function GET(request: NextRequest) {
       success: true,
       timestamp: new Date().toISOString(),
       cancelledOrders,
+      revertedRewardOrders: revertedRewards,
       partialCleans,
       timeoutHours: DEFAULT_SPLIT_TIMEOUT_HOURS,
     })

@@ -8,6 +8,7 @@ import { PosError } from '@/lib/pos-online/errors'
 import { isValidOrderTransition, allowedOrderTransitions } from '@takeasygo/business'
 import { toPosOrder, type PosOrderStatusValue } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/orders/[id] — una orden por su posId
@@ -145,6 +146,12 @@ export const PATCH = posRoute(async (ctx, { id }) => {
       'La orden cambió de estado mientras se procesaba la petición',
       `posId=${posId}`
     )
+  }
+
+  // Canjes de checkout del pedido: al entregar se reclaman solos.
+  if (to === 'delivered') {
+    const deliveredOrder = updated as unknown as import('@/models/Order').IOrder
+    await claimCheckoutRedemptionsForOrder(deliveredOrder._id, deliveredOrder.locationId)
   }
 
   // Cobro en efectivo concretado al entregar: registrar venta en caja + CIS

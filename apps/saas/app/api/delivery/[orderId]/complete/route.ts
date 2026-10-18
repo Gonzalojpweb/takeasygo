@@ -7,6 +7,7 @@ import crypto from 'crypto'
 import webpush from 'web-push'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 
 try {
   webpush.setVapidDetails(
@@ -112,6 +113,9 @@ export async function POST(
       const { registerCashSaleOnDelivery } = await import('@/lib/order-side-effects')
       registerCashSaleOnDelivery({ order, tenant: { _id: person.tenantId } })
     }
+
+    // Canjes de checkout del pedido: al entregar se reclaman solos.
+    await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
 
     // Push notification al cliente
     if ((order as any).clientToken) {
