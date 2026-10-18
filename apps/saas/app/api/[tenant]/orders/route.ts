@@ -21,6 +21,7 @@ import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
@@ -637,6 +638,11 @@ export async function POST(
     // Validar cada item del pedido y calcular precios desde la DB
     const resolvedItems: any[] = []
     for (const clientItem of body.items) {
+      // La línea de premio que el cliente trae en el carrito (Opción 2) es solo
+      // informativa: la canónica se arma más abajo desde `rewardItems`, ya
+      // validados contra la DB. Si se procesara acá daría 400 por falta de
+      // menuItemId y duplicaría la línea $0.
+      if (clientItem.type === 'reward') continue
       const itemType = clientItem.type === 'promotion' ? 'promotion' : 'menuItem'
 
       if (itemType === 'promotion') {
@@ -1448,6 +1454,11 @@ export async function POST(
     const resolvedRewards: any[] = []
     let rewardAdvanceApplied = false
     let rewardAdvanceAmount = 0
+    // Los StoreRedemption se crean RECIÉN cuando existe la orden: así cada
+    // canje nace vinculado a su orderId y no quedan canjes huérfanos si la
+    // creación de la orden falla a mitad de camino.
+    const pendingCheckoutRedemptions: any[] = []
+    let checkoutRewardMemberId: any = null
     if (body.rewardItems && body.rewardItems.length > 0) {
       if (!body.customer.phone) {
         return NextResponse.json(
@@ -1459,6 +1470,19 @@ export async function POST(
       if (!tenant.store?.enabled || !tenant.store?.enableCheckoutRedemption) {
         return NextResponse.json(
           { error: 'El canje en checkout no está habilitado' },
+          { status: 400 }
+        )
+      }
+
+      // Tope de premios por pedido (configurable por tenant, default 1, tope 5)
+      const maxRewardsPerOrder = resolveMaxRewardsPerOrder(tenant.store)
+      if (body.rewardItems.length > maxRewardsPerOrder) {
+        return NextResponse.json(
+          {
+            error: `Podés canjear hasta ${maxRewardsPerOrder} ${
+              maxRewardsPerOrder === 1 ? 'premio' : 'premios'
+            } por pedido.`,
+          },
           { status: 400 }
         )
       }
@@ -1476,6 +1500,7 @@ export async function POST(
           { status: 400 }
         )
       }
+      checkoutRewardMemberId = member._id
 
       const validation = await validateCheckoutRewards(
         member,
@@ -1508,14 +1533,11 @@ export async function POST(
 
         resolvedRewards.push(reward)
 
-        // Crear StoreRedemption para que aparezca en "Mis Canjes" y en el admin
-        await StoreRedemption.create({
-          tenantId: tenant._id,
-          memberId: member._id,
+        // Dejar preparado el canje: se crea después, con el orderId real.
+        pendingCheckoutRedemptions.push({
           storeItemId: storeItem._id,
           pointsUsed: storeItem.pointsCost,
           cashValue: storeItem.cashValue ?? null,
-          status: 'pending',
         })
 
         // Agregar como item del pedido a $0
@@ -1538,6 +1560,12 @@ export async function POST(
           hasCategoryDiscount: false,
         })
       }
+    }
+
+    // El carrito pudo mandar solo líneas de premio (type 'reward'), que se
+    // descartan arriba: si además no hubo rewardItems validados, no queda nada.
+    if (resolvedItems.length === 0) {
+      return NextResponse.json({ error: 'El pedido no contiene ítems válidos' }, { status: 400 })
     }
 
     // ── Delivery: recalcular costo desde la DB 🔒 ─────────────────────────
@@ -1786,6 +1814,35 @@ export async function POST(
         { _id: { $in: hiddenRewardClaimIds }, status: 'reservado' },
         { $set: { reservedOrderId: order._id } }
       )
+    }
+
+    // ── Crear los canjes de checkout vinculados a la orden ────────────────────
+    // source: 'checkout' → no expiran (se cierran al entregar el pedido) y se
+    // revierten junto con la orden si el pago falla o se cancela.
+    if (pendingCheckoutRedemptions.length > 0 && checkoutRewardMemberId) {
+      try {
+        // create() por registro (no insertMany): el hook pre('validate') genera
+        // el redemptionCode único y fija expiresAt = null para source checkout.
+        await Promise.all(
+          pendingCheckoutRedemptions.map((r) =>
+            StoreRedemption.create({
+              tenantId: tenant._id,
+              memberId: checkoutRewardMemberId,
+              storeItemId: r.storeItemId,
+              pointsUsed: r.pointsUsed,
+              cashValue: r.cashValue,
+              status: 'pending',
+              source: 'checkout',
+              orderId: order._id,
+              locationId: body.locationId ?? null,
+            })
+          )
+        )
+      } catch (redemptionErr) {
+        // El pedido ya existe; un fallo acá no debe romper la respuesta.
+        // Queda el fallback de tracking/reconcile para el descuento de puntos.
+        console.error('[orders] StoreRedemption checkout create failed:', redemptionErr)
+      }
     }
 
     // Register impact event (never fails the order)

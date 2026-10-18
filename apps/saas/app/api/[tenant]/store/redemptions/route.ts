@@ -20,6 +20,7 @@ import { sendAdminRedemptionPushNotification } from '@/lib/push'
 import { verifyMemberToken } from '@/lib/memberToken'
 import { getSessionUser } from '@/lib/apiAuth'
 import mongoose from 'mongoose'
+import { evaluateRewardRedemption, isPendingAdvanceBlocking } from '@takeasygo/business'
 
 /**
  * La identidad del miembro NO viene del body/query (antes cualquiera con un
@@ -136,8 +137,9 @@ export async function POST(
         return NextResponse.json({ error: 'Miembro no activo' }, { status: 400 })
       }
 
-      // Bloquear canje si el miembro tiene un adelanto SOS pendiente
-      if (member.sosConfig?.hasPendingSos && (member.sosConfig?.sosUsed || 0) > 0) {
+      // Bloquear canje si el miembro tiene un adelanto SOS pendiente.
+      // Criterio compartido en @takeasygo/business (mismo módulo que usa el checkout).
+      if (isPendingAdvanceBlocking(member.sosConfig?.hasPendingSos, member.sosConfig?.sosUsed, true)) {
         await session.abortTransaction()
         return NextResponse.json({
           error: 'Tenés un adelanto de puntos pendiente. Completá una compra para consolidar tu saldo antes de canjear.',
@@ -151,9 +153,22 @@ export async function POST(
         return NextResponse.json({ error: 'Item no encontrado o no disponible' }, { status: 404 })
       }
 
-      // Validar puntos suficientes
-      if (member.loyalty.points < item.pointsCost) {
+      // Validar saldo de puntos: regla compartida en @takeasygo/business.
+      // En canje standalone no se permite adelanto, así que el saldo debe alcanzar.
+      const rewardDecision = evaluateRewardRedemption({
+        mode: 'standalone',
+        pointsBalance: member.loyalty.points,
+        pointsRequired: item.pointsCost,
+        advanceLimit: tenant.loyalty?.sosLimit ?? 250,
+        hasPendingAdvance: member.sosConfig?.hasPendingSos,
+        pendingAdvanceUsed: member.sosConfig?.sosUsed,
+      })
+
+      if (!rewardDecision.valid) {
         await session.abortTransaction()
+        if (rewardDecision.reason === 'pending_advance') {
+          return NextResponse.json({ error: rewardDecision.error }, { status: 400 })
+        }
         return NextResponse.json({ 
           error: 'Puntos insuficientes',
           currentPoints: member.loyalty.points,
@@ -247,6 +262,7 @@ export async function POST(
         pointsUsed: item.pointsCost,
         cashValue: item.cashValue,
         status: 'pending',
+        source: 'standalone',
         expiresAt,
         ...(locationId ? { locationId } : {}),
       })
@@ -255,15 +271,14 @@ export async function POST(
       // Deductir puntos del miembro
       // Micro-SOS: si el saldo queda en exactamente 0, forzar un adelanto pequeño
       // para que el miembro siempre tenga una deuda que consolidar y deba volver
-      const projectedBalance = member.loyalty.points - item.pointsCost
       let microSosApplied = false
       let microSosAmount = 0
 
-      if (projectedBalance === 0) {
+      if (rewardDecision.microAdvanceRequired) {
         // El micro-SOS es el 20% del costo del premio (per matrices.md),
-        // pero nunca mayor al sosLimit del tenant
-        const sosLimit = tenant.loyalty?.sosLimit ?? 250
-        microSosAmount = Math.min(Math.ceil(item.pointsCost * 0.2), sosLimit)
+        // pero nunca mayor al sosLimit del tenant — monto calculado en
+        // @takeasygo/business (computeMicroAdvance).
+        microSosAmount = rewardDecision.microAdvanceAmount
         microSosApplied = true
 
         await LoyaltyMember.updateOne(

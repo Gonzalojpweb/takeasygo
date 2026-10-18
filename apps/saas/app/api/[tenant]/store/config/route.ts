@@ -84,7 +84,21 @@ export async function PUT(
       enableCheckoutRedemption,
       redemptionExpiryHours,
       locationId,
+      maxRewardsPerOrder,
     } = body
+
+    // Premios por pedido: entero entre 1 y el tope técnico (5)
+    if (
+      maxRewardsPerOrder !== undefined &&
+      (!Number.isInteger(maxRewardsPerOrder) ||
+        maxRewardsPerOrder < 1 ||
+        maxRewardsPerOrder > 5)
+    ) {
+      return NextResponse.json(
+        { error: 'Máximo de premios por pedido inválido (entre 1 y 5)' },
+        { status: 400 }
+      )
+    }
 
     const updateData: any = {}
     if (enabled !== undefined) updateData['store.enabled'] = enabled
@@ -93,6 +107,7 @@ export async function PUT(
     if (heroImageUrl !== undefined) updateData['store.heroImageUrl'] = heroImageUrl
     if (allowOnlineRedemption !== undefined) updateData['store.allowOnlineRedemption'] = allowOnlineRedemption
     if (enableCheckoutRedemption !== undefined) updateData['store.enableCheckoutRedemption'] = enableCheckoutRedemption
+    if (maxRewardsPerOrder !== undefined) updateData['store.maxRewardsPerOrder'] = maxRewardsPerOrder
     if (redemptionExpiryHours !== undefined) updateData['store.redemptionExpiryHours'] = redemptionExpiryHours
     if (locationId !== undefined) updateData['store.locationId'] = locationId
 

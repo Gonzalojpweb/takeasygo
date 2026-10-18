@@ -10,6 +10,7 @@ import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import Location from '@/models/Location'
+import { expireStoreRedemption } from '@/lib/store-redemptions'
 
 export async function PATCH(
   request: NextRequest,
@@ -56,10 +57,14 @@ export async function PATCH(
 
     // Validar expiración
     if (redemption.expiresAt && new Date() > redemption.expiresAt) {
-      await StoreRedemption.updateOne(
-        { _id: redemptionId },
-        { status: 'expired' }
-      )
+      // Expiración detectada al reclamar: usa el MISMO flip condicional que
+      // el cron (gana solo uno), así los puntos se devuelven una sola vez.
+      // Aunque falle, el canje vencido igualmente no se reclama.
+      try {
+        await expireStoreRedemption(redemption)
+      } catch (err) {
+        console.error('[Store Redemption Claim] Error expirando canje vencido:', err)
+      }
       return NextResponse.json({ error: 'Redención expirada' }, { status: 400 })
     }
 
