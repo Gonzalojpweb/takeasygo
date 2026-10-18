@@ -45,7 +45,7 @@ vi.mock('@takeasygo/business', () => ({
 
 // ── Import after mocks ───────────────────────────────────────────────────────
 
-import { sendAdminPushNotification, sendAdminRedemptionPushNotification } from '@/lib/push'
+import { sendAdminPushNotification, sendAdminRedemptionPushNotification, shouldSendAdminRedemptionPush } from '@/lib/push'
 
 const TENANT_ID = '507f1f77bcf86cd799439011'
 
@@ -188,5 +188,21 @@ describe('sendAdminRedemptionPushNotification', () => {
     )
 
     expect(mocks.mockSendNotification).not.toHaveBeenCalled()
+  })
+})
+
+describe('shouldSendAdminRedemptionPush', () => {
+  it('emite para canjes standalone (sin orderId)', () => {
+    expect(shouldSendAdminRedemptionPush({})).toBe(true)
+    expect(shouldSendAdminRedemptionPush({ orderId: undefined })).toBe(true)
+  })
+
+  it('suprime el push cuando el canje tiene orderId (creado por el checkout)', () => {
+    expect(shouldSendAdminRedemptionPush({ orderId: '507f1f77bcf86cd799439011' })).toBe(false)
+  })
+
+  it('es defensivo con docs nulos', () => {
+    expect(shouldSendAdminRedemptionPush(null)).toBe(false)
+    expect(shouldSendAdminRedemptionPush(undefined)).toBe(false)
   })
 })

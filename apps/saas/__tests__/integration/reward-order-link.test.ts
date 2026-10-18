@@ -11,6 +11,7 @@ import Location from '@/models/Location'
 import PlatformConfig from '@/models/PlatformConfig'
 import Menu from '@/models/Menu'
 import { revertRewardRedemptions } from '@/lib/loyalty'
+import { sendAdminRedemptionPushNotification } from '@/lib/push'
 import { hashPhone } from '@/lib/crypto'
 
 vi.mock('@/lib/mongoose', () => ({
@@ -401,6 +402,8 @@ describe('POST /api/{tenant}/orders — canjes vinculados a la orden', () => {
     expect(red!.status).toBe('pending')
     expect(String(red!.locationId)).toBe(String(location._id))
     expect(String(red!.memberId)).toBe(String(member._id))
+    // El canje tiene orderId → el push de "nuevo canje" al admin está suprimido
+    expect(sendAdminRedemptionPushNotification).not.toHaveBeenCalled()
   })
 
   it('respeta el máximo de premios por pedido (default 1, configurable hasta 5)', async () => {

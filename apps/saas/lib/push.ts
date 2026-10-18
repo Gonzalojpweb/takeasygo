@@ -188,6 +188,18 @@ export async function sendAdminRedemptionPushNotification(
   }
 }
 
+/**
+ * ¿Corresponde emitir el push de "nuevo canje" al admin para este redemption?
+ * Suprimido para canjes con orderId (los crea el checkout en orders/route):
+ * esos avisos los gestiona el flujo del pedido — emitirlo duplicaría la
+ * notificación. Solo aplica al único emisor: POST /store/redemptions.
+ */
+export function shouldSendAdminRedemptionPush(
+  redemption: { orderId?: unknown } | null | undefined
+): boolean {
+  return Boolean(redemption) && !redemption!.orderId
+}
+
 export async function getSubscribersByPhoneHashes(
   tenantId: string,
   phoneHashes: string[]
