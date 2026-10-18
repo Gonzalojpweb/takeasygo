@@ -7,8 +7,11 @@ import mongoose from 'mongoose'
 /**
  * Filtro compartido de canjes "pendientes vigentes" (badge Tienda y pestaña
  * Solicitudes del admin deben mostrar exactamente lo mismo):
- * - source 'standalone': los canjes de checkout NO cuentan acá — ese pedido
+ * - standalone: los canjes de checkout NO cuentan acá — ese pedido
  *   se ve en el panel del pedido (no hay doble display ni doble conteo);
+ * - legacy: los canjes anteriores al campo `source` no lo traen y jamás
+ *   tuvieron orderId — se tratan como standalone (en producción todos los
+ *   canjes eran standalone);
  * - status 'pending', y
  * - sin vencimiento (expiresAt null) o con vencimiento futuro.
  * Los vencidos no aparecen aunque el cron de expiración todavía no los
@@ -16,9 +19,16 @@ import mongoose from 'mongoose'
  */
 export function pendingVigenteFilter(now: Date = new Date()) {
   return {
-    source: 'standalone' as const,
     status: 'pending',
-    $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+    $and: [
+      {
+        $or: [
+          { source: 'standalone' as const },
+          { source: null, orderId: null },
+        ],
+      },
+      { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+    ],
   }
 }
 
@@ -57,8 +67,10 @@ export async function expireStoreRedemption(redemption: {
   )
   if (!flipped) return false
 
-  // Solo los standalone descontaron puntos al crearse.
-  if (flipped.source !== 'standalone') return true
+  // Solo los standalone descontaron puntos al crearse (los legacy sin
+  // source también: en producción todos los canjes eran standalone).
+  // Los checkout se revierten con revertRewardRedemptions, nunca acá.
+  if (flipped.source === 'checkout') return true
 
   const pointsUsed = flipped.pointsUsed || 0
 

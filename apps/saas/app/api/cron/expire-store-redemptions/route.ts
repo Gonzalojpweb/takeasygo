@@ -29,13 +29,16 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     const now = new Date()
-    // source standalone explícito + expiresAt vencido: los checkout tienen
-    // expiresAt null y no deben expirar jamás. Acotado por lote; lo que no
-    // entre en este run lo barre la próxima ejecución.
+    // standalone explícito + legacy sin source (docs anteriores al campo,
+    // jamás con orderId → se tratan como standalone) + expiresAt vencido:
+    // los checkout tienen expiresAt null y no deben expirar jamás. Acotado
+    // por lote; lo que no entre en este run lo barre la próxima ejecución.
     const due = await StoreRedemption.find({
       status: 'pending',
-      source: 'standalone',
-      expiresAt: { $lte: now },
+      $and: [
+        { $or: [{ source: 'standalone' }, { source: null, orderId: null }] },
+        { expiresAt: { $lte: now } },
+      ],
     })
       .select('tenantId memberId storeItemId pointsUsed source')
       .limit(500)

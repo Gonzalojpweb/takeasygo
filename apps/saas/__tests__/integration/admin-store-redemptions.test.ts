@@ -161,6 +161,42 @@ describe('GET /api/{tenant}/admin/store/redemptions', () => {
     expect(data.redemptions[0].expiresAt).toBeTruthy()
     expect(new Date(data.redemptions[0].expiresAt).getTime()).toBeGreaterThan(Date.now())
   })
+
+  it('incluye canjes legacy sin source ni orderId (previos al campo source)', async () => {
+    // Inserts crudos SIN los defaults del modelo: así estaban en producción.
+    // Vigente → debe aparecer en Solicitudes y contar en el badge.
+    await StoreRedemption.collection.insertOne({
+      tenantId: tenantA._id,
+      memberId: member._id,
+      storeItemId: item._id,
+      pointsUsed: 100,
+      status: 'pending',
+      redemptionCode: 'TGO-TEST-LGC1',
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    // Vencido → no aparece (mismo criterio que los standalone)
+    await StoreRedemption.collection.insertOne({
+      tenantId: tenantA._id,
+      memberId: member._id,
+      storeItemId: item._id,
+      pointsUsed: 100,
+      status: 'pending',
+      redemptionCode: 'TGO-TEST-LGC2',
+      expiresAt: new Date(Date.now() - 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    expect(await countPendingRedemptions(tenantA._id)).toBe(1)
+
+    const res = await adminList(req(`/api/${SLUG_A}/admin/store/redemptions?status=pending`), params(SLUG_A))
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.redemptions).toHaveLength(1)
+    expect(data.redemptions[0].source).toBeUndefined()
+  })
 })
 
 describe('countPendingRedemptions (badge Tienda)', () => {

@@ -44,9 +44,10 @@ export async function GET(
       return NextResponse.json({ error: 'Status inválido' }, { status: 400 })
     }
 
-    // Solicitudes = mismos criterios que el badge: SOLO canjes standalone,
-    // pendientes y vigentes (sin checkout — ese pedido se ve en el panel del
-    // pedido — y sin vencidos, aunque el cron no los haya barrido todavía).
+    // Solicitudes = mismos criterios que el badge: canjes standalone (y los
+    // legacy previos al campo source), pendientes y vigentes (sin checkout —
+    // ese pedido se ve en el panel del pedido — y sin vencidos, aunque el
+    // cron no los haya barrido todavía).
     const filter: Record<string, unknown> =
       statusParam === 'pending'
         ? { tenantId: tenant._id, ...pendingVigenteFilter() }

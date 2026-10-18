@@ -283,6 +283,68 @@ describe('Cron /api/cron/expire-store-redemptions', () => {
     expect(freshItem!.totalRedemptions).toBe(0)
   })
 
+  it('expira canje legacy sin source ni orderId (doc anterior al campo): se trata como standalone', async () => {
+    // Insert crudo SIN los defaults/hooks del modelo: así estaban los canjes
+    // en producción antes de agregar el campo source.
+    const { insertedId } = await StoreRedemption.collection.insertOne({
+      tenantId: tenant._id,
+      memberId: member._id,
+      storeItemId: item._id,
+      pointsUsed: 100,
+      status: 'pending',
+      redemptionCode: 'TGO-TEST-LGC1',
+      expiresAt: new Date(Date.now() - 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await applyCreationEffects()
+
+    const res = await runCron(`Bearer ${process.env.CRON_SECRET}`)
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.scanned).toBe(1)
+    expect(data.expired).toBe(1)
+    expect(data.pointsReturned).toBe(100)
+
+    const freshRed = await StoreRedemption.findById(insertedId)
+    expect(freshRed!.status).toBe('expired')
+
+    const freshMember = await LoyaltyMember.findById(member._id)
+    expect(freshMember!.loyalty.points).toBe(100)
+    expect(freshMember!.store.totalRedemptions).toBe(0)
+    expect(freshMember!.store.totalPointsSpent).toBe(0)
+
+    const freshItem = await StoreItem.findById(item._id)
+    expect(freshItem!.stock).toBe(5)
+    expect(freshItem!.totalRedemptions).toBe(0)
+  })
+
+  it('NO toca legacy con orderId (sin source pero vinculado a una orden)', async () => {
+    await StoreRedemption.collection.insertOne({
+      tenantId: tenant._id,
+      memberId: member._id,
+      storeItemId: item._id,
+      pointsUsed: 100,
+      status: 'pending',
+      redemptionCode: 'TGO-TEST-LGC2',
+      orderId: new StoreRedemption()._id,
+      expiresAt: new Date(Date.now() - 60 * 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    await applyCreationEffects()
+
+    const res = await runCron(`Bearer ${process.env.CRON_SECRET}`)
+    const data = await res.json()
+    expect(data.scanned).toBe(0)
+    expect(data.expired).toBe(0)
+    expect(data.pointsReturned).toBe(0)
+
+    // Los puntos siguen debitados (el cron no lo trató como standalone)
+    const freshMember = await LoyaltyMember.findById(member._id)
+    expect(freshMember!.loyalty.points).toBe(0)
+  })
+
   it('es idempotente: el segundo run no devuelve los puntos otra vez', async () => {
     const red = await makeStandalone()
     await ageRedemption(red._id)
