@@ -9,7 +9,7 @@ import SystemAnnouncement from '@/models/SystemAnnouncement'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
@@ -84,6 +84,25 @@ export async function PATCH(
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    }
+
+    // ── Aislamiento por sede ──────────────────────────────────────────────
+    // Un usuario con assignedLocations no puede cambiar estados de pedidos
+    // de otras sedes (el SyncLayer/POS entra por internal secret y queda
+    // exento, igual que los guards de transición). Mismo criterio que el GET
+    // de /orders/[orderId]: scoped no-admin → 404 (no filtrar existencia).
+    if (!isInternalAuth(request)) {
+      const sessionUser = await getSessionUser(request)
+      if (
+        sessionUser &&
+        sessionUser.role !== 'admin' &&
+        sessionUser.role !== 'superadmin'
+      ) {
+        const locs = sessionUser.assignedLocations ?? []
+        if (locs.length > 0 && !locs.includes(order.locationId?.toString())) {
+          return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+        }
+      }
     }
 
     // ── POS integration guard ──────────────────────────────────────────────

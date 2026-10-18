@@ -5,6 +5,7 @@ import PushNotificationLog from '@/models/PushNotificationLog'
 import type { PushTargetType } from '@/models/PushNotificationLog'
 import { connectDB } from '@/lib/mongoose'
 import { canAccess, type Plan } from '@/lib/plans'
+import { canAccessLocation } from '@/lib/location-scope'
 import { toPesos } from '@takeasygo/business'
 
 try {
@@ -105,6 +106,12 @@ export async function sendBulkPush(
  * Se usa cuando un pedido pasa a ser visible en el workspace (pago online
  * confirmado por webhook, o transferencia confirmada por el cliente).
  * El tag `order-{orderNumber}` consolida notificaciones del mismo pedido.
+ *
+ * `locationId` (sede del pedido): cuando se pasa, los subs con stamp de
+ * rol/assignedLocations (panel admin) se filtran con la misma regla que
+ * canAccessLocation — un manager/cashier scoped NO recibe pedidos de otras
+ * sedes. Los subs legacy sin stamp (anteriores al deploy) reciben todo
+ * hasta re-suscribirse (el banner del panel re-suscribe en cada visita).
  */
 export async function sendAdminPushNotification(
   tenantId: string,
@@ -113,13 +120,26 @@ export async function sendAdminPushNotification(
   tenantSlug: string,
   orderNumber: string,
   total: number, // en centavos
-  customerName: string
+  customerName: string,
+  locationId?: string | null
 ): Promise<void> {
   // Solo disponible en Trial, Crecimiento y Premium
   const adminSubs = canAccess(plan as Plan, 'adminPushNotifications')
     ? await PushSubscription.find({ tenantId }).lean()
     : []
   if (adminSubs.length === 0) return
+
+  // ── Aislamiento por sede ────────────────────────────────────────────────
+  const eligibleSubs = locationId
+    ? adminSubs.filter((sub) => {
+        if (!sub.role) return true // legacy sin stamp: comportamiento previo
+        return canAccessLocation(
+          { role: sub.role, assignedLocations: (sub.assignedLocations ?? []).map(String) },
+          locationId
+        )
+      })
+    : adminSubs
+  if (eligibleSubs.length === 0) return
 
   const payload = JSON.stringify({
     title: `🔔 Nuevo pedido en ${tenantName}`,
@@ -131,7 +151,7 @@ export async function sendAdminPushNotification(
     orderNumber,
   })
 
-  for (const sub of adminSubs) {
+  for (const sub of eligibleSubs) {
     try {
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },

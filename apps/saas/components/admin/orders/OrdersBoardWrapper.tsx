@@ -109,11 +109,15 @@ interface Props {
 export default function OrdersBoardWrapper({ orders, tenantSlug, locations = [], userAssignedLocations = [], recentRatings = [] }: Props) {
   const { activeLocationId, locations: contextLocations } = useAdminLocation()
   const isAdmin = userAssignedLocations.length === 0
-  const availableLocations = (contextLocations.length > 0 ? contextLocations : locations).map(l => ({
-    _id: l._id,
-    name: l.name,
-    colorIndex: (l as any).colorIndex ?? 0,
-  }))
+  // Chips del toolbar: los usuarios scoped solo ven sus sedes (el context
+  // recibe TODAS las sedes del tenant para el sidebar/topbar admin).
+  const availableLocations = (contextLocations.length > 0 ? contextLocations : locations)
+    .filter(l => isAdmin || userAssignedLocations.includes(l._id))
+    .map(l => ({
+      _id: l._id,
+      name: l.name,
+      colorIndex: (l as any).colorIndex ?? 0,
+    }))
   const lastRatingIdRef = useRef<string | null>(null)
   const autoAttendedRef = useRef(false)
 

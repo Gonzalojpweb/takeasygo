@@ -87,7 +87,8 @@ ${baseUrl}/${tenantSlug}/admin/orders`
           tenant.slug,
           order.orderNumber,
           order.total || 0,
-          customerName
+          customerName,
+          order.locationId?.toString()
         )
       } catch (err) {
         console.error('[transfer-client] Admin push error:', (err as Error)?.message)

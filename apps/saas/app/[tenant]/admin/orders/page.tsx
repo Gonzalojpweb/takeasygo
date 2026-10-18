@@ -51,7 +51,20 @@ export default async function OrdersPage() {
 
   const tenantId = tenant._id
 
-  const orders = await Order.find({ tenantId, deletedAt: null })
+  // ── Aislamiento por sede ────────────────────────────────────────────────
+  // Un usuario con assignedLocations (manager/cashier/staff scoped) solo ve
+  // pedidos de SUS sedes. Admin/superadmin (y usuarios legacy sin scope)
+  // ven todo el tenant. Mismo criterio que canAccessLocation (location-scope).
+  const userRole = session?.user?.role
+  const userAssignedLocations = session?.user?.assignedLocations ?? []
+  const isFullScopeUser = userRole === 'admin' || userRole === 'superadmin'
+
+  const ordersQuery: Record<string, unknown> = { tenantId, deletedAt: null }
+  if (!isFullScopeUser && userAssignedLocations.length > 0) {
+    ordersQuery.locationId = { $in: userAssignedLocations }
+  }
+
+  const orders = await Order.find(ordersQuery)
     .sort({ createdAt: -1 })
     .lean()
 
@@ -90,8 +103,6 @@ export default async function OrdersPage() {
     name: l.name,
   }))
 
-  const userAssignedLocations = session?.user?.assignedLocations ?? []
-
   const decryptedOrders = orders.map((o: any) => ({
     ...o,
     customer: {
@@ -125,17 +136,25 @@ export default async function OrdersPage() {
 
   const ratingOrderIds = recentRatingsRaw.map(r => r.orderId)
   const ratingOrders = await Order.find({ _id: { $in: ratingOrderIds } })
-    .select('_id orderNumber')
+    .select('_id orderNumber locationId')
     .lean()
   const ratingOrderMap = new Map(ratingOrders.map(o => [o._id.toString(), o]))
 
-  const recentRatings = recentRatingsRaw.map(r => ({
-    _id: r._id.toString(),
-    stars: r.stars,
-    comment: r.comment,
-    createdAt: r.createdAt.toISOString(),
-    orderNumber: ratingOrderMap.get(r.orderId.toString())?.orderNumber ?? '—',
-  }))
+  const recentRatings = recentRatingsRaw
+    .filter((r) => {
+      // Mismo aislamiento que los pedidos: usuarios scoped no ven reseñas
+      // de pedidos de otras sedes.
+      if (isFullScopeUser || userAssignedLocations.length === 0) return true
+      const orderLoc = ratingOrderMap.get(r.orderId.toString())?.locationId?.toString()
+      return orderLoc ? userAssignedLocations.includes(orderLoc) : false
+    })
+    .map((r) => ({
+      _id: r._id.toString(),
+      stars: r.stars,
+      comment: r.comment,
+      createdAt: r.createdAt.toISOString(),
+      orderNumber: ratingOrderMap.get(r.orderId.toString())?.orderNumber ?? '—',
+    }))
 
   return (
     <div className="flex-1 min-h-0 flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 is-admin-orders-page">

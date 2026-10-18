@@ -13,6 +13,14 @@ const PushSubscriptionSchema = new Schema(
     memberId:    { type: Schema.Types.ObjectId, ref: 'LoyaltyMember', index: true },
     // Hash del teléfono para vincular a Consumer/LoyaltyMember sin exponer PII
     phoneHash:   { type: String, index: true },
+    // ── Aislamiento por sede (solo subs de panel admin) ────────────────────
+    // Stampeados server-side en /api/push/subscribe cuando hay sesión de
+    // panel. sendAdminPushNotification usa role/assignedLocations para no
+    // enviar pedidos de otras sedes a managers/cashiers scoped. Los subs
+    // legacy (sin stamp) reciben todo hasta re-suscribirse.
+    userId:            { type: Schema.Types.ObjectId, ref: 'User' },
+    role:              { type: String },
+    assignedLocations: [{ type: String }],
   },
   { timestamps: true }
 )

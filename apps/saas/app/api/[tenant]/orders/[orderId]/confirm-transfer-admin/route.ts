@@ -3,7 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { injectOrderToPOS } from '@/lib/pos/inject-order'
 import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
@@ -48,6 +48,23 @@ export async function PATCH(
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) {
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    }
+
+    // ── Aislamiento por sede ──────────────────────────────────────────────
+    // Un usuario con assignedLocations no puede confirmar transferencias
+    // de pedidos de otras sedes (mismo criterio que el GET de /orders/[id]).
+    {
+      const sessionUser = await getSessionUser(request)
+      if (
+        sessionUser &&
+        sessionUser.role !== 'admin' &&
+        sessionUser.role !== 'superadmin'
+      ) {
+        const locs = sessionUser.assignedLocations ?? []
+        if (locs.length > 0 && !locs.includes(order.locationId?.toString())) {
+          return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+        }
+      }
     }
 
     if (order.payment.method !== 'transfer') {

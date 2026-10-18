@@ -90,6 +90,23 @@ export async function DELETE(
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
     }
 
+    // ── Aislamiento por sede ──────────────────────────────────────────────
+    // Un usuario con assignedLocations no puede eliminar pedidos de otras
+    // sedes (mismo criterio que GET arriba).
+    {
+      const sessionUser = await getSessionUser(request)
+      if (
+        sessionUser &&
+        sessionUser.role !== 'admin' &&
+        sessionUser.role !== 'superadmin'
+      ) {
+        const locs = sessionUser.assignedLocations ?? []
+        if (locs.length > 0 && !locs.includes(order.locationId?.toString())) {
+          return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+        }
+      }
+    }
+
     if (order.deletedAt) {
       return NextResponse.json({ error: 'La orden ya fue eliminada' }, { status: 400 })
     }

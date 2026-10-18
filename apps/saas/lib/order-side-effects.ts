@@ -63,7 +63,8 @@ export async function notifyCashOrderCreated(args: {
         tenantSlug,
         order.orderNumber,
         order.total,
-        customerName
+        customerName,
+        order.locationId?.toString()
       )
     } catch (err) {
       console.error('[order-side-effects] Admin push error (cash):', (err as Error)?.message)

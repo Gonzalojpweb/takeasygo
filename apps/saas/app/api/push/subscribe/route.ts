@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import PushSubscription from '@/models/PushSubscription'
+import { getSessionUser } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
@@ -12,6 +13,21 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
+    // ── Aislamiento por sede ──────────────────────────────────────────────
+    // Si el request viene con sesión de panel (AdminPushBanner), stampear
+    // role/assignedLocations del usuario REAL (server-side, nunca del body:
+    // es spoofeable). sendAdminPushNotification los usa para filtrar pushes
+    // de otras sedes a managers/cashiers scoped. Sin sesión (consumidor
+    // explore/app) no se stampean y el sub queda como legacy.
+    const sessionUser = await getSessionUser(request)
+    const stamp = sessionUser?.role
+      ? {
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          assignedLocations: sessionUser.assignedLocations ?? [],
+        }
+      : {}
+
     await PushSubscription.findOneAndUpdate(
       { clientToken },
       {
@@ -22,6 +38,7 @@ export async function POST(request: NextRequest) {
       ...(tenantId ? { tenantId } : {}),
       ...(memberId ? { memberId } : {}),
       ...(phoneHash ? { phoneHash } : {}),
+      ...stamp,
       },
       { upsert: true, returnDocument: "after" }
     )

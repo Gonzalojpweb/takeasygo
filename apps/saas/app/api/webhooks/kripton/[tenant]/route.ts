@@ -203,7 +203,8 @@ export async function POST(
                   tenant.slug,
                   order.orderNumber,
                   order.payment.baseTotal ?? 0,
-                  order.customer?.name ?? 'Cliente'
+                  order.customer?.name ?? 'Cliente',
+                  order.locationId?.toString()
                 )
               } catch (err) {
                 console.error('[webhook] Admin push error:', (err as Error)?.message)

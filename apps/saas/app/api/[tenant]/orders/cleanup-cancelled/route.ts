@@ -3,7 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { getSessionUser, requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionOrAdmin } from '@/lib/rbac'
 
 const MAX_AGE_HOURS = 24
@@ -32,6 +32,17 @@ export async function POST(
   })
   if (guardError) return guardError
 
+  // Aislamiento por sede: usuarios con sedes asignadas solo limpian las suyas.
+  // Admin/superadmin (y sesiones sin usuario) limpian todo el tenant.
+  const sessionUser = await getSessionUser(request)
+  const assignedLocations = sessionUser?.assignedLocations ?? []
+  const isScoped =
+    sessionUser != null &&
+    sessionUser.role !== 'admin' &&
+    sessionUser.role !== 'superadmin' &&
+    assignedLocations.length > 0
+  const scopeFilter = isScoped ? { locationId: { $in: assignedLocations } } : {}
+
   const cutoffDate = new Date(Date.now() - MAX_AGE_HOURS * 60 * 60 * 1000)
 
   // Revert reward redemptions before deleting
@@ -40,6 +51,7 @@ export async function POST(
     status: 'cancelled',
     updatedAt: { $lt: cutoffDate },
     rewardItems: { $exists: true, $ne: [] },
+    ...scopeFilter,
   }).lean()
 
   for (const orphanedOrder of orphanedOrders) {
@@ -54,6 +66,7 @@ export async function POST(
     tenantId: tenant._id,
     status: 'cancelled',
     updatedAt: { $lt: cutoffDate },
+    ...scopeFilter,
   })
 
   return NextResponse.json({

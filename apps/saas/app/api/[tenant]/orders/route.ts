@@ -1955,7 +1955,8 @@ export async function POST(
             tenantSlug,
             order.orderNumber,
             pricing.finalTotal,
-            customerName
+            customerName,
+            order.locationId?.toString()
           )
         } catch (err) {
           console.error('[orders] Admin push error:', (err as Error)?.message)
