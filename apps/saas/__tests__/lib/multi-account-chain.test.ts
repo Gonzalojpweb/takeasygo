@@ -46,6 +46,9 @@ function makeTenant(accounts: ReturnType<typeof makeAccount>[]) {
     mpAccounts: accounts,
     mercadopago: { isConfigured: false, accessToken: null, publicKey: null, webhookSecret: null },
     mpOAuth: null,
+    // Gate real de getMpAccountForLocation: flag + mpMode deben estar activos.
+    flags: { 'mp.perLocation': true },
+    mpMode: 'perLocation',
   } as any
 }
 

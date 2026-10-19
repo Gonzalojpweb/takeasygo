@@ -38,6 +38,9 @@ function makeTenant(overrides: Record<string, any> = {}) {
       webhookSecret: null,
     },
     mpOAuth: null,
+    // Gate real de getMpAccountForLocation: flag + mpMode deben estar activos.
+    flags: { 'mp.perLocation': true },
+    mpMode: 'perLocation',
     ...overrides,
   } as any
 }
@@ -105,6 +108,27 @@ describe('getMpAccountForLocation', () => {
   it('falls back to active account when locationMpAccountId is undefined', () => {
     const tenant = makeTenant()
     const result = getMpAccountForLocation(tenant, undefined)
+    expect(result).not.toBeNull()
+    expect(result!.accountId).toBe('acc1')
+  })
+
+  it('flag OFF: ignores location override and returns active account', () => {
+    const tenant = makeTenant({ flags: { 'mp.perLocation': false } })
+    const result = getMpAccountForLocation(tenant, 'acc2')
+    expect(result).not.toBeNull()
+    expect(result!.accountId).toBe('acc1')
+  })
+
+  it('flag OFF: nonexistent override does not fail closed (returns active)', () => {
+    const tenant = makeTenant({ flags: {} })
+    const result = getMpAccountForLocation(tenant, 'nonexistent')
+    expect(result).not.toBeNull()
+    expect(result!.accountId).toBe('acc1')
+  })
+
+  it('mpMode shared: ignores location override even with flag on', () => {
+    const tenant = makeTenant({ mpMode: 'shared' })
+    const result = getMpAccountForLocation(tenant, 'acc2')
     expect(result).not.toBeNull()
     expect(result!.accountId).toBe('acc1')
   })
