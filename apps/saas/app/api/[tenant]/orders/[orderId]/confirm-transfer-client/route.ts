@@ -7,6 +7,7 @@ import { safeDecrypt } from '@/lib/crypto'
 import { toPesos } from '@takeasygo/business'
 import { sendAdminPushNotification } from '@/lib/push'
 import { rateLimit } from '@/lib/rateLimit'
+import { resolveAdminWhatsApp } from '@/lib/location-resolvers'
 
 export async function PATCH(
   request: NextRequest,
@@ -60,7 +61,9 @@ export async function PATCH(
     onOrderConfirmed(order).catch(() => {})
 
     // ── Notificar al restaurante via WhatsApp ───────────────────────
-    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
+    // Destino y flags con override por sede de ESTA orden.
+    const waTarget = await resolveAdminWhatsApp(tenant, order.locationId?.toString())
+    if (waTarget.phone && waTarget.notifyOnOrder) {
       const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
       const customerName = safeDecrypt(order.customer?.name) || 'Cliente'
       const amount = order.total || 0
@@ -70,7 +73,7 @@ export async function PATCH(
 Ingresá al panel para confirmar el pago:
 ${baseUrl}/${tenantSlug}/admin/orders`
 
-      sendWhatsApp(tenant.notifications.whatsappPhone, waMessage)
+      sendWhatsApp(waTarget.phone, waMessage)
         .catch(e => console.error('[whapi] transfer notification error:', e))
     }
 

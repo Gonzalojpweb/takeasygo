@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
@@ -95,6 +96,23 @@ export async function DELETE(
     const account = tenant.transferAccounts?.find((a: any) => a._id?.toString() === accountId)
     if (!account) {
       return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+    }
+
+    // ── Bloquear si alguna sede la usa como cuenta propia ───────────────────
+    // Borrarla cambiaría en silencio qué ven esas sedes (aunque el resolver
+    // hace fallback al global, el borrado debe ser explícito desde Sedes).
+    const usedIn = await Location.find({
+      tenantId: tenant._id,
+      'settings.transferAccountId': accountId,
+    }).select('name').lean()
+    if (usedIn.length > 0) {
+      const names = usedIn.map(l => l.name).join(', ')
+      return NextResponse.json(
+        {
+          error: `No se puede eliminar: esta cuenta está asignada a ${usedIn.length} sede(s) (${names}). Cambiala desde la pestaña Sedes y volvé a intentar.`,
+        },
+        { status: 409 }
+      )
     }
 
     if (account.isActive && tenant.transferAccounts.length === 1) {

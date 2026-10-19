@@ -1922,6 +1922,30 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             />
                           </div>
                         )}
+
+                        {/* ── Cuenta de transferencia por sede ── */}
+                        {tenant.transferAccounts && tenant.transferAccounts.length > 0 && (
+                          <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
+                            <LocationTransferAccountSettings
+                              locationId={loc._id}
+                              tenantSlug={tenantSlug}
+                              initialTransferAccountId={loc.settings?.transferAccountId ?? null}
+                              transferAccounts={tenant.transferAccounts}
+                            />
+                          </div>
+                        )}
+
+                        {/* ── WhatsApp + flags de notificación por sede ── */}
+                        <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
+                          <LocationNotificationSettings
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initialWhatsappPhone={loc.settings?.whatsappPhone ?? null}
+                            initialNotifyOnOrder={loc.settings?.notifyOnOrder ?? null}
+                            initialNotifyOnReservation={loc.settings?.notifyOnReservation ?? null}
+                            globalWhatsappPhone={tenant.notifications?.whatsappPhone ?? null}
+                          />
+                        </div>
                         </div>
                       </CardContent>
                       )}
@@ -3189,6 +3213,240 @@ function LocationMpAccountSettings({ locationId, tenantSlug, initialMpAccountId,
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar cuenta MP de la sede'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// LocationTransferAccountSettings — Cuenta de transferencia por sede
+// ============================================================================
+function LocationTransferAccountSettings({ locationId, tenantSlug, initialTransferAccountId, transferAccounts }: {
+  locationId: string
+  tenantSlug: string
+  initialTransferAccountId: string | null | undefined
+  transferAccounts: Array<{ _id: string; label: string; isActive: boolean }> | undefined
+}) {
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(initialTransferAccountId || '')
+  const [saving, setSaving] = useState(false)
+
+  const accounts = transferAccounts || []
+  const hasOverride = !!initialTransferAccountId
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const payload = selectedAccountId || null
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { transferAccountId: payload } }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error')
+      }
+      toast.success(
+        selectedAccountId
+          ? 'Cuenta de transferencia de la sede guardada'
+          : 'La sede vuelve a usar la cuenta de transferencia activa del tenant'
+      )
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Error al guardar la cuenta de transferencia de la sede')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Banknote size={12} className="text-primary" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            🏦 Cuenta de transferencia
+          </span>
+        </div>
+        {hasOverride ? (
+          <button
+            type="button"
+            onClick={() => setSelectedAccountId('')}
+            className="text-[9px] text-primary font-bold uppercase tracking-wider hover:underline"
+          >
+            Heredar del tenant
+          </button>
+        ) : (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">
+            Usa la cuenta activa del tenant
+          </span>
+        )}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/70">
+        Elegí qué datos bancarios ven los clientes al pagar con transferencia en esta sede.
+        Si no seleccionás ninguna, se usa la cuenta activa general del tenant.
+      </p>
+
+      {accounts.length > 0 ? (
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+            Cuenta para esta sede
+          </label>
+          <select
+            value={selectedAccountId}
+            onChange={e => setSelectedAccountId(e.target.value)}
+            className="w-full bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="">Usar cuenta activa del tenant</option>
+            {accounts.map(acc => (
+              <option key={acc._id} value={acc._id}>
+                {acc.label} {acc.isActive ? '(activa)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <p className="text-[10px] text-muted-foreground/50 italic">
+          No hay cuentas de transferencia configuradas. Configuralas en la pestaña de pagos.
+        </p>
+      )}
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+        onClick={handleSave}
+        disabled={saving || accounts.length === 0}
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar cuenta de transferencia'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// LocationNotificationSettings — WhatsApp de notificaciones + flags por sede
+// ============================================================================
+function LocationNotificationSettings({ locationId, tenantSlug, initialWhatsappPhone, initialNotifyOnOrder, initialNotifyOnReservation, globalWhatsappPhone }: {
+  locationId: string
+  tenantSlug: string
+  initialWhatsappPhone: string | null | undefined
+  initialNotifyOnOrder: boolean | null | undefined
+  initialNotifyOnReservation: boolean | null | undefined
+  globalWhatsappPhone: string | null | undefined
+}) {
+  const toTri = (v: boolean | null | undefined): 'inherit' | 'on' | 'off' =>
+    v === null || v === undefined ? 'inherit' : v ? 'on' : 'off'
+  const fromTri = (v: 'inherit' | 'on' | 'off'): boolean | null =>
+    v === 'inherit' ? null : v === 'on'
+
+  const [phone, setPhone] = useState(initialWhatsappPhone ?? '')
+  const [notifyOrder, setNotifyOrder] = useState<'inherit' | 'on' | 'off'>(toTri(initialNotifyOnOrder))
+  const [notifyReservation, setNotifyReservation] = useState<'inherit' | 'on' | 'off'>(toTri(initialNotifyOnReservation))
+  const [saving, setSaving] = useState(false)
+
+  const inheritsPhone = !phone.trim()
+  // Mismo estilo que los inputs de los tiles de sede (inputCls vive dentro de SettingsForm).
+  const inputCls = "w-full bg-muted/40 border-2 border-border/60 focus:border-primary/40 focus:bg-white text-foreground text-sm font-medium rounded-2xl px-4 py-3 outline-none transition-all shadow-sm"
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            whatsappPhone: phone.trim() || null,
+            notifyOnOrder: fromTri(notifyOrder),
+            notifyOnReservation: fromTri(notifyReservation),
+          },
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error')
+      }
+      toast.success('Notificaciones de la sede guardadas')
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Error al guardar las notificaciones de la sede')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const triSelect = (
+    value: 'inherit' | 'on' | 'off',
+    onChange: (v: 'inherit' | 'on' | 'off') => void,
+    globalOn: boolean
+  ) => (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value as 'inherit' | 'on' | 'off')}
+      className="w-full bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+    >
+      <option value="inherit">Hereda del global ({globalOn ? 'activado' : 'desactivado'})</option>
+      <option value="on">Siempre notificar</option>
+      <option value="off">Nunca notificar</option>
+    </select>
+  )
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell size={12} className="text-primary" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            🔔 Notificaciones de la sede
+          </span>
+        </div>
+        {inheritsPhone && (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">
+            Usa el WhatsApp general
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+          Número de WhatsApp para alertas
+        </label>
+        <input
+          value={phone}
+          onChange={e => setPhone(e.target.value)}
+          placeholder={globalWhatsappPhone ? globalWhatsappPhone : '+54 9 11 ...'}
+          className={cn(inputCls, "bg-white border-none shadow-inner h-10")}
+        />
+        <p className="text-[10px] text-muted-foreground/60">
+          {inheritsPhone
+            ? globalWhatsappPhone
+              ? `Vacío = usa el WhatsApp general (${globalWhatsappPhone}).`
+              : 'Vacío = usa el WhatsApp general (aún no configurado).'
+            : 'Esta sede notifica a este número en vez del WhatsApp general.'}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 @md:grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+            Avisos de pedidos
+          </label>
+          {triSelect(notifyOrder, setNotifyOrder, true)}
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+            Avisos de reservas
+          </label>
+          {triSelect(notifyReservation, setNotifyReservation, true)}
+        </div>
+      </div>
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+        onClick={handleSave}
+        disabled={saving}
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar notificaciones de la sede'}
       </Button>
     </div>
   )

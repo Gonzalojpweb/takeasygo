@@ -15,6 +15,7 @@ import { canAccess } from '@/lib/plans'
 import { encrypt, safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { sendWhatsApp } from '@/lib/whatsapp'
+import { pickAdminWhatsApp } from '@/lib/location-resolvers'
 import {
   DEFAULT_MIN_ADVANCE_MINUTES,
   DEFAULT_TIMEZONE,
@@ -385,13 +386,16 @@ export async function POST(
         },
         { name: tenant.name, slug: tenant.slug },
         location.name,
-        tenant._id.toString()
+        tenant._id.toString(),
+        location._id?.toString()
       ).catch(e => console.error('[reservas] notification error:', e))
     }
 
-    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnReservation) {
+    // WhatsApp admin: destino y flags con override por sede (hereda el global).
+    const waTarget = pickAdminWhatsApp(tenant, location.settings)
+    if (waTarget.phone && waTarget.notifyOnReservation) {
       sendWhatsApp(
-        tenant.notifications.whatsappPhone,
+        waTarget.phone,
         `📅 Nueva reserva en ${tenant.name}\n👤 ${name.trim()} - ${date} ${time}\n👥 ${partySize} pers.`
       ).catch(e => console.error('[whapi] reservation notification error:', e))
     }

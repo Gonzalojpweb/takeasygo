@@ -35,6 +35,7 @@ import ClubDiscount from '@/models/ClubDiscount'
 import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
+import { pickAdminWhatsApp, resolveTransferAccountForLocation } from '@/lib/location-resolvers'
 import { corporateHasAccess } from '@/lib/corporateAccess'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { resolveCashConfig } from '@/lib/cash'
@@ -1735,6 +1736,15 @@ export async function POST(
       orderNumber = generateOrderNumber(tenantSlug)
     }
 
+    // ── Cuenta de transferencia efectiva para esta sede ────────────────
+    // Se resuelve UNA vez: el snapshot viaja a la orden (tracking/mensajes
+    // futuros no cambian si después se reasigna o borra la cuenta) y el
+    // mismo valor se usa en el mensaje de WhatsApp de esta creación.
+    const resolvedTransferAccount = resolveTransferAccountForLocation(
+      tenant,
+      location.settings?.transferAccountId
+    )
+
     const order = await Order.create({
       tenantId: tenant._id,
       locationId: body.locationId,
@@ -1762,6 +1772,7 @@ export async function POST(
       'payment.surchargePercent': pricing.surchargePercent,
       'payment.surchargeAmount': pricing.surchargeAmount,
       'payment.platformFeeAmount': pricing.platformFeeAmount,
+      'payment.transferAccount': resolvedTransferAccount,
       notes: body.notes || '',
       trackingToken: crypto.randomUUID(),
       trackingTokenUsedAt: null,
@@ -1906,7 +1917,9 @@ export async function POST(
 
     const customerName = body.customer?.name?.trim() || 'Cliente'
 
-    if (tenant.notifications?.whatsappPhone && tenant.notifications.notifyOnOrder) {
+    // WhatsApp admin: destino y flags con override por sede (hereda el global).
+    const waTarget = pickAdminWhatsApp(tenant, location.settings)
+    if (waTarget.phone && waTarget.notifyOnOrder) {
       const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
       const trackingUrl = `${baseUrl}/${tenantSlug}/tracking/${order.orderNumber}`
       const waMessage = buildOrderWhatsAppMessage(
@@ -1929,15 +1942,13 @@ export async function POST(
         },
         {
           name: tenant.name,
-          transfer: (() => {
-            const activeAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
-            const t = activeAccount || tenant.transfer
-            return t ? { alias: t.alias, cbu: t.cbu } : undefined
-          })(),
+          transfer: resolvedTransferAccount
+            ? { alias: resolvedTransferAccount.alias, cbu: resolvedTransferAccount.cbu }
+            : undefined,
         },
         trackingUrl
       )
-      sendWhatsApp(tenant.notifications.whatsappPhone, waMessage)
+      sendWhatsApp(waTarget.phone, waMessage)
         .catch(e => console.error('[whapi] order notification error:', e))
     }
 

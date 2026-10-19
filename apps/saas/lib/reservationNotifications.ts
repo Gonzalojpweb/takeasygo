@@ -1,5 +1,6 @@
 import { sendEmail } from './email'
 import { sendWhatsApp } from './whatsapp'
+import { resolveAdminWhatsApp } from '@/lib/location-resolvers'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import PushSubscription from '@/models/PushSubscription'
@@ -123,7 +124,8 @@ async function sendAdminNotification(
   reservation: ReservationInfo,
   tenant: TenantInfo,
   locationName?: string,
-  type?: 'confirmed' | 'cancelled'
+  type?: 'confirmed' | 'cancelled',
+  locationId?: string
 ): Promise<void> {
   const admins = await User.find({
     tenantId,
@@ -170,12 +172,17 @@ async function sendAdminNotification(
 
   // Cancelación → también al celular del local (igual que los pedidos).
   // La "nueva reserva" ya sale por WhatsApp desde el POST de /reservas.
+  // Destino y flag con override por sede de ESTA reserva.
   if (type === 'cancelled' && tenantId && process.env.WHAPI_TOKEN) {
     try {
       const tenantDoc = await Tenant.findById(tenantId).select('notifications').lean() as any
-      if (tenantDoc?.notifications?.whatsappPhone && tenantDoc.notifications.notifyOnReservation !== false) {
+      const waTarget = await resolveAdminWhatsApp(
+        { _id: tenantId, notifications: tenantDoc?.notifications },
+        locationId
+      )
+      if (waTarget.phone && waTarget.notifyOnReservation !== false) {
         await sendWhatsApp(
-          tenantDoc.notifications.whatsappPhone,
+          waTarget.phone,
           `❌ *Reserva cancelada en ${tenant.name}*\n👤 ${reservation.name} - ${dateFormatted} ${reservation.time} hs\n👥 ${reservation.partySize} pers. · Código #${reservation.reservationNumber}`
         )
       }
@@ -189,7 +196,8 @@ export async function sendReservationConfirmation(
   reservation: ReservationInfo,
   tenant: TenantInfo,
   locationName?: string,
-  tenantId?: string
+  tenantId?: string,
+  locationId?: string
 ): Promise<void> {
   const dateFormatted = formatDate(reservation.date)
   const subject = `Reserva confirmada en ${tenant.name} — #${reservation.reservationNumber}`
@@ -218,7 +226,7 @@ export async function sendReservationConfirmation(
   })
 
   if (tenantId) {
-    await sendAdminNotification(tenantId, reservation, tenant, locationName, 'confirmed').catch(() => {})
+    await sendAdminNotification(tenantId, reservation, tenant, locationName, 'confirmed', locationId).catch(() => {})
   }
 }
 
@@ -254,7 +262,8 @@ export async function sendReservationReminder(
 export async function sendReservationCancellation(
   reservation: ReservationInfo,
   tenant: TenantInfo,
-  tenantId?: string
+  tenantId?: string,
+  locationId?: string
 ): Promise<void> {
   const dateFormatted = formatDate(reservation.date)
   const subject = `Reserva cancelada en ${tenant.name} — #${reservation.reservationNumber}`
@@ -280,7 +289,7 @@ export async function sendReservationCancellation(
   })
 
   if (tenantId) {
-    await sendAdminNotification(tenantId, reservation, tenant, undefined, 'cancelled').catch(() => {})
+    await sendAdminNotification(tenantId, reservation, tenant, undefined, 'cancelled', locationId).catch(() => {})
   }
 }
 

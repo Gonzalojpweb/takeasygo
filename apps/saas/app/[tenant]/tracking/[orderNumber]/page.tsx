@@ -10,6 +10,7 @@ import { generateRatingToken } from '@/lib/rating-token'
 import { calculatePointsBreakdown } from '@/lib/loyalty'
 import { safeDecrypt } from '@/lib/crypto'
 import { parseMpReturnOutcome, parseMpStatusDetail } from '@/lib/mp-return'
+import { resolveTransferAccountForLocation } from '@/lib/location-resolvers'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -187,12 +188,18 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialSurchargeAmount={order.payment?.surchargeAmount}
           initialTransferConfirmed={order.payment?.transferConfirmed}
           initialCustomerName={safeDecrypt(order.customer?.name) || ''}
-          initialWhatsAppPhone={tenant.notifications?.whatsappPhone ?? null}
+          initialWhatsAppPhone={(location?.settings?.whatsappPhone || tenant.notifications?.whatsappPhone) ?? null}
           initialMercadoPagoId={order.payment?.mercadopagoId ?? null}
           initialTransferData={(() => {
             if (order.payment?.method !== 'transfer' || !tenant.transfer?.enabled) return null
-            const activeAccount = (tenant.transferAccounts || []).find((a: any) => a.isActive)
-            const t = activeAccount || tenant.transfer
+            // Primero el snapshot congelado al crear la orden (reasignar o
+            // borrar cuentas NO cambia lo que ve el cliente). Órdenes viejas
+            // sin snapshot → fallback al resolver actual.
+            const snap = order.payment?.transferAccount
+            const t = snap ?? resolveTransferAccountForLocation(
+              tenant,
+              location?.settings?.transferAccountId
+            )
             return t ? { alias: t.alias, cbu: t.cbu, cvu: t.cvu } : null
           })()}
           initialReviewUrl={location?.googleBusiness?.reviewUrl ?? null}

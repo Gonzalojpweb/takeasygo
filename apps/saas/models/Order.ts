@@ -218,6 +218,21 @@ export interface IOrder extends Document {
     transferConfirmed: boolean
     transferConfirmedAt: Date | null
     transferConfirmedBy: string | null
+    /**
+     * Snapshot de la cuenta de transferencia al crear la orden (si había una
+     * resuelta). Fuente de verdad para tracking y mensajes: reasignar o
+     * borrar cuentas después NO cambia lo que ve el cliente de esta orden.
+     * Órdenes viejas: null → el consumidor hace fallback al resolver actual.
+     */
+    transferAccount?: {
+      accountId: string | null
+      label: string | null
+      alias: string | null
+      cbu: string | null
+      cvu: string | null
+      bankName: string | null
+      holderName: string | null
+    } | null
     // ── Ajuste de efectivo no cobrado ───────────────────────────────────
     cashAdjustmentApplied: boolean
     cashAdjustmentAppliedAt: Date | null
@@ -634,6 +649,8 @@ const OrderSchema = new Schema(
       transferConfirmed: { type: Boolean, default: false },
       transferConfirmedAt: { type: Date, default: null },
       transferConfirmedBy: { type: String, default: null },
+      // Snapshot de la cuenta de transferencia al crear la orden (write-once).
+      transferAccount: { type: Schema.Types.Mixed, default: null },
       // ── Ajuste de efectivo no cobrado ─────────────────────────────
       cashAdjustmentApplied: { type: Boolean, default: false },
       cashAdjustmentAppliedAt: { type: Date, default: null },

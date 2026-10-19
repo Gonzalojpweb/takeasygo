@@ -6,7 +6,8 @@ import { calculateFinalTotal, getTotalFeesForMethod, type PaymentMethod, type Pr
 import { resolveCashConfig } from '@/lib/cash'
 import { canAccess, type Plan } from '@/lib/plans'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
-import type { ITenant, ITransferAccount } from '@/models/Tenant'
+import { resolveTransferAccountForLocation } from '@/lib/location-resolvers'
+import type { ITenant } from '@/models/Tenant'
 import type { IPlatformConfig } from '@/models/PlatformConfig'
 
 /**
@@ -66,6 +67,7 @@ export interface PaymentMethodContext {
   platformConfig: IPlatformConfig | null
   locationCash: LocationCashConfig | null
   locationMpAccountId: string | null
+  locationTransferAccountId: string | null
 }
 
 /**
@@ -96,6 +98,7 @@ export async function loadPaymentMethodContext(
 
   let locationCash: LocationCashConfig | null = null
   let locationMpAccountId: string | null = null
+  let locationTransferAccountId: string | null = null
 
   if (locationId) {
     const locationDoc = await Location.findOne({
@@ -103,16 +106,17 @@ export async function loadPaymentMethodContext(
       tenantId: tenant._id,
       isActive: true,
     })
-      .select('settings.cash settings.mpAccountId')
-      .lean() as unknown as ({ settings?: { cash?: LocationCashConfig; mpAccountId?: string } } | null)
+      .select('settings.cash settings.mpAccountId settings.transferAccountId')
+      .lean() as unknown as ({ settings?: { cash?: LocationCashConfig; mpAccountId?: string; transferAccountId?: string } } | null)
 
     if (!locationDoc) throw new LocationNotFoundError('Sede no encontrada')
 
     locationCash = locationDoc.settings?.cash ?? null
     locationMpAccountId = locationDoc.settings?.mpAccountId ?? null
+    locationTransferAccountId = locationDoc.settings?.transferAccountId ?? null
   }
 
-  return { tenant, platformConfig, locationCash, locationMpAccountId }
+  return { tenant, platformConfig, locationCash, locationMpAccountId, locationTransferAccountId }
 }
 
 /**
@@ -129,7 +133,7 @@ export function buildPaymentMethodCatalog(
   mode: string = 'takeaway',
   quote?: { baseTotal: number; deliveryCost?: number }
 ): PaymentMethodCatalog {
-  const { tenant, platformConfig, locationCash, locationMpAccountId } = ctx
+  const { tenant, platformConfig, locationCash, locationMpAccountId, locationTransferAccountId } = ctx
   const methods: PaymentMethodAvailability[] = []
 
   // Sin cotización: 10000 como base de referencia, igual que antes.
@@ -184,13 +188,9 @@ export function buildPaymentMethodCatalog(
     })
   }
 
-  // ── Transferencia: preferimos transferAccounts, fallback al legacy ────────
-  const activeTransferAccount = (tenant.transferAccounts || []).find(
-    (a: ITransferAccount) => a.isActive
-  )
-  const transferEnabled = activeTransferAccount
-    ? !!tenant.transfer?.enabled && !!activeTransferAccount.alias
-    : !!tenant.transfer?.enabled && !!tenant.transfer?.alias
+  // ── Transferencia: UNA resolución por sede (override → activa → legacy) ──
+  const transferAccount = resolveTransferAccountForLocation(tenant, locationTransferAccountId)
+  const transferEnabled = !!tenant.transfer?.enabled && !!transferAccount?.alias
 
   const trPricing = calculateFinalTotal(
     baseTotal,
@@ -242,13 +242,13 @@ export function buildPaymentMethodCatalog(
     })
   }
 
-  const transfer: TransferAccountInfo | null = transferEnabled
+  const transfer: TransferAccountInfo | null = transferEnabled && transferAccount
     ? {
-        alias: activeTransferAccount?.alias || tenant.transfer?.alias || null,
-        cbu: activeTransferAccount?.cbu || tenant.transfer?.cbu || null,
-        cvu: activeTransferAccount?.cvu || tenant.transfer?.cvu || null,
-        bankName: activeTransferAccount?.bankName || tenant.transfer?.bankName || null,
-        holderName: activeTransferAccount?.holderName || tenant.transfer?.holderName || null,
+        alias: transferAccount.alias,
+        cbu: transferAccount.cbu,
+        cvu: transferAccount.cvu,
+        bankName: transferAccount.bankName,
+        holderName: transferAccount.holderName,
       }
     : null
 

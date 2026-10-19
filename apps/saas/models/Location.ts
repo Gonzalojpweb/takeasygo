@@ -53,6 +53,14 @@ export interface ILocation extends Document {
     } | null
     /** Override de cuenta MP por sede (opcional). ObjectId de mpAccounts[], null = usa tenant default */
     mpAccountId?: string | null
+    /** WhatsApp de notificaciones admin por sede (opcional). null/vacío = usa Tenant.notifications.whatsappPhone */
+    whatsappPhone?: string | null
+    /** Cuenta de transferencia por sede (opcional). ObjectId de Tenant.transferAccounts[], null = cuenta activa del tenant */
+    transferAccountId?: string | null
+    /** Override de notifyOnOrder por sede (opcional). null = hereda el global */
+    notifyOnOrder?: boolean | null
+    /** Override de notifyOnReservation por sede (opcional). null = hereda el global */
+    notifyOnReservation?: boolean | null
   }
   deliveryConfig?: {
     enabled: boolean
@@ -304,6 +312,14 @@ settings: {
         },
         /** Override de cuenta MP por sede. ObjectId de mpAccounts[], null = usa tenant default */
         mpAccountId: { type: String, default: null },
+        /** WhatsApp de notificaciones admin por sede. null/vacío = usa el global del tenant */
+        whatsappPhone: { type: String, default: null },
+        /** Cuenta de transferencia por sede. ObjectId de Tenant.transferAccounts[], null = cuenta activa del tenant */
+        transferAccountId: { type: String, default: null },
+        /** Override de notifyOnOrder por sede. null = hereda el global */
+        notifyOnOrder: { type: Boolean, default: null },
+        /** Override de notifyOnReservation por sede. null = hereda el global */
+        notifyOnReservation: { type: Boolean, default: null },
     },
     reservationConfig: {
       enabled: { type: Boolean, default: false },

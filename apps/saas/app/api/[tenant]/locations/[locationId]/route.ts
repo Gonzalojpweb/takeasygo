@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { encrypt } from '@/lib/crypto'
 import { normalizeSpacesInput, validateSpacesInput } from '@/lib/space-capacity'
@@ -10,6 +10,29 @@ import { normalizeSpacesInput, validateSpacesInput } from '@/lib/space-capacity'
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
   return Tenant.findOne({ slug: tenantSlug, isActive: true })
+}
+
+/**
+ * Aislamiento por sede en la escritura: un usuario NO admin con sedes
+ * asignadas no puede modificar otras sedes. Chequeo directo en el endpoint
+ * (403), sin depender de flags — a diferencia de los guards de lectura que
+ * devuelven 404.
+ */
+async function enforceSedeWriteScope(
+  request: NextRequest,
+  locationId: string
+): Promise<NextResponse | null> {
+  const sessionUser = await getSessionUser(request)
+  if (!sessionUser) return null
+  if (sessionUser.role === 'admin' || sessionUser.role === 'superadmin') return null
+  const locs = sessionUser.assignedLocations ?? []
+  if (locs.length > 0 && !locs.includes(locationId)) {
+    return NextResponse.json(
+      { error: 'No tenés permiso para modificar esta sede' },
+      { status: 403 }
+    )
+  }
+  return null
 }
 
 export async function GET(
@@ -46,6 +69,9 @@ export async function PUT(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const scopeError = await enforceSedeWriteScope(request, locationId)
+    if (scopeError) return scopeError
+
     const body = await request.json()
 
     // ── Encriptar apiToken de Rapiboy si se está guardando en texto plano ──
@@ -69,6 +95,43 @@ export async function PUT(
           { error: 'mpAccountId no pertenece a ninguna cuenta MP de este tenant' },
           { status: 400 }
         )
+      }
+    }
+
+    // ── Validate transferAccountId si viene ─────────────────────────────────
+    if (body?.settings && 'transferAccountId' in body.settings) {
+      const transferAccountId = body.settings.transferAccountId
+      if (transferAccountId === null || transferAccountId === '' || transferAccountId === undefined) {
+        body.settings.transferAccountId = null
+      } else if (
+        typeof transferAccountId !== 'string' ||
+        !tenant.transferAccounts?.some(a => a._id?.toString() === transferAccountId)
+      ) {
+        return NextResponse.json(
+          { error: 'transferAccountId no pertenece a ninguna cuenta de transferencia de este tenant' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // ── Normalize whatsappPhone por sede (mismo criterio que el global:
+    //    vacío/espacios → null = hereda el WhatsApp general) ─────────────────
+    if (body?.settings && 'whatsappPhone' in body.settings) {
+      const v = body.settings.whatsappPhone
+      body.settings.whatsappPhone = typeof v === 'string' && v.trim() ? v.trim() : null
+    }
+
+    // ── Validate overrides de notificación por sede (boolean | null = hereda) ─
+    if (body?.settings) {
+      const validateFlag = (name: string, value: unknown) =>
+        value === undefined || value === null || typeof value === 'boolean'
+          ? null
+          : `${name} debe ser verdadero, falso o null (heredar la configuración general)`
+      const flagError =
+        validateFlag('notifyOnOrder', body.settings.notifyOnOrder) ??
+        validateFlag('notifyOnReservation', body.settings.notifyOnReservation)
+      if (flagError) {
+        return NextResponse.json({ error: flagError }, { status: 400 })
       }
     }
 
@@ -185,6 +248,9 @@ export async function DELETE(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    const scopeError = await enforceSedeWriteScope(request, locationId)
+    if (scopeError) return scopeError
 
     // Soft delete
     const location = await Location.findOneAndUpdate(
