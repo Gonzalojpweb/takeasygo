@@ -28,6 +28,24 @@ const rewardItemSchema = z.object({
   storeItemId: z.string().regex(/^[a-f\d]{24}$/i, 'ID de item inválido'),
 })
 
+// ── Bundle de promoción (1 línea de carrito = 1 combo entero) ───────────────
+// El server valida unidades contra slots.requiredQuantity/itemIds/categoryIds
+// y cobra promotion.price una sola vez por bundle.
+
+const promoBundleUnitSchema = z.object({
+  menuItemId: z.string().min(1),
+  itemName: z.string().max(200).optional(),
+  slotName: z.string().min(1).max(100),
+  customizations: z.array(customizationGroupSchema).max(10).default([]),
+  selectedVariant: selectedVariantSchema.optional(),
+  customizationSummary: z.string().max(300).optional(),
+})
+
+const promoBundleSlotSchema = z.object({
+  slotName: z.string().min(1).max(100),
+  units: z.array(promoBundleUnitSchema).min(1).max(50),
+})
+
 const orderItemSchema = z.object({
   type: z.enum(['menuItem', 'promotion', 'reward']).optional().default('menuItem'),
   menuItemId: z.string().optional(),
@@ -36,6 +54,11 @@ const orderItemSchema = z.object({
   customizations: z.array(customizationGroupSchema).max(10).default([]),
   selectedVariant: selectedVariantSchema.optional(),
   addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group', 'best_sellers', 'store']).optional(),
+  // Display/legacy: nombre y slot de la unidad (líneas de promo por unidad)
+  _itemName: z.string().max(200).optional(),
+  _slotName: z.string().max(100).optional(),
+  // Bundle de promo: selección completa de slots (modelo nuevo)
+  _bundle: z.array(promoBundleSlotSchema).max(20).optional(),
 })
 
 const deliveryAddressSchema = z.object({

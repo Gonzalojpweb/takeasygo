@@ -18,12 +18,32 @@ export interface SelectedVariant {
   businessPrice?: number
 }
 
+/** Una unidad elegida dentro de un slot de promoción (bundle). */
+export interface PromoBundleUnit {
+  menuItemId: string
+  itemName: string
+  slotName: string
+  selectedVariant?: SelectedVariant
+  customizations?: SelectedCustomization[]
+  customizationSummary?: string
+}
+
+/** Selección completa de un slot dentro del bundle de una promoción. */
+export interface PromoBundleSlot {
+  slotName: string
+  units: PromoBundleUnit[]
+}
+
 export interface CartItem {
   cartItemId: string           // `${menuItemId}:plain` or `${menuItemId}:${Date.now()}`
   menuItemId?: string
   promotionId?: string         // ID de la promoción si type === 'promotion'
   _promotionTitle?: string     // Título de la promo, para subtítulo en carrito
   _slotName?: string           // Nombre del slot, para subtítulo en carrito
+  _itemName?: string           // Ítem elegido dentro de la promo (líneas legacy)
+  _promotionShortDescription?: string
+  /** Solo type === 'promotion': bundle completo (1 línea = 1 combo entero). */
+  _bundle?: PromoBundleSlot[]
   name: string
   description?: string
   imageUrl?: string

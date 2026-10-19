@@ -137,6 +137,197 @@ class ValidationError extends Error {
   }
 }
 
+/**
+ * Resuelve a qué slot de una promoción pertenece una línea de carrito.
+ * 1) Por _slotName exacto; 2) inferencia por itemIds/categoryIds del slot.
+ * Devuelve null si no se puede identificar.
+ */
+function resolvePromoSlot(promotion: any, clientAny: any, itemId: string | undefined, menu: any): any {
+  if (!promotion?.slots?.length) return null
+  let slot: any = null
+  const slotName = clientAny?._slotName
+  if (slotName) {
+    slot = promotion.slots.find((s: any) => s.name === slotName)
+  }
+  if (!slot) {
+    const menuCats: any[] = menu?.categories ?? []
+    for (const s of promotion.slots) {
+      if (s.itemIds?.length > 0) {
+        if (itemId && s.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
+          slot = s
+          break
+        }
+      } else if (s.categoryIds?.length > 0) {
+        for (const cat of menuCats) {
+          const catId = cat._id?.toString?.() || cat._id
+          if (s.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+            const allItems = [
+              ...(cat.items ?? []),
+              ...(cat.subcategories ?? []).flatMap((sub: any) => sub.items ?? []),
+            ]
+            if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) {
+              slot = s
+              break
+            }
+          }
+        }
+        if (slot) break
+      }
+    }
+    if (slot) {
+      console.warn(`[orders] Promo item missing _slotName — inferred "${slot.name}" for "${clientAny?._itemName || ''}" in promo "${promotion.title}"`)
+    }
+  }
+  return slot
+}
+
+/** true si el item pertenece al slot (itemIds > categoryIds > sin restricción). */
+function slotItemBelongs(slot: any, itemId: string | undefined, menu: any): boolean {
+  if (slot.itemIds?.length > 0) {
+    return !!itemId && slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)
+  }
+  if (slot.categoryIds?.length > 0) {
+    const menuCats: any[] = menu?.categories ?? []
+    for (const cat of menuCats) {
+      const catId = cat._id?.toString?.() || cat._id
+      if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+        const allItems = [
+          ...(cat.items ?? []),
+          ...(cat.subcategories ?? []).flatMap((s: any) => s.items ?? []),
+        ]
+        if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) return true
+      }
+    }
+    return false
+  }
+  // Slot sin itemIds/categoryIds: sin restricción de pertenencia
+  return true
+}
+
+interface PromoSlotContext {
+  slotMode: string
+  validationGroups: any[]
+  validationVariants: any[]
+  /** itemId → variantes habilitadas (aplica itemOverrides.disabledVariantNames) */
+  variantsByItem: Map<string, any[]>
+  /** itemId → datos del item del menú (nombre, categoría, precio) */
+  itemsById: Map<string, any>
+  /** Items del slot en formato para resolveHalfPriceCustomizations */
+  slotItemsList: any[]
+}
+
+/**
+ * Construye el contexto de validación de un slot: modo de personalización,
+ * grupos de customización válidos (override del promo + slot + categoría +
+ * item, podados por itemOverrides) y variantes válidas por item.
+ */
+function buildSlotValidationContext(promotion: any, slot: any, itemId: string | undefined, menu: any): PromoSlotContext {
+  const overrideGroups = promotion.overrideCustomizationGroups ?? []
+  const slotMode: string = (slot as any).customizationMode
+    ?? ((slot as any).allowCustomization === false ? 'none' : (slot as any).allowCustomization === true ? 'full' : null)
+    ?? (promotion.allowCustomization === false ? 'none' : 'full')
+
+  const slotOverrideGroups = slot.overrideCustomizationGroups ?? []
+  let validationGroups: any[] = [...overrideGroups, ...slotOverrideGroups]
+  const validationVariants: any[] = []
+  const variantsByItem = new Map<string, any[]>()
+  const itemsById = new Map<string, any>()
+  const menuCats: any[] = menu?.categories ?? []
+  const seenItemIds = new Set<string>()
+
+  const trackItem = (item: any, categoryName: string) => {
+    const mid = item._id?.toString?.() || item._id
+    if (seenItemIds.has(mid)) return
+    seenItemIds.add(mid)
+    validationGroups.unshift(...(item.customizationGroups ?? []))
+    let itemVariants = item.variants ?? []
+    if (itemVariants.length > 0) {
+      const ov = (slot.itemOverrides ?? []).find(
+        (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
+      )
+      const disabledNames = ov?.disabledVariantNames ?? []
+      if (disabledNames.length > 0) {
+        itemVariants = itemVariants.filter((v: any) => !disabledNames.includes(v.name))
+      }
+      variantsByItem.set(mid, itemVariants)
+      validationVariants.push(...itemVariants)
+    }
+    itemsById.set(mid, {
+      _id: mid,
+      name: item.name,
+      price: item.price,
+      variants: itemVariants,
+      customizationGroups: item.customizationGroups ?? [],
+      categoryName,
+    })
+  }
+
+  // Items desde slot.categoryIds (hereda grupos de la categoría)
+  if (Array.isArray(slot.categoryIds)) {
+    for (const cat of menuCats) {
+      const catId = cat._id?.toString?.() || cat._id
+      if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
+        validationGroups.unshift(...(cat.customizationGroups ?? []))
+        for (const item of cat.items ?? []) trackItem(item, cat.name)
+        for (const sub of cat.subcategories ?? []) {
+          for (const item of sub.items ?? []) trackItem(item, sub.name)
+        }
+      }
+    }
+  }
+
+  // Items desde slot.itemIds
+  if (Array.isArray(slot.itemIds)) {
+    for (const cat of menuCats) {
+      for (const item of cat.items ?? []) {
+        const mid = item._id?.toString?.() || item._id
+        if (slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
+          trackItem(item, cat.name)
+        }
+      }
+      for (const sub of cat.subcategories ?? []) {
+        for (const item of sub.items ?? []) {
+          const mid = item._id?.toString?.() || item._id
+          if (slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
+            trackItem(item, sub.name)
+          }
+        }
+      }
+    }
+  }
+
+  // Podar grupos/opciones deshabilitadas por itemOverrides del item de la línea
+  if (Array.isArray(slot.itemOverrides) && slot.itemOverrides.length > 0 && itemId) {
+    const ov = slot.itemOverrides.find((o: any) => (o.itemId?.toString?.() || o.itemId) === itemId)
+    if (ov) {
+      const disabledGids = (ov.disabledGroupIds ?? []).map((g: any) => g?.toString?.() || g)
+      const disabledOids = ov.disabledOptionIds ?? []
+      if (disabledGids.length > 0 || disabledOids.length > 0) {
+        validationGroups = validationGroups
+          .filter((g: any) => !disabledGids.includes(g._id?.toString?.()))
+          .map((g: any) => {
+            if (disabledOids.length === 0) return g
+            return {
+              ...g,
+              options: (g.options ?? []).filter(
+                (o: any) => !disabledOids.includes(o._id?.toString?.() || o.name)
+              ),
+            }
+          })
+      }
+    }
+  }
+
+  return {
+    slotMode,
+    validationGroups,
+    validationVariants,
+    variantsByItem,
+    itemsById,
+    slotItemsList: [...itemsById.values()],
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -636,6 +827,96 @@ export async function POST(
       scheduledStatus = 'pending_schedule'
     }
 
+    // ── Promociones: prefetch + precio único por bundle ─────────────────────
+    // Las líneas legacy de promo (una por unidad, sin _bundle) se agrupan por
+    // promotionId: se valida requiredQuantity por slot y se reparte
+    // promotion.price UNA sola vez por bundle entre las unidades (el total
+    // nunca vuelve a ser cantidad_de_unidades × promotion.price).
+    const promotionsById = new Map<string, any>()
+    const promoLinesByPromo = new Map<string, any[]>()
+    const promoLegacyAlloc = new Map<any, Array<{ price: number; quantity: number }>>()
+    for (const item of body.items) {
+      if (item.type !== 'promotion' || !item.promotionId) continue
+      const group = promoLinesByPromo.get(item.promotionId)
+      if (group) group.push(item)
+      else promoLinesByPromo.set(item.promotionId, [item])
+    }
+    if (promoLinesByPromo.size > 0) {
+      const foundPromos = await Promotion.find({
+        _id: { $in: [...promoLinesByPromo.keys()] },
+        tenantId: tenant._id,
+        isActive: true,
+      }).lean()
+      for (const p of foundPromos) promotionsById.set(p._id.toString(), p)
+
+      for (const [promoId, lines] of promoLinesByPromo) {
+        const promotion = promotionsById.get(String(promoId))
+        if (!promotion) continue // el loop de items devuelve el 400
+        if (!promotion.slots?.length) continue // promo sin slots: 1 línea = 1 combo, precio ya correcto
+
+        const hasBundleLine = lines.some((l: any) => Array.isArray((l as any)._bundle))
+        if (hasBundleLine) {
+          if (lines.length > 1) {
+            return NextResponse.json(
+              { error: `No se puede mezclar el combo de "${promotion.title}" con ítems sueltos de la misma promoción. Eliminá la línea y volvé a agregarla.` },
+              { status: 400 }
+            )
+          }
+          continue // el bundle se valida y factura en el loop de items
+        }
+
+        // Contar unidades por slot (inferencia de slot igual que en el loop)
+        const slotUnits = new Map<string, number>()
+        for (const line of lines) {
+          const lineAny = line as any
+          const slot = resolvePromoSlot(promotion, lineAny, lineAny.menuItemId?.toString(), menu)
+          if (!slot) {
+            return NextResponse.json(
+              { error: `No se pudo identificar el ítem "${lineAny._itemName || ''}" en la promoción "${promotion.title}". Probá eliminarlo y agregarlo nuevamente.` },
+              { status: 400 }
+            )
+          }
+          slotUnits.set(slot.name, (slotUnits.get(slot.name) ?? 0) + line.quantity)
+        }
+
+        // requiredQuantity por slot → cantidad de bundles
+        let bundles: number | null = null
+        for (const slot of promotion.slots) {
+          const req = slot.requiredQuantity ?? 1
+          const units = slotUnits.get(slot.name) ?? 0
+          if (units === 0 || units % req !== 0) {
+            return NextResponse.json(
+              { error: `La promoción "${promotion.title}" está incompleta en "${slot.name}": necesita múltiplos de ${req} ítem(s) y recibió ${units}. Eliminá la línea y volvé a armar el combo.` },
+              { status: 400 }
+            )
+          }
+          const slotBundles = units / req
+          if (bundles === null) bundles = slotBundles
+          else if (bundles !== slotBundles) {
+            return NextResponse.json(
+              { error: `La promoción "${promotion.title}" tiene cantidades inconsistentes entre pasos. Eliminá la línea y volvé a armar el combo.` },
+              { status: 400 }
+            )
+          }
+        }
+
+        // Repartir bundles × promotion.price entre las unidades del grupo
+        const totalUnits = lines.reduce((sum, l) => sum + l.quantity, 0)
+        const total = (bundles as number) * promotion.price
+        const baseUnit = Math.floor(total / totalUnits)
+        let remainder = total - baseUnit * totalUnits
+        for (const line of lines) {
+          const withExtra = Math.min(remainder, line.quantity)
+          remainder -= withExtra
+          const parts: Array<{ price: number; quantity: number }> = []
+          if (withExtra > 0) parts.push({ price: baseUnit + 1, quantity: withExtra })
+          const rest = line.quantity - withExtra
+          if (rest > 0) parts.push({ price: baseUnit, quantity: rest })
+          promoLegacyAlloc.set(line, parts)
+        }
+      }
+    }
+
     // Validar cada item del pedido y calcular precios desde la DB
     const resolvedItems: any[] = []
     for (const clientItem of body.items) {
@@ -647,11 +928,7 @@ export async function POST(
       const itemType = clientItem.type === 'promotion' ? 'promotion' : 'menuItem'
 
       if (itemType === 'promotion') {
-        const promotion = await Promotion.findOne({
-          _id: clientItem.promotionId,
-          tenantId: tenant._id,
-          isActive: true,
-        })
+        const promotion = promotionsById.get(String(clientItem.promotionId))
         if (!promotion) {
           return NextResponse.json(
             { error: `Promoción no disponible o no existe: ${clientItem.promotionId}` },
@@ -676,61 +953,169 @@ export async function POST(
         }
 
         const quantity = clientItem.quantity
-        let price = promotion.price
+        const price = promotion.price
+        const clientAny = clientItem as any
 
-        // ── Validate slot-based promotions ───────────────────────────────
-        let extraPrice = 0
+        // ── Validación de slots / customizaciones ─────────────────────────
         const resolvedCustomizations: any[] = []
         let resolvedSelectedVariant: any = null
 
-        const overrideGroups = promotion.overrideCustomizationGroups ?? []
-        let validationGroups: any[] = [...overrideGroups]
+        let validationGroups: any[] = [...(promotion.overrideCustomizationGroups ?? [])]
         let validationVariants: any[] = []
         let slotMode: string = 'full'
         let slot: any = null
+        let slotCtx: PromoSlotContext | null = null
 
-        if (promotion.slots?.length > 0) {
-          const clientAny = clientItem as any
-          const itemName = clientAny._itemName
-          const itemId = clientItem.menuItemId?.toString()
-          let slotName = clientAny._slotName
-
-          if (slotName) {
-            slot = promotion.slots.find((s: any) => s.name === slotName)
+        // ── Bundle nuevo: 1 línea de carrito = 1 combo entero ─────────────
+        // Se valida cada unidad contra sus slots y se cobra promotion.price
+        // UNA sola vez por bundle, repartido por unidad (extraPrice congelado
+        // en 0: dentro de una promo el precio es promotion.price, siempre).
+        if (Array.isArray(clientAny._bundle)) {
+          if (!promotion.slots?.length) {
+            return NextResponse.json(
+              { error: `La promoción "${promotion.title}" no admite selección de ítems` },
+              { status: 400 }
+            )
+          }
+          const slotByName = new Map<string, any>()
+          for (const s of promotion.slots) slotByName.set(s.name, s)
+          const seenBundleSlots = new Set<string>()
+          for (const entry of clientAny._bundle) {
+            if (seenBundleSlots.has(entry.slotName)) {
+              return NextResponse.json(
+                { error: `Slot duplicado "${entry.slotName}" en la promoción "${promotion.title}"` },
+                { status: 400 }
+              )
+            }
+            if (!slotByName.has(entry.slotName)) {
+              return NextResponse.json(
+                { error: `Slot "${entry.slotName}" ya no existe en la promoción "${promotion.title}". Eliminá la línea y volvé a agregarla.` },
+                { status: 400 }
+              )
+            }
+            seenBundleSlots.add(entry.slotName)
+          }
+          for (const s of promotion.slots) {
+            const expected = (s.requiredQuantity ?? 1) * quantity
+            const entry = clientAny._bundle.find((e: any) => e.slotName === s.name)
+            const received = entry?.units?.length ?? 0
+            if (received !== expected) {
+              return NextResponse.json(
+                { error: `La promoción "${promotion.title}" requiere ${s.requiredQuantity ?? 1} ítem(s) por unidad en "${s.name}" — recibidos ${received}, esperados ${expected}` },
+                { status: 400 }
+              )
+            }
           }
 
-          // Defensive: if _slotName missing or doesn't match, infer from itemId/categoryId
-          if (!slot) {
-            const menuCats: any[] = menu.categories ?? []
-            for (const s of promotion.slots) {
-              if (s.itemIds?.length > 0) {
-                if (itemId && s.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-                  slot = s
-                  break
-                }
-              } else if (s.categoryIds?.length > 0) {
-                for (const cat of menuCats) {
-                  const catId = cat._id?.toString?.() || cat._id
-                  if (s.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
-                    const allItems = [
-                      ...(cat.items ?? []),
-                      ...(cat.subcategories ?? []).flatMap((sub: any) => sub.items ?? []),
-                    ]
-                    if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) {
-                      slot = s
-                      break
-                    }
+          const allUnits: any[] = clientAny._bundle.flatMap((entry: any) =>
+            (entry.units ?? []).map((u: any) => ({ ...u, _slotName: entry.slotName }))
+          )
+          const totalUnits = allUnits.length
+          const totalBundle = quantity * promotion.price
+          const baseUnit = Math.floor(totalBundle / totalUnits)
+          let remainder = totalBundle - baseUnit * totalUnits
+
+          for (const unit of allUnits) {
+            const unitSlot = slotByName.get(unit._slotName)!
+            const unitItemId = unit.menuItemId?.toString()
+            if (!slotItemBelongs(unitSlot, unitItemId, menu)) {
+              return NextResponse.json(
+                { error: `Ítem "${unit.itemName || unitItemId}" no pertenece al slot "${unit._slotName}"` },
+                { status: 400 }
+              )
+            }
+            const ctx = buildSlotValidationContext(promotion, unitSlot, unitItemId, menu)
+            const itemInfo = ctx.itemsById.get(unitItemId ?? '')
+            if (!itemInfo) {
+              return NextResponse.json(
+                { error: `Ítem "${unit.itemName || unitItemId}" no está disponible en el menú` },
+                { status: 400 }
+              )
+            }
+
+            // Customizaciones (solo modo 'full'): se validan para la cocina
+            // pero NO alteran el precio — dentro de la promo el precio final
+            // es promotion.price por bundle.
+            const resolvedUnitCustomizations: any[] = []
+            if (ctx.slotMode === 'full' && Array.isArray(unit.customizations) && unit.customizations.length > 0) {
+              let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
+              try {
+                halfResult = resolveHalfPriceCustomizations(unit.customizations, ctx.slotItemsList)
+              } catch (err: any) {
+                return NextResponse.json({ error: err.message }, { status: 400 })
+              }
+              if (halfResult) {
+                resolvedUnitCustomizations.push(...halfResult.resolved)
+              } else if (ctx.validationGroups.length > 0) {
+                try {
+                  const result = resolveCustomizations(unit.customizations, ctx.validationGroups)
+                  resolvedUnitCustomizations.push(...result.resolved)
+                } catch (err: any) {
+                  if (err.name === 'ValidationError') {
+                    return NextResponse.json({ error: err.message }, { status: 400 })
                   }
+                  throw err
                 }
-                if (slot) break
+              } else {
+                resolvedUnitCustomizations.push(...unit.customizations)
               }
             }
-            if (slot) {
-              slotName = slot.name
-              console.warn(`[orders] Promo item missing _slotName — inferred "${slotName}" for "${itemName}" in promo "${promotion.title}"`)
-            }
-          }
 
+            // Variante: requerida solo si el propio item del unit tiene variantes
+            const unitVariants = ctx.variantsByItem.get(unitItemId ?? '') ?? []
+            let resolvedUnitVariant: any = null
+            if (unitVariants.length > 0) {
+              if (!unit.selectedVariant) {
+                return NextResponse.json(
+                  { error: `La promoción "${promotion.title}" requiere seleccionar una variante para "${itemInfo?.name || unit.itemName || ''}"` },
+                  { status: 400 }
+                )
+              }
+              const dbVariant = unitVariants.find((v: any) => v.name === unit.selectedVariant.name)
+              if (!dbVariant) {
+                return NextResponse.json(
+                  { error: `Variante inválida "${unit.selectedVariant.name}" para la promoción "${promotion.title}"` },
+                  { status: 400 }
+                )
+              }
+              resolvedUnitVariant = { name: dbVariant.name, price: dbVariant.price }
+            }
+
+            const unitPrice = baseUnit + (remainder > 0 ? 1 : 0)
+            if (remainder > 0) remainder--
+
+            const unitName = itemInfo?.name || unit.itemName || ''
+            resolvedItems.push({
+              menuItemId: itemInfo?._id ?? unitItemId ?? null,
+              promotionId: promotion._id.toString(),
+              itemType: 'promotion',
+              categoryName: itemInfo?.categoryName || '',
+              name: unitName ? `${promotion.title} - ${unitName}` : promotion.title,
+              description: (promotion as any).description || (promotion as any).shortDescription || '',
+              shortDescription: (promotion as any).shortDescription || '',
+              basePrice: unitPrice,
+              extraPrice: 0,
+              price: unitPrice,
+              quantity: 1,
+              subtotal: unitPrice,
+              customizations: resolvedUnitCustomizations,
+              selectedVariant: resolvedUnitVariant,
+              printRole: 'kitchen',
+              addedFrom: clientItem.addedFrom ?? null,
+              promotionTitle: promotion.title,
+              slotName: unit._slotName,
+              hasCategoryDiscount: false,
+            })
+          }
+          continue
+        }
+
+        if (promotion.slots?.length > 0) {
+          const itemName = clientAny._itemName
+          const itemId = clientItem.menuItemId?.toString()
+
+          // Resolver slot (_slotName exacto o inferencia por itemIds/categoryIds)
+          slot = resolvePromoSlot(promotion, clientAny, itemId, menu)
           if (!slot) {
             return NextResponse.json(
               { error: `No se pudo identificar el ítem "${itemName}" en la promoción "${promotion.title}". Probá eliminarlo y agregarlo nuevamente.` },
@@ -738,165 +1123,30 @@ export async function POST(
             )
           }
 
-          // Resolve effective customization mode
-          slotMode = (slot as any).customizationMode
-            ?? ((slot as any).allowCustomization === false ? 'none' : (slot as any).allowCustomization === true ? 'full' : null)
-            ?? (promotion.allowCustomization === false ? 'none' : 'full')
-
           // Validate item belongs to slot
-
-          if (slot.itemIds?.length > 0) {
-            if (!itemId || !slot.itemIds.some((id: any) => (id?.toString?.() || id) === itemId)) {
-              return NextResponse.json(
-                { error: `Ítem "${itemName}" no pertenece al slot "${slotName}"` },
-                { status: 400 }
-              )
-            }
-          } else if (slot.categoryIds?.length > 0) {
-            const menuCats: any[] = menu.categories ?? []
-            let belongs = false
-            for (const cat of menuCats) {
-              const catId = cat._id?.toString?.() || cat._id
-              if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
-                const allItems = [
-                  ...(cat.items ?? []),
-                  ...(cat.subcategories ?? []).flatMap((s: any) => s.items ?? []),
-                ]
-                if (allItems.some((i: any) => (i._id?.toString?.() || i._id) === itemId)) {
-                  belongs = true
-                  break
-                }
-              }
-            }
-            if (!belongs) {
-              return NextResponse.json(
-                { error: `Ítem "${itemName}" no pertenece al slot "${slotName}"` },
-                { status: 400 }
-              )
-            }
+          if (!slotItemBelongs(slot, itemId, menu)) {
+            return NextResponse.json(
+              { error: `Ítem "${itemName}" no pertenece al slot "${slot.name}"` },
+              { status: 400 }
+            )
           }
 
-          // Build validation groups from slot's item + category groups
-          const slotOverrideGroups = slot.overrideCustomizationGroups ?? []
-          validationGroups = [...overrideGroups, ...slotOverrideGroups]
-          const menuCats: any[] = menu.categories ?? []
-          const seenItemIds = new Set<string>()
+          // Contexto de validación: modo, grupos y variantes habilitadas
+          const ctx = buildSlotValidationContext(promotion, slot, itemId, menu)
+          slotMode = ctx.slotMode
+          validationGroups = ctx.validationGroups
+          validationVariants = ctx.validationVariants
+          slotCtx = ctx
 
-          // Resolve items from slot's categoryIds for group inheritance
-          if (Array.isArray(slot.categoryIds)) {
-            for (const cat of menuCats) {
-              const catId = cat._id?.toString?.() || cat._id
-              if (slot.categoryIds.some((id: any) => (id?.toString?.() || id) === catId)) {
-                validationGroups.unshift(...(cat.customizationGroups ?? []))
-                for (const item of cat.items ?? []) {
-                  const mid = item._id?.toString?.() || item._id
-                  if (!seenItemIds.has(mid)) {
-                    seenItemIds.add(mid)
-                    validationGroups.unshift(...(item.customizationGroups ?? []))
-                    if ((item.variants ?? []).length > 0) {
-                      const ov = (slot.itemOverrides ?? []).find(
-                        (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
-                      )
-                      const disabledNames = ov?.disabledVariantNames ?? []
-                      const itemVariants = disabledNames.length > 0
-                        ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
-                        : (item.variants ?? [])
-                      validationVariants.push(...itemVariants)
-                    }
-                  }
-                }
-                for (const sub of cat.subcategories ?? []) {
-                  for (const item of sub.items ?? []) {
-                    const mid = item._id?.toString?.() || item._id
-                    if (!seenItemIds.has(mid)) {
-                      seenItemIds.add(mid)
-                      validationGroups.unshift(...(item.customizationGroups ?? []))
-                      if ((item.variants ?? []).length > 0) {
-                        const ov = (slot.itemOverrides ?? []).find(
-                          (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
-                        )
-                        const disabledNames = ov?.disabledVariantNames ?? []
-                        const itemVariants = disabledNames.length > 0
-                          ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
-                          : (item.variants ?? [])
-                        validationVariants.push(...itemVariants)
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          // Also resolve from slot's itemIds for group inheritance
-          if (Array.isArray(slot.itemIds)) {
-            for (const cat of menuCats) {
-              for (const item of cat.items ?? []) {
-                const mid = item._id?.toString?.() || item._id
-                if (!seenItemIds.has(mid) && slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
-                  seenItemIds.add(mid)
-                  validationGroups.unshift(...(item.customizationGroups ?? []))
-                  if ((item.variants ?? []).length > 0) {
-                    const ov = (slot.itemOverrides ?? []).find(
-                      (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
-                    )
-                    const disabledNames = ov?.disabledVariantNames ?? []
-                    const itemVariants = disabledNames.length > 0
-                      ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
-                      : (item.variants ?? [])
-                    validationVariants.push(...itemVariants)
-                  }
-                }
-              }
-              for (const sub of cat.subcategories ?? []) {
-                for (const item of sub.items ?? []) {
-                  const mid = item._id?.toString?.() || item._id
-                  if (!seenItemIds.has(mid) && slot.itemIds.some((id: any) => (id?.toString?.() || id) === mid)) {
-                    seenItemIds.add(mid)
-                    validationGroups.unshift(...(item.customizationGroups ?? []))
-                    if ((item.variants ?? []).length > 0) {
-                      const ov = (slot.itemOverrides ?? []).find(
-                        (o: any) => (o.itemId?.toString?.() || o.itemId) === mid
-                      )
-                      const disabledNames = ov?.disabledVariantNames ?? []
-                      const itemVariants = disabledNames.length > 0
-                        ? (item.variants ?? []).filter((v: any) => !disabledNames.includes(v.name))
-                        : (item.variants ?? [])
-                      validationVariants.push(...itemVariants)
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          // Prune validationGroups by itemOverrides disabledGroupIds + disabledOptionIds
-          if (Array.isArray(slot.itemOverrides) && slot.itemOverrides.length > 0) {
-            const ov = slot.itemOverrides.find((o: any) => (o.itemId?.toString?.() || o.itemId) === itemId)
-            if (ov) {
-              const disabledGids = (ov.disabledGroupIds ?? []).map((g: any) => g?.toString?.() || g)
-              const disabledOids = ov.disabledOptionIds ?? []
-              if (disabledGids.length > 0 || disabledOids.length > 0) {
-                validationGroups = validationGroups
-                  .filter((g: any) => !disabledGids.includes(g._id?.toString?.()))
-                  .map((g: any) => {
-                    if (disabledOids.length === 0) return g
-                    return {
-                      ...g,
-                      options: (g.options ?? []).filter(
-                        (o: any) => !disabledOids.includes(o._id?.toString?.() || o.name)
-                      ),
-                    }
-                  })
-              }
-            }
-          }
         }
 
         // Validate customizations (only for 'full' mode)
+        // Precio congelado: dentro de una promo el precio final siempre es
+        // promotion.price (una vez por bundle). Las customizaciones se validan
+        // y guardan para la cocina, pero no suman extraPrice ni cambian price.
         if (slotMode === 'full' && Array.isArray(clientItem.customizations) && clientItem.customizations.length > 0) {
           // Check for half-price "mitad y mitad" first
-          const slotItems = (slot?.resolvedItems ?? [])
+          const slotItems = slotCtx?.slotItemsList ?? (slot?.resolvedItems ?? [])
           let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
           try {
             halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems)
@@ -905,14 +1155,10 @@ export async function POST(
           }
           if (halfResult) {
             resolvedCustomizations.push(...halfResult.resolved)
-            extraPrice += halfResult.extraPrice
-            // Override promo price for mitad y mitad: use MAX of Grande prices
-            price = halfResult.extraPrice
           } else if (validationGroups.length > 0) {
             try {
               const result = resolveCustomizations(clientItem.customizations, validationGroups)
               resolvedCustomizations.push(...result.resolved)
-              extraPrice += result.extraPrice
             } catch (err: any) {
               if (err.name === 'ValidationError') {
                 return NextResponse.json({ error: err.message }, { status: 400 })
@@ -945,15 +1191,11 @@ export async function POST(
           resolvedSelectedVariant = { name: dbVariant.name, price: dbVariant.price }
         }
 
-        const finalPrice = price + extraPrice
-        const subtotal = finalPrice * quantity
-
-        const clientAny = clientItem as any
         const promoItemName = clientAny._itemName
           ? `${promotion.title} - ${clientAny._itemName}`
           : promotion.title
 
-        resolvedItems.push({
+        const promoLine = {
           menuItemId: null,
           promotionId: promotion._id.toString(),
           itemType: 'promotion',
@@ -961,19 +1203,40 @@ export async function POST(
           name: promoItemName,
           description: (promotion as any).description || (promotion as any).shortDescription || '',
           shortDescription: (promotion as any).shortDescription || '',
-          basePrice: price,
-          extraPrice,
-          price: finalPrice,
-          quantity,
-          subtotal,
           customizations: resolvedCustomizations,
           selectedVariant: resolvedSelectedVariant,
           printRole: 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
           promotionTitle: clientAny._promotionTitle || promotion.title,
-          slotName: clientAny._slotName || null,
+          slotName: clientAny._slotName || slot?.name || null,
           hasCategoryDiscount: false,
-        })
+        }
+
+        const alloc = promoLegacyAlloc.get(clientItem)
+        if (alloc) {
+          // Legacy por unidad: el pre-proceso ya repartió promotion.price entre
+          // las unidades del bundle — cada línea recibe su parte (sin extraPrice)
+          for (const part of alloc) {
+            resolvedItems.push({
+              ...promoLine,
+              basePrice: part.price,
+              extraPrice: 0,
+              price: part.price,
+              quantity: part.quantity,
+              subtotal: part.price * part.quantity,
+            })
+          }
+        } else {
+          // Promo sin slots: 1 línea = 1 combo a promotion.price
+          resolvedItems.push({
+            ...promoLine,
+            basePrice: price,
+            extraPrice: 0,
+            price,
+            quantity,
+            subtotal: price * quantity,
+          })
+        }
       } else {
         if (!clientItem.menuItemId) {
           return NextResponse.json(

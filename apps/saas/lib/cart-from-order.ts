@@ -93,6 +93,15 @@ export function orderItemsToCartItems(items: StoredOrderItem[]): CartItem[] {
       if (item.promotionId) cartItem.promotionId = item.promotionId.toString()
       if (item.promotionTitle) cartItem._promotionTitle = item.promotionTitle
       if (item.slotName) cartItem._slotName = item.slotName
+      // En líneas de promo el nombre guardado es "Título - Ítem": el sufijo
+      // vuelve como _itemName para que un re-pedido conserve el detalle.
+      if (
+        isPromotion &&
+        item.promotionTitle &&
+        item.name?.startsWith(`${item.promotionTitle} - `)
+      ) {
+        cartItem._itemName = item.name.slice(item.promotionTitle.length + 3)
+      }
       if (item.selectedVariant) cartItem.selectedVariant = item.selectedVariant
       // `addedFrom` es un string libre en el pedido, pero el carrito espera un
       // conjunto cerrado de orígenes. Un valor desconocido no se propaga.

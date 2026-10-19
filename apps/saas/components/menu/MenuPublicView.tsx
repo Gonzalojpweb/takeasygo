@@ -13,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
-import type { CartItem } from '@/types/cart'
+import type { CartItem, PromoBundleSlot, SelectedVariant } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationSheet from '@/components/menu/CustomizationSheet'
@@ -719,6 +719,104 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     })
   }
 
+  /**
+   * Acumula una unidad elegida en el slot activo del picker de promoción.
+   * Devuelve false si el slot ya está completo o el picker no está abierto.
+   */
+  function addPromoUnitToSlot(unit: {
+    itemId: string
+    itemName: string
+    selectedVariant?: SelectedVariant
+    customizations?: CartItem['customizations']
+    customizationSummary?: string
+  }): boolean {
+    if (!promoSlotSelection) return false
+    const slotIdx = promoSlotSelection.currentSlotIndex
+    const slot = promoSlotSelection.promo.slots[slotIdx]
+    const state = promoSlotSelection.slotStates[slotIdx]
+    if (!slot || !state) return false
+    const required = slot.requiredQuantity ?? 1
+    if (state.selectedItems.length >= required) return false
+    setPromoSlotSelection(prev => {
+      if (!prev) return null
+      const st = prev.slotStates[slotIdx]
+      if (!st || st.selectedItems.length >= required) return prev
+      const newSelectedItems = [...st.selectedItems, unit]
+      const isCompleted = newSelectedItems.length >= required
+      const newSlotStates = { ...prev.slotStates }
+      newSlotStates[slotIdx] = { selectedItems: newSelectedItems, completed: isCompleted }
+      let nextSlotIdx = prev.currentSlotIndex
+      if (isCompleted) {
+        for (let i = 0; i < prev.promo.slots.length; i++) {
+          if (!newSlotStates[i]?.completed) {
+            nextSlotIdx = i
+            break
+          }
+        }
+      }
+      return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextSlotIdx }
+    })
+    return true
+  }
+
+  /**
+   * Confirma el picker: agrega TODA la selección al carrito como UNA sola
+   * línea (bundle) con price = promotion.price. El server valida cada unidad
+   * contra los slots y cobra el precio del combo una sola vez por bundle.
+   */
+  function confirmPromoBundle() {
+    if (!promoSlotSelection) return
+    const { promo, slotStates } = promoSlotSelection
+    const bundle: PromoBundleSlot[] = promo.slots.map((slot: any, idx: number) => ({
+      slotName: slot.name || `Slot ${idx + 1}`,
+      units: (slotStates[idx]?.selectedItems ?? []).map((u: any) => ({
+        menuItemId: String(u.itemId || ''),
+        itemName: u.itemName || '',
+        slotName: slot.name || `Slot ${idx + 1}`,
+        ...(u.selectedVariant ? { selectedVariant: u.selectedVariant } : {}),
+        ...(u.customizations?.length ? { customizations: u.customizations } : {}),
+        ...(u.customizationSummary ? { customizationSummary: u.customizationSummary } : {}),
+      })),
+    }))
+    if (bundle.some(s => s.units.length === 0)) {
+      toast.error('Completá la selección de todos los pasos')
+      return
+    }
+    const summary = bundle
+      .flatMap(s => s.units)
+      .map(u => (u.customizationSummary ? `${u.itemName} · ${u.customizationSummary}` : u.itemName))
+      .join(' · ')
+    const bundleKey = JSON.stringify(bundle)
+    setCart(prev => {
+      const existing = prev.find(i =>
+        i.type === 'promotion' &&
+        i.promotionId === promo._id &&
+        (i as any)._bundle &&
+        JSON.stringify((i as any)._bundle) === bundleKey
+      )
+      if (existing) return prev.map(i => i.cartItemId === existing.cartItemId ? { ...i, quantity: i.quantity + 1 } : i)
+      return [...prev, {
+        cartItemId: `promo:${promo._id}:${Date.now()}`,
+        promotionId: promo._id,
+        _promotionTitle: promo.title,
+        _promotionShortDescription: promo.shortDescription || '',
+        name: promo.title,
+        basePrice: promo.price,
+        extraPrice: 0,
+        price: promo.price,
+        quantity: 1,
+        customizations: [],
+        customizationSummary: summary,
+        addedFrom: 'menu' as const,
+        type: 'promotion' as const,
+        _bundle: bundle,
+      }]
+    })
+    trackCartAdd({ promotionId: promo._id, name: promo.title, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+    toast.success(`${promo.title} agregado al pedido`)
+    setPromoSlotSelection(null)
+  }
+
   function buildPromoCustomizationItem(item: any, promotion: any) {
     return {
       ...item,
@@ -742,7 +840,6 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   function handleConfirmCustomization(cartItem: CartItem) {
     if ((cartItem as any).isPromotion) {
-      const promoId = (cartItem as any)._promotionId
       const itemName = (cartItem as any)._itemName || ''
 
       // Group session: post directly
@@ -757,59 +854,25 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         return
       }
 
-      const uniqueId = `promo:${promoId}:${itemName.replace(/\s+/g, '_') || Date.now()}`
-      // Incluir nombre del item en el summary para que viaje hasta la DB y el print agent
-      const enrichedSummary = itemName && cartItem.customizationSummary
-        ? `${itemName} · ${cartItem.customizationSummary}`
-        : itemName || cartItem.customizationSummary || ''
-      const taggedItem: CartItem = {
-        ...cartItem,
-        cartItemId: uniqueId,
-        promotionId: promoId,
-        _promotionTitle: (cartItem as any)._promotionTitle,
-        _slotName: (cartItem as any)._slotName,
-        name: (cartItem as any)._itemName || (cartItem as any)._promotionTitle,
-        customizationSummary: enrichedSummary,
-        type: 'promotion',
-        addedFrom: 'menu',
-      }
-      if (cartItem.menuItemId) {
-        trackCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: 'menu', locationId: location._id })
-      }
-      setCart(prev => {
-        const existing = prev.find(i => i.cartItemId === uniqueId)
-        if (existing) return prev.map(i => i.cartItemId === uniqueId ? { ...i, quantity: i.quantity + 1 } : i)
-        return [...prev, taggedItem]
+      // Acumula la unidad en el slot actual del picker. El bundle completo se
+      // agrega al carrito como UNA sola línea (price = promotion.price) cuando
+      // todos los slots están completos — ver confirmPromoBundle().
+      const accepted = addPromoUnitToSlot({
+        itemId: cartItem.menuItemId || (cartItem as any)._id || '',
+        itemName,
+        selectedVariant: cartItem.selectedVariant,
+        customizations: cartItem.customizations?.length ? cartItem.customizations : undefined,
+        customizationSummary: cartItem.customizationSummary || '',
       })
       setCustomizingItem(null)
-      if (promoSlotSelection) {
-        const slotIdx = promoSlotSelection.currentSlotIndex
-        const slotState = promoSlotSelection.slotStates[slotIdx]
-        if (slotState) {
-          const slot = promoSlotSelection.promo.slots[slotIdx]
-          const newSelectedItems = [...slotState.selectedItems, { _id: (cartItem as any)._itemName, name: (cartItem as any)._itemName }]
-          const isCompleted = newSelectedItems.length >= (slot.requiredQuantity ?? 1)
-
-          setPromoSlotSelection(prev => {
-            if (!prev) return null
-            const newSlotStates = { ...prev.slotStates }
-            newSlotStates[slotIdx] = { selectedItems: newSelectedItems, completed: isCompleted }
-
-            let nextSlotIdx = prev.currentSlotIndex
-            if (isCompleted) {
-              for (let i = 0; i < prev.promo.slots.length; i++) {
-                if (!newSlotStates[i]?.completed) {
-                  nextSlotIdx = i
-                  break
-                }
-              }
-            }
-
-            return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextSlotIdx }
-          })
-        }
+      if (!accepted) {
+        toast.info('Este paso ya está completo — pasá al siguiente o cerrá el selector')
+        return
       }
-      toast.success(`${itemName} agregado a ${(cartItem as any)._promotionTitle}`)
+      if (cartItem.menuItemId) {
+        trackCartAdd({ menuItemId: cartItem.menuItemId, name: itemName, price: cartItem.price, quantity: 1, hasCustomizations: true, source: 'menu', locationId: location._id })
+      }
+      toast.success(`${itemName} seleccionado`)
       return
     }
 
@@ -2081,8 +2144,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         <Minus size={13} />
                       </button>
                       <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                      {item.type !== 'reward' && item.customizations.length === 0 && (
-                        <button onClick={() => addPlainToCart(item)}
+                      {item.type !== 'reward' && item.customizations.length === 0 && (item.type !== 'promotion' || !!(item as any)._bundle) && (
+                        <button onClick={() => {
+                          if (item.type === 'promotion') {
+                            // Bundle de promo: "+" = otro combo completo (price ya es promotion.price)
+                            setCart(prev => prev.map(i => i.cartItemId === item.cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
+                            trackCartAdd({ promotionId: item.promotionId, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+                          } else {
+                            addPlainToCart(item)
+                          }
+                        }}
                           className="w-7 h-7 rounded-full flex items-center justify-center"
                           style={{ backgroundColor: primary, color: bg }}>
                           <Plus size={13} />
@@ -2209,7 +2280,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   )}
                   <div className="space-y-1.5">
                     {(currentSlot.resolvedItems ?? []).map((item: any) => {
-                      const isSelected = currentState.selectedItems.some((si: any) => si._id === item._id)
+                      const isSelected = currentState.selectedItems.some((si: any) => si.itemId === item._id)
                       const isDisabled = !isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity
                       const slotMode: SlotCustomizationMode = resolveSlotCustomizationMode(currentSlot, promo.allowCustomization)
                       let effectiveSlotMode = slotMode
@@ -2245,6 +2316,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 price: promo.price,
                                 basePrice: promo.price,
                                 isPromotion: true,
+                                hideQuantity: true,
+                                unitLabel: currentSlot.name,
                                 variants: (item.variants ?? []).map((v: any) => ({
                                   ...v,
                                   price: promo.price,
@@ -2260,45 +2333,18 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                               }))
                               if (availableVariants.length <= 1) {
                                 const v = availableVariants[0]
-                                const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}:${v?.name || 'default'}`
-                                setCart(prev => {
-                                  const existing = prev.find(i => i.cartItemId === promoId)
-                                  if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-                                  return [...prev, {
-                                    cartItemId: promoId,
-                                    menuItemId: item._id,
-                                    promotionId: promo._id,
-                                    _promotionTitle: promo.title,
-                                    _slotName: currentSlot.name,
-                                    name: v ? `${item.name} - ${v.name}` : item.name,
-                                    basePrice: promo.price,
-                                    extraPrice: 0,
-                                    price: promo.price,
-                                    quantity: 1,
-                                    customizations: [],
-                                    customizationSummary: v?.name || '',
-                                    selectedVariant: v ? { name: v.name, price: v.price } : undefined,
-                                    addedFrom: 'menu',
-                                    type: 'promotion' as const,
-                                  }]
+                                const accepted = addPromoUnitToSlot({
+                                  itemId: item._id,
+                                  itemName: item.name,
+                                  ...(v ? { selectedVariant: { name: v.name, price: v.price } } : {}),
+                                  customizationSummary: v?.name || '',
                                 })
-                                trackCartAdd({ menuItemId: item._id, name: v ? `${item.name} - ${v.name}` : item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
-                                setPromoSlotSelection(prev => {
-                                  if (!prev) return null
-                                  const newSlotStates = { ...prev.slotStates }
-                                  const st = newSlotStates[currentSlotIndex]
-                                  const newSelected = [...st.selectedItems, item]
-                                  const isCompleted = newSelected.length >= currentSlot.requiredQuantity
-                                  newSlotStates[currentSlotIndex] = { selectedItems: newSelected, completed: isCompleted }
-                                  let nextIdx = currentSlotIndex
-                                  if (isCompleted) {
-                                    for (let i = 0; i < prev.promo.slots.length; i++) {
-                                      if (!newSlotStates[i]?.completed) { nextIdx = i; break }
-                                    }
-                                  }
-                                  return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextIdx }
-                                })
-                                toast.success(`${item.name} agregado`)
+                                if (accepted) {
+                                  trackCartAdd({ menuItemId: item._id, name: v ? `${item.name} - ${v.name}` : item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+                                  toast.success(`${item.name} seleccionado`)
+                                } else {
+                                  toast.info('Este paso ya está completo')
+                                }
                               } else {
                                 openCustomizationModal({
                                   ...item,
@@ -2316,44 +2362,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 }, undefined, halfCtx)
                               }
                             } else {
-                              const promoId = `promo:${promo._id}:${item.name.replace(/\s+/g, '_')}`
-                              setCart(prev => {
-                                const existing = prev.find(i => i.cartItemId === promoId)
-                                if (existing) return prev.map(i => i.cartItemId === promoId ? { ...i, quantity: i.quantity + 1 } : i)
-                                return [...prev, {
-                                  cartItemId: promoId,
-                                  menuItemId: item._id,
-                                  promotionId: promo._id,
-                                  _promotionTitle: promo.title,
-                                  _slotName: currentSlot.name,
-                                  name: item.name,
-                                  basePrice: promo.price,
-                                  extraPrice: 0,
-                                  price: promo.price,
-                                  quantity: 1,
-                                  customizations: [],
-                                  customizationSummary: '',
-                                  addedFrom: 'menu',
-                                  type: 'promotion' as const,
-                                }]
+                              const accepted = addPromoUnitToSlot({
+                                itemId: item._id,
+                                itemName: item.name,
                               })
-                              trackCartAdd({ menuItemId: item._id, name: item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
-                              setPromoSlotSelection(prev => {
-                                if (!prev) return null
-                                const newSlotStates = { ...prev.slotStates }
-                                const st = newSlotStates[currentSlotIndex]
-                                const newSelected = [...st.selectedItems, item]
-                                const isCompleted = newSelected.length >= currentSlot.requiredQuantity
-                                newSlotStates[currentSlotIndex] = { selectedItems: newSelected, completed: isCompleted }
-                                let nextIdx = currentSlotIndex
-                                if (isCompleted) {
-                                  for (let i = 0; i < prev.promo.slots.length; i++) {
-                                    if (!newSlotStates[i]?.completed) { nextIdx = i; break }
-                                  }
-                                }
-                                return { ...prev, slotStates: newSlotStates, currentSlotIndex: nextIdx }
-                              })
-                              toast.success(`${item.name} agregado`)
+                              if (accepted) {
+                                trackCartAdd({ menuItemId: item._id, name: item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+                                toast.success(`${item.name} seleccionado`)
+                              } else {
+                                toast.info('Este paso ya está completo')
+                              }
                             }
                           }}
                           className={
@@ -2382,7 +2400,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               <button
                 type="button"
                 disabled={!allCompleted}
-                onClick={() => setPromoSlotSelection(null)}
+                onClick={() => confirmPromoBundle()}
                 className={cn(
                   'w-full mt-4 py-2.5 rounded-xl font-bold text-sm transition-all',
                   allCompleted
