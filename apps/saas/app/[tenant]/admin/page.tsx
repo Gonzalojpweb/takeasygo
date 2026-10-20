@@ -10,19 +10,8 @@ import { PLAN_LABELS, PLAN_COLORS } from '@/lib/plans'
 import OnboardingChecklist from '@/components/admin/OnboardingChecklist'
 import Link from 'next/link'
 
-// Dashboard client components — receive pre-fetched data from /summary
-import StatsCards from '@/components/admin/dashboard/StatsCards'
-import KPIsMes from '@/components/admin/dashboard/KPIsMes'
-import MarginRecoveryCard from '@/components/admin/dashboard/MarginRecoveryCard'
-import { ICOWidget } from '@/components/admin/dashboard/ICOWidget'
-import MetodosPago from '@/components/admin/dashboard/MetodosPago'
-import DeliveryConciliation from '@/components/admin/dashboard/DeliveryConciliation'
-import { ComisionesBanner } from '@/components/admin/dashboard/ComisionesBanner'
-import { CashAdjustmentBanner } from '@/components/admin/CashAdjustmentBanner'
-import MenuActividad from '@/components/admin/dashboard/MenuActividad'
-import CalificacionesWidget from '@/components/admin/dashboard/CalificacionesWidget'
-import ClubWidget from '@/components/admin/dashboard/ClubWidget'
-import PedidosRecientes from '@/components/admin/dashboard/PedidosRecientes'
+// Widgets del dashboard: reciben el /summary prefetcheado y siguen al selector de sede
+import DashboardWidgets from '@/components/admin/dashboard/DashboardWidgets'
 
 function PlanBanner({ plan, trialOrderCount, tenantSlug }: { plan: Plan; trialOrderCount?: number; tenantSlug: string }) {
   if (plan === 'full' || plan === 'anfitrion') return null
@@ -150,64 +139,30 @@ export default async function AdminDashboard() {
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
       </div>
 
-      {/* Stats compactas */}
-      <StatsCards tenantSlug={tenantSlug!} data={summary?.stats} />
-
-      {/* Quick Actions */}
-      <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white">
-        <p className="text-sm font-medium text-white/80 mb-3">Acciones de Gestión</p>
-        <div className="flex flex-wrap gap-3">
-          <Link href={`/${tenantSlug}/admin/menu`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
-            <UtensilsCrossed size={16} />
-            Gestionar Menú
-          </Link>
-          <Link href={`/${tenantSlug}/admin/promotions`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
-            <Tag size={16} />
-            Promociones
-          </Link>
-          <Link href={`/${tenantSlug}/admin/billing`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
-            <CreditCard size={16} />
-            Control de Caja
-          </Link>
-          <Link href={`/${tenantSlug}/admin/reports`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
-            <CreditCard size={16} />
-            Ver Reportes
-          </Link>
+      <DashboardWidgets tenantSlug={tenantSlug!} userName={userName} initialSummary={summary}>
+        {/* Quick Actions */}
+        <div className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 p-5 text-white">
+          <p className="text-sm font-medium text-white/80 mb-3">Acciones de Gestión</p>
+          <div className="flex flex-wrap gap-3">
+            <Link href={`/${tenantSlug}/admin/menu`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+              <UtensilsCrossed size={16} />
+              Gestionar Menú
+            </Link>
+            <Link href={`/${tenantSlug}/admin/promotions`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+              <Tag size={16} />
+              Promociones
+            </Link>
+            <Link href={`/${tenantSlug}/admin/billing`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+              <CreditCard size={16} />
+              Control de Caja
+            </Link>
+            <Link href={`/${tenantSlug}/admin/reports`} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition-colors text-sm font-medium backdrop-blur-sm">
+              <CreditCard size={16} />
+              Ver Reportes
+            </Link>
+          </div>
         </div>
-      </div>
-
-      {/* KPIs del mes */}
-      <KPIsMes tenantSlug={tenantSlug!} data={summary?.kpis} />
-
-      {/* Recuperación de margen — "Mirá lo que recuperaste" */}
-      <MarginRecoveryCard tenantSlug={tenantSlug!} data={summary?.marginRecovery} />
-
-      {/* ICO */}
-      <ICOWidget tenantSlug={tenantSlug!} userName={userName} data={summary?.ico} />
-
-      {/* Métodos de pago */}
-      <MetodosPago tenantSlug={tenantSlug!} data={summary?.metodosPago} />
-
-      {/* Conciliación de delivery — cobro diario vs comisión */}
-      <DeliveryConciliation tenantSlug={tenantSlug!} data={summary?.deliveryConciliation} />
-
-      {/* Comisiones pendientes */}
-      <ComisionesBanner tenantSlug={tenantSlug!} data={summary?.comisiones?.pending} />
-
-      {/* Efectivo no cobrado */}
-      <CashAdjustmentBanner tenantSlug={tenantSlug!} />
-
-      {/* Actividad del menú */}
-      <MenuActividad tenantSlug={tenantSlug!} data={summary?.menuActividad} />
-
-      {/* Calificaciones */}
-      <CalificacionesWidget tenantSlug={tenantSlug!} data={summary?.calificaciones} />
-
-      {/* Club */}
-      <ClubWidget tenantSlug={tenantSlug!} data={summary?.club} />
-
-      {/* Pedidos recientes */}
-      <PedidosRecientes tenantSlug={tenantSlug!} data={summary?.pedidosRecientes} />
+      </DashboardWidgets>
     </div>
   )
 }

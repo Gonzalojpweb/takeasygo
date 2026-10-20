@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { resolveDashboardScope } from '@/lib/dashboard-scope'
 
 export async function GET(
   request: NextRequest,
@@ -18,41 +18,9 @@ export async function GET(
   try {
     const { tenant: tenantSlug } = await params
 
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-
-    const token = await getToken({
-      req: request as any,
-      secret,
-      secureCookie: process.env.NODE_ENV === 'production',
-    })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    const mongooseMod = await import('mongoose')
-    const mongoose = mongooseMod.default ?? mongooseMod
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI!)
-    }
-
-    const TenantMod = await import('@/models/Tenant')
-    const Tenant = TenantMod.default
-
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id')
-      .lean<{ _id: any }>()
-
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-
-    if (token.role !== 'superadmin' && token.tenantId?.toString() !== tenant._id.toString()) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const resolved = await resolveDashboardScope<{ _id: any }>(request, tenantSlug)
+    if (!resolved.ok) return resolved.response
+    const { tenant, match: sedeMatch } = resolved.scope
 
     const OrderMod = await import('@/models/Order')
     const Order = OrderMod.default
@@ -70,16 +38,16 @@ export async function GET(
 
     const [thisMonthData, prevMonthData] = await Promise.all([
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
       ]),
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
       ]),
       // Cancellation rate this month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
       ]),
     ])
@@ -87,13 +55,13 @@ export async function GET(
     const thisMonth = thisMonthData[0] || { total: 0, count: 0 }
     const prevMonth = prevMonthData[0] || { total: 0, count: 0 }
     const cancData = { total: 0, cancelled: 0, ...(await Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+      { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ]).then(r => r[0] || { total: 0, cancelled: 0 })) }
 
     // Recalculate cancData properly
     const cancAgg = await Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+      { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ])
     const canc = cancAgg[0] || { total: 0, cancelled: 0 }
@@ -110,7 +78,7 @@ export async function GET(
 
     // Previous month canc rate for comparison
     const prevCancAgg = await Order.aggregate([
-      { $match: { tenantId, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth } } },
+      { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth } } },
       { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
     ])
     const prevCanc = prevCancAgg[0] || { total: 0, cancelled: 0 }

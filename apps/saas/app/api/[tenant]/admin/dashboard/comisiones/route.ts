@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { resolveDashboardScope } from '@/lib/dashboard-scope'
 
 export async function GET(
   request: NextRequest,
@@ -18,41 +18,9 @@ export async function GET(
   try {
     const { tenant: tenantSlug } = await params
 
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-
-    const token = await getToken({
-      req: request as any,
-      secret,
-      secureCookie: process.env.NODE_ENV === 'production',
-    })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    const mongooseMod = await import('mongoose')
-    const mongoose = mongooseMod.default ?? mongooseMod
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI!)
-    }
-
-    const TenantMod = await import('@/models/Tenant')
-    const Tenant = TenantMod.default
-
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id commissionBalance commissionThreshold')
-      .lean<{ _id: any; commissionBalance?: { transfer: number }; commissionThreshold?: number }>()
-
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-
-    if (token.role !== 'superadmin' && token.tenantId?.toString() !== tenant._id.toString()) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const resolved = await resolveDashboardScope<{ _id: any; commissionBalance?: { transfer: number }; commissionThreshold?: number }>(request, tenantSlug, { select: 'commissionBalance commissionThreshold', tenantOnly: true })
+    if (!resolved.ok) return resolved.response
+    const { tenant, match: sedeMatch } = resolved.scope
 
     const tenantId = tenant._id
 

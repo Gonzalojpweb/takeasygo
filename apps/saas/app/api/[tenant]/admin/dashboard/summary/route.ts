@@ -8,8 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
-import { enforcePermissionForRequest } from '@/lib/rbac'
+import { resolveDashboardScope } from '@/lib/dashboard-scope'
 import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
@@ -21,57 +20,23 @@ export async function GET(
   try {
     const { tenant: tenantSlug } = await params
 
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    // Alcance: consolidado (reports.view_consolidated) o las sedes del
+    // usuario / la sede del selector (reports.read por sede).
+    const resolved = await resolveDashboardScope<{ _id: any; cachedScores?: { icoScore: number | null; capacityScore: number | null }; commissionBalance?: { transfer: number }; commissionThreshold?: number }>(
+      request, tenantSlug, { select: 'cachedScores commissionBalance commissionThreshold' }
+    )
+    if (!resolved.ok) return resolved.response
+    const { tenant, match: sedeMatch, consolidated, locationIds } = resolved.scope
+
+    if (consolidated) {
+      logAudit({
+        tenantId: tenant._id.toString(),
+        action: 'reports.view_consolidated',
+        entity: 'dashboard',
+        details: { route: 'admin/dashboard/summary' },
+        request,
+      })
     }
-
-    const token = await getToken({
-      req: request as any,
-      secret,
-      secureCookie: process.env.NODE_ENV === 'production',
-    })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    const mongooseMod = await import('mongoose')
-    const mongoose = mongooseMod.default ?? mongooseMod
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(process.env.MONGODB_URI!)
-    }
-
-    const TenantMod = await import('@/models/Tenant')
-    const Tenant = TenantMod.default
-
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-      .select('_id cachedScores commissionBalance commissionThreshold flags')
-      .lean<{ _id: any; cachedScores?: { icoScore: number | null; capacityScore: number | null }; commissionBalance?: { transfer: number }; commissionThreshold?: number; flags?: Record<string, boolean | string | number | null | undefined> }>()
-
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
-    }
-
-    if (token.role !== 'superadmin' && token.tenantId?.toString() !== tenant._id.toString()) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    // Consolidado (todas las sedes): exige reports.view_consolidated (admin+auditor).
-    const permError = await enforcePermissionForRequest(request, {
-      tenant,
-      tenantId: tenant._id.toString(),
-      permission: 'reports.view_consolidated',
-    })
-    if (permError) return permError
-
-    logAudit({
-      tenantId: tenant._id.toString(),
-      action: 'reports.view_consolidated',
-      entity: 'dashboard',
-      details: { route: 'admin/dashboard/summary' },
-      request,
-    })
 
     const tenantId = tenant._id
     const now = new Date()
@@ -117,63 +82,63 @@ export async function GET(
       deliveryDailyRaw,
     ] = await Promise.all([
       // Stats
-      Order.countDocuments({ tenantId, deletedAt: null }),
-      Order.countDocuments({ tenantId, deletedAt: null, status: 'pending' }),
-      Order.countDocuments({ tenantId, deletedAt: null, status: 'confirmed' }),
-      Order.countDocuments({ tenantId, deletedAt: null, status: 'cancelled' }),
+      Order.countDocuments({ tenantId, ...sedeMatch, deletedAt: null }),
+      Order.countDocuments({ tenantId, ...sedeMatch, deletedAt: null, status: 'pending' }),
+      Order.countDocuments({ tenantId, ...sedeMatch, deletedAt: null, status: 'confirmed' }),
+      Order.countDocuments({ tenantId, ...sedeMatch, deletedAt: null, status: 'cancelled' }),
       // KPIs - this month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
       ]),
       // KPIs - prev month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } },
       ]),
       // KPIs - cancel rate this month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth } } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
       ]),
       // KPIs - cancel rate prev month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfPrevMonth, $lte: endOfPrevMonth } } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } },
       ]),
       // ICO - history
       ICOSnapshot.find({ tenantId }).sort({ date: -1 }).limit(8).select('date icoScore').lean(),
       // ICO - orders count
-      Order.countDocuments({ tenantId, deletedAt: null, createdAt: { $gte: start30 } }),
+      Order.countDocuments({ tenantId, ...sedeMatch, deletedAt: null, createdAt: { $gte: start30 } }),
       // Metodos de pago
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
         { $group: { _id: '$payment.method', orders: { $sum: 1 }, revenue: { $sum: '$total' } } },
         { $sort: { revenue: -1 } },
       ]),
       // Menu actividad - most sold
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.name', count: { $sum: '$items.quantity' }, revenue: { $sum: '$items.subtotal' } } },
         { $sort: { count: -1 } },
         { $limit: 5 },
       ]),
       // Menu actividad - liked items
-      Menu.find({ tenantId, isActive: true }).lean(),
+      Menu.find({ tenantId, ...sedeMatch, isActive: true }).lean(),
       // Menu actividad - total orders for funnel
-      Order.countDocuments({ tenantId, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
+      Order.countDocuments({ tenantId, ...sedeMatch, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } }),
       // Calificaciones - recent
-      Rating.find({ tenantId }).sort({ createdAt: -1 }).limit(10)
+      Rating.find({ tenantId, ...sedeMatch }).sort({ createdAt: -1 }).limit(10)
         .populate('orderId', 'orderNumber customer.name customer.phone').lean(),
       // Calificaciones - aggregation
       Rating.aggregate([
-        { $match: { tenantId } },
+        { $match: { tenantId, ...sedeMatch } },
         { $group: { _id: null, avg: { $avg: '$stars' }, count: { $sum: 1 }, dist: { $push: '$stars' } } },
       ]),
       // Club
       LoyaltyMember.aggregate([
-        { $match: { tenantId, status: 'active' } },
+        { $match: { tenantId, ...sedeMatch, status: 'active' } },
         { $group: {
           _id: null,
           totalMembers: { $sum: 1 },
@@ -182,12 +147,12 @@ export async function GET(
         } },
       ]),
       // Pedidos recientes
-      Order.find({ tenantId, deletedAt: null })
+      Order.find({ tenantId, ...sedeMatch, deletedAt: null })
         .sort({ createdAt: -1 }).limit(5)
         .select('orderNumber total status customer.name createdAt').lean(),
       // Margin recovery — total surcharge across ALL payment methods this month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, status: { $ne: 'cancelled' } } },
         { $group: {
           _id: null,
           totalSurcharge: { $sum: '$payment.surchargeAmount' },
@@ -198,7 +163,7 @@ export async function GET(
       ]),
       // Delivery conciliation — daily breakdown of delivery orders this month
       Order.aggregate([
-        { $match: { tenantId, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, orderMode: 'delivery', status: { $ne: 'cancelled' } } },
+        { $match: { tenantId, ...sedeMatch, createdAt: { $gte: startOfMonth, $lte: endOfMonth }, orderMode: 'delivery', status: { $ne: 'cancelled' } } },
         { $group: {
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
           orderCount: { $sum: 1 },
@@ -244,10 +209,13 @@ export async function GET(
     // ── Process Comisiones ──
     // Misma fórmula que el panel de comisiones y el banner (lib/commissions):
     // transferencias del mes menos las ya cubiertas por pagos registrados.
+    // Es deuda del negocio con la plataforma: solo en la vista consolidada.
     const { computeTransferPayable } = await import('@/lib/commissions')
-    const transferPayable = await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
-    const pending = transferPayable.pendingCents
-    const commissionOrderCount = transferPayable.orderCount
+    const transferPayable = consolidated
+      ? await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
+      : null
+    const pending = transferPayable?.pendingCents ?? 0
+    const commissionOrderCount = transferPayable?.orderCount ?? 0
     const balance = tenant.commissionBalance?.transfer ?? 0
     const threshold = tenant.commissionThreshold ?? null
 
@@ -342,9 +310,12 @@ export async function GET(
     return NextResponse.json({
       stats: { total: totalOrders, pending: pendingOrders, confirmed: confirmedOrders, cancelled: cancelledOrders },
       kpis: { revenue, avgTicket, cancRate, orderCount: thisMonth.count, growth, prevRevenue, prevCancRate, cancTrend },
-      ico: { icoScore, capacityScore, band, history: historySorted.map(h => ({ week: h.date.toISOString().slice(0, 10), score: h.icoScore })), hasEnoughData: orders30Count >= 10, totalOrders: orders30Count },
+      // Alcance efectivo: el cliente oculta las métricas de negocio completo
+      // (ICO, comisiones) cuando la vista es por sede.
+      scope: { consolidated, locationIds: locationIds?.map(String) ?? null },
+      ico: !consolidated ? null : { icoScore, capacityScore, band, history: historySorted.map(h => ({ week: h.date.toISOString().slice(0, 10), score: h.icoScore })), hasEnoughData: orders30Count >= 10, totalOrders: orders30Count },
       metodosPago,
-      comisiones: { pending, balance, threshold, orderCount: commissionOrderCount },
+      comisiones: !consolidated ? null : { pending, balance, threshold, orderCount: commissionOrderCount },
       menuActividad: { mostSold, topLiked, funnel },
       calificaciones: { avgRating: agg ? Math.round(agg.avg * 10) / 10 : 0, total: agg?.count ?? 0, distribution, calificaciones },
       club,
