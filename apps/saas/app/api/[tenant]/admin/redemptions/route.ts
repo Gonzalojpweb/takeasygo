@@ -5,6 +5,7 @@ import StoreItem from '@/models/StoreItem'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { scopedLocationIds } from '@/lib/location-scope'
 import { escapeRegex } from '@takeasygo/business'
 
 export async function GET(
@@ -45,6 +46,10 @@ export async function GET(
         { redemptionCode: { $regex: escapeRegex(search), $options: 'i' } },
       ]
     }
+
+    // Admin de sede: canjes de sus sedes o todavía sin sede.
+    const scoped = await scopedLocationIds(request)
+    if (scoped) query.locationId = { $in: [...scoped, null] }
 
     const skip = (page - 1) * limit
 

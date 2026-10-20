@@ -5,6 +5,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import Order from '@/models/Order'
 import ShareEvent from '@/models/ShareEvent'
 import { requireAuth } from '@/lib/apiAuth'
+import { loyaltyListFilter } from '@/lib/loyalty-scope'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
@@ -36,11 +37,10 @@ export async function GET(
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
     }
 
-    const perLocationActive = tenant.loyalty?.perLocation === true
     const memberFilter: Record<string, any> = { tenantId: tenant._id }
-    if (perLocationActive && locationId) {
-      memberFilter.locationId = locationId
-    }
+    const scope = await loyaltyListFilter(request, tenant, locationId)
+    if ('error' in scope) return scope.error
+    Object.assign(memberFilter, scope.filter)
 
     const dateFrom = new Date()
     dateFrom.setDate(dateFrom.getDate() - days)

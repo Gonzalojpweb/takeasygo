@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import type { Types } from 'mongoose'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 // ICO — Índice de Consistencia Operativa — uso interno, no público
 // Fórmula: Consistencia×0.25 + Cumplimiento×0.30 + BajaCancelacion×0.20 + Actividad×0.15 + Estabilidad×0.10
@@ -160,6 +161,12 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     const tenantId = tenant._id
     const now = new Date()
     const start30 = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
@@ -173,7 +180,7 @@ export async function GET(
 
     // Estabilidad horaria global (sección 5.6): días activos sobre TODOS los pedidos
     const globalActiveDaysData = await Order.aggregate([
-      { $match: { tenantId, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+      { $match: { tenantId, ...sedeFilter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
       { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
       { $count: 'days' },
     ])
@@ -181,9 +188,9 @@ export async function GET(
     const estabilidad = Math.min(1, globalActiveDays / 20)
 
     const [tw, di, sc, bu] = await Promise.all([
-      calcLayer(tenantId, LAYER_FILTERS.takeaway,  start30, start7, estabilidad),
-      calcLayer(tenantId, LAYER_FILTERS.dineIn,    start30, start7, estabilidad),
-      calcLayer(tenantId, LAYER_FILTERS.scheduled, start30, start7, estabilidad),
+      calcLayer(tenantId, { ...LAYER_FILTERS.takeaway, ...sedeFilter },  start30, start7, estabilidad),
+      calcLayer(tenantId, { ...LAYER_FILTERS.dineIn, ...sedeFilter },    start30, start7, estabilidad),
+      calcLayer(tenantId, { ...LAYER_FILTERS.scheduled, ...sedeFilter }, start30, start7, estabilidad),
       calcLayer(tenantId, LAYER_FILTERS.business,  start30, start7, estabilidad),
     ])
 

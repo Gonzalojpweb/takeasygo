@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { syncWalletPoints } from '@/lib/walletService'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
@@ -48,6 +49,9 @@ export async function POST(
     if (!member) {
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
     }
+    // Sede del socio (no la del body): canje solo dentro del alcance.
+    const sedeError = await guardRequestLocation(request, member.locationId, 'Miembro no encontrado')
+    if (sedeError) return sedeError
 
     if (member.status !== 'active') {
       return NextResponse.json({ error: 'El miembro no está activo' }, { status: 400 })

@@ -6,6 +6,7 @@ import StoreRedemption from '@/models/StoreRedemption'
 import Order from '@/models/Order'
 import { calculatePoints } from '@/lib/loyalty'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardMemberLocation } from '@/lib/loyalty-scope'
 import { safeDecrypt } from '@/lib/crypto'
 import crypto from 'crypto'
 
@@ -33,7 +34,11 @@ export async function GET(
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') ?? '20', 10)))
     const skip = (page - 1) * limit
 
-    const member = await LoyaltyMember.findById(memberId)
+    // Socio del tenant del URL y de una sede del alcance del usuario.
+    const memberScopeError = await guardMemberLocation(request, tenant._id, memberId)
+    if (memberScopeError) return memberScopeError
+
+    const member = await LoyaltyMember.findOne({ _id: memberId, tenantId: tenant._id })
       .select('phoneHash phone email name locationId')
       .lean()
     if (!member) {

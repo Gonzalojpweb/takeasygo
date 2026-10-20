@@ -12,6 +12,7 @@ import { getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import { toPesos } from '@takeasygo/business'
 import { buildReportStats, isBilledOrder } from '@/lib/report-stats'
 import { computePeriodCommissions } from '@/lib/commissions'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 
@@ -72,6 +73,12 @@ export async function GET(
     })
     if (permError) return permError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     logAudit({
       tenantId: tenant._id.toString(),
       action: 'reports.view_consolidated',
@@ -110,6 +117,7 @@ export async function GET(
 
     const rawOrders = await Order.find({
       tenantId: tenant._id,
+      ...sedeFilter,
       deletedAt: null,
       createdAt: { $gte: from, $lte: to },
     }).sort({ createdAt: -1 }).lean()

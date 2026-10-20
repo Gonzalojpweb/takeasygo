@@ -3,6 +3,8 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
+import { loyaltyListFilter } from '@/lib/loyalty-scope'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { hashPhone } from '@/lib/crypto'
@@ -48,12 +50,13 @@ export async function GET(
       return NextResponse.json({ error: 'Tu plan no incluye el Club de Fidelización' }, { status: 403 })
     }
 
-    const perLocation = tenant.loyalty?.perLocation === true
     const filter: Record<string, any> = { tenantId: tenant._id }
 
-    if (perLocation && locationId) {
-      filter.locationId = locationId
-    }
+    // Club por sede: selector validado o sedes del usuario (nunca todas
+    // las sedes para un usuario de sede).
+    const scope = await loyaltyListFilter(request, tenant, locationId)
+    if ('error' in scope) return scope.error
+    Object.assign(filter, scope.filter)
 
     if (status && ['active', 'inactive', 'blocked'].includes(status)) {
       filter.status = status
@@ -188,6 +191,10 @@ export async function POST(
 
     if (perLocation && !locationId) {
       return NextResponse.json({ error: 'El locationId es requerido cuando la fidelización es por ubicación' }, { status: 400 })
+    }
+    if (perLocation) {
+      const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+      if (sedeError) return sedeError
     }
 
     if (!name?.trim()) {

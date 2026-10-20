@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreItem from '@/models/StoreItem'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardSharedOrLocation } from '@/lib/location-scope'
 
 export async function PATCH(
   request: NextRequest,
@@ -26,16 +28,21 @@ export async function PATCH(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const item = await StoreItem.findOne({
-      _id: itemId,
-      $or: [
-        { tenantId: tenant._id },
-        { scope: 'global', $or: [{ targetTenants: tenant._id }, { targetTenants: { $size: 0 } }] },
-      ],
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'promotions.write',
     })
+    if (permError) return permError
+
+    // Solo ítems propios: los globales de la plataforma no se activan ni
+    // desactivan desde un negocio (afectaría a todos).
+    const item = await StoreItem.findOne({ _id: itemId, tenantId: tenant._id })
     if (!item) {
       return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
     }
+    const sedeError = await guardSharedOrLocation(request, item.locationId ?? null, 'Item no encontrado')
+    if (sedeError) return sedeError
 
     item.isActive = !item.isActive
     await item.save()

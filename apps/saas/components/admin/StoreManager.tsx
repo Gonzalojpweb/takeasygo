@@ -29,6 +29,8 @@ interface StoreItem {
   sortOrder: number
   isFeatured: boolean
   totalRedemptions: number
+  /** 'global' = ítem de la plataforma: visible para el negocio, de solo lectura. */
+  scope?: 'tenant' | 'global'
 }
 
 interface Props {
@@ -283,7 +285,9 @@ export default function StoreManager({ tenantSlug }: Props) {
                     {item.description}
                   </p>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
-                    {item.stock !== null ? (
+                    {item.scope === 'global' ? (
+                      <span>Stock: {item.stock ?? '∞'}</span>
+                    ) : item.stock !== null ? (
                       editingStockId === item._id ? (
                         <div className="flex items-center gap-1">
                           <span>Stock:</span>
@@ -342,6 +346,11 @@ export default function StoreManager({ tenantSlug }: Props) {
                     )}
                     <span>Canjes: {item.totalRedemptions}</span>
                   </div>
+                  {item.scope === 'global' ? (
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      Ítem de la plataforma · solo lectura
+                    </p>
+                  ) : (
                   <div className="flex items-center gap-2">
                     <Button
                       size="sm"
@@ -374,6 +383,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                       <Trash2 size={18} className="text-red-500" />
                     </Button>
                   </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

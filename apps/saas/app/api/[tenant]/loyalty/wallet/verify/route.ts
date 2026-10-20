@@ -13,6 +13,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { syncWalletPoints } from '@/lib/walletService'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Tenant from '@/models/Tenant'
@@ -55,6 +56,10 @@ export async function POST(
       tenantId: tenant._id,
       ...(perLocation && locationId ? { locationId } : {})
     }).lean()
+
+    // Sede del socio: sumar/canjear puntos solo dentro del alcance.
+    const sedeError = member ? await guardRequestLocation(request, member.locationId, 'Miembro no encontrado') : null
+    if (sedeError) return sedeError
 
     if (!member) {
       return NextResponse.json(

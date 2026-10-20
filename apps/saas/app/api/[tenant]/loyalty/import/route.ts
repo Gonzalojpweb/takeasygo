@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { requireLocationId } from '@/lib/loyalty-location'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
@@ -77,6 +78,8 @@ export async function POST(
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 400 })
     }
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const rows = parseCSV(csv)
 

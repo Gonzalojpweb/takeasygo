@@ -17,6 +17,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { scopedLocationIds } from '@/lib/location-scope'
 import { pendingVigenteFilter } from '@/lib/store-redemptions'
 
 const VALID_STATUS = new Set(['pending', 'claimed', 'expired', 'cancelled'])
@@ -52,6 +53,10 @@ export async function GET(
       statusParam === 'pending'
         ? { tenantId: tenant._id, ...pendingVigenteFilter() }
         : { tenantId: tenant._id, status: statusParam }
+
+    // Usuario de sede: canjes de sus sedes o todavía sin sede.
+    const scoped = await scopedLocationIds(request)
+    if (scoped) filter.locationId = { $in: [...scoped, null] }
 
     const redemptions = await StoreRedemption.find(filter)
       .populate('memberId', 'name')

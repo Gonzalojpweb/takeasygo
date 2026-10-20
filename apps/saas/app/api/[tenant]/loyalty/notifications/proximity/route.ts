@@ -7,6 +7,7 @@ import PushSubscription from '@/models/PushSubscription'
 import Feedback from '@/models/Feedback'
 import webpush from 'web-push'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
 import { haversineDistance } from '@/lib/geo'
 
 try {
@@ -138,7 +139,13 @@ export async function POST(
     }
 
     if (locationId) {
+      const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+      if (sedeError) return sedeError
       membersQuery['cache.lastLocationId'] = locationId
+    } else {
+      // Usuario de sede: solo socios vistos por última vez en sus sedes.
+      const scoped = await scopedLocationIds(request)
+      if (scoped) membersQuery['cache.lastLocationId'] = { $in: scoped }
     }
 
     const members = await LoyaltyMember.find(membersQuery).select('_id').lean()

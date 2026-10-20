@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreItem from '@/models/StoreItem'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation, guardSharedOrLocation, scopedLocationIds } from '@/lib/location-scope'
 import { canAccess } from '@/lib/plans'
 
 export async function GET(
@@ -78,8 +80,16 @@ export async function GET(
     }
 
     if (locationId) {
+      if (isAdmin) {
+        const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+        if (sedeError) return sedeError
+      }
       tenantQuery.locationId = { $in: [locationId, null] }
       globalQuery.locationId = { $in: [locationId, null] }
+    } else if (isAdmin) {
+      // Admin de sede sin selector: sus sedes + los compartidos.
+      const scoped = await scopedLocationIds(request)
+      if (scoped) tenantQuery.locationId = { $in: [...scoped, null] }
     }
 
     const items = await StoreItem.find({
@@ -110,6 +120,13 @@ export async function POST(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      permission: 'promotions.write',
+    })
+    if (permError) return permError
+
     const body = await request.json()
     const {
       name,
@@ -133,6 +150,11 @@ export async function POST(
     if (!name || !description || !imageUrl || !pointsCost || !category) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
     }
+
+    // Ítem de una sede o compartido (null): un usuario de sede solo crea
+    // ítems de sus sedes.
+    const sedeError = await guardSharedOrLocation(request, locationId || null, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const item = await StoreItem.create({
       tenantId: tenant._id,

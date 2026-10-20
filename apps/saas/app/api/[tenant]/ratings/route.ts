@@ -4,6 +4,7 @@ import Rating from '@/models/Rating'
 import '@/models/Order' // necesario para que Mongoose registre el modelo antes del populate
 import { requireAuth } from '@/lib/apiAuth'
 import { NextRequest, NextResponse } from 'next/server'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -19,9 +20,15 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     const [aggResult, recent] = await Promise.all([
       Rating.aggregate([
-        { $match: { tenantId: tenant._id } },
+        { $match: { tenantId: tenant._id, ...sedeFilter } },
         {
           $group: {
             _id: null,
@@ -33,7 +40,7 @@ export async function GET(
           },
         },
       ]),
-      Rating.find({ tenantId: tenant._id })
+      Rating.find({ tenantId: tenant._id, ...sedeFilter })
         .sort({ createdAt: -1 })
         .limit(10)
         .populate('orderId', 'orderNumber')

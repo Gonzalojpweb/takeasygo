@@ -9,6 +9,7 @@ import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { requireAdminRole } from '@/lib/apiAuth'
+import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
 import { PLAN_ACCESS, HIDDEN_REWARDS_LIMIT, canAccess, type Plan } from '@takeasygo/business'
 
 export async function GET(
@@ -45,8 +46,13 @@ export async function GET(
     ])
     const totalDiscountsApplied = consumedAgg[0]?.count ?? 0
 
-    // Menu items with hidden rewards
-    const menus = await Menu.find({ tenantId: tenant._id, isActive: true }).lean()
+    // Menu items with hidden rewards (admin de sede: solo menús de sus sedes)
+    const scoped = await scopedLocationIds(request)
+    const menus = await Menu.find({
+      tenantId: tenant._id,
+      isActive: true,
+      ...(scoped ? { locationId: { $in: scoped } } : {}),
+    }).lean()
     const itemsWithRewards: any[] = []
     for (const menu of menus) {
       for (const cat of menu.categories || []) {
@@ -131,6 +137,8 @@ export async function PUT(
     if (!menuItemId || !locationId) {
       return NextResponse.json({ error: 'menuItemId y locationId son requeridos' }, { status: 400 })
     }
+    const sedeError = await guardRequestLocation(request, locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     // Plan gating: block enabling new items if at Growth limit
     if (hiddenReward.enabled) {

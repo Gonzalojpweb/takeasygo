@@ -5,6 +5,7 @@ import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { requireAuth } from '@/lib/apiAuth'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/[tenant]/funnel — Behavioral funnel metrics from MongoDB
@@ -37,6 +38,12 @@ export async function GET(
     const authError = await requireAuth(request, String(tenant._id))
     if (authError) return authError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     const tenantId = tenant._id
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
 
@@ -45,6 +52,7 @@ export async function GET(
       {
         $match: {
           tenantId: new mongoose.Types.ObjectId(tenantId),
+          ...sedeFilter,
           createdAt: { $gte: since },
           type: { $in: ['menu_opened', 'product_view', 'cart_add', 'checkout_started', 'order_completed'] },
         },
@@ -74,6 +82,7 @@ export async function GET(
     // Also get order counts from orders collection (source of truth)
     const orderCount = await Order.countDocuments({
       tenantId,
+      ...sedeFilter,
       createdAt: { $gte: since },
       status: { $nin: ['cancelled', 'open'] },
     })
@@ -82,6 +91,7 @@ export async function GET(
       {
         $match: {
           tenantId: new mongoose.Types.ObjectId(tenantId),
+          ...sedeFilter,
           createdAt: { $gte: since },
           status: { $nin: ['cancelled', 'open'] },
         },
@@ -102,6 +112,7 @@ export async function GET(
       {
         $match: {
           tenantId: new mongoose.Types.ObjectId(tenantId),
+          ...sedeFilter,
           createdAt: { $gte: since },
           type: { $in: ['menu_opened', 'product_view', 'cart_add', 'checkout_started', 'order_completed'] },
         },
@@ -147,6 +158,7 @@ export async function GET(
       {
         $match: {
           tenantId: new mongoose.Types.ObjectId(tenantId),
+          ...sedeFilter,
           createdAt: { $gte: since },
           type: { $in: ['upsell_impression', 'upsell_add'] },
         },

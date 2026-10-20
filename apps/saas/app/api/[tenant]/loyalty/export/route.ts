@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
+import { loyaltyListFilter } from '@/lib/loyalty-scope'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
@@ -38,9 +39,9 @@ export async function GET(
     }
 
     const query: Record<string, any> = { tenantId: tenant._id }
-    if (tenant.loyalty?.perLocation && locationId) {
-      query.locationId = locationId
-    }
+    const scope = await loyaltyListFilter(request, tenant, locationId)
+    if ('error' in scope) return scope.error
+    Object.assign(query, scope.filter)
 
     const members = await LoyaltyMember.find(query)
       .sort({ joinedAt: -1 })

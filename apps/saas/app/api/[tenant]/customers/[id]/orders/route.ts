@@ -7,6 +7,7 @@ import { safeDecrypt } from '@/lib/crypto'
 import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@takeasygo/business'
 import mongoose from 'mongoose'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -21,6 +22,12 @@ export async function GET(
 
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
 
     if (!canAccess(tenant.plan, 'crm')) {
       return NextResponse.json({ error: 'CRM no disponible en tu plan actual.' }, { status: 403 })
@@ -41,6 +48,7 @@ export async function GET(
 
     const orderFilter: Record<string, any> = {
       tenantId: tenant._id,
+      ...sedeFilter,
       deletedAt: null,
     }
 

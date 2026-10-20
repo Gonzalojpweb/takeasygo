@@ -7,6 +7,7 @@ import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { UPSELL_SOURCES } from '@/lib/constants/upsell'
 import { buildPeriodLabel, fmtDate } from '@/lib/report-range'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 /** Ventana por defecto cuando no se envía `?days=` ni `?from=&to=`. */
 const DEFAULT_WINDOW_DAYS = 90
@@ -65,6 +66,12 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     if (!canAccess(tenant.plan ?? 'try', 'reports')) {
       return NextResponse.json({ error: 'Plan insuficiente' }, { status: 403 })
     }
@@ -87,6 +94,7 @@ export async function GET(
         {
           $match: {
             tenantId,
+            ...sedeFilter,
             deletedAt: null,
             status: { $ne: 'cancelled' },
             createdAt: { $gte: range.start, $lte: range.end },
@@ -114,6 +122,7 @@ export async function GET(
         {
           $match: {
             tenantId,
+            ...sedeFilter,
             deletedAt: null,
             status: { $ne: 'cancelled' },
             createdAt: { $gte: range.start, $lte: range.end },

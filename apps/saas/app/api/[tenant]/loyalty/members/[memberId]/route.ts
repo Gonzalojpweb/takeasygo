@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardMemberLocation } from '@/lib/loyalty-scope'
 import { canAccess } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
 import type { Plan } from '@/lib/plans'
@@ -37,6 +38,9 @@ export async function GET(
     if (!mongoose.Types.ObjectId.isValid(memberId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
+    // Sede del socio (club por sede): fuera del alcance del usuario → 404.
+    const memberScopeError = await guardMemberLocation(request, tenant._id, memberId)
+    if (memberScopeError) return memberScopeError
 
     const locationId = request.nextUrl.searchParams.get('locationId')
     const perLocation = tenant.loyalty?.perLocation === true
@@ -85,6 +89,9 @@ export async function PATCH(
     if (!mongoose.Types.ObjectId.isValid(memberId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
+    // Sede del socio (club por sede): fuera del alcance del usuario → 404.
+    const memberScopeError = await guardMemberLocation(request, tenant._id, memberId)
+    if (memberScopeError) return memberScopeError
 
     const body = await request.json()
     const { name, email, status, notes, locationId } = body
@@ -179,6 +186,9 @@ export async function DELETE(
     if (!mongoose.Types.ObjectId.isValid(memberId)) {
       return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
+    // Sede del socio (club por sede): fuera del alcance del usuario → 404.
+    const memberScopeError = await guardMemberLocation(request, tenant._id, memberId)
+    if (memberScopeError) return memberScopeError
 
     const body = await request.json().catch(() => ({}))
     const { locationId } = body

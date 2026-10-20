@@ -15,6 +15,7 @@ import { ComplianceAlertModel } from '@takeasygo/db/models/compliance-alert'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { findStaleAlerts, resolveAlerts } from '@/lib/compliance-alerts'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -40,9 +41,10 @@ export async function GET(
       tenantId: tenant._id,
       resolvedAt: null,
     }
-    if (locationId) {
-      filter.locationId = locationId
-    }
+    // Alcance de sede: ?locationId= validado, o las sedes del usuario.
+    const sedeScope = await scopeLocationFilter(request, locationId)
+    if ('error' in sedeScope) return sedeScope.error
+    Object.assign(filter, sedeScope.filter)
 
     const alerts = await ComplianceAlertModel.find(filter)
       .sort({ level: -1, triggeredAt: -1 })

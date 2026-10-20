@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -39,7 +40,15 @@ export async function GET(
       tenantId: tenant._id,
       redemptionCode: code.toUpperCase().trim(),
     }
-    if (locationId) query.locationId = locationId
+    if (locationId) {
+      const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+      if (sedeError) return sedeError
+      query.locationId = locationId
+    } else {
+      // Usuario de sede: canjes de sus sedes o todavía sin sede (pendientes).
+      const scoped = await scopedLocationIds(request)
+      if (scoped) query.locationId = { $in: [...scoped, null] }
+    }
 
     const redemption = await StoreRedemption.findOne(query)
     .populate('memberId', 'name email loyalty')

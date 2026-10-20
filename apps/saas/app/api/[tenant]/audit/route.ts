@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { escapeRegex } from '@takeasygo/business'
 import { NextRequest, NextResponse } from 'next/server'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 const PAGE_SIZE = 50
 
@@ -25,13 +26,19 @@ export async function GET(
     const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
 
+    // Alcance de sede: ?locationId= (selector) validado, o las sedes del
+    // usuario; un usuario de tenant ve el consolidado.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const sedeFilter = sedeScope.filter
+
     const sp = request.nextUrl.searchParams
     const page = Math.max(1, Number(sp.get('page') ?? 1))
     const entity = sp.get('entity') ?? ''
     const action = sp.get('action') ?? ''
     const userId = sp.get('userId') ?? ''
 
-    const filter: Record<string, any> = { tenantId: tenant._id }
+    const filter: Record<string, any> = { tenantId: tenant._id, ...sedeFilter }
     if (entity) filter.entity = entity
     if (action) filter.action = { $regex: escapeRegex(action), $options: 'i' }
     if (userId) filter.userId = userId

@@ -112,6 +112,32 @@ export async function scopedLocationIds(request: NextRequest): Promise<string[] 
 }
 
 /**
+ * Filtro de sede para listados admin: con `requestedLocationId` (selector)
+ * valida el alcance y filtra por esa sede; sin él, un usuario de sede ve solo
+ * las suyas y uno de tenant ve todo. Devuelve el fragmento a mezclar en el
+ * filtro de Mongo, o la respuesta de error.
+ */
+export async function scopeLocationFilter(
+  request: NextRequest,
+  requestedLocationId: string | null | undefined,
+  notFoundMessage = 'Sede no encontrada'
+): Promise<{ error: NextResponse } | { filter: { locationId?: unknown } }> {
+  // ObjectIds (no strings): el filtro también se usa en aggregate(), donde
+  // Mongoose no castea y un string nunca matchea.
+  const { Types } = (await import('mongoose')).default
+  if (requestedLocationId) {
+    if (!Types.ObjectId.isValid(requestedLocationId)) {
+      return { error: NextResponse.json({ error: 'locationId inválido' }, { status: 400 }) }
+    }
+    const error = await guardRequestLocation(request, requestedLocationId, notFoundMessage)
+    if (error) return { error }
+    return { filter: { locationId: new Types.ObjectId(requestedLocationId) } }
+  }
+  const scoped = await scopedLocationIds(request)
+  return { filter: scoped ? { locationId: { $in: scoped.map(id => new Types.ObjectId(id)) } } : {} }
+}
+
+/**
  * Registra (sin bloquear) un intento cross-sede. Se usa en modo `log` del flag
  * `multisede.strictLocationId`: deja evidencia para medir falsos positivos
  * antes de endurecer a `enforce`.
