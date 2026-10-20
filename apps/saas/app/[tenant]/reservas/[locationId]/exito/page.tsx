@@ -4,6 +4,8 @@ import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import { safeDecrypt } from '@/lib/crypto'
 import { notFound } from 'next/navigation'
+import { toPesos } from '@takeasygo/business'
+import { buildReservationWhatsAppLink, pickReservationWhatsAppPhone } from '@/lib/reservation-whatsapp-link'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string }>
@@ -30,14 +32,35 @@ export default async function ReservaExitoPage({ params, searchParams }: Props) 
   const branding = tenant.branding
   const isPending = pending === '1'
 
-  // Espacio/sector elegido: se resuelve el nombre para mostrarlo en el detalle.
+  // Sede de la reserva: nombre del espacio elegido y WhatsApp destino del botón.
   let spaceName: string | null = null
-  if (reservation?.spaceId) {
+  let whatsAppLink: string | null = null
+  if (reservation) {
     const loc = await Location.findOne({ _id: reservation.locationId, tenantId: tenant._id }).lean() as {
+      name?: string
       spaces?: Array<{ _id: unknown; name: string }>
+      settings?: { whatsappPhone?: string | null }
     } | null
-    const space = loc?.spaces?.find(s => String(s._id) === String(reservation.spaceId))
-    if (space) spaceName = space.name
+    if (reservation.spaceId) {
+      const space = loc?.spaces?.find(s => String(s._id) === String(reservation.spaceId))
+      if (space) spaceName = space.name
+    }
+    const waPhone = pickReservationWhatsAppPhone(tenant, loc)
+    if (waPhone && reservation.status !== 'cancelled') {
+      const depositCents: number = reservation.payment?.amount || 0
+      whatsAppLink = buildReservationWhatsAppLink(waPhone, {
+        reservationNumber: reservation.reservationNumber,
+        name: reservation.name,
+        date: reservation.date,
+        time: reservation.time,
+        partySize: reservation.partySize,
+        spaceName,
+        notes: reservation.notes,
+        locationName: loc?.name,
+        depositLabel: depositCents > 0 ? `$${toPesos(depositCents).toLocaleString('es-AR')}` : null,
+        pendingPayment: isPending || reservation.payment?.status !== 'approved',
+      })
+    }
   }
 
   return (
@@ -113,6 +136,30 @@ export default async function ReservaExitoPage({ params, searchParams }: Props) 
             ? 'Tu pago está siendo procesado. Te confirmaremos la reserva a la brevedad.'
             : 'Te esperamos. Comunicate si necesitás modificar tu reserva.'}
         </p>
+
+        {whatsAppLink && (
+          <a
+            href={whatsAppLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '24px',
+              padding: '14px',
+              borderRadius: '9999px',
+              backgroundColor: '#25D366',
+              color: '#ffffff',
+              fontSize: '15px',
+              fontWeight: 700,
+              textDecoration: 'none',
+              boxShadow: '0 8px 24px #25D36644',
+            }}
+          >
+            Enviar reserva por WhatsApp
+          </a>
+        )}
 
         <a
           href={`/${tenantSlug}/menu`}

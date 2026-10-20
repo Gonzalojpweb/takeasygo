@@ -10,6 +10,7 @@ import {
   isSlotBookable,
   timeToMinutes,
 } from '@/lib/restaurant-time'
+import { buildReservationWhatsAppLink, pickReservationWhatsAppPhone } from '@/lib/reservation-whatsapp-link'
 
 interface SlotItem {
   time: string
@@ -60,6 +61,8 @@ const UI = {
     processing: 'Procesando...',
     confirmed: '¡Reserva confirmada!',
     confirmedMsg: (phone: string) => `Nos vemos pronto. Podés comunicarte al ${phone} si necesitás modificar tu reserva.`,
+    whatsappCta: 'Enviar reserva por WhatsApp',
+    whatsappHint: 'Avisale al local por WhatsApp con el detalle de tu reserva.',
     errTime: 'Seleccioná un horario',
     errName: 'Ingresá tu nombre',
     errPhone: 'Ingresá tu teléfono',
@@ -92,6 +95,8 @@ const UI = {
     processing: 'Processing...',
     confirmed: 'Reservation confirmed!',
     confirmedMsg: (phone: string) => `See you soon. You can reach us at ${phone} if you need to modify your reservation.`,
+    whatsappCta: 'Send reservation via WhatsApp',
+    whatsappHint: 'Let the restaurant know on WhatsApp with your reservation details.',
     errTime: 'Please select a time',
     errName: 'Please enter your name',
     errPhone: 'Please enter your phone number',
@@ -127,6 +132,8 @@ export default function ReservaForm({ tenant, location }: Props) {
   const [error, setError] = useState('')
   const [spaceId, setSpaceId] = useState('')
   const [doneSpaceName, setDoneSpaceName] = useState('')
+  const [doneReservationNumber, setDoneReservationNumber] = useState('')
+  const whatsAppPhone = pickReservationWhatsAppPhone(tenant, location)
 
   const [slots, setSlots] = useState<SlotItem[]>(
     useServerSlots ? [] : staticTimeSlots.map(t => ({ time: t, available: true }))
@@ -273,6 +280,7 @@ export default function ReservaForm({ tenant, location }: Props) {
       if (prefData.free) {
         // No payment needed
         setDoneSpaceName(activeSpace?.name || '')
+        setDoneReservationNumber(reservation.reservationNumber || '')
         setStep('free_done')
         return
       }
@@ -313,6 +321,18 @@ export default function ReservaForm({ tenant, location }: Props) {
   }
 
   if (step === 'free_done') {
+    const whatsAppLink = whatsAppPhone
+      ? buildReservationWhatsAppLink(whatsAppPhone, {
+          reservationNumber: doneReservationNumber,
+          name: form.name,
+          date: form.date,
+          time: form.time,
+          partySize: form.partySize,
+          spaceName: doneSpaceName,
+          notes: form.notes,
+          locationName: location.name,
+        })
+      : null
     return (
       <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div style={{ textAlign: 'center', maxWidth: '360px' }}>
@@ -327,6 +347,19 @@ export default function ReservaForm({ tenant, location }: Props) {
             <p style={{ fontSize: '14px', fontWeight: 700, marginTop: '12px', color: primary }}>
               {t.space}: {doneSpaceName}
             </p>
+          )}
+          {whatsAppLink && (
+            <>
+              <a
+                href={whatsAppLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: '24px', padding: '14px', borderRadius: br, backgroundColor: '#25D366', color: '#ffffff', fontSize: '15px', fontWeight: 700, textDecoration: 'none', boxShadow: '0 8px 24px #25D36644' }}
+              >
+                {t.whatsappCta}
+              </a>
+              <p style={{ fontSize: '12px', opacity: 0.5, marginTop: '8px' }}>{t.whatsappHint}</p>
+            </>
           )}
         </div>
       </div>
