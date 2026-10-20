@@ -51,6 +51,23 @@ export function enforceLocationScope(
 }
 
 /**
+ * Guard para recursos YA cargados (reserva, pedido, caja…) cuya sede no viene
+ * del request sino del documento: si el usuario no tiene alcance sobre esa
+ * sede responde 404 (no 403) para no filtrar la existencia del recurso.
+ * Siempre activo, sin flag: un usuario con sedes asignadas nunca debe operar
+ * recursos de otra sede.
+ */
+export function guardResourceLocation(
+  user: LocationScopeUser | null | undefined,
+  resourceLocationId: unknown,
+  notFoundMessage = 'No encontrado'
+): NextResponse | null {
+  if (!resourceLocationId) return null
+  if (canAccessLocation(user, String(resourceLocationId))) return null
+  return NextResponse.json({ error: notFoundMessage }, { status: 404 })
+}
+
+/**
  * Registra (sin bloquear) un intento cross-sede. Se usa en modo `log` del flag
  * `multisede.strictLocationId`: deja evidencia para medir falsos positivos
  * antes de endurecer a `enforce`.
