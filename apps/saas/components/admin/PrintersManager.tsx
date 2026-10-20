@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import PrinterAgentTokenCard, { type AgentStatus } from '@/components/admin/PrinterAgentTokenCard'
 
 type PrinterRole = 'kitchen' | 'bar' | 'cashier'
 type PrinterStatus = 'ok' | 'error' | 'offline' | 'unknown'
@@ -54,6 +55,7 @@ interface RolePrintSettings {
 interface Location {
   _id: string
   name: string
+  agent?: AgentStatus
 }
 
 interface Props {
@@ -130,6 +132,12 @@ const EMPTY_FORM = {
 export default function PrintersManager({ tenantSlug, printers: initial, locations, plan }: Props) {
   const [printers, setPrinters] = useState<PrinterData[]>(initial)
   const [selectedLocation, setSelectedLocation] = useState<string>(locations[0]?._id ?? '')
+  const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>(() =>
+    Object.fromEntries(locations.map(l => [
+      l._id,
+      l.agent ?? { hasToken: false, lastSeenAt: null, version: null, tokenPresent: false },
+    ]))
+  )
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -365,6 +373,18 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
             </button>
           ))}
         </div>
+      )}
+
+      {/* Agente de impresión de la sede: estado + token (P-1) */}
+      {selectedLocation && agentStatuses[selectedLocation] && (
+        <PrinterAgentTokenCard
+          key={selectedLocation}
+          tenantSlug={tenantSlug}
+          locationId={selectedLocation}
+          locationName={selectedLocationName}
+          status={agentStatuses[selectedLocation]}
+          onChange={status => setAgentStatuses(prev => ({ ...prev, [selectedLocation]: status }))}
+        />
       )}
 
       {/* Form */}

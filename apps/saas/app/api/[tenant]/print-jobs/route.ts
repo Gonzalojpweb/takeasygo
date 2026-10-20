@@ -7,7 +7,7 @@ import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
 import { resolvePrintLeadMinutes } from '@/lib/printing/printTiming'
-import crypto from 'node:crypto'
+import { checkAgentToken, agentTokenDenied } from '@/lib/printer-agent-auth'
 
 const MAX_ATTEMPTS = 3
 
@@ -72,20 +72,21 @@ export async function GET(
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
-    // ── Fase 1 (solo registro): heartbeat del agente + observación del
-    //    token. NO se bloquea por token ausente/inválido todavía.
-    //    Escritura/log a lo sumo 1 vez por minuto por sede (el poll es
-    //    cada 5 s en horario de servicio).
+    // ── Token del agente (P-1): si la sede tiene token generado, el poll
+    //    sin token válido es 401. Sede sin token → legacy (se registra).
     const agentToken = request.headers.get('x-agent-token')
+    const tokenStatus = checkAgentToken(location.printerAgent?.secretHash, agentToken)
+    const denied = agentTokenDenied(tokenStatus)
+    if (denied) {
+      console.warn(`[print-jobs] poll rechazado tenant=${tenantSlug} location=${location.name} token=${tokenStatus}`)
+      return denied
+    }
+
+    // Heartbeat: escritura/log a lo sumo 1 vez por minuto por sede (el poll
+    // es cada 5 s en horario de servicio).
     const lastSeenAt = location.printerAgent?.lastSeenAt
     const shouldRecord = !lastSeenAt || Date.now() - new Date(lastSeenAt).getTime() >= 60_000
     if (shouldRecord) {
-      let tokenStatus: 'match' | 'invalid' | 'missing' = 'missing'
-      if (agentToken) {
-        const presentedHash = crypto.createHash('sha256').update(agentToken).digest('hex')
-        const expectedHash = location.printerAgent?.secretHash
-        tokenStatus = expectedHash && timingSafeEqualHex(presentedHash, expectedHash) ? 'match' : 'invalid'
-      }
       console.log(
         `[print-jobs] poll tenant=${tenantSlug} location=${location.name} v=${agentVersion ?? '?'} token=${tokenStatus}`
       )
@@ -268,6 +269,8 @@ export async function POST(
       const printerName = body.printerName
       const job = await PreClosePrintJob.findOne({ _id: preCloseJobId, tenantId: tenant._id })
       if (!job) return NextResponse.json({ error: 'Trabajo de pre-cierre no encontrado' }, { status: 404 })
+      const deniedPreClose = await agentTokenDeniedForLocation(request, job.locationId)
+      if (deniedPreClose) return deniedPreClose
 
       job.status = success ? 'success' : 'error'
       await job.save()
@@ -299,6 +302,8 @@ export async function POST(
 
       const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
       if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+      const deniedJob = await agentTokenDeniedForLocation(request, order.locationId)
+      if (deniedJob) return deniedJob
 
       const job = order.printJobs?.id(printJobId)
       if (!job) return NextResponse.json({ error: 'Print job no encontrado' }, { status: 404 })
@@ -350,6 +355,8 @@ export async function POST(
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
     if (!order) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
+    const deniedLegacy = await agentTokenDeniedForLocation(request, order.locationId)
+    if (deniedLegacy) return deniedLegacy
 
     order.printLog.push({
       printerName,
@@ -398,9 +405,17 @@ function compareVersions(a: string, b: string): number {
   return 0
 }
 
-function timingSafeEqualHex(a: string, b: string): boolean {
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
-  return crypto.timingSafeEqual(bufA, bufB)
+/**
+ * Confirmaciones del agente (POST): la sede sale del trabajo/pedido, no del
+ * request. Misma regla que el poll: sede con token → exige token válido.
+ */
+async function agentTokenDeniedForLocation(
+  request: NextRequest,
+  locationId: unknown
+): Promise<NextResponse | null> {
+  if (!locationId) return null
+  const loc = await Location.findById(locationId).select('printerAgent.secretHash').lean<{
+    printerAgent?: { secretHash?: string | null }
+  }>()
+  return agentTokenDenied(checkAgentToken(loc?.printerAgent?.secretHash, request.headers.get('x-agent-token')))
 }

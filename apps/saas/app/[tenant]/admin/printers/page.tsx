@@ -67,7 +67,18 @@ export default async function PrintersPage() {
       <PrintersManager
         tenantSlug={tenantSlug ?? ''}
         printers={JSON.parse(JSON.stringify(printers))}
-        locations={JSON.parse(JSON.stringify(locations))}
+        locations={locations.map((l: any) => ({
+          _id: String(l._id),
+          name: l.name,
+          // Solo el estado del agente: nunca el hash del token ni el resto
+          // del documento de la sede (credenciales de integraciones).
+          agent: {
+            hasToken: Boolean(l.printerAgent?.secretHash),
+            lastSeenAt: l.printerAgent?.lastSeenAt ? new Date(l.printerAgent.lastSeenAt).toISOString() : null,
+            version: l.printerAgent?.version ?? null,
+            tokenPresent: Boolean(l.printerAgent?.tokenPresent),
+          },
+        }))}
         plan={plan}
       />
     </div>

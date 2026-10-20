@@ -75,7 +75,7 @@ const OPEN_BY_DESIGN = new Set([
 
   // PENDIENTES de decisión (no cerrar todavía)
   'menu/translate-all/route.ts', // lo usa el menú público; rate limit IP 5/min + caché por sede
-  'print-jobs/route.ts', // agente de impresora sin sesión; requiere token de agente (fase 1 log)
+  'print-jobs/route.ts', // agente de impresora sin sesión: token por sede (obligatorio si la sede lo generó)
 ])
 
 function listRouteFiles(dir: string, prefix = ''): string[] {
