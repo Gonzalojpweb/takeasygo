@@ -169,7 +169,7 @@ export interface RefreshResult {
 }
 
 type TenantDoc = {
-  _id: unknown
+  _id: import('mongoose').Types.ObjectId
   mpAccounts?: Array<{
     _id?: { toString(): string }
     oauthRefreshToken?: string | null
@@ -316,7 +316,7 @@ export async function findRenewCandidates(
       const status = classifyOauthExpiry(health.expiresAt, now, windowDays)
       if (status === 'expired' || status === 'soon' || status === 'unknown') {
         candidates.push({
-          tenantId: t._id,
+          tenantId: String(t._id),
           tenantSlug: t.slug,
           tenantName: t.name,
           scope: 'account',
@@ -333,7 +333,7 @@ export async function findRenewCandidates(
       const status = classifyOauthExpiry(health.expiresAt, now, windowDays)
       if (status === 'expired' || status === 'soon' || status === 'unknown') {
         candidates.push({
-          tenantId: t._id,
+          tenantId: String(t._id),
           tenantSlug: t.slug,
           tenantName: t.name,
           scope: 'legacy',

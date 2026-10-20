@@ -85,6 +85,9 @@ export async function GET(
         oauthExpiresAt = tenant.mpOAuth.expiresAt ?? null
       }
     } else {
+      if (!account) {
+        return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+      }
       oauthIsConnected = !!account.oauthIsConnected
       hasRefreshToken = !!account.oauthRefreshToken
       if (oauthIsConnected && account.oauthAccessToken) {
