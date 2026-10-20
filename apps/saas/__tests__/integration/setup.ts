@@ -2,7 +2,11 @@ import { vi, beforeAll, afterAll, afterEach } from 'vitest'
 
 vi.hoisted(() => {
   process.env.MONGOMS_VERSION = '8.0.4'
-  process.env.MONGOMS_DOWNLOAD_DIR = 'C:/Users/Gonzalo Palomo/.cache/mongodb-memory-server'
+  // Caché local del binario de mongod en la PC de desarrollo; en CI (Linux)
+  // se usa el default de mongodb-memory-server.
+  if (process.platform === 'win32' && !process.env.MONGOMS_DOWNLOAD_DIR) {
+    process.env.MONGOMS_DOWNLOAD_DIR = 'C:/Users/Gonzalo Palomo/.cache/mongodb-memory-server'
+  }
   process.env.MEMBER_TOKEN_SECRET = 'test-secret-for-integration'
   process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 })

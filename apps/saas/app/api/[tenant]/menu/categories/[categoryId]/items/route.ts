@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
 
@@ -32,6 +33,10 @@ export async function POST(
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
+    // Sede real del menú encontrado (no la del body): un usuario con sedes
+    // asignadas no edita el menú de otra sede.
+    const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
@@ -112,6 +117,10 @@ export async function PUT(
       console.error('[PUT items] Menú no encontrado:', { tenantId: tenant._id.toString(), locationId: locationId?.toString() })
       return NextResponse.json({ error: 'Menú no encontrado', tenantId: tenant._id.toString(), locationId }, { status: 404 })
     }
+    // Sede real del menú encontrado (no la del body): un usuario con sedes
+    // asignadas no edita el menú de otra sede.
+    const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     const category = menu.categories.id(categoryId)
     if (!category) {

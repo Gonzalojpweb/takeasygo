@@ -4,6 +4,7 @@ import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -163,6 +164,10 @@ export async function POST(
     if (!menu) {
       return NextResponse.json({ error: 'No se encontró el menú para esta sede' }, { status: 404 })
     }
+    // Sede real del menú encontrado (no la del body): un usuario con sedes
+    // asignadas no edita el menú de otra sede.
+    const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     const builtCategories = categories.map((cat: ImportCategory, catIndex: number) => ({
       name: cat.name.trim(),

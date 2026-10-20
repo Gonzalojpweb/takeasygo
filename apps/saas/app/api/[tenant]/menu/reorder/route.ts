@@ -6,6 +6,7 @@ import type { Types } from 'mongoose'
 import mongoose from 'mongoose'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { NextRequest } from 'next/server'
 
 type MenuCategory = {
@@ -60,6 +61,10 @@ export async function PUT(
     if (!menu) {
       return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
     }
+    // Sede real del menú encontrado (no la del body): un usuario con sedes
+    // asignadas no edita el menú de otra sede.
+    const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     if (type === 'categories') {
       const categories = menu.categories as unknown as MenuCategory[]

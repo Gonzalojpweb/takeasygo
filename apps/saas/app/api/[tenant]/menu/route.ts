@@ -5,6 +5,7 @@ import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 
@@ -73,6 +74,8 @@ export async function POST(
     if (!location) {
       return NextResponse.json({ error: 'Location no encontrada' }, { status: 404 })
     }
+    const sedeError = await guardRequestLocation(request, location._id, 'Location no encontrada')
+    if (sedeError) return sedeError
 
     const existing = await Menu.findOne({ tenantId: tenant._id, locationId: body.locationId })
     if (existing) {
@@ -125,6 +128,10 @@ export async function PUT(
     if (!menu) {
       return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
     }
+    // Sede real del menú encontrado (no la del body): un usuario con sedes
+    // asignadas no edita el menú de otra sede.
+    const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
+    if (sedeError) return sedeError
 
     if (optionImageRegistry !== undefined) {
       menu.optionImageRegistry = optionImageRegistry

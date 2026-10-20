@@ -35,9 +35,76 @@ function toSessionFromPosToken(payload: {
   }
 }
 
+// ── Permisos frescos ─────────────────────────────────────────────────────────
+// El JWT de NextAuth vive 8 h y congela role/tenantId/assignedLocations del
+// login. Para que quitar una sede, cambiar el rol o desactivar un usuario
+// tenga efecto en las APIs sin esperar a que expire, se releen de la DB con
+// un caché por instancia de 30 s.
+const FRESH_TTL_MS = 30_000
+const OBJECT_ID_RE = /^[a-f0-9]{24}$/i
+
+interface FreshUser {
+  role: string
+  tenantId: string | null
+  assignedLocations: string[]
+}
+
+const freshCache = new Map<string, { at: number; data: FreshUser | null }>()
+
+/** Solo para tests: vacía el caché de permisos frescos. */
+export function clearFreshUserCache() {
+  freshCache.clear()
+}
+
+/**
+ * undefined = no verificable (id que no es ObjectId: usuarios sintéticos de
+ * tests/sistema) → se usan los claims del token. null = usuario borrado o
+ * desactivado → sin sesión.
+ */
+async function loadFreshUser(id: string | null | undefined): Promise<FreshUser | null | undefined> {
+  if (!id || !OBJECT_ID_RE.test(id)) return undefined
+  const cached = freshCache.get(id)
+  if (cached && Date.now() - cached.at < FRESH_TTL_MS) return cached.data
+
+  const { connectDB } = await import('@/lib/mongoose')
+  await connectDB()
+  const User = (await import('@/models/User')).default
+  const doc = await User.findById(id)
+    .select('role tenantId assignedLocations isActive')
+    .lean<{ role: string; tenantId?: unknown; assignedLocations?: unknown[]; isActive?: boolean }>()
+  const data: FreshUser | null = !doc || doc.isActive === false
+    ? null
+    : {
+        role: doc.role,
+        tenantId: doc.tenantId ? String(doc.tenantId) : null,
+        assignedLocations: (doc.assignedLocations ?? []).map(String),
+      }
+  freshCache.set(id, { at: Date.now(), data })
+  return data
+}
+
+async function withFreshPermissions<T extends {
+  id?: string | null
+  role?: string | null
+  tenantId?: string | null
+  assignedLocation?: string | null
+  assignedLocations?: string[] | null
+}>(user: T): Promise<T | null> {
+  const fresh = await loadFreshUser(user.id)
+  if (fresh === undefined) return user
+  if (fresh === null) return null
+  return {
+    ...user,
+    role: fresh.role,
+    tenantId: fresh.tenantId,
+    assignedLocations: fresh.assignedLocations,
+    assignedLocation: fresh.assignedLocations[0] ?? null,
+  }
+}
+
 export async function getSessionUser(request?: NextRequest) {
   const session = await auth()
-  if (session?.user) return session.user
+  if (session?.user) return withFreshPermissions(session.user)
 
   if (!request) return null
 
@@ -46,7 +113,7 @@ export async function getSessionUser(request?: NextRequest) {
   if (secret) {
     const token = await getToken({ req: request, secret })
     if (token) {
-      return {
+      return withFreshPermissions({
         id: token.id as string,
         role: token.role as string,
         email: (token.email as string | null | undefined) ?? null,
@@ -56,7 +123,7 @@ export async function getSessionUser(request?: NextRequest) {
         assignedLocations: token.assignedLocations as string[],
         assignedTenants: token.assignedTenants as string[],
         image: token.image as string | null,
-      }
+      })
     }
   }
 

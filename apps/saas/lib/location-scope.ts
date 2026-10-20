@@ -20,6 +20,7 @@
 // ============================================================================
 
 import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
 export interface LocationScopeUser {
   role?: string | null
@@ -65,6 +66,22 @@ export function guardResourceLocation(
   if (!resourceLocationId) return null
   if (canAccessLocation(user, String(resourceLocationId))) return null
   return NextResponse.json({ error: notFoundMessage }, { status: 404 })
+}
+
+/**
+ * Igual que `guardResourceLocation` pero resolviendo la sesión del request.
+ * Para rutas admin que reciben la sede en body/query (menú, promociones,
+ * inventario…): un usuario con sedes asignadas no opera otra sede.
+ */
+export async function guardRequestLocation(
+  request: NextRequest,
+  locationId: unknown,
+  notFoundMessage = 'No encontrado'
+): Promise<NextResponse | null> {
+  if (!locationId) return null
+  const { getSessionUser } = await import('@/lib/apiAuth')
+  const user = await getSessionUser(request)
+  return guardResourceLocation(user, locationId, notFoundMessage)
 }
 
 /**
