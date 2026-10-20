@@ -101,17 +101,26 @@ export async function GET(
       )
     }
 
+    // Select mínimo: solo lo que el agente usa (ver printer-agent/agent.js
+    // findPrinterByName): name, uid, connectionType, ip, port, paperWidth,
+    // roles y printSettings (genera el ticket en el formato viejo; en 2.x
+    // el payload viene pre-renderizado pero el lookup lo pide igual).
+    // Sin tenantId/locationId/lastStatus/lastError (P-1).
     const printers = await Printer.find({
       tenantId: tenant._id,
       locationId,
       isActive: true,
-    }).lean()
+    })
+      .select('name uid connectionType ip port paperWidth roles printSettings')
+      .lean()
 
     const preCloseJobs = await PreClosePrintJob.find({
       tenantId: tenant._id,
       locationId,
       status: 'pending',
-    }).lean()
+    })
+      .select('printerName connectionType ip port paperWidth data')
+      .lean()
 
     const pollInterval = computePollInterval(location)
 
@@ -225,6 +234,10 @@ export async function GET(
         location: { locationName: location.name },
       }))
 
+      // DEUDA (P-1, formato viejo): expone el pedido completo con datos
+      // del cliente decryptados. Se elimina junto con el formato viejo
+      // cuando todas las sedes migren a agente >= 2.0.0 (ver plan de
+      // rollout en docs/INFORME-MULTISEDE-ESTADO-2026-10-19.md).
       return NextResponse.json({ orders: ordersWithLocation, printers, preCloseJobs, pollInterval })
     }
   } catch (error) {
