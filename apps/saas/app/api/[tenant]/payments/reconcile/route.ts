@@ -1,9 +1,11 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Reservation from '@/models/Reservation'
+import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import PaymentNotification from '@/models/PaymentNotification'
-import { decrypt } from '@/lib/crypto'
+import { decrypt, safeDecrypt } from '@/lib/crypto'
+import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
@@ -149,6 +151,44 @@ export async function GET(
             )
           })
           await session.endSession()
+
+          // Notificación post-commit (patrón del webhook MP): la reserva
+          // quedó confirmada sin pasar por el webhook — enviar confirmación
+          // al cliente + WhatsApp al admin si no salió antes.
+          if (!res.notifications?.confirmationSent) {
+            const resLoc = (res.locationId ? await Location.findById(res.locationId).lean() : null) as {
+              name?: string
+              spaces?: Array<{ _id?: unknown; name: string }>
+            } | null
+            const spaceName = resLoc?.spaces?.find(
+              s => String(s._id) === String(res.spaceId)
+            )?.name
+            sendReservationConfirmation(
+              {
+                reservationNumber: res.reservationNumber,
+                name: safeDecrypt(res.name),
+                phone: safeDecrypt(res.phone),
+                email: res.email || undefined,
+                clientToken: res.clientToken || undefined,
+                date: res.date,
+                time: res.time,
+                partySize: res.partySize,
+                notes: res.notes || '',
+                status: 'confirmed',
+                paymentAmountCents: res.payment?.amount || 0,
+                spaceName,
+              },
+              { name: tenant.name, slug: tenant.slug },
+              resLoc?.name || undefined,
+              tenant._id.toString(),
+              res.locationId?.toString()
+            ).catch(e => console.error('[reconcile] reservation confirmation error:', e))
+            await Reservation.updateOne(
+              { _id: res._id },
+              { $set: { 'notifications.confirmationSent': true } }
+            )
+          }
+
           results.reservations.healed++
         }
       } catch (err) {

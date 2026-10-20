@@ -90,7 +90,13 @@ export async function PUT(
     if (!reservation) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
 
     if (status === 'confirmed' && !prev.notifications?.confirmationSent) {
-      const location = await Location.findById(prev.locationId).lean()
+      const location = (await Location.findById(prev.locationId).lean()) as {
+        name?: string
+        spaces?: Array<{ _id?: unknown; name: string }>
+      } | null
+      const spaceName = location?.spaces?.find(
+        s => String(s._id) === String(prev.spaceId)
+      )?.name
       sendReservationConfirmation(
         {
           reservationNumber: prev.reservationNumber,
@@ -103,6 +109,8 @@ export async function PUT(
           partySize: prev.partySize,
           notes: prev.notes || '',
           status: 'confirmed',
+          paymentAmountCents: prev.payment?.amount || 0,
+          spaceName,
         },
         { name: tenant.name, slug: tenant.slug },
         location?.name || undefined,

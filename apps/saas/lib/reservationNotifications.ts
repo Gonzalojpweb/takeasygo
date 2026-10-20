@@ -1,6 +1,7 @@
 import { sendEmail } from './email'
 import { sendWhatsApp } from './whatsapp'
 import { resolveAdminWhatsApp } from '@/lib/location-resolvers'
+import { toPesos } from '@takeasygo/business'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import PushSubscription from '@/models/PushSubscription'
@@ -28,6 +29,10 @@ type ReservationInfo = {
   partySize: number
   notes: string
   status: string
+  /** Monto de la seña en centavos (0 = reserva sin seña). @storedAs cents */
+  paymentAmountCents?: number
+  /** Nombre del espacio/sector elegido (Salón, Terraza…), si la sede usa espacios. */
+  spaceName?: string
 }
 
 type TenantInfo = {
@@ -119,6 +124,27 @@ function reservationCardText(
   return lines.join('\n')
 }
 
+/** Texto del WhatsApp al admin cuando la reserva se CONFIRMA (seña pagada, gratis o manual). */
+function reservationAdminConfirmedText(
+  r: ReservationInfo,
+  tenantName: string,
+  locationName?: string
+): string {
+  const lines: string[] = [
+    `✅ *Reserva confirmada en ${tenantName}*`,
+    `👤 ${r.name}${r.phone ? ` — 📱 ${r.phone}` : ''}`,
+    `📅 ${formatDate(r.date)} 🕐 ${r.time} hs · 👥 ${r.partySize} pers`,
+  ]
+  if (locationName) lines.push(`📍 ${locationName}`)
+  if (r.spaceName) lines.push(`🪑 ${r.spaceName}`)
+  lines.push(`🔢 Código #${r.reservationNumber}`)
+  if (r.paymentAmountCents && r.paymentAmountCents > 0) {
+    lines.push(`💰 Seña pagada: $${toPesos(r.paymentAmountCents).toLocaleString('es-AR')}`)
+  }
+  if (r.notes) lines.push(`📝 ${r.notes}`)
+  return lines.join('\n')
+}
+
 async function sendAdminNotification(
   tenantId: string,
   reservation: ReservationInfo,
@@ -132,8 +158,6 @@ async function sendAdminNotification(
     role: { $in: ['admin', 'manager'] },
     isActive: true,
   }).lean()
-
-  if (admins.length === 0) return
 
   const dateFormatted = formatDate(reservation.date)
   const isConfirmed = type !== 'cancelled'
@@ -166,25 +190,36 @@ async function sendAdminNotification(
 
   const html = wrapHtml(bodyHtml)
 
-  await Promise.allSettled(
-    admins.map(admin => sendEmail(admin.email, subject, html))
-  )
+  // Email a usuarios admin/manager (si hay cargados)
+  if (admins.length > 0) {
+    await Promise.allSettled(
+      admins.map(admin => sendEmail(admin.email, subject, html))
+    )
+  }
 
-  // Cancelación → también al celular del local (igual que los pedidos).
-  // La "nueva reserva" ya sale por WhatsApp desde el POST de /reservas.
-  // Destino y flag con override por sede de ESTA reserva.
-  if (type === 'cancelled' && tenantId && process.env.WHAPI_TOKEN) {
+  // WhatsApp al admin del local (igual que los pedidos): destino y flag con
+  // override por sede de ESTA reserva. Cubre confirmaciones (seña pagada vía
+  // webhook, reserva gratis o confirmación manual — los3 caminos pasan por
+  // acá) y cancelaciones. Dedup del lado de los callers vía
+  // notifications.confirmationSent / cancellationSent. Independiente del
+  // email: funciona aunque el tenant no tenga usuarios admin/manager.
+  if ((type === 'confirmed' || type === 'cancelled') && tenantId && process.env.WHAPI_TOKEN) {
     try {
-      const tenantDoc = await Tenant.findById(tenantId).select('notifications').lean() as any
+      const tenantDoc = await Tenant.findById(tenantId).select('notifications').lean() as {
+        notifications?: {
+          whatsappPhone?: string | null
+          notifyOnReservation?: boolean
+        } | null
+      } | null
       const waTarget = await resolveAdminWhatsApp(
         { _id: tenantId, notifications: tenantDoc?.notifications },
         locationId
       )
       if (waTarget.phone && waTarget.notifyOnReservation !== false) {
-        await sendWhatsApp(
-          waTarget.phone,
-          `❌ *Reserva cancelada en ${tenant.name}*\n👤 ${reservation.name} - ${dateFormatted} ${reservation.time} hs\n👥 ${reservation.partySize} pers. · Código #${reservation.reservationNumber}`
-        )
+        const text = type === 'cancelled'
+          ? `❌ *Reserva cancelada en ${tenant.name}*\n👤 ${reservation.name} - ${dateFormatted} ${reservation.time} hs\n👥 ${reservation.partySize} pers. · Código #${reservation.reservationNumber}`
+          : reservationAdminConfirmedText(reservation, tenant.name, locationName)
+        await sendWhatsApp(waTarget.phone, text)
       }
     } catch (e) {
       console.error('[reservationNotifications] whatsapp admin error:', e)

@@ -16,6 +16,7 @@ import { encrypt, safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { pickAdminWhatsApp } from '@/lib/location-resolvers'
+import { toPesos } from '@takeasygo/business'
 import {
   DEFAULT_MIN_ADVANCE_MINUTES,
   DEFAULT_TIMEZONE,
@@ -256,6 +257,7 @@ export async function POST(
     const minPayment = reservationConfig.minPayment ?? 0
     const paymentAmount =
       reservationConfig.paymentsEnabled !== false && minPayment > 0 ? minPayment : 0
+    const isFree = paymentAmount <= 0
 
     const reservation = await Reservation.create({
       tenantId: tenant._id,
@@ -278,7 +280,10 @@ export async function POST(
         preferenceId: null,
         mpAccountId: null,
       },
-      notifications: {},
+      // Reserva gratis → la confirmación (cliente + WhatsApp al admin) sale en
+      // ESTE mismo request: el flag nace en true para que un webhook/reconcile
+      // tardío no la duplique. Con seña queda en false hasta el pago.
+      notifications: { confirmationSent: isFree },
     })
 
     // Aforo por espacios: insertar y recontar. Si entre el chequeo previo y el
@@ -376,9 +381,13 @@ export async function POST(
     // se notifica al cliente.
     // ════════════════════════════════════════════════════════════════════
 
-    const isFree = paymentAmount <= 0
+    const spaceName = spacesMode && typeof spaceId === 'string'
+      ? (spaces as Array<{ _id?: unknown; name: string }> | undefined)
+          ?.find(s => String(s._id) === String(spaceId))?.name
+      : undefined
     if (isFree) {
-      await sendReservationConfirmation(
+      // El flag confirmationSent ya nació en true en el create (dedup).
+      sendReservationConfirmation(
         {
           reservationNumber,
           name: name.trim(),
@@ -390,6 +399,8 @@ export async function POST(
           partySize,
           notes: notes?.trim() || '',
           status: 'confirmed',
+          paymentAmountCents: 0,
+          spaceName,
         },
         { name: tenant.name, slug: tenant.slug },
         location.name,
@@ -399,11 +410,25 @@ export async function POST(
     }
 
     // WhatsApp admin: destino y flags con override por sede (hereda el global).
+    // Reserva gratis → se omite: la confirmación con info completa (incluye el
+    // WhatsApp al admin) sale en el mismo request desde arriba.
     const waTarget = pickAdminWhatsApp(tenant, location.settings)
-    if (waTarget.phone && waTarget.notifyOnReservation) {
+    if (!isFree && waTarget.phone && waTarget.notifyOnReservation) {
+      const creationLines = [
+        `📅 *Nueva reserva en ${tenant.name}*`,
+        `👤 ${name.trim()} — 📱 ${phone.trim()}`,
+        `📅 ${date} ${time} hs · 👥 ${partySize} pers`,
+        `📍 ${location.name}`,
+      ]
+      if (spaceName) creationLines.push(`🪑 ${spaceName}`)
+      creationLines.push(`🔢 Código #${reservationNumber}`)
+      if (paymentAmount > 0) {
+        creationLines.push(`⏳ Pendiente de seña de $${toPesos(paymentAmount).toLocaleString('es-AR')}`)
+      }
+      if (notes?.trim()) creationLines.push(`📝 ${notes.trim()}`)
       sendWhatsApp(
         waTarget.phone,
-        `📅 Nueva reserva en ${tenant.name}\n👤 ${name.trim()} - ${date} ${time}\n👥 ${partySize} pers.`
+        creationLines.join('\n')
       ).catch(e => console.error('[whapi] reservation notification error:', e))
     }
 

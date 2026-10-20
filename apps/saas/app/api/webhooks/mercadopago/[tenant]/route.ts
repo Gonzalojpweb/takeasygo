@@ -598,6 +598,13 @@ export async function POST(
         const reservation = await Reservation.findById(reservaId).lean()
         if (reservation && !reservation.notifications?.confirmationSent) {
           const loc = reservation.locationId ? await (await import('@/models/Location')).default.findById(reservation.locationId).lean() : null
+          const locDoc = loc as {
+            name?: string
+            spaces?: Array<{ _id?: unknown; name: string }>
+          } | null
+          const spaceName = locDoc?.spaces?.find(
+            s => String(s._id) === String(reservation.spaceId)
+          )?.name
           sendReservationConfirmation(
             {
               reservationNumber: reservation.reservationNumber,
@@ -610,9 +617,11 @@ export async function POST(
               partySize: reservation.partySize,
               notes: reservation.notes || '',
               status: 'confirmed',
+              paymentAmountCents: reservation.payment?.amount || 0,
+              spaceName,
             },
             { name: tenant.name, slug: tenant.slug },
-            (loc as any)?.name || undefined,
+            locDoc?.name || undefined,
             tenant._id.toString(),
             reservation.locationId?.toString()
           ).catch(e => console.error('[webhook] reservation confirmation error:', e))
