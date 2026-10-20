@@ -12,6 +12,7 @@ import { calculateFinalTotal } from '@/lib/pricing'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
+import { getBaseUrl } from '@/lib/site-url'
 
 export async function POST(
   request: NextRequest,
@@ -68,7 +69,8 @@ if (!success) {
     const client = new MercadoPagoConfig({ accessToken: rawToken })
     const preference = new Preference(client)
 
-    const baseUrl = request.nextUrl.origin
+    // Dirección canónica única (NEXT_PUBLIC_URL) — no el origin de la request.
+    const baseUrl = getBaseUrl(request)
 
     // ── Sanitize external_reference (defensive, MP SDK expects safe strings) ──
     const safeRef = order.orderNumber.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)

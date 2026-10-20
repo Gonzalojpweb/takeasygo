@@ -37,6 +37,9 @@ export const FLAGS = {
   /** Mercado Pago por sede: cada Location usa su propia cuenta MP
    *  (Location.settings.mpAccountId). Off = cuenta activa del tenant (shared). */
   MP_PER_LOCATION: 'mp.perLocation',
+  /** Renovación automática de tokens OAuth MP: el cron mp-oauth-renew
+   *  renueva los tokens por vencer. Off = nunca renueva (manual). */
+  MP_OAUTH_AUTO_RENEW: 'mp.oauthAutoRenew',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

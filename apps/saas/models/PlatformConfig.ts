@@ -45,6 +45,12 @@ export interface IPlatformConfig {
     lastUserId: string | null
     lastRunAt: Date | null
   }
+  /** Candado distribuido para el cron de renovación OAuth MP (un solo ejecutor) */
+  mpOauthRenewLock: {
+    until: Date | null
+    owner: string | null
+    acquiredAt: Date | null
+  }
   updatedAt: Date
 }
 
@@ -90,6 +96,11 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     gcSyncCursor: {
       lastUserId: { type: String, default: null },
       lastRunAt:  { type: Date, default: null },
+    },
+    mpOauthRenewLock: {
+      until:      { type: Date, default: null },
+      owner:      { type: String, default: null },
+      acquiredAt: { type: Date, default: null },
     },
   },
   { timestamps: true }

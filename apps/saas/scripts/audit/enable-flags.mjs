@@ -44,6 +44,11 @@ const FLAG_KEYS = [
   'mp.perLocation',
 ]
 
+// Flags operativas que --set NO enciende en lote: solo con --only explícito.
+const EXTRA_FLAGS = [
+  'mp.oauthAutoRenew',
+]
+
 const VALID_MODES = ['off', 'log', 'enforce']
 
 function argValue(flag) {
@@ -75,8 +80,8 @@ for (const pair of collectValues('--mode')) {
     console.error(`--mode inválido: "${pair}". Formato: <flag>=<${VALID_MODES.join('|')}>`)
     process.exit(2)
   }
-  if (!FLAG_KEYS.includes(flag)) {
-    console.error(`Flag desconocida en --mode: ${flag}. Válidas: ${FLAG_KEYS.join(', ')}`)
+  if (!FLAG_KEYS.includes(flag) && !EXTRA_FLAGS.includes(flag)) {
+    console.error(`Flag desconocida en --mode: ${flag}. Válidas: ${[...FLAG_KEYS, ...EXTRA_FLAGS].join(', ')}`)
     process.exit(2)
   }
   modeOverrides.set(flag, mode)
@@ -94,8 +99,8 @@ if (setMode === clearMode) {
 }
 
 for (const flag of onlyFlags) {
-  if (!FLAG_KEYS.includes(flag)) {
-    console.error(`Flag desconocida en --only: ${flag}. Válidas: ${FLAG_KEYS.join(', ')}`)
+  if (!FLAG_KEYS.includes(flag) && !EXTRA_FLAGS.includes(flag)) {
+    console.error(`Flag desconocida en --only: ${flag}. Válidas: ${[...FLAG_KEYS, ...EXTRA_FLAGS].join(', ')}`)
     process.exit(2)
   }
 }
@@ -173,8 +178,10 @@ async function main() {
 
   const prevFlags = tenant.flags || {}
 
-  // Flags a tocar: todas, salvo las restringidas con --only.
-  const targetFlags = FLAG_KEYS.filter((k) => onlyFlags.length === 0 || onlyFlags.includes(k))
+  // Flags a tocar: las 6 multisede en lote; las EXTRA_FLAGS solo con --only.
+  const targetFlags = [...FLAG_KEYS, ...EXTRA_FLAGS].filter(
+    (k) => onlyFlags.length === 0 ? FLAG_KEYS.includes(k) : onlyFlags.includes(k)
+  )
 
   // Valor final de cada flag afectada.
   const newFlags = { ...prevFlags }

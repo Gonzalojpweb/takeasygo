@@ -46,6 +46,10 @@
       "schedule": "0 5 * * *"
     },
     {
+      "path": "/api/cron/mp-oauth-renew",
+      "schedule": "30 5 * * *"
+    },
+    {
       "path": "/api/cron/compliance-sweep",
       "schedule": "0 7 * * *"
     },

@@ -10,6 +10,7 @@ import { toPesos } from '@takeasygo/business/browser'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
+import { getClientBaseUrl } from '@/lib/site-url'
 import { StatusNotificationCard } from './StatusNotificationCard'
 import PointsEarnedToast from '@/components/rewards/PointsEarnedToast'
 import PostDeliveryCelebration from './PostDeliveryCelebration'
@@ -277,7 +278,7 @@ export default function OrderTracker({
         orderMode,
         deliveryAddress,
         trackingUrl: typeof window !== 'undefined'
-          ? `${window.location.origin}/${tenantSlug}/tracking/${orderNumber}`
+          ? `${getClientBaseUrl()}/${tenantSlug}/tracking/${orderNumber}`
           : '',
         paymentId,
       })

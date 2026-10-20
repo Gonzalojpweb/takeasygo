@@ -208,6 +208,8 @@ export interface ITenant extends Document {
     commissionPercent?: number | null
     /** user_id de MP al que pertenece el token OAuth */
     mpUserId?: number | null
+    /** Última renovación automática exitosa vía refresh_token */
+    lastRefreshedAt?: Date | null
   }
   /** Multi-account MercadoPago — one active at a time */
   mpAccounts: {
@@ -223,6 +225,8 @@ export interface ITenant extends Document {
     oauthExpiresAt?: Date | null
     oauthIsConnected?: boolean
     oauthAuthorizedAt?: Date | null
+    /** Última renovación automática exitosa vía refresh_token */
+    oauthLastRefreshedAt?: Date | null
     createdAt: Date
     /** user_id de MP al que pertenece el accessToken manual */
     mpUserId?: number | null
@@ -642,6 +646,8 @@ const TenantSchema = new Schema<ITenant>(
       commissionPercent: { type: Number, default: null, min: 0, max: 100 },
       /** user_id de MP al que pertenece el token OAuth */
       mpUserId: { type: Number, default: null },
+      /** Última renovación automática exitosa vía refresh_token */
+      lastRefreshedAt: { type: Date, default: null },
     },
     // ── Multi-account MercadoPago ──────────────────────────────────────────
     mpAccounts: {
@@ -656,6 +662,8 @@ const TenantSchema = new Schema<ITenant>(
         oauthExpiresAt:    { type: Date, default: null },
         oauthIsConnected:  { type: Boolean, default: false },
         oauthAuthorizedAt: { type: Date, default: null },
+        /** Última renovación automática exitosa vía refresh_token */
+        oauthLastRefreshedAt: { type: Date, default: null },
         createdAt:         { type: Date, default: Date.now },
         /** user_id de MP al que pertenece el accessToken manual */
         mpUserId:          { type: Number, default: null },

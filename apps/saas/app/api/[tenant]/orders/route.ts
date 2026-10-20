@@ -23,6 +23,7 @@ import type { Plan } from '@/lib/plans'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
+import { getBaseUrl } from '@/lib/site-url'
 import { auth } from '@/lib/auth'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { isServiceOpen } from '@/lib/availability'
@@ -2183,7 +2184,7 @@ export async function POST(
     // WhatsApp admin: destino y flags con override por sede (hereda el global).
     const waTarget = pickAdminWhatsApp(tenant, location.settings)
     if (waTarget.phone && waTarget.notifyOnOrder) {
-      const baseUrl = process.env.NEXT_PUBLIC_URL || request.nextUrl.origin
+      const baseUrl = getBaseUrl(request)
       const trackingUrl = `${baseUrl}/${tenantSlug}/tracking/${order.orderNumber}`
       const waMessage = buildOrderWhatsAppMessage(
         {

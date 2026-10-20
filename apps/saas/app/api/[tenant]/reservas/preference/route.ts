@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
+import { getBaseUrl } from '@/lib/site-url'
 
 export async function POST(
   request: NextRequest,
@@ -65,7 +66,8 @@ export async function POST(
     const client = new MercadoPagoConfig({ accessToken })
     const preference = new Preference(client)
 
-    const baseUrl = request.nextUrl.origin
+    // Dirección canónica única (NEXT_PUBLIC_URL) — no el origin de la request.
+    const baseUrl = getBaseUrl(request)
 
     const result = await preference.create({
       body: {

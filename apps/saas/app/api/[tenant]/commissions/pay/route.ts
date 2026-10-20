@@ -7,6 +7,7 @@ import { getPlatformMPClient } from '@/lib/mp-platform'
 import { Preference } from 'mercadopago'
 import { toPesos } from '@takeasygo/business'
 import { computeTransferPayable } from '@/lib/commissions'
+import { getBaseUrl } from '@/lib/site-url'
 
 /**
  * POST /api/{tenant}/commissions/pay
@@ -79,7 +80,8 @@ export async function POST(
     const { client } = await getPlatformMPClient()
     const preference = new Preference(client)
 
-    const appUrl = process.env.NEXTAUTH_URL ?? 'https://takeasygo.vercel.app'
+    // Dirección canónica única (NEXT_PUBLIC_URL > NEXTAUTH_URL > origin).
+    const appUrl = getBaseUrl(request)
     const periodLabel = `${from.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} - ${to.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}`
 
     const result = await preference.create({
