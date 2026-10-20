@@ -260,8 +260,10 @@ export async function POST(
       await job.save()
 
       if (printerName) {
+        // P-2: acotar por sede — dos sedes pueden tener una impresora
+        // con el mismo nombre y no deben pisarse el estado entre sí.
         await Printer.findOneAndUpdate(
-          { tenantId: tenant._id, name: printerName },
+          { tenantId: tenant._id, locationId: job.locationId, name: printerName },
           {
             $set: {
               lastStatus: success ? 'ok' : 'error',
@@ -312,9 +314,9 @@ export async function POST(
 
       await order.save()
 
-      // Actualizar estado de la impresora
+      // Actualizar estado de la impresora (P-2: acotado a la sede de la orden)
       await Printer.findOneAndUpdate(
-        { tenantId: tenant._id, name: job.printerName },
+        { tenantId: tenant._id, locationId: order.locationId, name: job.printerName },
         {
           $set: {
             lastStatus: success ? 'ok' : 'error',
@@ -350,8 +352,9 @@ export async function POST(
 
     await order.save()
 
+    // P-2: acotar a la sede de la orden (mismo nombre en otra sede no se pisa)
     await Printer.findOneAndUpdate(
-      { tenantId: tenant._id, name: printerName },
+      { tenantId: tenant._id, locationId: order.locationId, name: printerName },
       {
         $set: {
           lastStatus: success ? 'ok' : 'error',

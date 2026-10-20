@@ -45,7 +45,13 @@ export async function GET(
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
-      .select('name scheduledOrdersConfig serviceHours timezone deliveryConfig settings.estimatedPickupTime settings.delayAnnouncement')
+      .select(
+        'name scheduledOrdersConfig serviceHours timezone deliveryConfig prefix ' +
+        'settings.acceptsOrders settings.orderModes settings.estimatedPickupTime ' +
+        'settings.delayAnnouncement settings.cash settings.mpAccountId ' +
+        'settings.whatsappPhone settings.transferAccountId ' +
+        'settings.notifyOnOrder settings.notifyOnReservation'
+      )
       .lean() as any
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 

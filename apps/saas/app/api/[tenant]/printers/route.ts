@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
+import Location from '@/models/Location'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { NextRequest, NextResponse } from 'next/server'
@@ -57,6 +58,13 @@ export async function POST(
 
     if (!locationId || !name || !ip) {
       return NextResponse.json({ error: 'locationId, name e ip son obligatorios' }, { status: 400 })
+    }
+
+    // P-3: la sede debe pertenecer a este tenant (impedir crear
+    // impresoras apuntando a sedes de otro negocio).
+    const location = await Location.exists({ _id: locationId, tenantId: tenant._id })
+    if (!location) {
+      return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
 
     const uid = `MANUAL-${ip.replace(/\./g, '-')}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`
