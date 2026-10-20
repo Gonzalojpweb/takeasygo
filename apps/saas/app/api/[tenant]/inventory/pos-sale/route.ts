@@ -4,6 +4,7 @@ import Tenant from "@/models/Tenant"
 import { captureSaleConsumed } from "@/lib/inventory"
 import { requireAuth, getSessionUser } from "@/lib/apiAuth"
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardStorageLocation } from '@/lib/inventory/storage-scope'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/pos-sale — Capturar venta POS → SaleConsumed
@@ -41,6 +42,11 @@ export async function POST(
     const actorId: string | undefined = sessionUser?.id ?? undefined
 
     const body = await request.json()
+
+    // La ubicación de stock tiene que ser de este tenant y de una sede del
+    // alcance del usuario.
+    const storageError = await guardStorageLocation(request, tenant._id, body?.storageLocationId)
+    if (storageError) return storageError
 
     // Validación (ObjectId estricto: evita CastError de Mongoose → 500)
     const isObjectId = (v: unknown): v is string =>

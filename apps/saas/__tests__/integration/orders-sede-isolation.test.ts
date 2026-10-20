@@ -98,6 +98,8 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Order from '@/models/Order'
 import UserLocationRole from '@/models/UserLocationRole'
+import User from '@/models/User'
+import { clearFreshUserCache } from '@/lib/apiAuth'
 import { PATCH as statusPATCH } from '@/app/api/[tenant]/orders/[orderId]/status/route'
 import { GET as orderGET, DELETE as orderDELETE } from '@/app/api/[tenant]/orders/[orderId]/route'
 import { PATCH as confirmTransferPATCH } from '@/app/api/[tenant]/orders/[orderId]/confirm-transfer-admin/route'
@@ -163,6 +165,20 @@ function setSession(role: string, assignedLocations: string[], id = `user-${role
     },
     expires: '',
   } as unknown as Awaited<ReturnType<typeof auth>>)
+}
+
+/**
+ * Sesión con id ObjectId: getSessionUser relee el usuario de la DB (permisos
+ * frescos), así que el usuario tiene que existir con los mismos claims.
+ */
+async function setDbSession(role: string, assignedLocations: string[], id: string) {
+  clearFreshUserCache()
+  await User.findByIdAndUpdate(
+    id,
+    { role, name: role, email: `${role}-${id}@test.com`, tenantId: tenant._id, assignedLocations },
+    { upsert: true }
+  )
+  setSession(role, assignedLocations, id)
 }
 
 async function seedOrder(
@@ -439,7 +455,7 @@ describe('POST /orders/cleanup-cancelled — aislamiento por sede', () => {
     const oldL2 = await seedCancelled(loc2, TWO_DAYS)
     const freshL1 = await seedCancelled(loc1, 60 * 60 * 1000) // 1h, no entra al cutoff
 
-    setSession('manager', [loc1._id.toString()], MANAGER_ULR_ID)
+    await setDbSession('manager', [loc1._id.toString()], MANAGER_ULR_ID)
     const res = await cleanupPOST(cleanupReq(), tenantParams())
     expect(res.status).toBe(200)
     expect((await res.json()).deleted).toBe(1)
@@ -464,7 +480,7 @@ describe('POST /orders/cleanup-cancelled — aislamiento por sede', () => {
     await seedCancelled(loc1, TWO_DAYS)
     await seedCancelled(loc2, TWO_DAYS)
 
-    setSession('manager', [], MANAGER_ULR_ID)
+    await setDbSession('manager', [], MANAGER_ULR_ID)
     const res = await cleanupPOST(cleanupReq(), tenantParams())
     expect(res.status).toBe(200)
     expect((await res.json()).deleted).toBe(2)

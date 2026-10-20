@@ -12,7 +12,7 @@ vi.mock('@/lib/mongoose', () => ({
 }))
 vi.mock('@/lib/apiAuth', () => ({
   requireAuth: vi.fn().mockResolvedValue(null),
-  getSessionUser: vi.fn().mockResolvedValue(null),
+  getSessionUser: vi.fn().mockResolvedValue({ id: 'admin-id', role: 'admin', assignedLocations: [] }),
 }))
 vi.mock('@/lib/rbac', () => ({
   enforcePermissionForRequest: vi.fn().mockResolvedValue(null),

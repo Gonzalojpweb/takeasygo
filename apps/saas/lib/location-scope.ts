@@ -85,6 +85,33 @@ export async function guardRequestLocation(
 }
 
 /**
+ * Recursos "compartidos con override" (p. ej. promociones): `locationId`
+ * null = aplica a todas las sedes. Solo un usuario de tenant (sin sedes
+ * asignadas) opera los compartidos; uno de sede, solo los de sus sedes.
+ */
+export async function guardSharedOrLocation(
+  request: NextRequest,
+  locationId: unknown,
+  notFoundMessage = 'No encontrado'
+): Promise<NextResponse | null> {
+  const { getSessionUser } = await import('@/lib/apiAuth')
+  const user = await getSessionUser(request)
+  if (locationId) return guardResourceLocation(user, locationId, notFoundMessage)
+  if (!user) return NextResponse.json({ error: notFoundMessage }, { status: 404 })
+  const scoped = user.role !== 'superadmin' && (user.assignedLocations ?? []).length > 0
+  return scoped ? NextResponse.json({ error: notFoundMessage }, { status: 404 }) : null
+}
+
+/** Filtro para listados/lotes: sedes del usuario, o null si es de tenant. */
+export async function scopedLocationIds(request: NextRequest): Promise<string[] | null> {
+  const { getSessionUser } = await import('@/lib/apiAuth')
+  const user = await getSessionUser(request)
+  if (!user || user.role === 'superadmin') return null
+  const locs = (user.assignedLocations ?? []).map(String)
+  return locs.length > 0 ? locs : null
+}
+
+/**
  * Registra (sin bloquear) un intento cross-sede. Se usa en modo `log` del flag
  * `multisede.strictLocationId`: deja evidencia para medir falsos positivos
  * antes de endurecer a `enforce`.

@@ -3,6 +3,7 @@ import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 
 export async function GET(
@@ -61,10 +62,26 @@ export async function PUT(
     if (permError) return permError
 
     const body = await request.json()
+    // Sin asignación masiva de pertenencia: tenantId/_id no se editan.
+    // Pertenencia y alcance de plataforma (scope global / targetTenants)
+    // no se asignan desde el panel del tenant.
+    const { _id: _ignoredId, tenantId: _ignoredTenant, scope: _ignoredScope, targetTenants: _ignoredTargets, ...data } = body
+
+    const existing = await Promotion.findOne({ _id: promotionId, tenantId: tenant._id })
+      .select('locationId').lean<{ locationId?: unknown }>()
+    if (!existing) {
+      return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+    }
+    const sedeError = await guardSharedOrLocation(request, existing.locationId ?? null, 'Promoción no encontrada')
+    if (sedeError) return sedeError
+    if ('locationId' in data) {
+      const targetError = await guardSharedOrLocation(request, data.locationId ?? null, 'Sede no encontrada')
+      if (targetError) return targetError
+    }
 
     const promotion = await Promotion.findOneAndUpdate(
       { _id: promotionId, tenantId: tenant._id },
-      { $set: body },
+      { $set: data },
       { returnDocument: 'after' }
     )
 
@@ -110,6 +127,14 @@ export async function DELETE(
       permission: 'promotions.write',
     })
     if (permError) return permError
+
+    const existing = await Promotion.findOne({ _id: promotionId, tenantId: tenant._id })
+      .select('locationId').lean<{ locationId?: unknown }>()
+    if (!existing) {
+      return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+    }
+    const sedeError = await guardSharedOrLocation(request, existing.locationId ?? null, 'Promoción no encontrada')
+    if (sedeError) return sedeError
 
     const promotion = await Promotion.findOneAndDelete({ 
       _id: promotionId, 

@@ -6,10 +6,13 @@ import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { aggregateOrdersForRange, buildPreCloseBuffer } from '@/lib/preclose-report'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforcePermissionOrAdmin } from '@/lib/rbac'
+import { getSessionUser } from '@/lib/apiAuth'
+import mongoose from 'mongoose'
 
 /**
  * POST /api/[tenant]/preclose/print
- * Body: { from: string (ISO date), to: string (ISO date), printerName: string }
+ * Body: { from: string (ISO date), to: string (ISO date), printerId: string }
+ *       (printerName: string — compatibilidad; ambiguo entre sedes)
  * Generates the pre-close ESC/POS buffer and creates a PreClosePrintJob.
  */
 export async function POST(
@@ -31,13 +34,14 @@ export async function POST(
     })
     if (guardError) return guardError
 
-    const { from, to, printerName } = await request.json()
+    // printerId (preferido): el nombre se repite entre sedes. printerName
+    // queda por compatibilidad con clientes viejos.
+    const { from, to, printerId, printerName } = await request.json()
 
-    if (
-      typeof from !== 'string' || typeof to !== 'string' || typeof printerName !== 'string' ||
-      printerName.length === 0 || printerName.length > 100
-    ) {
-      return NextResponse.json({ error: 'from, to y printerName son obligatorios' }, { status: 400 })
+    const validPrinterId = typeof printerId === 'string' && mongoose.Types.ObjectId.isValid(printerId)
+    const validPrinterName = typeof printerName === 'string' && printerName.length > 0 && printerName.length <= 100
+    if (typeof from !== 'string' || typeof to !== 'string' || (!validPrinterId && !validPrinterName)) {
+      return NextResponse.json({ error: 'from, to y la impresora son obligatorios' }, { status: 400 })
     }
 
     const fromDate = new Date(from)
@@ -50,9 +54,13 @@ export async function POST(
 
     // Need locationId to filter printers and aggregate orders
     // The user can have multiple locations — we use printerName to resolve
+    // Un usuario con sedes asignadas solo busca entre las impresoras de sus sedes.
+    const user = await getSessionUser(request)
+    const scoped = user?.role === 'superadmin' ? [] : (user?.assignedLocations ?? [])
     const printer = await Printer.findOne({
       tenantId: tenant._id,
-      name: printerName,
+      ...(validPrinterId ? { _id: printerId } : { name: printerName }),
+      ...(scoped.length > 0 ? { locationId: { $in: scoped } } : {}),
       isActive: true,
     })
 

@@ -4,6 +4,7 @@ import Tenant from "@/models/Tenant"
 import { processInventoryEvent } from "@/lib/inventory"
 import { requireAuth } from "@/lib/apiAuth"
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardStorageLocation } from '@/lib/inventory/storage-scope'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/events — Registrar evento de inventario
@@ -35,6 +36,11 @@ export async function POST(
     if (permError) return permError
 
     const body = await request.json()
+
+    // La ubicación de stock tiene que ser de este tenant y de una sede del
+    // alcance del usuario.
+    const storageError = await guardStorageLocation(request, tenant._id, body?.storageLocationId)
+    if (storageError) return storageError
 
     // Validación de campos requeridos
     const required = ["eventId", "skuId", "storageLocationId", "eventType", "occurredAt", "source", "confidence", "payload"]

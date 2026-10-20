@@ -3,6 +3,7 @@ import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 
 export async function GET(
@@ -103,8 +104,16 @@ export async function POST(
       }
     }
 
+    // Sede de la promo (null = todas): un usuario de sede solo crea promos
+    // de sus sedes; las compartidas son de nivel tenant.
+    const sedeError = await guardSharedOrLocation(request, body.locationId ?? null, 'Sede no encontrada')
+    if (sedeError) return sedeError
+
+    // Pertenencia y alcance de plataforma (scope global / targetTenants)
+    // no se asignan desde el panel del tenant.
+    const { _id: _ignoredId, tenantId: _ignoredTenant, scope: _ignoredScope, targetTenants: _ignoredTargets, ...data } = body
     const promotion = await Promotion.create({
-      ...body,
+      ...data,
       tenantId: tenant._id,
     })
 

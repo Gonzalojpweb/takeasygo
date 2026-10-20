@@ -4,6 +4,7 @@ import Promotion from '@/models/Promotion'
 import { headers } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { enforcePermissionOrAdmin } from '@/lib/rbac'
+import { scopedLocationIds } from '@/lib/location-scope'
 
 export async function PUT(
   request: NextRequest,
@@ -44,8 +45,12 @@ export async function PUT(
       return NextResponse.json({ error: 'orderedIds es requerido y debe ser un array de ObjectIds' }, { status: 400 })
     }
 
+    // Un usuario de sede solo reordena promos de sus sedes (las compartidas
+    // y las de otras sedes quedan afuera del lote).
+    const scoped = await scopedLocationIds(request)
     const promotions = await Promotion.find({
       tenantId: tenant._id,
+      ...(scoped ? { locationId: { $in: scoped } } : {}),
     }).lean<Array<{ _id: string }>>()
 
     const promoMap = new Map<string, { _id: string }>()
@@ -53,19 +58,22 @@ export async function PUT(
       promoMap.set(p._id.toString(), p)
     }
 
-    const bulkOps = orderedIds.map((id: string, index: number) => ({
-      updateOne: {
-        filter: { _id: id, tenantId: tenant._id },
-        update: { $set: { sortOrder: index } },
-      },
-    }))
+    const bulkOps = orderedIds
+      .map((id: string, index: number) => ({ id, index }))
+      .filter(({ id }: { id: string }) => promoMap.has(id))
+      .map(({ id, index }: { id: string; index: number }) => ({
+        updateOne: {
+          filter: { _id: id, tenantId: tenant._id },
+          update: { $set: { sortOrder: index } },
+        },
+      }))
 
-    const result = await Promotion.bulkWrite(bulkOps)
+    const result = bulkOps.length > 0 ? await Promotion.bulkWrite(bulkOps) : null
 
     return NextResponse.json({
       success: true,
       message: 'Orden actualizado correctamente',
-      updated: result.modifiedCount,
+      updated: result?.modifiedCount ?? 0,
     })
   } catch (error) {
     console.error('Error reordenando promociones:', error)

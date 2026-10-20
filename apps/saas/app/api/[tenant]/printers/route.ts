@@ -2,8 +2,10 @@ import { connectDB } from '@/lib/mongoose'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
+import mongoose from 'mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -23,7 +25,19 @@ export async function GET(
 
     const locationId = request.nextUrl.searchParams.get('locationId')
     const filter: Record<string, any> = { tenantId: tenant._id }
-    if (locationId) filter.locationId = locationId
+    if (locationId) {
+      if (!mongoose.Types.ObjectId.isValid(locationId)) {
+        return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+      }
+      const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+      if (sedeError) return sedeError
+      filter.locationId = locationId
+    } else {
+      // Sin sede pedida: un usuario con sedes asignadas solo ve las suyas.
+      const user = await getSessionUser(request)
+      const scoped = user?.role === 'superadmin' ? [] : (user?.assignedLocations ?? [])
+      if (scoped.length > 0) filter.locationId = { $in: scoped }
+    }
 
     const printers = await Printer.find(filter).sort({ createdAt: 1 })
     return NextResponse.json({ printers })
@@ -66,6 +80,8 @@ export async function POST(
     if (!location) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const uid = `MANUAL-${ip.replace(/\./g, '-')}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`
 

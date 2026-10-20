@@ -13,6 +13,8 @@ import {
 } from "@/lib/inventory/recipe-inference"
 import { requireAuth } from "@/lib/apiAuth"
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
+import mongoose from 'mongoose'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/onboarding — Progressive Zero-Setup
@@ -109,8 +111,18 @@ export async function POST(
 
     // ── 2. Crear ubicaciones de stock por defecto ───────────────────────────
     if (body.createStorageLocations) {
-      // Obtener primera sede del tenant
-      const location = await Location.findOne({ tenantId: tenant._id, isActive: true })
+      // Sede elegida (selector del admin); sin sede → la primera del tenant.
+      const location = await Location.findOne({
+        tenantId: tenant._id,
+        isActive: true,
+        ...(typeof body.locationId === 'string' && mongoose.Types.ObjectId.isValid(body.locationId)
+          ? { _id: body.locationId }
+          : {}),
+      })
+      const sedeError = location
+        ? await guardRequestLocation(request, location._id, 'Sede no encontrada')
+        : null
+      if (sedeError) return sedeError
       if (location) {
         const locResult = await ensureDefaultStorageLocations(
           tenant._id.toString(),

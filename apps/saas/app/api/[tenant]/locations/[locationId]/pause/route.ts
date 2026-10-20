@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -15,6 +16,8 @@ export async function PATCH(
 
   const authError = await requireAuth(request, tenant._id.toString())
   if (authError) return authError
+  const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+  if (sedeError) return sedeError
 
   const location = await Location.findOne({
     _id: locationId,

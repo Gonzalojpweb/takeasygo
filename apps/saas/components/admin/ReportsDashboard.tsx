@@ -140,7 +140,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             .then(data => {
                 const list = Array.isArray(data) ? data : data.printers || []
                 setPrinters(list)
-                if (list.length > 0) setSelectedPrinter(list[0].name)
+                if (list.length > 0) setSelectedPrinter(list[0]._id)
             })
             .catch(() => {})
     }, [tenantSlug])
@@ -156,7 +156,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             const res = await fetch(`/api/${tenantSlug}/preclose/print`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ from, to, printerName: selectedPrinter }),
+                body: JSON.stringify({ from, to, printerId: selectedPrinter }),
             })
             if (!res.ok) {
                 const err = await res.json()
@@ -667,7 +667,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                                 >
                                     {printers.length === 0 && <option value="">Sin impresoras</option>}
                                     {printers.map((p: any) => (
-                                        <option key={p._id} value={p.name}>{p.name}</option>
+                                        <option key={p._id} value={p._id}>{p.name}</option>
                                     ))}
                                 </select>
 

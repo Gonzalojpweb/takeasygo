@@ -4,6 +4,7 @@ import Tenant from "@/models/Tenant"
 import { captureGoodsReceived } from "@/lib/inventory"
 import { requireAuth, getSessionUser } from "@/lib/apiAuth"
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardStorageLocation } from '@/lib/inventory/storage-scope'
 
 // ============================================================================
 // POST /api/[tenant]/inventory/goods-received — Recepción de mercadería
@@ -41,6 +42,11 @@ export async function POST(
     const actorId: string | undefined = sessionUser?.id ?? undefined
 
     const body = await request.json()
+
+    // La ubicación de stock tiene que ser de este tenant y de una sede del
+    // alcance del usuario.
+    const storageError = await guardStorageLocation(request, tenant._id, body?.storageLocationId)
+    if (storageError) return storageError
 
     // ObjectId estricto: evita CastError de Mongoose → 500
     if (

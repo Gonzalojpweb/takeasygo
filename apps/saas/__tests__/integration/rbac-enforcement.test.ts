@@ -23,6 +23,8 @@ vi.mock('@/lib/mongoose', () => ({
 
 import Tenant from '@/models/Tenant'
 import UserLocationRole from '@/models/UserLocationRole'
+import User from '@/models/User'
+import { clearFreshUserCache } from '@/lib/apiAuth'
 import { POST as cashAdjustment } from '@/app/api/[tenant]/cash-adjustment/route'
 import { GET as listUsers } from '@/app/api/[tenant]/users/route'
 import { PUT as putBranding } from '@/app/api/[tenant]/settings/branding/route'
@@ -48,6 +50,15 @@ beforeEach(async () => {
     plan: 'full',
     flags: {},
   })
+  // getSessionUser relee el usuario de la DB (permisos frescos): las
+  // sesiones de los tests apuntan a usuarios reales con el mismo rol.
+  clearFreshUserCache()
+  await User.create([
+    { _id: staffId, name: 'Staff', email: 'staff@rbac.test', phone: '+549110000001', role: 'staff', tenantId: tenant._id },
+    { _id: managerId, name: 'Manager', email: 'manager@rbac.test', phone: '+549110000002', role: 'manager', tenantId: tenant._id },
+    { _id: cashierId, name: 'Cashier', email: 'cashier@rbac.test', phone: '+549110000003', role: 'cashier', tenantId: tenant._id },
+    { _id: adminId, name: 'Admin', email: 'admin@rbac.test', phone: '+549110000004', role: 'admin', tenantId: tenant._id },
+  ])
 })
 
 async function setFlag(value: boolean) {

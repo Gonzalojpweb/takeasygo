@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 
 /**
@@ -53,6 +54,8 @@ export async function POST(
         { status: 404 }
       )
     }
+    const sedeError = await guardRequestLocation(request, order.locationId, 'Pedido no encontrado o ya ajustado')
+    if (sedeError) return sedeError
 
     const now = new Date()
 

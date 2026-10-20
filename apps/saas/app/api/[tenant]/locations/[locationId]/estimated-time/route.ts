@@ -9,6 +9,7 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, requireAdminRole } from '@/lib/apiAuth'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { 
   calculateOptimalEstimatedTime, 
   applyOptimalEstimatedTime,
@@ -35,6 +36,8 @@ export async function GET(
     // Requiere autenticación (cualquier rol del tenant)
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const location = await Location.findOne({
       _id: new mongoose.Types.ObjectId(locationId),
@@ -94,6 +97,8 @@ export async function POST(
     // Solo admin puede forzar ajustes
     const roleError = await requireAdminRole(request, tenant._id.toString())
     if (roleError) return roleError
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const location = await Location.findOne({
       _id: new mongoose.Types.ObjectId(locationId),
@@ -179,6 +184,8 @@ export async function PATCH(
     // Solo admin puede proponer cambios manuales
     const roleError = await requireAdminRole(request, tenant._id.toString())
     if (roleError) return roleError
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     const body = await request.json().catch(() => ({}))
     const proposedTime = body?.estimatedPickupTime

@@ -3,6 +3,7 @@ import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { guardRequestLocation } from '@/lib/location-scope'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function PATCH(
@@ -31,6 +32,13 @@ export async function PATCH(
 
     const updateData: any = { name, connectionType, ip, port, roles, paperWidth, isActive };
     if (body.printSettings) updateData.printSettings = body.printSettings;
+
+    // Sede de la impresora: un usuario con sedes asignadas no edita
+    // impresoras de otra sede (404 sin filtrar existencia).
+    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId').lean<{ locationId: unknown }>()
+    if (!existing) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })
+    const sedeError = await guardRequestLocation(request, existing.locationId, 'Impresora no encontrada')
+    if (sedeError) return sedeError
 
     const printer = await Printer.findOneAndUpdate(
       { _id: printerId, tenantId: tenant._id },
@@ -66,6 +74,11 @@ export async function DELETE(
       permission: 'printjobs.manage',
     })
     if (permError) return permError
+
+    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId').lean<{ locationId: unknown }>()
+    if (!existing) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })
+    const sedeError = await guardRequestLocation(request, existing.locationId, 'Impresora no encontrada')
+    if (sedeError) return sedeError
 
     const printer = await Printer.findOneAndDelete({ _id: printerId, tenantId: tenant._id })
     if (!printer) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })
