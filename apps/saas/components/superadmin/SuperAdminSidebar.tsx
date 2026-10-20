@@ -31,6 +31,7 @@ import {
   DollarSign,
   Link2,
   Contact,
+  Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -147,6 +148,7 @@ export default function SuperAdminSidebar() {
       items: [
         { href: '/superadmin/push', label: 'Push Notifications', icon: Smartphone },
         { href: '/superadmin/printer-agent', label: 'Agente de Impresión', icon: Printer },
+        { href: '/superadmin/multisede', label: 'Multisede', icon: Layers },
         { href: '/superadmin/configuracion', label: 'Configuración', icon: Settings },
       ],
     },

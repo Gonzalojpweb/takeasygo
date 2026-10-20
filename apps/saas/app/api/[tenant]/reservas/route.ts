@@ -320,6 +320,13 @@ export async function POST(
       // Con N requests concurrentes, todos insertan antes de que cualquiera corra
       // el recheck. Se cuentan los solapes reales y solo el ÚLTIMO en llegar
       // (mayor _id) se borra a sí mismo. Así exactamente maxPerSlot ganan.
+      //
+      // DEUDA R-1 (auditoría multisede, hallazgo R-1): el sleep de 50ms es un
+      // parche frágil — con latencia alta o N grande, el recheck corre antes de
+      // que todos los inserts terminen. Solución pendiente: contador atómico
+      // por franja (findOneAndUpdate $inc sobre {tenantId, locationId, date,
+      // time} con tope maxPerSlot; rechazar con 409 si $inc supera el tope)
+      // y borrar el sleep + el rechequeo.
       const sc = reservationConfig.slotConfig
       const maxPerSlot = sc?.maxReservationsPerSlot ?? 1
 
