@@ -38,7 +38,9 @@ function req(body: Record<string, unknown>, headers: Record<string, string> = {}
 const SEDE = { name: 'Sede Principal', address: 'Av. Siempreviva 742', isActive: true }
 
 beforeEach(async () => {
-  await Tenant.create({ name: 'Test Tenant', slug: 'test-tenant', plan: 'full' })
+  // Prospecto rechazado que vuelve al wizard: el modo onboarding solo vale
+  // mientras el negocio está en el alta.
+  await Tenant.create({ name: 'Test Tenant', slug: 'test-tenant', plan: 'full', onboarding: { status: 'rejected' } })
 })
 
 describe('POST /api/[tenant]/locations — reenvío del wizard de onboarding', () => {
@@ -101,5 +103,15 @@ describe('POST /api/[tenant]/locations — reenvío del wizard de onboarding', (
     ).toBe(201)
 
     expect(await Location.countDocuments({})).toBe(2)
+  })
+
+  it('negocio aprobado: x-onboarding no sobrescribe la sede existente', async () => {
+    await Tenant.updateOne({ slug: 'test-tenant' }, { $set: { 'onboarding.status': 'approved' } })
+    const first = await locationsPost(req({ ...SEDE, slug: 'sede-principal' }), params)
+    expect(first.status).toBe(201)
+    const second = await locationsPost(req({ ...SEDE, slug: 'sede-principal', address: 'Otra' }, { 'x-onboarding': '1' }), params)
+    expect(second.status).not.toBe(201)
+    const sede = await Location.findOne({}).lean() as any
+    expect(sede.address).toBe('Av. Siempreviva 742')
   })
 })

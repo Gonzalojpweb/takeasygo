@@ -6,6 +6,7 @@ import CorporateAccount from '@/models/CorporateAccount'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { safeDecrypt } from '@/lib/crypto'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -38,6 +39,11 @@ export async function GET(
     if (status) {
       filter.status = status
     }
+
+    // Admin de sede: solo pedidos corporativos de sus sedes.
+    const sedeScope = await scopeLocationFilter(request, null)
+    if ('error' in sedeScope) return sedeScope.error
+    Object.assign(filter, sedeScope.filter)
 
     const rawOrders = await Order.find(filter)
       .sort({ createdAt: -1 })

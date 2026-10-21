@@ -6,6 +6,8 @@ import PushSubscription from '@/models/PushSubscription'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { sendBulkPush, getSubscribersByPhoneHashes, logPushNotification, getLastBroadcastTime } from '@/lib/push'
 import type { PushTargetType } from '@/models/PushNotificationLog'
+import { loyaltyListFilter } from '@/lib/loyalty-scope'
+import { guardSharedOrLocation } from '@/lib/location-scope'
 
 const BROADCAST_COOLDOWN_MS = 30 * 60 * 1000
 
@@ -35,6 +37,15 @@ export async function POST(
 
     const tenantId = tenant._id.toString()
 
+    // Alcance: un usuario de sede solo notifica a socios de sus sedes (club
+    // por sede); el envío a todos los consumidores es de nivel tenant.
+    const memberScope = await loyaltyListFilter(request, tenant, null)
+    if ('error' in memberScope) return memberScope.error
+    if (targetType === 'all_consumers') {
+      const tenantLevelError = await guardSharedOrLocation(request, null, 'Acceso denegado')
+      if (tenantLevelError) return tenantLevelError
+    }
+
     // ── Rate limit broadcasts ─────────────────────────────────────────
     if (targetType === 'all_members' || targetType === 'all_consumers') {
       const lastTime = await getLastBroadcastTime(tenantId)
@@ -50,7 +61,7 @@ export async function POST(
     let actualTargetType: PushTargetType = targetType
 
     if (targetType === 'all_members') {
-      const members = await LoyaltyMember.find({ tenantId, status: 'active' }).select('phoneHash').lean()
+      const members = await LoyaltyMember.find({ tenantId, ...memberScope.filter, status: 'active' }).select('phoneHash').lean()
       const phoneHashes = members.map(m => m.phoneHash).filter(Boolean)
       subscriptions = await getSubscribersByPhoneHashes(tenantId, phoneHashes)
     } else if (targetType === 'all_consumers') {
@@ -59,7 +70,7 @@ export async function POST(
       const phoneHashes = consumers.map(c => c.phoneHash).filter(Boolean)
       subscriptions = await getSubscribersByPhoneHashes(tenantId, phoneHashes)
     } else if (targetType === 'specific_members' && memberIds?.length) {
-      const members = await LoyaltyMember.find({ _id: { $in: memberIds }, tenantId }).select('phoneHash').lean()
+      const members = await LoyaltyMember.find({ _id: { $in: memberIds }, tenantId, ...memberScope.filter }).select('phoneHash').lean()
       const phoneHashes = members.map(m => m.phoneHash).filter(Boolean)
       subscriptions = await getSubscribersByPhoneHashes(tenantId, phoneHashes)
       actualTargetType = 'specific_members'

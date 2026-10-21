@@ -2,7 +2,8 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAdminRole } from '@/lib/apiAuth'
+import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 import { slugifyOrFallback } from '@/lib/slugify'
 
@@ -39,10 +40,22 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    // Alta de sede: admin de nivel tenant (un admin con sedes asignadas no
+    // crea sedes nuevas).
+    const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+    const scopeError = await guardSharedOrLocation(request, null, 'Acceso denegado')
+    if (scopeError) return scopeError
 
-    const body = await request.json()
+    const rawBody = await request.json()
+    // Pertenencia y credenciales del agente no se asignan desde el body.
+    const { _id: _ignoredId, tenantId: _ignoredTenant, printerAgent: _ignoredAgent, ...body } = rawBody ?? {}
+
+    // El modo onboarding (upsert por slug) solo vale mientras el negocio está
+    // en el alta: con el negocio aprobado sobrescribiría una sede existente.
+    const onboardingStatus = (tenant as { onboarding?: { status?: string } }).onboarding?.status
+    const isOnboarding = request.headers.get('x-onboarding') === '1'
+      && !!onboardingStatus && !['none', 'approved'].includes(onboardingStatus)
 
     if (!body.name || !String(body.name).trim()) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 })
@@ -63,7 +76,7 @@ export async function POST(
 
     let geoWarning: string | null = null
 
-    if (request.headers.get('x-onboarding') === '1') {
+    if (isOnboarding) {
       delete body.geo
       if (body.address) {
         const { geocodeText } = await import('@/lib/geocode')
@@ -90,7 +103,7 @@ export async function POST(
     }
 
     let location
-    if (request.headers.get('x-onboarding') === '1') {
+    if (isOnboarding) {
       // Reenvío idempotente: un prospecto rechazado que vuelve a editar recae en
       // este mismo paso y { tenantId, slug } es único → create rompería con 500
       // y lo dejaría trabado sin poder reenviar la solicitud.

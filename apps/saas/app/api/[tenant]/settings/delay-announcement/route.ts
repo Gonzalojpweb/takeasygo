@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
+import { guardRequestLocation } from '@/lib/location-scope'
 
 const VALID_MODES = ['takeaway', 'delivery', 'dine-in', 'business'] as const
 
@@ -43,6 +44,8 @@ export async function PATCH(
     if (!location) {
       return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
     }
+    const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
+    if (sedeError) return sedeError
 
     let orderModes = location.settings?.orderModes ?? ['takeaway']
     if (location.deliveryConfig?.enabled && !orderModes.includes('delivery')) {

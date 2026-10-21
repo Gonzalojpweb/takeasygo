@@ -5,6 +5,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import PushSubscription from '@/models/PushSubscription'
 import { requireAuth } from '@/lib/apiAuth'
 import { escapeRegex } from '@takeasygo/business'
+import { loyaltyListFilter } from '@/lib/loyalty-scope'
 
 export async function GET(
   request: NextRequest,
@@ -27,6 +28,9 @@ export async function GET(
     const statusFilter = sp.get('status') || ''
 
     const query: any = { tenantId: tenant._id }
+    const memberScope = await loyaltyListFilter(request, tenant, sp.get('locationId'))
+    if ('error' in memberScope) return memberScope.error
+    Object.assign(query, memberScope.filter)
     if (statusFilter === 'active') query.status = 'active'
     else if (statusFilter === 'inactive') query.status = 'inactive'
 

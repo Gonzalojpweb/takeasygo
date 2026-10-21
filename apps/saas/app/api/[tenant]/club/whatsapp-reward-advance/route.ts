@@ -14,6 +14,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
+import { loyaltyListFilter, guardMemberLocation } from '@/lib/loyalty-scope'
 
 /** Re-verifica elegibilidad de un miembro (mismos filtros que GET) */
 async function isEligible(
@@ -72,9 +73,14 @@ export async function GET(
       return NextResponse.json({ sosLimit, clubName, members: [] })
     }
 
+    // Club por sede: solo socios del alcance del usuario.
+    const memberScope = await loyaltyListFilter(request, tenant, null)
+    if ('error' in memberScope) return memberScope.error
+
     // Traer miembros activos con teléfono
     const members = await LoyaltyMember.find({
       tenantId,
+      ...memberScope.filter,
       status: 'active',
       phone: { $ne: '' },
     })
@@ -146,6 +152,8 @@ export async function PUT(
     if (!memberId) {
       return NextResponse.json({ error: 'Falta memberId' }, { status: 400 })
     }
+    const memberScopeError = await guardMemberLocation(request, tenant._id, String(memberId))
+    if (memberScopeError) return memberScopeError
 
     const tenantId = tenant._id
     const sosLimit = tenant.loyalty?.sosLimit ?? 0

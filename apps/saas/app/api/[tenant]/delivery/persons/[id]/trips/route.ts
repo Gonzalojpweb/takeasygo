@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { requireAuth } from '@/lib/apiAuth'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 export async function GET(
   request: NextRequest,
@@ -39,8 +40,13 @@ export async function GET(
 
     const personObjectId = new mongoose.Types.ObjectId(id)
 
+    // Usuario de sede: solo viajes de pedidos de sus sedes.
+    const sedeScope = await scopeLocationFilter(request, null)
+    if ('error' in sedeScope) return sedeScope.error
+
     const baseFilter = {
       tenantId: tenant._id,
+      ...sedeScope.filter,
       'deliveryConfirmation.deliveryPersonId': personObjectId,
     }
 
