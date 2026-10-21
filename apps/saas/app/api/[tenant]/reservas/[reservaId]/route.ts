@@ -2,6 +2,8 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
+import Table from '@/models/Table'
+import { isValidTableTransition } from '@takeasygo/business'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
@@ -38,7 +40,7 @@ export async function PUT(
     if (authError) return authError
 
     const body = await request.json()
-    const { status } = body
+    const { status, tablePosId } = body
 
     const allowed = ['confirmed', 'cancelled', 'seated', 'no_show']
     if (!allowed.includes(status)) {
@@ -67,6 +69,24 @@ export async function PUT(
 
     const decryptedPrev = decryptReservation(prev)
     const updateFields: any = { status }
+
+    // Check-in con mesa: la mesa tiene que ser de la MISMA sede de la reserva
+    // y poder pasar a ocupada (free/reserved/needs_attention → occupied).
+    if (tablePosId !== undefined && tablePosId !== null && tablePosId !== '') {
+      if (status !== 'seated' || typeof tablePosId !== 'string') {
+        return NextResponse.json({ error: 'La mesa se asigna al sentar la reserva' }, { status: 400 })
+      }
+      const table = await Table.findOne({ tenantId: tenant._id, locationId: prev.locationId, posId: tablePosId })
+      if (!table) return NextResponse.json({ error: 'Mesa no encontrada en esta sede' }, { status: 404 })
+      if (table.status !== 'occupied') {
+        if (!isValidTableTransition(table.status, 'occupied')) {
+          return NextResponse.json({ error: `La mesa ${table.number} no está disponible` }, { status: 409 })
+        }
+        table.status = 'occupied'
+        await table.save()
+      }
+      updateFields.tablePosId = tablePosId
+    }
     if (status === 'confirmed') {
       updateFields['notifications.confirmationSent'] = true
     } else if (status === 'cancelled') {

@@ -9,6 +9,7 @@ import { toPesos } from '@takeasygo/business/browser'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import ReservasStats from '@/components/admin/ReservasStats'
 import { getLocationColor } from '@/lib/location-colors'
 import {
   CalendarDays,
@@ -38,12 +39,22 @@ interface Reservation {
   notes: string
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   locationId: string
+  /** Mesa (posId) asignada al sentar. */
+  tablePosId?: string | null
   /** Espacio/sector elegido por el cliente. null = reservas viejas o sede sin espacios. */
   spaceId?: string | null
   payment: {
     amount: number
     status: 'pending' | 'approved' | 'rejected'
   }
+}
+
+/** Mesa del POS de la sede (contrato /pos/tables). */
+interface SeatTable {
+  id: string
+  number: number
+  capacity: number
+  status: string
 }
 
 interface Location {
@@ -101,6 +112,10 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   const selectedLocation = activeLocationId ?? 'all'
   const [selectedSpace, setSelectedSpace] = useState<string>('all')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  // Check-in con mesa: reserva que se está sentando + mesas de su sede.
+  const [seatingId, setSeatingId] = useState<string | null>(null)
+  const [seatTables, setSeatTables] = useState<SeatTable[]>([])
+  const [seatTablePosId, setSeatTablePosId] = useState('')
   const { play: playSound } = useNotificationSound('/pop.mp3')
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
 
@@ -167,31 +182,64 @@ export default function ReservasPanel({ reservations: initialReservations, locat
     return () => clearInterval(interval)
   }, [router])
 
-  async function updateStatus(reservaId: string, status: Reservation['status']) {
+  async function updateStatus(reservaId: string, status: Reservation['status'], tablePosId?: string) {
     setUpdatingId(reservaId)
     try {
       const res = await fetch(`/api/${tenantSlug}/reservas/${reservaId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify(tablePosId ? { status, tablePosId } : { status }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || '')
+      }
       setReservations(prev =>
-        prev.map(r => r._id === reservaId ? { ...r, status } : r)
+        prev.map(r => r._id === reservaId ? { ...r, status, ...(tablePosId ? { tablePosId } : {}) } : r)
       )
       toast.success('Estado actualizado')
       router.refresh()
-    } catch {
-      toast.error('Error al actualizar estado')
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Error al actualizar estado')
     } finally {
       setUpdatingId(null)
     }
+  }
+
+  // "En mesa": si la sede tiene mesas en el POS, se elige una (libre o
+  // reservada, con lugar para el grupo); si no, se sienta sin mesa.
+  async function startSeating(r: Reservation) {
+    try {
+      const res = await fetch(`/api/${tenantSlug}/pos/tables?locationId=${r.locationId}`)
+      const data = res.ok ? await res.json() : null
+      const list: SeatTable[] = Array.isArray(data) ? data : (data?.tables ?? [])
+      const available = list
+        .filter(t => (t.status === 'free' || t.status === 'reserved') && t.capacity >= r.partySize)
+        .sort((a, b) => a.number - b.number)
+      if (available.length === 0) {
+        await updateStatus(r._id, 'seated')
+        return
+      }
+      setSeatTables(available)
+      setSeatTablePosId(available[0].id)
+      setSeatingId(r._id)
+    } catch {
+      await updateStatus(r._id, 'seated')
+    }
+  }
+
+  async function confirmSeating(reservaId: string) {
+    setSeatingId(null)
+    await updateStatus(reservaId, 'seated', seatTablePosId || undefined)
   }
 
   const locationName = (id: string) => locations.find(l => l._id === id)?.name || 'Sede'
 
   return (
     <div className="space-y-6">
+      {/* Resumen de 30 días (ocupación, no-show, cancelaciones) de la sede elegida */}
+      <ReservasStats tenantSlug={tenantSlug} locationId={selectedLocation === 'all' ? null : selectedLocation} />
+
       {/* Location filter */}
       {locations.length > 1 && (
         <div className="flex gap-2 flex-wrap">
@@ -428,12 +476,40 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                             )}
                             {r.status === 'confirmed' && (
                               <>
-                                <ActionBtn
-                                  icon={<UserCheck size={15} />}
-                                  label="En mesa"
-                                  color="blue"
-                                  onClick={() => updateStatus(r._id, 'seated')}
-                                />
+                                {seatingId === r._id ? (
+                                  <div className="flex flex-col gap-1.5 w-36">
+                                    <select
+                                      value={seatTablePosId}
+                                      onChange={e => setSeatTablePosId(e.target.value)}
+                                      className="w-full bg-white border border-border/60 rounded-xl px-2 py-1.5 text-xs font-medium"
+                                    >
+                                      {seatTables.map(t => (
+                                        <option key={t.id} value={t.id}>Mesa {t.number} · {t.capacity} p.</option>
+                                      ))}
+                                      <option value="">Sin mesa</option>
+                                    </select>
+                                    <ActionBtn
+                                      icon={<UserCheck size={15} />}
+                                      label="Sentar"
+                                      color="blue"
+                                      onClick={() => confirmSeating(r._id)}
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setSeatingId(null)}
+                                      className="text-[10px] font-bold text-muted-foreground hover:text-foreground"
+                                    >
+                                      Cancelar
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <ActionBtn
+                                    icon={<UserCheck size={15} />}
+                                    label="En mesa"
+                                    color="blue"
+                                    onClick={() => startSeating(r)}
+                                  />
+                                )}
                                 <ActionBtn
                                   icon={<UserX size={15} />}
                                   label="No vino"
