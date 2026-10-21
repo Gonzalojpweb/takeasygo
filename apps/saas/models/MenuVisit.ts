@@ -11,6 +11,8 @@ export interface IMenuVisit extends Document {
   source: string
   referrer: string | null
   locationPath: string | null
+  /** Sede visitada (derivada de locationPath); null = página del negocio. */
+  locationId?: mongoose.Types.ObjectId | null
   isDuplicate?: boolean
   promo: string | null
 }
@@ -30,6 +32,12 @@ const MenuVisitSchema = new Schema<IMenuVisit>({
   ip: {
     type: String,
     default: null,
+  },
+  locationId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Location',
+    default: null,
+    index: true,
   },
   userAgent: {
     type: String,

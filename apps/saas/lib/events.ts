@@ -88,6 +88,26 @@ interface EventPayload {
 
 let tenantSlugCache: string | null = null
 
+// Sede de la sesión: se fija al abrir la carta de una sede y se adjunta a
+// todos los eventos siguientes (carrito, checkout, recompensas…).
+const SESSION_LOCATION_KEY = 'tgo_event_location'
+
+function getSessionLocationId(): string | undefined {
+  try {
+    return sessionStorage.getItem(SESSION_LOCATION_KEY) || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function setSessionLocationId(locationId: string): void {
+  try {
+    sessionStorage.setItem(SESSION_LOCATION_KEY, locationId)
+  } catch {
+    // sin storage (modo privado): el evento de apertura igual lleva la sede
+  }
+}
+
 export function getTenantSlug(): string {
   if (tenantSlugCache) return tenantSlugCache
   if (typeof window === 'undefined') return ''
@@ -114,7 +134,7 @@ export function captureEvent(payload: EventPayload): void {
       source: payload.metadata?.source || 'client_side',
       sessionId: payload.metadata?.sessionId || getSessionId(),
       device: payload.metadata?.device || getDevice(),
-      locationId: payload.metadata?.locationId || undefined,
+      locationId: payload.metadata?.locationId || getSessionLocationId(),
       abTest: payload.metadata?.abTest || undefined,
       latencyMs: payload.metadata?.latencyMs || undefined,
     },
@@ -137,6 +157,7 @@ export function captureEvent(payload: EventPayload): void {
 // ── Typed capture functions ──────────────────────────────────────────────────
 
 export function captureMenuOpened(locationId: string): void {
+  setSessionLocationId(locationId)
   captureEvent({
     type: 'menu_opened',
     data: { source: 'menu' },

@@ -42,6 +42,9 @@ interface OrderInfo {
 // ── Conversion Funnel ─────────────────────────────────────────────────────────
 
 export function captureMenuOpened(locationId: string) {
+  // Super property: todos los eventos siguientes de la sesión (plato visto,
+  // carrito, checkout, recompensas…) quedan atribuidos a esta sede.
+  posthog.register({ location_id: locationId })
   posthog.capture('menu.opened', { location_id: locationId })
 }
 

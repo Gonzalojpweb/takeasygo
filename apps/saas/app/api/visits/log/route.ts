@@ -3,6 +3,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { logVisitSchema } from '@/lib/schemas'
 import Tenant from '@/models/Tenant'
 import MenuVisit from '@/models/MenuVisit'
+import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { Types } from 'mongoose'
 
@@ -99,12 +100,21 @@ export async function POST(request: NextRequest) {
     const source = detectTrafficSource(referer, urlSource, userAgent)
     const tenantId = new Types.ObjectId(tenant._id.toString())
 
+    // Sede visitada: /{tenant}/menu/{locationId}… (validada contra el tenant).
+    let locationId: Types.ObjectId | null = null
+    const pathMatch = locationPath?.match(/\/(?:menu|reservas)\/([0-9a-fA-F]{24})(?:[/?#]|$)/)
+    if (pathMatch) {
+      const loc = await Location.exists({ _id: pathMatch[1], tenantId })
+      if (loc) locationId = new Types.ObjectId(pathMatch[1])
+    }
+
     // Dedup: buscar si el mismo IP visitó en los últimos 5 minutos
     let isDuplicate = false
     if (cleanIp) {
       const recentWindow = new Date(Date.now() - DEDUP_WINDOW_MINUTES * 60 * 1000)
       const existing = await MenuVisit.findOne({
         tenantId,
+        locationId,
         ip: cleanIp,
         visitedAt: { $gte: recentWindow },
       }).sort({ visitedAt: -1 }).lean()
@@ -124,6 +134,7 @@ export async function POST(request: NextRequest) {
         source,
         referrer: referer,
         locationPath: locationPath || null,
+        locationId,
         isDuplicate: false,
         promo,
       })
