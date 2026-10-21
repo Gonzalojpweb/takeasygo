@@ -191,13 +191,17 @@ describe('PUT /locations/[locationId] — aislamiento de escritura por sede', ()
     expect(after!.settings.notifyOnOrder).toBe(false)
   })
 
-  it('DELETE de sede ajena con scope asignado → 403', async () => {
+  // La baja es de nivel tenant: un usuario con sedes asignadas recibe 404
+  // (convención de lib/location-scope: 404, no 403, para no filtrar la
+  // existencia del recurso). requireAdminRole está mockeado, así que acá se
+  // ejerce el guard de alcance; en producción un manager ya recibe 403 antes.
+  it('DELETE de sede ajena con scope asignado → 404 y la sede NO se da de baja', async () => {
     mockSession('manager', [OTHER_LOCATION])
     const res = await deleteLocation(
       new NextRequest(`http://localhost/api/${SLUG}/locations/${location._id}`, { method: 'DELETE' }),
       locParams()
     )
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(404)
     const after = await Location.findById(location._id).lean()
     expect(after!.isActive).toBe(true)
   })

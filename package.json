@@ -23,7 +23,10 @@
     "commitlint": "commitlint --edit"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": ["esbuild"],
+    "overrides": {
+      "proxy-addr": "^2.0.8"
+    }
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
