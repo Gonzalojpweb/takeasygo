@@ -54,6 +54,9 @@ const EMPTY_FORM = {
   lat: '',
   lng: '',
   cuisineTypes: [] as string[],
+  /** Sede de la que se copia la configuración operativa ('' = sede nueva en blanco). */
+  cloneFromLocationId: '',
+  cloneMenu: true,
 }
 
 export default function LocationManager({ tenantSlug, initialLocations }: Props) {
@@ -135,21 +138,27 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
           settings: { orderModes: form.orderModes },
           cuisineTypes: form.cuisineTypes,
           ...(geo && { geo }),
+          ...(form.cloneFromLocationId
+            ? { cloneFromLocationId: form.cloneFromLocationId, cloneMenu: form.cloneMenu }
+            : {}),
         }),
       })
       if (!locRes.ok) {
         const err = await locRes.json()
         throw new Error(err.error || 'Error al crear sede')
       }
-      const { location } = await locRes.json()
+      const { location, menuCloned } = await locRes.json()
 
-      const menuRes = await fetch(`/api/${tenantSlug}/menu`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId: location._id, categories: [] }),
-      })
+      // Si se copió el menú de otra sede ya existe; si no, menú vacío.
+      const menuRes = menuCloned
+        ? null
+        : await fetch(`/api/${tenantSlug}/menu`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ locationId: location._id, categories: [] }),
+          })
 
-      const hasMenu = menuRes.ok
+      const hasMenu = menuCloned || !!menuRes?.ok
       if (!hasMenu) {
         toast.warning('Sede creada, pero no se pudo crear el menú automáticamente')
       } else {
@@ -255,9 +264,14 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
 
   // ── Delete ───────────────────────────────────────────────────────────────────
   async function handleDelete(locationId: string, name: string) {
-    if (!confirm(`¿Eliminar la sede "${name}"? Esta acción no se puede deshacer.`)) return
+    if (!confirm(`¿Dar de baja la sede "${name}"? Su historial se conserva y se puede reactivar.`)) return
     try {
-      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, { method: 'DELETE' })
+      let res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, { method: 'DELETE' })
+      if (res.status === 409) {
+        const detail = await res.json()
+        if (!confirm(`${detail.error}\n\n¿Dar de baja "${name}" igual?`)) return
+        res = await fetch(`/api/${tenantSlug}/locations/${locationId}?force=1`, { method: 'DELETE' })
+      }
       if (!res.ok) {
         const err = await res.json()
         throw new Error(err.error || 'Error al eliminar')
@@ -551,6 +565,38 @@ export default function LocationManager({ tenantSlug, initialLocations }: Props)
                     className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-400"
                   />
                 </div>
+
+                {locations.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="text-zinc-400 text-xs block mb-1">Copiar configuración de</label>
+                    <select
+                      value={form.cloneFromLocationId}
+                      onChange={e => setForm(p => ({ ...p, cloneFromLocationId: e.target.value }))}
+                      className="w-full bg-zinc-700 border border-zinc-600 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-zinc-400"
+                    >
+                      <option value="">Sede nueva en blanco</option>
+                      {locations.map(l => (
+                        <option key={l._id} value={l._id}>{l.name}</option>
+                      ))}
+                    </select>
+                    {form.cloneFromLocationId && (
+                      <>
+                        <label className="flex items-center gap-2 text-xs text-zinc-300">
+                          <input
+                            type="checkbox"
+                            checked={form.cloneMenu}
+                            onChange={e => setForm(p => ({ ...p, cloneMenu: e.target.checked }))}
+                          />
+                          Copiar también el menú
+                        </label>
+                        <p className="text-[11px] text-zinc-500">
+                          Se copian horarios, modos de servicio, reservas, delivery, espacios, recargos y zona horaria.
+                          No se copian dirección, prefijo, token del agente de impresión ni Rapiboy.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 <div>
                   <label className="text-zinc-400 text-xs block mb-1">Slug *</label>

@@ -2,11 +2,20 @@ import { connectDB } from '@/lib/mongoose'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { requireAuth, requireAdminRole, getSessionUser } from '@/lib/apiAuth'
+import { guardSharedOrLocation } from '@/lib/location-scope'
+import Order from '@/models/Order'
+import Reservation from '@/models/Reservation'
+import mongoose from 'mongoose'
+import { getTodayStrInTimezone, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
+import { ACTIVE_RESERVATION_STATUSES } from '@/lib/space-capacity'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { encrypt } from '@/lib/crypto'
 import { normalizeSpacesInput, validateSpacesInput } from '@/lib/space-capacity'
+
+/** Pedidos en curso (todavía no entregados ni cancelados). */
+const OPEN_ORDER_STATUSES = ['open', 'awaiting_payment', 'awaiting_confirmation', 'pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'requires_manual_attention']
 
 async function resolveTenant(tenantSlug: string) {
   await connectDB()
@@ -237,6 +246,17 @@ export async function PUT(
       }
     }
 
+    // ── Validate reservationConfig.maxAdvanceDays si viene (null = sin límite)
+    if (body?.reservationConfig && 'maxAdvanceDays' in body.reservationConfig) {
+      const v = body.reservationConfig.maxAdvanceDays
+      if (v !== null && (!Number.isInteger(v) || v < 1 || v > 365)) {
+        return NextResponse.json(
+          { error: 'La anticipación máxima debe ser un número entero entre 1 y 365 días (o vacío para no limitar)' },
+          { status: 400 }
+        )
+      }
+    }
+
     // ── Validate reservationConfig.paymentsEnabled si viene ────────────────
     if (body?.reservationConfig && 'paymentsEnabled' in body.reservationConfig) {
       if (typeof body.reservationConfig.paymentsEnabled !== 'boolean') {
@@ -294,22 +314,65 @@ export async function DELETE(
     const tenant = await resolveTenant(tenantSlug)
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    // Baja de sede: admin de nivel tenant (no un usuario de sede ni otro rol).
+    const authError = await requireAdminRole(request, tenant._id.toString())
     if (authError) return authError
+    const tenantLevelError = await guardSharedOrLocation(request, null, 'Acceso denegado')
+    if (tenantLevelError) return tenantLevelError
 
-    const scopeError = await enforceSedeWriteScope(request, locationId)
-    if (scopeError) return scopeError
+    if (!mongoose.Types.ObjectId.isValid(locationId)) {
+      return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+    }
+    const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id })
+      .select('name timezone isActive')
+      .lean<{ name: string; timezone?: string; isActive?: boolean }>()
+    if (!existing) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
-    // Soft delete
-    const location = await Location.findOneAndUpdate(
-      { _id: locationId, tenantId: tenant._id },
-      { $set: { isActive: false } },
-      { new: true }
-    )
+    // Pedidos abiertos y reservas futuras: la baja los dejaría huérfanos de
+    // operación. Se informa y se exige confirmación explícita (?force=1).
+    const today = getTodayStrInTimezone(existing.timezone || DEFAULT_TIMEZONE)
+    const [openOrders, futureReservations] = await Promise.all([
+      Order.countDocuments({
+        tenantId: tenant._id,
+        locationId,
+        deletedAt: null,
+        status: { $in: OPEN_ORDER_STATUSES },
+      }),
+      Reservation.countDocuments({
+        tenantId: tenant._id,
+        locationId,
+        date: { $gte: today },
+        status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
+      }),
+    ])
+    const force = request.nextUrl.searchParams.get('force') === '1'
+    if ((openOrders > 0 || futureReservations > 0) && !force) {
+      return NextResponse.json(
+        {
+          error: `La sede tiene ${openOrders} pedido(s) abierto(s) y ${futureReservations} reserva(s) futura(s). Confirmá la baja para continuar.`,
+          openOrders,
+          futureReservations,
+          requiresConfirmation: true,
+        },
+        { status: 409 }
+      )
+    }
 
-    if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+    // Soft delete: el historial (pedidos, caja, reportes) se conserva y la
+    // sede se puede reactivar.
+    await Location.updateOne({ _id: locationId, tenantId: tenant._id }, { $set: { isActive: false } })
 
-    return NextResponse.json({ ok: true })
+    logAudit({
+      tenantId: tenant._id.toString(),
+      locationId,
+      action: 'settings.location.deactivated',
+      entity: 'location',
+      entityId: locationId,
+      details: { name: existing.name, openOrders, futureReservations, forced: force },
+      request,
+    })
+
+    return NextResponse.json({ ok: true, openOrders, futureReservations })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

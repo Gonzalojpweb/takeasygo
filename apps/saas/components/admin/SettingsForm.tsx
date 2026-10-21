@@ -171,6 +171,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     timeSlots: string[]
     maxPartySize: number
     minAdvanceMinutes: number
+    /** '' = sin límite */
+    maxAdvanceDays: number | ''
     slotConfig?: {
       enabled: boolean
       operatingHours: OperatingHourConfig[]
@@ -189,6 +191,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
         timeSlots: l.reservationConfig?.timeSlots ?? [],
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
         minAdvanceMinutes: l.reservationConfig?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
+        maxAdvanceDays: l.reservationConfig?.maxAdvanceDays ?? '',
         slotConfig: {
           enabled: l.reservationConfig?.slotConfig?.enabled ?? false,
           operatingHours: l.reservationConfig?.slotConfig?.operatingHours ?? [],
@@ -315,6 +318,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
         ...config,
         paymentsEnabled: config.paymentsEnabled !== false,
         minPayment: toCents(config.minPayment),
+        maxAdvanceDays: config.maxAdvanceDays === '' ? null : Number(config.maxAdvanceDays),
       }
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
@@ -745,6 +749,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('locationId', locationId)
       const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!uploadRes.ok) throw new Error()
       const { url } = await uploadRes.json()
@@ -2314,6 +2319,25 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                                 Cuánto tiempo antes tiene que reservar el cliente. Con 30 no puede reservar para
                                 dentro de 10 minutos, pero sí para dentro de 40. Poné 0 si querés aceptar
                                 reservas de último momento.
+                              </FieldHelp>
+                            </div>
+                            <div>
+                              <label className={labelCls}>Anticipación máxima (días)</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={365}
+                                placeholder="Sin límite"
+                                value={reservationMap[loc._id]?.maxAdvanceDays ?? ''}
+                                onChange={e => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], maxAdvanceDays: e.target.value === '' ? '' : Number(e.target.value) }
+                                }))}
+                                className={cn(inputCls, "text-center")}
+                              />
+                              <FieldHelp>
+                                Hasta cuántos días hacia adelante se puede reservar. Con 30, nadie reserva para
+                                dentro de dos meses. Vacío = sin límite.
                               </FieldHelp>
                             </div>
                           </div>

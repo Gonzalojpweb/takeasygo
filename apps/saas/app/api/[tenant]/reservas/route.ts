@@ -16,9 +16,11 @@ import { encrypt, safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { pickAdminWhatsApp } from '@/lib/location-resolvers'
+import { acquireReservationLock } from '@/lib/reservation-lock'
 import { toPesos } from '@takeasygo/business'
 import {
   DEFAULT_MIN_ADVANCE_MINUTES,
+  addDaysToDateStr,
   DEFAULT_TIMEZONE,
   getLocalDayAndMinutes,
   getTodayStrInTimezone,
@@ -163,6 +165,13 @@ export async function POST(
     if (date < todayStr) {
       return NextResponse.json({ error: 'La fecha de la reserva ya pasó.' }, { status: 400 })
     }
+    const maxAdvanceDays = reservationConfig.maxAdvanceDays
+    if (maxAdvanceDays != null && date > addDaysToDateStr(todayStr, maxAdvanceDays)) {
+      return NextResponse.json(
+        { error: `Se puede reservar con hasta ${maxAdvanceDays} días de anticipación.` },
+        { status: 400 }
+      )
+    }
     if (date === todayStr) {
       const { minutes: nowMinutes } = getLocalDayAndMinutes(new Date(), timezone)
       if (!isSlotBookable(timeToMinutes(time), nowMinutes, minAdvanceMinutes)) {
@@ -209,6 +218,21 @@ export async function POST(
       }
     }
 
+    // R-1: exclusión mutua por (sede, fecha). Disponibilidad, numeración y
+    // alta corren con el lock tomado: dos requests concurrentes no pueden
+    // pasar ambos el chequeo y sobrevender la franja.
+    const releaseLock = await acquireReservationLock(tenant._id, locationId, date)
+    if (!releaseLock) {
+      return NextResponse.json(
+        { error: 'Hay muchas reservas en curso para esa fecha. Intentá de nuevo en unos segundos.' },
+        { status: 409 }
+      )
+    }
+    const releaseAnd = async (response: NextResponse) => {
+      await releaseLock()
+      return response
+    }
+
     // Disponibilidad: valida en ambos modos (automático y manual)
     const { generateReservationSlots } = await import('@/lib/reservation-slots')
     const available = await generateReservationSlots(locationId, date, reservationConfig, {
@@ -219,17 +243,17 @@ export async function POST(
       spaceId: spacesMode ? spaceId : null,
     })
     if (available.slots.length === 0) {
-      return NextResponse.json(
+      return releaseAnd(NextResponse.json(
         { error: 'Esta sede no tiene horarios de reserva configurados para ese día.', availableSlots: [] },
         { status: 409 }
-      )
+      ))
     }
     const requestedSlot = available.slots.find(s => s.time === time)
     if (!requestedSlot || !requestedSlot.available) {
-      return NextResponse.json({
+      return releaseAnd(NextResponse.json({
         error: 'El horario seleccionado ya no está disponible. Elegí otro.',
         availableSlots: available.slots.filter(s => s.available).map(s => s.time),
-      }, { status: 409 })
+      }, { status: 409 }))
     }
 
     // Generate reservation number: perLocation (flag ON + prefijos completos) o legacy
@@ -312,67 +336,17 @@ export async function POST(
       })
       if (state.occupied > state.capacity || spaceState.occupied > spaceState.capacity) {
         await Reservation.deleteOne({ _id: reservation._id })
-        return NextResponse.json(
+        return releaseAnd(NextResponse.json(
           {
             error: 'La capacidad de este horario se llenó mientras reservabas. Elegí otro.',
             availableSlots: [],
           },
           { status: 409 }
-        )
-      }
-    } else if (reservationConfig.slotConfig?.enabled) {
-      // Modo automático (sin espacios): recheck post-insert para maxReservationsPerSlot.
-      // Con N requests concurrentes, todos insertan antes de que cualquiera corra
-      // el recheck. Se cuentan los solapes reales y solo el ÚLTIMO en llegar
-      // (mayor _id) se borra a sí mismo. Así exactamente maxPerSlot ganan.
-      //
-      // DEUDA R-1 (auditoría multisede, hallazgo R-1): el sleep de 50ms es un
-      // parche frágil — con latencia alta o N grande, el recheck corre antes de
-      // que todos los inserts terminen. Solución pendiente: contador atómico
-      // por franja (findOneAndUpdate $inc sobre {tenantId, locationId, date,
-      // time} con tope maxPerSlot; rechazar con 409 si $inc supera el tope)
-      // y borrar el sleep + el rechequeo.
-      const sc = reservationConfig.slotConfig
-      const maxPerSlot = sc?.maxReservationsPerSlot ?? 1
-
-      // Breve espera para que todos los inserts concurrentes terminen
-      await new Promise(r => setTimeout(r, 50))
-
-      const after = await Reservation.find({
-        locationId,
-        date,
-        time,
-        status: { $in: [...ACTIVE_RESERVATION_STATUSES] },
-      }).lean()
-      const [reqH, reqM] = time.split(':').map(Number)
-      const reqStart = reqH * 60 + reqM
-      const reqEnd = reqStart + blockDuration
-
-      // Filtrar solo las que se solapan con este slot
-      const overlapping = after.filter(r => {
-        const [rH, rM] = r.time.split(':').map(Number)
-        const rStart = rH * 60 + rM
-        const rEnd = rStart + blockDuration
-        return reqStart < rEnd && rStart < reqEnd
-      }).sort((a, b) => String(a._id).localeCompare(String(b._id)))
-
-      // Si hay más de maxPerSlot, las últimas (mayor _id) se borran
-      if (overlapping.length > maxPerSlot) {
-        const losers = overlapping.slice(maxPerSlot)
-        const myId = String(reservation._id)
-        const amLoser = losers.some(r => String(r._id) === myId)
-        if (amLoser) {
-          await Reservation.deleteOne({ _id: reservation._id })
-          return NextResponse.json(
-            {
-              error: 'El horario seleccionado ya no está disponible. Elegí otro.',
-              availableSlots: [],
-            },
-            { status: 409 }
-          )
-        }
+        ))
       }
     }
+
+    await releaseLock()
 
     // ════════════════════════════════════════════════════════════════════
     // ORDEN CRÍTICO: la confirmación al cliente y la creación de la

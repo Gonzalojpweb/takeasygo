@@ -233,6 +233,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedLocation) formData.append('locationId', selectedLocation)
       const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!res.ok) throw new Error()
       const { url } = await res.json()
@@ -268,6 +269,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedLocation) formData.append('locationId', selectedLocation)
       const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!res.ok) throw new Error()
       const { url } = await res.json()
@@ -630,6 +632,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedLocation) formData.append('locationId', selectedLocation)
       const uploadRes = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!uploadRes.ok) throw new Error()
       const { url } = await uploadRes.json()
@@ -1848,6 +1851,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                               loading={loading}
                                                               mode="edit"
                                                               tenantSlug={tenantSlug}
+                                                              selectedLocation={selectedLocation}
                                                               allItems={(currentMenu?.categories || []).flatMap((c: any) => [
                                                                 ...c.items,
                                                                 ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])
@@ -1965,6 +1969,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                                       loading={loading}
                                                       mode="add"
                                                       tenantSlug={tenantSlug}
+                                                      selectedLocation={selectedLocation}
                                                       allItems={(currentMenu?.categories || []).flatMap((c: any) => [
                                                         ...c.items,
                                                         ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])
@@ -2018,6 +2023,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                           loading={loading}
                                           mode="edit"
                                           tenantSlug={tenantSlug}
+                                          selectedLocation={selectedLocation}
                                           allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])]).filter((i: any) => i._id !== item._id)}
                                         />
                                       ) : (
@@ -2231,6 +2237,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
                                     loading={loading}
                                     mode="add"
                                     tenantSlug={tenantSlug}
+                                    selectedLocation={selectedLocation}
                                     allItems={(currentMenu?.categories || []).flatMap((c: any) => [...(c.items || []), ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])])}
                                   />
                                 </motion.div>
@@ -2809,7 +2816,7 @@ function RecursiveGroupEditor({
 }
 
 function ItemForm({
-  data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [],
+  data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [], selectedLocation,
 }: {
   data: ItemFormData
   onChange: (v: ItemFormData) => void
@@ -2819,6 +2826,8 @@ function ItemForm({
   mode: 'add' | 'edit'
   tenantSlug: string
   allItems?: any[]
+  /** Sede del menú: las imágenes se guardan en su carpeta. */
+  selectedLocation?: string
 }) {
   const [uploading, setUploading] = useState(false)
   const [upsellSearch, setUpsellSearch] = useState('')
@@ -2839,6 +2848,7 @@ function ItemForm({
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedLocation) formData.append('locationId', selectedLocation)
       const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
       if (!res.ok) throw new Error()
       const { url } = await res.json()
@@ -2861,6 +2871,7 @@ function ItemForm({
     try {
       const formData = new FormData()
       formData.append('file', file)
+      if (selectedLocation) formData.append('locationId', selectedLocation)
       const res = await fetch(`/api/${tenantSlug}/upload`, {
         method: 'POST',
         body: formData,

@@ -5,6 +5,7 @@ import { toPesos } from '@takeasygo/business/browser'
 import {
   DEFAULT_MIN_ADVANCE_MINUTES,
   DEFAULT_TIMEZONE,
+  addDaysToDateStr,
   getLocalDayAndMinutes,
   getTodayStrInTimezone,
   isSlotBookable,
@@ -116,6 +117,8 @@ export default function ReservaForm({ tenant, location }: Props) {
   const paymentsEnabled = config.paymentsEnabled !== false
   const minPayment: number = paymentsEnabled ? config.minPayment || 0 : 0
   const maxPartySize: number = config.maxPartySize || 10
+  // Anticipación máxima (días): null = sin límite.
+  const maxAdvanceDays: number | null = typeof config.maxAdvanceDays === 'number' ? config.maxAdvanceDays : null
   const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
   // Con espacios cargados el aforo lo decide el server, también en modo manual.
   const spaces: SpaceItem[] = Array.isArray(location.spaces) ? location.spaces : []
@@ -415,6 +418,7 @@ export default function ReservaForm({ tenant, location }: Props) {
               type="date"
               value={form.date}
               min={getTodayStrInTimezone(timezone)}
+              max={maxAdvanceDays ? addDaysToDateStr(getTodayStrInTimezone(timezone), maxAdvanceDays) : undefined}
               onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
               style={inputStyle}
               required

@@ -4,6 +4,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdminRole } from '@/lib/apiAuth'
 import { guardSharedOrLocation } from '@/lib/location-scope'
+import { loadClonableConfig, cloneMenu } from '@/lib/location-clone'
 import { logAudit } from '@/lib/audit'
 import { slugifyOrFallback } from '@/lib/slugify'
 
@@ -49,7 +50,20 @@ export async function POST(
 
     const rawBody = await request.json()
     // Pertenencia y credenciales del agente no se asignan desde el body.
-    const { _id: _ignoredId, tenantId: _ignoredTenant, printerAgent: _ignoredAgent, ...body } = rawBody ?? {}
+    const {
+      _id: _ignoredId, tenantId: _ignoredTenant, printerAgent: _ignoredAgent,
+      cloneFromLocationId, cloneMenu: shouldCloneMenu,
+      ...body
+    } = rawBody ?? {}
+
+    // Alta copiando la configuracion operativa de otra sede del tenant.
+    let clonedConfig: Record<string, unknown> | null = null
+    if (cloneFromLocationId) {
+      clonedConfig = await loadClonableConfig(tenant._id, String(cloneFromLocationId))
+      if (!clonedConfig) {
+        return NextResponse.json({ error: 'Sede de origen no encontrada' }, { status: 404 })
+      }
+    }
 
     // El modo onboarding (upsert por slug) solo vale mientras el negocio está
     // en el alta: con el negocio aprobado sobrescribiría una sede existente.
@@ -98,8 +112,10 @@ export async function POST(
     }
 
     // ── Timezone: sede nueva hereda del tenant si no se provee ──────────
+    // (si se clona, la de la sede origen tiene prioridad sobre la del tenant)
     if (!body.timezone) {
-      body.timezone = (tenant as any).timezone || 'America/Argentina/Buenos_Aires'
+      body.timezone = (clonedConfig?.timezone as string | undefined)
+        || (tenant as any).timezone || 'America/Argentina/Buenos_Aires'
     }
 
     let location
@@ -115,11 +131,22 @@ export async function POST(
         { new: true, upsert: true, setDefaultsOnInsert: true }
       )
     } else {
-      location = await Location.create({ ...body, tenantId: tenant._id })
+      const clonedSettings = (clonedConfig?.settings ?? {}) as Record<string, unknown>
+      location = await Location.create({
+        ...(clonedConfig ?? {}),
+        ...body,
+        settings: { ...clonedSettings, ...(body.settings ?? {}) },
+        tenantId: tenant._id,
+      })
     }
 
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.created', entity: 'location', entityId: location._id.toString(), details: { name: body.name }, request })
-    return NextResponse.json({ location, geoWarning }, { status: 201 })
+    // Menu copiado de la sede origen (ids nuevos, likes en cero).
+    const menuCloned = clonedConfig && shouldCloneMenu
+      ? await cloneMenu(tenant._id, String(cloneFromLocationId), location._id)
+      : false
+
+    return NextResponse.json({ location, geoWarning, menuCloned }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

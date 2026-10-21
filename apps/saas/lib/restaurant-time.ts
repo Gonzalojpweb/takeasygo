@@ -134,3 +134,10 @@ export function isValidCalendarDate(dateStr: unknown): dateStr is string {
   const daysInMonth = new Date(Date.UTC(y, M, 0)).getUTCDate()
   return d <= daysInMonth
 }
+
+/** Suma días a una fecha 'YYYY-MM-DD' (calendario, sin depender del huso). */
+export function addDaysToDateStr(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
