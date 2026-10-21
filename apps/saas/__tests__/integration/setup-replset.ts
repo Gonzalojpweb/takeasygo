@@ -23,7 +23,8 @@ const mongoose = (await import('mongoose')).default
 let replSet: import('mongodb-memory-server').MongoMemoryReplSet
 
 beforeAll(async () => {
-  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 } })
+  // launchTimeout amplio: ver setup.ts.
+  replSet = await MongoMemoryReplSet.create({ replSet: { count: 1 }, instanceOpts: [{ launchTimeout: 90_000 }] })
   await mongoose.connect(replSet.getUri())
 }, 60_000)
 

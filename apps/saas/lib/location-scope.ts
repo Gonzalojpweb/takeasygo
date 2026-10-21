@@ -81,7 +81,26 @@ export async function guardRequestLocation(
   if (!locationId) return null
   const { getSessionUser } = await import('@/lib/apiAuth')
   const user = await getSessionUser(request)
-  return guardResourceLocation(user, locationId, notFoundMessage)
+  const denied = guardResourceLocation(user, locationId, notFoundMessage)
+  if (denied) await reportDenial(request, user, locationId)
+  return denied
+}
+
+/** Bitácora + alerta ante rechazos repetidos (lib/scope-denials). */
+async function reportDenial(
+  request: NextRequest,
+  user: { id?: string | null; tenantId?: string | null; role?: string | null } | null | undefined,
+  locationId: unknown
+): Promise<void> {
+  if (!user) return
+  const { recordScopeDenial } = await import('@/lib/scope-denials')
+  await recordScopeDenial({
+    tenantId: user.tenantId,
+    userId: user.id,
+    role: user.role,
+    route: request.nextUrl.pathname,
+    locationId,
+  })
 }
 
 /**
@@ -96,10 +115,16 @@ export async function guardSharedOrLocation(
 ): Promise<NextResponse | null> {
   const { getSessionUser } = await import('@/lib/apiAuth')
   const user = await getSessionUser(request)
-  if (locationId) return guardResourceLocation(user, locationId, notFoundMessage)
+  if (locationId) {
+    const denied = guardResourceLocation(user, locationId, notFoundMessage)
+    if (denied) await reportDenial(request, user, locationId)
+    return denied
+  }
   if (!user) return NextResponse.json({ error: notFoundMessage }, { status: 404 })
   const scoped = user.role !== 'superadmin' && (user.assignedLocations ?? []).length > 0
-  return scoped ? NextResponse.json({ error: notFoundMessage }, { status: 404 }) : null
+  if (!scoped) return null
+  await reportDenial(request, user, null)
+  return NextResponse.json({ error: notFoundMessage }, { status: 404 })
 }
 
 /** Filtro para listados/lotes: sedes del usuario, o null si es de tenant. */

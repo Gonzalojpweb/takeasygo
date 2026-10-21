@@ -17,7 +17,9 @@ const mongoose = (await import('mongoose')).default
 let mongod: MongoMemoryServer
 
 beforeAll(async () => {
-  mongod = await MongoMemoryServer.create()
+  // launchTimeout amplio: en Windows (antivirus sobre la carpeta temporal)
+  // mongod puede tardar >10 s en arrancar. En CI no cambia nada.
+  mongod = await MongoMemoryServer.create({ instance: { launchTimeout: 90_000 } })
   await mongoose.connect(mongod.getUri())
 })
 

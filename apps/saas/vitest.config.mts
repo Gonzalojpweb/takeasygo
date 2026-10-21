@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['__tests__/**/*.test.ts'],
+    // Arranque de MongoMemoryServer en beforeAll: en Windows puede superar
+    // los 10 s por defecto (ver __tests__/integration/setup.ts).
+    hookTimeout: 120_000,
   },
   resolve: {
     alias: {
