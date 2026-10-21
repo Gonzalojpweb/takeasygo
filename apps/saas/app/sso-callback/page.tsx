@@ -26,6 +26,12 @@ function SsoCallbackContent() {
         setError(result.error)
         return
       }
+      // Sede del POS como sede activa del admin (AdminLocationContext la
+      // descarta si no está en el alcance del usuario).
+      const locationId = searchParams.get('locationId')
+      if (locationId && /^[a-f0-9]{24}$/i.test(locationId)) {
+        try { sessionStorage.setItem('tgo_admin_active_location', locationId) } catch { /* sin storage */ }
+      }
       router.push(callbackUrl)
     })
   }, [searchParams, router])

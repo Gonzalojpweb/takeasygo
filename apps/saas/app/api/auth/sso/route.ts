@@ -16,6 +16,7 @@ const LOGIN_ERRORS = {
   sso_auth_failed: '/login?error=sso_auth_failed',
   sso_forbidden_route: '/login?error=sso_forbidden_route',
   sso_forbidden_tenant: '/login?error=sso_forbidden_tenant',
+  sso_forbidden_location: '/login?error=sso_forbidden_location',
 } as const
 
 // POS roles → allowed SaaS routes (server-side guard)
@@ -56,6 +57,15 @@ export async function GET(req: NextRequest) {
     return redirectToLogin(req, 'sso_forbidden_tenant')
   }
 
+  // Sede del POS: tiene que estar dentro del alcance del usuario (un usuario
+  // sin sedes asignadas es de nivel tenant). Se conserva como sede activa
+  // del admin al llegar al SaaS.
+  const posLocationId = typeof payload.locationId === 'string' ? payload.locationId : null
+  const assigned = (user.assignedLocations ?? []).map((id: unknown) => String(id))
+  if (posLocationId && assigned.length > 0 && !assigned.includes(posLocationId)) {
+    return redirectToLogin(req, 'sso_forbidden_location')
+  }
+
   // Server-side: validate POS role has permission for the requested route
   const posRole = payload.role as string
   const allowedRoutes = ROLE_ALLOWED_ROUTES[posRole]
@@ -88,7 +98,8 @@ export async function GET(req: NextRequest) {
   const authCode = randomUUID()
   await redis.set(`ssoAuth:${authCode}`, JSON.stringify({ email: user.email }), { ex: 30 })
 
-  const redirectUrl = new URL(`/sso-callback?code=${authCode}&callbackUrl=${encodeURIComponent(callbackUrl)}`, req.url)
+  const locationParam = posLocationId ? `&locationId=${encodeURIComponent(posLocationId)}` : ''
+  const redirectUrl = new URL(`/sso-callback?code=${authCode}&callbackUrl=${encodeURIComponent(callbackUrl)}${locationParam}`, req.url)
   const response = NextResponse.redirect(redirectUrl)
 
   // Set cookie to indicate this session originated from POS (8h TTL)
