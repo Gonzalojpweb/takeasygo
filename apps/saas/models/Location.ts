@@ -110,6 +110,8 @@ export interface ILocation extends Document {
     minAdvanceMinutes?: number | null
     /** Días hacia adelante que se puede reservar. Ausente o null = sin límite. */
     maxAdvanceDays?: number | null
+    /** Minutos después del horario para marcar no-show automático. null = apagado. */
+    autoNoShowMinutes?: number | null
     slotConfig?: {
       enabled: boolean
       operatingHours: Array<{ days: number[]; open: string; close: string }>
@@ -357,6 +359,7 @@ settings: {
       maxPartySize: { type: Number, default: 10 },
       minAdvanceMinutes: { type: Number, default: 30, min: 0, max: 720 },
       maxAdvanceDays: { type: Number, default: null, min: 1, max: 365 },
+      autoNoShowMinutes: { type: Number, default: null, min: 5, max: 240 },
       slotConfig: {
         enabled: { type: Boolean, default: false },
         operatingHours: { type: [{ days: [Number], open: String, close: String }], default: [] },

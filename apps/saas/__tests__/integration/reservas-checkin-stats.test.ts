@@ -21,7 +21,8 @@ import Table from '@/models/Table'
 import { PUT as putReserva } from '@/app/api/[tenant]/reservas/[reservaId]/route'
 import { GET as getStats } from '@/app/api/[tenant]/reservas/stats/route'
 import { auth } from '@/lib/auth'
-import { getTodayStrInTimezone, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
+import { getTodayStrInTimezone, DEFAULT_TIMEZONE, addDaysToDateStr } from '@/lib/restaurant-time'
+import { applyAutoNoShow } from '@/lib/reservation-no-show'
 
 const SLUG = 'chopis-test'
 let tenant: any
@@ -131,5 +132,26 @@ describe('reportes de reservas por sede', () => {
     const body = await (await stats()).json()
     expect(body.total).toBe(1)
     expect((await stats(`?locationId=${loc1._id}`)).status).toBe(404)
+  })
+})
+
+describe('no-show automático', () => {
+  it('marca no-show solo lo vencido y solo en sedes con la opción', async () => {
+    const today = getTodayStrInTimezone(DEFAULT_TIMEZONE)
+    await Location.updateOne({ _id: loc1._id }, { $set: { 'reservationConfig.autoNoShowMinutes': 15 } })
+    const vencida = await reserva(loc1, 'confirmed', addDaysToDateStr(today, -1))
+    const futura = await Reservation.create({
+      tenantId: tenant._id, locationId: loc1._id, reservationNumber: 'R-fut', date: today, time: '23:59',
+      partySize: 2, name: 'enc', phone: 'enc', status: 'confirmed', payment: { amount: 0, status: 'approved' },
+    })
+    const otraSede = await reserva(loc2, 'confirmed', addDaysToDateStr(today, -1))
+
+    const marked = await applyAutoNoShow(tenant._id)
+    expect(marked).toBe(1)
+    const v = await Reservation.findById(vencida._id).lean() as any
+    expect(v.status).toBe('no_show')
+    expect(v.autoNoShowAt).toBeTruthy()
+    expect((await Reservation.findById(futura._id).lean() as any).status).toBe('confirmed')
+    expect((await Reservation.findById(otraSede._id).lean() as any).status).toBe('confirmed')
   })
 })

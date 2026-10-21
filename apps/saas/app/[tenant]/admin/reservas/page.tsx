@@ -10,6 +10,7 @@ import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 import { safeDecrypt } from '@/lib/crypto'
 import { Lock } from 'lucide-react'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
+import { applyAutoNoShow } from '@/lib/reservation-no-show'
 
 export default async function ReservasPage() {
   const headersList = await headers()
@@ -78,6 +79,9 @@ export default async function ReservasPage() {
 
   const fromStr = from.toISOString().split('T')[0]
   const toStr = to.toISOString().split('T')[0]
+
+  // No-show automático (perezoso) en las sedes del usuario antes de leer.
+  await applyAutoNoShow(tenantId, pageScope.sedeFilter)
 
   const rawReservations = await Reservation.find({
     tenantId,

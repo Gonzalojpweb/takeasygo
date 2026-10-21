@@ -257,6 +257,17 @@ export async function PUT(
       }
     }
 
+    // ── Validate reservationConfig.autoNoShowMinutes (null = apagado) ───────
+    if (body?.reservationConfig && 'autoNoShowMinutes' in body.reservationConfig) {
+      const v = body.reservationConfig.autoNoShowMinutes
+      if (v !== null && (!Number.isInteger(v) || v < 5 || v > 240)) {
+        return NextResponse.json(
+          { error: 'El no-show automático debe ser un número entero entre 5 y 240 minutos (o vacío para apagarlo)' },
+          { status: 400 }
+        )
+      }
+    }
+
     // ── Validate reservationConfig.paymentsEnabled si viene ────────────────
     if (body?.reservationConfig && 'paymentsEnabled' in body.reservationConfig) {
       if (typeof body.reservationConfig.paymentsEnabled !== 'boolean') {

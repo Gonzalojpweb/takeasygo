@@ -20,6 +20,8 @@ export interface IReservation extends Document {
   status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
   /** posId de la mesa (POS) donde se sentó la reserva; misma sede. null = sin mesa. */
   tablePosId?: string | null
+  /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
+  autoNoShowAt?: Date | null
   payment: {
     /** Monto del pago en centavos. @storedAs cents */
     amount: number
@@ -51,6 +53,8 @@ const ReservationSchema = new Schema<IReservation>(
     email: { type: String, default: '', trim: true },
     notes: { type: String, default: '', trim: true },
     tablePosId: { type: String, default: null },
+    /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
+    autoNoShowAt: { type: Date, default: null },
     clientToken: { type: String, default: null },
     spaceId: { type: Schema.Types.ObjectId, default: null },
     status: {

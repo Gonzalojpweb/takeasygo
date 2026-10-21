@@ -173,6 +173,8 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
     minAdvanceMinutes: number
     /** '' = sin límite */
     maxAdvanceDays: number | ''
+    /** '' = apagado */
+    autoNoShowMinutes: number | ''
     slotConfig?: {
       enabled: boolean
       operatingHours: OperatingHourConfig[]
@@ -192,6 +194,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
         maxPartySize: l.reservationConfig?.maxPartySize ?? 10,
         minAdvanceMinutes: l.reservationConfig?.minAdvanceMinutes ?? DEFAULT_MIN_ADVANCE_MINUTES,
         maxAdvanceDays: l.reservationConfig?.maxAdvanceDays ?? '',
+        autoNoShowMinutes: l.reservationConfig?.autoNoShowMinutes ?? '',
         slotConfig: {
           enabled: l.reservationConfig?.slotConfig?.enabled ?? false,
           operatingHours: l.reservationConfig?.slotConfig?.operatingHours ?? [],
@@ -319,6 +322,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
         paymentsEnabled: config.paymentsEnabled !== false,
         minPayment: toCents(config.minPayment),
         maxAdvanceDays: config.maxAdvanceDays === '' ? null : Number(config.maxAdvanceDays),
+        autoNoShowMinutes: config.autoNoShowMinutes === '' ? null : Number(config.autoNoShowMinutes),
       }
       const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
         method: 'PUT',
@@ -2338,6 +2342,26 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                               <FieldHelp>
                                 Hasta cuántos días hacia adelante se puede reservar. Con 30, nadie reserva para
                                 dentro de dos meses. Vacío = sin límite.
+                              </FieldHelp>
+                            </div>
+                            <div>
+                              <label className={labelCls}>No-show automático (min)</label>
+                              <input
+                                type="number"
+                                min={5}
+                                max={240}
+                                step={5}
+                                placeholder="Apagado"
+                                value={reservationMap[loc._id]?.autoNoShowMinutes ?? ''}
+                                onChange={e => setReservationMap(prev => ({
+                                  ...prev,
+                                  [loc._id]: { ...prev[loc._id], autoNoShowMinutes: e.target.value === '' ? '' : Number(e.target.value) }
+                                }))}
+                                className={cn(inputCls, "text-center")}
+                              />
+                              <FieldHelp>
+                                Si una reserva confirmada no se sentó estos minutos después de su horario, queda
+                                marcada como "No vino". Vacío = lo marcás a mano.
                               </FieldHelp>
                             </div>
                           </div>

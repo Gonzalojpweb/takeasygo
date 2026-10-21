@@ -6,6 +6,7 @@ import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { scopeLocationFilter } from '@/lib/location-scope'
 import { DEFAULT_TIMEZONE, addDaysToDateStr, getTodayStrInTimezone } from '@/lib/restaurant-time'
+import { applyAutoNoShow } from '@/lib/reservation-no-show'
 
 /**
  * GET /api/[tenant]/reservas/stats?locationId=&days=30
@@ -43,6 +44,9 @@ export async function GET(
     const days = Math.min(365, Math.max(1, Number(request.nextUrl.searchParams.get('days')) || 30))
     const today = getTodayStrInTimezone((tenant as { timezone?: string }).timezone || DEFAULT_TIMEZONE)
     const from = addDaysToDateStr(today, -(days - 1))
+
+    // No-show automático (perezoso) antes de calcular.
+    await applyAutoNoShow(tenant._id, requestedLocationId ? { _id: requestedLocationId } : {})
 
     const rows = await Reservation.aggregate<{
       _id: { locationId: unknown; status: string }

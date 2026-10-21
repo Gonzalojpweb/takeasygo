@@ -17,6 +17,7 @@ import { sendReservationConfirmation } from '@/lib/reservationNotifications'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { pickAdminWhatsApp } from '@/lib/location-resolvers'
 import { acquireReservationLock } from '@/lib/reservation-lock'
+import { applyAutoNoShow } from '@/lib/reservation-no-show'
 import { toPesos } from '@takeasygo/business'
 import {
   DEFAULT_MIN_ADVANCE_MINUTES,
@@ -97,6 +98,9 @@ export async function GET(
     const sedeScope = await scopeLocationFilter(request, locationId)
     if ('error' in sedeScope) return sedeScope.error
     Object.assign(filter, sedeScope.filter)
+
+    // No-show automático (perezoso) antes de leer.
+    await applyAutoNoShow(tenant._id, locationId ? { _id: locationId } : {})
 
     const reservations = (await Reservation.find(filter).sort({ date: 1, time: 1 }).lean()).map(decryptReservation)
     return NextResponse.json({ reservations })
