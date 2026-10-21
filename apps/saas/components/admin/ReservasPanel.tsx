@@ -37,7 +37,7 @@ interface Reservation {
   name: string
   phone: string
   notes: string
-  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
+  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show' | 'waitlist'
   locationId: string
   /** Mesa (posId) asignada al sentar. */
   tablePosId?: string | null
@@ -75,6 +75,7 @@ const STATUS_CONFIG = {
   cancelled:       { label: 'Cancelada',      color: 'bg-red-500/10 text-red-600 border-red-500/20' },
   seated:          { label: 'En mesa',        color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
   no_show:         { label: 'No se presentó', color: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20' },
+  waitlist:        { label: 'Lista de espera', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
 }
 
 function formatDateLabel(dateStr: string) {
@@ -466,6 +467,14 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                           </div>
                         ) : (
                           <>
+                            {r.status === 'waitlist' && (
+                              <ActionBtn
+                                icon={<CheckCircle2 size={15} />}
+                                label="Confirmar"
+                                color="emerald"
+                                onClick={() => updateStatus(r._id, 'confirmed')}
+                              />
+                            )}
                             {r.status === 'pending_payment' && (
                               <ActionBtn
                                 icon={<CheckCircle2 size={15} />}
@@ -518,7 +527,7 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                                 />
                               </>
                             )}
-                            {(r.status === 'pending_payment' || r.status === 'confirmed') && (
+                            {(r.status === 'pending_payment' || r.status === 'confirmed' || r.status === 'waitlist') && (
                               <ActionBtn
                                 icon={<XCircle size={15} />}
                                 label="Cancelar"

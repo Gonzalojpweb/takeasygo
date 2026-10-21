@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
 import Table from '@/models/Table'
+import { acquireReservationLock } from '@/lib/reservation-lock'
 import { isValidTableTransition } from '@takeasygo/business'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
@@ -67,6 +68,32 @@ export async function PUT(
     })
     if (permError) return permError
 
+    // Lista de espera → confirmada: hay que volver a chequear el cupo de la
+    // franja, con el mismo lock del alta (R-1) para no sobrevender.
+    let releaseLock: (() => Promise<void>) | null = null
+    if (prev.status === 'waitlist' && status === 'confirmed') {
+      const location = await Location.findOne({ _id: prev.locationId, tenantId: tenant._id }).lean<any>()
+      if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
+      releaseLock = await acquireReservationLock(tenant._id, prev.locationId, prev.date)
+      if (!releaseLock) {
+        return NextResponse.json({ error: 'Hay otra operación en curso para esa fecha. Reintentá.' }, { status: 409 })
+      }
+      const { generateReservationSlots } = await import('@/lib/reservation-slots')
+      const available = await generateReservationSlots(String(prev.locationId), prev.date, location.reservationConfig, {
+        timezone: location.timezone,
+        spaces: location.spaces,
+        partySize: prev.partySize,
+        spaceId: prev.spaceId ? String(prev.spaceId) : null,
+        // Confirmar desde la lista de espera no está sujeto a la antelación mínima.
+        minAdvanceMinutes: 0,
+      })
+      const slot = available.slots.find(s => s.time === prev.time)
+      if (!slot?.available) {
+        await releaseLock()
+        return NextResponse.json({ error: 'Todavía no hay lugar en ese horario.' }, { status: 409 })
+      }
+    }
+
     const decryptedPrev = decryptReservation(prev)
     const updateFields: any = { status }
 
@@ -98,6 +125,7 @@ export async function PUT(
       { $set: updateFields },
       { returnDocument: 'after', lean: true }
     )
+    if (releaseLock) await releaseLock()
     if (!reservation) return NextResponse.json({ error: 'Reserva no encontrada' }, { status: 404 })
 
     if (status === 'confirmed' && !prev.notifications?.confirmationSent) {

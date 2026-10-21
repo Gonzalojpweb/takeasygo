@@ -61,6 +61,9 @@ const UI = {
     submitPay: (amount: string) => `Pagar seña $${amount}`,
     processing: 'Procesando...',
     confirmed: '¡Reserva confirmada!',
+    waitlistCta: (time: string) => `Anotarme en lista de espera para las ${time}`,
+    waitlistDone: 'Estás en la lista de espera',
+    waitlistDoneMsg: 'Si se libera un lugar, el restaurante te confirma la reserva por WhatsApp o email.',
     confirmedMsg: (phone: string) => `Nos vemos pronto. Podés comunicarte al ${phone} si necesitás modificar tu reserva.`,
     whatsappCta: 'Enviar reserva por WhatsApp',
     whatsappHint: 'Avisale al local por WhatsApp con el detalle de tu reserva.',
@@ -95,6 +98,9 @@ const UI = {
     submitPay: (amount: string) => `Pay deposit $${amount}`,
     processing: 'Processing...',
     confirmed: 'Reservation confirmed!',
+    waitlistCta: (time: string) => `Join the waitlist for ${time}`,
+    waitlistDone: 'You are on the waitlist',
+    waitlistDoneMsg: 'If a spot opens up, the restaurant will confirm your reservation by WhatsApp or email.',
     confirmedMsg: (phone: string) => `See you soon. You can reach us at ${phone} if you need to modify your reservation.`,
     whatsappCta: 'Send reservation via WhatsApp',
     whatsappHint: 'Let the restaurant know on WhatsApp with your reservation details.',
@@ -129,7 +135,9 @@ export default function ReservaForm({ tenant, location }: Props) {
     s.enabled === false || (s.blockedDates ?? []).includes(date)
 
   const [locale, setLocale] = useState<'es' | 'en'>('es')
-  const [step, setStep] = useState<'form' | 'paying' | 'free_done'>('form')
+  const [step, setStep] = useState<'form' | 'paying' | 'free_done' | 'waitlist_done'>('form')
+  // Horario lleno: se ofrece anotarse en la lista de espera para ese horario.
+  const [waitlistTime, setWaitlistTime] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -237,9 +245,41 @@ export default function ReservaForm({ tenant, location }: Props) {
   const primary = branding.primaryColor
   const br = branding.borderRadius === 'pill' ? '9999px' : branding.borderRadius === 'sharp' ? '4px' : '12px'
 
+  async function joinWaitlist() {
+    if (!waitlistTime) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/${tenant.slug}/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          time: waitlistTime,
+          locationId: location._id,
+          clientToken: clientToken || undefined,
+          spaceId: activeSpaceId || undefined,
+          waitlist: true,
+        }),
+      })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        setError(d.error || t.errCreate)
+        return
+      }
+      setWaitlistTime(null)
+      setStep('waitlist_done')
+    } catch {
+      setError(t.errConnection)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
+    setWaitlistTime(null)
     if (spacesMode && !activeSpaceId) { setError(t.errSpace); return }
     if (!form.time) { setError(t.errTime); return }
     if (!form.name.trim()) { setError(t.errName); return }
@@ -262,7 +302,10 @@ export default function ReservaForm({ tenant, location }: Props) {
         const d = await resRes.json()
         // 409 = el horario dejó de estar disponible (lo ocuparon o pasó):
         // refrescamos los slots para que el form no siga ofreciendo ese.
-        if (resRes.status === 409) await refreshSlotsRef.current()
+        if (resRes.status === 409) {
+          if (d.waitlistAvailable) setWaitlistTime(form.time)
+          await refreshSlotsRef.current()
+        }
         setError(d.error || t.errCreate)
         return
       }
@@ -321,6 +364,17 @@ export default function ReservaForm({ tenant, location }: Props) {
     color: branding.textColor,
     opacity: 0.5,
     marginBottom: '6px',
+  }
+
+  if (step === 'waitlist_done') {
+    return (
+      <div style={{ minHeight: '100dvh', backgroundColor: branding.backgroundColor, color: branding.textColor, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '360px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '8px' }}>{t.waitlistDone}</h2>
+          <p style={{ opacity: 0.6, fontSize: '14px' }}>{t.waitlistDoneMsg}</p>
+        </div>
+      </div>
+    )
   }
 
   if (step === 'free_done') {
@@ -599,6 +653,27 @@ export default function ReservaForm({ tenant, location }: Props) {
 
           {error && (
             <p style={{ fontSize: '13px', color: '#ef4444', textAlign: 'center' }}>{error}</p>
+          )}
+
+          {waitlistTime && (
+            <button
+              type="button"
+              onClick={joinWaitlist}
+              disabled={loading}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: br,
+                border: `1.5px solid ${primary}`,
+                backgroundColor: 'transparent',
+                color: primary,
+                fontSize: '14px',
+                fontWeight: 700,
+                cursor: loading ? 'wait' : 'pointer',
+              }}
+            >
+              {t.waitlistCta(waitlistTime)}
+            </button>
           )}
 
           <button

@@ -258,10 +258,14 @@ export async function POST(
       ))
     }
     const requestedSlot = available.slots.find(s => s.time === time)
-    if (!requestedSlot || !requestedSlot.available) {
+    // Lista de espera: con el horario lleno, el cliente puede pedir que lo
+    // anoten (body.waitlist). No ocupa lugar ni cobra seña hasta confirmarse.
+    const isWaitlist = body.waitlist === true && !!requestedSlot && !requestedSlot.available
+    if ((!requestedSlot || !requestedSlot.available) && !isWaitlist) {
       return releaseAnd(NextResponse.json({
         error: 'El horario seleccionado ya no está disponible. Elegí otro.',
         availableSlots: available.slots.filter(s => s.available).map(s => s.time),
+        waitlistAvailable: !!requestedSlot,
       }, { status: 409 }))
     }
 
@@ -291,6 +295,27 @@ export async function POST(
     const paymentAmount =
       reservationConfig.paymentsEnabled !== false && minPayment > 0 ? minPayment : 0
     const isFree = paymentAmount <= 0
+
+    if (isWaitlist) {
+      const waitlistEntry = await Reservation.create({
+        tenantId: tenant._id,
+        locationId,
+        reservationNumber,
+        date,
+        time,
+        partySize,
+        name:  encrypt(name.trim()),
+        phone: encrypt(phone.trim()),
+        email: email?.trim() || '',
+        clientToken: clientToken || null,
+        notes: notes?.trim() || '',
+        spaceId: spacesMode && typeof spaceId === 'string' ? spaceId : null,
+        status: 'waitlist',
+        payment: { amount: 0, status: 'pending', mercadopagoId: null, preferenceId: null, mpAccountId: null },
+        notifications: { confirmationSent: false },
+      })
+      return releaseAnd(NextResponse.json({ reservation: waitlistEntry, waitlist: true }, { status: 201 }))
+    }
 
     const reservation = await Reservation.create({
       tenantId: tenant._id,

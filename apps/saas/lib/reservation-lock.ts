@@ -36,6 +36,8 @@ const ReservationLock =
   (mongoose.models.ReservationLock as mongoose.Model<IReservationLock>) ||
   mongoose.model<IReservationLock>('ReservationLock', ReservationLockSchema, 'reservation_locks')
 
+let lockIndexReady: Promise<unknown> | null = null
+
 function isDuplicateKey(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { code?: number }).code === 11000
 }
@@ -50,6 +52,11 @@ export async function acquireReservationLock(
   locationId: unknown,
   date: string
 ): Promise<(() => Promise<void>) | null> {
+  // La exclusión depende del índice único de `key`: sin él, dos upserts
+  // concurrentes crean dos documentos y ambos "toman" el lock. init() espera
+  // a que el índice exista (una vez por proceso).
+  await (lockIndexReady ??= ReservationLock.init())
+
   const key = `${String(tenantId)}:${String(locationId)}:${date}`
   const owner = crypto.randomUUID()
   const deadline = Date.now() + MAX_WAIT_MS

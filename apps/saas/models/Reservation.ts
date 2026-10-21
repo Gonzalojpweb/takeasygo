@@ -17,7 +17,8 @@ export interface IReservation extends Document {
    * null = reserva sin espacio (sedes sin espacios cargados).
    */
   spaceId?: mongoose.Types.ObjectId | null
-  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show'
+  /** waitlist = lista de espera: no ocupa lugar ni cobra seña hasta que se confirma. */
+  status: 'pending_payment' | 'confirmed' | 'cancelled' | 'seated' | 'no_show' | 'waitlist'
   /** posId de la mesa (POS) donde se sentó la reserva; misma sede. null = sin mesa. */
   tablePosId?: string | null
   /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
@@ -59,7 +60,7 @@ const ReservationSchema = new Schema<IReservation>(
     spaceId: { type: Schema.Types.ObjectId, default: null },
     status: {
       type: String,
-      enum: ['pending_payment', 'confirmed', 'cancelled', 'seated', 'no_show'],
+      enum: ['pending_payment', 'confirmed', 'cancelled', 'seated', 'no_show', 'waitlist'],
       default: 'pending_payment',
     },
     payment: {

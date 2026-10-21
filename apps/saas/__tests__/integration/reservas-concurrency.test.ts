@@ -14,6 +14,7 @@ vi.mock('@/lib/mongoose', () => ({
 }))
 vi.mock('@/lib/reservationNotifications', () => ({
   sendReservationConfirmation: vi.fn().mockResolvedValue(undefined),
+  sendReservationCancellation: vi.fn().mockResolvedValue(undefined),
 }))
 
 import Tenant from '@/models/Tenant'
@@ -22,6 +23,9 @@ import Reservation from '@/models/Reservation'
 import mongoose from 'mongoose'
 import type { NextRequest } from 'next/server'
 import { POST as reservasPost } from '@/app/api/[tenant]/reservas/route'
+import { PUT as reservaPut } from '@/app/api/[tenant]/reservas/[reservaId]/route'
+import { NextRequest as NR } from 'next/server'
+import { auth } from '@/lib/auth'
 
 const params = { params: Promise.resolve({ tenant: 'conc-tenant' }) }
 const DATE = '2099-06-15' // fecha futura fija: sin depender del reloj
@@ -102,3 +106,41 @@ describe('R-1 — concurrencia de reservas', () => {
     expect((await res.json()).error).toContain('30 días')
   })
 })
+
+describe('lista de espera', () => {
+  const putStatus = (id: string, status: string) =>
+    reservaPut(
+      new NR(`http://localhost/api/conc-tenant/reservas/${id}`, {
+        method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ status }),
+      }),
+      { params: Promise.resolve({ tenant: 'conc-tenant', reservaId: id }) }
+    )
+
+  it('horario lleno: 409 ofrece lista de espera; con waitlist:true queda anotado sin ocupar lugar', async () => {
+    expect((await reservasPost(req(body('20:00', 1)), params)).status).toBe(201)
+    const full = await reservasPost(req(body('20:00', 2)), params)
+    expect(full.status).toBe(409)
+    expect((await full.json()).waitlistAvailable).toBe(true)
+
+    const res = await reservasPost(req({ ...body('20:00', 2), waitlist: true }), params)
+    expect(res.status).toBe(201)
+    const { reservation, waitlist } = await res.json()
+    expect(waitlist).toBe(true)
+    expect(reservation.status).toBe('waitlist')
+  })
+
+  it('confirmar desde la lista de espera: sin lugar → 409; con lugar liberado → confirmada', async () => {
+    const tenant = await Tenant.findOne({ slug: 'conc-tenant' })
+    vi.mocked(auth).mockResolvedValue({ user: { id: 'a1', role: 'admin', tenantId: tenant!._id.toString(), assignedLocations: [] }, expires: '' } as any)
+
+    const first = await (await reservasPost(req(body('20:00', 1)), params)).json()
+    const wait = await (await reservasPost(req({ ...body('20:00', 2), waitlist: true }), params)).json()
+
+    expect((await putStatus(wait.reservation._id, 'confirmed')).status).toBe(409)
+
+    expect((await putStatus(first.reservation._id, 'cancelled')).status).toBe(200)
+    expect((await putStatus(wait.reservation._id, 'confirmed')).status).toBe(200)
+    expect((await Reservation.findById(wait.reservation._id).lean() as any).status).toBe('confirmed')
+  })
+})
+
