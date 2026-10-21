@@ -2,6 +2,7 @@ import Printer from '@/models/Printer'
 import { buildPrintPayload } from './buildPrintPayload'
 import { isBarraPrinter } from './barra'
 import type { IOrder } from '@/models/Order'
+import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 
 // ============================================================================
 // onOrderConfirmed
@@ -31,6 +32,9 @@ import type { IOrder } from '@/models/Order'
 
 export async function onOrderConfirmed(order: IOrder): Promise<void> {
   type BuildPrinters = Parameters<typeof buildPrintPayload>[1]
+  // Inventario: el plato confirmado descuenta sus insumos (todos los canales
+  // pasan por acá). Idempotente y sin bloquear: nunca frena la impresión.
+  await syncOrderConsumptionSafe(order as unknown as Parameters<typeof syncOrderConsumptionSafe>[0])
   try {
     const activePrinters = await Printer.find({
       tenantId: order.tenantId,

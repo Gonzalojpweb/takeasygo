@@ -488,6 +488,13 @@ export async function PATCH(
 
     await order.save()
 
+    // Inventario: una cancelación devuelve los insumos ya descontados. (La
+    // confirmación la registra onOrderConfirmed.) Idempotente, nunca bloquea.
+    if (status === 'cancelled') {
+      const { syncOrderConsumptionSafe } = await import('@/lib/inventory/sales')
+      await syncOrderConsumptionSafe(order.toObject())
+    }
+
     // Compliance: cerrar las alertas SLA cuyo objetivo este movimiento ya cumplió
     // (no bloqueante: /compliance/status igual las sanea en cada lectura).
     resolveOrderAlerts(order._id, status)

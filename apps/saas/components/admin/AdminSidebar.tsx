@@ -37,6 +37,7 @@ import {
   Coins,
   EyeOff,
   Banknote,
+  Boxes,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -157,6 +158,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
         ...(posEnabled ? [{ href: `${base}/caja-pos`, label: 'Cajas POS', icon: Banknote, roles: ['admin', 'manager'] }] : []),
+        { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'inventory' },
         { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
       ],
     },

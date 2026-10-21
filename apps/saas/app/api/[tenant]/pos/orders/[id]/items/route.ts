@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import type { OrderStatus } from '@takeasygo/types'
 import { canEditOrderItems } from '@takeasygo/business'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
+import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, toSaasOrderItem, recomputeOrderTotals, type PosOrderItemInput } from '@/lib/pos-online/orderMapper'
 import { assertItemAgainstCatalog } from '@/lib/pos-online/catalogPrices'
@@ -53,6 +54,9 @@ export const POST = posRoute('orders.write', async (ctx, { id }) => {
   if (!updated) {
     throw PosError.conflict('La orden cambió mientras se procesaba la petición', `posId=${current.posId}`)
   }
+
+  // Inventario: una ronda agregada a una orden ya confirmada descuenta insumos.
+  await syncOrderConsumptionSafe(updated as never)
 
   await logAudit({
     tenantId: ctx.tenantId,

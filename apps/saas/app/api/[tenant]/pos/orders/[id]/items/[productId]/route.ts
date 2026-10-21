@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import type { OrderStatus } from '@takeasygo/types'
 import { canEditOrderItems } from '@takeasygo/business'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
+import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, recomputeOrderTotals, type SaasOrderItemDraft } from '@/lib/pos-online/orderMapper'
 import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
@@ -64,6 +65,8 @@ async function saveItems(
   if (!updated) {
     throw PosError.conflict('La orden cambió mientras se procesaba la petición', `posId=${posId}`)
   }
+  // Inventario: cantidad cambiada o línea quitada → se registra la diferencia.
+  await syncOrderConsumptionSafe(updated as never)
   return updated as unknown as PosOrderDoc
 }
 

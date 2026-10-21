@@ -86,6 +86,7 @@ export const MENU_PERMISSIONS: Record<string, ClientPermission> = {
   'printers': 'printjobs.manage',
   'menu': 'menu.read',
   'promotions': 'promotions.write',
+  'inventario': 'inventory.capture',
   'reports': 'reports.read',
   'audit': 'audit.read',
   'users': 'users.read',

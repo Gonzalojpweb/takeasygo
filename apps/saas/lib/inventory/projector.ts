@@ -162,7 +162,7 @@ export async function beliefParamsForLocation(locationId: unknown): Promise<Beli
 
 // ── Re-proyección de un agregado ─────────────────────────────────────────────
 
-function stateFromDoc(doc: Record<string, unknown>): BeliefState {
+export function stateFromDoc(doc: Record<string, unknown>): BeliefState {
   const base = emptyBelief()
   const ms = (v: unknown) => (v instanceof Date ? v.getTime() : v ? new Date(v as string).getTime() : null)
   return {

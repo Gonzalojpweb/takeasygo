@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import Table from '@/models/Table'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
+import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { assertPosCapability, orderStatusCapability } from '@/lib/pos-online/permissions'
 import { isValidOrderTransition, allowedOrderTransitions } from '@takeasygo/business'
@@ -198,6 +199,13 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
       await settleDeferredKitchenPrint(fullOrder, { print: to !== 'cancelled' })
       await fullOrder.save()
     }
+  }
+
+  // Inventario: una cancelación devuelve los insumos descontados; cualquier
+  // otro cambio de estado se reconcilia (idempotente).
+  if (update.status !== undefined) {
+    const synced = await Order.findOne({ tenantId: ctx.tenantId, locationId: ctx.locationId, posId }).lean()
+    if (synced) await syncOrderConsumptionSafe(synced as never)
   }
 
   if (
