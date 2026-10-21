@@ -6,6 +6,8 @@ export interface UserDocument extends Document {
   email: string
   password?: string
   pin?: string
+  /** HMAC del PIN por tenant (@takeasygo/business/pos-pin). */
+  posPinLookup?: string
   role: string
   tenantId: mongoose.Types.ObjectId | null
   isActive: boolean
@@ -27,6 +29,7 @@ export const UserSchema = new Schema<UserDocument>(
     },
     password: { type: String, select: false },
     pin: { type: String, select: false },
+    posPinLookup: { type: String, select: false },
     role: {
       type: String,
       required: true,
@@ -41,6 +44,11 @@ export const UserSchema = new Schema<UserDocument>(
 
 UserSchema.index({ email: 1 })
 UserSchema.index({ tenantId: 1, role: 1 })
+// Mismo índice que apps/saas/models/User.ts (misma colección `users`).
+UserSchema.index(
+  { tenantId: 1, posPinLookup: 1 },
+  { unique: true, partialFilterExpression: { posPinLookup: { $type: "string" } } }
+)
 
 UserSchema.pre("save", async function () {
   if (this.isModified("password") && this.password) {

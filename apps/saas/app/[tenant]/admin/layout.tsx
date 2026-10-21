@@ -77,12 +77,12 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled features.crm.enabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
+    .select('plan business.enabled features.crm.enabled features.posEnabled branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
     .lean<{
       _id: mongoose.Types.ObjectId
       plan?: Plan
       business?: { enabled?: boolean }
-      features?: { crm?: { enabled?: boolean } }
+      features?: { crm?: { enabled?: boolean }; posEnabled?: boolean }
       branding?: { primaryColor?: string; backgroundColor?: string; textColor?: string; logoUrl?: string }
       commissionBalance?: { transfer?: number }
       commissionThreshold?: number | null
@@ -91,6 +91,7 @@ export default async function AdminLayout({
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
   const crmEnabled = tenantDoc?.features?.crm?.enabled ?? false
+  const posEnabled = tenantDoc?.features?.posEnabled ?? false
 
   const branding = tenantDoc?.branding || {}
   const primaryColor = branding.primaryColor || '#f74211'
@@ -165,6 +166,7 @@ export default async function AdminLayout({
     pendingRedemptions,
     businessEnabled,
     crmEnabled,
+    posEnabled,
     assignedLocations: session.user.assignedLocations ?? [],
     locations: sidebarLocations,
     rbacSedeScope,

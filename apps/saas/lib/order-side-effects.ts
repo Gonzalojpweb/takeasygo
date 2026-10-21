@@ -206,6 +206,7 @@ export async function syncOrderAfterStatusSet(args: {
       surchargeAmount: order.payment?.surchargeAmount,
       notes: order.notes || undefined,
       paymentMethod: order.payment?.method ?? 'mercadopago',
+      orderMode: order.orderMode,
     })
   }
 

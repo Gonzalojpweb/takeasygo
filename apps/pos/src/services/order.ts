@@ -1,4 +1,5 @@
 import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
+import { pathToDelivered, type AllocatedPayment } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { posApi } from "./pos-api"
 import { runMutation } from "./polling"
@@ -116,6 +117,17 @@ async function transition(
 // Mutaciones
 // ============================================================================
 
+export interface CreateOrderOptions {
+  /**
+   * posId a usar. El Counter lo fija ANTES del primer intento de cobro: un
+   * reintento después de un error de red reenvía el mismo id y el server
+   * responde la orden ya creada (200) en vez de duplicarla.
+   */
+  id?: string
+  /** `confirmed` = nace enviada a cocina (el server genera la comanda). */
+  status?: "pending" | "confirmed"
+}
+
 export async function createOrder(
   tenantId: string,
   tableId: string,
@@ -125,11 +137,11 @@ export async function createOrder(
    * Firma estable: lo sigue pasando useOrders. No tiene equivalente en el
    * contrato /pos/orders — la mesa se ocupa aparte con occupyTable().
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _serverId?: string
+  _serverId?: string,
+  options: CreateOrderOptions = {}
 ): Promise<Order> {
   return runMutation(async () => {
-    const id = crypto.randomUUID()
+    const id = options.id ?? crypto.randomUUID()
 
     // `mostrador-<ts>` es un marcador local del Counter, no una mesa: si no
     // existe en el registro de mesas no viaja y el server la trata como
@@ -144,12 +156,62 @@ export async function createOrder(
         items,
         ...(isRealTable ? { tableId } : {}),
         ...(notes ? { notes } : {}),
+        ...(options.status ? { status: options.status } : {}),
       },
       id
     )
 
     return saveOrder(order)
   })
+}
+
+/**
+ * Registra el cobro en la orden (POST /pos/orders/[id]/payments). El server
+ * exige que la suma sea el total que él recalculó y es idempotente: el mismo
+ * conjunto de partes reenviado devuelve 200 con la orden.
+ */
+export async function recordPayments(
+  tenantId: string,
+  orderId: string,
+  payments: AllocatedPayment[]
+): Promise<Order> {
+  return runMutation(async () => {
+    const order = await postOrder(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/payments`,
+      {
+        payments: payments.map((p) => ({
+          id: p.id,
+          method: p.method,
+          amount: p.amount,
+          ...(p.reference ? { reference: p.reference } : {}),
+        })),
+      }
+    )
+    return saveOrder(order)
+  })
+}
+
+/**
+ * Lleva una orden cobrada hasta `delivered` recorriendo el grafo legal
+ * (confirmed → preparing → ready → delivered). Se usa al cerrar una mesa o
+ * una venta de entrega inmediata: la orden ya se sirvió. Idempotente: si ya
+ * está entregada no hace nada; si está cancelada, lanza.
+ */
+export async function settleToDelivered(
+  tenantId: string,
+  orderId: string,
+  jwt?: string
+): Promise<void> {
+  const current = await db.orders.get(orderId)
+  if (!current) throw new Error(`[order] Order ${orderId} not found`)
+  const path = pathToDelivered(current.status)
+  if (path === null) {
+    throw new Error(`[order] Order ${orderId} no puede entregarse desde ${current.status}`)
+  }
+  for (const status of path) {
+    await transition(tenantId, orderId, status, jwt)
+  }
 }
 
 export async function addItem(

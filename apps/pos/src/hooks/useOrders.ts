@@ -5,6 +5,7 @@ import { db } from "../db/dexie"
 import { useAuth } from "./useAuth"
 import {
   createOrder,
+  type CreateOrderOptions,
   confirmOrder,
   addItem,
   removeItem,
@@ -34,9 +35,15 @@ export function useOrders() {
 
   const actions = useMemo(
     () => ({
-      createOrder: (tableId: string, items: OrderItem[], notes?: string, serverId?: string) => {
+      createOrder: (
+        tableId: string,
+        items: OrderItem[],
+        notes?: string,
+        serverId?: string,
+        options?: CreateOrderOptions
+      ) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")
-        return createOrder(tenantId, tableId, items, notes, serverId)
+        return createOrder(tenantId, tableId, items, notes, serverId, options)
       },
       confirmOrder: (orderId: string) => {
         if (!tenantId) throw new Error("[useOrders] Not authenticated")

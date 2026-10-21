@@ -79,3 +79,13 @@ export {
   isPendingAdvanceBlocking,
   evaluateRewardRedemption,
 } from "./rewards"
+export {
+  type CheckoutPart,
+  type AllocatedPayment,
+  splitEvenly,
+  remainingToPay,
+  isCheckoutComplete,
+  cashChange,
+  allocatePayments,
+  pathToDelivered,
+} from "./checkout"

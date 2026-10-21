@@ -21,6 +21,16 @@ export function assertPosId(id: unknown): string {
   return id
 }
 
+/**
+ * Una orden ya cobrada (Order.posPayments) no admite cambios de items: el
+ * cobro quedaría descuadrado contra el total. 409 — es ciclo de vida, no rol.
+ */
+export function assertNotPaid(order: PosOrderDoc): void {
+  if (order.posPayments?.length) {
+    throw PosError.conflict('La orden ya fue cobrada: no se pueden modificar sus items')
+  }
+}
+
 export async function findPosOrder(ctx: PosContext, id: string): Promise<PosOrderDoc> {
   const doc = await Order.findOne({
     tenantId: ctx.tenantId,

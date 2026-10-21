@@ -140,6 +140,7 @@ export interface PendingSyncOrder {
   source: string
   status: string
   paymentMethod?: string
+  orderMode?: string
   items: Array<{ name: string; quantity: number; unitPrice: number; total: number }>
   total: number
   createdAt: string

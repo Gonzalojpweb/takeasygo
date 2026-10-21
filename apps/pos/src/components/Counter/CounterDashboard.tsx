@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import type { ComponentType } from "react"
-import type { Product, OrderItem, CustomerProfile, PaymentMethod, Order } from "@takeasygo/types"
-import { calculateItemTotal } from "@takeasygo/business/browser"
+import type { Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
+import { calculateItemTotal, allocatePayments, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
@@ -13,12 +13,16 @@ import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { CustomerSearch } from "../shared/CustomerSearch"
-import { PaymentSelector } from "../shared/PaymentSelector"
+import { CheckoutPanel } from "../shared/CheckoutPanel"
 import { MesaCard } from "../shared/MesaCard"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered } from "../../services/order"
+import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
+import { useKitchenCommands } from "../../hooks/useKitchenCommands"
+import { PosApiError } from "../../services/pos-api"
+import { playOrderNotification } from "../../services/notification-sound"
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import { UtensilsCrossed, Store, Package, Calendar, ClipboardList } from "lucide-react"
@@ -65,13 +69,21 @@ interface ValidationItem {
   status: "valid" | "needs_attention"
 }
 
-// ============================================================================
-// Audio para notificaciones de nuevos pedidos
-// ============================================================================
-const NEW_ORDER_AUDIO = new Audio("/LLAMADA.mp3")
-NEW_ORDER_AUDIO.volume = 0.5
 
 const SYNC_URL = import.meta.env.VITE_SYNC_URL
+
+/**
+ * Mensaje para el cajero. Los errores de negocio del server (400/409) traen
+ * un mensaje en castellano que explica qué pasó (p. ej. "precio de carta
+ * cambió"); antes se mostraba siempre el genérico (Auditoría §11.5-2).
+ * Un 500 es opaco por diseño: se muestra el fallback.
+ */
+function describePosError(err: unknown, fallback: string): string {
+  if (err instanceof PosApiError && err.status >= 400 && err.status < 500 && err.status !== 401) {
+    return err.message || fallback
+  }
+  return fallback
+}
 
 export function CounterDashboard() {
   const { state } = useAuth()
@@ -86,7 +98,12 @@ export function CounterDashboard() {
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
-  const [diners, setDiners] = useState(1)
+  // Cobro: `paying` bloquea el doble click; `pendingOrderIdRef` fija el posId
+  // de la orden ANTES del primer intento para que un reintento no la duplique.
+  const [paying, setPaying] = useState(false)
+  const [sendToKitchen, setSendToKitchen] = useState(true)
+  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean } | null>(null)
+  const pendingOrderIdRef = useRef<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
   // ── Gateway state ─────────────────────────────────────────────────
@@ -98,7 +115,6 @@ export function CounterDashboard() {
   const [transformResult, setTransformResult] = useState<{ localOrderId: string } | null>(null)
   const [transforming, setTransforming] = useState(false)
   const [connected, setConnected] = useState(false)
-  const [seenOrderIds, setSeenOrderIds] = useState<Set<string>>(new Set())
   const [selectedKanbanOrderId, setSelectedKanbanOrderId] = useState<string | null>(null)
 
   const showToast = useCallback((message: string, type: string) => {
@@ -110,7 +126,8 @@ export function CounterDashboard() {
   const { tables, occupyTable, freeTable, occupyTableForLoading, bindTableOrder } = useTables()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
-  const { createOrder } = useOrders()
+  const { createOrder, confirmOrder } = useOrders()
+  const { confirmAndSendToKitchen } = useKitchenCommands()
 
   // ── Socket connection status ──────────────────────────────────────
   useEffect(() => {
@@ -132,7 +149,7 @@ export function CounterDashboard() {
   // ============================================================================
 
   // ── Gateway: pedidos NO integrados (cola de entrada) ──────────────
-  const gatewayOrders = useLiveQuery(
+  const gatewayOrdersLive = useLiveQuery(
     () => (tenantId
       ? db.orders
           .where("tenantId")
@@ -141,7 +158,8 @@ export function CounterDashboard() {
           .toArray()
       : []),
     [tenantId]
-  ) ?? []
+  )
+  const gatewayOrders = useMemo(() => gatewayOrdersLive ?? [], [gatewayOrdersLive])
 
   // ── Kanban: pedidos integrados en operación ──────────────────────
   const kanbanOrders = useLiveQuery(
@@ -162,7 +180,7 @@ export function CounterDashboard() {
   ) ?? []
 
   // ── Mis Pedidos: pedidos creados en el POS (source: "pos") ─────────
-  const posOrders = useLiveQuery(
+  const posOrdersLive = useLiveQuery(
     () => (tenantId
       ? db.orders
           .where("tenantId")
@@ -175,35 +193,40 @@ export function CounterDashboard() {
           .toArray()
       : []),
     [tenantId]
-  ) ?? []
+  )
+  const posOrders = useMemo(() => posOrdersLive ?? [], [posOrdersLive])
 
-  // ── Detectar nuevos pedidos y reproducir audio ───────────────────
+  // ── Aviso de pedidos nuevos (sonido único: services/notification-sound) ──
+  // Con refs y no con estado: el aviso es un efecto externo, no algo que se
+  // renderice. Entrantes suena también con la cola inicial (son pedidos
+  // esperando respuesta). Mis Pedidos NO suena por el lote inicial ni por
+  // las órdenes que creó esta misma terminal (antes: toast + sonido por cada
+  // venta propia y por todas las órdenes al abrir la vista).
+  const seenGatewayRef = useRef<Set<string>>(new Set())
   useEffect(() => {
-    const newOrders = gatewayOrders.filter((o) => !seenOrderIds.has(o.id))
-    if (newOrders.length > 0) {
-      NEW_ORDER_AUDIO.play().catch((err) => console.error("Error playing audio:", err))
-      setSeenOrderIds((prev) => {
-        const updated = new Set(prev)
-        newOrders.forEach((o) => updated.add(o.id))
-        return updated
-      })
-    }
-  }, [gatewayOrders, seenOrderIds])
+    const fresh = gatewayOrders.filter((o) => !seenGatewayRef.current.has(o.id))
+    if (fresh.length === 0) return
+    fresh.forEach((o) => seenGatewayRef.current.add(o.id))
+    playOrderNotification()
+  }, [gatewayOrders])
 
-  // ── Detectar nuevos pedidos POS y reproducir audio ──────────────
-  const [seenPosOrderIds, setSeenPosOrderIds] = useState<Set<string>>(new Set())
+  const ownOrderIdsRef = useRef<Set<string>>(new Set())
+  const seenPosRef = useRef<Set<string> | null>(null)
   useEffect(() => {
-    const newOrders = posOrders.filter((o) => !seenPosOrderIds.has(o.id))
-    if (newOrders.length > 0) {
-      NEW_ORDER_AUDIO.play().catch((err) => console.error("Error playing audio:", err))
-      showToast(`Nuevo pedido POS: #${newOrders[0].id.slice(0, 8)}`, "info")
-      setSeenPosOrderIds((prev) => {
-        const updated = new Set(prev)
-        newOrders.forEach((o) => updated.add(o.id))
-        return updated
-      })
+    if (posOrdersLive === undefined) return
+    if (seenPosRef.current === null) {
+      seenPosRef.current = new Set(posOrdersLive.map((o) => o.id))
+      return
     }
-  }, [posOrders, seenPosOrderIds])
+    const seen = seenPosRef.current
+    const fresh = posOrdersLive.filter((o) => !seen.has(o.id))
+    if (fresh.length === 0) return
+    fresh.forEach((o) => seen.add(o.id))
+    const foreign = fresh.filter((o) => !ownOrderIdsRef.current.has(o.id))
+    if (foreign.length === 0) return
+    playOrderNotification()
+    showToast(`Nuevo pedido POS: #${foreign[0].id.slice(0, 8)}`, "info")
+  }, [posOrdersLive, showToast])
 
   // ============================================================================
   // GATEWAY HANDLERS
@@ -430,6 +453,43 @@ export function CounterDashboard() {
     [cart]
   )
 
+  // Órdenes POS abiertas de la mesa elegida (rondas que ya se mandaron a
+  // cocina — desde el Salón del cajero o desde la terminal del mozo). Antes
+  // el Counter abría la mesa con el carrito vacío y no había forma de
+  // cobrarlas.
+  const tableOrdersLive = useLiveQuery(
+    () => (tenantId && selectedTableId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) =>
+            o.source === "pos" &&
+            o.tableId === selectedTableId &&
+            o.status !== "delivered" &&
+            o.status !== "cancelled"
+          )
+          .toArray()
+      : []),
+    [tenantId, selectedTableId]
+  )
+  const tableOrders = useMemo(() => tableOrdersLive ?? [], [tableOrdersLive])
+
+  const unpaidTableOrders = useMemo(
+    () => tableOrders.filter((o) => !o.payments?.length),
+    [tableOrders]
+  )
+
+  /** Lo que se cobra: rondas sin cobrar de la mesa + el carrito actual. */
+  const chargeTotal = useMemo(
+    () => cartTotal + unpaidTableOrders.reduce((sum, o) => sum + o.total, 0),
+    [cartTotal, unpaidTableOrders]
+  )
+
+  // Si el carrito cambia, la orden del próximo intento es otra.
+  useEffect(() => {
+    pendingOrderIdRef.current = null
+  }, [cart])
+
   // ── Mesa ocupada al cargar (sin cobro) ─────────────────────────────────
   // El Salón muestra la mesa ocupada en cuanto el cajero empieza a cargar,
   // aunque nunca cobre: ocupación "draft" = server-first, occupied SIN orden
@@ -482,7 +542,6 @@ export function CounterDashboard() {
     setCustomer(null)
     setSelectedTableId(null)
     setSelectedCategory(null)
-    setDiners(1)
     setEntrantesSubView("gateway")
     setGatewayScene("queue")
     setSelectedOrderId(null)
@@ -572,17 +631,83 @@ export function CounterDashboard() {
     const isFirstItem = cart.length === 0
     setCart((prev) => [...prev, { ...item, product: configProduct }])
     setConfigProduct(null)
-    setScene("productos")
+    // En Mostrador la grilla de productos es la escena "mostrador_rapido";
+    // volver a "productos" dejaba la pantalla en blanco.
+    setScene(view === "mostrador" ? "mostrador_rapido" : "productos")
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
-  }, [configProduct, cart.length, selectedTableId, maybeOccupyForLoading])
+  }, [configProduct, cart.length, selectedTableId, maybeOccupyForLoading, view])
 
   const showErrorToast = useCallback((message: string) => {
     setToast({ message, type: "error" })
     setTimeout(() => setToast(null), 4000)
   }, [])
 
-  const handlePay = useCallback(async (methods: PaymentMethod[]) => {
+  /** Items del carrito tal como viajan al server (con modifiers y notas). */
+  const cartToOrderItems = useCallback(
+    (): OrderItem[] =>
+      cart.map((item) => ({
+        productId: item.productId,
+        name: item.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.total,
+        // Auditoría §4.3: antes handlePay descartaba modifiers y notas → el
+        // server rechazaba por descuadre o la comanda salía sin detalle.
+        ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
+        ...(item.notes ? { notes: item.notes } : {}),
+      })),
+    [cart]
+  )
+
+  // ── Salón: mandar la ronda a cocina SIN cobrar ─────────────────────────
+  // Mismo orquestador que el mozo: crea la orden, ata la mesa, la confirma
+  // (el server genera la comanda para el printer-agent) y deja la comanda
+  // local. La mesa queda abierta y se cobra después (handlePay).
+  const handleSendToKitchen = useCallback(async () => {
+    if (!tenantId || !selectedTableId || cart.length === 0 || paying) return
+    setPaying(true)
+    try {
+      await tableOpChainRef.current.catch(() => {})
+      // id fijado antes: la orden llega a Dexie (y al aviso de "pedido
+      // nuevo") antes de que esta función vuelva.
+      const roundId = crypto.randomUUID()
+      ownOrderIdsRef.current.add(roundId)
+      await sendWaiterOrderToKitchen(
+        {
+          createOrder: (tableId, items) => createOrder(tableId, items, undefined, undefined, { id: roundId }),
+          readTable: (tableId) => db.diningTable.get(tableId),
+          occupyTable,
+          bindTableOrder,
+          confirmOrder,
+          sendToKitchen: confirmAndSendToKitchen,
+        },
+        { tableId: selectedTableId, items: cartToOrderItems(), serverId: "counter" }
+      )
+      setCart([])
+      showToast("✓ Ronda enviada a cocina", "success")
+      setScene("productos")
+    } catch (err) {
+      console.error("[Counter] sendToKitchen failed:", err)
+      showErrorToast(describePosError(err, "Error al enviar a cocina"))
+    } finally {
+      setPaying(false)
+    }
+  }, [tenantId, selectedTableId, cart.length, paying, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, cartToOrderItems, showToast, showErrorToast])
+
+  // ── Cobro ────────────────────────────────────────────────────────────────
+  // 1. Si hay carrito, crea su orden (posId fijo → reintento idempotente).
+  //    Mostrador + "Enviar a cocina" ⇒ nace `confirmed` (comanda).
+  // 2. Reparte las partes entre las órdenes a cobrar (rondas de la mesa +
+  //    la nueva) y registra el cobro en cada orden (el server valida que la
+  //    suma cierre contra SU total).
+  // 3. Deja un movimiento de caja por parte (cualquier método).
+  // 4. Cierra: mesa / venta inmediata → `delivered` por el grafo legal; el
+  //    mostrador enviado a cocina queda en Mis Pedidos.
+  const handlePay = useCallback(async (parts: CheckoutPart[]) => {
+    if (!tenantId || paying) return
+    const keepForKitchen = view === "mostrador" && sendToKitchen
     const tableId = selectedTableId ?? `mostrador-${Date.now()}`
+    setPaying(true)
     try {
       // Espera las mutaciones de mesa en vuelo (draft-occupy del primer
       // item): sin esto la ocupación real llegaría antes que el draft, el
@@ -590,57 +715,100 @@ export function CounterDashboard() {
       // cortaría con la orden creada a medio camino.
       await tableOpChainRef.current.catch(() => {})
 
-      const order = await createOrder(
-        tableId,
-        cart.map((item) => ({
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          total: item.total,
-        }))
-      )
+      const toCharge: Order[] = [...unpaidTableOrders]
 
-      // La mesa ya puede estar ocupada por la carga en curso (draft, sin
-      // orden): re-leer el read model local decide si ocupar de nuevo o solo
-      // vincular. occupied con OTRA orden no se toca (el release del server
-      // exige que currentOrderId coincida con ésta).
-      if (selectedTableId) {
-        const fresh = await db.diningTable.get(selectedTableId)
-        if (fresh?.status === "free") {
-          await occupyTable(selectedTableId, "counter", order.id)
-        } else if (fresh?.status === "occupied" && !fresh.currentOrderId) {
-          await bindTableOrder(selectedTableId, "counter", order.id)
+      if (cart.length > 0) {
+        const orderId = pendingOrderIdRef.current ?? crypto.randomUUID()
+        pendingOrderIdRef.current = orderId
+        ownOrderIdsRef.current.add(orderId)
+        const order = await createOrder(tableId, cartToOrderItems(), undefined, undefined, {
+          id: orderId,
+          status: keepForKitchen ? "confirmed" : "pending",
+        })
+
+        // La mesa ya puede estar ocupada por la carga en curso (draft, sin
+        // orden): re-leer el read model local decide si ocupar de nuevo o
+        // solo vincular. occupied con OTRA orden no se toca.
+        if (selectedTableId) {
+          const fresh = await db.diningTable.get(selectedTableId)
+          if (fresh?.status === "free") {
+            await occupyTable(selectedTableId, "counter", order.id)
+          } else if (fresh?.status === "occupied" && !fresh.currentOrderId) {
+            await bindTableOrder(selectedTableId, "counter", order.id)
+          }
+          // En Salón la orden ya existe y es visible en la mesa: si un paso
+          // siguiente falla, el reintento la cobra desde ahí (no desde el
+          // carrito), así que el carrito se vacía ya para no duplicarla.
+          setCart([])
+        }
+        if (!toCharge.some((o) => o.id === order.id)) toCharge.push(order)
+      }
+
+      if (toCharge.length === 0) {
+        showErrorToast("No hay nada para cobrar")
+        return
+      }
+
+      let allocation: Map<string, AllocatedPayment[]>
+      try {
+        allocation = allocatePayments(
+          toCharge.map((o) => ({ id: o.id, total: o.total })),
+          parts
+        )
+      } catch {
+        showErrorToast("El total cambió (precios o rondas nuevas). Revisá el cobro y confirmá de nuevo.")
+        return
+      }
+
+      const label = selectedTable ? `M${selectedTable.number}` : "mostrador"
+      for (const order of toCharge) {
+        const allocated = allocation.get(order.id) ?? []
+        await recordPayments(tenantId, order.id, allocated)
+
+        // Registro en caja por parte: relatedOrderId lleva `#n` cuando la
+        // orden tiene varias partes (el índice único del server es por
+        // relatedOrderId + type: sin el sufijo, la parte 2 chocaría con la 1).
+        for (let i = 0; i < allocated.length; i++) {
+          const part = allocated[i]
+          const isSplit = allocated.length > 1
+          await processPayment(
+            order.id,
+            part.amount,
+            `Pedido ${label}` + (isSplit ? ` (parte ${i + 1}/${allocated.length})` : ""),
+            part.method,
+            isSplit ? `${order.id}#${i}` : undefined
+          )
         }
       }
 
-      // Registro en caja por método: relatedOrderId lleva `#n` cuando hay
-      // varios métodos (el índice único del server es por relatedOrderId:
-      // sin el sufijo, la parte 2 del cobro chocaría con la 1 y no se
-      // registraría). Un solo método → relatedOrderId crudo = order.id.
-      for (let i = 0; i < methods.length; i++) {
-        const method = methods[i]
-        const isSplit = methods.length > 1
-        await processPayment(
-          order.id,
-          Math.ceil(cartTotal / methods.length),
-          `Pedido ${selectedTable ? `M${selectedTable.number}` : "mostrador"}` +
-            (isSplit ? ` (parte ${i + 1}/${methods.length})` : ""),
-          method,
-          isSplit ? `${order.id}#${i}` : undefined
-        )
+      if (!keepForKitchen) {
+        // También se cierran las rondas ya cobradas que seguían abiertas.
+        const toClose = [
+          ...toCharge,
+          ...tableOrders.filter((o) => !toCharge.some((c) => c.id === o.id)),
+        ]
+        for (const order of toClose) {
+          await settleToDelivered(tenantId, order.id, jwt)
+        }
+        // El server libera la mesa solo si currentOrderId coincide; con
+        // varias rondas (o una ocupación draft) puede seguir ocupada.
+        if (selectedTableId) {
+          const fresh = await db.diningTable.get(selectedTableId)
+          if (fresh && fresh.status !== "free") await freeTable(selectedTableId)
+        }
       }
 
-      if (tenantId) {
-        await deliverOrder(tenantId, order.id, jwt)
-      }
-
+      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen })
+      pendingOrderIdRef.current = null
+      setCart([])
       setScene("cierre")
     } catch (err) {
       console.error("[Counter] Payment failed:", err)
-      showErrorToast("Error al procesar el pago. Intente nuevamente.")
+      showErrorToast(describePosError(err, "Error al procesar el pago. Intente nuevamente."))
+    } finally {
+      setPaying(false)
     }
-  }, [processPayment, cartTotal, cart, selectedTableId, selectedTable, createOrder, occupyTable, bindTableOrder, tenantId, jwt])
+  }, [tenantId, paying, view, sendToKitchen, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)
@@ -648,7 +816,8 @@ export function CounterDashboard() {
     setCustomer(null)
     setSelectedTableId(null)
     setSelectedCategory(null)
-    setDiners(1)
+    setLastSale(null)
+    setSendToKitchen(true)
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -662,10 +831,20 @@ export function CounterDashboard() {
   // DERIVED STATE
   // ============================================================================
 
+  // Filtros por modo del pedido: el orderMode viaja SaaS → Sync → POS
+  // (antes delivery/take away estaban fijos en 0 y no filtraban nada).
+  // Marketplaces sigue deshabilitado: no hay integración.
   const filteredGatewayOrders = useMemo(() => {
-    if (gatewayFilter === "all" || gatewayFilter === "delivery" || gatewayFilter === "takeaway" || gatewayFilter === "marketplace") return gatewayOrders
-    if (gatewayFilter === "pending_payment") return gatewayOrders.filter((o) => o.status === "pending")
-    return gatewayOrders
+    switch (gatewayFilter) {
+      case "delivery":
+        return gatewayOrders.filter((o) => o.orderMode === "delivery")
+      case "takeaway":
+        return gatewayOrders.filter((o) => o.orderMode === "takeaway")
+      case "pending_payment":
+        return gatewayOrders.filter((o) => o.status === "pending")
+      default:
+        return gatewayOrders
+    }
   }, [gatewayOrders, gatewayFilter])
 
   const gatewayPendingCount = useMemo(
@@ -682,11 +861,11 @@ export function CounterDashboard() {
 
   const gatewayFilterCounts = useMemo(() => ({
     all: gatewayOrders.length,
-    delivery: 0,
-    takeaway: 0,
+    delivery: gatewayOrders.filter((o) => o.orderMode === "delivery").length,
+    takeaway: gatewayOrders.filter((o) => o.orderMode === "takeaway").length,
     marketplace: 0,
     pending_payment: gatewayPendingCount,
-  }), [gatewayOrders.length, gatewayPendingCount])
+  }), [gatewayOrders, gatewayPendingCount])
 
   const selectedOrder = useMemo(
     () => gatewayOrders.find((o) => o.id === selectedOrderId),
@@ -706,26 +885,50 @@ export function CounterDashboard() {
         break
 
       case "productos":
+      case "mostrador_rapido": {
+        // Salón (productos) y Mostrador (mostrador_rapido) comparten panel:
+        // antes "mostrador_rapido" no tenía case y la venta rápida quedaba
+        // sin carrito ni botón de cobro (Auditoría §4.1).
+        const isMostrador = scene === "mostrador_rapido"
+        const title = isMostrador ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`
+        const openTotal = chargeTotal - cartTotal
         setContextPanel({
-          title: `Mesa ${selectedTable?.number ?? "?"}`,
-          subtitle: cart.length > 0 ? `${cart.length} items — ${formatCurrency(cartTotal)}` : "Sin productos",
+          title,
+          subtitle: cart.length > 0
+            ? `${cart.length} items — ${formatCurrency(cartTotal)}`
+            : openTotal > 0 ? `Cuenta abierta — ${formatCurrency(openTotal)}` : "Sin productos",
           body: (
-            <OrderPanel
-              title={`Mesa ${selectedTable?.number ?? "?"}`}
-              items={cart}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              total={cartTotal}
-              primaryAction={{
-                label: "Revisar pedido",
-                onClick: () => setScene("revision"),
-                disabled: cart.length === 0,
-              }}
-            />
+            <>
+              {!isMostrador && tableOrders.length > 0 && (
+                <div className="card" style={{ padding: "var(--sp-3)", margin: "var(--sp-2)" }}>
+                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Ya enviado a cocina ({tableOrders.length} {tableOrders.length === 1 ? "ronda" : "rondas"})
+                  </div>
+                  {tableOrders.flatMap((o) => o.items).map((item, idx) => (
+                    <div key={`${item.productId}-${idx}`} style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-sm)", marginTop: 4 }}>
+                      <span>{item.quantity}× {item.name}</span>
+                      <span>{formatCurrency(item.total)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <OrderPanel
+                title={tableOrders.length > 0 && !isMostrador ? "Nueva ronda" : title}
+                items={cart}
+                onUpdateQuantity={handleUpdateQuantity}
+                onRemoveItem={handleRemoveItem}
+                total={cartTotal}
+                primaryAction={{
+                  label: cart.length > 0 ? "Revisar pedido" : "Cobrar cuenta",
+                  onClick: () => setScene(cart.length > 0 ? "revision" : "cobro"),
+                  disabled: cart.length === 0 && chargeTotal === 0,
+                }}
+              />
+            </>
           ),
         })
         setActionBar({
-          left: (
+          left: isMostrador ? undefined : (
             <button className="btn btn-ghost" onClick={() => setScene("salon")}>
               ← Volver
             </button>
@@ -745,59 +948,61 @@ export function CounterDashboard() {
           ),
         })
         break
+      }
 
       case "configurar":
         setContextPanel(null)
         setActionBar(null)
         break
 
-      case "revision":
+      case "revision": {
+        const isMostrador = view === "mostrador"
         setContextPanel({
           title: "Resumen del pedido",
-          subtitle: `Mesa ${selectedTable?.number ?? "?"}${customer ? ` — ${customer.name}` : ""}`,
+          subtitle: `${isMostrador ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`}${customer ? ` — ${customer.name}` : ""}`,
           body: (
             <OrderPanel
-              title="Resumen"
+              title={isMostrador ? "Resumen" : "Nueva ronda"}
               items={cart}
               total={cartTotal}
               primaryAction={{
-                label: "Cobrar",
+                label: `Cobrar ${formatCurrency(chargeTotal)}`,
                 onClick: () => setScene("cobro"),
+                disabled: chargeTotal === 0 || paying,
               }}
             />
           ),
         })
         setActionBar({
           left: (
-            <button className="btn btn-ghost" onClick={() => setScene("productos")}>
+            <button className="btn btn-ghost" onClick={() => setScene(isMostrador ? "mostrador_rapido" : "productos")}>
               ← Agregar más
             </button>
           ),
+          right: !isMostrador && cart.length > 0 ? (
+            <button className="btn btn-secondary btn-sm" onClick={handleSendToKitchen} disabled={paying}>
+              {paying ? "Enviando…" : "Enviar a cocina (sin cobrar)"}
+            </button>
+          ) : undefined,
         })
         break
+      }
 
       case "cobro":
         setContextPanel({
           title: "Resumen de cuenta",
-          subtitle: `Mesa ${selectedTable?.number ?? "?"} — ${diners} comensal${diners > 1 ? "es" : ""}`,
+          subtitle: view === "mostrador" ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`,
           body: (
             <div style={{ padding: "var(--sp-2)" }}>
-              <div style={{ marginBottom: "var(--sp-3)" }}>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Total
-                </div>
-                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
-                  {formatCurrency(cartTotal)}
-                </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Total
               </div>
-              {diners > 1 && (
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Por comensal
-                  </div>
-                  <div style={{ fontSize: "var(--font-size-xl)", fontWeight: 600 }}>
-                    {formatCurrency(Math.round(cartTotal / diners))}
-                  </div>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
+                {formatCurrency(chargeTotal)}
+              </div>
+              {chargeTotal !== cartTotal && (
+                <div className="text-sm text-muted" style={{ marginTop: "var(--sp-2)" }}>
+                  Incluye {unpaidTableOrders.length} {unpaidTableOrders.length === 1 ? "ronda enviada" : "rondas enviadas"} a cocina
                 </div>
               )}
             </div>
@@ -805,13 +1010,13 @@ export function CounterDashboard() {
         })
         setActionBar({
           left: (
-            <button className="btn btn-ghost" onClick={() => setScene("revision")}>
+            <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "revision" : view === "mostrador" ? "mostrador_rapido" : "productos")} disabled={paying}>
               ← Volver
             </button>
           ),
           center: (
             <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
-              {formatCurrency(cartTotal)}
+              {formatCurrency(chargeTotal)}
             </span>
           ),
         })
@@ -1149,8 +1354,13 @@ export function CounterDashboard() {
                 Total cobrado
               </div>
               <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
-                {formatCurrency(cartTotal)}
+                {formatCurrency(lastSale?.total ?? 0)}
               </div>
+              {lastSale?.sentToKitchen && (
+                <div className="text-sm" style={{ marginTop: "var(--sp-2)" }}>
+                  Enviado a cocina — se entrega desde <strong>Mis Pedidos</strong>.
+                </div>
+              )}
               {customer && (
                 <div style={{ marginTop: "var(--sp-3)" }}>
                   <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1161,14 +1371,6 @@ export function CounterDashboard() {
                   </div>
                 </div>
               )}
-              <div style={{ marginTop: "var(--sp-3)" }}>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Comensales
-                </div>
-                <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
-                  {diners}
-                </div>
-              </div>
             </div>
           ),
         })
@@ -1181,7 +1383,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, cart, cartTotal, customer, diners, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1367,46 +1569,13 @@ export function CounterDashboard() {
                 <div>
                   <div className="workspace-title">Cobro</div>
                   <div className="workspace-subtitle">
-                    Mesa {selectedTable?.number ?? "?"} — {formatCurrency(cartTotal)}
-                  </div>
-                </div>
-                <div className="workspace-actions">
-                  <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)" }}>
-                    <span className="text-sm text-muted">Comensales:</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setDiners(Math.max(1, diners - 1))} disabled={diners <= 1} style={{ width: 32, height: 32, padding: 0 }}>−</button>
-                    <span style={{ fontWeight: 600, minWidth: 24, textAlign: "center" }}>{diners}</span>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setDiners(Math.min(20, diners + 1))} style={{ width: 32, height: 32, padding: 0 }}>+</button>
+                    Mesa {selectedTable?.number ?? "?"} — {formatCurrency(chargeTotal)}
                   </div>
                 </div>
               </div>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
-                {diners === 1 ? (
-                  <PaymentSelector total={cartTotal} onSelect={(m) => handlePay([m])} />
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-4)" }}>
-                    <div className="card" style={{ padding: "var(--sp-4)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-3)" }}>
-                        <span style={{ fontWeight: 600 }}>Total</span>
-                        <span style={{ fontWeight: 700, fontSize: "var(--font-size-lg)" }}>{formatCurrency(cartTotal)}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "var(--sp-3)", borderTop: "1px solid var(--border)" }}>
-                        <span className="text-sm text-muted">Por comensal</span>
-                        <span style={{ fontWeight: 600 }}>{formatCurrency(Math.round(cartTotal / diners))}</span>
-                      </div>
-                    </div>
-                    {Array.from({ length: diners }).map((_, i) => (
-                      <div key={i} className="card" style={{ padding: "var(--sp-4)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--sp-2)" }}>
-                          <span style={{ fontWeight: 600 }}>Comensal {i + 1}</span>
-                          <span style={{ fontWeight: 600 }}>{formatCurrency(Math.round(cartTotal / diners))}</span>
-                        </div>
-                        <PaymentSelector total={Math.round(cartTotal / diners)} onSelect={(method) => {
-                          handlePay(Array.from({ length: diners }).map((_, j) => j === i ? method : "cash"))
-                        }} />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* key: si el total cambia (ronda nueva por polling) el cobro arranca de cero */}
+                <CheckoutPanel key={chargeTotal} total={chargeTotal} busy={paying} onConfirm={handlePay} />
               </div>
             </div>
           )}
@@ -1416,11 +1585,8 @@ export function CounterDashboard() {
               <div className="text-center">
                 <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
                 <div className="workspace-title" style={{ marginBottom: 8 }}>Mesa cerrada</div>
-                <div className="workspace-subtitle" style={{ marginBottom: 8 }}>
-                  {formatCurrency(cartTotal)} — Mesa {selectedTable?.number ?? "?"}
-                </div>
-                <div className="text-sm text-muted" style={{ marginBottom: 24 }}>
-                  {diners > 1 ? `${diners} comensales — ${formatCurrency(Math.round(cartTotal / diners))} c/u` : "1 comensal"}
+                <div className="workspace-subtitle" style={{ marginBottom: 24 }}>
+                  {formatCurrency(lastSale?.total ?? 0)} — Mesa {selectedTable?.number ?? "?"}
                 </div>
               </div>
             </div>
@@ -1506,12 +1672,18 @@ export function CounterDashboard() {
                 <div>
                   <div className="workspace-title">Cobro — Mostrador</div>
                   <div className="workspace-subtitle">
-                    {formatCurrency(cartTotal)}
+                    {formatCurrency(chargeTotal)}
                   </div>
                 </div>
               </div>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
-                <PaymentSelector total={cartTotal} onSelect={(m) => handlePay([m])} />
+                <CheckoutPanel
+                  key={chargeTotal}
+                  total={chargeTotal}
+                  busy={paying}
+                  onConfirm={handlePay}
+                  sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
+                />
               </div>
             </div>
           )}
@@ -1522,8 +1694,11 @@ export function CounterDashboard() {
                 <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
                 <div className="workspace-title" style={{ marginBottom: 8 }}>Venta completada</div>
                 <div className="workspace-subtitle" style={{ marginBottom: 8 }}>
-                  {formatCurrency(cartTotal)} — Mostrador
+                  {formatCurrency(lastSale?.total ?? 0)} — Mostrador
                 </div>
+                {lastSale?.sentToKitchen && (
+                  <div className="text-sm text-muted">Enviado a cocina — entregalo desde Mis Pedidos.</div>
+                )}
               </div>
             </div>
           )}
@@ -2068,9 +2243,24 @@ interface KanbanOrderCardProps {
   onDeliver?: (orderId: string) => void
 }
 
+/**
+ * Reloj para las tarjetas: Date.now() en render es impuro (React lo marca y
+ * la antigüedad quedaba congelada hasta el próximo re-render). Se refresca
+ * cada 30 s.
+ */
+function useNow(intervalMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+  return now
+}
+
 function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
   const isDelivery = order.source === "delivery"
-  const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
+  const now = useNow()
+  const minutes = Math.floor((now - new Date(order.createdAt).getTime()) / 60000)
   const isUrgent = minutes > 5
 
   function getNextAction() {
@@ -2172,7 +2362,8 @@ interface PosOrderCardProps {
 }
 
 function PosOrderCard({ order, onConfirm, onPrepare, onMarkReady, onDeliver }: PosOrderCardProps) {
-  const minutes = Math.floor((Date.now() - new Date(order.createdAt).getTime()) / 60000)
+  const now = useNow()
+  const minutes = Math.floor((now - new Date(order.createdAt).getTime()) / 60000)
   const isUrgent = minutes > 5
 
   function getNextAction() {

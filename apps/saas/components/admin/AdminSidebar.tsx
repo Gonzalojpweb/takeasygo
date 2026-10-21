@@ -36,6 +36,7 @@ import {
   Calendar,
   Coins,
   EyeOff,
+  Banknote,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -58,6 +59,8 @@ interface Props {
   pendingRedemptions?: number
   businessEnabled?: boolean
   crmEnabled?: boolean
+  /** Tenant con POS habilitado: muestra "Cajas POS" (cierres + Z). */
+  posEnabled?: boolean
   assignedLocations?: string[]
   locations?: { _id: string; name: string; colorIndex?: number }[]
   rbacSedeScope?: boolean
@@ -121,7 +124,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -153,6 +156,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
         { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
+        ...(posEnabled ? [{ href: `${base}/caja-pos`, label: 'Cajas POS', icon: Banknote, roles: ['admin', 'manager'] }] : []),
         { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
       ],
     },

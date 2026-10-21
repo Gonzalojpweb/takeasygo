@@ -27,6 +27,12 @@ export interface IUser extends Document {
   verifyTokenExpiry: Date | null
   emailVerified: Date | null
   lastLoginAt: Date | null
+  /** PIN del POS (bcrypt). Nunca se selecciona por defecto. */
+  pin?: string | null
+  /** HMAC del PIN por tenant (lib @takeasygo/business/pos-pin). Nunca se selecciona por defecto. */
+  posPinLookup?: string | null
+  /** Cuándo se asignó/cambió el PIN (visible en el admin, sin exponer el PIN). */
+  posPinUpdatedAt?: Date | null
   googleContacts: {
     accessToken: string | null
     refreshToken: string | null
@@ -138,6 +144,12 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    // ── PIN del POS (login rápido en apps/pos vía apps/sync) ─────────────────
+    // Sin default: el campo NO existe en usuarios sin PIN, así el índice
+    // único parcial de abajo solo cubre a los que tienen uno.
+    pin: { type: String, select: false },
+    posPinLookup: { type: String, select: false },
+    posPinUpdatedAt: { type: Date, default: null },
     googleContacts: {
       accessToken:  { type: String, default: null },
       refreshToken: { type: String, default: null },
@@ -156,6 +168,11 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ email: 1 })
 UserSchema.index({ phone: 1 }, { sparse: true })
 UserSchema.index({ tenantId: 1, role: 1 })
+// Login por PIN: lookup O(1) y un PIN no se repite dentro del tenant.
+UserSchema.index(
+  { tenantId: 1, posPinLookup: 1 },
+  { unique: true, partialFilterExpression: { posPinLookup: { $type: 'string' } } }
+)
 
 // Hash bcrypt completo: $2a/$2b/$2x/$2y + costo 2 dígitos + 53 chars del
 // digest (60 en total). Un string que solo "empiece" con $2 pero no cumple

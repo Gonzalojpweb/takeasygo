@@ -7,19 +7,21 @@ import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, toSaasOrderItem, recomputeOrderTotals, type PosOrderItemInput } from '@/lib/pos-online/orderMapper'
 import { assertItemAgainstCatalog } from '@/lib/pos-online/catalogPrices'
-import { findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
+import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
 // ============================================================================
-// POST /api/[tenant]/pos/orders/[id]/items â€” agrega un item a la orden
+// POST /api/[tenant]/pos/orders/[id]/items — agrega un item a la orden
 // ============================================================================
 
 export const POST = posRoute(async (ctx, { id }) => {
   const current = await findPosOrder(ctx, id)
 
   if (!canEditOrderItems(current.status as OrderStatus)) {
-    // 409 y no 403: el rol estÃ¡ bien, lo que viola es el ciclo de vida.
+    // 409 y no 403: el rol está bien, lo que viola es el ciclo de vida.
     throw PosError.conflict(`No se pueden editar items en estado ${current.status}`)
   }
+
+  assertNotPaid(current)
 
   const body = await readPosBody(ctx.request)
   // Forma e interna primero (400), después el catálogo vigente (409).
@@ -38,7 +40,7 @@ export const POST = posRoute(async (ctx, { id }) => {
       tenantId: ctx.tenantId,
       locationId: ctx.locationId,
       posId: current.posId,
-      // Concurrency optimista: si alguien mÃ¡s tocÃ³ la orden en el medio, no
+      // Concurrency optimista: si alguien más tocó la orden en el medio, no
       // pisamos su escritura, devolvemos 409 y el POS reintenta.
       updatedAt: current.updatedAt,
     },
@@ -49,7 +51,7 @@ export const POST = posRoute(async (ctx, { id }) => {
     .exec()
 
   if (!updated) {
-    throw PosError.conflict('La orden cambiÃ³ mientras se procesaba la peticiÃ³n', `posId=${current.posId}`)
+    throw PosError.conflict('La orden cambió mientras se procesaba la petición', `posId=${current.posId}`)
   }
 
   await logAudit({

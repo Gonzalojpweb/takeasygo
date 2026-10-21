@@ -42,6 +42,7 @@ export function internalRouter(
         notes: data.notes,
         externalOrderId: data.externalOrderId,
         paymentMethod: data.paymentMethod,
+        orderMode: typeof data.orderMode === "string" ? data.orderMode.slice(0, 20) : undefined,
       })
 
       if (duplicate) {
@@ -58,6 +59,7 @@ export function internalRouter(
         baseTotal: data.baseTotal,
         surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
+        orderMode: typeof data.orderMode === "string" ? data.orderMode.slice(0, 20) : undefined,
         timestamp: new Date().toISOString(),
       }
 

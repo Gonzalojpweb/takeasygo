@@ -64,6 +64,61 @@ export async function getLocations(jwt: string): Promise<PosLocation[]> {
 }
 
 // ============================================================================
+// Refresh del token (Auditoría POS Online V1 §1.4)
+// ============================================================================
+// El token del hub vive 30 min. AuthContext llama a refreshSession ~5 min
+// antes del vencimiento: el Sync re-valida usuario/rol/sede, rota el jti y
+// respeta el tope absoluto de la sesión (16 h desde el login).
+
+export class RefreshError extends Error {
+  /** `session_max_age`, `invalid_session`, `location_inactive`, `network`, `http_<n>`… */
+  readonly code: string
+  readonly status: number
+
+  constructor(code: string, status: number) {
+    super(`Refresh failed: ${code}`)
+    this.name = "RefreshError"
+    this.code = code
+    this.status = status
+  }
+
+  /** 401/403: el server dijo que no — reintentar no sirve, hay que reingresar. */
+  get isFinal(): boolean {
+    return this.status === 401 || this.status === 403
+  }
+}
+
+export async function refreshSession(accessToken: string): Promise<LoginResponse> {
+  const syncUrl = import.meta.env.VITE_SYNC_URL
+  let res: Response
+  try {
+    res = await fetch(`${syncUrl}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+  } catch {
+    throw new RefreshError("network", 0)
+  }
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { code?: string }
+    throw new RefreshError(body.code ?? `http_${res.status}`, res.status)
+  }
+  return res.json()
+}
+
+/**
+ * Después de un refresh, el token anterior queda vetado en el Sync (Redis
+ * local) pero el SaaS tiene su propia denylist (Upstash): se revoca también
+ * allá para que no quede un token vivo de más. Best-effort, sin reintentos:
+ * si falla, vence solo en ≤30 min.
+ */
+export function revokeReplacedTokenAtSaas(oldAccessToken: string): void {
+  const saasUrl = import.meta.env.VITE_SAAS_URL
+  if (!saasUrl) return
+  void postRevoke(`${saasUrl}/api/auth/logout`, oldAccessToken)
+}
+
+// ============================================================================
 // Revocación en logout (S1-5)
 // ============================================================================
 

@@ -1,8 +1,9 @@
 import { Router } from "express"
 import type { Response } from "express"
 import mongoose from "mongoose"
-import { signJwt, HUB_TOKEN_TTL_MS } from "@takeasygo/business/jwt"
-import { SAAS_TO_POS_ROLE } from "@takeasygo/business"
+import { signJwt, HUB_TOKEN_TTL_MS, HUB_SESSION_MAX_AGE_MS } from "@takeasygo/business/jwt"
+import { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "@takeasygo/business"
+import { posPinLookup, resolvePosPinPepper } from "@takeasygo/business/pos-pin"
 import { config } from "../config"
 import { validate, loginSchema } from "../middleware/validation"
 import {
@@ -13,6 +14,7 @@ import {
   recordAccountFailure,
   clearAccountFailures,
   checkLogoutSubLimit,
+  checkRefreshSubLimit,
 } from "../middleware/rate-limiter"
 import { denyJti } from "../auth/jtiDenylist"
 import { disconnectSocketsByJti } from "../socket/registry"
@@ -20,6 +22,11 @@ import { UserModel, LocationModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
 
 export const authRouter = Router()
+
+/** Usuarios legacy (PIN sin posPinLookup) que se prueban con bcrypt como máximo. */
+const LEGACY_PIN_SCAN = 20
+/** Fallos de PIN por tenant (en la ventana de config) antes del lock progresivo. */
+const PIN_TENANT_FAIL_LIMIT = 20
 
 /**
  * Valida que locationId sea una sede activa del tenant.
@@ -96,8 +103,10 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         return
       }
 
+      // Solo roles que pueden operar un hub (VALID_DEVICE_ROLES.hub): antes
+      // a staff/seller se les emitía un token que después daba 403 en todo.
       const posRole = SAAS_TO_POS_ROLE[user.role]
-      if (!posRole) {
+      if (!posRole || !VALID_DEVICE_ROLES.hub.includes(posRole)) {
         res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
         return
       }
@@ -115,6 +124,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
           role: posRole as Role,
           deviceType: "hub",
           locationId,
+          authTime: Math.floor(Date.now() / 1000),
         },
         config.jwtPrivateKey,
         HUB_TOKEN_TTL_MS
@@ -131,42 +141,80 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
     }
 
     if (data.mode === "pin") {
-      const user = await UserModel.findOne({
-        tenantId: data.tenantId,
-        isActive: true,
-      }).select("+pin")
-
-      const accountKey = user
-        ? `pin:${String(data.tenantId)}:${user._id}`
-        : null
-      if (accountKey && (await rejectIfAccountLocked(res, accountKey))) return
-
-      if (!user || !user.pin) {
+      // ── PIN (Auditoría POS Online V1, validación) ─────────────────────
+      // Antes: findOne({ tenantId, isActive }) devolvía UN usuario cualquiera
+      // del tenant y el PIN se comparaba solo contra ése. Ahora:
+      //   1. lookup HMAC(pepper, tenantId:pin) → usuario exacto (índice único)
+      //   2. bcrypt contra su hash (defensa en profundidad)
+      //   3. fallback legacy acotado para PINs anteriores al lookup (sin
+      //      posPinLookup): bcrypt contra ≤ LEGACY_PIN_SCAN usuarios; si
+      //      matchea, se escribe el lookup y no vuelve a pasar por acá.
+      // Lock por TENANT además del de IP: un fallo de PIN no identifica a
+      // nadie, así que el contador es del tenant (umbral holgado para que
+      // el staff que se equivoca no bloquee el local).
+      const tenantId = String(data.tenantId)
+      if (!mongoose.Types.ObjectId.isValid(tenantId)) {
         recordLoginFailure(req)
-        if (accountKey) await recordAccountFailure(accountKey)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
+      const tenantKey = `pin-tenant:${tenantId}`
+      if (await rejectIfAccountLocked(res, tenantKey)) return
 
-      const valid = await user.comparePin(data.employeePin)
-      if (!valid) {
+      const pin = String(data.employeePin)
+      const pepper = resolvePosPinPepper(process.env)
+      let user: InstanceType<typeof UserModel> | null = null
+
+      if (pepper) {
+        const lookup = posPinLookup(pepper, tenantId, pin)
+        const candidate = await UserModel.findOne({
+          tenantId,
+          posPinLookup: lookup,
+          isActive: true,
+        }).select("+pin")
+        if (candidate && (await candidate.comparePin(pin))) user = candidate
+      }
+
+      if (!user) {
+        const legacy = await UserModel.find({
+          tenantId,
+          isActive: true,
+          pin: { $type: "string" },
+          posPinLookup: { $exists: false },
+        })
+          .select("+pin")
+          .limit(LEGACY_PIN_SCAN)
+        for (const candidate of legacy) {
+          if (await candidate.comparePin(pin)) {
+            user = candidate
+            if (pepper) {
+              await UserModel.updateOne(
+                { _id: candidate._id },
+                { $set: { posPinLookup: posPinLookup(pepper, tenantId, pin) } }
+              ).catch((err) => console.warn("[auth] backfill posPinLookup falló:", err?.message))
+            }
+            break
+          }
+        }
+      }
+
+      if (!user) {
         recordLoginFailure(req)
-        if (accountKey) await recordAccountFailure(accountKey)
+        await recordAccountFailure(tenantKey, PIN_TENANT_FAIL_LIMIT)
         res.status(401).json({ error: "Invalid credentials" })
         return
       }
 
       const posRole = SAAS_TO_POS_ROLE[user.role]
-      if (!posRole) {
+      if (!posRole || !VALID_DEVICE_ROLES.hub.includes(posRole)) {
         res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
         return
       }
 
-      const tenantId = user.tenantId?.toString() ?? data.tenantId
       const locationId = await resolveLocationId(tenantId, data.locationId, res)
       if (locationId === null) return
       clearLoginFailures(req)
-      if (accountKey) await clearAccountFailures(accountKey)
+      await clearAccountFailures(tenantKey)
 
       const token = signJwt(
         {
@@ -175,6 +223,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
           role: posRole as Role,
           deviceType: "hub",
           locationId,
+          authTime: Math.floor(Date.now() / 1000),
         },
         config.jwtPrivateKey,
         HUB_TOKEN_TTL_MS
@@ -235,6 +284,108 @@ logoutRouter.post("/logout", async (req, res) => {
     res.json({ revoked: true })
   } catch (err) {
     console.error("[auth] logout error:", err)
+    res.status(500).json({ error: "Internal server error" })
+  }
+})
+
+// ============================================================================
+// Refresh — renueva el token del hub sin volver a pedir el PIN
+// ============================================================================
+// Auditoría POS Online V1 §1.4: el token vive 30 min y no había refresh → el
+// cajero perdía la sesión a mitad de turno. Montado en logoutRouter (después
+// de authMiddleware): el token que llega YA está verificado (firma, exp, jti
+// y denylist).
+//
+// Security by design:
+//   · Re-valida contra la base: usuario activo del MISMO tenant, rol con
+//     acceso al POS y sede todavía activa. Un usuario dado de baja o una sede
+//     cerrada no se pueden "estirar" con refresh.
+//   · Tope absoluto: authTime (login original) + HUB_SESSION_MAX_AGE_MS. Un
+//     token robado no se refresca para siempre. Tokens viejos sin authTime
+//     cuentan desde su iat.
+//   · Rotación: el jti viejo se veta acá (Redis local) por su vida restante.
+//     El POS además lo revoca en el SaaS (Upstash) — ver services/auth-api.
+//   · Rate limit 10/min por sub.
+// ============================================================================
+logoutRouter.post("/refresh", async (req, res) => {
+  try {
+    const auth = req.auth!
+
+    if (!checkRefreshSubLimit(auth.sub)) {
+      res.status(429).json({ error: "Too many refresh requests", code: "rate_limited" })
+      return
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000)
+    const authTime = auth.authTime ?? auth.iat
+    if (nowSec - authTime > Math.floor(HUB_SESSION_MAX_AGE_MS / 1000)) {
+      res.status(401).json({ error: "Session expired", code: "session_max_age" })
+      return
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(auth.sub)) {
+      res.status(401).json({ error: "Invalid session", code: "invalid_session" })
+      return
+    }
+    const user = await UserModel.findOne({
+      _id: auth.sub,
+      tenantId: auth.tenantId,
+      isActive: true,
+    })
+      .select("_id role tenantId")
+      .lean()
+    if (!user) {
+      res.status(401).json({ error: "Invalid session", code: "invalid_session" })
+      return
+    }
+
+    const posRole = SAAS_TO_POS_ROLE[user.role]
+    if (!posRole) {
+      res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
+      return
+    }
+
+    if (auth.locationId) {
+      const loc = await LocationModel.findOne({
+        _id: auth.locationId,
+        tenantId: auth.tenantId,
+        isActive: true,
+        status: "active",
+      })
+        .select("_id")
+        .lean()
+      if (!loc) {
+        res.status(401).json({ error: "Location no longer active", code: "location_inactive" })
+        return
+      }
+    }
+
+    const token = signJwt(
+      {
+        sub: auth.sub,
+        tenantId: auth.tenantId,
+        role: posRole as Role,
+        deviceType: auth.deviceType,
+        locationId: auth.locationId,
+        authTime,
+      },
+      config.jwtPrivateKey,
+      HUB_TOKEN_TTL_MS
+    )
+    const expSeconds = nowSec + Math.floor(HUB_TOKEN_TTL_MS / 1000)
+
+    // Rotación: el token anterior deja de servir en el Sync (HTTP + socket).
+    const ttl = Math.max(auth.exp - nowSec, 0) + 60
+    const revoked = await denyJti(auth.jti, ttl)
+    if (!revoked) {
+      // No se corta el refresh: el viejo vence solo (≤30 min) y el POS ya
+      // descarta su copia. Queda logueado para diagnóstico.
+      console.warn(`[auth] refresh: denylist del token anterior no confirmada | sub=${auth.sub}`)
+    }
+
+    res.json({ accessToken: token, expiresAt: expSeconds, deviceType: auth.deviceType })
+  } catch (err) {
+    console.error("[auth] refresh error:", err)
     res.status(500).json({ error: "Internal server error" })
   }
 })

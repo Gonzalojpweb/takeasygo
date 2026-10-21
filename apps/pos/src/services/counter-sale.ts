@@ -1,7 +1,6 @@
 import type { CashMovementType, PaymentMethod } from "@takeasygo/types"
 import { db } from "../db/dexie"
 import { addMovement, getRegisterForChannel } from "./cash"
-import { resolvePaymentMethod } from "./payment"
 
 // ============================================================================
 // Counter Sale — Cobro del Counter → Caja
@@ -13,8 +12,10 @@ import { resolvePaymentMethod } from "./payment"
 // y el hook de delivery del SaaS solo dispara con status='pending'.
 //
 // Flujo (mismo esqueleto que handleTakeasyGOSale, Consenso §2):
-//   1. Solo efectivo: tarjetas/transferencias no mueven cajón acá (se
-//      registran al confirmarse el cobro por su propio canal).
+//   1. TODOS los métodos dejan movimiento (Auditoría POS Online V1 §5: antes
+//      MP/POSNET/transferencia no dejaban rastro en caja). Solo el efectivo
+//      mueve el arqueo — lo decide cashExpectedDelta() en el server — pero
+//      el Z necesita el resto para el desglose por método de pago.
 //   2. Idempotencia local por relatedOrderId + type (§2.1): en cajas y en
 //      la cola de pendientes.
 //   3. Sin caja abierta → pendingMovements (§2.2), el manager la reasigna.
@@ -45,7 +46,6 @@ export type CounterSaleResult =
   | { status: "registered"; movementId: string }
   | { status: "pending"; pendingId: string }
   | { status: "duplicate"; existingMovementId: string }
-  | { status: "skipped" }
 
 async function enqueuePending(
   input: CounterSaleInput,
@@ -70,7 +70,7 @@ async function enqueuePending(
 }
 
 /**
- * Registra un cobro en efectivo del Counter en la caja activa.
+ * Registra un cobro del Counter (cualquier método) en la caja activa.
  *
  * @returns Resultado del registro; nunca lanza por fallos del server
  *          (la venta ya sucedió → se encola como pendiente).
@@ -79,11 +79,6 @@ export async function registerCounterSale(
   input: CounterSaleInput
 ): Promise<CounterSaleResult> {
   const { tenantId, amount, paymentMethod, reason, relatedOrderId } = input
-
-  // ── 1. Solo efectivo mueve cajón acá ─────────────────────────────
-  if (resolvePaymentMethod(paymentMethod) !== "cash") {
-    return { status: "skipped" }
-  }
 
   // Guarda de argumentos (el server repite la regla: monto mínimo 1).
   if (amount <= 0) throw new Error("[counter-sale] El monto debe ser positivo")

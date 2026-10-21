@@ -6,7 +6,7 @@ import {
   encryptStore,
 } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
-import { setEncryptionKey } from "./useEncryptionKey"
+import { getEncryptionKey, setEncryptionKey } from "./useEncryptionKey"
 import * as authApi from "../services/auth-api"
 // Misma constante que usa el cliente /pos/* para leer la sesión: si cada uno
 // tuviera la suya, un rename rompería la autenticación en silencio.
@@ -14,10 +14,18 @@ import { SESSION_CACHE_KEY } from "../services/pos-api"
 import { applyPosLocation, type LocationSwitchDb } from "../services/location-switch"
 
 // ============================================================================
-// Token lifecycle constants
+// Ciclo de vida del token (Auditoría POS Online V1 §1.4)
 // ============================================================================
-const TOKEN_WARNING_MS = 5 * 60 * 1000   // warn 5 minutes before expiry
-const SESSION_CHECK_MS = 60 * 1000        // check every 60 seconds
+// El token del hub vive 30 min. REFRESH_BEFORE_MS antes de vencer se renueva
+// solo (POST /api/v1/auth/refresh). Si el refresh falla por red se reintenta
+// cada REFRESH_RETRY_MS; si el server lo rechaza (usuario dado de baja, sede
+// cerrada, sesión de más de 16 h) se emite `auth:expiring` y el Header
+// muestra el aviso para reingresar antes de que corte.
+// El chequeo duro de vencimiento corre cada SESSION_CHECK_MS (antes 60 s:
+// el POS podía seguir mandando escrituras con el token vencido).
+const REFRESH_BEFORE_MS = 5 * 60 * 1000
+const REFRESH_RETRY_MS = 60 * 1000
+const SESSION_CHECK_MS = 10 * 1000
 
 // ============================================================================
 // Shared auth state — single source of truth for all hooks
@@ -75,7 +83,10 @@ function getCachedSession(): (authApi.LoginResponse & { tenantId: string }) | nu
     if (!raw) return null
     const data = JSON.parse(raw)
     if (!data.accessToken || !data.expiresAt) return null
-    if (Date.now() >= data.expiresAt) {
+    // expiresAt viene en SEGUNDOS (epoch del Sync). Antes se comparaba
+    // contra Date.now() en ms → siempre "vencido": cada recarga de página
+    // tiraba la sesión y mandaba al login.
+    if (Date.now() >= data.expiresAt * 1000) {
       sessionStorage.removeItem(SESSION_CACHE_KEY)
       return null
     }
@@ -123,42 +134,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (sessionCheckRef.current) { clearInterval(sessionCheckRef.current); sessionCheckRef.current = null }
   }, [])
 
+  /** Renueva el token. Devuelve true si quedó renovado. */
+  const refreshNow = useCallback(async (): Promise<boolean> => {
+    const cached = getCachedSession()
+    if (!cached) return false
+    try {
+      const result = await authApi.refreshSession(cached.accessToken)
+      cacheSession(result, cached.tenantId)
+      // La copia cifrada de Dexie también se rota (si la clave sigue en memoria).
+      const key = getEncryptionKey()
+      if (key) {
+        const encrypted = await encryptStore(result, key)
+        await db.session.put({ tenantId: cached.tenantId, encryptedJwt: encrypted })
+      }
+      authApi.revokeReplacedTokenAtSaas(cached.accessToken)
+      setState((prev) =>
+        prev.status === "authenticated" ? { ...prev, jwt: result } : prev
+      )
+      window.dispatchEvent(new CustomEvent("auth:refreshed"))
+      return true
+    } catch (err) {
+      const final = err instanceof authApi.RefreshError && err.isFinal
+      console.warn("[auth] refresh falló:", err instanceof Error ? err.message : err)
+      window.dispatchEvent(new CustomEvent("auth:expiring", { detail: { final } }))
+      return false
+    }
+  }, [])
+
   const startTimers = useCallback((expiresAtMs: number) => {
     clearTimers()
 
-    // Warn before expiry — dispatch event so UI can show re-login prompt
-    const msUntilWarning = expiresAtMs - Date.now() - TOKEN_WARNING_MS
-    if (msUntilWarning > 0) {
-      refreshTimerRef.current = setTimeout(() => {
-        window.dispatchEvent(new CustomEvent("auth:expiring"))
-      }, msUntilWarning)
-    } else if (expiresAtMs - Date.now() > 0) {
-      // Already within warning window
-      window.dispatchEvent(new CustomEvent("auth:expiring"))
+    const scheduleRefresh = (delayMs: number) => {
+      refreshTimerRef.current = setTimeout(async () => {
+        const ok = await refreshNow()
+        // Red caída: reintenta mientras el token siga vivo. Un rechazo final
+        // también reintenta (barato) por si fue transitorio del lado server.
+        if (!ok && Date.now() + REFRESH_RETRY_MS < expiresAtMs) {
+          scheduleRefresh(REFRESH_RETRY_MS)
+        }
+      }, Math.max(0, delayMs))
     }
+    scheduleRefresh(expiresAtMs - Date.now() - REFRESH_BEFORE_MS)
 
-    // Hard check — force logout when expired
-    sessionCheckRef.current = setInterval(() => {
+    // Chequeo duro: vencido ⇒ fuera. El primero corre en el próximo tick
+    // (un token restaurado ya vencido sale sin esperar el intervalo).
+    const check = () => {
       if (Date.now() >= expiresAtMs) {
         clearTimers()
         clearCachedSession()
         setState({ status: "login", error: "Sesión expirada, volvé a ingresar tu PIN" })
         window.dispatchEvent(new CustomEvent("auth:expired"))
       }
-    }, SESSION_CHECK_MS)
-  }, [clearTimers])
+    }
+    sessionCheckRef.current = setInterval(check, SESSION_CHECK_MS)
+    setTimeout(check, 0)
+  }, [clearTimers, refreshNow])
 
-  // Start timers when state becomes authenticated
+  // Timers cuando la sesión queda autenticada (y cada vez que el refresh
+  // trae un expiresAt nuevo).
   useEffect(() => {
     if (state.status === "authenticated" && state.jwt?.expiresAt) {
-      const expiresAtMs = state.jwt.expiresAt * 1000
-      if (Date.now() >= expiresAtMs) {
-        // Token already expired
-        clearCachedSession()
-        setState({ status: "login", error: "Sesión expirada, volvé a ingresar tu PIN" })
-      } else {
-        startTimers(expiresAtMs)
-      }
+      startTimers(state.jwt.expiresAt * 1000)
     }
     return clearTimers
   }, [state.status, state.jwt?.expiresAt, startTimers, clearTimers])

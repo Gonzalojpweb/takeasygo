@@ -36,7 +36,7 @@ import {
   cancelExternalOrder,
   cleanupPendingStatusUpdates,
 } from "./services/external-orders"
-import { playOrderNotification } from "./services/notification-sound"
+import { playOrderNotification, installAudioUnlock } from "./services/notification-sound"
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 
@@ -58,6 +58,9 @@ const NAV_ITEMS: NavItem[] = [
 
 function App() {
   const { state, login, logout } = useAuth()
+
+  // Desbloquea el audio en el primer gesto del usuario (autoplay, §7.4).
+  useEffect(() => installAudioUnlock(), [])
   const [activeContext, setActiveContext] = useState<Context>("counter")
 
   useEffect(() => {
@@ -96,9 +99,9 @@ function App() {
     })
 
     // ── External order socket listeners (root level — always active) ──
-    // These MUST be in App.tsx, not in IncomingOrdersDashboard, because
-    // IncomingOrdersDashboard is unmounted when the user is on any other view.
-    // If these listeners lived only in IncomingOrdersDashboard, orders and
+    // These MUST be in App.tsx, not in the "Entrantes" view of the Counter,
+    // because that view is unmounted when the user is on any other view.
+    // If these listeners lived only in the view, orders and
     // status updates would be silently lost when the user is on Counter, Caja, etc.
 
     // Cleanup pending status updates from previous sessions (TTL 24h)
@@ -115,6 +118,7 @@ function App() {
             status: (o.status as Order["status"]) ?? "pending",
             externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
             paymentMethod: o.paymentMethod as Order["paymentMethod"],
+            orderMode: o.orderMode,
             items: o.items as Order["items"],
             total: o.total,
           }).catch(() => {})
@@ -135,7 +139,7 @@ function App() {
     }).catch(() => {})
 
     const unsubOrderCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number; baseTotal?: number; surchargeAmount?: number; source?: string; paymentMethod?: string }
+      const event = data as { orderId: string; items: unknown[]; total: number; baseTotal?: number; surchargeAmount?: number; source?: string; paymentMethod?: string; orderMode?: string }
       const orderSource = (event.source as Order["source"]) || "external"
 
       persistExternalOrder({
@@ -145,6 +149,7 @@ function App() {
         status: "pending",
         externalStatus: "awaiting_payment",
         paymentMethod: event.paymentMethod as Order["paymentMethod"],
+        orderMode: event.orderMode,
         items: event.items as Order["items"],
         total: event.total,
         baseTotal: event.baseTotal,
@@ -200,6 +205,7 @@ function App() {
               status: (o.status as Order["status"]) ?? "pending",
               externalStatus: (o.status as Order["externalStatus"]) ?? "awaiting_payment",
               paymentMethod: o.paymentMethod as Order["paymentMethod"],
+              orderMode: o.orderMode,
               items: o.items as Order["items"],
               total: o.total,
             }).catch(() => {})
@@ -224,9 +230,9 @@ function App() {
         state.jwt!.accessToken
       )
       if (failedEvents.length > 0) {
-        console.warn(`[App] ${failedEvents.length} failed cash sale events found`)
-        // TODO: exponer failedEvents al CashDashboard para que el manager
-        // los vea en la escena "Pendientes" y pueda reintentar o asignar.
+        // Ya están expuestos: Caja → "Pendientes" los lista con badge y botón
+        // de reintento (CashDashboard → retryCashSaleEvent).
+        console.warn(`[App] ${failedEvents.length} failed cash sale events found (ver Caja → Pendientes)`)
       }
     })
 

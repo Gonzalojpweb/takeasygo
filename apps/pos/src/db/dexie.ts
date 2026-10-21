@@ -80,6 +80,8 @@ export interface MenuSnapshotRecord {
   products: unknown[]
   categories: unknown[]
   version: number
+  /** sha256 del server: si no cambió, el polling no reescribe (sin re-render). */
+  signature?: string
   updatedAt: Date
 }
 

@@ -27,6 +27,7 @@
       "@takeasygo/business": ["../../packages/business/src"],
       "@takeasygo/business/browser": ["../../packages/business/src/browser.ts"],
       "@takeasygo/business/jwt": ["../../packages/business/src/jwt.ts"],
+      "@takeasygo/business/pos-pin": ["../../packages/business/src/pos-pin.ts"],
       "@takeasygo/business/sync-events": ["../../packages/business/src/sync-events.ts"],
       "@takeasygo/ui": ["../../packages/ui/src"]
     }

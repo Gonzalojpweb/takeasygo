@@ -17,6 +17,10 @@ export interface AuthPayload {
   jti: string
   /** Expiración (epoch s) — para calcular el TTL del veto al revocar. */
   exp: number
+  /** Emisión (epoch s). */
+  iat: number
+  /** Login original (epoch s) — tope absoluto del refresh. Ausente en tokens viejos. */
+  authTime?: number
 }
 
 declare global {
@@ -113,6 +117,8 @@ export async function authMiddleware(
       locationId: payload.locationId,
       jti: payload.jti,
       exp: payload.exp,
+      iat: payload.iat,
+      ...(typeof payload.authTime === "number" ? { authTime: payload.authTime } : {}),
     }
 
     next()

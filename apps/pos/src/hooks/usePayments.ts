@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react"
 import type { PaymentMethod } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
-import { resolvePaymentMethod } from "../services/payment"
 import { registerCounterSale } from "../services/counter-sale"
 
 export function usePayments() {
@@ -12,6 +11,13 @@ export function usePayments() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * Deja el rastro de UNA parte del cobro en caja (cualquier método: el
+   * arqueo de efectivo lo filtra el server con cashExpectedDelta). El cobro
+   * en sí ya quedó registrado en la orden (services/order.recordPayments);
+   * esto es bookkeeping y nunca corta la venta: sin caja o sin red, el
+   * movimiento va a la cola de pendientes.
+   */
   const processPayment = useCallback(
     async (
       orderId: string,
@@ -26,17 +32,6 @@ export function usePayments() {
       setError(null)
 
       try {
-        const resolved = resolvePaymentMethod(method)
-
-        if (resolved === "terminal") {
-          // Terminal de cobro (MP Point, POSNET, etc.)
-          // El POS interactúa con el terminal físico
-          return { method: resolved, status: "pending_terminal" }
-        }
-
-        // Efectivo: el cajón recibió plata → dejar el rastro en caja (o en
-        // la cola local si no hay caja / el server no responde). Nunca corta
-        // el cobro: la venta ya sucedió, el bookkeeping va aparte.
         try {
           await registerCounterSale({
             tenantId,
@@ -49,7 +44,7 @@ export function usePayments() {
           console.error("[payments] registerCounterSale failed:", err)
         }
 
-        return { method: resolved, status: "completed" }
+        return { method, status: "completed" as const }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Payment failed"
         setError(message)

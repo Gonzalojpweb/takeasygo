@@ -8,6 +8,7 @@
     "paths": {
       "@takeasygo/business": ["../../packages/business/dist"],
       "@takeasygo/business/jwt": ["../../packages/business/dist/jwt"],
+      "@takeasygo/business/pos-pin": ["../../packages/business/dist/pos-pin"],
       "@takeasygo/business/sync-events": ["../../packages/business/dist/sync-events"]
     }
   },

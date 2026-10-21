@@ -84,6 +84,9 @@ CashRegisterSchema.index(
 
 // Reporte histórico por rango (CashDashboard "historial").
 CashRegisterSchema.index({ tenantId: 1, locationId: 1, status: 1, closedAt: -1 })
+// Vista consolidada del admin (Cajas POS sin filtro de sede): el índice de
+// arriba no sirve sin locationId como prefijo.
+CashRegisterSchema.index({ tenantId: 1, status: 1, closedAt: -1 })
 
 // Share token del Z Report (§4) — lookup directo, único entre todas las cajas.
 // partialFilterExpression en vez de sparse: el token puede ser null y null

@@ -60,6 +60,17 @@ export async function POST(
 
     const { name, email, password, role, assignedLocations = [] } = await request.json()
 
+    // Tipos antes de cualquier query: un `email` objeto ({ $ne: null }) llegaba
+    // crudo a User.findOne (inyección de operadores).
+    if (
+      typeof name !== 'string' || !name.trim() || name.length > 100 ||
+      typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200 ||
+      typeof password !== 'string' || password.length < 8 || password.length > 200 ||
+      !Array.isArray(assignedLocations) || assignedLocations.some((id: unknown) => typeof id !== 'string')
+    ) {
+      return NextResponse.json({ error: 'Datos inválidos (nombre, email válido y contraseña de 8+ caracteres)' }, { status: 400 })
+    }
+
     // ✅ Prevenir privilege escalation: solo se permiten roles menores
     if (!ALLOWED_ROLES.includes(role)) {
       return NextResponse.json(

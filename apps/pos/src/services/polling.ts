@@ -1,47 +1,55 @@
-﻿import type { Table as DexieTable } from "dexie"
+import type { Table as DexieTable } from "dexie"
 import type { CashRegister, Order, Table } from "@takeasygo/types"
 import { db } from "../db/dexie"
 import { posApi } from "./pos-api"
 import { rehydrateOrders, rehydrateRegisters } from "./pos-wire"
+import { syncMenu } from "./menu"
 
 // ============================================================================
-// polling â€” diff-then-put contra /api/[tenant]/pos/*
+// polling — diff-then-put contra /api/[tenant]/pos/*
 // ============================================================================
-// M6. M5 dejÃ³ las escrituras server-first, pero cada terminal solo veÃ­a lo que
-// ella misma escribiÃ³: si la caja estaba abierta en otra terminal,
-// `openRegister` respondÃ­a 409 y no habÃ­a forma local de enterarse (D14).
+// M6. M5 dejó las escrituras server-first, pero cada terminal solo veía lo que
+// ella misma escribió: si la caja estaba abierta en otra terminal,
+// `openRegister` respondía 409 y no había forma local de enterarse (D14).
 //
-// Tres reglas gobiernan este mÃ³dulo:
+// Tres reglas gobiernan este módulo:
 //
-//   1. NUNCA borra. El server solo devuelve Ã³rdenes `source: "pos"` de esta
-//      sede; Dexie ademÃ¡s guarda Ã³rdenes externas que el server no conoce.
-//      Borrar lo que "falta" en la respuesta destruirÃ­a datos ajenos. Es
-//      upsert puro: lo que no viene, queda como estÃ¡.
+//   1. NUNCA borra. El server solo devuelve órdenes `source: "pos"` de esta
+//      sede; Dexie además guarda órdenes externas que el server no conoce.
+//      Borrar lo que "falta" en la respuesta destruiría datos ajenos. Es
+//      upsert puro: lo que no viene, queda como está.
 //   2. Difiere antes de escribir: solo hace `bulkPut` de los registros cuyo
-//      contenido cambiÃ³. Un `put` idÃ©ntico igual dispara `useLiveQuery` y
+//      contenido cambió. Un `put` idéntico igual dispara `useLiveQuery` y
 //      re-renderiza toda la pantalla cada 7 s.
-//   3. No se cruza con una mutaciÃ³n del POS (ver "Invariante").
+//   3. No se cruza con una mutación del POS (ver "Invariante").
 //
 // â”€â”€ Invariante â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// La comprobaciÃ³n de cruce corre SIN ningÃºn `await` entre ella y el
+// La comprobación de cruce corre SIN ningún `await` entre ella y el
 // `bulkPut`. Las mutaciones incrementan `completedMutations` en el mismo
-// bloque sÃ­ncrono en que decrementan `activeMutations`, justo despuÃ©s de su
-// escritura. De ahÃ­:
+// bloque síncrono en que decrementan `activeMutations`, justo después de su
+// escritura. De ahí:
 //
-//   Â· una mutaciÃ³n termina mientras el polling esperaba la respuesta â†’
-//     `completedMutations` cambiÃ³ â†’ aborta el tick.
-//   Â· hay una mutaciÃ³n en vuelo en el momento de escribir â†’
+//   · una mutación termina mientras el polling esperaba la respuesta →
+//     `completedMutations` cambió → aborta el tick.
+//   · hay una mutación en vuelo en el momento de escribir →
 //     `activeMutations > 0` â†’ aborta el tick.
-//   Â· una mutaciÃ³n empieza DESPUÃ‰S de la comprobaciÃ³n â†’ su escritura se cola
-//     detrÃ¡s de la del polling (Dexie serializa por orden de llamada) y gana
+//   · una mutación empieza DESPUÉS de la comprobación → su escritura se cola
+//     detrás de la del polling (Dexie serializa por orden de llamada) y gana
 //     ella, que es la fresca.
 //
-// Sin estas seÃ±ales el polling escribirÃ­a por encima una respuesta pedida
-// antes de que la mutaciÃ³n confirmara.
+// Sin estas señales el polling escribiría por encima una respuesta pedida
+// antes de que la mutación confirmara.
 // ============================================================================
 
-/** Dentro del rango 5â€“10 s que fija el plan. */
+/** Dentro del rango 5–10 s que fija el plan. */
 export const POLL_INTERVAL_MS = 7_000
+
+/**
+ * El menú cambia mucho menos que mesas/órdenes/cajas: se revalida cada
+ * MENU_EVERY_TICKS ticks (~35 s) y siempre en el primer tick (arranque y
+ * vuelta al foco). La escritura en Dexie es condicional a la `signature`.
+ */
+export const MENU_EVERY_TICKS = 5
 
 /** `GET /pos/orders` ordena por `updatedAt` desc: son las que pueden cambiar. */
 const ORDERS_LIMIT = 200
@@ -53,11 +61,11 @@ let activeMutations = 0
 let completedMutations = 0
 
 /**
- * Ejecuta una mutaciÃ³n server-first marcada para el polling.
+ * Ejecuta una mutación server-first marcada para el polling.
  *
  * Envuelve el ciclo completo: llamada al server + escritura en Dexie. El
- * contador sube antes de tocar nada y baja â€”junto con el de terminadasâ€” en
- * el mismo bloque, despuÃ©s de la escritura (ver "Invariante").
+ * contador sube antes de tocar nada y baja —junto con el de terminadas— en
+ * el mismo bloque, después de la escritura (ver "Invariante").
  * Es reentrante: `assignPendingMovements` llama `addMovement` por cada
  * pendiente y el contador simplemente sube y baja.
  */
@@ -75,7 +83,7 @@ export function mutationInFlight(): boolean {
   return activeMutations > 0
 }
 
-/** Solo para tests: los contadores viven en mÃ³dulo y no se resetean solos. */
+/** Solo para tests: los contadores viven en módulo y no se resetean solos. */
 export function resetPollingState(): void {
   activeMutations = 0
   completedMutations = 0
@@ -84,11 +92,11 @@ export function resetPollingState(): void {
 // â”€â”€ Diff â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
- * SerializaciÃ³n con claves ordenadas, para comparar registro contra registro.
+ * Serialización con claves ordenadas, para comparar registro contra registro.
  *
  * `JSON.stringify` directo compara por orden de claves: un objeto reconstruido
  * por el mapper puede tener el mismo contenido y otro orden, y el diff
- * marcarÃ­a un cambio que no existe.
+ * marcaría un cambio que no existe.
  */
 function stableStringify(value: unknown): string {
   if (value === undefined) return "undefined"
@@ -106,8 +114,8 @@ function stableStringify(value: unknown): string {
 
 /**
  * Registros que hay que escribir: los nuevos y los que cambiaron.
- * Puede demorar (lee Dexie uno por uno) â€” por eso la guardia de cruce corre
- * reciÃ©n despuÃ©s, sin `await` de por medio.
+ * Puede demorar (lee Dexie uno por uno) — por eso la guardia de cruce corre
+ * recién después, sin `await` de por medio.
  */
 async function collectChanged<T extends { id: string }>(
   table: DexieTable<T, string>,
@@ -124,7 +132,7 @@ async function collectChanged<T extends { id: string }>(
 }
 
 /**
- * Guardia + escritura, sin ningÃºn `await` entre las dos lÃ­neas que interesan.
+ * Guardia + escritura, sin ningún `await` entre las dos líneas que interesan.
  * Devuelve la cantidad de registros realmente escritos.
  */
 async function flush<T extends { id: string }>(
@@ -135,7 +143,7 @@ async function flush<T extends { id: string }>(
   if (activeMutations > 0 || completedMutations !== epoch) return 0
 
   const changed = await collectChanged(table, incoming)
-  // â† Ãºltima comprobaciÃ³n: no puede haber ningÃºn await debajo hasta llamar a
+  // ← última comprobación: no puede haber ningún await debajo hasta llamar a
   //   bulkPut, para que el orden de escritura en Dexie sea determinista.
   if (activeMutations > 0 || completedMutations !== epoch) return 0
   if (changed.length === 0) return 0
@@ -186,8 +194,8 @@ export interface PollTickResult {
 /**
  * Un tick completo. Las tres colecciones se traen en paralelo y se procesan
  * por separado: si una responde mal, las otras dos igual se aplican.
- * `sync*` ya devuelve 0 cuando la guardia de cruce aborta, asÃ­ que un tick
- * abortado no es un error â€” es el caso normal cuando hay una mutaciÃ³n en
+ * `sync*` ya devuelve 0 cuando la guardia de cruce aborta, así que un tick
+ * abortado no es un error — es el caso normal cuando hay una mutación en
  * vuelo.
  */
 export async function pollNow(tenantId: string): Promise<PollTickResult> {
@@ -209,12 +217,13 @@ export async function pollNow(tenantId: string): Promise<PollTickResult> {
   return { tables, orders, registers }
 }
 
-// â”€â”€ ProgramaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Programación ───────────────────────────────────────────────────────────
 
 let enabled = false
 let timer: ReturnType<typeof setInterval> | null = null
 let currentTenantId: string | null = null
 let ticking = false
+let tickCount = 0
 let onVisibility: (() => void) | null = null
 
 function isHidden(): boolean {
@@ -228,7 +237,14 @@ function tick(): void {
   if (!tenantId || !enabled || ticking || isHidden()) return
 
   ticking = true
-  void pollNow(tenantId)
+  const withMenu = tickCount % MENU_EVERY_TICKS === 0
+  tickCount += 1
+  void Promise.all([
+    pollNow(tenantId),
+    withMenu
+      ? syncMenu(tenantId).catch((error) => console.warn("[polling] menu:", error))
+      : Promise.resolve(),
+  ])
     .catch((error) => console.warn("[polling] tick failed:", error))
     .finally(() => {
       ticking = false
@@ -249,8 +265,8 @@ function stopTimer(): void {
 /**
  * Arranca el polling para una sede.
  *
- * El primer tick corre **inmediatamente**: una terminal reciÃ©n abierta no
- * puede esperar 7 s con Dexie vacÃ­a para ver las mesas y la caja de la sede.
+ * El primer tick corre **inmediatamente**: una terminal recién abierta no
+ * puede esperar 7 s con Dexie vacía para ver las mesas y la caja de la sede.
  */
 export function startPosPolling(tenantId: string): void {
   if (enabled && currentTenantId === tenantId) return
@@ -258,6 +274,7 @@ export function startPosPolling(tenantId: string): void {
 
   enabled = true
   currentTenantId = tenantId
+  tickCount = 0
 
   if (typeof document !== "undefined") {
     onVisibility = () => {
@@ -266,6 +283,7 @@ export function startPosPolling(tenantId: string): void {
         stopTimer()
       } else if (enabled) {
         startTimer()
+        tickCount = 0 // al volver al foco, el menú también se revalida
         tick()
       }
     }

@@ -6,17 +6,17 @@ import { canEditOrderItems } from '@takeasygo/business'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, recomputeOrderTotals, type SaasOrderItemDraft } from '@/lib/pos-online/orderMapper'
-import { findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
+import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
 // ============================================================================
-// PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] â€” cambia la cantidad
-// DELETE /api/[tenant]/pos/orders/[id]/items/[productId] â€” quita el producto
+// PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad
+// DELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto
 // ============================================================================
 
 /**
  * El POS identifica los items por `productId` (es lo que ya usa
- * removeItem/updateItemQuantity en services/order.ts), no por Ã­ndice:
- * un Ã­ndice se mueve con cada ediciÃ³n y provocarÃ­a borrar el Ã­tem equivocado.
+ * removeItem/updateItemQuantity en services/order.ts), no por índice:
+ * un índice se mueve con cada edición y provocaría borrar el ítem equivocado.
  */
 function matchesProduct(item: SaasOrderItemDraft, productId: string): boolean {
   return item.menuItemId?.toString() === productId
@@ -24,7 +24,7 @@ function matchesProduct(item: SaasOrderItemDraft, productId: string): boolean {
 
 function assertProductId(productId: unknown): string {
   if (typeof productId !== 'string' || productId.length === 0 || productId.length > 100) {
-    throw PosError.validation('productId invÃ¡lido')
+    throw PosError.validation('productId inválido')
   }
   return productId
 }
@@ -62,7 +62,7 @@ async function saveItems(
     .exec()
 
   if (!updated) {
-    throw PosError.conflict('La orden cambiÃ³ mientras se procesaba la peticiÃ³n', `posId=${posId}`)
+    throw PosError.conflict('La orden cambió mientras se procesaba la petición', `posId=${posId}`)
   }
   return updated as unknown as PosOrderDoc
 }
@@ -71,6 +71,7 @@ export const PATCH = posRoute(async (ctx, { id, productId }) => {
   const pid = assertProductId(productId)
   const current = await findPosOrder(ctx, id)
   assertEditable(current.status)
+  assertNotPaid(current)
 
   const body = await readPosBody(ctx.request)
   requireFields(body, ['quantity'])
@@ -112,6 +113,7 @@ export const DELETE = posRoute(async (ctx, { id, productId }) => {
   const pid = assertProductId(productId)
   const current = await findPosOrder(ctx, id)
   assertEditable(current.status)
+  assertNotPaid(current)
 
   const before = current.items ?? []
   const items = before.filter((i) => !matchesProduct(i, pid))

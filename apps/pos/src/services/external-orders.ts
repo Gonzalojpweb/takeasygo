@@ -65,6 +65,7 @@ interface PersistExternalOrderParams {
   baseTotal?: number
   surchargeAmount?: number
   notes?: string
+  orderMode?: string
 }
 
 /**
@@ -88,8 +89,8 @@ interface PersistExternalOrderParams {
  * simultáneas al mismo orderId.
  *
  * Se llama desde:
- *   - IncomingOrdersDashboard: al recibir order:created por socket
- *   - IncomingOrdersDashboard: al hacer fetchPendingOrders (reconnect)
+ *   - App.tsx: al recibir order:created por socket
+ *   - App.tsx: al hacer fetchPendingOrders (conexión y reconnect)
  */
 export async function persistExternalOrder(
   params: PersistExternalOrderParams
@@ -106,6 +107,7 @@ export async function persistExternalOrder(
     baseTotal,
     surchargeAmount,
     notes,
+    orderMode,
   } = params
 
   const existing = await db.orders.get(orderId)
@@ -121,6 +123,7 @@ export async function persistExternalOrder(
       externalStatus: safeExternalStatus,
       status: existing.status === "pending" && status !== "pending" ? status : existing.status,
       paymentMethod: paymentMethod ?? existing.paymentMethod,
+      orderMode: orderMode ?? existing.orderMode,
       updatedAt: new Date(),
     })
     return orderId
@@ -162,6 +165,7 @@ export async function persistExternalOrder(
       externalOrderId: orderId,
       externalStatus: appliedCancelReason ? "cancelled" : appliedExternalStatus,
       paymentMethod,
+      ...(orderMode ? { orderMode } : {}),
       paymentSource: "external_prepaid",
       createdAt: now,
       updatedAt: now,

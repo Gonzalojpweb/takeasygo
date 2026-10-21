@@ -202,6 +202,13 @@ export const POST = posRoute(async (ctx) => {
     }
   }
 
+  // Nace confirmada (enviada a cocina): misma comanda que el PATCH a
+  // `confirmed` (ver orders/[id]/route.ts).
+  if (created.status === 'confirmed') {
+    const { onOrderConfirmed } = await import('@/lib/printing')
+    await onOrderConfirmed(created)
+  }
+
   await logAudit({
     tenantId: ctx.tenantId,
     action: 'pos.order.create',

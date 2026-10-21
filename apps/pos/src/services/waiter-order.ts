@@ -29,6 +29,8 @@ export interface WaiterKitchenDeps {
 export interface SendWaiterOrderInput {
   tableId: string
   items: OrderItem[]
+  /** Quién ocupa la mesa: "waiter" (default) o "counter" (cajero en Salón). */
+  serverId?: string
 }
 
 /** Identificación del servidor en la mesa (equivalente a "counter"). */
@@ -39,6 +41,7 @@ export async function sendWaiterOrderToKitchen(
   input: SendWaiterOrderInput
 ): Promise<Order> {
   const { tableId, items } = input
+  const serverId = input.serverId ?? WAITER_SERVER_ID
   if (!tableId) throw new Error("[waiter] tableId is required")
   if (items.length === 0) throw new Error("[waiter] items are required")
 
@@ -46,9 +49,9 @@ export async function sendWaiterOrderToKitchen(
 
   const fresh = await deps.readTable(tableId)
   if (fresh?.status === "free") {
-    await deps.occupyTable(tableId, WAITER_SERVER_ID, order.id)
+    await deps.occupyTable(tableId, serverId, order.id)
   } else if (fresh?.status === "occupied" && !fresh.currentOrderId) {
-    await deps.bindTableOrder(tableId, WAITER_SERVER_ID, order.id)
+    await deps.bindTableOrder(tableId, serverId, order.id)
   }
 
   await deps.confirmOrder(order.id)

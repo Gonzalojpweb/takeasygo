@@ -36,3 +36,13 @@ export {
   openRegistersOf,
 } from "./cash"
 export { generateZReport, type ZReportInput } from "./z-report"
+export {
+  type CheckoutPart,
+  type AllocatedPayment,
+  splitEvenly,
+  remainingToPay,
+  isCheckoutComplete,
+  cashChange,
+  allocatePayments,
+  pathToDelivered,
+} from "./checkout"

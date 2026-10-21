@@ -114,6 +114,18 @@ export interface SaasOrderItemDraft {
   notes: string | null
 }
 
+/** Estados con los que el POS puede CREAR una orden. */
+const INITIAL_STATUSES = new Set<string>(['pending', 'confirmed'])
+
+const KNOWN_PAYMENT_METHODS = new Set<string>([
+  'cash',
+  'mercadopago',
+  'posnet_debit',
+  'posnet_credit',
+  'kripton',
+  'transfer',
+])
+
 /** Nombre usado cuando el POS no informa comensal (el schema exige no vacío). */
 const DEFAULT_CUSTOMER_NAME = 'Consumidor final'
 
@@ -235,6 +247,15 @@ export function toSaasOrder(input: PosOrderInput, ctx: PosOrderWriteContext): Sa
   if (!Array.isArray(input.items) || input.items.length === 0) {
     throw PosError.validation('La orden debe tener al menos un item')
   }
+  // Una orden NACE pendiente o confirmada (enviada a cocina). Cualquier otro
+  // estado inicial salteaba el grafo de transiciones (p. ej. nacer
+  // `delivered` sin pasar por el PATCH que valida y libera la mesa).
+  if (input.status !== undefined && !INITIAL_STATUSES.has(input.status)) {
+    throw PosError.validation('Estado inicial inválido', `got: ${String(input.status)}`)
+  }
+  if (input.paymentMethod !== undefined && !KNOWN_PAYMENT_METHODS.has(input.paymentMethod)) {
+    throw PosError.validation('paymentMethod inválido')
+  }
 
   const validation = validateOrderItems(input.items)
   if (!validation.valid) {
@@ -303,6 +324,9 @@ export interface PosOrderContract {
   total: number
   menuVersion: number
   notes?: string
+  /** Desglose del cobro (Order.posPayments). Ausente si no se cobró. */
+  payments?: { method: PaymentMethod; amount: number; reference?: string }[]
+  paymentSource?: 'pos_charged'
   createdAt: Date
   updatedAt: Date
 }
@@ -334,6 +358,7 @@ export function toPosOrder(doc: {
   total: number
   menuVersion?: number
   notes?: string | null
+  posPayments?: { method: string; amount: number; reference?: string | null }[] | null
   createdAt: Date
   updatedAt: Date
 }): PosOrderContract {
@@ -341,7 +366,16 @@ export function toPosOrder(doc: {
     throw PosError.internal('Orden sin posId en el read model', 'source o posId ausente')
   }
 
+  const payments = doc.posPayments?.length
+    ? doc.posPayments.map((p) => ({
+        method: p.method as PaymentMethod,
+        amount: p.amount,
+        ...(p.reference ? { reference: p.reference } : {}),
+      }))
+    : undefined
+
   return {
+    ...(payments ? { payments, paymentSource: 'pos_charged' as const } : {}),
     id: doc.posId,
     tenantId: doc.tenantId.toString(),
     source: doc.source ?? 'pos',

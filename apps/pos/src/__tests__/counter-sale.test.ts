@@ -139,7 +139,8 @@ describe("registerCounterSale", () => {
     )
   })
 
-  it("omite métodos no-efectivo: terminal no mueve cajón acá", async () => {
+  it("registra también los cobros no-efectivo (el arqueo lo filtra el server)", async () => {
+    // Auditoría §5: antes MP/POSNET/transferencia no dejaban rastro en caja.
     mockRegisters.push({
       id: "reg_1",
       tenantId: TENANT,
@@ -156,9 +157,18 @@ describe("registerCounterSale", () => {
       relatedOrderId: "ord_term",
     })
 
-    expect(result.status).toBe("skipped")
-    expect(addMovement).not.toHaveBeenCalled()
-    expect(mockPending.length).toBe(0)
+    expect(result.status).toBe("registered")
+    expect(addMovement).toHaveBeenCalledWith(
+      TENANT,
+      "reg_1",
+      "sale",
+      4500,
+      "Pedido mostrador",
+      "system",
+      "counter",
+      "mercadopago",
+      "ord_term"
+    )
   })
 
   it("sin caja abierta → encola en pendingMovements con source counter_sale", async () => {

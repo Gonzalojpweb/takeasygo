@@ -160,6 +160,7 @@ export function ordersRouter(
         source: doc.source,
         status: doc.status,
         paymentMethod: doc.paymentMethod,
+        orderMode: doc.orderMode,
         items: doc.items,
         total: doc.total,
       })))

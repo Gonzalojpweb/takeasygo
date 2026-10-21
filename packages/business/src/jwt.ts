@@ -9,6 +9,12 @@ import { createHash, createPublicKey, randomUUID } from "node:crypto"
 
 export const HUB_TOKEN_TTL_MS = 30 * 60 * 1000    // 30 minutos
 export const SPOKE_TOKEN_TTL_MS = 2 * 60 * 1000   // 2 minutos
+/**
+ * Tope ABSOLUTO de una sesión de hub, con refresh incluido (un turno largo).
+ * Pasado esto POST /api/v1/auth/refresh responde 401 y el cajero vuelve a
+ * ingresar su PIN. Ver apps/sync/src/routes/auth.ts (refresh).
+ */
+export const HUB_SESSION_MAX_AGE_MS = 16 * 60 * 60 * 1000 // 16 horas
 
 // ============================================================================
 // JWT RS256 — Implementación según SECURITYPOS.md sección 4

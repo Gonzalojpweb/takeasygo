@@ -3,6 +3,7 @@ import { ExternalLink } from "lucide-react"
 import { getSocket } from "../../services/socket-client"
 import { useAuth } from "../../hooks/useAuth"
 import { requestSsoToken } from "../../services/sso"
+import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
 
 interface HeaderProps {
   tenantName: string
@@ -10,10 +11,32 @@ interface HeaderProps {
 }
 
 export function Header({ tenantName, userName }: HeaderProps) {
-  const { state } = useAuth()
+  const { state, logout } = useAuth()
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
   const [ssoLoading, setSsoLoading] = useState(false)
+  // Aviso de sesión: AuthContext emite `auth:expiring` cuando el refresh
+  // automático no pudo renovar el token (antes nadie escuchaba el evento y el
+  // cajero se enteraba recién cuando lo sacaba al login — Auditoría §1.5).
+  const [sessionWarning, setSessionWarning] = useState(false)
+  const [audioReady, setAudioReady] = useState(isAudioUnlocked)
+
+  useEffect(() => {
+    const onUnlocked = () => setAudioReady(true)
+    window.addEventListener("audio:unlocked", onUnlocked)
+    return () => window.removeEventListener("audio:unlocked", onUnlocked)
+  }, [])
+
+  useEffect(() => {
+    const onExpiring = () => setSessionWarning(true)
+    const onRefreshed = () => setSessionWarning(false)
+    window.addEventListener("auth:expiring", onExpiring)
+    window.addEventListener("auth:refreshed", onRefreshed)
+    return () => {
+      window.removeEventListener("auth:expiring", onExpiring)
+      window.removeEventListener("auth:refreshed", onRefreshed)
+    }
+  }, [])
 
   useEffect(() => {
     const interval = setInterval(() => setTime(new Date()), 30000)
@@ -39,7 +62,14 @@ export function Header({ tenantName, userName }: HeaderProps) {
 
     setSsoLoading(true)
     try {
-      const saasUrl = import.meta.env.VITE_SAAS_URL ?? "http://localhost:3000"
+      // Sin fallback a localhost: en producción abriría la máquina del cajero.
+      const saasUrl = import.meta.env.VITE_SAAS_URL
+      if (!saasUrl) {
+        console.error("[Header] VITE_SAAS_URL no está configurada en este build")
+        alert("El POS no tiene configurada la URL del SaaS")
+        setSsoLoading(false)
+        return
+      }
       const newTab = window.open("", "_blank")
       if (!newTab) {
         alert("Popup bloqueado — permití ventanas emergentes")
@@ -99,6 +129,26 @@ export function Header({ tenantName, userName }: HeaderProps) {
         >
           ↻ Refrescar
         </button>
+        {!audioReady && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => { void unlockAudio() }}
+            title="El navegador bloquea el sonido hasta que toques la pantalla"
+            style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px' }}
+          >
+            🔇 Activar sonido
+          </button>
+        )}
+        {sessionWarning && (
+          <button
+            className="btn btn-sm"
+            onClick={() => { void logout() }}
+            title="No se pudo renovar la sesión automáticamente"
+            style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px', background: 'var(--warning)', color: 'white' }}
+          >
+            ⚠ Sesión por vencer — reingresar
+          </button>
+        )}
         <div className={`sync-status ${connected ? '' : 'disconnected'}`}>
           <div className="sync-dot" />
           <span>{connected ? 'Online' : 'Sin conexión'}</span>

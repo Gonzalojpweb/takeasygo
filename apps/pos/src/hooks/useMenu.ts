@@ -1,74 +1,59 @@
 import { useState, useEffect, useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import type { Product, MenuCategory } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
-import { fetchMenuSnapshot } from "../services/menu"
+import { syncMenu } from "../services/menu"
 import { db } from "../db/dexie"
+
+// ============================================================================
+// useMenu — lee el menú de Dexie (useLiveQuery) y lo refresca contra el SaaS
+// ============================================================================
+// La caché la mantienen dos caminos que escriben con la misma regla
+// (services/menu.syncMenu, solo si cambió la signature):
+//   · este hook, al montar (primera carga de la terminal)
+//   · services/polling.ts, periódicamente (precios/productos nuevos en turno)
+// Como el estado sale de useLiveQuery, cualquiera de los dos actualiza la
+// grilla sin recargar la página. Offline: se sigue mostrando lo último.
+// ============================================================================
 
 export function useMenu() {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
   const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
 
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<MenuCategory[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetched, setFetched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!tenantId || !jwt) {
-      setLoading(false)
-      return
-    }
+  const cached = useLiveQuery(
+    () => (tenantId ? db.menuSnapshot.get(tenantId) : undefined),
+    [tenantId]
+  )
 
+  useEffect(() => {
+    if (!tenantId || !jwt) return
     let cancelled = false
 
-    async function load() {
-      // 1. Load from Dexie cache first (instant, works offline)
-      try {
-        const cached = await db.menuSnapshot.get(tenantId!)
-        if (!cancelled && cached) {
-          setProducts(cached.products as Product[])
-          setCategories(cached.categories as MenuCategory[])
-          setLoading(false)
-        }
-      } catch {
-        // Dexie read failed, continue to network
-      }
+    syncMenu(tenantId, jwt)
+      .then(() => {
+        if (!cancelled) setError(null)
+      })
+      .catch(async (err) => {
+        if (cancelled) return
+        // Con caché se sigue operando en silencio; sin caché es un error real.
+        const existing = await db.menuSnapshot.get(tenantId).catch(() => undefined)
+        if (!existing) setError(err instanceof Error ? err.message : "Error loading menu")
+      })
+      .finally(() => {
+        if (!cancelled) setFetched(true)
+      })
 
-      // 2. Fetch from network and update cache
-      try {
-        const snapshot = await fetchMenuSnapshot(tenantId!, jwt!)
-        if (!cancelled) {
-          setProducts(snapshot.products)
-          setCategories(snapshot.categories)
-          setError(null)
-          // Update Dexie cache
-          await db.menuSnapshot.put({
-            tenantId: tenantId!,
-            products: snapshot.products,
-            categories: snapshot.categories,
-            version: snapshot.version,
-            updatedAt: new Date(),
-          })
-        }
-      } catch (err) {
-        if (!cancelled) {
-          // If we have no cached data, show error
-          const cached = await db.menuSnapshot.get(tenantId!).catch(() => null)
-          if (!cached) {
-            setError(err instanceof Error ? err.message : "Error loading menu")
-          }
-          // If we have cached data, silently use it (no error shown)
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
+    return () => {
+      cancelled = true
     }
-
-    load()
-
-    return () => { cancelled = true }
   }, [tenantId, jwt])
+
+  const products = useMemo(() => (cached?.products ?? []) as Product[], [cached])
+  const categories = useMemo(() => (cached?.categories ?? []) as MenuCategory[], [cached])
 
   const availableProducts = useMemo(
     () => products.filter((p) => p.isAvailable),
@@ -87,7 +72,7 @@ export function useMenu() {
     products: availableProducts,
     categories: visibleCategories,
     getProductsByCategory,
-    loading,
+    loading: !cached && !fetched && Boolean(tenantId && jwt),
     error,
   }
 }

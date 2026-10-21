@@ -165,6 +165,22 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     })
   }
 
+  // Comanda: al confirmar se generan los printJobs que consume el
+  // printer-agent de la sede (mismo hook que las órdenes online). Antes las
+  // órdenes del POS nunca imprimían (Auditoría POS Online V1 §8). Se espera
+  // (no fire-and-forget): en serverless el proceso puede morir al responder.
+  if (to === 'confirmed') {
+    const fullOrder = await Order.findOne({
+      tenantId: ctx.tenantId,
+      locationId: ctx.locationId,
+      posId,
+    })
+    if (fullOrder) {
+      const { onOrderConfirmed } = await import('@/lib/printing')
+      await onOrderConfirmed(fullOrder)
+    }
+  }
+
   // Impresión en cocina diferida (flujo cash): el POS no tiene modal de
   // cajero, así que al entrar a preparing se imprime por defecto; al
   // cancelar solo se limpia el flag (sin comanda nueva).

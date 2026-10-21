@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Plus, X, User as UserIcon, Mail, Shield, UserPlus, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Plus, X, User as UserIcon, Mail, Shield, UserPlus, ShieldCheck, Loader2, Eye, EyeOff, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -26,12 +26,49 @@ interface Props {
 
 const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff', assignedLocations: [] as string[] }
 
+/** Roles que operan el POS como terminal de caja (hub): pueden tener PIN. */
+const POS_PIN_ROLES = new Set(['admin', 'manager', 'cashier'])
+
 export default function UsersManager({ users, tenantSlug, tenantId, locations }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [pinBusy, setPinBusy] = useState<string | null>(null)
+  const [revealedPin, setRevealedPin] = useState<{ userId: string; pin: string } | null>(null)
   const router = useRouter()
+
+  // PIN del POS: lo genera el server y se muestra UNA sola vez.
+  async function handleGeneratePin(userId: string) {
+    setPinBusy(userId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/users/${userId}/pos-pin`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al generar el PIN')
+      setRevealedPin({ userId, pin: data.pin })
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al generar el PIN')
+    } finally {
+      setPinBusy(null)
+    }
+  }
+
+  async function handleRevokePin(userId: string) {
+    setPinBusy(userId)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/users/${userId}/pos-pin`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error al quitar el PIN')
+      if (revealedPin?.userId === userId) setRevealedPin(null)
+      toast.success('PIN de POS quitado')
+      router.refresh()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Error al quitar el PIN')
+    } finally {
+      setPinBusy(null)
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -257,6 +294,53 @@ export default function UsersManager({ users, tenantSlug, tenantId, locations }:
                          </div>
                        )}
                      </div>
+
+                    {POS_PIN_ROLES.has(user.role) && (
+                      <div className="mt-6 rounded-2xl border-2 border-border/40 bg-muted/20 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                            <KeyRound size={12} /> PIN del POS
+                          </span>
+                          <span className="text-[10px] font-bold text-muted-foreground">
+                            {user.posPinUpdatedAt
+                              ? `Asignado ${new Date(user.posPinUpdatedAt).toLocaleDateString('es-AR')}`
+                              : 'Sin PIN'}
+                          </span>
+                        </div>
+                        {revealedPin && revealedPin.userId === user._id && (
+                          <div className="mt-3 rounded-xl bg-primary/10 border border-primary/30 p-3 text-center">
+                            <div className="text-2xl font-black tracking-[0.4em] text-primary">{revealedPin.pin}</div>
+                            <p className="mt-1 text-[10px] font-bold text-muted-foreground">
+                              Anotalo y entregáselo: no se vuelve a mostrar.
+                            </p>
+                          </div>
+                        )}
+                        <div className="mt-3 flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="rounded-xl text-xs font-bold"
+                            disabled={pinBusy === user._id}
+                            onClick={() => handleGeneratePin(user._id)}
+                          >
+                            {pinBusy === user._id ? <Loader2 size={12} className="animate-spin" /> : user.posPinUpdatedAt ? 'Regenerar PIN' : 'Generar PIN'}
+                          </Button>
+                          {user.posPinUpdatedAt && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="rounded-xl text-xs font-bold text-muted-foreground"
+                              disabled={pinBusy === user._id}
+                              onClick={() => handleRevokePin(user._id)}
+                            >
+                              Quitar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-8 pt-6 border-t border-border/40 flex items-center justify-between">
                       <div className="flex items-center gap-2">

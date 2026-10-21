@@ -128,10 +128,10 @@ export const POST = posRoute<{ tenant: string; id: string }>(async (ctx, params)
   const reason = String(raw.reason).trim()
   if (!reason) throw PosError.validation('reason requerido')
 
-  const userId =
-    typeof raw.userId === 'string' && raw.userId.trim()
-      ? raw.userId.trim().slice(0, 120)
-      : ctx.user.id
+  // Autoría SIEMPRE desde el token verificado, nunca del body: el POS
+  // mandaba "Operador"/"system" y cualquier cliente podía atribuirle un
+  // movimiento de caja a otro usuario.
+  const userId = ctx.user.id
 
   let relatedOrderId: string | null = null
   if (raw.relatedOrderId !== undefined && raw.relatedOrderId !== null) {

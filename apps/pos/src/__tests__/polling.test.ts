@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 import {
   POLL_INTERVAL_MS,
+  MENU_EVERY_TICKS,
   pollNow,
   runMutation,
   resetPollingState,
@@ -76,11 +77,16 @@ const h = vi.hoisted(() => {
   return {
     TENANT,
     LOCATION,
+    syncMenu: vi.fn(async () => false),
     diningTable: makeTable(),
     orders: makeTable(),
     cashRegister: makeTable(),
   }
 })
+
+// El menú tiene su propio test de signature (services/menu); acá solo importa
+// la cadencia con la que el scheduler lo pide.
+vi.mock("../services/menu", () => ({ syncMenu: h.syncMenu }))
 
 vi.mock("../db/dexie", () => ({
   db: {
@@ -376,6 +382,22 @@ describe("guardia de cruce con mutaciones", () => {
 })
 
 describe("programación", () => {
+  it("revalida el menú en el primer tick y cada MENU_EVERY_TICKS", async () => {
+    vi.useFakeTimers()
+    h.syncMenu.mockClear()
+
+    startPosPolling(TENANT)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(h.syncMenu).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * (MENU_EVERY_TICKS - 1))
+    expect(h.syncMenu).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS)
+    expect(h.syncMenu).toHaveBeenCalledTimes(2)
+    stopPosPolling()
+  })
+
   it("arranca con un tick inmediato y sigue con el intervalo", async () => {
     vi.useFakeTimers()
 

@@ -9,6 +9,7 @@
     "./browser": "./dist/browser.js",
     "./sync-events": "./dist/sync-events.js",
     "./jwt": "./dist/jwt.js",
+    "./pos-pin": "./dist/pos-pin.js",
     "./mongo": "./dist/mongo.js",
     "./src/mongo": {
       "types": "./src/mongo.ts"

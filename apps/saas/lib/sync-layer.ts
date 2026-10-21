@@ -32,6 +32,8 @@ interface SyncOrderPayload {
   notes?: string
   menuVersion?: number
   paymentMethod?: string
+  /** dine-in | takeaway | delivery | business — alimenta los filtros de Entrantes del POS. */
+  orderMode?: string
 }
 
 export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<void> {

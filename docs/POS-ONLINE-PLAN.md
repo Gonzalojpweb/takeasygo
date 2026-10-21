@@ -49,6 +49,7 @@ El plan original borraba a `apps/sync` por completo. **Corrección:**
 | **M4** | Endpoints `/api/[tenant]/pos/*` (orders ✅ · tables ✅ · cash ✅ · menu ✅ · CORS ✅) | ✅ Completo |
 | **M5** | El POS habla con el SaaS: `services/*` server-first, `pos-api`, rehidratación de fechas, outbox fuera de las escrituras POS (ver §7) | ✅ Completo |
 | **M6** | Polling diff-then-put, concurrencia entre terminales, Page Visibility (ver §8) | ✅ Completo |
+| **M7** | Correcciones de la Auditoría POS Online V1 (CORS, cobro multi-método, comanda, sesión, PIN, D13, Z admin) — ver §12 | ✅ Código · ⬜ Despliegue |
 | **—** | E2E de dos terminales + despliegue: no es código, es verificación y decisiones (ver §11) | ⬜ Parcial (§11.2a) |
 
 ---
@@ -589,7 +590,7 @@ El repo arrastra **2476 errores** preexistentes (casi todos `no-explicit-any` en
 
 | # | Ítem | Impacto | Cuándo |
 |---|------|---------|--------|
-| D1 | `POS_CORS_ORIGIN` sin definir en producción | Bloquea M4 en prod | Antes de M4 |
+| D1 | ~~`POS_CORS_ORIGIN` sin definir en producción~~ — en prod quedó en `"true"` (Auditoría B1) | **Cerrado en código (M7)**: allowlist validada en `lib/pos-cors.ts` + `proxy.ts`, el origen oficial siempre permitido. Falta setear `POS_CORS_ORIGINS` y redeploy | Despliegue |
 | D2 | Limpiar `POS_JWT_PUBLIC_KEY` corrupta en Vercel | Ruido operativo; no rompe (fallback) | Cualquier momento |
 | D3 | `/api/:tenant/orders` y `/api/:tenant/menu` con `*` | Contrato público consumidor; ya existía | Revisión de contratos |
 | D4 | 2476 errores de lint del repo | No bloquea | Backlog |
@@ -601,10 +602,11 @@ El repo arrastra **2476 errores** preexistentes (casi todos `no-explicit-any` en
 | D10 | ~~El wire JSON devuelve fechas como **string ISO**~~ | **Cerrado en M5**: `apps/pos/src/services/pos-wire.ts` rehidrata con `new Date(...)` antes de tocar Dexie | — |
 | D11 | ~~El aplanado del menú vive solo en `apps/sync`~~ | **Cerrado en M4**: `packages/business/src/menu-flatten.ts`, importado por sync **y** por `GET /pos/menu` | — |
 | D12 | Existen **dos** modelos de la colección `menus`: `apps/saas/models/Menu.ts` y `packages/db/src/models/menu.ts`. El comentario del segundo dice "matches apps/saas/models/Menu.ts" y no era cierto (`halfPrice`, `subcategories`, `hiddenReward`, `likesCount`) | `.lean()` devuelve el BSON crudo, así que las **lecturas** estaban bien; las **escrituras** con `strict` descartaban campos. `halfPrice` ya se agregó; el resto sigue divergido | Backlog — unificar en un solo modelo |
-| D13 | `flattenMenu` **no recorre `categories[].subcategories[]`**: un ítem dentro de una subcategoría no llega al snapshot | Es exactamente lo que hace sync **hoy**; se portó fielmente en vez de cambiar el menú en silencio. Si el POS debe ver subcategorías, es un cambio de producto explícito | Decisión de producto |
+| D13 | ~~`flattenMenu` no recorre `categories[].subcategories[]`~~ | **Cerrado en M7**: subcategorías como `MenuCategory.parentId` + `Product.subcategoryId`; drill-down en el POS; los ítems de subcategoría ahora se pueden cobrar | — |
 | D14 | ~~Sin outbox y sin polling, dos terminales no se ven entre sí~~ | **Cerrado en M6**: `services/polling.ts` hace diff-then-put de mesas/órdenes/cajas cada 7 s, pausado con Page Visibility, con guardia de cruce contra mutaciones propias (§8) | — |
-| D15 | `uploadZReport` (`z-report-sync.ts`) y `getShareUrl` (`cash.ts`) **no tienen llamadores**: la vista compartida del Z (`{SYNC_URL}/api/v1/z-report/{shareToken}`) no está cableada en el POS | El `shareToken` que devuelve el server se guarda y no se usa | Decisión de producto |
+| D15 | `uploadZReport` (`z-report-sync.ts`) y `getShareUrl` (`cash.ts`) **no tienen llamadores**: la vista compartida del Z (`{SYNC_URL}/api/v1/z-report/{shareToken}`) no está cableada en el POS | Mitigado en M7: el admin ve los cierres y el Z en `/admin/caja-pos`. El link compartido sigue sin cablear | Decisión de producto |
 | D16 | El server de POS escribe directo en `orders` de SaaS, pero el Sync Layer registra órdenes en su **propia** colección (`SyncOrderModel`). Una orden `source:"pos"` no tiene registro de sync | Mientras siga `notifyStatusToSyncLayer` no hace falta. **M6 no lo retiró**: el polling sincroniza entre terminales del POS, el notify empuja estado a Sync Layer por socket. Retirarlo es un cambio aparte | Decisión |
+| D18 | `users.phone` declarado `unique + sparse + default: null`: si en la base quedó único, el 2.º usuario sin teléfono no se puede crear | Verificar índice en producción (informe M7 §6.4) | Con acceso a la base |
 | D17 | `_serverId` sigue en la firma de `createOrder` (lo pasa `useOrders`) pero no tiene equivalente en el contrato `/pos/orders` — la mesa se ocupa con `occupyTable()` aparte | Parámetro muerto con `eslint-disable` documentado. Los hooks no se tocan en V1 | Cuando se puedan tocar hooks |
 
 ---
@@ -684,6 +686,26 @@ Ejecutado por el operador sobre producción (SaaS + POS reales):
   pendiente de V1.
 - Reemplazar polling por socket (D7).
 
+## 12. M7 — Correcciones de la Auditoría POS Online V1 ✅ (código)
+
+Detalle completo, validación hallazgo por hallazgo, tests y pasos de
+despliegue: **`docs/INFORME-POS-ONLINE-V1-VALIDACION-Y-CORRECCIONES-2026-10-21.md`**.
+Auditoría de origen: `docs/AUDITORIA-POS-ONLINE-V1-2026-10-20.md`.
+
+| Área | Cambio | Dónde |
+|------|--------|-------|
+| CORS | Allowlist validada en el proxy (incluye `/api/auth/logout`); el header estático de `next.config.ts` se eliminó | `apps/saas/lib/pos-cors.ts`, `proxy.ts` |
+| Cobro | `POST /pos/orders/[id]/payments` write-once; `Order.posPayments`; ítems congelados tras cobrar; Kripton rechazado; fee POS = 0 explícito | `lib/pos-online/paymentPolicy.ts` |
+| Comanda | `confirmed` ⇒ `onOrderConfirmed` ⇒ `printJobs` para el printer-agent | `pos/orders/route.ts`, `pos/orders/[id]/route.ts` |
+| Estado inicial | Solo `pending \| confirmed` | `orderMapper.ts` |
+| POS cobro | `CheckoutPanel` (montos libres), mesa con rondas, mostrador con "Enviar a cocina", reparto `allocatePayments`, cierre por `pathToDelivered` | `@takeasygo/business/checkout`, `CounterDashboard.tsx` |
+| Caja | Pesos → centavos (`parsePesosInput`) | `CashDashboard.tsx` |
+| Sesión | `POST /api/v1/auth/refresh` (rota jti, tope 16 h, re-valida) + refresh automático en el POS + aviso | `apps/sync/src/routes/auth.ts`, `AuthContext.tsx` |
+| PIN | Lookup HMAC + índice único por tenant; PIN generado por el server; UI en Usuarios | `@takeasygo/business/pos-pin`, `users/[userId]/pos-pin` |
+| Menú | D13 + menú en el polling por `signature` | `menu-flatten.ts`, `polling.ts`, `useMenu.ts` |
+| Entrantes | `orderMode` SaaS → Sync → POS; filtros reales | `sync-layer.ts`, `internal.ts`, `external-orders.ts` |
+| Admin | `/admin/caja-pos`: cierres + Z por sede | `app/[tenant]/admin/caja-pos/page.tsx` |
+
 Reglas que siguen valiendo en cualquier módulo posterior:
 
 - Orden de operación: **tenant → auth → sede → body**.
@@ -691,5 +713,7 @@ Reglas que siguen valiendo en cualquier módulo posterior:
 - Centavos enteros de punta a punta; ninguna conversión en un mapper.
 - El read model **nunca** se borra desde el cliente (§8.2).
 - La UI y los hooks no se tocan: sigue cambiando solo el cuerpo de `services/*`.
-- Impresión: **no se toca**.
+- Impresión: **no se agrega un adapter en el navegador**. La comanda sale por
+  `onOrderConfirmed` → `printJobs` → printer-agent (M7).
+- Un cobro se registra en la orden **una sola vez** y su suma es el total del server (M7).
 

@@ -63,6 +63,14 @@ export interface RawMenuItem {
   variants?: Array<{ name: string; customizationGroups?: RawCustomizationGroup[] }>
 }
 
+export interface RawMenuSubCategory {
+  _id?: unknown
+  name: string
+  sortOrder?: number
+  customizationGroups?: RawCustomizationGroup[]
+  items?: RawMenuItem[]
+}
+
 export interface RawMenuCategory {
   _id?: unknown
   name: string
@@ -70,6 +78,7 @@ export interface RawMenuCategory {
   isAvailable?: boolean
   customizationGroups?: RawCustomizationGroup[]
   items?: RawMenuItem[]
+  subcategories?: RawMenuSubCategory[]
 }
 
 export interface RawMenu {
@@ -121,14 +130,101 @@ function flattenSubGroups(groups: RawOptionSubGroup[]): ProductModifier[] {
 // Un menú anidado → productos + categorías planos
 // ---------------------------------------------------------------------------
 
+/** Un ítem del catálogo → Product, con los grupos heredados ya resueltos. */
+function flattenItem(
+  item: RawMenuItem,
+  inheritedGroups: RawCustomizationGroup[],
+  tenantId: string,
+  categoryName: string,
+  subcategoryId?: string
+): Product {
+  const disabledGroups = item.disabledGroupIds ?? []
+  const disabledOptions = item.disabledOptionIds ?? []
+
+  const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])].filter(
+    (g) => !disabledGroups.includes(oid(g._id)) && !disabledGroups.includes(g.name)
+  )
+
+  // Los grupos propios de cada variante entran solo si nadie los declaró
+  // antes (dedup por nombre) y el item no los desactivó.
+  const variants = (item.variants ?? []).filter(
+    (v) => !(item.disabledVariantNames ?? []).includes(v.name)
+  )
+  const seenGroupNames = new Set(allGroups.map((g) => g.name))
+  for (const variant of variants) {
+    for (const vg of variant.customizationGroups ?? []) {
+      if (
+        !seenGroupNames.has(vg.name) &&
+        !disabledGroups.includes(oid(vg._id)) &&
+        !disabledGroups.includes(vg.name)
+      ) {
+        allGroups.push(vg)
+        seenGroupNames.add(vg.name)
+      }
+    }
+  }
+
+  const modifiers: ProductModifier[] | undefined =
+    allGroups.length > 0
+      ? allGroups.map((g) => {
+          const type = toGroupType(g.type)
+          return {
+            name: g.name,
+            type,
+            fixedCount: g.fixedCount,
+            required: g.required ?? false,
+            maxSelections:
+              type === 'fixed'
+                ? (g.fixedCount ?? 1)
+                : type === 'single'
+                  ? 1
+                  : undefined,
+            priceRule: toPriceRule(g.priceRule),
+            options: (g.options ?? [])
+              .filter(
+                (o) =>
+                  !disabledOptions.includes(oid(o._id)) &&
+                  !disabledOptions.includes(o.name)
+              )
+              .map((o) => ({
+                name: o.name,
+                price: o.extraPrice ?? 0,
+                subGroups:
+                  o.subGroups && o.subGroups.length > 0
+                    ? flattenSubGroups(o.subGroups)
+                    : undefined,
+              })),
+          }
+        })
+      : undefined
+
+  const product: Product = {
+    id: oid(item._id),
+    tenantId,
+    name: item.name,
+    description: item.description ?? '',
+    price: item.price,
+    category: categoryName,
+    isAvailable: item.isAvailable ?? true,
+    modifiers,
+  }
+  if (subcategoryId) product.subcategoryId = subcategoryId
+  if (item.halfPrice !== undefined && item.halfPrice !== null) {
+    product.halfPrice = item.halfPrice
+  }
+  if (item.imageUrl) product.imageUrl = item.imageUrl
+  return product
+}
+
 export function flattenMenu(doc: RawMenu): FlatMenuResult {
   const products: Product[] = []
   const categories: MenuCategory[] = []
   const tenantId = oid(doc.tenantId)
 
   for (const cat of doc.categories ?? []) {
+    const categoryId = oid(cat._id)
     categories.push({
-      id: oid(cat._id),
+      id: categoryId,
       name: cat.name,
       sortOrder: cat.sortOrder ?? 0,
       isVisible: cat.isAvailable ?? true,
@@ -138,82 +234,26 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
     const inheritedGroups = cat.customizationGroups ?? []
 
     for (const item of cat.items ?? []) {
-      const disabledGroups = item.disabledGroupIds ?? []
-      const disabledOptions = item.disabledOptionIds ?? []
+      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name))
+    }
 
-      const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])].filter(
-        (g) => !disabledGroups.includes(oid(g._id)) && !disabledGroups.includes(g.name)
-      )
-
-      // Los grupos propios de cada variante entran solo si nadie los declaró
-      // antes (dedup por nombre) y el item no los desactivó.
-      const variants = (item.variants ?? []).filter(
-        (v) => !(item.disabledVariantNames ?? []).includes(v.name)
-      )
-      const seenGroupNames = new Set(allGroups.map((g) => g.name))
-      for (const variant of variants) {
-        for (const vg of variant.customizationGroups ?? []) {
-          if (
-            !seenGroupNames.has(vg.name) &&
-            !disabledGroups.includes(oid(vg._id)) &&
-            !disabledGroups.includes(vg.name)
-          ) {
-            allGroups.push(vg)
-            seenGroupNames.add(vg.name)
-          }
-        }
+    // D13 — subcategorías: cada una es una MenuCategory con `parentId`. Sus
+    // ítems heredan los grupos de la categoría Y los de la subcategoría, y
+    // conservan `category` = nombre del padre (los filtros por categoría del
+    // POS siguen funcionando sin conocer la jerarquía).
+    for (const sub of cat.subcategories ?? []) {
+      const subId = oid(sub._id)
+      categories.push({
+        id: subId,
+        name: sub.name,
+        sortOrder: sub.sortOrder ?? 0,
+        isVisible: true,
+        parentId: categoryId,
+      })
+      const subGroups = [...inheritedGroups, ...(sub.customizationGroups ?? [])]
+      for (const item of sub.items ?? []) {
+        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId))
       }
-
-      const modifiers: ProductModifier[] | undefined =
-        allGroups.length > 0
-          ? allGroups.map((g) => {
-              const type = toGroupType(g.type)
-              return {
-                name: g.name,
-                type,
-                fixedCount: g.fixedCount,
-                required: g.required ?? false,
-                maxSelections:
-                  type === 'fixed'
-                    ? (g.fixedCount ?? 1)
-                    : type === 'single'
-                      ? 1
-                      : undefined,
-                priceRule: toPriceRule(g.priceRule),
-                options: (g.options ?? [])
-                  .filter(
-                    (o) =>
-                      !disabledOptions.includes(oid(o._id)) &&
-                      !disabledOptions.includes(o.name)
-                  )
-                  .map((o) => ({
-                    name: o.name,
-                    price: o.extraPrice ?? 0,
-                    subGroups:
-                      o.subGroups && o.subGroups.length > 0
-                        ? flattenSubGroups(o.subGroups)
-                        : undefined,
-                  })),
-              }
-            })
-          : undefined
-
-      const product: Product = {
-        id: oid(item._id),
-        tenantId,
-        name: item.name,
-        description: item.description ?? '',
-        price: item.price,
-        category: cat.name,
-        isAvailable: item.isAvailable ?? true,
-        modifiers,
-      }
-      if (item.halfPrice !== undefined && item.halfPrice !== null) {
-        product.halfPrice = item.halfPrice
-      }
-      if (item.imageUrl) product.imageUrl = item.imageUrl
-
-      products.push(product)
     }
   }
 
@@ -233,11 +273,14 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
  * mismo precio de "mitad y mitad".
  */
 export function injectHalfPriceModifiers(products: Product[]): void {
+  // Los sabores se combinan dentro de la misma (sub)categoría: una pizza de
+  // la subcategoría "Especiales" no se mezcla con las "Clásicas".
   const byCategory = new Map<string, Product[]>()
   for (const p of products) {
-    const list = byCategory.get(p.category) ?? []
+    const key = `${p.category}\u0000${p.subcategoryId ?? ''}`
+    const list = byCategory.get(key) ?? []
     list.push(p)
-    byCategory.set(p.category, list)
+    byCategory.set(key, list)
   }
 
   for (const [, catProducts] of byCategory) {
@@ -303,12 +346,43 @@ export function flattenMenuSnapshot(menus: readonly RawMenu[]): FlatMenuResult {
     categories.push(...flat.categories)
   }
 
-  const seen = new Set<string>()
-  const deduped = categories.filter((c) => {
-    if (seen.has(c.name)) return false
-    seen.add(c.name)
-    return true
-  })
+  // Primer nivel: dedup por nombre (dos menús de la sede pueden compartir
+  // categoría). Se recuerda qué id sobrevivió para cada nombre.
+  const topIdByName = new Map<string, string>()
+  const topNameById = new Map<string, string>()
+  const deduped: MenuCategory[] = []
+  for (const c of categories) {
+    if (c.parentId) continue
+    topNameById.set(c.id, c.name)
+    if (topIdByName.has(c.name)) continue
+    topIdByName.set(c.name, c.id)
+    deduped.push(c)
+  }
+
+  // Subcategorías: el padre puede haber sido deduplicado → se reapunta al id
+  // que sobrevivió, y se deduplican por (padre, nombre).
+  const subIdRemap = new Map<string, string>()
+  const seenSub = new Map<string, string>()
+  for (const c of categories) {
+    if (!c.parentId) continue
+    const parentName = topNameById.get(c.parentId)
+    const parentId = parentName !== undefined ? topIdByName.get(parentName) : undefined
+    if (!parentId) continue
+    const key = `${parentId}\u0000${c.name}`
+    const kept = seenSub.get(key)
+    if (kept) {
+      subIdRemap.set(c.id, kept)
+      continue
+    }
+    seenSub.set(key, c.id)
+    deduped.push({ ...c, parentId })
+  }
+
+  for (const p of products) {
+    if (p.subcategoryId && subIdRemap.has(p.subcategoryId)) {
+      p.subcategoryId = subIdRemap.get(p.subcategoryId)
+    }
+  }
 
   return { products, categories: deduped.sort((a, b) => a.sortOrder - b.sortOrder) }
 }

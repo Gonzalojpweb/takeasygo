@@ -20,6 +20,11 @@ const LOGOUT_IP_LIMIT = 60
 const LOGOUT_SUB_LIMIT = 20
 const logoutIpBuckets = new Map<string, { count: number; resetAt: number }>()
 const logoutSubBuckets = new Map<string, { count: number; resetAt: number }>()
+// Refresh: el POS refresca ~5 min antes de cada vencimiento (TTL 30 min), o
+// sea ~2/h por terminal. 10/min por sub corta un loop o un token robado
+// martillando el endpoint sin molestar a varias terminales del mismo usuario.
+const REFRESH_SUB_LIMIT = 10
+const refreshSubBuckets = new Map<string, { count: number; resetAt: number }>()
 
 const CLEANUP_INTERVAL = 5 * 60 * 1000 // every 5 minutes
 
@@ -42,6 +47,7 @@ setInterval(() => {
   const tl = cleanupBuckets(loginFailureBuckets)
   const ti = cleanupBuckets(logoutIpBuckets)
   const ts = cleanupBuckets(logoutSubBuckets)
+  cleanupBuckets(refreshSubBuckets)
   if (t + tn + tl + ti + ts > 0) {
     console.log(`[rateLimit] Cleaned ${t} token + ${tn} tenant + ${tl} login + ${ti} logoutIp + ${ts} logoutSub expired entries. Sizes: token=${tokenBuckets.size} tenant=${tenantBuckets.size} login=${loginFailureBuckets.size} logoutIp=${logoutIpBuckets.size} logoutSub=${logoutSubBuckets.size}`)
   }
@@ -184,7 +190,11 @@ export async function checkAccountLock(key: string): Promise<number> {
 }
 
 /** Registrar un fallo de credenciales de la cuenta. Nunca lanza. */
-export async function recordAccountFailure(key: string): Promise<void> {
+export async function recordAccountFailure(
+  key: string,
+  /** Fallos que disparan el lock. Default config (por cuenta); el lock por tenant del PIN usa uno mayor. */
+  failLimit: number = config.loginLockFailLimit
+): Promise<void> {
   try {
     const redis = getLockRedis()
     if (!redis) return
@@ -196,7 +206,7 @@ export async function recordAccountFailure(key: string): Promise<void> {
     const fails = await redis.incr(failKey)
     if (fails === 1) await redis.expire(failKey, config.loginLockWindowS)
 
-    if (fails >= config.loginLockFailLimit) {
+    if (fails >= failLimit) {
       const countKey = loginLockCountKey(key)
       const lockNo = await redis.incr(countKey)
       if (lockNo === 1) await redis.expire(countKey, LOGIN_LOCK_PROGRESS_TTL_S)
@@ -248,8 +258,13 @@ export function checkLogoutSubLimit(sub: string): boolean {
   return checkBucket(logoutSubBuckets, sub, LOGOUT_SUB_LIMIT, 60_000)
 }
 
+export function checkRefreshSubLimit(sub: string): boolean {
+  return checkBucket(refreshSubBuckets, sub, REFRESH_SUB_LIMIT, 60_000)
+}
+
 /** Solo para tests: vacía los buckets de logout. */
 export function __resetLogoutLimitersForTests(): void {
   logoutIpBuckets.clear()
   logoutSubBuckets.clear()
+  refreshSubBuckets.clear()
 }

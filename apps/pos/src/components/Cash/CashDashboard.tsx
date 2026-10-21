@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react"
 import { useLayout } from "../layout/LayoutContext"
 import { useCash } from "../../hooks/useCash"
 import { useAuth } from "../../hooks/useAuth"
-import { formatCurrency, timeAgo } from "../../utils/format"
+import { formatCurrency, timeAgo, parsePesosInput } from "../../utils/format"
 import { fetchFailedCashSaleEvents, retryCashSaleEvent } from "../../services/sync-api"
 import type { FailedCashSaleEvent } from "../../services/sync-api"
 import type { CashMovement, CashChannel, PaymentMethod, ZReport } from "@takeasygo/types"
@@ -49,6 +49,11 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   posnet_credit: "POSNET C",
   kripton: "Kripton",
   transfer: "Transfer",
+}
+
+function formatDateShort(date: Date): string {
+  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) +
+    " " + date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
 }
 
 export function CashDashboard() {
@@ -102,8 +107,10 @@ export function CashDashboard() {
   }, [jwt])
 
   const handleOpenRegister = useCallback(async () => {
-    const amount = parseFloat(initialAmount)
-    if (isNaN(amount) || amount < 0) {
+    // El cajero tipea PESOS; el server exige centavos enteros (assertCents).
+    // Auditoría §6.4: antes $1000 se guardaba como $10 y $1000,50 se rechazaba.
+    const amount = parsePesosInput(initialAmount)
+    if (amount === null) {
       showError("Ingresá un monto inicial válido")
       return
     }
@@ -120,8 +127,8 @@ export function CashDashboard() {
 
   const handleAddMovement = useCallback(async () => {
     if (!activeRegister) return
-    const amount = parseFloat(movementAmount)
-    if (isNaN(amount) || amount <= 0) {
+    const amount = parsePesosInput(movementAmount)
+    if (amount === null || amount <= 0) {
       showError("Ingresá un monto válido")
       return
     }
@@ -150,8 +157,8 @@ export function CashDashboard() {
 
   const handleCloseRegister = useCallback(async () => {
     if (!activeRegister) return
-    const amount = parseFloat(finalAmount)
-    if (isNaN(amount) || amount < 0) {
+    const amount = parsePesosInput(finalAmount)
+    if (amount === null) {
       showError("Ingresá un monto final válido")
       return
     }
@@ -188,7 +195,10 @@ export function CashDashboard() {
     : 0
 
   useEffect(() => {
-    switch (scene) {
+    // Sin caja activa el X no tiene datos: se muestra el resumen (derivado,
+    // sin setState dentro del efecto).
+    const effectiveScene = scene === "x-report" && !activeRegister ? "resumen" : scene
+    switch (effectiveScene) {
       case "resumen":
         if (loading) {
           setContextPanel({
@@ -314,9 +324,7 @@ export function CashDashboard() {
                 </label>
                 <input
                   className="search-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  inputMode="decimal"
                   placeholder="0.00"
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
@@ -374,9 +382,7 @@ export function CashDashboard() {
                 </label>
                 <input
                   className="search-input"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
+                  inputMode="decimal"
                   placeholder="0.00"
                   value={movementAmount}
                   onChange={(e) => setMovementAmount(e.target.value)}
@@ -433,9 +439,7 @@ export function CashDashboard() {
                 </label>
                 <input
                   className="search-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  inputMode="decimal"
                   placeholder="0.00"
                   value={finalAmount}
                   onChange={(e) => setFinalAmount(e.target.value)}
@@ -443,9 +447,9 @@ export function CashDashboard() {
                   style={{ fontSize: 24, textAlign: "center" }}
                 />
               </div>
-              {finalAmount && !isNaN(parseFloat(finalAmount)) && (
+              {parsePesosInput(finalAmount) !== null && (
                 <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
-                  Diferencia: {formatCurrency(parseFloat(finalAmount) - currentBalance)}
+                  Diferencia: {formatCurrency((parsePesosInput(finalAmount) ?? 0) - currentBalance)}
                 </div>
               )}
             </div>
@@ -580,10 +584,7 @@ export function CashDashboard() {
 
       case "x-report":
         // X Report — cálculo on-demand desde movimientos activos
-        if (!activeRegister) {
-          setScene("resumen")
-          break
-        }
+        if (!activeRegister) break
         setContextPanel({
           title: "Reporte Parcial (X)",
           subtitle: `Generado ${timeAgo(new Date())} — NO es el cierre final`,
@@ -732,11 +733,6 @@ export function CashDashboard() {
     }
   }, [scene, loading, activeRegister, closedRegisters, initialAmount, defaultChannel, movementType, movementAmount, movementReason, movementChannel, movementPaymentMethod, finalAmount, currentBalance, totalIncome, totalExpense, selectedZReport, pendingMovements, failedEvents, jwt, tenantId, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, assignPendingMovements, getPending, showSuccess, showError])
 
-  function formatDateShort(date: Date): string {
-    return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) +
-      " " + date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
-  }
-
   return (
     <div className="workspace">
       <div className="workspace-header">
@@ -867,9 +863,7 @@ export function CashDashboard() {
               </div>
               <input
                 className="search-input"
-                type="number"
-                min="0"
-                step="0.01"
+                inputMode="decimal"
                 placeholder="Monto inicial"
                 value={initialAmount}
                 onChange={(e) => setInitialAmount(e.target.value)}
@@ -937,24 +931,22 @@ export function CashDashboard() {
               </div>
               <input
                 className="search-input"
-                type="number"
-                min="0"
-                step="0.01"
+                inputMode="decimal"
                 placeholder="Conteo físico"
                 value={finalAmount}
                 onChange={(e) => setFinalAmount(e.target.value)}
                 autoFocus
                 style={{ fontSize: 24, textAlign: "center", marginBottom: "var(--sp-4)" }}
               />
-              {finalAmount && !isNaN(parseFloat(finalAmount)) && (
+              {parsePesosInput(finalAmount) !== null && (
                 <div style={{
                   textAlign: "center",
                   fontSize: "var(--font-size-lg)",
                   fontWeight: 700,
                   marginBottom: "var(--sp-4)",
-                  color: parseFloat(finalAmount) >= currentBalance ? "var(--success)" : "var(--error)",
+                  color: (parsePesosInput(finalAmount) ?? 0) >= currentBalance ? "var(--success)" : "var(--error)",
                 }}>
-                  Diferencia: {formatCurrency(parseFloat(finalAmount) - currentBalance)}
+                  Diferencia: {formatCurrency((parsePesosInput(finalAmount) ?? 0) - currentBalance)}
                 </div>
               )}
               <button
@@ -1039,9 +1031,7 @@ export function CashDashboard() {
                   </label>
                   <input
                     className="search-input"
-                    type="number"
-                    min="0.01"
-                    step="0.01"
+                    inputMode="decimal"
                     placeholder="0.00"
                     value={movementAmount}
                     onChange={(e) => setMovementAmount(e.target.value)}

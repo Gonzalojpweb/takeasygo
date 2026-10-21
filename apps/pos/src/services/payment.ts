@@ -1,45 +1,31 @@
 import type { PaymentMethod } from "@takeasygo/types"
 
-const SYNC_URL = import.meta.env.VITE_SYNC_URL;
+// ============================================================================
+// Métodos de pago del POS
+// ============================================================================
+// Cobro presencial: el POS no procesa la tarjeta ni el QR, registra el cobro
+// que el cajero hizo en el terminal (MP Point, POSNET) o la transferencia que
+// recibió. El server (POST /pos/orders/[id]/payments) guarda el desglose en la
+// orden y la caja guarda un movimiento por método.
+//
+// Kripton queda deshabilitado: no hay integración que permita verificar el
+// cobro desde el POS (el server también lo rechaza). Se habilita cuando
+// exista la integración — sacarlo de DISABLED_METHODS y del rechazo en
+// apps/saas/lib/pos-online/paymentPolicy.ts.
+//
+// (Se eliminó createMercadoPagoPreference: no tenía ningún llamador y apuntaba
+// a un endpoint del Sync Layer que el POS online no usa.)
+// ============================================================================
 
-export interface CreatePreferenceRequest {
-  orderId: string
-  amount: number
-  description: string
-  tenantId: string
-}
-
-export interface CreatePreferenceResponse {
-  preferenceId: string
-  initPoint: string
-  sandboxInitPoint: string
-}
-
-export async function createMercadoPagoPreference(
-  data: CreatePreferenceRequest,
-  jwt: string
-): Promise<CreatePreferenceResponse> {
-  const res = await fetch(`${SYNC_URL}/api/v1/payments/create-preference`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${jwt}`,
-    },
-    body: JSON.stringify(data),
-  })
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "Network error" }))
-    throw new Error(err.error ?? `Payment preference failed (${res.status})`)
-  }
-
-  return res.json()
-}
+const DISABLED_METHODS: readonly PaymentMethod[] = ["kripton"]
 
 export function isPaymentMethodAvailable(method: PaymentMethod): boolean {
-  // Todos disponibles en v1 — kripton se habilita cuando la integración esté lista
-  const disabled: PaymentMethod[] = []
-  return !disabled.includes(method)
+  return !DISABLED_METHODS.includes(method)
+}
+
+/** ¿El método se cobra en un terminal/canal externo (requiere confirmación)? */
+export function isExternalPaymentMethod(method: PaymentMethod): boolean {
+  return method !== "cash"
 }
 
 export function formatPaymentMethod(method: PaymentMethod): {
@@ -62,18 +48,5 @@ export function formatPaymentMethod(method: PaymentMethod): {
       return { name: "Transferencia", icon: "🏦", description: "Transferencia bancaria" }
     default:
       return { name: "Otro", icon: "💳", description: "" }
-  }
-}
-
-/**
- * Resuelve el tipo de pago para el POS interno.
- * cash → efectivo directo, todo lo demás → terminal/cobro externo.
- */
-export function resolvePaymentMethod(method: PaymentMethod): "cash" | "terminal" {
-  switch (method) {
-    case "cash":
-      return "cash"
-    default:
-      return "terminal"
   }
 }

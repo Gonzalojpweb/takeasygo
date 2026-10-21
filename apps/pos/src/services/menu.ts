@@ -1,4 +1,5 @@
 import type { Product, MenuCategory } from "@takeasygo/types"
+import { db } from "../db/dexie"
 import { posApi } from "./pos-api"
 
 // ============================================================================
@@ -26,7 +27,31 @@ export interface MenuSnapshot {
 
 export async function fetchMenuSnapshot(
   tenantId: string,
-  jwt: string
+  jwt?: string
 ): Promise<MenuSnapshot> {
-  return posApi<MenuSnapshot>(tenantId, "/menu", { accessToken: jwt })
+  return posApi<MenuSnapshot>(tenantId, "/menu", jwt ? { accessToken: jwt } : {})
+}
+
+/**
+ * Trae el snapshot y lo escribe en Dexie SOLO si cambió la `signature`
+ * (Auditoría §2.4: el menú no estaba en el polling y un cambio de precio en
+ * el admin no llegaba al POS hasta recargar). Un put idéntico dispararía
+ * useLiveQuery y re-renderizaría la grilla de productos cada vez.
+ *
+ * @returns true si reescribió la caché.
+ */
+export async function syncMenu(tenantId: string, jwt?: string): Promise<boolean> {
+  const snapshot = await fetchMenuSnapshot(tenantId, jwt)
+  const cached = await db.menuSnapshot.get(tenantId)
+  if (cached?.signature && cached.signature === snapshot.signature) return false
+
+  await db.menuSnapshot.put({
+    tenantId,
+    products: snapshot.products,
+    categories: snapshot.categories,
+    version: snapshot.version,
+    signature: snapshot.signature,
+    updatedAt: new Date(),
+  })
+  return true
 }

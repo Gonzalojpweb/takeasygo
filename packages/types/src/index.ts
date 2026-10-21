@@ -24,6 +24,12 @@ export interface JwtPayload {
    * (emitidos antes de S1-5) no lo traen y deben ser rechazados.
    */
   jti?: string
+  /**
+   * Momento del login original (epoch s). Se arrastra en cada refresh y fija
+   * el tope absoluto de la sesión (HUB_SESSION_MAX_AGE_MS): un token robado
+   * no se puede refrescar para siempre. Ausente en tokens previos al refresh.
+   */
+  authTime?: number
   iat: number
   exp: number
 }
@@ -157,7 +163,10 @@ export interface Product {
   description: string
   price: number
   halfPrice?: number
+  /** Nombre de la categoría de PRIMER nivel (también para ítems de subcategoría). */
   category: string
+  /** id de la subcategoría (MenuCategory con parentId), si el ítem vive en una. */
+  subcategoryId?: string
   isAvailable: boolean
   modifiers?: ProductModifier[]
   disabledVariantNames?: string[]
@@ -226,6 +235,11 @@ export interface MenuCategory {
   name: string
   sortOrder: number
   isVisible: boolean
+  /**
+   * Presente solo en subcategorías (D13): id de la categoría padre. Las
+   * categorías de primer nivel no lo tienen.
+   */
+  parentId?: string
 }
 
 // ============================================================================
@@ -283,6 +297,8 @@ export interface Order {
   externalStatus?: 'awaiting_payment' | 'confirmed' | 'preparing' | 'ready' | 'en_ruta' | 'arrived' | 'delivered' | 'cancelled'
   /** Método de pago del pedido externo */
   paymentMethod?: PaymentMethod
+  /** Modo del pedido externo (dine-in | takeaway | delivery | business) — filtros de Entrantes. */
+  orderMode?: string
   /** Origen del pago: pos_charged = cobrado en POS, external_prepaid = pagado online */
   paymentSource?: 'pos_charged' | 'external_prepaid'
   /** Timestamp de integración al POS */
@@ -293,6 +309,18 @@ export interface Order {
   baseTotal?: number
   /** Monto del recargo MP/platform (solo pedidos externos con ajuste) */
   surchargeAmount?: number
+  /**
+   * Cobro registrado en el server (POST /pos/orders/[id]/payments), una
+   * entrada por método. Ausente = la orden todavía no se cobró desde el POS.
+   */
+  payments?: OrderPayment[]
+}
+
+/** Una parte del cobro de una orden POS (centavos). */
+export interface OrderPayment {
+  method: PaymentMethod
+  amount: number
+  reference?: string
 }
 
 export interface OrderItem {

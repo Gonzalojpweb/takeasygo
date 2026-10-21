@@ -115,6 +115,17 @@ export interface IRewardRedemption {
   sosApplied: boolean
 }
 
+/** Una parte del cobro hecho en el POS (ver Order.posPayments). */
+export interface IPosPayment {
+  posId: string
+  method: 'cash' | 'mercadopago' | 'posnet_debit' | 'posnet_credit' | 'transfer'
+  /** @storedAs cents */
+  amount: number
+  reference: string | null
+  userId: string
+  paidAt: Date
+}
+
 export interface IGroupPayment {
   _id: mongoose.Types.ObjectId
   /** Consumer record for the member (stable reference, not email as key) */
@@ -302,6 +313,13 @@ export interface IOrder extends Document {
    * orden (hoy siempre 1); se persiste para que el round-trip no la pierda.
    */
   menuVersion?: number
+  /**
+   * Cobro del POS, una entrada por método (cobro partido = varias). Fuente de
+   * verdad del desglose: `payment.method` queda como el método único o
+   * 'mixed' cuando hay más de uno. Write-once: se escribe en
+   * POST /pos/orders/[id]/payments y la suma SIEMPRE es igual a `total`.
+   */
+  posPayments?: IPosPayment[]
   // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
   deliveryConfirmation?: {
     customerCode: {
@@ -477,6 +495,22 @@ const GroupPaymentSchema = new Schema<IGroupPayment>({
   },
   paidAt: { type: Date, default: null },
 }, { _id: true, timestamps: { createdAt: true, updatedAt: false } })
+
+/** Métodos que el POS puede cobrar (Kripton no está integrado en el POS). */
+export const POS_PAYABLE_METHODS = ['cash', 'mercadopago', 'posnet_debit', 'posnet_credit', 'transfer'] as const
+export type PosPayableMethod = (typeof POS_PAYABLE_METHODS)[number]
+
+const PosPaymentSchema = new Schema<IPosPayment>({
+  posId: { type: String, required: true },
+  method: { type: String, enum: POS_PAYABLE_METHODS, required: true },
+  /** @storedAs cents */
+  amount: { type: Number, required: true, min: 1 },
+  /** Comprobante del terminal (nro. de operación / cupón). Opcional. */
+  reference: { type: String, default: null, maxlength: 100 },
+  /** Usuario del token POS que cobró (nunca del body). */
+  userId: { type: String, required: true },
+  paidAt: { type: Date, required: true },
+}, { _id: false })
 
 // Schema separado para deliveryProvider porque "type" es keyword reservado de Mongoose
 const DeliveryProviderSchema = new Schema({
@@ -768,6 +802,9 @@ const OrderSchema = new Schema(
     posId: { type: String },
     posTableId: { type: String, default: null },
     menuVersion: { type: Number, default: 1, min: 1 },
+    // Array acotado (≤ 10 partes, lo valida la ruta): embebido y no colección
+    // aparte porque se lee y escribe siempre junto con la orden.
+    posPayments: { type: [PosPaymentSchema], default: undefined },
     // ── Delivery Confirmation (atestación mutua) ──────────────────────────────
     deliveryConfirmation: {
       type: {

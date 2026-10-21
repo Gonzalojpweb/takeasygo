@@ -194,8 +194,15 @@ describe('toSaasOrder', () => {
     expect(() => toSaasOrder(input, CTX)).toThrow(PosError)
   })
 
-  it('propaga el status que manda el POS', () => {
-    expect(toSaasOrder(validOrder({ status: 'preparing' }), CTX).status).toBe('preparing')
+  it('propaga el status inicial permitido (pending | confirmed)', () => {
+    expect(toSaasOrder(validOrder({ status: 'confirmed' }), CTX).status).toBe('confirmed')
+  })
+
+  it('rechaza nacer en un estado que saltea el grafo (preparing, delivered…)', () => {
+    // Auditoría POS Online V1: crear directo en `delivered` salteaba el PATCH
+    // que valida la transición y libera la mesa.
+    expect(() => toSaasOrder(validOrder({ status: 'preparing' }), CTX)).toThrow(PosError)
+    expect(() => toSaasOrder(validOrder({ status: 'delivered' }), CTX)).toThrow(PosError)
   })
 
   it('respeta menuVersion y notes', () => {
