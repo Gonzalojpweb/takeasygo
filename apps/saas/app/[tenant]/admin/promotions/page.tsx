@@ -7,6 +7,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import PromotionsManager from '@/components/admin/PromotionsManager'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
+import { getPageScope } from '@/lib/page-scope'
 
 export default async function PromotionsPage() {
   const session = await auth()
@@ -23,15 +24,18 @@ export default async function PromotionsPage() {
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
   if (!tenant) notFound()
 
-  const locations = await Location.find({ tenantId: (tenant as any)._id, isActive: true })
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId: (tenant as any)._id, isActive: true, ...pageScope.sedeFilter })
     .select('name address')
     .lean()
 
   const tenantId = (tenant as any)._id
   const promotions = await Promotion.find({
     $or: [
-      { scope: 'tenant', tenantId },
-      { scope: { $exists: false }, tenantId },
+      { scope: 'tenant', tenantId, ...pageScope.sharedFilter },
+      { scope: { $exists: false }, tenantId, ...pageScope.sharedFilter },
       {
         scope: 'global',
         $or: [

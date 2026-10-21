@@ -203,7 +203,7 @@ describe('Cruce #2 — GET /reservas con sede ajena', () => {
     expect(res.status).toBe(200)
   })
 
-  it('flag OFF: usuario scoped a L1 + locationId=L2 → 200 (comportamiento actual)', async () => {
+  it('flag OFF: usuario scoped a L1 + locationId=L2 → 404 (alcance de sede siempre activo)', async () => {
     await setStrictFlag(false)
     setSessionUser({
       id: 'u1',
@@ -213,7 +213,7 @@ describe('Cruce #2 — GET /reservas con sede ajena', () => {
       assignedTenants: [tenant._id.toString()],
     })
     const res = await listReservations(makeRequest(`?locationId=${loc2._id.toString()}`), makeParams())
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
   })
 
   it('locationId malformado → 400 (sin CastError/500)', async () => {
@@ -347,7 +347,7 @@ describe('Cruce #3 — GET /orders admin (multisede)', () => {
 })
 
 describe('Flag de 3 valores — modo LOG (observar sin bloquear)', () => {
-  it('GET /reservas cross-sede: 200 (no bloquea) y registra el intento', async () => {
+  it('GET /reservas cross-sede en modo log: registra el intento y el alcance siempre activo lo corta (404)', async () => {
     await setStrictFlag('log')
     setSessionUser({
       id: 'u1',
@@ -358,7 +358,7 @@ describe('Flag de 3 valores — modo LOG (observar sin bloquear)', () => {
     })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const res = await listReservations(makeRequest(`?locationId=${loc2._id.toString()}`), makeParams())
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     expect(warn).toHaveBeenCalled()
     warn.mockRestore()
   })

@@ -12,6 +12,7 @@ import type { Types } from 'mongoose'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import TrialIcoReport from '@/components/admin/TrialIcoReport'
+import { getPageScope } from '@/lib/page-scope'
 
 // Bandas diagnósticas ICO
 function getBand(score: number): { label: string; color: string; ring: string; text: string } {
@@ -122,6 +123,10 @@ export default async function ICOPage({
     .lean<{ _id: Types.ObjectId; plan: Plan }>()
   if (!tenant) notFound()
 
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+
   const plan: Plan = tenant.plan ?? 'try'
 
   // ── plan 'trial': vista especial — progreso o informe de contexto ────────────
@@ -191,38 +196,38 @@ export default async function ICOPage({
     // ≥30 pedidos: calcular y mostrar el informe de contexto
     const [tppD, cancD, confirmD, topItemsD, peakD, activeDaysD, onTimeD] = await Promise.all([
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null }, 'statusTimestamps.readyAt': { $ne: null } } },
         { $project: { tppMs: { $subtract: ['$statusTimestamps.readyAt', '$statusTimestamps.confirmedAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$tppMs' }, stdMs: { $stdDevPop: '$tppMs' }, count: { $sum: 1 } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null } },
         { $group: { _id: null, total: { $sum: 1 }, cancelled: { $sum: { $cond: [{ $eq: ['$status', 'cancelled'] }, 1, 0] } } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, 'statusTimestamps.confirmedAt': { $ne: null } } },
         { $project: { ms: { $subtract: ['$statusTimestamps.confirmedAt', '$createdAt'] } } },
         { $group: { _id: null, avgMs: { $avg: '$ms' } } }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $unwind: '$items' },
         { $group: { _id: '$items.name', count: { $sum: '$items.quantity' } } },
         { $sort: { count: -1 } }, { $limit: 5 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $project: { window: { $concat: [{ $toString: { $hour: '$createdAt' } }, ':', { $cond: [{ $gte: [{ $minute: '$createdAt' }, 30] }, '30', '00'] }] } } },
         { $group: { _id: '$window', count: { $sum: 1 } } },
         { $sort: { count: -1 } }, { $limit: 1 }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, status: { $nin: ['cancelled'] } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, status: { $nin: ['cancelled'] } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
         { $count: 'days' }
       ]),
       Order.aggregate([
-        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, deletedAt: null, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
+        { $match: { tenantId: tenant._id, ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter, deletedAt: null, 'statusTimestamps.readyAt': { $ne: null }, 'statusTimestamps.estimatedReadyAt': { $ne: null } } },
         { $project: { isOnTime: { $lte: ['$statusTimestamps.readyAt', '$statusTimestamps.estimatedReadyAt'] } } },
         { $group: { _id: null, total: { $sum: 1 }, onTime: { $sum: { $cond: ['$isOnTime', 1, 0] } } } }
       ]),
@@ -296,7 +301,7 @@ export default async function ICOPage({
 
   // ── Estabilidad horaria global (todos los modos, sección 5.6) ──────────────
   const globalActiveDaysData = await Order.aggregate([
-    { $match: { tenantId, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
+    { $match: { tenantId, ...pageScope.locationFilter, deletedAt: null, createdAt: { $gte: start30 }, status: { $ne: 'cancelled' } } },
     { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } } },
     { $count: 'days' },
   ])
@@ -305,9 +310,9 @@ export default async function ICOPage({
 
   // ── Scores de todas las capas (para las tabs de navegación) ────────────────
   const [layerTW, layerDI, layerSC, layerBU] = await Promise.all([
-    simpleLayerScore(tenantId, LAYER_FILTERS.takeaway,  start30, start7, estabilidad),
-    simpleLayerScore(tenantId, LAYER_FILTERS.dineIn,    start30, start7, estabilidad),
-    simpleLayerScore(tenantId, LAYER_FILTERS.scheduled, start30, start7, estabilidad),
+    simpleLayerScore(tenantId, { ...LAYER_FILTERS.takeaway, ...pageScope.locationFilter },  start30, start7, estabilidad),
+    simpleLayerScore(tenantId, { ...LAYER_FILTERS.dineIn, ...pageScope.locationFilter }, start30, start7, estabilidad),
+    simpleLayerScore(tenantId, { ...LAYER_FILTERS.scheduled, ...pageScope.locationFilter }, start30, start7, estabilidad),
     simpleLayerScore(tenantId, LAYER_FILTERS.business,  start30, start7, estabilidad),
   ])
 

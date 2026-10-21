@@ -10,6 +10,7 @@ import RoleLocationManager from '@/components/admin/RoleLocationManager'
 import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 import { Lock } from 'lucide-react'
+import { getPageScope } from '@/lib/page-scope'
 
 export default async function UsersPage() {
   const headersList = await headers()
@@ -47,7 +48,10 @@ export default async function UsersPage() {
 
   const tenantId = tenant._id
   const users = await User.find({ tenantId }).select('-password').lean()
-  const locations = await Location.find({ tenantId, isActive: true })
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter })
     .select('name')
     .lean()
 

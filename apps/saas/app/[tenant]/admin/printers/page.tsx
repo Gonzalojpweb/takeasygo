@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import PrintersManager from '@/components/admin/PrintersManager'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { AlertTriangle } from 'lucide-react'
+import { getPageScope } from '@/lib/page-scope'
 
 export default async function PrintersPage() {
   const headersList = await headers()
@@ -42,8 +43,11 @@ export default async function PrintersPage() {
 
   const isTryPlan = plan === 'try'
 
-  const locations = await Location.find({ tenantId: tenant._id, isActive: true }).lean()
-  const printers = await Printer.find({ tenantId: tenant._id }).sort({ createdAt: 1 }).lean()
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId: tenant._id, isActive: true, ...pageScope.sedeFilter }).lean()
+  const printers = await Printer.find({ tenantId: tenant._id, ...pageScope.locationFilter }).sort({ createdAt: 1 }).lean()
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">

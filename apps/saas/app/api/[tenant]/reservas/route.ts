@@ -8,7 +8,7 @@ import { nextPerLocationNumber } from '@/lib/perLocationNumber'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
-import { enforceLocationScope, logScopeAllowed } from '@/lib/location-scope'
+import { enforceLocationScope, logScopeAllowed, scopeLocationFilter } from '@/lib/location-scope'
 import { getStrictLocationIdMode, isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { rateLimit } from '@/lib/rateLimit'
 import { canAccess } from '@/lib/plans'
@@ -91,7 +91,12 @@ export async function GET(
 
     const filter: any = { tenantId: tenant._id }
     if (date) filter.date = date
-    if (locationId) filter.locationId = locationId
+
+    // Alcance de sede siempre activo (además del flag de arriba): sede ajena
+    // → 404; sin locationId, un usuario de sede ve solo las suyas.
+    const sedeScope = await scopeLocationFilter(request, locationId)
+    if ('error' in sedeScope) return sedeScope.error
+    Object.assign(filter, sedeScope.filter)
 
     const reservations = (await Reservation.find(filter).sort({ date: 1, time: 1 }).lean()).map(decryptReservation)
     return NextResponse.json({ reservations })

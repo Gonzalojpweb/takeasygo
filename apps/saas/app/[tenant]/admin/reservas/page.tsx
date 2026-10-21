@@ -9,6 +9,7 @@ import type { Plan } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 import { safeDecrypt } from '@/lib/crypto'
 import { Lock } from 'lucide-react'
+import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 
 export default async function ReservasPage() {
   const headersList = await headers()
@@ -61,8 +62,12 @@ export default async function ReservasPage() {
 
   const tenantId = tenant._id
 
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
   // Fetch locations that have reservations enabled
-  const locations = await Location.find({ tenantId, isActive: true }).lean() as any[]
+  const locations = (await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter }).lean() as any[])
+    .map(l => sanitizeLocationForClient(l))
 
   // Fetch reservations for the next 30 days + past 7 days
   const today = new Date()
@@ -76,6 +81,7 @@ export default async function ReservasPage() {
 
   const rawReservations = await Reservation.find({
     tenantId,
+    ...pageScope.locationFilter,
     date: { $gte: fromStr, $lte: toStr },
   }).sort({ date: 1, time: 1 }).lean() as any[]
 

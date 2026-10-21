@@ -6,6 +6,7 @@ import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import PausedMenuItems from '@/components/admin/PausedMenuItems'
 import type { Types } from 'mongoose'
+import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 
 export default async function PausedItemsPage() {
   const headersList = await headers()
@@ -19,9 +20,12 @@ export default async function PausedItemsPage() {
 
   const tenantId = tenant._id
 
-  const locations = await Location.find({ tenantId, isActive: true })
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter })
     .lean<Array<{ _id: { toString(): string }; name: string }>>()
-  const menus = await Menu.find({ tenantId, isActive: true }).lean()
+  const menus = await Menu.find({ tenantId, isActive: true, ...pageScope.locationFilter }).lean()
 
   interface PausedItemData {
     itemId: string

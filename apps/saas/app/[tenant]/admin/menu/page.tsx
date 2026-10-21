@@ -10,6 +10,7 @@ import ClubDiscountModal from '@/components/admin/ClubDiscountModal'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import { ExternalLink, Calendar, Star } from 'lucide-react'
 import type { Types } from 'mongoose'
+import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 
 export default async function MenuPage() {
   const headersList = await headers()
@@ -23,8 +24,11 @@ export default async function MenuPage() {
 
   const tenantId = tenant._id
 
-  const locations = await Location.find({ tenantId, isActive: true }).lean<Array<{ _id: { toString(): string }; name: string }>>()
-  const menus = await Menu.find({ tenantId, isActive: true }).lean()
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter }).lean<Array<{ _id: { toString(): string }; name: string }>>()
+  const menus = await Menu.find({ tenantId, isActive: true, ...pageScope.locationFilter }).lean()
 
   // Extract categories from all menus (merged, deduplicated by _id)
   const categoriesMap = new Map<string, any>()

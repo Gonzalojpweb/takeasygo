@@ -68,3 +68,37 @@ describe('Contrato: rutas con datos de sede tienen guard de sede o declaración'
     }
   })
 })
+
+// ── Páginas server-side del admin ────────────────────────────────────────────
+// Consultan la DB directo (sin pasar por las APIs): mismo contrato.
+
+const PAGES_DIR = join(__dirname, '..', 'app', '[tenant]', 'admin')
+const PAGE_QUERY_RE = /\b(Order|Reservation|Menu|Location|Rating|LoyaltyMember|Promotion|Printer|StoreItem|StoreRedemption|CashRegister|AuditLog|Table)\.(find|findOne|aggregate|countDocuments)\(/
+const PAGE_SCOPE_RE = /\bgetPageScope\b|\bassignedLocations\b/
+
+function listPageFiles(dir: string, prefix = ''): string[] {
+  const out: string[] = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name
+    if (entry.isDirectory()) out.push(...listPageFiles(join(dir, entry.name), rel))
+    else if (entry.name === 'page.tsx') out.push(rel)
+  }
+  return out
+}
+
+const pages = listPageFiles(PAGES_DIR)
+  .map(rel => ({ rel, src: readFileSync(join(PAGES_DIR, rel), 'utf8') }))
+  .filter(({ src }) => PAGE_QUERY_RE.test(src))
+
+describe('Contrato: páginas del admin con datos de sede aplican el alcance del usuario', () => {
+  it('hay páginas para auditar', () => {
+    expect(pages.length).toBeGreaterThan(5)
+  })
+
+  for (const { rel, src } of pages) {
+    it(`admin/${rel}: aplica getPageScope (o filtra por assignedLocations)`, () => {
+      expect(PAGE_SCOPE_RE.test(src), `admin/${rel} consulta datos de sede sin alcance de usuario`).toBe(true)
+    })
+  }
+})
+

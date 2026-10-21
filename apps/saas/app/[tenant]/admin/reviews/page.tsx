@@ -6,6 +6,7 @@ import Rating from '@/models/Rating'
 import Order from '@/models/Order'
 import { Star, MessageSquare } from 'lucide-react'
 import ReviewsClient from '@/components/admin/ReviewsClient'
+import { getPageScope } from '@/lib/page-scope'
 
 export default async function ReviewsPage({
   params,
@@ -30,13 +31,16 @@ export default async function ReviewsPage({
 
   if (!isOwner && !isSuperadmin) redirect('/login')
 
-  const ratings = await Rating.find({ tenantId: tenant._id })
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const ratings = await Rating.find({ tenantId: tenant._id, ...pageScope.locationFilter })
     .sort({ createdAt: -1 })
     .limit(100)
     .lean()
 
   const orderIds = ratings.map(r => r.orderId)
-  const orders = await Order.find({ _id: { $in: orderIds } })
+  const orders = await Order.find({ _id: { $in: orderIds }, tenantId: tenant._id })
     .select('_id orderNumber customer.name')
     .lean()
 

@@ -6,6 +6,7 @@ import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import SettingsForm from '@/components/admin/SettingsForm'
 import type { Types } from 'mongoose'
+import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 
 interface LeanTenant {
   _id: Types.ObjectId
@@ -31,7 +32,10 @@ export default async function SettingsPage() {
 
   const tenantId = tenant._id
 
-  const locations = await Location.find({ tenantId })
+  // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
+  // recibe datos de sus sedes.
+  const pageScope = await getPageScope()
+  const locations = await Location.find({ tenantId, ...pageScope.sedeFilter })
     .lean<Array<{ _id: Types.ObjectId; name?: string }>>()
 
   const plan = tenant.plan ?? 'try'
