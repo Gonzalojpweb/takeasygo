@@ -212,6 +212,18 @@ export function projectEvent(
       projection = projectWasteRecorded(mu, sigma, event.payload as { quantity: number }, event.observationMethod)
       break
 
+    case "TransferOut": {
+      // Sale del depósito de origen: μ baja; σ no cambia (movimiento registrado).
+      const qty = (event.payload as { quantity: number }).quantity
+      projection = { estimateMu: Math.max(mu - qty, 0), estimateSigma: sigma }
+      break
+    }
+
+    case "TransferIn":
+      // Entra al depósito de destino: misma evidencia que una recepción.
+      projection = projectGoodsReceived(mu, sigma, event.payload as { quantity: number }, event.confidence)
+      break
+
     case "PhysicalCountObserved":
       projection = projectPhysicalCountObserved(event.payload as { observedQuantity: number; previousEstimateMu: number; previousEstimateSigma: number; difference: number }, event.observationMethod)
       break

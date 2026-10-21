@@ -11,7 +11,7 @@ export interface IInventoryEvent extends Document {
   tenantId: mongoose.Types.ObjectId
   skuId: mongoose.Types.ObjectId
   storageLocationId: mongoose.Types.ObjectId
-  eventType: 'GoodsReceived' | 'SaleConsumed' | 'ProductionTransformed' | 'WasteRecorded' | 'PhysicalCountObserved' | 'AdjustmentApplied' | 'UnitEquivalenceLearned' | 'EvidenceRequested' | 'EvidenceIgnored' | 'ModelCalibrated'
+  eventType: 'GoodsReceived' | 'SaleConsumed' | 'ProductionTransformed' | 'WasteRecorded' | 'PhysicalCountObserved' | 'AdjustmentApplied' | 'UnitEquivalenceLearned' | 'EvidenceRequested' | 'EvidenceIgnored' | 'ModelCalibrated' | 'TransferOut' | 'TransferIn'
   eventVersion: number
   occurredAt: Date
   recordedAt: Date
@@ -31,7 +31,7 @@ const InventoryEventSchema = new Schema<IInventoryEvent>({
   storageLocationId: { type: Schema.Types.ObjectId, ref: 'InventoryStorageLocation', required: true },
   eventType: {
     type: String,
-    enum: ['GoodsReceived', 'SaleConsumed', 'ProductionTransformed', 'WasteRecorded', 'PhysicalCountObserved', 'AdjustmentApplied', 'UnitEquivalenceLearned', 'EvidenceRequested', 'EvidenceIgnored', 'ModelCalibrated'],
+    enum: ['GoodsReceived', 'SaleConsumed', 'ProductionTransformed', 'WasteRecorded', 'PhysicalCountObserved', 'AdjustmentApplied', 'UnitEquivalenceLearned', 'EvidenceRequested', 'EvidenceIgnored', 'ModelCalibrated', 'TransferOut', 'TransferIn'],
     required: true,
   },
   eventVersion: { type: Number, default: 1 },

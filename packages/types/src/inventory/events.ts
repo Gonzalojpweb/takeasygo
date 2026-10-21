@@ -17,6 +17,9 @@ export type InventoryEventType =
   | "EvidenceRequested"
   | "EvidenceIgnored"
   | "ModelCalibrated"
+  // Transferencia entre depósitos/sedes: dos eventos con el mismo correlationId
+  | "TransferOut"
+  | "TransferIn"
 
 // ── Fuente del dato ──────────────────────────────────────────────────────────
 export type EventSource = "pos" | "manual" | "ocr" | "api" | "system"
