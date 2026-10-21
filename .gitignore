@@ -131,3 +131,6 @@ backups/
 
 # Metadata local de herramientas externas (no versionar)
 .qoder/
+
+# Volcados de menú de producción (apps/saas/scripts/dump-menu.ts escribe acá por defecto)
+/menu-*.json
