@@ -61,6 +61,19 @@ export interface ILocation extends Document {
     notifyOnOrder?: boolean | null
     /** Override de notifyOnReservation por sede (opcional). null = hereda el global */
     notifyOnReservation?: boolean | null
+    /**
+     * Recargo propio por medio de pago en la sede. feePercent null/ausente =
+     * hereda Tenant.paymentSurcharges. @storedAs percent
+     */
+    paymentSurcharges?: {
+      mercadopago?: { feePercent?: number | null } | null
+      kripton?: { feePercent?: number | null } | null
+      transfer?: { feePercent?: number | null } | null
+    } | null
+    /** Kripton en la sede: null = hereda la visibilidad del tenant; false = deshabilitado en esta sede. */
+    kriptonEnabled?: boolean | null
+    /** Descuento del club en la sede: null = hereda; false = no aplica en esta sede. */
+    clubDiscountEnabled?: boolean | null
   }
   deliveryConfig?: {
     enabled: boolean
@@ -320,6 +333,19 @@ settings: {
         notifyOnOrder: { type: Boolean, default: null },
         /** Override de notifyOnReservation por sede. null = hereda el global */
         notifyOnReservation: { type: Boolean, default: null },
+        /** Recargo propio por medio de pago en la sede. null = hereda del tenant. @storedAs percent */
+        paymentSurcharges: {
+          type: {
+            mercadopago: { feePercent: { type: Number, min: 0, max: 100, default: null } },
+            kripton: { feePercent: { type: Number, min: 0, max: 100, default: null } },
+            transfer: { feePercent: { type: Number, min: 0, max: 100, default: null } },
+          },
+          default: null,
+        },
+        /** Kripton en la sede. null = hereda; false = deshabilitado en esta sede */
+        kriptonEnabled: { type: Boolean, default: null },
+        /** Descuento del club en la sede. null = hereda; false = no aplica en esta sede */
+        clubDiscountEnabled: { type: Boolean, default: null },
     },
     reservationConfig: {
       enabled: { type: Boolean, default: false },

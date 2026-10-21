@@ -13,6 +13,7 @@ import { revertRewardRedemptions } from '@/lib/loyalty'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
 import { getBaseUrl } from '@/lib/site-url'
+import { withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
 
 export async function POST(
   request: NextRequest,
@@ -41,9 +42,11 @@ if (!success) {
 
     // ── Resolve MP account for this order's location ───────────────────────────
     let locationMpAccountId: string | null = null
+    let locationSettings: LocationCommercialSettings | null = null
     if (order.locationId) {
       const location = await Location.findById(order.locationId).lean()
       locationMpAccountId = (location as any)?.settings?.mpAccountId ?? null
+      locationSettings = (location as any)?.settings ?? null
     }
     const account = getMpAccountForLocation(tenant, locationMpAccountId)
     if (!account) {
@@ -59,7 +62,8 @@ if (!success) {
     const platformFeePercent = (oauthValid && account.commissionPercent != null)
       ? account.commissionPercent
       : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
-    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', tenant, platformConfig || {}, platformFeePercent)
+    const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, locationSettings)
+    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', pricingTenant, platformConfig || {}, platformFeePercent)
 
     // ── Usar token de OAuth si está vigente, sino el propio del tenant ────────
     const rawToken = oauthValid

@@ -152,3 +152,49 @@ export async function resolveAdminWhatsApp(
     return pickAdminWhatsApp(tenant, null)
   }
 }
+
+// ── Recargos, Kripton y descuento del club ───────────────────────────────────
+
+type SurchargeMethod = 'mercadopago' | 'kripton' | 'transfer'
+const SURCHARGE_METHODS: SurchargeMethod[] = ['mercadopago', 'kripton', 'transfer']
+
+export interface LocationCommercialSettings {
+  paymentSurcharges?: Partial<Record<SurchargeMethod, { feePercent?: number | null } | null>> | null
+  kriptonEnabled?: boolean | null
+  clubDiscountEnabled?: boolean | null
+}
+
+interface CommercialTenant {
+  paymentSurcharges?: Partial<Record<SurchargeMethod, { feePercent: number }>> | null
+  paymentMethodsVisibility?: { mercadopago?: boolean; kripton?: boolean } | null
+}
+
+/**
+ * Tenant con los recargos y la visibilidad de Kripton ya resueltos para una
+ * sede (override de la sede > valor del tenant). Devuelve un objeto nuevo con
+ * la misma forma que el tenant, así `lib/pricing` y el catálogo de medios de
+ * pago no necesitan saber de sedes.
+ */
+export function withLocationCommercialSettings<T extends CommercialTenant>(
+  tenant: T,
+  settings: LocationCommercialSettings | null | undefined
+): T {
+  if (!settings) return tenant
+  const surcharges: Partial<Record<SurchargeMethod, { feePercent: number }>> = {
+    ...(tenant.paymentSurcharges ?? {}),
+  }
+  for (const method of SURCHARGE_METHODS) {
+    const own = settings.paymentSurcharges?.[method]?.feePercent
+    if (typeof own === 'number') surcharges[method] = { feePercent: own }
+  }
+  const visibility = { ...(tenant.paymentMethodsVisibility ?? {}) }
+  if (settings.kriptonEnabled === false) visibility.kripton = false
+  return { ...tenant, paymentSurcharges: surcharges, paymentMethodsVisibility: visibility }
+}
+
+/** ¿Aplica el descuento del club en esta sede? null/ausente = hereda (aplica). */
+export function isClubDiscountEnabledForLocation(
+  settings: LocationCommercialSettings | null | undefined
+): boolean {
+  return settings?.clubDiscountEnabled !== false
+}

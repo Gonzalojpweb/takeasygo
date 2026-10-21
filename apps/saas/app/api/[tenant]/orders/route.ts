@@ -36,7 +36,7 @@ import ClubDiscount from '@/models/ClubDiscount'
 import { getDeviceIdIfExists } from '@/lib/hidden-rewards'
 import { sendWhatsApp } from '@/lib/whatsapp'
 import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
-import { pickAdminWhatsApp, resolveTransferAccountForLocation } from '@/lib/location-resolvers'
+import { pickAdminWhatsApp, resolveTransferAccountForLocation, withLocationCommercialSettings, isClubDiscountEnabledForLocation } from '@/lib/location-resolvers'
 import { corporateHasAccess } from '@/lib/corporateAccess'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { resolveCashConfig } from '@/lib/cash'
@@ -1469,7 +1469,8 @@ export async function POST(
 
     // ── CLUB DISCOUNT: descuento en carta para miembros ───────────────────────
     // Se aplica SOLO si no hubo descuento QrPromo club. Validación: phone + token JWT.
-    if (!qrPromoApplied && activeClubMember) {
+    // Override por sede: la sede puede desactivar el descuento del club.
+    if (!qrPromoApplied && activeClubMember && isClubDiscountEnabledForLocation(location.settings)) {
       const clubDiscount = await ClubDiscount.findOne({ tenantId, active: true }).lean()
       if (clubDiscount) {
         // Day-of-week + schedule check
@@ -1981,7 +1982,9 @@ export async function POST(
     // deliveryCostCalc se pasa para que el recargo de transferencia se calcule
     // solo sobre subtotal (sin delivery) — el delivery es passthrough al repartidor.
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
-    const pricing = calculateFinalTotal(total, paymentMethod as any, tenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
+    // Recargos con override por sede (sede propia > tenant).
+    const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, location.settings)
+    const pricing = calculateFinalTotal(total, paymentMethod as any, pricingTenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
 
     // ── orderNumber: perLocation (flag ON + prefijos completos) o legacy ──
     let orderNumber: string

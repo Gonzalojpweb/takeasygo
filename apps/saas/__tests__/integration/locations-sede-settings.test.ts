@@ -12,7 +12,8 @@ vi.mock('@/lib/mongoose', () => ({
 vi.mock('@/lib/apiAuth', () => ({
   requireAuth: vi.fn().mockResolvedValue(null),
   requireAdminRole: vi.fn().mockResolvedValue(null),
-  getSessionUser: vi.fn().mockResolvedValue(null),
+  // El PUT de sede exige rol de gestión: por defecto, admin del tenant.
+  getSessionUser: vi.fn().mockResolvedValue({ id: 'admin-id', role: 'admin', assignedLocations: [] }),
 }))
 vi.mock('@/lib/rbac', () => ({
   enforcePermissionForRequest: vi.fn().mockResolvedValue(null),
@@ -71,7 +72,7 @@ function mockSession(role: string, assignedLocations: string[]) {
 beforeEach(async () => {
   vi.mocked(requireAuth).mockResolvedValue(null)
   vi.mocked(requireAdminRole).mockResolvedValue(null)
-  vi.mocked(getSessionUser).mockResolvedValue(null)
+  mockSession('admin', [])
 
   tenant = await Tenant.create({
     name: 'Tenant sedes',

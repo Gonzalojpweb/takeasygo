@@ -16,6 +16,7 @@ export interface OrphanedCashOrder {
   total: number
   createdAt: Date
   customerName: string
+  locationId?: string | null
 }
 
 export interface TenantCashReconciliation {
@@ -105,8 +106,16 @@ export async function findOrphanedCashOrders(
  */
 export async function getCashReconciliationSummary(
   tenantId: string,
-  daysBack: number = 7
-): Promise<{ count: number; totalAmount: number; orders: OrphanedCashOrder[] }> {
+  daysBack: number = 7,
+  /** Alcance de sede (fragmento de filtro): sedes del usuario o la del selector. */
+  locationFilter: { locationId?: unknown } = {}
+): Promise<{
+  count: number
+  totalAmount: number
+  orders: OrphanedCashOrder[]
+  /** Desglose por sede: el consolidado es la suma de las sedes, no una mezcla. */
+  bySede: Array<{ locationId: string | null; count: number; totalAmount: number }>
+}> {
   await connectDB()
 
   const cutoffDate = new Date()
@@ -114,6 +123,7 @@ export async function getCashReconciliationSummary(
 
   const orders = await Order.find({
     tenantId,
+    ...locationFilter,
     'payment.method': 'cash',
     'payment.status': 'approved',
     'payment.cashAdjustmentApplied': { $ne: true },
@@ -121,19 +131,30 @@ export async function getCashReconciliationSummary(
     createdAt: { $gte: cutoffDate },
     deletedAt: null,
   })
-    .select('orderNumber total createdAt customer.name')
+    .select('orderNumber total createdAt customer.name locationId')
     .sort({ createdAt: -1 })
     .lean()
+
+  const bySedeMap = new Map<string, { locationId: string | null; count: number; totalAmount: number }>()
+  for (const o of orders) {
+    const key = o.locationId ? String(o.locationId) : 'sin-sede'
+    const row = bySedeMap.get(key) ?? { locationId: o.locationId ? String(o.locationId) : null, count: 0, totalAmount: 0 }
+    row.count += 1
+    row.totalAmount += o.total || 0
+    bySedeMap.set(key, row)
+  }
 
   return {
     count: orders.length,
     totalAmount: orders.reduce((sum, o) => sum + (o.total || 0), 0),
+    bySede: [...bySedeMap.values()],
     orders: orders.map(o => ({
       orderId: o._id.toString(),
       orderNumber: o.orderNumber,
       total: o.total,
       createdAt: o.createdAt,
       customerName: o.customer?.name || 'Cliente',
+      locationId: o.locationId ? String(o.locationId) : null,
     })),
   }
 }

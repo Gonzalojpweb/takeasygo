@@ -3,6 +3,7 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { encrypt } from '@/lib/crypto'
 import { normalizeSpacesInput, validateSpacesInput } from '@/lib/space-capacity'
@@ -50,7 +51,8 @@ export async function GET(
         'settings.acceptsOrders settings.orderModes settings.estimatedPickupTime ' +
         'settings.delayAnnouncement settings.cash settings.mpAccountId ' +
         'settings.whatsappPhone settings.transferAccountId ' +
-        'settings.notifyOnOrder settings.notifyOnReservation'
+        'settings.notifyOnOrder settings.notifyOnReservation ' +
+        'settings.paymentSurcharges settings.kriptonEnabled settings.clubDiscountEnabled'
       )
       .lean() as any
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
@@ -78,7 +80,22 @@ export async function PUT(
     const scopeError = await enforceSedeWriteScope(request, locationId)
     if (scopeError) return scopeError
 
-    const body = await request.json()
+    // Configuración de sede (pagos, recargos, horarios): solo roles de gestión.
+    const sessionUser = await getSessionUser(request)
+    if (!sessionUser || !['admin', 'manager', 'superadmin'].includes(sessionUser.role ?? '')) {
+      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+    }
+    const permError = await enforcePermissionForRequest(request, {
+      tenant,
+      tenantId: tenant._id.toString(),
+      locationId,
+      permission: 'settings.write',
+    })
+    if (permError) return permError
+
+    const rawBody = await request.json()
+    // Pertenencia y credenciales del agente no se editan por esta vía.
+    const { _id: _ignoredId, tenantId: _ignoredTenant, printerAgent: _ignoredAgent, ...body } = rawBody ?? {}
 
     // ── Encriptar apiToken de Rapiboy si se está guardando en texto plano ──
     if (body?.rapiboyConfig?.apiToken && !body.rapiboyConfig.apiToken.includes(':')) {
@@ -135,9 +152,34 @@ export async function PUT(
           : `${name} debe ser verdadero, falso o null (heredar la configuración general)`
       const flagError =
         validateFlag('notifyOnOrder', body.settings.notifyOnOrder) ??
-        validateFlag('notifyOnReservation', body.settings.notifyOnReservation)
+        validateFlag('notifyOnReservation', body.settings.notifyOnReservation) ??
+        validateFlag('kriptonEnabled', body.settings.kriptonEnabled) ??
+        validateFlag('clubDiscountEnabled', body.settings.clubDiscountEnabled)
       if (flagError) {
         return NextResponse.json({ error: flagError }, { status: 400 })
+      }
+
+      // Recargo propio por medio de pago: número 0-100 o null (hereda).
+      if ('paymentSurcharges' in body.settings) {
+        const raw = body.settings.paymentSurcharges
+        if (raw === null) {
+          body.settings.paymentSurcharges = null
+        } else if (typeof raw !== 'object') {
+          return NextResponse.json({ error: 'paymentSurcharges inválido' }, { status: 400 })
+        } else {
+          const normalized: Record<string, { feePercent: number | null }> = {}
+          for (const method of ['mercadopago', 'kripton', 'transfer'] as const) {
+            const v = raw?.[method]?.feePercent
+            if (v === undefined || v === null || v === '') {
+              normalized[method] = { feePercent: null }
+            } else if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 100) {
+              return NextResponse.json({ error: `Recargo de ${method} inválido: debe estar entre 0 y 100` }, { status: 400 })
+            } else {
+              normalized[method] = { feePercent: v }
+            }
+          }
+          body.settings.paymentSurcharges = normalized
+        }
       }
     }
 

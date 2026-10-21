@@ -8,7 +8,6 @@ export const FLAG_KEYS = [
   FLAGS.STRICT_LOCATION_ID,
   FLAGS.RBAC_SEDE_SCOPE,
   FLAGS.CONFIG_LAYERS,
-  FLAGS.CASH_SEDE,
   FLAGS.NUMBERING_PER_LOCATION,
   FLAGS.MP_PER_LOCATION,
 ] as const
@@ -17,7 +16,6 @@ export const FLAG_LABELS: Record<string, string> = {
   'multisede.strictLocationId': 'Aislamiento estricto por sede',
   'rbac.sedeScope': 'Roles por sede (RBAC)',
   'config.layers': 'Configuración en 3 capas',
-  'multisede.cashSede': 'Caja por sede',
   'numbering.perLocation': 'Numeración por sede',
   'mp.perLocation': 'Mercado Pago por sede',
 }
@@ -28,7 +26,6 @@ export const FLAG_CONDITION_IDS: Record<string, string[]> = {
   'multisede.strictLocationId': [],
   'rbac.sedeScope': ['rbac-filas'],
   'config.layers': [],
-  'multisede.cashSede': ['cash'],
   'numbering.perLocation': ['prefix', 'prefix-dup'],
   'mp.perLocation': ['mp-cuenta', 'mp-sede', 'mp-pendientes'],
 }
@@ -142,7 +139,9 @@ export function evaluateReadiness(signals: ReadinessSignals): {
   }
 
   if (cash.sinSede > 0) {
-    add('cash', 'blocker', `${cash.sinSede}/${cash.total} registros de caja sin sede -> correr b1-cash-sede-backfill.mjs`)
+    // Sin flag propio: el scope de caja es siempre activo y los registros sin
+    // sede quedan fuera de las vistas por sede hasta correr el backfill.
+    add('cash', 'warn', `${cash.sinSede}/${cash.total} registros de caja sin sede (no aparecen en vistas por sede) -> correr b1-cash-sede-backfill.mjs`)
   } else {
     add('cash', 'ok', `cajas/registros con sede: ${cash.total - cash.sinSede}/${cash.total} (vacío = sin data histórica de caja)`)
   }
@@ -212,7 +211,6 @@ export function evaluateReadiness(signals: ReadinessSignals): {
   verdictFor(FLAGS.STRICT_LOCATION_ID, [])
   verdictFor(FLAGS.RBAC_SEDE_SCOPE, ['rbac-filas'])
   verdictFor(FLAGS.CONFIG_LAYERS, [])
-  verdictFor(FLAGS.CASH_SEDE, ['cash'])
   verdictFor(FLAGS.NUMBERING_PER_LOCATION, ['prefix', 'prefix-dup'])
   verdictFor(FLAGS.MP_PER_LOCATION, ['mp-cuenta', 'mp-sede', 'mp-pendientes'])
 

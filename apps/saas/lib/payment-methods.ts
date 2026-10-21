@@ -6,7 +6,7 @@ import { calculateFinalTotal, getTotalFeesForMethod, type PaymentMethod, type Pr
 import { resolveCashConfig } from '@/lib/cash'
 import { canAccess, type Plan } from '@/lib/plans'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
-import { resolveTransferAccountForLocation } from '@/lib/location-resolvers'
+import { resolveTransferAccountForLocation, withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
 import type { ITenant } from '@/models/Tenant'
 import type { IPlatformConfig } from '@/models/PlatformConfig'
 
@@ -106,14 +106,21 @@ export async function loadPaymentMethodContext(
       tenantId: tenant._id,
       isActive: true,
     })
-      .select('settings.cash settings.mpAccountId settings.transferAccountId')
-      .lean() as unknown as ({ settings?: { cash?: LocationCashConfig; mpAccountId?: string; transferAccountId?: string } } | null)
+      .select('settings.cash settings.mpAccountId settings.transferAccountId settings.paymentSurcharges settings.kriptonEnabled')
+      .lean() as unknown as ({ settings?: { cash?: LocationCashConfig; mpAccountId?: string; transferAccountId?: string } & LocationCommercialSettings } | null)
 
     if (!locationDoc) throw new LocationNotFoundError('Sede no encontrada')
 
     locationCash = locationDoc.settings?.cash ?? null
     locationMpAccountId = locationDoc.settings?.mpAccountId ?? null
     locationTransferAccountId = locationDoc.settings?.transferAccountId ?? null
+
+    // Recargos y Kripton con override por sede: todo el catálogo (y quien
+    // calcule precios con este ctx) ve los valores ya resueltos.
+    return {
+      tenant: withLocationCommercialSettings(tenant, locationDoc.settings),
+      platformConfig, locationCash, locationMpAccountId, locationTransferAccountId,
+    }
   }
 
   return { tenant, platformConfig, locationCash, locationMpAccountId, locationTransferAccountId }

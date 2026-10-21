@@ -2,6 +2,9 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import ClubDiscount from '@/models/ClubDiscount'
 import Tenant from '@/models/Tenant'
+import mongoose from 'mongoose'
+import Location from '@/models/Location'
+import { isClubDiscountEnabledForLocation, type LocationCommercialSettings } from '@/lib/location-resolvers'
 
 /**
  * GET /api/{tenant}/club-discount
@@ -21,6 +24,18 @@ export async function GET(
     const tenant = await Tenant.findOne({ slug: tenantSlug }).select('_id')
     if (!tenant) {
       return NextResponse.json({ discount: null })
+    }
+
+    // Override por sede: si la sede desactivó el descuento del club, la carta
+    // de esa sede no lo muestra.
+    const locationId = request.nextUrl.searchParams.get('locationId')
+    if (locationId && mongoose.Types.ObjectId.isValid(locationId)) {
+      const location = await Location.findOne({ _id: locationId, tenantId: tenant._id })
+        .select('settings.clubDiscountEnabled')
+        .lean<{ settings?: LocationCommercialSettings }>()
+      if (location && !isClubDiscountEnabledForLocation(location.settings)) {
+        return NextResponse.json({ discount: null })
+      }
     }
 
     const discount = await ClubDiscount.findOne({

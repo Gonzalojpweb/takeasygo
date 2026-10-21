@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { getCashReconciliationSummary } from '@/lib/cash-reconciliation'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { scopeLocationFilter } from '@/lib/location-scope'
 
 /**
  * GET /{tenant}/cash-reconciliation
@@ -33,7 +34,10 @@ export async function GET(
     if (permError) return permError
 
     const daysBack = Number(request.nextUrl.searchParams.get('days')) || 7
-    const summary = await getCashReconciliationSummary(tenant._id.toString(), daysBack)
+    // Alcance de sede: ?locationId= validado o las sedes del usuario.
+    const sedeScope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
+    if ('error' in sedeScope) return sedeScope.error
+    const summary = await getCashReconciliationSummary(tenant._id.toString(), daysBack, sedeScope.filter)
 
     return NextResponse.json(summary)
   } catch (error) {

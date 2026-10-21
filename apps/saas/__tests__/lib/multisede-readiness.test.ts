@@ -72,7 +72,7 @@ describe('evaluateReadiness', () => {
     const { checks, verdicts } = evaluateReadiness(baseSignals())
     expect(checks.filter(c => c.level === 'blocker')).toHaveLength(0)
     expect(verdicts['numbering.perLocation'].state).toBe('LISTA')
-    expect(verdicts['multisede.cashSede'].state).toBe('LISTA')
+    expect(verdicts['multisede.cashSede']).toBeUndefined() // flag retirado
     expect(verdicts['mp.perLocation'].state).toBe('LISTA')
     expect(verdicts['rbac.sedeScope'].state).toBe('LISTA')
   })
@@ -85,9 +85,9 @@ describe('evaluateReadiness', () => {
     expect(checks.find(c => c.id === 'prefix')?.level).toBe('blocker')
   })
 
-  it('caja sin sede bloquea cashSede', () => {
-    const { verdicts } = evaluateReadiness(baseSignals({ cash: { total: 5, sinSede: 2 } }))
-    expect(verdicts['multisede.cashSede'].state).toBe('BLOCKED')
+  it('caja sin sede es aviso (scope de caja siempre activo), no blocker', () => {
+    const { checks } = evaluateReadiness(baseSignals({ cash: { total: 5, sinSede: 2 } }))
+    expect(checks.find(c => c.id === 'cash')?.level).toBe('warn')
   })
 
   it('sin cuenta compartida bloquea mp.perLocation', () => {
@@ -126,8 +126,8 @@ describe('evaluateReadiness', () => {
   })
 
   it('flag encendida sin blockers => YA ENCENDIDA', () => {
-    const { verdicts } = evaluateReadiness(baseSignals({ flags: { 'multisede.cashSede': true } }))
-    expect(verdicts['multisede.cashSede'].state).toBe('YA ENCENDIDA')
+    const { verdicts } = evaluateReadiness(baseSignals({ flags: { 'numbering.perLocation': true } }))
+    expect(verdicts['numbering.perLocation'].state).toBe('YA ENCENDIDA')
   })
 
   it('prefijos duplicados bloquean numbering', () => {

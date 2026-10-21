@@ -1946,6 +1946,17 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                             globalWhatsappPhone={tenant.notifications?.whatsappPhone ?? null}
                           />
                         </div>
+
+                        {/* ── Recargos, Kripton y descuento del club por sede ── */}
+                        <div className="p-4 bg-muted/30 border-border/40 border rounded-2xl">
+                          <LocationCommercialSettings
+                            locationId={loc._id}
+                            tenantSlug={tenantSlug}
+                            initial={loc.settings}
+                            tenantSurcharges={tenant.paymentSurcharges}
+                            kriptonAvailable={!!tenant.kripton?.isConfigured}
+                          />
+                        </div>
                         </div>
                       </CardContent>
                       )}
@@ -3447,6 +3458,146 @@ function LocationNotificationSettings({ locationId, tenantSlug, initialWhatsappP
         aria-busy={saving}
       >
         {saving ? 'Guardando...' : 'Guardar notificaciones de la sede'}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================================
+// LocationCommercialSettings — Recargos, Kripton y descuento del club por sede
+// ============================================================================
+type SurchargeKey = 'mercadopago' | 'kripton' | 'transfer'
+const SURCHARGE_LABELS: Record<SurchargeKey, string> = {
+  mercadopago: 'Mercado Pago',
+  kripton: 'Kripton',
+  transfer: 'Transferencia (delivery)',
+}
+
+function LocationCommercialSettings({ locationId, tenantSlug, initial, tenantSurcharges, kriptonAvailable }: {
+  locationId: string
+  tenantSlug: string
+  initial: {
+    paymentSurcharges?: Partial<Record<SurchargeKey, { feePercent?: number | null } | null>> | null
+    kriptonEnabled?: boolean | null
+    clubDiscountEnabled?: boolean | null
+  } | null | undefined
+  tenantSurcharges: Partial<Record<SurchargeKey, { feePercent?: number }>> | null | undefined
+  kriptonAvailable: boolean
+}) {
+  const initialFee = (k: SurchargeKey) => {
+    const v = initial?.paymentSurcharges?.[k]?.feePercent
+    return typeof v === 'number' ? String(v) : ''
+  }
+  const [fees, setFees] = useState<Record<SurchargeKey, string>>({
+    mercadopago: initialFee('mercadopago'),
+    kripton: initialFee('kripton'),
+    transfer: initialFee('transfer'),
+  })
+  const [kriptonOff, setKriptonOff] = useState(initial?.kriptonEnabled === false)
+  const [clubDiscountOff, setClubDiscountOff] = useState(initial?.clubDiscountEnabled === false)
+  const [saving, setSaving] = useState(false)
+
+  const methods: SurchargeKey[] = kriptonAvailable ? ['mercadopago', 'kripton', 'transfer'] : ['mercadopago', 'transfer']
+  const hasOverride = Object.values(fees).some(v => v.trim() !== '') || kriptonOff || clubDiscountOff
+
+  async function handleSave() {
+    const paymentSurcharges: Record<string, { feePercent: number | null }> = {}
+    for (const k of ['mercadopago', 'kripton', 'transfer'] as SurchargeKey[]) {
+      const raw = fees[k].trim().replace(',', '.')
+      if (raw === '') {
+        paymentSurcharges[k] = { feePercent: null }
+        continue
+      }
+      const n = Number(raw)
+      if (!Number.isFinite(n) || n < 0 || n > 100) {
+        toast.error(`Recargo de ${SURCHARGE_LABELS[k]}: ingresá un porcentaje entre 0 y 100`)
+        return
+      }
+      paymentSurcharges[k] = { feePercent: n }
+    }
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${locationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            paymentSurcharges,
+            kriptonEnabled: kriptonOff ? false : null,
+            clubDiscountEnabled: clubDiscountOff ? false : null,
+          },
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error')
+      }
+      toast.success('Recargos y descuentos de la sede guardados')
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : 'Error al guardar los recargos de la sede')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="p-5 bg-muted/30 border-border/40 border rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <CreditCard size={12} className="text-primary" />
+          <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 leading-none">
+            💳 Recargos y descuentos
+          </span>
+        </div>
+        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">
+          {hasOverride ? 'Valores propios' : 'Hereda del negocio'}
+        </span>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground/70">
+        Vacío = usa el recargo general del negocio. Un valor propio reemplaza al general solo en esta sede.
+      </p>
+
+      <div className="grid grid-cols-1 @md:grid-cols-3 gap-3">
+        {methods.map(k => {
+          const inherited = tenantSurcharges?.[k]?.feePercent ?? 0
+          return (
+            <div key={k} className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 block">
+                {SURCHARGE_LABELS[k]} (%)
+              </label>
+              <input
+                inputMode="decimal"
+                value={fees[k]}
+                onChange={e => setFees(prev => ({ ...prev, [k]: e.target.value }))}
+                placeholder={`Hereda: ${inherited}%`}
+                className="w-full bg-white border border-border/60 rounded-xl px-3 py-2.5 text-sm font-medium focus:outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="space-y-2">
+        {kriptonAvailable && (
+          <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+            <input type="checkbox" checked={kriptonOff} onChange={e => setKriptonOff(e.target.checked)} />
+            No ofrecer Kripton en esta sede
+          </label>
+        )}
+        <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+          <input type="checkbox" checked={clubDiscountOff} onChange={e => setClubDiscountOff(e.target.checked)} />
+          No aplicar el descuento del club en esta sede
+        </label>
+      </div>
+
+      <Button
+        className="w-full bg-zinc-900 text-white font-bold h-10 rounded-xl active:scale-95 transition-all shadow-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2"
+        onClick={handleSave}
+        disabled={saving}
+        aria-busy={saving}
+      >
+        {saving ? 'Guardando...' : 'Guardar recargos y descuentos'}
       </Button>
     </div>
   )

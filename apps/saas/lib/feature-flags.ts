@@ -28,8 +28,9 @@ export const FLAGS = {
   RBAC_SEDE_SCOPE: 'rbac.sedeScope',
   /** Config en 3 capas system -> tenant -> sede (Location.settings override). */
   CONFIG_LAYERS: 'config.layers',
-  /** B1 sede en caja, cierres y auditoría: habilita el scoping por sede en
-   *  rutas admin de caja/reconciliación/auditoría y el backfill de locationId. */
+  /** RETIRADO (sin efecto): el scoping por sede de caja, conciliación y
+   *  auditoría es siempre activo. Se conserva la clave para no romper
+   *  tenants que la tengan guardada en `flags`. */
   CASH_SEDE: 'multisede.cashSede',
   /** Numeración por sede de pedidos y reservas: contadores atómicos
    *  (tenant, sede) con prefijo de sede. Off = formato actual sin cambios. */

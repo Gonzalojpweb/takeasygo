@@ -285,11 +285,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   } | null>(null)
 
   useEffect(() => {
-    fetch(`/api/${tenant.slug}/club-discount`)
+    // Con la sede: si la sede desactivó el descuento del club, no se muestra.
+    fetch(`/api/${tenant.slug}/club-discount?locationId=${location._id}`)
       .then(r => (r.ok ? r.json() : { discount: null }))
       .then(data => setClubDiscount(data.discount ?? null))
       .catch(() => {})
-  }, [tenant.slug])
+  }, [tenant.slug, location._id])
 
   // Check if member is eligible (cooldown passed)
   const [clubEligible, setClubEligible] = useState(false)

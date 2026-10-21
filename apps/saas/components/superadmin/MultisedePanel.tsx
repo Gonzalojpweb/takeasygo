@@ -30,7 +30,6 @@ const FLAG_KEYS = [
   'multisede.strictLocationId',
   'rbac.sedeScope',
   'config.layers',
-  'multisede.cashSede',
   'numbering.perLocation',
   'mp.perLocation',
 ] as const
@@ -39,7 +38,6 @@ const FLAG_LABELS: Record<string, string> = {
   'multisede.strictLocationId': 'Aislamiento estricto',
   'rbac.sedeScope': 'Roles por sede',
   'config.layers': 'Config 3 capas',
-  'multisede.cashSede': 'Caja por sede',
   'numbering.perLocation': 'Numeración por sede',
   'mp.perLocation': 'MP por sede',
 }
