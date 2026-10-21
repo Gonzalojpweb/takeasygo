@@ -66,6 +66,10 @@ describe("contextsForRole (Operational Roles Matrix)", () => {
     expect(contextsForRole("admin").map((c) => c.id)).toContain("ventas")
   })
 
+  it("el mozo solo ve el Salón (celular)", () => {
+    expect(contextsForRole("waiter").map((c) => c.id)).toEqual(["waiter"])
+  })
+
   it("rol desconocido cae al mínimo (cajero), nunca a todo", () => {
     expect(contextsForRole(undefined).map((c) => c.id)).not.toContain("ventas")
     expect(contextsForRole("superhacker").map((c) => c.id)).not.toContain("ventas")

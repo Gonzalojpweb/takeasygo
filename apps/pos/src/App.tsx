@@ -52,6 +52,19 @@ function App() {
       return
     }
 
+    // ── Celular del mozo (token handheld, rol waiter) ──────────────────────
+    // Solo opera el Salón: polling de mesas y órdenes, sin caja (el server se
+    // la niega) y sin socket (ventas de caja y pedidos externos no son suyos;
+    // los estados de cocina le llegan por el polling de órdenes).
+    if (decodeRole(state.jwt.accessToken) === "waiter") {
+      startConnectivityMonitoring()
+      startPosPolling(state.tenantId, { includeCash: false })
+      return () => {
+        stopConnectivityMonitoring()
+        stopPosPolling()
+      }
+    }
+
     startConnectivityMonitoring()
 
     // ── M6: diff-then-put de mesas/órdenes/cajas contra el SaaS ──
@@ -332,6 +345,7 @@ function AppShell({
         userName={profile?.userName ?? ""}
         roleLabel={roleLabel(role)}
         contextTitle={current.title}
+        showSaasLink={role !== "waiter"}
       />
 
       <Navigation

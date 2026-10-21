@@ -198,11 +198,15 @@ export interface PollTickResult {
  * abortado no es un error — es el caso normal cuando hay una mutación en
  * vuelo.
  */
-export async function pollNow(tenantId: string): Promise<PollTickResult> {
+export async function pollNow(
+  tenantId: string,
+  options: { includeCash?: boolean } = {}
+): Promise<PollTickResult> {
   const settled = await Promise.allSettled([
     syncTables(tenantId),
     syncOrders(tenantId),
-    syncRegisters(tenantId),
+    // El celular del mozo no opera caja: el server responde 403 (cash.read).
+    options.includeCash === false ? Promise.resolve(0) : syncRegisters(tenantId),
   ])
 
   const [tables, orders, registers] = settled.map((outcome, index) => {
@@ -224,6 +228,7 @@ let timer: ReturnType<typeof setInterval> | null = null
 let currentTenantId: string | null = null
 let ticking = false
 let tickCount = 0
+let includeCash = true
 let onVisibility: (() => void) | null = null
 
 function isHidden(): boolean {
@@ -240,7 +245,7 @@ function tick(): void {
   const withMenu = tickCount % MENU_EVERY_TICKS === 0
   tickCount += 1
   void Promise.all([
-    pollNow(tenantId),
+    pollNow(tenantId, { includeCash }),
     withMenu
       ? syncMenu(tenantId).catch((error) => console.warn("[polling] menu:", error))
       : Promise.resolve(),
@@ -268,9 +273,14 @@ function stopTimer(): void {
  * El primer tick corre **inmediatamente**: una terminal recién abierta no
  * puede esperar 7 s con Dexie vacía para ver las mesas y la caja de la sede.
  */
-export function startPosPolling(tenantId: string): void {
-  if (enabled && currentTenantId === tenantId) return
+export function startPosPolling(
+  tenantId: string,
+  options: { includeCash?: boolean } = {}
+): void {
+  const wantCash = options.includeCash !== false
+  if (enabled && currentTenantId === tenantId && includeCash === wantCash) return
   stopPosPolling()
+  includeCash = wantCash
 
   enabled = true
   currentTenantId = tenantId

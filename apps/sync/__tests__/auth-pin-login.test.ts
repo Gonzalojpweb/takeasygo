@@ -103,9 +103,20 @@ describe("login por PIN", () => {
     )
   })
 
-  it("rol sin acceso de hub (staff) → 403 en vez de un token inútil", async () => {
+  it("mozo (staff) entra con token handheld de rol waiter — POS mobile", async () => {
     await createUser("staff", "604917")
     const res = await login("604917")
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.deviceType).toBe("handheld")
+    const payload = decodeJwt(body.accessToken)!
+    expect(payload.role).toBe("waiter")
+    expect(payload.deviceType).toBe("handheld")
+  })
+
+  it("rol sin POS (consumer) → 403", async () => {
+    await createUser("consumer", "604918")
+    const res = await login("604918")
     expect(res.status).toBe(403)
     expect((await res.json()).code).toBe("ROLE_NOT_ALLOWED")
   })

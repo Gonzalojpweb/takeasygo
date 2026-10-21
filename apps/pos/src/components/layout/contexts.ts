@@ -12,8 +12,9 @@ import { LayoutGrid, Utensils, Bike, Banknote, BarChart3 } from "lucide-react"
 //     hay entidad activa muestra un estado vacío PROPIO del contexto, no el
 //     de otro ("Seleccioná una mesa" en Caja era incorrecto).
 //
-// Roles POS (token del hub): admin | manager | cashier.
-// Reportes (Ventas) es Manager/Admin según la matriz.
+// Roles POS: admin | manager | cashier (terminal de caja, token hub) y
+// waiter (celular del mozo, token handheld). Reportes (Ventas) es
+// Manager/Admin; el mozo solo opera el Salón (Roles Matrix).
 // ============================================================================
 
 export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas"
@@ -31,6 +32,7 @@ export interface RosContext {
 }
 
 const ALL_HUB_ROLES = ["admin", "manager", "cashier"] as const
+const KNOWN_ROLES = ["admin", "manager", "cashier", "waiter"] as const
 
 export const ROS_CONTEXTS: readonly RosContext[] = [
   {
@@ -46,7 +48,7 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     label: "Salón",
     title: "Salón — Mesas",
     icon: Utensils,
-    roles: ALL_HUB_ROLES,
+    roles: [...ALL_HUB_ROLES, "waiter"],
     empty: { title: "Sin mesa seleccionada", hint: "Elegí una mesa para tomar el pedido o ver su estado en cocina." },
   },
   {
@@ -77,7 +79,7 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
 
 /** Contextos visibles para un rol. Sin rol conocido (Sync viejo) se muestran los de caja. */
 export function contextsForRole(role: string | undefined): RosContext[] {
-  const effective = role && ALL_HUB_ROLES.includes(role as (typeof ALL_HUB_ROLES)[number]) ? role : "cashier"
+  const effective = role && KNOWN_ROLES.includes(role as (typeof KNOWN_ROLES)[number]) ? role : "cashier"
   return ROS_CONTEXTS.filter((c) => c.roles.includes(effective))
 }
 
@@ -89,6 +91,7 @@ const ROLE_LABELS: Record<string, string> = {
   admin: "Administrador",
   manager: "Encargado",
   cashier: "Cajero",
+  waiter: "Mozo",
 }
 
 export function roleLabel(role: string | undefined): string {

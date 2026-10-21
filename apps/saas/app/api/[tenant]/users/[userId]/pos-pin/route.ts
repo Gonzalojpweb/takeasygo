@@ -20,11 +20,11 @@ import { posPinLookup, resolvePosPinPepper, validateNewPosPin } from '@takeasygo
 // de otra persona (p. ej. un manager averiguando el del admin).
 //
 // Guardado: bcrypt en `pin` + HMAC en `posPinLookup` (ver
-// @takeasygo/business/pos-pin). Solo para roles que pueden operar el POS
-// como hub (admin, manager, cashier: VALID_DEVICE_ROLES.hub).
+// @takeasygo/business/pos-pin). Roles con POS: caja (admin, manager,
+// cashier → terminal hub) y mozos (staff, waiter → celular, POS mobile).
 // ============================================================================
 
-const POS_HUB_ROLES = new Set(['admin', 'manager', 'cashier'])
+const POS_PIN_ROLES = new Set(['admin', 'manager', 'cashier', 'staff', 'waiter'])
 const PIN_LENGTH = 6
 const MAX_GENERATION_ATTEMPTS = 8
 
@@ -74,9 +74,9 @@ export async function POST(request: NextRequest, { params }: Params) {
     if ('error' in target) return target.error
     const { tenant, user } = target
 
-    if (!POS_HUB_ROLES.has(user.role)) {
+    if (!POS_PIN_ROLES.has(user.role)) {
       return NextResponse.json(
-        { error: 'Solo admin, manager o cajero pueden tener PIN de POS' },
+        { error: 'Este rol no opera el POS' },
         { status: 400 }
       )
     }

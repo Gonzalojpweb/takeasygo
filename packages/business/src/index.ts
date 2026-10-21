@@ -29,7 +29,7 @@ export {
   encryptStore,
   decryptStore,
 } from "./crypto"
-export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "./role-mapping"
+export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "./role-mapping"
 export { normalizeForSearch } from "./utils"
 export { escapeRegex } from "./security/escape-regex"
 export { toCents, toPesos, formatCents } from "./money"

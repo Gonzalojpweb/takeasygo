@@ -37,7 +37,7 @@ type PaidOrderDoc = PosOrderDoc & {
   posPayments?: { posId: string; method: string; amount: number; reference?: string | null }[] | null
 }
 
-export const POST = posRoute<{ tenant: string; id: string }>(async (ctx, params) => {
+export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async (ctx, params) => {
   const posId = assertPosId(params.id)
   const body = await readPosBody(ctx.request)
   const parts = parsePosPayments(body)

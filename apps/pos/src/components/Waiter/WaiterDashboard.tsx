@@ -1,123 +1,139 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import type { Product, OrderItem } from "@takeasygo/types"
+import type { Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
+import { useLiveQuery } from "dexie-react-hooks"
+import { ChefHat } from "lucide-react"
+import { db } from "../../db/dexie"
+import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
 import { useOrders } from "../../hooks/useOrders"
-import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
-import { db } from "../../db/dexie"
 import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
+import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
+import { useNow } from "../../hooks/useNow"
+import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
+import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
-import { WaiterStats } from "./WaiterStats"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
-import { useTableActivity } from "../../hooks/useTableActivity"
-import { useAuth } from "../../hooks/useAuth"
-import { ChefHat } from "lucide-react"
-import { MesaDetailPanel } from "./MesaDetailPanel"
 import { WaiterContextPanel } from "./WaiterContextPanel"
 import { formatCurrency } from "../../utils/format"
 
-type Scene = "turno" | "mesa" | "configurar" | "pedido" | "cocina" | "entrega" | "cuenta" | "cierre"
+// ============================================================================
+// Salón — experiencia del mozo (Waiter Experience v2, mobile-first)
+// ============================================================================
+// Mismo Workspace que el Counter; cambia la responsabilidad (Roles Matrix):
+// el mozo toma pedidos, los manda a cocina, sigue su estado y pide la cuenta.
+// No cobra ni cancela (el server lo niega: lib/pos-online/permissions.ts).
+//
+// Escenas:  mesas → mesa → pedido (→ configurar) → [enviar a cocina] → mesa
+//           mesas → cocina (estado de todas las rondas)
+//
+// Fuente de verdad del estado de cocina: las ÓRDENES (polling server-first),
+// no comandas locales del dispositivo. Así el celular ve lo que hacen el
+// Counter y la cocina. Se eliminó la escena "Entrega" anterior: marcaba
+// checkboxes locales y mostraba "entregado" sin registrar nada.
+// ============================================================================
+
+type Scene = "mesas" | "mesa" | "pedido" | "configurar" | "cocina"
 
 interface CartItem extends OrderItem {
   product: Product
 }
 
+const ACTIVE = (o: Order) =>
+  o.source === "pos" && Boolean(o.tableId) && o.status !== "delivered" && o.status !== "cancelled"
+
+const ROUND_STATUS: Record<string, { label: string; order: number }> = {
+  ready: { label: "Listo para servir", order: 0 },
+  pending: { label: "Sin enviar", order: 1 },
+  confirmed: { label: "En cocina", order: 2 },
+  preparing: { label: "Preparando", order: 2 },
+}
+
+function describeError(err: unknown, fallback: string): string {
+  if (err instanceof PosApiError && err.status >= 400 && err.status < 500 && err.status !== 401) {
+    return err.message || fallback
+  }
+  return fallback
+}
+
 export function WaiterDashboard() {
-  const [scene, setScene] = useState<Scene>("turno")
+  const { state } = useAuth()
+  const tenantId = state.status === "authenticated" ? state.tenantId : undefined
+
+  const [scene, setScene] = useState<Scene>("mesas")
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [configProduct, setConfigProduct] = useState<Product | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
-  const [deliveryChecked, setDeliveryChecked] = useState<Record<string, boolean>>({})
   const [sending, setSending] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables, markNeedsBill, occupyTable, bindTableOrder } = useTables()
-  const { state: authState } = useAuth()
-  const tableActivity = useTableActivity(authState.status === "authenticated" ? authState.tenantId : undefined)
+  const { tables, markNeedsBill, markNeedsAttention, occupyTable, bindTableOrder } = useTables()
   const { createOrder, confirmOrder } = useOrders()
   const { products, categories } = useMenu()
-  const { commands, pendingCommands, startPreparing, markReady, confirmAndSendToKitchen } = useKitchenCommands()
+  const { confirmAndSendToKitchen } = useKitchenCommands()
+  const tableActivity = useTableActivity(tenantId)
+  const now = useNow()
 
-  const selectedTable = useMemo(
-    () => tables.find((t) => t.id === selectedTableId),
-    [tables, selectedTableId]
+  const activeOrdersLive = useLiveQuery(
+    () => (tenantId ? db.orders.where("tenantId").equals(tenantId).and(ACTIVE).toArray() : []),
+    [tenantId]
   )
+  const activeOrders = useMemo(() => activeOrdersLive ?? [], [activeOrdersLive])
 
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.total, 0),
-    [cart]
+  const selectedTable = useMemo(() => tables.find((t) => t.id === selectedTableId), [tables, selectedTableId])
+  const tableOrders = useMemo(
+    () => activeOrders.filter((o) => o.tableId === selectedTableId),
+    [activeOrders, selectedTableId]
   )
+  const readyCount = useMemo(() => activeOrders.filter((o) => o.status === "ready").length, [activeOrders])
+  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
+  const cartUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart])
 
-  const occupiedTables = useMemo(
-    () => tables.filter((t) => t.status === "occupied" || t.status === "needs_attention"),
-    [tables]
-  )
-
-  const mesaOrders = useMemo(
-    () => selectedTableId
-      ? pendingCommands.filter((c) => {
-          const table = tables.find((t) => t.id === selectedTableId)
-          return table && c.tableNumber === table.number
-        })
-      : [],
-    [pendingCommands, selectedTableId, tables]
-  )
-
-  const showToast = useCallback((message: string, type: string) => {
+  const showToast = useCallback((message: string, type: "success" | "error" | "info") => {
     setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
   }, [])
 
+  // ── Mesa ─────────────────────────────────────────────────────────────────
   const handleSelectTable = useCallback((tableId: string) => {
     setSelectedTableId(tableId)
     setScene("mesa")
   }, [])
 
+  const backToTables = useCallback(() => {
+    setSelectedTableId(null)
+    setScene("mesas")
+  }, [])
+
+  // ── Carrito ──────────────────────────────────────────────────────────────
   const handleAddProduct = useCallback((product: Product) => {
-    const hasModifiers = product.modifiers && product.modifiers.length > 0
-    if (hasModifiers) {
+    if (product.modifiers && product.modifiers.length > 0) {
       setConfigProduct(product)
       setScene("configurar")
       return
     }
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id)
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length)
       if (existing) {
         return prev.map((i) =>
-          i.productId === product.id
-            ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) }
-            : i
+          i === existing ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) } : i
         )
       }
-      const item: CartItem = {
-        productId: product.id,
-        name: product.name,
-        quantity: 1,
-        unitPrice: product.price,
-        total: product.price,
-        product,
-      }
-      return [...prev, item]
+      return [...prev, { productId: product.id, name: product.name, quantity: 1, unitPrice: product.price, total: product.price, product }]
     })
   }, [])
 
   const handleUpdateQuantity = useCallback((productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      setCart((prev) => prev.filter((i) => i.productId !== productId))
-      return
-    }
     setCart((prev) =>
-      prev.map((i) =>
-        i.productId === productId
-          ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) }
-          : i
-      )
+      quantity <= 0
+        ? prev.filter((i) => i.productId !== productId)
+        : prev.map((i) => (i.productId === productId ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) } : i))
     )
   }, [])
 
@@ -132,16 +148,9 @@ export function WaiterDashboard() {
     setScene("pedido")
   }, [configProduct])
 
+  // ── Operaciones (todas server-first) ─────────────────────────────────────
   const handleSendToKitchen = useCallback(async () => {
-    if (sending) return
-    if (!selectedTableId) {
-      showToast("Elegí una mesa antes de enviar", "error")
-      return
-    }
-    if (cart.length === 0) {
-      showToast("El pedido está vacío", "error")
-      return
-    }
+    if (sending || !selectedTableId || cart.length === 0) return
     setSending(true)
     try {
       await sendWaiterOrderToKitchen(
@@ -161,289 +170,165 @@ export function WaiterDashboard() {
             quantity: item.quantity,
             unitPrice: item.unitPrice,
             total: item.total,
-            ...(item.modifiers ? { modifiers: item.modifiers } : {}),
+            ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
             ...(item.notes ? { notes: item.notes } : {}),
           })),
         }
       )
-      showToast("✓ Pedido enviado a cocina", "success")
       setCart([])
       setScene("mesa")
+      showToast("Pedido enviado a cocina", "success")
     } catch (err) {
       console.error("[Waiter] sendToKitchen failed:", err)
-      showToast("Error al enviar el pedido a cocina", "error")
+      showToast(describeError(err, "No se pudo enviar a cocina. Reintentá."), "error")
     } finally {
       setSending(false)
     }
   }, [sending, selectedTableId, cart, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, showToast])
 
-  const handleSendBill = useCallback(async () => {
+  const handleRequestBill = useCallback(async () => {
     if (!selectedTableId) return
     try {
       await markNeedsBill(selectedTableId, true)
-      showToast("✓ Cuenta solicitada — avisá al Counter", "success")
-      setScene("cierre")
+      showToast("Cuenta pedida — la caja ya la ve", "success")
     } catch (err) {
-      console.error("[Waiter] sendBill failed:", err)
-      showToast("Error al solicitar la cuenta", "error")
+      showToast(describeError(err, "No se pudo pedir la cuenta"), "error")
     }
   }, [selectedTableId, markNeedsBill, showToast])
 
-  const handleNewSale = useCallback(() => {
-    setCart([])
-    setSelectedTableId(null)
-    setSelectedCategory(null)
-    setScene("turno")
-  }, [])
+  const handleCallManager = useCallback(async () => {
+    if (!selectedTableId) return
+    try {
+      await markNeedsAttention(selectedTableId)
+      showToast("Encargado avisado", "success")
+    } catch (err) {
+      showToast(describeError(err, "No se pudo avisar al encargado"), "error")
+    }
+  }, [selectedTableId, markNeedsAttention, showToast])
 
-  const handleToggleDelivery = useCallback((itemId: string) => {
-    setDeliveryChecked((prev) => ({ ...prev, [itemId]: !prev[itemId] }))
-  }, [])
-
-  const handleConfirmDelivery = useCallback(() => {
-    showToast("✓ Pedido entregado", "success")
-    setTimeout(() => setScene("cocina"), 1500)
-  }, [showToast])
-
-  // Context Panel + ActionBar per scene
+  // ── Context Panel + Action Bar por escena (slots fijos: der = principal) ─
   useEffect(() => {
     switch (scene) {
-      case "turno":
-        setContextPanel({
-          title: "Tu turno",
-          subtitle: `${occupiedTables.length} mesas activas`,
-          body: (
-            <div style={{ padding: "var(--sp-2)" }}>
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-                Pedidos pendientes
-              </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
-                {pendingCommands.length}
-              </div>
-              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", marginTop: "var(--sp-4)" }}>
-                Mesas activas
-              </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
-                {occupiedTables.length}
-              </div>
-            </div>
-          ),
-        })
-        setActionBar(null)
+      case "mesas":
+      case "cocina":
+        setContextPanel(null)
+        setActionBar(
+          scene === "cocina"
+            ? { center: <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button> }
+            : null
+        )
         break
 
-      case "mesa":
+      case "mesa": {
+        if (!selectedTable) {
+          setContextPanel(null)
+          setActionBar(null)
+          break
+        }
+        const activity = tableActivity.get(selectedTable.id)
         setContextPanel({
-          title: `Mesa ${selectedTable?.number ?? "?"}`,
-          subtitle: selectedTable?.section || "Salón",
+          title: `Mesa ${selectedTable.number}`,
+          subtitle: selectedTable.section || "Salón",
+          body: <WaiterContextPanel table={selectedTable} orders={tableOrders} activity={activity} now={now} />,
+          openOnMobile: true,
+        })
+        setActionBar({
+          left: (
+            <div className="action-bar-total">
+              <span className="action-bar-total-label">Consumo</span>
+              <span className="action-bar-total-value">{formatCurrency(activity?.total ?? 0)}</span>
+            </div>
+          ),
+          center: (
+            <>
+              <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button>
+              {tableOrders.length > 0 && !selectedTable.needsBill && (
+                <button className="btn btn-secondary" onClick={handleRequestBill}>Pedir cuenta</button>
+              )}
+              {selectedTable.status === "occupied" && (
+                <button className="btn btn-secondary" onClick={handleCallManager}>Llamar encargado</button>
+              )}
+            </>
+          ),
+          right: (
+            <button className="btn btn-primary btn-lg" onClick={() => setScene("pedido")}>
+              Tomar pedido
+            </button>
+          ),
+        })
+        break
+      }
+
+      case "pedido":
+        setContextPanel({
+          title: `Pedido — Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: cart.length > 0 ? `${cartUnits} productos · ${formatCurrency(cartTotal)}` : "Tocá productos para agregarlos",
           body: (
-            <WaiterContextPanel
-              selectedTable={selectedTable ?? null}
-              mesaOrders={mesaOrders}
-              onTomarPedido={() => setScene("pedido")}
-              onCuenta={() => setScene("cuenta")}
+            <OrderPanel
+              title={`Mesa ${selectedTable?.number ?? "?"}`}
+              items={cart}
+              onUpdateQuantity={handleUpdateQuantity}
+              onRemoveItem={handleRemoveItem}
+              total={cartTotal}
             />
           ),
         })
         setActionBar({
           left: (
-            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
-              ← Volver
+            <div className="action-bar-total">
+              <span className="action-bar-total-label">Nueva ronda</span>
+              <span className="action-bar-total-value">{formatCurrency(cartTotal)}</span>
+            </div>
+          ),
+          center: (
+            <button className="btn btn-ghost" onClick={() => setScene("mesa")} disabled={sending}>
+              ← Mesa {selectedTable?.number ?? ""}
+            </button>
+          ),
+          right: (
+            <button className="btn btn-primary btn-lg" onClick={handleSendToKitchen} disabled={cart.length === 0 || sending}>
+              {sending ? "Enviando…" : `Enviar a cocina${cartUnits > 0 ? ` (${cartUnits})` : ""}`}
             </button>
           ),
         })
         break
 
       case "configurar":
-        setContextPanel(null)
-        setActionBar(null)
-        break
-
-      case "pedido":
-        setContextPanel({
-          title: `Pedido — Mesa ${selectedTable?.number ?? "?"}`,
-          subtitle: cart.length > 0 ? `${cart.length} items` : "Agregá productos",
-          body: (
-            <OrderPanel
-              title={`Pedido — Mesa ${selectedTable?.number ?? "?"}`}
-              items={cart}
-              onUpdateQuantity={handleUpdateQuantity}
-              onRemoveItem={handleRemoveItem}
-              total={cartTotal}
-              primaryAction={{
-                label: sending ? "Enviando…" : "Enviar a cocina",
-                onClick: handleSendToKitchen,
-                disabled: cart.length === 0 || sending,
-              }}
-            />
-          ),
-        })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
-              ← Volver
-            </button>
-          ),
-        })
-        break
-
-      case "cocina": {
-        const readyCommands = pendingCommands.filter((c) => c.status === "ready")
-        const preparingCommands = pendingCommands.filter((c) => c.status !== "ready")
-        setContextPanel({
-          title: "Cocina",
-          subtitle: `${pendingCommands.length} pedidos activos`,
-          body: (
-            <div style={{ padding: "var(--sp-2)" }}>
-              {pendingCommands.length === 0 ? (
-                <div style={{ color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center", padding: "var(--sp-4)" }}>
-                  Todo al día ✓
-                </div>
-              ) : (
-                <>
-                  {readyCommands.length > 0 && (
-                    <div style={{ marginBottom: "var(--sp-3)" }}>
-                      <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-                        ✓ Listo para retirar
-                      </div>
-                      {readyCommands.map((cmd) => (
-                        <div key={cmd.id} style={{
-                          padding: "var(--sp-3)",
-                          background: "var(--surface-secondary)",
-                          border: "2px solid var(--success)",
-                          borderRadius: 8,
-                          marginBottom: "var(--sp-2)",
-                        }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                            <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
-                            <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{cmd.time || 0} min</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {preparingCommands.length > 0 && (
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-                        🍳 En preparación
-                      </div>
-                      {preparingCommands.map((cmd) => (
-                        <div key={cmd.id} style={{
-                          padding: "var(--sp-3)",
-                          background: "var(--surface-secondary)",
-                          border: cmd.delayed ? "1px solid var(--error)" : "1px solid var(--border)",
-                          borderRadius: 8,
-                          marginBottom: "var(--sp-2)",
-                        }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontWeight: 500, fontSize: "var(--font-size-sm)" }}>Mesa {cmd.tableNumber}</span>
-                            {cmd.delayed && (
-                              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--error)", fontWeight: 600 }}>⚠ Demorado</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          ),
-        })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("turno")}>
-              ← Volver
-            </button>
-          ),
-        })
-        break
-      }
-
-      case "entrega": {
-        const readyForDelivery = pendingCommands.find((c) => c.status === "ready")
-        setContextPanel({
-          title: "Entrega",
-          subtitle: readyForDelivery ? `Mesa ${readyForDelivery.tableNumber}` : "",
-          body: (
-            <div style={{ padding: "var(--sp-4)", color: "var(--text-muted)", fontSize: "var(--font-size-sm)", textAlign: "center" }}>
-              {readyForDelivery
-                ? `${readyForDelivery.items.length} items listos para entregar`
-                : "No hay pedidos listos para entregar"}
-            </div>
-          ),
-        })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("cocina")}>
-              ← Volver
-            </button>
-          ),
-        })
-        break
-      }
-
-      case "cuenta":
-        setContextPanel({
-          title: "Cuenta",
-          subtitle: `Mesa ${selectedTable?.number ?? "?"}`,
-          body: (
-            <div style={{ padding: "var(--sp-4)", textAlign: "center" }}>
-              <div style={{ fontSize: 32, marginBottom: "var(--sp-2)" }}>📄</div>
-              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
-                La cuenta será enviada a caja para su procesamiento
-              </div>
-            </div>
-          ),
-        })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("mesa")}>
-              ← Cancelar
-            </button>
-          ),
-          right: (
-            <button className="btn btn-primary" onClick={handleSendBill}>
-              📤 Solicitar cuenta
-            </button>
-          ),
-        })
-        break
-
-      case "cierre":
-        setContextPanel(null)
-        setActionBar({
-          right: (
-            <button className="btn btn-primary" onClick={handleNewSale}>
-              Volver al turno
-            </button>
-          ),
-        })
+        // ProductConfigurationPanel maneja su propio panel y Action Bar.
         break
     }
-  }, [scene, sending, selectedTable, cart, cartTotal, occupiedTables, pendingCommands, mesaOrders, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleSendToKitchen, handleSendBill, handleNewSale])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem])
+
+  // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
+  const kitchenRounds = useMemo(
+    () =>
+      [...activeOrders]
+        .filter((o) => ROUND_STATUS[o.status])
+        .sort((a, b) =>
+          ROUND_STATUS[a.status].order - ROUND_STATUS[b.status].order ||
+          +new Date(a.createdAt) - +new Date(b.createdAt)
+        ),
+    [activeOrders]
+  )
+  const tableNumber = useCallback((id?: string) => tables.find((t) => t.id === id)?.number ?? "?", [tables])
 
   return (
     <>
-      {/* Scene: Turno */}
-      {scene === "turno" && (
+      {(scene === "mesas" || scene === "mesa") && (
         <>
           <div className="workspace-header">
             <div>
-              <div className="workspace-title">Mis mesas</div>
-              <div className="workspace-subtitle">Mesas asignadas en tu turno</div>
+              <div className="workspace-title">Mesas</div>
+              <div className="workspace-subtitle">Elegí una mesa para tomar el pedido</div>
             </div>
             <div className="workspace-actions">
-              <button className="btn btn-ghost btn-sm" onClick={() => setScene("cocina")}>
-                <ChefHat size={16} aria-hidden /> Cocina
-                {pendingCommands.length > 0 && (
-                  <span className="nav-item-badge">{pendingCommands.length}</span>
-                )}
+              <button className="btn btn-secondary" onClick={() => setScene("cocina")}>
+                <ChefHat size={18} aria-hidden /> Cocina
+                {readyCount > 0 && <span className="nav-item-badge" aria-label={`${readyCount} listos`}>{readyCount}</span>}
               </button>
             </div>
           </div>
           <div className="salon-content">
-            <WaiterStats tables={tables} kitchenCommands={commands} />
             <WaiterSectorGrid
               tables={tables}
               activity={tableActivity}
@@ -454,47 +339,14 @@ export function WaiterDashboard() {
         </>
       )}
 
-      {/* Scene: Mesa */}
-      {scene === "mesa" && selectedTable && (
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Mesa {selectedTable.number}</div>
-              <div className="workspace-subtitle">
-                {selectedTable.section || "Salón"}
-              </div>
-            </div>
-          </div>
-          <MesaDetailPanel
-            table={selectedTable}
-            onTomarPedido={() => setScene("pedido")}
-            onCocina={() => setScene("cocina")}
-            onCuenta={() => setScene("cuenta")}
-          />
-        </div>
-      )}
-
-      {/* Scene: Configurar producto */}
-      {scene === "configurar" && configProduct && (
-        <ProductConfigurationPanel
-          product={configProduct}
-          onConfirm={handleConfigConfirm}
-          onCancel={() => {
-            setConfigProduct(null)
-            setScene("pedido")
-          }}
-        />
-      )}
-
-      {/* Scene: Pedido */}
       {scene === "pedido" && (
-        <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div className="workspace-scene">
           <div className="workspace-header">
             <div>
-              <div className="workspace-title">
-                Tomar pedido — Mesa {selectedTable?.number ?? "?"}
+              <div className="workspace-title">Mesa {selectedTable?.number ?? "?"} — Tomar pedido</div>
+              <div className="workspace-subtitle">
+                {cart.length > 0 ? `${cartUnits} en la ronda · ${formatCurrency(cartTotal)}` : "Tocá un producto para agregarlo"}
               </div>
-              <div className="workspace-subtitle">Agregá productos al pedido</div>
             </div>
           </div>
           <ProductSelector
@@ -507,298 +359,62 @@ export function WaiterDashboard() {
         </div>
       )}
 
-      {/* Scene: Cocina */}
+      {scene === "configurar" && configProduct && (
+        <ProductConfigurationPanel
+          product={configProduct}
+          onConfirm={handleConfigConfirm}
+          onCancel={() => {
+            setConfigProduct(null)
+            setScene("pedido")
+          }}
+        />
+      )}
+
       {scene === "cocina" && (
-        <>
+        <div className="workspace-scene">
           <div className="workspace-header">
             <div>
               <div className="workspace-title">Estado de cocina</div>
               <div className="workspace-subtitle">
-                {pendingCommands.length} pedidos activos · Tus mesas
+                {readyCount > 0 ? `${readyCount} listos para servir` : "Nada listo todavía"} · {kitchenRounds.length} rondas abiertas
               </div>
             </div>
           </div>
-          <div className="p-6">
-            {pendingCommands.length === 0 ? (
+          <div className="salon-content">
+            {kitchenRounds.length === 0 ? (
               <div className="empty-state">
-                <span className="empty-state-icon">✓</span>
-                <span className="empty-state-text">
-                  No hay pedidos pendientes
-                </span>
+                <span className="empty-state-text">No hay rondas abiertas</span>
               </div>
             ) : (
-              <>
-                {/* Ready to deliver */}
-                {pendingCommands.filter((c) => c.status === "ready").length > 0 && (
-                  <div style={{ marginBottom: "var(--sp-6)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--success)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-3)", paddingLeft: "var(--sp-1)" }}>
-                      ✓ Listo para retirar
-                    </div>
-                    <div className="grid-3">
-                      {pendingCommands.filter((c) => c.status === "ready").map((cmd) => (
-                        <div key={cmd.id} style={{
-                          background: "var(--surface)",
-                          border: "2px solid var(--success)",
-                          borderRadius: 10,
-                          padding: 16,
-                          marginBottom: 12,
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 8,
-                                background: "var(--success)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                color: "white",
-                                fontWeight: 600,
-                              }}>{cmd.tableNumber}</div>
-                              <div><div style={{ fontWeight: 600 }}>Mesa {cmd.tableNumber}</div></div>
-                            </div>
-                            <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{cmd.time || 0} min</span>
-                          </div>
-                          <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 12 }}>
-                            {cmd.items.map((item) => `${item.quantity}× ${item.name}`).join(", ")}
-                          </div>
-                          <button className="btn btn-success btn-sm" style={{ width: "100%" }} onClick={() => setScene("entrega")}>
-                            🍽 Retirar y entregar
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Preparing */}
-                {pendingCommands.filter((c) => c.status !== "ready").length > 0 && (
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-3)", paddingLeft: "var(--sp-1)" }}>
-                      🍳 En preparación
-                    </div>
-                    <div className="grid-3">
-                      {pendingCommands.filter((c) => c.status !== "ready").map((cmd) => (
-                        <div key={cmd.id} style={{
-                          background: "var(--surface)",
-                          border: cmd.delayed ? "2px solid var(--error)" : "1px solid var(--border)",
-                          borderRadius: 10,
-                          padding: 16,
-                          marginBottom: 8,
-                        }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                              <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 8,
-                                background: cmd.delayed ? "var(--error-light)" : "var(--warning-light)",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontWeight: 600,
-                                color: cmd.delayed ? "var(--error)" : "#B8860B",
-                              }}>{cmd.tableNumber}</div>
-                              <div>
-                                <div style={{ fontWeight: 500 }}>Mesa {cmd.tableNumber}</div>
-                                {cmd.delayed && (
-                                  <div style={{ fontSize: 13, color: "var(--error)" }}>⚠ Demorado</div>
-                                )}
-                              </div>
-                            </div>
-                            <span style={{ fontSize: 13, color: cmd.delayed ? "var(--error)" : "var(--text-muted)", ...(cmd.delayed ? { fontWeight: 600 } : {}) }}>
-                              {cmd.time || 0} min
-                            </span>
-                          </div>
-                          <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                            {cmd.items.map((item) => `${item.quantity}× ${item.name}`).join(", ")}
-                          </div>
-                          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                            {cmd.status === "pending" && (
-                              <button className="btn btn-primary btn-sm" style={{ flex: 1 }} onClick={() => startPreparing(cmd.orderId)}>
-                                Preparar
-                              </button>
-                            )}
-                            {cmd.status === "preparing" && (
-                              <button className="btn btn-success btn-sm" style={{ flex: 1 }} onClick={() => markReady(cmd.orderId)}>
-                                Listo ✓
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+              <ul className="kitchen-rounds">
+                {kitchenRounds.map((o) => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      className={`waiter-round waiter-round--${o.status} kitchen-round`}
+                      onClick={() => o.tableId && handleSelectTable(o.tableId)}
+                    >
+                      <header>
+                        <span className="waiter-round-title">Mesa {tableNumber(o.tableId)}</span>
+                        <span className="waiter-round-status">{ROUND_STATUS[o.status].label}</span>
+                      </header>
+                      <span className="text-sm text-muted">
+                        {o.items.reduce((s, i) => s + i.quantity, 0)} productos · hace {formatElapsed(new Date(o.createdAt), now)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
-          </div>
-        </>
-      )}
-
-      {/* Scene: Entrega */}
-      {scene === "entrega" && (() => {
-        const readyCmd = pendingCommands.find((c) => c.status === "ready")
-        if (!readyCmd) {
-          return (
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <div className="empty-state">
-                <span className="empty-state-icon">🍽️</span>
-                <span className="empty-state-text">No hay pedidos listos para entregar</span>
-              </div>
-            </div>
-          )
-        }
-        return (
-          <>
-            <div className="workspace-header">
-              <div>
-                <div className="workspace-title">Entregar pedido</div>
-                <div className="workspace-subtitle">Mesa {readyCmd.tableNumber} — {readyCmd.time || 0} min desde pedido</div>
-              </div>
-              <div className="workspace-actions">
-                <button className="btn btn-ghost btn-sm" onClick={() => setScene("cocina")}>
-                  ← Volver
-                </button>
-              </div>
-            </div>
-            <div className="p-6" style={{ maxWidth: 600, margin: "0 auto" }}>
-              <div style={{
-                background: "var(--surface)",
-                border: "2px solid var(--success)",
-                borderRadius: 10,
-                padding: 20,
-                marginBottom: 16,
-              }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>🍽 Mesa {readyCmd.tableNumber}</div>
-                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{readyCmd.time || 0} min</span>
-                </div>
-                <div>
-                  {readyCmd.items.map((item, i) => (
-                    <label key={i} className="delivery-check" style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "6px 0",
-                      fontSize: 13,
-                      cursor: "pointer",
-                    }}>
-                      <input
-                        type="checkbox"
-                        checked={deliveryChecked[item.productId] ?? true}
-                        onChange={() => handleToggleDelivery(item.productId)}
-                        style={{ width: 16, height: 16, accentColor: "var(--primary-action)" }}
-                      />
-                      <span>{item.quantity}× {item.name}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setScene("cocina")}>
-                  ← Volver
-                </button>
-                <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleConfirmDelivery}>
-                  ✓ Marcar como entregado
-                </button>
-              </div>
-            </div>
-          </>
-        )
-      })()}
-
-      {/* Scene: Cuenta */}
-      {scene === "cuenta" && (
-        <>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Solicitar cuenta</div>
-              <div className="workspace-subtitle">Mesa {selectedTable?.number ?? "?"}</div>
-            </div>
-            <div className="workspace-actions">
-              <button className="btn btn-ghost btn-sm" onClick={() => setScene("mesa")}>
-                ← Volver
-              </button>
-            </div>
-          </div>
-          <div className="p-6" style={{ maxWidth: 600, margin: "0 auto" }}>
-            <div style={{
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 10,
-              padding: 20,
-              marginBottom: 16,
-            }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Resumen del consumo</div>
-              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-                {cart.length === 0 ? (
-                  <div style={{ color: "var(--text-muted)", textAlign: "center", padding: 20 }}>
-                    Sin pedidos registrados
-                  </div>
-                ) : (
-                  cart.map((item, i) => (
-                    <div key={i} style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "4px 0",
-                      fontSize: 13,
-                    }}>
-                      <span>{item.quantity}× {item.name}</span>
-                      <span style={{ fontWeight: 500 }}>{formatCurrency(item.total)}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div style={{
-                borderTop: "2px solid var(--border)",
-                marginTop: 12,
-                paddingTop: 12,
-                display: "flex",
-                justifyContent: "space-between",
-              }}>
-                <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--primary-action)" }}>
-                  {formatCurrency(cartTotal)}
-                </span>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setScene("mesa")}>
-                ← Cancelar
-              </button>
-              <button className="btn btn-primary" style={{ flex: 2 }} onClick={handleSendBill}>
-                📤 Enviar a Counter para cobro
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Scene: Cierre */}
-      {scene === "cierre" && (
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
-          <div style={{ maxWidth: 600, textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>Operación finalizada</div>
-            <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
-              La cuenta de la mesa {selectedTable?.number ?? "?"} fue pedida. El Counter la procesa para el cobro.
-            </div>
-            <button className="btn btn-primary" onClick={handleNewSale} style={{ width: "100%" }}>
-              → Volver a mis mesas
-            </button>
           </div>
         </div>
       )}
 
       {toast && (
-        <div className="toast-container">
+        <div className="toast-container" role="status">
           <div className={`toast ${toast.type}`}>
             <span className="toast-message">{toast.message}</span>
-            <button className="toast-close" onClick={() => setToast(null)}>
-              ✕
-            </button>
+            <button className="toast-close" onClick={() => setToast(null)} aria-label="Cerrar aviso">✕</button>
           </div>
         </div>
       )}

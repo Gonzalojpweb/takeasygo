@@ -105,7 +105,7 @@ function assertReplay(
   }
 }
 
-export const GET = posRoute(async (ctx) => {
+export const GET = posRoute('cash.read', async (ctx) => {
   const { status, limit, sort } = readFilters(ctx.request.url)
 
   const query: Record<string, unknown> = {
@@ -126,7 +126,7 @@ export const GET = posRoute(async (ctx) => {
   })
 })
 
-export const POST = posRoute(async (ctx) => {
+export const POST = posRoute('cash.write', async (ctx) => {
   const body = await readPosBody(ctx.request)
   requireFields(body, ['id', 'initialAmount'])
 

@@ -18,7 +18,7 @@ import { posRoute } from '@/lib/pos-online/route'
 // `Order.menuVersion`.
 // ============================================================================
 
-export const GET = posRoute(async (ctx) => {
+export const GET = posRoute('catalog.read', async (ctx) => {
   const menus = (await Menu.find({
     tenantId: ctx.tenantId,
     locationId: ctx.locationId,

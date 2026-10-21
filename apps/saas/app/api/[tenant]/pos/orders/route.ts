@@ -131,7 +131,7 @@ function replayOrConflict(existing: PosOrderDoc, draft: SaasOrderDraft): NextRes
   return NextResponse.json({ order: toPosOrder(existing) }, { status: 200 })
 }
 
-export const GET = posRoute(async (ctx) => {
+export const GET = posRoute('orders.read', async (ctx) => {
   const { filter, limit } = readSearchFilters(ctx.request.url)
 
   const orders = await Order.find({
@@ -150,7 +150,7 @@ export const GET = posRoute(async (ctx) => {
   })
 })
 
-export const POST = posRoute(async (ctx) => {
+export const POST = posRoute('orders.write', async (ctx) => {
   const body = await readPosBody(ctx.request)
   requireFields(body, ['id', 'items'])
 

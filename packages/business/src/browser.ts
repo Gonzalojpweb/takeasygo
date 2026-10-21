@@ -11,7 +11,7 @@ export {
   encryptStore,
   decryptStore,
 } from "./crypto"
-export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "./role-mapping"
+export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "./role-mapping"
 export {
   TABLE_TRANSITIONS,
   ORDER_TRANSITIONS,

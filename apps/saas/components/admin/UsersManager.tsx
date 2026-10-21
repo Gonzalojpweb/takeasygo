@@ -26,8 +26,8 @@ interface Props {
 
 const EMPTY_FORM = { name: '', email: '', password: '', role: 'staff', assignedLocations: [] as string[] }
 
-/** Roles que operan el POS como terminal de caja (hub): pueden tener PIN. */
-const POS_PIN_ROLES = new Set(['admin', 'manager', 'cashier'])
+/** Roles que operan el POS (caja o celular del mozo): pueden tener PIN. */
+const POS_PIN_ROLES = new Set(['admin', 'manager', 'cashier', 'staff', 'waiter'])
 
 export default function UsersManager({ users, tenantSlug, tenantId, locations }: Props) {
   const [showForm, setShowForm] = useState(false)

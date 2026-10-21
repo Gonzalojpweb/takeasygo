@@ -67,7 +67,7 @@ async function saveItems(
   return updated as unknown as PosOrderDoc
 }
 
-export const PATCH = posRoute(async (ctx, { id, productId }) => {
+export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => {
   const pid = assertProductId(productId)
   const current = await findPosOrder(ctx, id)
   assertEditable(current.status)
@@ -109,7 +109,7 @@ export const PATCH = posRoute(async (ctx, { id, productId }) => {
   return NextResponse.json({ order: toPosOrder(saved) })
 })
 
-export const DELETE = posRoute(async (ctx, { id, productId }) => {
+export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) => {
   const pid = assertProductId(productId)
   const current = await findPosOrder(ctx, id)
   assertEditable(current.status)

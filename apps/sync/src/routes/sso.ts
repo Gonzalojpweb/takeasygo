@@ -33,6 +33,12 @@ export function ssoRouter(): Router {
   router.post("/sso-token", async (req, res) => {
     try {
       const auth = req.auth!
+      // "Ir al SaaS" es de la terminal de caja. Un token de celular (mozo,
+      // handheld) no puede canjearse por uno de hub: sería escalar dispositivo.
+      if (auth.deviceType !== "hub") {
+        res.status(403).json({ error: "Access denied", code: "DEVICE_NOT_ALLOWED" })
+        return
+      }
       const r = getRedis()
       const jti = randomUUID()
 

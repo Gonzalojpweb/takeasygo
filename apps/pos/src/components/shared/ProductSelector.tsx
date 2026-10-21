@@ -77,17 +77,19 @@ export function ProductSelector({
 
       <div className="product-grid overflow-auto flex-1">
         {filtered.map((product) => (
-          <div
+          <button
+            type="button"
             key={product.id}
             className="product-item"
             onClick={() => onSelectProduct(product)}
+            aria-label={`Agregar ${product.name}, ${formatCurrency(product.price)}`}
           >
             <span className="product-name">{product.name}</span>
             {product.description && (
               <span className="product-desc">{product.description}</span>
             )}
             <span className="product-price">{formatCurrency(product.price)}</span>
-          </div>
+          </button>
         ))}
 
         {filtered.length === 0 && (

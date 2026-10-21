@@ -1,10 +1,17 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useRef, type ReactNode } from "react"
 
 interface ContextPanelContent {
   title: string
   subtitle?: string
   body: ReactNode
   footer?: ReactNode
+  /**
+   * Celular: el Context Panel es una hoja inferior que muestra siempre su
+   * encabezado (la entidad nunca desaparece — Scene Architecture DD-004) y se
+   * despliega al tocarlo. `true` la abre al entrar a la escena (p. ej. al
+   * elegir una mesa). En desktop no tiene efecto.
+   */
+  openOnMobile?: boolean
 }
 
 interface ActionBarContent {
@@ -20,6 +27,9 @@ interface LayoutContextValue {
   setActionBar: (content: ActionBarContent | null) => void
   sidebarCollapsed: boolean
   toggleSidebar: () => void
+  /** Hoja del Context Panel desplegada (solo celular). */
+  panelOpen: boolean
+  setPanelOpen: (open: boolean) => void
 }
 
 const LayoutContext = createContext<LayoutContextValue>({
@@ -29,14 +39,26 @@ const LayoutContext = createContext<LayoutContextValue>({
   setActionBar: () => {},
   sidebarCollapsed: false,
   toggleSidebar: () => {},
+  panelOpen: false,
+  setPanelOpen: () => {},
 })
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
   const [contextPanel, setContextPanelState] = useState<ContextPanelContent | null>(null)
   const [actionBar, setActionBarState] = useState<ActionBarContent | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+
+  const panelTitleRef = useRef<string | null>(null)
 
   const setContextPanel = useCallback((content: ContextPanelContent | null) => {
+    // Otra entidad / escena ⇒ la hoja vuelve a su estado por defecto. El
+    // mismo título (re-render con datos frescos) no la cierra.
+    const title = content?.title ?? null
+    if (title !== panelTitleRef.current) {
+      panelTitleRef.current = title
+      setPanelOpen(Boolean(content?.openOnMobile))
+    }
     setContextPanelState(content)
   }, [])
 
@@ -49,7 +71,9 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <LayoutContext.Provider value={{ contextPanel, actionBar, setContextPanel, setActionBar, sidebarCollapsed, toggleSidebar }}>
+    <LayoutContext.Provider
+      value={{ contextPanel, actionBar, setContextPanel, setActionBar, sidebarCollapsed, toggleSidebar, panelOpen, setPanelOpen }}
+    >
       {children}
     </LayoutContext.Provider>
   )

@@ -137,6 +137,16 @@ describe("POST /auth/refresh", () => {
     expect(res.status).toBe(401)
   })
 
+  it("un mozo (handheld) refresca; un cajero degradado a mozo NO conserva el token de hub", async () => {
+    await UserModel.updateOne({ _id: userId }, { role: "staff" })
+    const waiterRes = await refresh(token({ role: "waiter", deviceType: "handheld" }))
+    expect(waiterRes.status).toBe(200)
+    expect((await waiterRes.json()).deviceType).toBe("handheld")
+
+    const hubRes = await refresh(token({ role: "cashier", deviceType: "hub" }))
+    expect(hubRes.status).toBe(403)
+  })
+
   it("sin token → 401", async () => {
     const res = await fetch(`${baseUrl}/auth/refresh`, { method: "POST" })
     expect(res.status).toBe(401)

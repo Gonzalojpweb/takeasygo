@@ -9,7 +9,8 @@
 
 export type Role = "admin" | "manager" | "cashier" | "waiter" | "kitchen"
 
-export type DeviceType = "hub" | "spoke"
+/** hub = terminal de caja · spoke = cliente pareado al hub (LAN) · handheld = celular del mozo (online). */
+export type DeviceType = "hub" | "spoke" | "handheld"
 
 export interface JwtPayload {
   sub: string

@@ -27,7 +27,7 @@ import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cash
 // en vivo; el número que entra al Z es el de la fuente de verdad.
 // ============================================================================
 
-export const POST = posRoute<{ tenant: string; id: string }>(async (ctx, params) => {
+export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async (ctx, params) => {
   const body = await readPosBody(ctx.request)
   requireFields(body, ['finalAmount'])
 

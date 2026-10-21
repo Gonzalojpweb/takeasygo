@@ -2,13 +2,14 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { resolvePosContext, type PosContext } from './tenantContext'
 import { PosError, toPosErrorResponse } from './errors'
+import { assertPosCapability, type PosCapability } from './permissions'
 
 // ============================================================================
 // posRoute — el wrapper de TODA la superficie /api/[tenant]/pos/*
 // ============================================================================
 // Encapsula el orden de operación y el contrato de errores en un solo lugar:
 //
-//   tenant → auth → sede → handler (body)     ← todo dentro de `try`
+//   tenant → auth → sede → ROL → handler (body)   ← todo dentro de `try`
 //                              └── cualquier throw → toPosErrorResponse()
 //
 // Así ninguna ruta de dinero puede "olvidarse" de un guard ni devolver un
@@ -18,6 +19,8 @@ import { PosError, toPosErrorResponse } from './errors'
 type RouteParams = Record<string, string>
 
 export function posRoute<T extends RouteParams = RouteParams>(
+  /** Capacidad mínima del rol (lib/pos-online/permissions.ts). Obligatoria. */
+  capability: PosCapability,
   handler: (ctx: PosContext, params: T) => Promise<NextResponse>
 ) {
   return async (
@@ -27,6 +30,8 @@ export function posRoute<T extends RouteParams = RouteParams>(
     try {
       const resolved = await params
       const ctx = await resolvePosContext(request, resolved.tenant)
+      // Antes del body: un rol sin permiso nunca recibe errores de validación.
+      assertPosCapability(ctx.user.role, capability)
       return await handler(ctx, resolved)
     } catch (error) {
       return toPosErrorResponse(error)

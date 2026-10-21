@@ -917,6 +917,7 @@ export function CounterDashboard() {
           title: `Mesa ${selectedTable.number}`,
           subtitle: selectedTable.section || "Sala Principal",
           body: <MesaContextPanel table={selectedTable} activity={activity} orders={tableOrders} now={now} />,
+          openOnMobile: true,
         })
         // Action Bar con slots fijos (Axioma 04): izquierda = entidad/total,
         // centro = secundarias, derecha = la ÚNICA acción principal.

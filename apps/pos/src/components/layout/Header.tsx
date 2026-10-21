@@ -20,9 +20,11 @@ interface HeaderProps {
   userName: string
   roleLabel: string
   contextTitle: string
+  /** "Ir al SaaS" solo en la terminal de caja (el Sync lo niega a celulares). */
+  showSaasLink?: boolean
 }
 
-export function Header({ tenantName, locationName, userName, roleLabel, contextTitle }: HeaderProps) {
+export function Header({ tenantName, locationName, userName, roleLabel, contextTitle, showSaasLink = true }: HeaderProps) {
   const { state, logout } = useAuth()
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
@@ -57,7 +59,17 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
 
   useEffect(() => {
     const socket = getSocket()
-    if (!socket) return
+    if (!socket) {
+      // Celular del mozo: sin socket. El estado es la conectividad del equipo.
+      const update = () => setConnected(navigator.onLine)
+      update()
+      window.addEventListener("online", update)
+      window.addEventListener("offline", update)
+      return () => {
+        window.removeEventListener("online", update)
+        window.removeEventListener("offline", update)
+      }
+    }
     setConnected(socket.connected)
     const onConnect = () => setConnected(true)
     const onDisconnect = () => setConnected(false)
@@ -128,16 +140,18 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
       </div>
 
       <div className="header-right">
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={handleGoToSaas}
-          disabled={ssoLoading}
-          title="Abrir el panel del SaaS"
-        >
-          <ExternalLink size={16} aria-hidden />
-          {ssoLoading ? "Abriendo…" : "Ir al SaaS"}
-        </button>
+        {showSaasLink && (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm header-saas-link"
+            onClick={handleGoToSaas}
+            disabled={ssoLoading}
+            title="Abrir el panel del SaaS"
+          >
+            <ExternalLink size={16} aria-hidden />
+            <span className="header-btn-label">{ssoLoading ? "Abriendo…" : "Ir al SaaS"}</span>
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-ghost btn-sm"
@@ -154,7 +168,7 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             onClick={() => { void unlockAudio() }}
             title="El navegador bloquea el sonido hasta que toques la pantalla"
           >
-            <VolumeX size={16} aria-hidden /> Activar sonido
+            <VolumeX size={16} aria-hidden /> <span className="header-btn-label">Activar sonido</span>
           </button>
         )}
         {sessionWarning && (
@@ -164,12 +178,12 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             onClick={() => { void logout() }}
             title="No se pudo renovar la sesión automáticamente"
           >
-            <AlertTriangle size={16} aria-hidden /> Sesión por vencer — reingresar
+            <AlertTriangle size={16} aria-hidden /> <span className="header-btn-label">Sesión por vencer — reingresar</span>
           </button>
         )}
         <div className={`sync-status ${connected ? "" : "disconnected"}`} role="status">
           {connected ? <Cloud size={14} aria-hidden /> : <CloudOff size={14} aria-hidden />}
-          <span>{connected ? "Online" : "Sin conexión"}</span>
+          <span className="header-btn-label">{connected ? "Online" : "Sin conexión"}</span>
         </div>
         <div className="header-clock-block">
           <div className="header-clock">

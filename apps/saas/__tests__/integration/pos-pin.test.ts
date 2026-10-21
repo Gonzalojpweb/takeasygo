@@ -93,9 +93,11 @@ describe('POST /users/[userId]/pos-pin', () => {
     expect(plain).not.toHaveProperty('posPinLookup')
   })
 
-  it('solo roles de caja (admin/manager/cashier)', async () => {
+  it('mozos (staff) también tienen PIN — POS mobile; roles sin POS no', async () => {
     const staff = await createUser('staff')
-    expect((await POST(req('POST'), params(staff._id.toString()))).status).toBe(400)
+    expect((await POST(req('POST'), params(staff._id.toString()))).status).toBe(201)
+    const auditor = await createUser('auditor')
+    expect((await POST(req('POST'), params(auditor._id.toString()))).status).toBe(400)
   })
 
   it('usuario de OTRO tenant → 404', async () => {

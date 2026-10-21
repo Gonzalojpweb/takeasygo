@@ -13,7 +13,7 @@ import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/
 // POST /api/[tenant]/pos/orders/[id]/items — agrega un item a la orden
 // ============================================================================
 
-export const POST = posRoute(async (ctx, { id }) => {
+export const POST = posRoute('orders.write', async (ctx, { id }) => {
   const current = await findPosOrder(ctx, id)
 
   if (!canEditOrderItems(current.status as OrderStatus)) {

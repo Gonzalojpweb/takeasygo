@@ -22,7 +22,10 @@ export function Navigation({ items, activeId, badges = {}, onSelect, onLogout }:
   const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   return (
-    <nav className={`navigation${sidebarCollapsed ? " collapsed" : ""}`} aria-label="Contextos operativos">
+    <nav
+      className={`navigation${sidebarCollapsed ? " collapsed" : ""}${items.length <= 1 ? " navigation--single" : ""}`}
+      aria-label="Contextos operativos"
+    >
       <button
         type="button"
         className="nav-toggle"

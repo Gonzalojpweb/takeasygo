@@ -9,6 +9,7 @@ import {
 import type { TableStatus } from '@takeasygo/types'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { assertPosCapability, tableStatusCapability } from '@/lib/pos-online/permissions'
 import { toPosTable, TABLE_STATUSES } from '@/lib/pos-online/tableMapper'
 import { findPosTable, assertTablePosId, type PosTableDoc } from '@/lib/pos-online/tableRepo'
 
@@ -56,12 +57,12 @@ async function assertCanRelease(
   }
 }
 
-export const GET = posRoute(async (ctx, { id }) => {
+export const GET = posRoute('tables.read', async (ctx, { id }) => {
   const table = await findPosTable(ctx, id)
   return NextResponse.json({ table: toPosTable(table) })
 })
 
-export const PATCH = posRoute(async (ctx, { id }) => {
+export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
   const body = await readPosBody(ctx.request)
   const posId = assertTablePosId(id)
 
@@ -84,6 +85,12 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     audit.serverId = update.serverId
   }
   if (body.currentOrderId !== undefined) {
+    // Re-vincular una mesa que ya tiene OTRA orden es una decisión del
+    // Counter (mover cuenta); el mozo solo vincula una mesa sin orden.
+    const bound = (current as { currentOrderId?: string | null }).currentOrderId
+    if (bound && body.currentOrderId !== bound) {
+      assertPosCapability(ctx.user.role, 'tables.manage')
+    }
     update.currentOrderId = assertOptionalString(body.currentOrderId, 'currentOrderId', 100)
     audit.currentOrderId = update.currentOrderId
   }
@@ -95,6 +102,8 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     }
     const from = current.status as TableStatus
     const to = body.status as TableStatus
+    // Mozo: ocupar o llamar al encargado. Liberar/reservar/cerrar = Counter.
+    assertPosCapability(ctx.user.role, tableStatusCapability(to))
 
     if (!isValidTableTransition(from, to)) {
       throw PosError.transition(from, to, allowedTableTransitions(from))

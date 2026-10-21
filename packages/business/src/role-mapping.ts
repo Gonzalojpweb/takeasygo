@@ -16,10 +16,23 @@ export const SAAS_TO_POS_ROLE: Record<string, string | null> = {
   cashier: "cashier",
   staff: "waiter",
   seller: "waiter",
+  // Rol SaaS `waiter` (y el rol POS ya traducido): sin esta entrada un token
+  // de mozo era 403 en todo el Sync.
+  waiter: "waiter",
   consumer: null,
 }
 
 export const VALID_DEVICE_ROLES: Record<string, string[]> = {
   hub: ["cashier", "manager", "admin"],
   spoke: ["waiter", "kitchen"],
+  // Celular personal del mozo (POS online, sin pairing al hub): comanda desde
+  // la mesa. Nunca entra a la sala `tenant:X:hub` del socket (caja).
+  handheld: ["waiter"],
+}
+
+/** Tipo de dispositivo del token según el rol POS (POS online). */
+export function deviceTypeForPosRole(posRole: string): "hub" | "handheld" | null {
+  if (VALID_DEVICE_ROLES.hub.includes(posRole)) return "hub"
+  if (VALID_DEVICE_ROLES.handheld.includes(posRole)) return "handheld"
+  return null
 }

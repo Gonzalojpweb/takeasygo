@@ -1,120 +1,87 @@
-import type { Table, KitchenCommand } from "@takeasygo/types"
-import { formatOrderStatus } from "../../utils/format"
+import type { Order, Table } from "@takeasygo/types"
+import { Clock, Users } from "lucide-react"
+import { formatCurrency } from "../../utils/format"
+import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
+import { MESA_STATUS_LABEL } from "../shared/MesaCard"
 
-interface WaiterContextPanelProps {
-  selectedTable: Table | null
-  mesaOrders: KitchenCommand[]
-  onTomarPedido: () => void
-  onCuenta: () => void
+// ============================================================================
+// Context Panel del mozo — Mesa seleccionada
+// ============================================================================
+// "Kitchen viene hacia él" (Waiter Experience v2): el estado de cada ronda
+// sale de las ÓRDENES de la mesa, que el polling sincroniza entre todos los
+// dispositivos. Antes leía las comandas locales del propio dispositivo: desde
+// el celular nunca se veían los cambios hechos en el Counter o en cocina.
+// Las acciones viven en la Action Bar (slot fijo), no acá.
+// ============================================================================
+
+const ROUND_LABEL: Record<string, string> = {
+  pending: "Sin enviar",
+  confirmed: "En cocina",
+  preparing: "Preparando",
+  ready: "Listo para servir",
+  requires_manual_attention: "Revisar",
 }
 
-export function WaiterContextPanel({
-  selectedTable,
-  mesaOrders,
-  onTomarPedido,
-  onCuenta,
-}: WaiterContextPanelProps) {
-  if (!selectedTable) {
-    return (
-      <div className="context-panel--empty" style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div className="context-panel-empty-state">
-          <span className="context-panel-empty-icon">◻</span>
-          <span className="context-panel-empty-text">Seleccioná una mesa</span>
-        </div>
-      </div>
-    )
-  }
+interface WaiterContextPanelProps {
+  table: Table
+  orders: Order[]
+  activity?: TableActivity
+  now: number
+}
+
+export function WaiterContextPanel({ table, orders, activity, now }: WaiterContextPanelProps) {
+  const sorted = [...orders].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Header */}
-      <div className="context-panel-header">
+    <div className="mesa-panel">
+      <div className="mesa-panel-status">
+        <span className={`status-pill status-pill--${table.status}`}>
+          {MESA_STATUS_LABEL[table.status] ?? table.status}
+        </span>
+        {table.needsBill && <span className="status-pill status-pill--bill">Cuenta pedida</span>}
+      </div>
+
+      <dl className="mesa-panel-facts">
         <div>
-          <div className="context-panel-title">Mesa {selectedTable.number}</div>
-          <div className="context-panel-subtitle">{selectedTable.section || "Salón"}</div>
+          <dt><Users size={14} aria-hidden /> Capacidad</dt>
+          <dd>{table.capacity} personas</dd>
         </div>
-        <div className="context-entity-icon" style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: "var(--primary-action)",
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 700,
-          fontSize: 14,
-        }}>
-          {selectedTable.number}
-        </div>
-      </div>
+        {activity && (
+          <div>
+            <dt><Clock size={14} aria-hidden /> Abierta hace</dt>
+            <dd>{formatElapsed(activity.openedAt, now)}</dd>
+          </div>
+        )}
+      </dl>
 
-      {/* Stats */}
-      <div style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}>
-        <div className="turno-stats" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-          <div className="turno-stat">
-            <div className="turno-stat-label">Capacidad</div>
-            <div className="turno-stat-num">{selectedTable.capacity}</div>
-          </div>
-          <div className="turno-stat">
-            <div className="turno-stat-label">Estado</div>
-            <div className="turno-stat-num" style={{ fontSize: 12, textTransform: "capitalize" }}>
-              {selectedTable.status === "needs_attention" ? "⚠ Atención" :
-               selectedTable.status === "occupied" ? "Ocupada" :
-               selectedTable.status === "reserved" ? "Reservada" : "Libre"}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Active orders */}
-      {mesaOrders.length > 0 && (
-        <div style={{ padding: "var(--sp-3)", borderBottom: "1px solid var(--border)" }}>
-          <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-            Pedidos activos
-          </div>
-          {mesaOrders.map((cmd) => (
-            <div key={cmd.id} style={{
-              padding: "var(--sp-2)",
-              background: "var(--surface-secondary)",
-              borderRadius: 6,
-              marginBottom: "var(--sp-2)",
-              border: cmd.delayed ? "1px solid var(--error)" : "1px solid var(--border)",
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: "var(--font-size-sm)" }}>Pedido #{cmd.id.slice(-4)}</span>
-                <span className={`status-badge ${cmd.status}`}>{formatOrderStatus(cmd.status)}</span>
-              </div>
-              {cmd.delayed && (
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--error)", fontWeight: 600 }}>
-                  ⚠ Demorado ({cmd.time || 0} min)
-                </div>
-              )}
-            </div>
+      {sorted.length === 0 ? (
+        <p className="text-sm text-muted">Sin pedidos. Tocá «Tomar pedido».</p>
+      ) : (
+        <div className="waiter-rounds">
+          {sorted.map((order, i) => (
+            <section key={order.id} className={`waiter-round waiter-round--${order.status}`}>
+              <header>
+                <span className="waiter-round-title">Ronda {i + 1}</span>
+                <span className="waiter-round-status">{ROUND_LABEL[order.status] ?? order.status}</span>
+              </header>
+              <ul>
+                {order.items.map((item, idx) => (
+                  <li key={`${item.productId}-${idx}`}>
+                    <span className="mesa-panel-qty">{item.quantity}</span>
+                    <span>{item.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
+          {activity && (
+            <div className="waiter-rounds-total">
+              <span>Consumo</span>
+              <strong>{formatCurrency(activity.total)}</strong>
+            </div>
+          )}
         </div>
       )}
-
-      {/* Quick actions */}
-      <div style={{ padding: "var(--sp-3)", marginTop: "auto" }}>
-        <div style={{ fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-          Acciones rápidas
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "var(--sp-2)" }}>
-          <button className="btn btn-primary btn-sm" onClick={onTomarPedido}>
-            ➕ Agregar
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={onCuenta}>
-            💵 Cuenta
-          </button>
-          <button className="btn btn-ghost btn-sm" disabled style={{ opacity: 0.5 }}>
-            📝 Nota
-          </button>
-          <button className="btn btn-ghost btn-sm" disabled style={{ opacity: 0.5 }}>
-            👨‍🍳 Encargado
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

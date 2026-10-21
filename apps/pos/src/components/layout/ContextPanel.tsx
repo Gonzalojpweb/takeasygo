@@ -1,4 +1,4 @@
-import { Inbox } from "lucide-react"
+import { Inbox, ChevronUp } from "lucide-react"
 import { useLayout } from "./LayoutContext"
 
 // ============================================================================
@@ -14,7 +14,7 @@ interface ContextPanelProps {
 }
 
 export function ContextPanel({ empty }: ContextPanelProps) {
-  const { contextPanel } = useLayout()
+  const { contextPanel, panelOpen, setPanelOpen } = useLayout()
 
   if (!contextPanel) {
     return (
@@ -31,15 +31,27 @@ export function ContextPanel({ empty }: ContextPanelProps) {
   }
 
   return (
-    <aside className="context-panel" aria-label={`Contexto activo: ${contextPanel.title}`}>
-      <div className="context-panel-header">
+    <aside
+      className={`context-panel${panelOpen ? " is-open" : ""}`}
+      aria-label={`Contexto activo: ${contextPanel.title}`}
+    >
+      {/* En celular el encabezado es el asa de la hoja inferior: siempre
+          visible (la entidad no desaparece) y despliega el detalle. En
+          desktop el botón es inerte visualmente (CSS) y el panel está abierto. */}
+      <button
+        type="button"
+        className="context-panel-header"
+        onClick={() => setPanelOpen(!panelOpen)}
+        aria-expanded={panelOpen}
+      >
         <div>
           <h2 className="context-panel-title">{contextPanel.title}</h2>
           {contextPanel.subtitle && (
             <div className="context-panel-subtitle">{contextPanel.subtitle}</div>
           )}
         </div>
-      </div>
+        <ChevronUp size={20} className="context-panel-chevron" aria-hidden />
+      </button>
       <div className="context-panel-body">{contextPanel.body}</div>
       {contextPanel.footer && (
         <div className="context-panel-footer">{contextPanel.footer}</div>

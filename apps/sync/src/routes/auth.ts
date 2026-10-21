@@ -2,7 +2,7 @@ import { Router } from "express"
 import type { Response } from "express"
 import mongoose from "mongoose"
 import { signJwt, HUB_TOKEN_TTL_MS, HUB_SESSION_MAX_AGE_MS } from "@takeasygo/business/jwt"
-import { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES } from "@takeasygo/business"
+import { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "@takeasygo/business"
 import { posPinLookup, resolvePosPinPepper } from "@takeasygo/business/pos-pin"
 import { config } from "../config"
 import { validate, loginSchema } from "../middleware/validation"
@@ -136,10 +136,11 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         return
       }
 
-      // Solo roles que pueden operar un hub (VALID_DEVICE_ROLES.hub): antes
-      // a staff/seller se les emitía un token que después daba 403 en todo.
+      // El rol decide el dispositivo: caja ⇒ hub, mozo ⇒ handheld (celular,
+      // POS mobile). Roles sin POS ⇒ 403 (antes se emitía un token inútil).
       const posRole = SAAS_TO_POS_ROLE[user.role]
-      if (!posRole || !VALID_DEVICE_ROLES.hub.includes(posRole)) {
+      const deviceType = posRole ? deviceTypeForPosRole(posRole) : null
+      if (!posRole || !deviceType) {
         res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
         return
       }
@@ -155,7 +156,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
           sub: user._id?.toString() ?? user.email,
           tenantId,
           role: posRole as Role,
-          deviceType: "hub",
+          deviceType,
           locationId,
           authTime: Math.floor(Date.now() / 1000),
         },
@@ -168,7 +169,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       res.json({
         accessToken: token,
         expiresAt: expSeconds,
-        deviceType: "hub",
+        deviceType,
         profile: await buildProfile(user.name, posRole, tenantId, locationId),
       })
       return
@@ -240,7 +241,8 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       }
 
       const posRole = SAAS_TO_POS_ROLE[user.role]
-      if (!posRole || !VALID_DEVICE_ROLES.hub.includes(posRole)) {
+      const deviceType = posRole ? deviceTypeForPosRole(posRole) : null
+      if (!posRole || !deviceType) {
         res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
         return
       }
@@ -255,7 +257,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
           sub: user._id?.toString() ?? user.email,
           tenantId,
           role: posRole as Role,
-          deviceType: "hub",
+          deviceType,
           locationId,
           authTime: Math.floor(Date.now() / 1000),
         },
@@ -268,7 +270,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       res.json({
         accessToken: token,
         expiresAt: expSeconds,
-        deviceType: "hub",
+        deviceType,
         profile: await buildProfile(user.name, posRole, tenantId, locationId),
       })
       return
@@ -375,7 +377,9 @@ logoutRouter.post("/refresh", async (req, res) => {
     }
 
     const posRole = SAAS_TO_POS_ROLE[user.role]
-    if (!posRole) {
+    // El rol actual tiene que seguir siendo válido para ESTE dispositivo: un
+    // cajero degradado a mozo no conserva un token de hub por refresh.
+    if (!posRole || !VALID_DEVICE_ROLES[auth.deviceType]?.includes(posRole)) {
       res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
       return
     }

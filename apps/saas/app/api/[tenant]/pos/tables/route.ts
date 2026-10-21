@@ -44,7 +44,7 @@ function isDuplicateKey(error: unknown, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(pattern, field)
 }
 
-export const GET = posRoute(async (ctx) => {
+export const GET = posRoute('tables.read', async (ctx) => {
   const filter = readListFilters(ctx.request.url)
 
   const tables = await Table.find({
@@ -62,7 +62,7 @@ export const GET = posRoute(async (ctx) => {
   })
 })
 
-export const POST = posRoute(async (ctx) => {
+export const POST = posRoute('tables.manage', async (ctx) => {
   const body = await readPosBody(ctx.request)
   requireFields(body, ['id', 'number', 'capacity'])
 

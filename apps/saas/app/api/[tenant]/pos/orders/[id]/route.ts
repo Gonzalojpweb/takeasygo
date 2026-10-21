@@ -5,6 +5,7 @@ import Table from '@/models/Table'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { assertPosCapability, orderStatusCapability } from '@/lib/pos-online/permissions'
 import { isValidOrderTransition, allowedOrderTransitions } from '@takeasygo/business'
 import { toPosOrder, type PosOrderStatusValue } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
@@ -61,12 +62,12 @@ function statusTimestampsFor(to: PosOrderStatusValue): Record<string, unknown> {
   }
 }
 
-export const GET = posRoute(async (ctx, { id }) => {
+export const GET = posRoute('orders.read', async (ctx, { id }) => {
   const order = await findPosOrder(ctx, id)
   return NextResponse.json({ order: toPosOrder(order) })
 })
 
-export const PATCH = posRoute(async (ctx, { id }) => {
+export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
   const body = await readPosBody(ctx.request)
   const posId = assertPosId(id)
 
@@ -99,6 +100,8 @@ export const PATCH = posRoute(async (ctx, { id }) => {
     }
     from = current.status as PosOrderStatusValue
     to = nextStatus as PosOrderStatusValue
+    // El mozo solo manda a cocina; preparar/entregar/cancelar es del Counter.
+    assertPosCapability(ctx.user.role, orderStatusCapability(to))
 
     if (!isValidOrderTransition(from, to)) {
       // El POS no reimplementa el grafo: recibe los destinos legales.

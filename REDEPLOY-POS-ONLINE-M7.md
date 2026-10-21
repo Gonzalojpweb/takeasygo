@@ -136,6 +136,12 @@ VITE_SAAS_URL=https://www.takeasygo.com
 
 El commit de la actualización de UI del ROS (Design System) también toca el **Sync**: login y refresh devuelven `profile` (nombre, rol, local, sede) para el Header del POS. Se despliega con los mismos pasos 1–3 (no hay variables nuevas). Si el POS se publica antes que el Sync, el Header muestra valores genéricos ("Operador"), sin romper nada.
 
+## Nota — POS mobile y mozos (mismo despliegue)
+
+La versión mobile también toca **Sync** (token `handheld` para mozos, SSO solo desde caja) y **SaaS** (permisos por rol en `/pos/*`, PIN para Staff). Mismos pasos 1–3, sin variables nuevas. **Desplegá Sync y SaaS juntos**: con el SaaS nuevo y el Sync viejo, el mozo no puede entrar (el Sync viejo rechaza al staff); con el Sync nuevo y el SaaS viejo, el mozo entra pero las rutas no controlan su rol.
+
+Verificación extra (paso 4): en SaaS → Usuarios, a un Staff → **Generar PIN**; en un celular abrir `pos.takeasygo.com`, entrar con ese PIN, tomar pedido en una mesa y **Enviar a cocina**; en el Counter la mesa aparece ocupada con la ronda.
+
 ---
 
 ## Rollback

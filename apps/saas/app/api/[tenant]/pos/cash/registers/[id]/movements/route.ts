@@ -104,7 +104,7 @@ async function respond(
   )
 }
 
-export const POST = posRoute<{ tenant: string; id: string }>(async (ctx, params) => {
+export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async (ctx, params) => {
   const body = await readPosBody(ctx.request)
   requireFields(body, ['id', 'type', 'amount', 'reason', 'channel', 'paymentMethod'])
 

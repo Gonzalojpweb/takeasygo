@@ -1106,6 +1106,7 @@ button.mesa { font: inherit; padding: 0; }
   transition: all var(--transition-fast);
 }
 .product-item:hover { border-color: var(--primary-action); box-shadow: var(--depth-1); }
+button.product-item { font: inherit; text-align: left; width: 100%; }
 .product-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
 .product-price { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--primary-action); }
 .product-desc { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
@@ -1974,3 +1975,147 @@ button.mesa { font: inherit; padding: 0; }
 .mesa-panel-items li { display: grid; grid-template-columns: 24px 1fr auto; gap: var(--sp-2); font-size: var(--font-size-sm); }
 .mesa-panel-qty { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .mesa-panel-price { font-variant-numeric: tabular-nums; }
+
+/* ========================================
+   SALÓN DEL MOZO — rondas y estado de cocina
+   ======================================== */
+.workspace-scene { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.waiter-rounds { display: flex; flex-direction: column; gap: var(--sp-3); }
+.waiter-round {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-3);
+  background: var(--surface); text-align: left; width: 100%;
+}
+.waiter-round header { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); }
+.waiter-round-title { font-weight: var(--font-weight-semibold); }
+.waiter-round-status {
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold);
+  padding: 2px 10px; border-radius: 999px; background: var(--surface-secondary); color: var(--text-primary);
+}
+.waiter-round--ready { border: 2px solid var(--success); }
+.waiter-round--ready .waiter-round-status { background: var(--success-light); color: #2F5E35; }
+.waiter-round--pending .waiter-round-status { background: var(--warning-light); color: #7A5200; }
+.waiter-round ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: var(--font-size-sm); }
+.waiter-round li { display: grid; grid-template-columns: 24px 1fr; gap: var(--sp-2); }
+.waiter-rounds-total { display: flex; justify-content: space-between; padding-top: var(--sp-2); border-top: 1px solid var(--border); }
+.kitchen-rounds { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-3); }
+.kitchen-round { min-height: 44px; }
+
+/* Context Panel: en desktop el encabezado es un botón inerte (siempre abierto). */
+button.context-panel-header { width: 100%; background: none; text-align: left; cursor: default; }
+.context-panel-chevron { display: none; }
+
+/* Touch: categorías y productos con target ≥ 44 px */
+.category-tab { min-height: 44px; }
+
+/* ========================================
+   MOBILE — celular (≤ 768 px). La misma arquitectura de 5 regiones,
+   reacomodada (Workspace Model §10: el dispositivo adapta, nunca inventa):
+     Header compacto · Workspace · Context Panel como hoja inferior
+     (encabezado siempre visible) · Action Bar · Navegación inferior.
+   ======================================== */
+@media (max-width: 768px) {
+  :root { --header-height: 56px; }
+
+  .ros-app,
+  .ros-app.sidebar-collapsed {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--header-height) minmax(0, 1fr) auto auto auto;
+    grid-template-areas:
+      "header"
+      "workspace"
+      "context"
+      "action"
+      "nav";
+    height: 100dvh;
+  }
+
+  /* Header: marca + estado + usuario. El contexto lo dice la navegación. */
+  .header { padding: 0 var(--sp-3); padding-top: env(safe-area-inset-top); gap: var(--sp-2); }
+  .header-center, .header-clock-block, .header-user-text, .brand-location, .header-saas-link { display: none; }
+  .header-left { flex: 1 1 auto; min-width: 0; }
+  .header-right { flex: 0 0 auto; gap: var(--sp-1); }
+  .header-btn-label { display: none; }
+  .sync-status { padding: var(--sp-1); }
+
+  /* Navegación inferior (tab bar). Un solo contexto (mozo) ⇒ no se muestra. */
+  .navigation,
+  .navigation.collapsed {
+    grid-area: nav;
+    width: 100%;
+    flex-direction: row;
+    padding: 0 0 env(safe-area-inset-bottom);
+    border-right: none;
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+  .navigation--single { display: none; }
+  .navigation .nav-toggle, .navigation .nav-label, .navigation .nav-spacer { display: none; }
+  .navigation .nav-list, .navigation.collapsed .nav-list { flex-direction: row; flex: 1; gap: 0; padding: 0; }
+  .navigation .nav-list li { flex: 1; }
+  .navigation button.nav-item,
+  .navigation.collapsed button.nav-item {
+    width: 100%; margin: 0; border-radius: 0;
+    flex-direction: column; justify-content: center; gap: 2px;
+    min-height: 56px; padding: var(--sp-1) 0; font-size: 11px; text-align: center;
+  }
+  .navigation > button.nav-item { width: auto; flex: 0 0 64px; }
+  .navigation .nav-item-badge { position: absolute; top: 4px; right: calc(50% - 22px); margin-left: 0; font-size: 9px; padding: 1px 5px; }
+
+  /* Context Panel = hoja inferior: encabezado siempre visible, detalle al tocarlo. */
+  .context-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.06);
+    border-radius: 16px 16px 0 0;
+    max-height: 64px;
+    transition: max-height var(--transition-normal);
+  }
+  .context-panel.is-open { max-height: 62dvh; }
+  .context-panel--empty { display: none; }
+  button.context-panel-header { cursor: pointer; min-height: 64px; padding: var(--sp-3) var(--sp-4); }
+  .context-panel-chevron { display: block; color: var(--text-secondary); transition: transform var(--transition-normal); flex-shrink: 0; }
+  .context-panel.is-open .context-panel-chevron { transform: rotate(180deg); }
+  .context-panel-title { font-size: var(--font-size-base); }
+
+  /* Action Bar: secundarias arriba (scroll horizontal), total + principal abajo. */
+  .action-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "center center" "left right";
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    min-height: 0;
+  }
+  .action-bar--empty { display: none; }
+  .action-bar-left { grid-area: left; }
+  .action-bar-right { grid-area: right; }
+  .action-bar-center { grid-area: center; justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; }
+  .action-bar-center:empty { display: none; }
+  .action-bar-total-value { font-size: var(--font-size-lg); }
+  .action-bar .btn-lg { min-height: 48px; padding: var(--sp-2) var(--sp-4); font-size: var(--font-size-base); }
+
+  /* Workspace */
+  .workspace-header { padding: var(--sp-3) var(--sp-4); }
+  .workspace-title { font-size: var(--font-size-base); }
+  .workspace-views { padding: 0 var(--sp-2); overflow-x: auto; }
+  .view-tab { white-space: nowrap; padding: var(--sp-3); }
+  .salon-content { padding: var(--sp-3); }
+  .salon-filters { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; }
+  .salon-filter { flex-shrink: 0; }
+  .salon-map-container { padding: var(--sp-3); }
+  .sector { margin-bottom: var(--sp-5); }
+  .sector-grid { gap: 12px; }
+  .mesa { width: 76px; height: 76px; }
+  .mesa-number { font-size: 18px; }
+  .salon-footer { display: none; }
+
+  .category-tabs { padding: var(--sp-3) var(--sp-3) 0; }
+  .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); padding: var(--sp-3); }
+  .product-item { min-height: 72px; }
+
+  .kitchen-rounds { grid-template-columns: 1fr; }
+  /* Carrito: +/−/quitar con el dedo (W0S §10, ≥ 44 px). */
+  .order-item-qty button, .order-item-actions button { min-width: 44px; min-height: 44px; }
+  .toast-container { top: auto; bottom: calc(var(--sp-3) + 140px); left: var(--sp-3); right: var(--sp-3); }
+}
