@@ -1,9 +1,20 @@
 const SYNC_URL = import.meta.env.VITE_SYNC_URL;
 
+/** Identidad para el Header (ROS W0S §2). La autorización sigue en el JWT. */
+export interface SessionProfile {
+  userName: string
+  /** Rol POS: admin | manager | cashier */
+  role: string
+  tenantName: string
+  locationName: string | null
+}
+
 export interface LoginResponse {
   accessToken: string
   expiresAt: number
   deviceType: "hub"
+  /** Ausente si el Sync es anterior al ROS v2 (el Header cae a valores genéricos). */
+  profile?: SessionProfile
 }
 
 export interface PosLocation {

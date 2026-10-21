@@ -1,31 +1,40 @@
+import { Inbox } from "lucide-react"
 import { useLayout } from "./LayoutContext"
 
-export function ContextPanel() {
+// ============================================================================
+// Context Panel — "¿Sobre qué estoy trabajando?" (W0S §5)
+// ============================================================================
+// Nunca desaparece. Sin entidad activa muestra el estado vacío DEL CONTEXTO
+// actual (lo define components/layout/contexts.ts): antes decía "Seleccioná
+// una mesa" también en Caja, Ventas y Flota.
+// ============================================================================
+
+interface ContextPanelProps {
+  empty: { title: string; hint: string }
+}
+
+export function ContextPanel({ empty }: ContextPanelProps) {
   const { contextPanel } = useLayout()
 
   if (!contextPanel) {
     return (
-      <aside className="context-panel context-panel--empty">
+      <aside className="context-panel context-panel--empty" aria-label="Contexto activo">
         <div className="context-panel-empty-state">
-          <div style={{ fontSize: '40px', marginBottom: '8px', opacity: 0.3 }}>🍽</div>
-          <span className="context-panel-empty-text" style={{ fontWeight: 500, color: 'var(--text-secondary)' }}>
-            Seleccioná una mesa
+          <span className="context-panel-empty-icon" aria-hidden>
+            <Inbox size={32} />
           </span>
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginTop: '4px', textAlign: 'center', lineHeight: 1.5 }}>
-            Tocá una mesa del mapa para ver su detalle y gestionar el pedido
-          </span>
+          <span className="context-panel-empty-text">{empty.title}</span>
+          <span className="context-panel-empty-hint">{empty.hint}</span>
         </div>
       </aside>
     )
   }
 
   return (
-    <aside className="context-panel">
+    <aside className="context-panel" aria-label={`Contexto activo: ${contextPanel.title}`}>
       <div className="context-panel-header">
         <div>
-          <div className="context-panel-title" style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, color: 'var(--brand-orange)' }}>
-            {contextPanel.title}
-          </div>
+          <h2 className="context-panel-title">{contextPanel.title}</h2>
           {contextPanel.subtitle && (
             <div className="context-panel-subtitle">{contextPanel.subtitle}</div>
           )}

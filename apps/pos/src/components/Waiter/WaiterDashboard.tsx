@@ -13,6 +13,9 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { WaiterStats } from "./WaiterStats"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
+import { useTableActivity } from "../../hooks/useTableActivity"
+import { useAuth } from "../../hooks/useAuth"
+import { ChefHat } from "lucide-react"
 import { MesaDetailPanel } from "./MesaDetailPanel"
 import { WaiterContextPanel } from "./WaiterContextPanel"
 import { formatCurrency } from "../../utils/format"
@@ -35,6 +38,8 @@ export function WaiterDashboard() {
 
   const { setContextPanel, setActionBar } = useLayout()
   const { tables, markNeedsBill, occupyTable, bindTableOrder } = useTables()
+  const { state: authState } = useAuth()
+  const tableActivity = useTableActivity(authState.status === "authenticated" ? authState.tenantId : undefined)
   const { createOrder, confirmOrder } = useOrders()
   const { products, categories } = useMenu()
   const { commands, pendingCommands, startPreparing, markReady, confirmAndSendToKitchen } = useKitchenCommands()
@@ -408,7 +413,7 @@ export function WaiterDashboard() {
       case "cierre":
         setContextPanel(null)
         setActionBar({
-          center: (
+          right: (
             <button className="btn btn-primary" onClick={handleNewSale}>
               Volver al turno
             </button>
@@ -430,7 +435,7 @@ export function WaiterDashboard() {
             </div>
             <div className="workspace-actions">
               <button className="btn btn-ghost btn-sm" onClick={() => setScene("cocina")}>
-                🍳 Cocina
+                <ChefHat size={16} aria-hidden /> Cocina
                 {pendingCommands.length > 0 && (
                   <span className="nav-item-badge">{pendingCommands.length}</span>
                 )}
@@ -439,7 +444,12 @@ export function WaiterDashboard() {
           </div>
           <div className="salon-content">
             <WaiterStats tables={tables} kitchenCommands={commands} />
-            <WaiterSectorGrid tables={tables} onSelectTable={handleSelectTable} />
+            <WaiterSectorGrid
+              tables={tables}
+              activity={tableActivity}
+              selectedTableId={selectedTableId}
+              onSelectTable={handleSelectTable}
+            />
           </div>
         </>
       )}
@@ -679,7 +689,7 @@ export function WaiterDashboard() {
                         type="checkbox"
                         checked={deliveryChecked[item.productId] ?? true}
                         onChange={() => handleToggleDelivery(item.productId)}
-                        style={{ width: 16, height: 16, accentColor: "var(--brand-orange)" }}
+                        style={{ width: 16, height: 16, accentColor: "var(--primary-action)" }}
                       />
                       <span>{item.quantity}× {item.name}</span>
                     </label>
@@ -749,7 +759,7 @@ export function WaiterDashboard() {
                 justifyContent: "space-between",
               }}>
                 <span style={{ fontSize: 14, fontWeight: 600 }}>Total</span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--brand-orange)" }}>
+                <span style={{ fontSize: 20, fontWeight: 600, color: "var(--primary-action)" }}>
                   {formatCurrency(cartTotal)}
                 </span>
               </div>

@@ -14,7 +14,10 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
-import { MesaCard } from "../shared/MesaCard"
+import { SalonMap } from "../shared/SalonMap"
+import { MesaContextPanel } from "./MesaContextPanel"
+import { useTableActivity } from "../../hooks/useTableActivity"
+import { useNow } from "../../hooks/useNow"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency, timeAgo } from "../../utils/format"
@@ -38,7 +41,7 @@ import { SocketStatus } from "../IncomingOrders/SocketStatus"
 import type { FilterOption } from "../IncomingOrders/GatewayFilters"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
-type Scene = "salon" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
+type Scene = "salon" | "mesa" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
 type GatewayScene = "queue" | "validation" | "transform"
 
@@ -123,7 +126,9 @@ export function CounterDashboard() {
   }, [])
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables, occupyTable, freeTable, occupyTableForLoading, bindTableOrder } = useTables()
+  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, bindTableOrder } = useTables()
+  const tableActivity = useTableActivity(tenantId)
+  const now = useNow()
   const { products, categories } = useMenu()
   const { processPayment } = usePayments()
   const { createOrder, confirmOrder } = useOrders()
@@ -571,8 +576,23 @@ export function CounterDashboard() {
       maybeOccupyForLoading(tableId)
     }
     setSelectedTableId(tableId)
-    setScene("productos")
+    // Escena "Mesa seleccionada" (Scene Architecture §13): primero se ve la
+    // mesa y su cuenta; agregar productos es una decisión. Si el carrito ya
+    // viaja de otra mesa, se sigue cargando.
+    setScene(cart.length > 0 ? "productos" : "mesa")
   }, [selectedTableId, cart.length, maybeFreeDraft, maybeOccupyForLoading])
+
+  /** Reservar / liberar desde la escena de mesa. El server valida la transición. */
+  const handleTableTransition = useCallback(async (kind: "reserve" | "free") => {
+    if (!selectedTableId) return
+    try {
+      if (kind === "reserve") await reserveTable(selectedTableId)
+      else await freeTable(selectedTableId)
+      showToast(kind === "reserve" ? "Mesa reservada" : "Mesa liberada", "success")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo cambiar el estado de la mesa"), "error")
+    }
+  }, [selectedTableId, reserveTable, freeTable, showToast])
 
   const handleAddProduct = useCallback((product: Product) => {
     const hasModifiers = product.modifiers && product.modifiers.length > 0
@@ -884,6 +904,64 @@ export function CounterDashboard() {
         setActionBar(null)
         break
 
+      case "mesa": {
+        if (!selectedTable) {
+          setContextPanel(null)
+          setActionBar(null)
+          break
+        }
+        const activity = tableActivity.get(selectedTable.id)
+        const unpaid = activity?.unpaid ?? 0
+        const canRelease = !activity && (selectedTable.status === "reserved" || selectedTable.status === "occupied")
+        setContextPanel({
+          title: `Mesa ${selectedTable.number}`,
+          subtitle: selectedTable.section || "Sala Principal",
+          body: <MesaContextPanel table={selectedTable} activity={activity} orders={tableOrders} now={now} />,
+        })
+        // Action Bar con slots fijos (Axioma 04): izquierda = entidad/total,
+        // centro = secundarias, derecha = la ÚNICA acción principal.
+        setActionBar({
+          left: (
+            <div className="action-bar-total">
+              <span className="action-bar-total-label">Cuenta Mesa {selectedTable.number}</span>
+              <span className="action-bar-total-value">{formatCurrency(activity?.total ?? 0)}</span>
+            </div>
+          ),
+          center: (
+            <>
+              <button className="btn btn-ghost" onClick={() => { setSelectedTableId(null); setScene("salon") }}>
+                ← Salón
+              </button>
+              {unpaid > 0 && (
+                <button className="btn btn-secondary" onClick={() => setScene("productos")}>
+                  + Agregar productos
+                </button>
+              )}
+              {selectedTable.status === "free" && (
+                <button className="btn btn-secondary" onClick={() => handleTableTransition("reserve")}>
+                  Reservar
+                </button>
+              )}
+              {canRelease && (
+                <button className="btn btn-secondary" onClick={() => handleTableTransition("free")}>
+                  Liberar mesa
+                </button>
+              )}
+            </>
+          ),
+          right: unpaid > 0 ? (
+            <button className="btn btn-primary btn-lg" onClick={() => setScene("cobro")}>
+              Cobrar {formatCurrency(unpaid)}
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-lg" onClick={() => setScene("productos")}>
+              + Agregar productos
+            </button>
+          ),
+        })
+        break
+      }
+
       case "productos":
       case "mostrador_rapido": {
         // Salón (productos) y Mostrador (mostrador_rapido) comparten panel:
@@ -929,8 +1007,8 @@ export function CounterDashboard() {
         })
         setActionBar({
           left: isMostrador ? undefined : (
-            <button className="btn btn-ghost" onClick={() => setScene("salon")}>
-              ← Volver
+            <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "salon" : "mesa")}>
+              ← {cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`}
             </button>
           ),
           right: (
@@ -1010,14 +1088,15 @@ export function CounterDashboard() {
         })
         setActionBar({
           left: (
+            <div className="action-bar-total">
+              <span className="action-bar-total-label">Total a cobrar</span>
+              <span className="action-bar-total-value">{formatCurrency(chargeTotal)}</span>
+            </div>
+          ),
+          center: (
             <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "revision" : view === "mostrador" ? "mostrador_rapido" : "productos")} disabled={paying}>
               ← Volver
             </button>
-          ),
-          center: (
-            <span style={{ fontSize: "var(--font-size-xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
-              {formatCurrency(chargeTotal)}
-            </span>
           ),
         })
         break
@@ -1221,7 +1300,7 @@ export function CounterDashboard() {
                              selectedKanbanOrder.status === "preparing" ? "var(--warning)" :
                              selectedKanbanOrder.status === "ready" ? "var(--success)" :
                              selectedKanbanOrder.status === "en_ruta" ? "var(--info)" :
-                             selectedKanbanOrder.status === "arrived" ? "var(--brand-orange)" : "var(--text-muted)",
+                             selectedKanbanOrder.status === "arrived" ? "var(--primary-action)" : "var(--text-muted)",
                     }}>
                       {selectedKanbanOrder.status === "confirmed" && "Por preparar"}
                       {selectedKanbanOrder.status === "preparing" && "Preparando"}
@@ -1331,7 +1410,7 @@ export function CounterDashboard() {
                       <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                         Llegaron
                       </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
                         {arrivedCount}
                       </div>
                     </div>
@@ -1353,7 +1432,7 @@ export function CounterDashboard() {
               <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
                 Total cobrado
               </div>
-              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+              <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
                 {formatCurrency(lastSale?.total ?? 0)}
               </div>
               {lastSale?.sentToKitchen && (
@@ -1375,7 +1454,7 @@ export function CounterDashboard() {
           ),
         })
         setActionBar({
-          center: (
+          right: (
             <button className="btn btn-primary" onClick={handleNewSale}>
               Nueva venta
             </button>
@@ -1383,7 +1462,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1409,7 +1488,7 @@ export function CounterDashboard() {
             />
           )}
 
-          {scene === "salon" && (
+          {(scene === "salon" || scene === "mesa") && (
             <>
               <div className="workspace-header">
                 <div>
@@ -1439,65 +1518,13 @@ export function CounterDashboard() {
                   </div>
                 ) : (
                   <>
-                    <div className="salon-map-container">
-                      {[...new Set(tables.map((t) => t.section || "Sala Principal"))].map(
-                        (section) => (
-                          <div key={section} className="sector">
-                            <div className="sector-header">{section}</div>
-                            <div className="sector-grid">
-                              {tables
-                                .filter((t) => (t.section || "Sala Principal") === section)
-                                .map((table) => (
-                                  <MesaCard
-                                    key={table.id}
-                                    table={table}
-                                    variant="counter"
-                                    onClick={handleSelectTable}
-                                    isSelected={selectedTableId === table.id}
-                                  />
-                                ))}
-                            </div>
-                          </div>
-                        )
-                      )}
-                    </div>
-
-                    <div className="salon-footer">
-                      <div className="salon-footer-stats">
-                        <div className="salon-stat">
-                          <div className="salon-stat-count">
-                            <span className="salon-stat-dot" style={{ background: "#91C788" }} />
-                            {tables.filter((t) => t.status === "free").length}
-                          </div>
-                          <div className="salon-stat-label">Libres</div>
-                        </div>
-                        <div className="salon-stat">
-                          <div className="salon-stat-count">
-                            <span className="salon-stat-dot" style={{ background: "#F69947" }} />
-                            {tables.filter((t) => t.status === "occupied").length}
-                          </div>
-                          <div className="salon-stat-label">Ocupadas</div>
-                        </div>
-                        <div className="salon-stat">
-                          <div className="salon-stat-count">
-                            <span className="salon-stat-dot" style={{ background: "#DE675A" }} />
-                            {tables.filter((t) => t.status === "needs_attention").length}
-                          </div>
-                          <div className="salon-stat-label">Atención</div>
-                        </div>
-                        <div className="salon-stat">
-                          <div className="salon-stat-count">
-                            <span className="salon-stat-dot" style={{ background: "#7BA2E2" }} />
-                            {tables.filter((t) => t.status === "reserved").length}
-                          </div>
-                          <div className="salon-stat-label">Reservadas</div>
-                        </div>
-                      </div>
-                      <div className="salon-total">
-                        <div className="salon-total-label">Total mesas</div>
-                        <div className="salon-total-count">{tables.length}</div>
-                      </div>
-                    </div>
+                    <SalonMap
+                      tables={tables}
+                      variant="counter"
+                      activity={tableActivity}
+                      selectedTableId={selectedTableId}
+                      onSelectTable={handleSelectTable}
+                    />
                   </>
                 )}
               </div>
@@ -2014,8 +2041,8 @@ export function CounterDashboard() {
                       }}>
                         <span>Llegaron</span>
                         <span style={{
-                          background: "var(--brand-orange-bg, #fff3e0)",
-                          color: "var(--brand-orange)",
+                          background: "var(--primary-action-light)",
+                          color: "var(--primary-action)",
                           padding: "2px 8px",
                           borderRadius: 12,
                           fontSize: "var(--font-size-xs)"
@@ -2243,19 +2270,6 @@ interface KanbanOrderCardProps {
   onDeliver?: (orderId: string) => void
 }
 
-/**
- * Reloj para las tarjetas: Date.now() en render es impuro (React lo marca y
- * la antigüedad quedaba congelada hasta el próximo re-render). Se refresca
- * cada 30 s.
- */
-function useNow(intervalMs = 30_000): number {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), intervalMs)
-    return () => clearInterval(id)
-  }, [intervalMs])
-  return now
-}
 
 function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
   const isDelivery = order.source === "delivery"
@@ -2312,7 +2326,7 @@ function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, 
                        order.status === "preparing" ? "var(--warning)" :
                        order.status === "ready" ? "var(--success)" :
                        order.status === "en_ruta" ? "var(--info)" :
-                       order.status === "arrived" ? "var(--brand-orange)" : "var(--text-muted)",
+                       order.status === "arrived" ? "var(--primary-action)" : "var(--text-muted)",
                 fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.5px",

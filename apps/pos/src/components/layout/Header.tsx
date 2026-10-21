@@ -1,16 +1,28 @@
 import { useState, useEffect, useCallback } from "react"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, RefreshCw, VolumeX, AlertTriangle, MapPin, Cloud, CloudOff } from "lucide-react"
 import { getSocket } from "../../services/socket-client"
 import { useAuth } from "../../hooks/useAuth"
 import { requestSsoToken } from "../../services/sso"
 import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
 
+// ============================================================================
+// Header — identidad permanente: ¿dónde estoy? (W0S §2, VLS §3)
+// ============================================================================
+// Izquierda: marca + local + sede. Centro: contexto activo. Derecha: estado
+// (conexión, sonido, sesión), reloj y usuario con su rol. Nunca contiene
+// acciones operativas: "Ir al SaaS" y "Refrescar" son de sistema.
+// Antes el centro mostraba el ObjectId del tenant y el usuario era "Operador".
+// ============================================================================
+
 interface HeaderProps {
   tenantName: string
+  locationName?: string | null
   userName: string
+  roleLabel: string
+  contextTitle: string
 }
 
-export function Header({ tenantName, userName }: HeaderProps) {
+export function Header({ tenantName, locationName, userName, roleLabel, contextTitle }: HeaderProps) {
   const { state, logout } = useAuth()
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
@@ -87,8 +99,9 @@ export function Header({ tenantName, userName }: HeaderProps) {
     }
   }, [state.status, state.jwt])
 
-  const initials = userName
+  const initials = (userName || "?")
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .slice(0, 2)
@@ -96,73 +109,82 @@ export function Header({ tenantName, userName }: HeaderProps) {
 
   return (
     <header className="header">
-      {/* Izquierda: Brand */}
-      <div className="header-left" style={{ flex: 1 }}>
+      <div className="header-left">
         <div className="brand">
-          <div className="brand-icon" style={{ borderRadius: '12px 12px 12px 0', fontSize: '15px' }}>🔥</div>
-          <span style={{ fontSize: 'var(--font-size-base)', fontWeight: 600 }}>TakeasyGO</span>
+          <div className="brand-icon" aria-hidden>T</div>
+          <div className="brand-text">
+            <span className="brand-tenant">{tenantName || "TakeasyGO"}</span>
+            {locationName && (
+              <span className="brand-location">
+                <MapPin size={12} aria-hidden /> {locationName}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Centro: Nombre tenant */}
-      <div style={{ flex: 1, textAlign: 'center', fontSize: 'var(--font-size-lg)', fontWeight: 600, color: 'var(--text-primary)' }}>
-        {tenantName}
+      <div className="header-center">
+        <h1 className="header-context-title">{contextTitle}</h1>
       </div>
 
-      {/* Derecha: Acciones + Estado */}
-      <div className="header-right" style={{ flex: 1, justifyContent: 'flex-end' }}>
+      <div className="header-right">
         <button
+          type="button"
           className="btn btn-ghost btn-sm"
           onClick={handleGoToSaas}
           disabled={ssoLoading}
-          title="Ir al SaaS"
-          style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px', display: 'flex', alignItems: 'center', gap: '4px', opacity: ssoLoading ? 0.6 : 1 }}
+          title="Abrir el panel del SaaS"
         >
-          <ExternalLink size={14} />
-          {ssoLoading ? 'Abriendo...' : 'Ir al SaaS'}
+          <ExternalLink size={16} aria-hidden />
+          {ssoLoading ? "Abriendo…" : "Ir al SaaS"}
         </button>
         <button
+          type="button"
           className="btn btn-ghost btn-sm"
           onClick={() => window.location.reload()}
+          aria-label="Refrescar POS"
           title="Refrescar POS"
-          style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px' }}
         >
-          ↻ Refrescar
+          <RefreshCw size={16} aria-hidden />
         </button>
         {!audioReady && (
           <button
+            type="button"
             className="btn btn-ghost btn-sm"
             onClick={() => { void unlockAudio() }}
             title="El navegador bloquea el sonido hasta que toques la pantalla"
-            style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px' }}
           >
-            🔇 Activar sonido
+            <VolumeX size={16} aria-hidden /> Activar sonido
           </button>
         )}
         {sessionWarning && (
           <button
-            className="btn btn-sm"
+            type="button"
+            className="btn btn-sm header-session-warning"
             onClick={() => { void logout() }}
             title="No se pudo renovar la sesión automáticamente"
-            style={{ fontSize: 'var(--font-size-xs)', padding: '4px 8px', background: 'var(--warning)', color: 'white' }}
           >
-            ⚠ Sesión por vencer — reingresar
+            <AlertTriangle size={16} aria-hidden /> Sesión por vencer — reingresar
           </button>
         )}
-        <div className={`sync-status ${connected ? '' : 'disconnected'}`}>
-          <div className="sync-dot" />
-          <span>{connected ? 'Online' : 'Sin conexión'}</span>
+        <div className={`sync-status ${connected ? "" : "disconnected"}`} role="status">
+          {connected ? <Cloud size={14} aria-hidden /> : <CloudOff size={14} aria-hidden />}
+          <span>{connected ? "Online" : "Sin conexión"}</span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', marginRight: '4px' }}>
-          <div style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-            {time.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+        <div className="header-clock-block">
+          <div className="header-clock">
+            {time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
           </div>
-          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
-            {time.toLocaleDateString('es-AR', { weekday: 'long' })}
+          <div className="header-clock-day">
+            {time.toLocaleDateString("es-AR", { weekday: "long" })}
           </div>
         </div>
-        <div className="header-avatar" title={userName} style={{ background: 'var(--brand-orange)', color: 'white' }}>
-          {initials}
+        <div className="header-user">
+          <div className="header-avatar" aria-hidden>{initials}</div>
+          <div className="header-user-text">
+            <span className="header-user-name">{userName || "Operador"}</span>
+            <span className="header-user-role">{roleLabel}</span>
+          </div>
         </div>
       </div>
     </header>

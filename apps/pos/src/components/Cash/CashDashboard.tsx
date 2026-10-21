@@ -224,7 +224,7 @@ export function CashDashboard() {
             ),
           })
           setActionBar({
-            center: (
+            right: (
               <button className="btn btn-primary" onClick={() => setScene("abrir")}>
                 Abrir caja
               </button>
@@ -429,7 +429,7 @@ export function CashDashboard() {
                 <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
                   Saldo esperado
                 </div>
-                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--brand-orange)" }}>
+                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
                   {formatCurrency(currentBalance)}
                 </div>
               </div>
@@ -491,7 +491,7 @@ export function CashDashboard() {
             ),
           })
           setActionBar({
-            center: (
+            right: (
               <button className="btn btn-primary" onClick={() => setScene("abrir")}>
                 Abrir caja
               </button>
@@ -573,7 +573,7 @@ export function CashDashboard() {
             ),
           })
           setActionBar({
-            center: (
+            right: (
               <button className="btn btn-primary btn-sm" onClick={() => setScene("resumen")}>
                 Volver al resumen
               </button>
@@ -617,7 +617,7 @@ export function CashDashboard() {
               ← Volver
             </button>
           ),
-          center: (
+          right: (
             <button className="btn btn-primary btn-sm" onClick={() => setScene("x-report")}>
               Refrescar
             </button>
@@ -718,7 +718,7 @@ export function CashDashboard() {
               ← Volver
             </button>
           ),
-          center: activeRegister && pendingMovements.length > 0 ? (
+          right: activeRegister && pendingMovements.length > 0 ? (
             <button className="btn btn-primary btn-sm" onClick={async () => {
               if (!activeRegister) return
               const result = await assignPendingMovements(activeRegister.id)

@@ -18,7 +18,7 @@ import {
 } from "../middleware/rate-limiter"
 import { denyJti } from "../auth/jtiDenylist"
 import { disconnectSocketsByJti } from "../socket/registry"
-import { UserModel, LocationModel } from "@takeasygo/db"
+import { UserModel, LocationModel, TenantModel } from "@takeasygo/db"
 import type { Role } from "@takeasygo/types"
 
 export const authRouter = Router()
@@ -58,6 +58,39 @@ async function resolveLocationId(
   }
 
   return locationId
+}
+
+/**
+ * Identidad visible del Header del POS (ROS — W0S §2: sucursal, usuario,
+ * rol). Sin esto el POS mostraba el ObjectId del tenant como nombre del
+ * local. Solo datos de presentación: la autorización sigue en el JWT.
+ * Nunca falla el login: si una lectura falla, el campo queda vacío.
+ */
+export interface SessionProfile {
+  userName: string
+  role: string
+  tenantName: string
+  locationName: string | null
+}
+
+async function buildProfile(
+  userName: string,
+  posRole: string,
+  tenantId: string,
+  locationId: string | null | undefined
+): Promise<SessionProfile> {
+  const [tenant, location] = await Promise.all([
+    TenantModel.findById(tenantId).select("name").lean().catch(() => null),
+    locationId
+      ? LocationModel.findOne({ _id: locationId, tenantId }).select("name").lean().catch(() => null)
+      : Promise.resolve(null),
+  ])
+  return {
+    userName,
+    role: posRole,
+    tenantName: (tenant as { name?: string } | null)?.name ?? "",
+    locationName: (location as { name?: string } | null)?.name ?? null,
+  }
 }
 
 /** Responde 429 si la cuenta está lockeada. Devuelve true si respondió. */
@@ -136,6 +169,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         accessToken: token,
         expiresAt: expSeconds,
         deviceType: "hub",
+        profile: await buildProfile(user.name, posRole, tenantId, locationId),
       })
       return
     }
@@ -235,6 +269,7 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         accessToken: token,
         expiresAt: expSeconds,
         deviceType: "hub",
+        profile: await buildProfile(user.name, posRole, tenantId, locationId),
       })
       return
     }
@@ -332,7 +367,7 @@ logoutRouter.post("/refresh", async (req, res) => {
       tenantId: auth.tenantId,
       isActive: true,
     })
-      .select("_id role tenantId")
+      .select("_id name role tenantId")
       .lean()
     if (!user) {
       res.status(401).json({ error: "Invalid session", code: "invalid_session" })
@@ -383,7 +418,12 @@ logoutRouter.post("/refresh", async (req, res) => {
       console.warn(`[auth] refresh: denylist del token anterior no confirmada | sub=${auth.sub}`)
     }
 
-    res.json({ accessToken: token, expiresAt: expSeconds, deviceType: auth.deviceType })
+    res.json({
+      accessToken: token,
+      expiresAt: expSeconds,
+      deviceType: auth.deviceType,
+      profile: await buildProfile(user.name, posRole, auth.tenantId, auth.locationId),
+    })
   } catch (err) {
     console.error("[auth] refresh error:", err)
     res.status(500).json({ error: "Internal server error" })

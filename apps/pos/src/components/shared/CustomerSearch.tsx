@@ -54,7 +54,7 @@ export function CustomerSearch({ onSelect, onClose }: CustomerSearchProps) {
 
           {!loading && query.length >= 2 && results.length === 0 && (
             <div className="search-empty">
-              No se encontraron clientes para "{query}"
+              No se encontraron clientes para «{query}»
             </div>
           )}
 

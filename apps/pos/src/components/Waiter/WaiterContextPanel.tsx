@@ -37,7 +37,7 @@ export function WaiterContextPanel({
           width: 32,
           height: 32,
           borderRadius: 8,
-          background: "var(--brand-orange)",
+          background: "var(--primary-action)",
           color: "white",
           display: "flex",
           alignItems: "center",

@@ -83,7 +83,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen }:
     <div className="flex flex-col gap-6">
       <div className="text-center">
         <div className="text-muted text-sm">Total a cobrar</div>
-        <div style={{ fontSize: 32, fontWeight: 700, color: "var(--brand-orange)" }}>{formatCurrency(total)}</div>
+        <div style={{ fontSize: 32, fontWeight: 700, color: "var(--primary-action)" }}>{formatCurrency(total)}</div>
         {parts.length > 0 && (
           <div
             className="text-sm"

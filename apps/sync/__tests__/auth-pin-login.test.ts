@@ -110,6 +110,14 @@ describe("login por PIN", () => {
     expect((await res.json()).code).toBe("ROLE_NOT_ALLOWED")
   })
 
+  it("devuelve el perfil para el Header (nombre y rol, nunca el ObjectId)", async () => {
+    await createUser("cashier", "482915")
+    const body = await (await login("482915")).json()
+    expect(body.profile.userName).toBe("cashier-482915")
+    expect(body.profile.role).toBe("cashier")
+    expect(typeof body.profile.tenantName).toBe("string")
+  })
+
   it("el token del PIN trae authTime (base del refresh)", async () => {
     await createUser("cashier", "482915")
     const body = await (await login("482915")).json()

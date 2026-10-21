@@ -1,55 +1,76 @@
 import type { Table } from "@takeasygo/types"
+import { formatCurrency } from "../../utils/format"
+import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
 
-type MesaVariant = "counter" | "waiter"
+// ============================================================================
+// Mesa — Domain Component (Component System §4)
+// ============================================================================
+// Representa el contexto operativo; nunca un pedido ni un pago.
+// · Estado con TEXTO + forma + color (ROS Grammar §11: nunca solo color).
+// · Muestra nombre, estado y tiempo o monto (Counter v2 §4).
+// · Es un <button>: se opera con teclado y lector de pantalla.
+// · Texto oscuro sobre los colores sólidos: AA en los 4 estados.
+// ============================================================================
+
+export type MesaVariant = "counter" | "waiter"
+
+export const MESA_STATUS_LABEL: Record<string, string> = {
+  free: "Libre",
+  occupied: "Ocupada",
+  needs_attention: "Atención",
+  reserved: "Reservada",
+  closed: "Cerrada",
+}
+
+const STATUS_CLASS: Record<string, string> = {
+  free: "libre",
+  occupied: "ocupada",
+  needs_attention: "atencion",
+  reserved: "reservada",
+  closed: "libre",
+}
 
 interface MesaCardProps {
   table: Table
   variant: MesaVariant
   onClick: (tableId: string) => void
   isSelected?: boolean
+  activity?: TableActivity
+  /** Reloj compartido (useNow): Date.now() en render es impuro. */
+  now: number
 }
 
-export function MesaCard({ table, variant, onClick, isSelected = false }: MesaCardProps) {
-  const isFree = table.status === "free"
-  const isOccupied = table.status === "occupied"
-  const isReserved = table.status === "reserved"
-  const isAttention = table.status === "needs_attention"
+export function MesaCard({ table, variant, onClick, isSelected = false, activity, now }: MesaCardProps) {
+  const statusLabel = table.needsBill && variant === "waiter" ? "Pide cuenta" : (MESA_STATUS_LABEL[table.status] ?? "Libre")
+  const elapsed = activity ? formatElapsed(activity.openedAt, now) : null
+  const amount = activity && activity.total > 0 ? formatCurrency(activity.total) : null
 
-  const statusClass = isFree
-    ? "libre"
-    : isOccupied
-    ? "ocupada"
-    : isAttention
-    ? "atencion"
-    : isReserved
-    ? "reservada"
-    : "libre"
-
-  // Para Counter: se muestran pax y tiempo
-  // Para Waiter: se muestran estado de cuenta/atención
-  const renderInfo = () => {
-    if (variant === "counter") {
-      if (isFree) return <span className="mesa-info">Libre</span>
-      if (isOccupied) return <span className="mesa-info">👤 {table.capacity ?? "—"}</span>
-      if (isAttention) return <span className="mesa-info">🔔</span>
-      if (isReserved) return <span className="mesa-info">Reservada</span>
-      return null
-    }
-    // waiter
-    if (isFree) return <span className="mesa-info">Libre</span>
-    if (isOccupied) return <span className="mesa-info">{table.needsBill ? '💵 Cuenta' : `👤 ${table.capacity ?? '—'}`}</span>
-    if (isReserved) return <span className="mesa-info">Reservada</span>
-    if (isAttention) return <span className="mesa-info">⚠ Atención</span>
-    return null
-  }
+  const ariaLabel = [
+    `Mesa ${table.number}`,
+    statusLabel,
+    amount,
+    elapsed ? `abierta hace ${elapsed}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ")
 
   return (
-    <div
-      className={`mesa ${statusClass}${isSelected ? ' seleccionada' : ''}`}
+    <button
+      type="button"
+      className={`mesa ${STATUS_CLASS[table.status] ?? "libre"}${isSelected ? " seleccionada" : ""}`}
       onClick={() => onClick(table.id)}
+      aria-pressed={isSelected}
+      aria-label={ariaLabel}
     >
       <span className="mesa-number">{table.number}</span>
-      {renderInfo()}
-    </div>
+      {amount ? (
+        <>
+          <span className="mesa-info mesa-amount">{amount}</span>
+          {elapsed && <span className="mesa-info">{elapsed}</span>}
+        </>
+      ) : (
+        <span className="mesa-info">{statusLabel}</span>
+      )}
+    </button>
   )
 }

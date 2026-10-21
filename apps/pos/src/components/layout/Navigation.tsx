@@ -1,86 +1,74 @@
-import type { ComponentType } from "react"
-import { LogOut } from "lucide-react"
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useLayout } from "./LayoutContext"
+import type { RosContext } from "./contexts"
 
-interface NavigationItem {
-  id: string
-  icon: ComponentType<{ size?: number; className?: string }>
-  label: string
-  badge?: number
-}
+// ============================================================================
+// Navigation — cambia de CONTEXTO, nunca ejecuta acciones (W0S §3)
+// ============================================================================
+// · Botones reales (teclado + lector de pantalla); antes eran <div onClick>.
+// · Solo íconos Lucide: una sola familia (Foundation Standards cap. 7).
+// · El badge muestra trabajo pendiente del contexto (reconocimiento > memoria).
+// ============================================================================
 
 interface NavigationProps {
-  items: NavigationItem[]
+  items: readonly RosContext[]
   activeId: string
+  badges?: Partial<Record<string, number>>
   onSelect: (id: string) => void
   onLogout: () => void
 }
 
-export function Navigation({ items, activeId, onSelect, onLogout }: NavigationProps) {
+export function Navigation({ items, activeId, badges = {}, onSelect, onLogout }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   return (
-    <nav className={`navigation${sidebarCollapsed ? ' collapsed' : ''}`}>
-      {/* Toggle colapsar */}
-      <div className="nav-toggle" onClick={toggleSidebar}>
-        <span className="nav-item-icon">{sidebarCollapsed ? '»' : '☰'}</span>
+    <nav className={`navigation${sidebarCollapsed ? " collapsed" : ""}`} aria-label="Contextos operativos">
+      <button
+        type="button"
+        className="nav-toggle"
+        onClick={toggleSidebar}
+        aria-expanded={!sidebarCollapsed}
+        aria-label={sidebarCollapsed ? "Expandir navegación" : "Colapsar navegación"}
+      >
+        {sidebarCollapsed ? <PanelLeftOpen size={20} aria-hidden /> : <PanelLeftClose size={20} aria-hidden />}
         {!sidebarCollapsed && <span>Colapsar</span>}
-      </div>
+      </button>
 
       {!sidebarCollapsed && <div className="nav-label">Contextos</div>}
 
-      {/* Items de navegación */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: sidebarCollapsed ? '4px' : '2px', padding: sidebarCollapsed ? '0 6px' : undefined }}>
+      <ul className="nav-list">
         {items.map((item) => {
           const Icon = item.icon
           const isActive = activeId === item.id
+          const badge = badges[item.id] ?? 0
           return (
-            <div
-              key={item.id}
-              className={`nav-item ${isActive ? 'active' : ''}`}
-              onClick={() => onSelect(item.id)}
-              style={sidebarCollapsed ? {
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '2px',
-                padding: '10px 0',
-                margin: '0 2px',
-                fontSize: '9px',
-                minHeight: '60px',
-                textAlign: 'center',
-                borderRadius: isActive ? '12px' : '8px',
-                background: isActive ? 'var(--brand-orange-light)' : undefined,
-              } : undefined}
-            >
-              <div className="nav-item-icon" style={sidebarCollapsed ? { width: '28px', height: '28px' } : undefined}>
-                <Icon size={sidebarCollapsed ? 22 : 20} className="nav-item-svg" />
-              </div>
-              <span>{item.label}</span>
-              {item.badge !== undefined && item.badge > 0 && (
-                <span className="nav-item-badge">{item.badge}</span>
-              )}
-            </div>
+            <li key={item.id}>
+              <button
+                type="button"
+                className={`nav-item${isActive ? " active" : ""}`}
+                onClick={() => onSelect(item.id)}
+                aria-current={isActive ? "page" : undefined}
+                aria-label={badge > 0 ? `${item.label}, ${badge} pendientes` : item.label}
+              >
+                <span className="nav-item-icon">
+                  <Icon size={sidebarCollapsed ? 22 : 20} className="nav-item-svg" aria-hidden />
+                </span>
+                <span className="nav-item-label">{item.label}</span>
+                {badge > 0 && <span className="nav-item-badge" aria-hidden>{badge}</span>}
+              </button>
+            </li>
           )
         })}
-      </div>
+      </ul>
 
       <div className="nav-spacer" />
 
-      <div className="nav-item" onClick={onLogout} style={sidebarCollapsed ? {
-        flexDirection: 'column',
-        justifyContent: 'center',
-        gap: '2px',
-        padding: '10px 0',
-        margin: '0 2px',
-        fontSize: '9px',
-        minHeight: '60px',
-        textAlign: 'center',
-      } : undefined}>
-        <div className="nav-item-icon">
-          <LogOut size={sidebarCollapsed ? 22 : 20} className="nav-item-svg" />
-        </div>
-        <span>Salir</span>
-      </div>
+      <button type="button" className="nav-item" onClick={onLogout}>
+        <span className="nav-item-icon">
+          <LogOut size={sidebarCollapsed ? 22 : 20} className="nav-item-svg" aria-hidden />
+        </span>
+        <span className="nav-item-label">Salir</span>
+      </button>
     </nav>
   )
 }

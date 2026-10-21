@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react"
-import type { ComponentType } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useLiveQuery } from "dexie-react-hooks"
 import { useAuth } from "./hooks/useAuth"
+import { db } from "./db/dexie"
 import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
@@ -12,9 +13,8 @@ import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
-import {
-  LayoutGrid, Utensils, Bike, Banknote, BarChart3,
-} from "lucide-react"
+import { contextsForRole, findContext, roleLabel, type ContextId } from "./components/layout/contexts"
+import type { SessionProfile } from "./services/auth-api"
 import {
   startConnectivityMonitoring,
   stopConnectivityMonitoring,
@@ -40,28 +40,12 @@ import { playOrderNotification, installAudioUnlock } from "./services/notificati
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 
-type Context = "counter" | "waiter" | "flota" | "caja" | "ventas"
-
-interface NavItem {
-  id: string
-  icon: ComponentType<{ size?: number; className?: string }>
-  label: string
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { id: "counter", icon: LayoutGrid, label: "Counter" },
-  { id: "waiter", icon: Utensils, label: "Waiter" },
-  { id: "flota", icon: Bike, label: "Flota" },
-  { id: "caja", icon: Banknote, label: "Caja" },
-  { id: "ventas", icon: BarChart3, label: "Ventas" },
-]
-
 function App() {
   const { state, login, logout } = useAuth()
 
   // Desbloquea el audio en el primer gesto del usuario (autoplay, §7.4).
   useEffect(() => installAudioUnlock(), [])
-  const [activeContext, setActiveContext] = useState<Context>("counter")
+  const [activeContext, setActiveContext] = useState<ContextId>("counter")
 
   useEffect(() => {
     if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
@@ -278,12 +262,12 @@ function App() {
     )
   }
 
-  const tenantName = state.tenantId ?? "Restaurante"
-
   return (
     <LayoutProvider>
       <AppShell
-        tenantName={tenantName}
+        tenantId={state.tenantId}
+        profile={state.jwt?.profile}
+        tokenRole={decodeRole(state.jwt?.accessToken)}
         activeContext={activeContext}
         setActiveContext={setActiveContext}
         logout={logout}
@@ -292,39 +276,81 @@ function App() {
   )
 }
 
+/** Rol del token (fallback si el Sync todavía no devuelve `profile`). Solo para la UI. */
+function decodeRole(token: string | undefined): string | undefined {
+  if (!token) return undefined
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")))
+    return typeof payload.role === "string" ? payload.role : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function AppShell({
-  tenantName,
+  tenantId,
+  profile,
+  tokenRole,
   activeContext,
   setActiveContext,
   logout,
 }: {
-  tenantName: string
-  activeContext: Context
-  setActiveContext: (ctx: Context) => void
+  tenantId?: string
+  profile?: SessionProfile
+  tokenRole?: string
+  activeContext: ContextId
+  setActiveContext: (ctx: ContextId) => void
   logout: () => void
 }) {
   const { sidebarCollapsed } = useLayout()
+  const role = profile?.role ?? tokenRole
+  const contexts = useMemo(() => contextsForRole(role), [role])
+
+  // Un rol que perdió acceso al contexto activo vuelve al primero permitido.
+  const current = contexts.some((c) => c.id === activeContext)
+    ? findContext(activeContext)
+    : contexts[0]
+
+  // Badge de trabajo pendiente: pedidos externos sin integrar (Entrantes vive
+  // dentro de Counter). Reconocimiento > memoria (Axioma 03).
+  const pendingIncoming = useLiveQuery(
+    () => (tenantId
+      ? db.orders
+          .where("tenantId")
+          .equals(tenantId)
+          .and((o) => o.source === "external" && !o.integratedAt && o.status !== "cancelled" && o.status !== "delivered")
+          .count()
+      : 0),
+    [tenantId]
+  ) ?? 0
 
   return (
     <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <Header tenantName={tenantName} userName="Operador" />
+      <Header
+        tenantName={profile?.tenantName ?? ""}
+        locationName={profile?.locationName}
+        userName={profile?.userName ?? ""}
+        roleLabel={roleLabel(role)}
+        contextTitle={current.title}
+      />
 
       <Navigation
-        items={NAV_ITEMS}
-        activeId={activeContext}
-        onSelect={(id) => setActiveContext(id as Context)}
+        items={contexts}
+        activeId={current.id}
+        badges={{ counter: pendingIncoming }}
+        onSelect={(id) => setActiveContext(id as ContextId)}
         onLogout={logout}
       />
 
-      <main className="workspace">
-        {activeContext === "counter" && <CounterDashboard />}
-        {activeContext === "waiter" && <WaiterDashboard />}
-        {activeContext === "flota" && <FlotaWidget />}
-        {activeContext === "caja" && <CashDashboard />}
-        {activeContext === "ventas" && <SalesDashboard />}
+      <main className="workspace" aria-label={current.title}>
+        {current.id === "counter" && <CounterDashboard />}
+        {current.id === "waiter" && <WaiterDashboard />}
+        {current.id === "flota" && <FlotaWidget />}
+        {current.id === "caja" && <CashDashboard />}
+        {current.id === "ventas" && <SalesDashboard />}
       </main>
 
-      <ContextPanel />
+      <ContextPanel empty={current.empty} />
       <ActionBar />
     </div>
   )

@@ -238,7 +238,7 @@ export function ProductConfigurationPanel({
                       <div className="pcp-summary-item-dot" />
                       <span>{name}</span>
                       {opt && opt.price > 0 && (
-                        <span style={{ marginLeft: "auto", color: "var(--brand-orange)", fontSize: "var(--font-size-xs)" }}>
+                        <span style={{ marginLeft: "auto", color: "var(--primary-action)", fontSize: "var(--font-size-xs)" }}>
                           +{formatCurrency(opt.price)}
                         </span>
                       )}
@@ -374,7 +374,7 @@ function ModifierGroup({
           <span className="pcp-required-badge">Obligatorio</span>
         )}
         {isFixed && (
-          <span className="pcp-required-badge" style={{ backgroundColor: "var(--brand-orange-light, #fff7ed)", color: "var(--brand-orange, #ea580c)" }}>
+          <span className="pcp-required-badge" style={{ backgroundColor: "var(--primary-action-light)", color: "var(--primary-action)" }}>
             Elegí {fixedTarget}
           </span>
         )}
