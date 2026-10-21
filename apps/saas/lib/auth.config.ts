@@ -39,8 +39,12 @@ export const authConfig = {
           // cross-tenant linking. For consumers (no tenantId), we link across all tenants
           // as a legacy fallback — this means a consumer with the same email at two
           // locations within the same tenant will still have memberships linked.
-          // TODO(per-location): If signIn can receive locationId (e.g. via callbackUrl),
-          // filter by locationId when loyalty.perLocation is true to fully isolate memberships.
+          // Club por sede (loyalty.perLocation): se vinculan TODAS las
+          // membresías del email al usuario a propósito. Es el modelo
+          // multisede del encargo: cliente único por tenant, membresía y
+          // puntos por sede. Cada membresía conserva su locationId; el canje
+          // y la suma de puntos se validan contra la sede del socio
+          // (lib/loyalty-scope), no contra el usuario.
           if (user.email) {
             const linkFilter: Record<string, unknown> = {
               userId: null,

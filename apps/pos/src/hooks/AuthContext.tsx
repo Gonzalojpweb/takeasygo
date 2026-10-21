@@ -11,6 +11,7 @@ import * as authApi from "../services/auth-api"
 // Misma constante que usa el cliente /pos/* para leer la sesión: si cada uno
 // tuviera la suya, un rename rompería la autenticación en silencio.
 import { SESSION_CACHE_KEY } from "../services/pos-api"
+import { applyPosLocation, type LocationSwitchDb } from "../services/location-switch"
 
 // ============================================================================
 // Token lifecycle constants
@@ -219,7 +220,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
-            await db.tenantConfig.update(tenantId, { locationId })
+            // Cambio de sede: limpia las cachés de la sede anterior (o bloquea
+            // si quedan ventas offline sin sincronizar).
+            await applyPosLocation(db as unknown as LocationSwitchDb, tenantId, locationId)
           } else {
             salt = generateSalt()
             await db.tenantConfig.put({
@@ -256,7 +259,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const existing = await db.tenantConfig.get(tenantId)
           if (existing) {
             salt = existing.tenantSalt
-            await db.tenantConfig.update(tenantId, { locationId })
+            // Cambio de sede: limpia las cachés de la sede anterior (o bloquea
+            // si quedan ventas offline sin sincronizar).
+            await applyPosLocation(db as unknown as LocationSwitchDb, tenantId, locationId)
           } else {
             salt = generateSalt()
             await db.tenantConfig.put({
