@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@takeasygo/business/inventory": ["../business/src/inventory/index.ts"],
+      "@takeasygo/types": ["../types/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}

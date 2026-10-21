@@ -416,6 +416,15 @@ importers:
         specifier: ^20
         version: 20.19.33
 
+  packages/inventory-eval:
+    dependencies:
+      '@takeasygo/business':
+        specifier: workspace:*
+        version: link:../business
+      '@takeasygo/types':
+        specifier: workspace:*
+        version: link:../types
+
   packages/types: {}
 
   packages/ui:

@@ -27,7 +27,8 @@ import { PUT as updatePromo, DELETE as deletePromo } from '@/app/api/[tenant]/pr
 import { PUT as reorderPromos } from '@/app/api/[tenant]/promotions/reorder/route'
 import { GET as listPrinters } from '@/app/api/[tenant]/printers/route'
 import { PATCH as patchPrinter } from '@/app/api/[tenant]/printers/[printerId]/route'
-import { POST as goodsReceived } from '@/app/api/[tenant]/inventory/goods-received/route'
+import { POST as receipts } from '@/app/api/[tenant]/inventory/receipts/route'
+import InventorySKU from '@/models/InventorySKU'
 import { auth } from '@/lib/auth'
 
 const SLUG = 'chopis-test'
@@ -158,22 +159,24 @@ describe('impresoras', () => {
 })
 
 describe('inventario — ubicación de stock', () => {
-  const body = (storageLocationId: string) => ({
-    skuId: '64b0000000000000000000a1', storageLocationId, quantity: 1, unit: 'kg', unitCostCents: 100,
-  })
+  // Insumo REAL del tenant: así el 404 solo puede venir del depósito.
+  const body = async (storageLocationId: string) => {
+    const sku = await InventorySKU.create({ tenantId: tenant._id, name: 'Carne', nameKey: 'carne', category: 'meat_poultry', canonicalUnit: 'kg' })
+    return { skuId: sku._id.toString(), storageLocationId, quantity: 1, unit: 'kg', totalCostCents: 100 }
+  }
 
   it('ubicación de otro tenant → 404', async () => {
     const other = await Tenant.create({ slug: 'otro', name: 'Otro', isActive: true })
     const foreign = await InventoryStorageLocation.create({ tenantId: other._id, locationId: loc1._id, name: 'Ajena', type: 'kitchen' })
     setSessionUser(tenantAdmin())
-    const res = await goodsReceived(json('inventory/goods-received', 'POST', body(foreign._id.toString())), params)
+    const res = await receipts(json('inventory/receipts', 'POST', await body(foreign._id.toString())), params)
     expect(res.status).toBe(404)
   })
 
   it('ubicación de L2 para manager de L1 → 404', async () => {
     const st = await InventoryStorageLocation.create({ tenantId: tenant._id, locationId: loc2._id, name: 'Cámara B', type: 'cold_storage' })
     setSessionUser(managerOf(loc1))
-    const res = await goodsReceived(json('inventory/goods-received', 'POST', body(st._id.toString())), params)
+    const res = await receipts(json('inventory/receipts', 'POST', await body(st._id.toString())), params)
     expect(res.status).toBe(404)
   })
 })

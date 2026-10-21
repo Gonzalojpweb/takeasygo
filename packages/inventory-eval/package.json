@@ -1,0 +1,15 @@
+{
+  "name": "@takeasygo/inventory-eval",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Suite experimental de la Fase V de TGO Inventory (V-A → V-F). No se despliega.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@takeasygo/business": "workspace:*",
+    "@takeasygo/types": "workspace:*"
+  }
+}
