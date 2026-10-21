@@ -33,9 +33,7 @@ import { POST as specialDatesPost, GET as specialDatesGet } from '@/app/api/[ten
 import { DELETE as specialDateDelete } from '@/app/api/[tenant]/special-dates/[id]/route'
 import { PUT as promotionsReorderPut } from '@/app/api/[tenant]/promotions/reorder/route'
 import { POST as preclosePrintPost } from '@/app/api/[tenant]/preclose/print/route'
-import { POST as physicalCountPost, GET as physicalCountGet } from '@/app/api/[tenant]/inventory/physical-count/route'
-import { POST as goodsReceivedPost } from '@/app/api/[tenant]/inventory/goods-received/route'
-import { POST as posSalePost } from '@/app/api/[tenant]/inventory/pos-sale/route'
+import { POST as transfersPost, GET as transfersGet } from '@/app/api/[tenant]/inventory/transfers/route'
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const PRIVATE_PEM = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string
@@ -123,20 +121,12 @@ const CASES: Case[] = [
     call: (h) => preclosePrintPost(req('POST', `${URL_BASE}/preclose/print`, {}, h), params),
   },
   {
-    name: 'POST inventory/physical-count',
-    call: (h) => physicalCountPost(req('POST', `${URL_BASE}/inventory/physical-count`, {}, h), params),
+    name: 'POST inventory/transfers',
+    call: (h) => transfersPost(req('POST', `${URL_BASE}/inventory/transfers`, {}, h), params),
   },
   {
-    name: 'GET inventory/physical-count',
-    call: (h) => physicalCountGet(req('GET', `${URL_BASE}/inventory/physical-count`, undefined, h), params),
-  },
-  {
-    name: 'POST inventory/goods-received',
-    call: (h) => goodsReceivedPost(req('POST', `${URL_BASE}/inventory/goods-received`, {}, h), params),
-  },
-  {
-    name: 'POST inventory/pos-sale',
-    call: (h) => posSalePost(req('POST', `${URL_BASE}/inventory/pos-sale`, {}, h), params),
+    name: 'GET inventory/transfers',
+    call: (h) => transfersGet(req('GET', `${URL_BASE}/inventory/transfers`, undefined, h), params),
   },
 ]
 
@@ -150,34 +140,18 @@ describe('M1 — Guards de escritura: sin token → 401', () => {
 })
 
 describe('M1 — Guards: token POS válido → pasa la autenticación', () => {
-  // Rutas con requireAuth (cualquier rol del POS): deben dejar pasar el token
-  // y fallar después por validación de body (400), nunca por auth (401).
-  const requireAuthCases: Case[] = [
-    {
-      name: 'POST inventory/physical-count',
-      call: (h) => physicalCountPost(req('POST', `${URL_BASE}/inventory/physical-count`, {}, h), params),
-    },
-    {
-      name: 'GET inventory/physical-count',
-      call: (h) => physicalCountGet(req('GET', `${URL_BASE}/inventory/physical-count`, undefined, h), params),
-    },
-    {
-      name: 'POST inventory/goods-received',
-      call: (h) => goodsReceivedPost(req('POST', `${URL_BASE}/inventory/goods-received`, {}, h), params),
-    },
-    {
-      name: 'POST inventory/pos-sale',
-      call: (h) => posSalePost(req('POST', `${URL_BASE}/inventory/pos-sale`, {}, h), params),
-    },
-  ]
+  // Inventario (inventoryRoute): el token POS autentica; el ROL decide.
+  // Un admin pasa la autenticación y falla después por el body (400).
+  it('POST inventory/transfers acepta un token POS con rol admin', async () => {
+    const res = await transfersPost(req('POST', `${URL_BASE}/inventory/transfers`, {}, bearer(posToken('admin'))), params)
+    expect(res.status).not.toBe(401)
+    expect(res.status).not.toBe(403)
+  })
 
-  for (const c of requireAuthCases) {
-    it(`${c.name} acepta un token POS con rol cashier`, async () => {
-      const res = await c.call(bearer(posToken('cashier')))
-      expect(res.status).not.toBe(401)
-      expect(res.status).not.toBe(403)
-    })
-  }
+  it('POST inventory/transfers rechaza un token POS de cajero (capacidad manage)', async () => {
+    const res = await transfersPost(req('POST', `${URL_BASE}/inventory/transfers`, {}, bearer(posToken('cashier'))), params)
+    expect(res.status).toBe(403)
+  })
 
   it('POST special-dates acepta un token POS con rol admin', async () => {
     const res = await specialDatesPost(
@@ -231,8 +205,8 @@ describe('M1 — Aislamiento de tenant', () => {
   })
 
   it('rechaza un Bearer que no es un JWT', async () => {
-    const res = await physicalCountPost(
-      req('POST', `${URL_BASE}/inventory/physical-count`, {}, bearer('no-es-un-jwt')),
+    const res = await transfersPost(
+      req('POST', `${URL_BASE}/inventory/transfers`, {}, bearer('no-es-un-jwt')),
       params
     )
     expect(res.status).toBe(401)

@@ -11,7 +11,7 @@ export type ClientPermission =
   | 'cash.open' | 'cash.close' | 'cash.movements.read' | 'cash.movements.write'
   | 'menu.read' | 'menu.write'
   | 'reservations.read' | 'reservations.write' | 'reservations.delete'
-  | 'promotions.write' | 'discounts.write' | 'inventory.write'
+  | 'promotions.write' | 'discounts.write' | 'inventory.read' | 'inventory.capture' | 'inventory.write'
   | 'reports.read' | 'reports.cash' | 'reports.view_consolidated'
   | 'audit.read'
   | 'settings.read' | 'settings.write'
@@ -27,7 +27,7 @@ const ALL: ClientPermission[] = [
   'cash.open', 'cash.close', 'cash.movements.read', 'cash.movements.write',
   'menu.read', 'menu.write',
   'reservations.read', 'reservations.write', 'reservations.delete',
-  'promotions.write', 'discounts.write', 'inventory.write',
+  'promotions.write', 'discounts.write', 'inventory.read', 'inventory.capture', 'inventory.write',
   'reports.read', 'reports.cash', 'reports.view_consolidated',
   'audit.read',
   'settings.read', 'settings.write',
@@ -45,21 +45,21 @@ export const CLIENT_ROLE_PERMISSIONS: Record<ClientLocationRole, readonly Client
     'cash.open', 'cash.close', 'cash.movements.read', 'cash.movements.write',
     'menu.read', 'menu.write',
     'reservations.read', 'reservations.write', 'reservations.delete',
-    'promotions.write', 'discounts.write', 'inventory.write',
+    'promotions.write', 'discounts.write', 'inventory.read', 'inventory.capture', 'inventory.write',
     'reports.read', 'reports.cash', 'audit.read',
     'settings.read', 'settings.write',
     'users.read', 'users.write',
     'printjobs.manage', 'rooms.access',
   ],
-  staff: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'rooms.access'],
+  staff: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'inventory.capture', 'rooms.access'],
   cashier: [
-    'orders.read', 'orders.write', 'kitchen.read',
+    'orders.read', 'orders.write', 'kitchen.read', 'inventory.capture',
     'cash.open', 'cash.close', 'cash.movements.read', 'cash.movements.write',
     'menu.read', 'reservations.write', 'reports.cash', 'rooms.access',
   ],
   waiter: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'reservations.read', 'rooms.access'],
   host: ['orders.read', 'menu.read', 'reservations.read', 'reservations.write', 'rooms.access'],
-  auditor: ['orders.read', 'menu.read', 'reservations.read', 'reports.read', 'reports.view_consolidated', 'audit.read', 'rooms.access'],
+  auditor: ['orders.read', 'menu.read', 'inventory.read', 'reservations.read', 'reports.read', 'reports.view_consolidated', 'audit.read', 'rooms.access'],
   seller: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'rooms.access'],
 }
 

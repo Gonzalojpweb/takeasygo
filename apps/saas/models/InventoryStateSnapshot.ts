@@ -1,59 +1,44 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 // ============================================================================
-// InventoryStateSnapshot — Snapshots para reconstrucción histórica
-// FASE04 §3.7 — Colección: inventory_state_snapshots
-// Solo para SKUs con actividad en el período (§8.4)
+// InventoryStateSnapshot v2 — estado al INICIO de cada día local
+// Colección: inventory_state_snapshots · DECISIONES_VIGENTES D-05
+// ============================================================================
+// Caché derivada (no historia): permite re-proyectar un evento tardío desde
+// el inicio de su día en vez de desde el evento cero, y responder "¿qué
+// creíamos el martes a la mañana?". Se escribe al proyectar (upsert por día):
+// un evento tardío vuelve a escribir los snapshots de los días posteriores.
 // ============================================================================
 
 export interface IInventoryStateSnapshot extends Document {
   tenantId: mongoose.Types.ObjectId
   skuId: mongoose.Types.ObjectId
   storageLocationId: mongoose.Types.ObjectId
+  /** Índice de día local (BeliefState.dayIndex). */
+  dayIndex: number
+  /** Inicio del día (UTC) = asOf del estado guardado. */
   snapshotAt: Date
-  state: {
-    estimateMu: number
-    estimateSigma: number
-    confidenceLevel: string
-    lastPhysicalObservationAt?: Date
-    lastPhysicalObservationMethod?: string
-    daysSinceObservation: number
-    openEvidenceRequest: boolean
-    openEvidenceRequestId?: string
-    evidenceDegradationStep: number
-    hypothesisFlags: string[]
-    consumptionVelocity7d: number
-  }
-  lastEventId: string
-  lastEventSequence: number
+  state: Record<string, unknown>
+  paramsVersion: string
   createdAt: Date
 }
-
-const StateSnapshotDataSchema = new Schema({
-  estimateMu: { type: Number, required: true },
-  estimateSigma: { type: Number, required: true },
-  confidenceLevel: { type: String, required: true },
-  lastPhysicalObservationAt: { type: Date, default: null },
-  lastPhysicalObservationMethod: { type: String, default: null },
-  daysSinceObservation: { type: Number, required: true },
-  openEvidenceRequest: { type: Boolean, required: true },
-  openEvidenceRequestId: { type: String, default: null },
-  evidenceDegradationStep: { type: Number, required: true },
-  hypothesisFlags: { type: [String], default: [] },
-  consumptionVelocity7d: { type: Number, required: true },
-}, { _id: false })
 
 const InventoryStateSnapshotSchema = new Schema<IInventoryStateSnapshot>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
   skuId: { type: Schema.Types.ObjectId, ref: 'InventorySKU', required: true },
   storageLocationId: { type: Schema.Types.ObjectId, ref: 'InventoryStorageLocation', required: true },
+  dayIndex: { type: Number, required: true },
   snapshotAt: { type: Date, required: true },
-  state: { type: StateSnapshotDataSchema, required: true },
-  lastEventId: { type: String, required: true },
-  lastEventSequence: { type: Number, required: true },
-}, { timestamps: { createdAt: true, updatedAt: false } })
+  state: { type: Schema.Types.Mixed, required: true },
+  paramsVersion: { type: String, required: true },
+}, { timestamps: { createdAt: true, updatedAt: false }, minimize: false })
 
-InventoryStateSnapshotSchema.index({ tenantId: 1, skuId: 1, storageLocationId: 1, snapshotAt: -1 }, { name: 'snapshot_reconstruct' })
+InventoryStateSnapshotSchema.index(
+  { tenantId: 1, skuId: 1, storageLocationId: 1, dayIndex: -1 },
+  { unique: true, name: 'snapshot_day' },
+)
 
-const InventoryStateSnapshot = mongoose.models.InventoryStateSnapshot || mongoose.model<IInventoryStateSnapshot>('InventoryStateSnapshot', InventoryStateSnapshotSchema, 'inventory_state_snapshots')
+const InventoryStateSnapshot =
+  (mongoose.models.InventoryStateSnapshot as mongoose.Model<IInventoryStateSnapshot>) ||
+  mongoose.model<IInventoryStateSnapshot>('InventoryStateSnapshot', InventoryStateSnapshotSchema, 'inventory_state_snapshots')
 export default InventoryStateSnapshot

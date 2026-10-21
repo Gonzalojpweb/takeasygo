@@ -72,6 +72,9 @@ export const PLAN_ACCESS = {
   // Plan Crecimiento y superior
   reservations:  ['buy', 'full'] as const,
 
+  // TGO Inventory (insumos, recetas, consumo por venta, verificación selectiva)
+  inventory:     ['buy', 'full'] as const,
+
   // Módulo Business (precios corporativos) — Crecimiento y Premium
   business:      ['buy', 'full'] as const,
 

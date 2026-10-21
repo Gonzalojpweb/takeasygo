@@ -1,361 +1,329 @@
-import InventoryLedger from "@/models/InventoryLedger"
-import InventoryState from "@/models/InventoryState"
-import type {
-  InventoryEventType,
-  ObservationMethod,
-  HypothesisFlag,
-} from "@takeasygo/types"
-import { connectDB } from "../mongoose"
-
 // ============================================================================
-// State Projector — Proyecta eventos del ledger → inventory_state
-// FASE03 §3.3, FASE04 §3.6, Roadmap §6 Etapa 3
+// Projector v2 — ledger → inventory_state (DECISIONES_VIGENTES D-05)
+// ============================================================================
+// Reemplaza la "transacción" v1 (que no existía: el ledger y el estado se
+// escribían por separado y un corte en el medio dejaba eventos sin proyectar).
 //
-// Cada tipo de evento tiene una regla de cómo afecta μ y σ.
-// El projector se ejecuta DENTRO de la misma transacción que el insert del ledger.
+// Modelo:
+//   1. appendEvents() inserta en el ledger (la verdad). Duplicados por
+//      eventId se ignoran: es idempotente.
+//   2. Por cada agregado tocado, rebuildAggregate() recalcula la creencia
+//      desde el snapshot del día del evento más viejo (o desde cero), con los
+//      eventos ordenados por OCURRENCIA. Un evento tardío (offline, conteo de
+//      ayer) cae en su lugar.
+//   3. La escritura del estado es condicional a `rev` (concurrencia
+//      optimista). Si otro proceso escribió en el medio, se recalcula.
+//
+// Si el paso 2 falla después del 1, el evento NO se pierde: el próximo evento
+// del agregado, la lectura con `rebuildIfStale` o el cron lo proyectan, porque
+// cada rebuild relee el ledger completo desde el snapshot.
 // ============================================================================
 
-interface ProjectionResult {
-  estimateMu: number
-  estimateSigma: number
-  confidenceLevel: "high" | "medium" | "low" | "critical"
-  hypothesisFlags: HypothesisFlag[]
-  daysSinceObservation: number
-  lastPhysicalObservationAt?: Date
-  lastPhysicalObservationMethod?: ObservationMethod
-  openEvidenceRequest: boolean
-  openEvidenceRequestId?: string
-  evidenceDegradationStep: 0 | 1 | 2 | 3
-}
+import mongoose from 'mongoose'
+import InventoryLedger, { type IInventoryEvent } from '@/models/InventoryLedger'
+import InventoryState from '@/models/InventoryState'
+import InventoryStateSnapshot from '@/models/InventoryStateSnapshot'
+import InventoryStorageLocation from '@/models/InventoryStorageLocation'
+import Location from '@/models/Location'
+import {
+  DEFAULT_BELIEF_PARAMS,
+  deltasForAggregate,
+  emptyBelief,
+  foldDeltas,
+  dayStartMs,
+  type BeliefParams,
+  type BeliefState,
+} from '@takeasygo/business/inventory'
+import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const MAX_REBUILD_ATTEMPTS = 5
 
-function deriveConfidenceLevel(sigma: number, mu: number): ProjectionResult["confidenceLevel"] {
-  if (mu === 0) return "critical"
-  const cv = Math.abs(sigma / mu) // Coefficient of variation
-  if (cv < 0.1) return "high"
-  if (cv < 0.25) return "medium"
-  if (cv < 0.5) return "low"
-  return "critical"
-}
+type Id = string | mongoose.Types.ObjectId
 
-function sigmaForObservationMethod(method?: ObservationMethod): number {
-  switch (method) {
-    case "connected_scale": return 0.02
-    case "manual_scale": return 0.05
-    case "visual_count": return 0.15
-    case "estimation": return 0.30
-    default: return 0.20
-  }
-}
-
-// ── Reglas de proyección por tipo de evento ──────────────────────────────────
-
-function projectGoodsReceived(
-  mu: number,
-  sigma: number,
-  payload: { quantity: number },
-  confidence: number
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma"> {
-  // μ += qty; σ contrae (evidencia transaccional fuerte)
-  const newMu = mu + payload.quantity
-  const evidenceStrength = confidence * 0.3 // Recepción fuerte, reduce σ hasta 30%
-  const newSigma = sigma * (1 - evidenceStrength)
-  return { estimateMu: newMu, estimateSigma: Math.max(newSigma, 0.001) }
-}
-
-function projectSaleConsumed(
-  mu: number,
-  sigma: number,
-  payload: { quantityConsumed: number; isTheoretical: boolean },
-  confidence: number
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma"> {
-  // μ -= qty_consumed; σ expande levemente (yield puede variar)
-  const newMu = mu - payload.quantityConsumed
-  // Si es teórico (de receta), σ expande más porque el yield es incierto
-  const uncertaintyFactor = payload.isTheoretical ? 0.05 : 0.02
-  const newSigma = sigma * (1 + uncertaintyFactor)
-  return {
-    estimateMu: Math.max(newMu, 0), // Stock no puede ser negativo en la estimación
-    estimateSigma: newSigma,
-  }
-}
-
-function projectProductionTransformed(
-  mu: number,
-  sigma: number,
-  payload: { inputQuantity: number; outputQuantity: number; yieldObserved: number }
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma"> {
-  // μ cambia según yield_observed; σ actualiza prior Beta
-  const newMu = mu - payload.inputQuantity + payload.outputQuantity
-  // El yield observado reduce la incertidumbre del prior
-  const yieldDeviation = Math.abs(payload.yieldObserved - 0.75) // 0.75 = yield típico
-  const sigmaAdjustment = 1 - yieldDeviation * 0.1
-  return {
-    estimateMu: Math.max(newMu, 0),
-    estimateSigma: sigma * Math.max(sigmaAdjustment, 0.8),
-  }
-}
-
-function projectWasteRecorded(
-  mu: number,
-  sigma: number,
-  payload: { quantity: number },
-  observationMethod?: ObservationMethod
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma"> {
-  // μ -= qty; σ contrae si es medida, expande si es estimada
-  const newMu = mu - payload.quantity
-  if (observationMethod && ["connected_scale", "manual_scale"].includes(observationMethod)) {
-    // Medido → contrae
-    return { estimateMu: Math.max(newMu, 0), estimateSigma: sigma * 0.9 }
-  }
-  // Estimado → expande
-  return { estimateMu: Math.max(newMu, 0), estimateSigma: sigma * 1.1 }
-}
-
-function projectPhysicalCountObserved(
-  payload: {
-    observedQuantity: number
-    previousEstimateMu: number
-    previousEstimateSigma: number
-    difference: number
-  },
-  observationMethod?: ObservationMethod
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma" | "lastPhysicalObservationAt" | "lastPhysicalObservationMethod"> {
-  // μ ← observed_qty; σ contrae según observation_method
-  const sigmaReduction = sigmaForObservationMethod(observationMethod)
-  return {
-    estimateMu: payload.observedQuantity,
-    estimateSigma: payload.observedQuantity * sigmaReduction,
-    lastPhysicalObservationAt: new Date(),
-    lastPhysicalObservationMethod: observationMethod,
-  }
-}
-
-function projectAdjustmentApplied(
-  mu: number,
-  sigma: number,
-  payload: { delta: number; hypothesisTree: string[] },
-  hypothesisFlags: HypothesisFlag[]
-): Pick<ProjectionResult, "estimateMu" | "estimateSigma" | "hypothesisFlags"> {
-  // μ += delta; registra discrepancia; activa hypothesis_tree
-  const newMu = mu + payload.delta
-  const discrepancyRatio = Math.abs(payload.delta) / Math.max(mu, 1)
-  const newSigma = sigma * (1 + discrepancyRatio * 0.2) // Ajustes aumentan incertidumbre
-
-  // Agregar flags de hipótesis basadas en el árbol
-  const newFlags = [...hypothesisFlags]
-  if (payload.hypothesisTree.includes("possible_under_portioning") && !newFlags.includes("possible_under_portioning")) {
-    newFlags.push("possible_under_portioning")
-  }
-  if (payload.hypothesisTree.includes("possible_unrecorded_waste") && !newFlags.includes("possible_unrecorded_waste")) {
-    newFlags.push("possible_unrecorded_waste")
-  }
-
-  return {
-    estimateMu: newMu,
-    estimateSigma: newSigma,
-    hypothesisFlags: newFlags,
-  }
-}
-
-function projectEvidenceIgnored(
-  sigma: number,
-  degradationStep: 0 | 1 | 2 | 3
-): Pick<ProjectionResult, "estimateSigma" | "evidenceDegradationStep"> {
-  // σ expande; evidence_degradation_step++
-  const expansionFactor = 1 + (degradationStep * 0.1) // Cada paso expansiona más
-  return {
-    estimateSigma: sigma * expansionFactor,
-    evidenceDegradationStep: Math.min(degradationStep + 1, 3) as 0 | 1 | 2 | 3,
-  }
-}
-
-// ── Función principal de proyección ──────────────────────────────────────────
-
-export function projectEvent(
-  currentState: {
-    estimateMu: number
-    estimateSigma: number
-    hypothesisFlags: HypothesisFlag[]
-    daysSinceObservation: number
-    lastPhysicalObservationAt?: Date
-    lastPhysicalObservationMethod?: ObservationMethod
-    evidenceDegradationStep: 0 | 1 | 2 | 3
-    openEvidenceRequest: boolean
-    openEvidenceRequestId?: string
-  },
-  event: {
-    eventType: InventoryEventType
-    confidence: number
-    observationMethod?: ObservationMethod
-    payload: Record<string, unknown>
-  }
-): ProjectionResult {
-  const { estimateMu: mu, estimateSigma: sigma, hypothesisFlags, evidenceDegradationStep } = currentState
-  let projection: Partial<ProjectionResult> = {}
-
-  switch (event.eventType) {
-    case "GoodsReceived":
-      projection = projectGoodsReceived(mu, sigma, event.payload as { quantity: number }, event.confidence)
-      break
-
-    case "SaleConsumed":
-      projection = projectSaleConsumed(mu, sigma, event.payload as { quantityConsumed: number; isTheoretical: boolean }, event.confidence)
-      break
-
-    case "ProductionTransformed":
-      projection = projectProductionTransformed(mu, sigma, event.payload as { inputQuantity: number; outputQuantity: number; yieldObserved: number })
-      break
-
-    case "WasteRecorded":
-      projection = projectWasteRecorded(mu, sigma, event.payload as { quantity: number }, event.observationMethod)
-      break
-
-    case "TransferOut": {
-      // Sale del depósito de origen: μ baja; σ no cambia (movimiento registrado).
-      const qty = (event.payload as { quantity: number }).quantity
-      projection = { estimateMu: Math.max(mu - qty, 0), estimateSigma: sigma }
-      break
-    }
-
-    case "TransferIn":
-      // Entra al depósito de destino: misma evidencia que una recepción.
-      projection = projectGoodsReceived(mu, sigma, event.payload as { quantity: number }, event.confidence)
-      break
-
-    case "PhysicalCountObserved":
-      projection = projectPhysicalCountObserved(event.payload as { observedQuantity: number; previousEstimateMu: number; previousEstimateSigma: number; difference: number }, event.observationMethod)
-      break
-
-    case "AdjustmentApplied":
-      projection = projectAdjustmentApplied(mu, sigma, event.payload as { delta: number; hypothesisTree: string[] }, hypothesisFlags)
-      break
-
-    case "EvidenceIgnored":
-      projection = projectEvidenceIgnored(sigma, evidenceDegradationStep)
-      break
-
-    case "UnitEquivalenceLearned":
-    case "EvidenceRequested":
-    case "ModelCalibrated":
-      // Estos eventos no afectan μ ni σ directamente
-      break
-  }
-
-  // Combinar con estado actual
-  const newMu = projection.estimateMu ?? mu
-  const newSigma = projection.estimateSigma ?? sigma
-
-  return {
-    estimateMu: newMu,
-    estimateSigma: newSigma,
-    confidenceLevel: deriveConfidenceLevel(newSigma, newMu),
-    hypothesisFlags: projection.hypothesisFlags ?? hypothesisFlags,
-    daysSinceObservation: projection.lastPhysicalObservationAt
-      ? 0
-      : currentState.daysSinceObservation + 1,
-    lastPhysicalObservationAt: projection.lastPhysicalObservationAt ?? currentState.lastPhysicalObservationAt,
-    lastPhysicalObservationMethod: projection.lastPhysicalObservationMethod ?? currentState.lastPhysicalObservationMethod,
-    openEvidenceRequest: currentState.openEvidenceRequest,
-    openEvidenceRequestId: currentState.openEvidenceRequestId,
-    evidenceDegradationStep: projection.evidenceDegradationStep ?? evidenceDegradationStep,
-  }
-}
-
-// ── Procesamiento transaccional: insert ledger + update state ────────────────
-
-export async function processInventoryEvent(eventData: {
+export interface NewLedgerEvent {
   eventId: string
+  tenantId: Id
+  locationId: Id | null
+  eventType: IInventoryEvent['eventType']
+  occurredAt: Date
+  source: IInventoryEvent['source']
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: Record<string, any>
+  skuId?: Id | null
+  storageLocationId?: Id | null
+  recordedAt?: Date
+  actorId?: string | null
+  observationMethod?: IInventoryEvent['observationMethod']
+  correlationId?: string | null
+}
+
+interface AggregateKey {
   tenantId: string
   skuId: string
   storageLocationId: string
-  eventType: InventoryEventType
-  eventVersion?: number
-  occurredAt: Date
-  recordedAt: Date
-  actorId?: string
-  source: "pos" | "manual" | "ocr" | "api" | "system"
-  observationMethod?: ObservationMethod
-  confidence: number
-  correlationId?: string
-  payload: Record<string, unknown>
-}): Promise<{ success: boolean; error?: string }> {
-  await connectDB()
+}
 
-  // 1. Insert en ledger (idempotencia: eventId es unique)
-  try {
-    await InventoryLedger.create(eventData as any)
-  } catch (err: any) {
-    if (err.code === 11000) {
-      // Duplicate key → evento ya procesado (idempotencia)
-      return { success: true }
+const keyOf = (k: AggregateKey) => `${k.tenantId}|${k.skuId}|${k.storageLocationId}`
+
+/** Agregados (insumo × depósito) que toca un evento. */
+export function aggregatesOf(ev: NewLedgerEvent): AggregateKey[] {
+  const tenantId = String(ev.tenantId)
+  if (ev.eventType === 'SaleRecorded') {
+    const lines: Array<{ skuId: unknown; storageLocationId: unknown }> = Array.isArray(ev.payload?.consumption) ? ev.payload.consumption : []
+    return lines.map((l) => ({ tenantId, skuId: String(l.skuId), storageLocationId: String(l.storageLocationId) }))
+  }
+  if (!ev.skuId || !ev.storageLocationId) return []
+  return [{ tenantId, skuId: String(ev.skuId), storageLocationId: String(ev.storageLocationId) }]
+}
+
+export interface AppendResult {
+  inserted: number
+  duplicates: number
+  /** eventIds efectivamente insertados (los duplicados no figuran). */
+  insertedIds: string[]
+}
+
+/**
+ * Inserta eventos en el ledger y re-proyecta los agregados afectados.
+ * Idempotente: un eventId ya registrado (mismo tenant) se ignora.
+ */
+export async function appendEvents(events: NewLedgerEvent[]): Promise<AppendResult> {
+  if (events.length === 0) return { inserted: 0, duplicates: 0, insertedIds: [] }
+  const now = new Date()
+  const docs = events.map((e) => ({
+    ...e,
+    recordedAt: e.recordedAt ?? now,
+    actorId: e.actorId ?? null,
+    observationMethod: e.observationMethod ?? null,
+    correlationId: e.correlationId ?? null,
+    locationId: e.locationId ?? null,
+    skuId: e.skuId ?? null,
+    storageLocationId: e.storageLocationId ?? null,
+    eventVersion: 2,
+  }))
+
+  const insertedIds: string[] = []
+  let duplicates = 0
+  for (const doc of docs) {
+    try {
+      await InventoryLedger.create(doc)
+      insertedIds.push(doc.eventId)
+    } catch (err) {
+      if ((err as { code?: number }).code === 11000) {
+        duplicates++
+        continue
+      }
+      throw err
     }
-    throw err
   }
 
-  // 2. Buscar o crear estado actual
-  let state = await InventoryState.findOne({
-    tenantId: eventData.tenantId,
-    skuId: eventData.skuId,
-    storageLocationId: eventData.storageLocationId,
-  })
-
-  const isNew = !state
-  if (isNew) {
-    state = new InventoryState({
-      tenantId: eventData.tenantId,
-      skuId: eventData.skuId,
-      storageLocationId: eventData.storageLocationId,
-      estimateMu: 0,
-      estimateSigma: 0,
-      confidenceLevel: "critical",
-      hypothesisFlags: [],
-      daysSinceObservation: 0,
-      openEvidenceRequest: false,
-      evidenceDegradationStep: 0,
-      consumptionVelocity7d: 0,
-      lastEventId: eventData.eventId,
-      lastEventSequence: 0,
-    })
+  // Re-proyectar cada agregado desde el evento NUEVO más viejo que lo toca.
+  const pending = new Map<string, { key: AggregateKey; from: Date }>()
+  for (const ev of events) {
+    if (!insertedIds.includes(ev.eventId)) continue
+    for (const key of aggregatesOf(ev)) {
+      const cur = pending.get(keyOf(key))
+      if (!cur || ev.occurredAt < cur.from) pending.set(keyOf(key), { key, from: ev.occurredAt })
+    }
+  }
+  for (const { key, from } of pending.values()) {
+    await rebuildAggregate(key, from)
   }
 
-  // 3. Proyectar evento sobre estado actual
-  const projection = projectEvent(
-    {
-      estimateMu: state!.estimateMu,
-      estimateSigma: state!.estimateSigma,
-      hypothesisFlags: (state!.hypothesisFlags as HypothesisFlag[]) || [],
-      daysSinceObservation: state!.daysSinceObservation,
-      lastPhysicalObservationAt: state!.lastPhysicalObservationAt,
-      lastPhysicalObservationMethod: state!.lastPhysicalObservationMethod as ObservationMethod | undefined,
-      evidenceDegradationStep: state!.evidenceDegradationStep as 0 | 1 | 2 | 3,
-      openEvidenceRequest: state!.openEvidenceRequest,
-      openEvidenceRequestId: state!.openEvidenceRequestId,
-    },
-    {
-      eventType: eventData.eventType,
-      confidence: eventData.confidence,
-      observationMethod: eventData.observationMethod,
-      payload: eventData.payload,
-    }
+  return { inserted: insertedIds.length, duplicates, insertedIds }
+}
+
+// ── Parámetros por sede (zona horaria → corte de días) ──────────────────────
+
+const offsetCache = new Map<string, number>()
+
+/** Desfase (minutos) de una zona horaria respecto de UTC. */
+export function utcOffsetMinutes(timezone: string, at: Date = new Date()): number {
+  const cacheKey = `${timezone}|${at.toISOString().slice(0, 10)}`
+  const cached = offsetCache.get(cacheKey)
+  if (cached !== undefined) return cached
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  }).formatToParts(at)
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0)
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'))
+  const offset = Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60_000)
+  offsetCache.set(cacheKey, offset)
+  return offset
+}
+
+export async function beliefParamsForLocation(locationId: unknown): Promise<BeliefParams> {
+  const loc = locationId
+    ? await Location.findById(locationId).select('timezone').lean<{ timezone?: string }>()
+    : null
+  return { ...DEFAULT_BELIEF_PARAMS, utcOffsetMinutes: utcOffsetMinutes(loc?.timezone || DEFAULT_TIMEZONE) }
+}
+
+// ── Re-proyección de un agregado ─────────────────────────────────────────────
+
+function stateFromDoc(doc: Record<string, unknown>): BeliefState {
+  const base = emptyBelief()
+  const ms = (v: unknown) => (v instanceof Date ? v.getTime() : v ? new Date(v as string).getTime() : null)
+  return {
+    ...base,
+    mu: Number(doc.mu ?? 0),
+    variance: Number(doc.variance ?? 0),
+    asOf: ms(doc.asOf),
+    anchored: Boolean(doc.anchored),
+    lastObservedAt: ms(doc.lastObservedAt),
+    lastObservationMethod: (doc.lastObservationMethod as BeliefState['lastObservationMethod']) ?? null,
+    avgUnitCostCents: Number(doc.avgUnitCostCents ?? 0),
+    usageRaw: Number(doc.usageRaw ?? 0),
+    usageWeight: Number(doc.usageWeight ?? 0),
+    dayIndex: doc.dayIndex === null || doc.dayIndex === undefined ? null : Number(doc.dayIndex),
+    dayUsage: Number(doc.dayUsage ?? 0),
+    lastDiscrepancy: (doc.lastDiscrepancy as BeliefState['lastDiscrepancy']) ?? null,
+    timesIgnored: Number(doc.timesIgnored ?? 0),
+    eventsApplied: Number(doc.eventsApplied ?? 0),
+  }
+}
+
+function docFromState(s: BeliefState) {
+  return {
+    mu: s.mu,
+    variance: s.variance,
+    asOf: s.asOf !== null ? new Date(s.asOf) : null,
+    anchored: s.anchored,
+    lastObservedAt: s.lastObservedAt !== null ? new Date(s.lastObservedAt) : null,
+    lastObservationMethod: s.lastObservationMethod,
+    avgUnitCostCents: s.avgUnitCostCents,
+    usageRaw: s.usageRaw,
+    usageWeight: s.usageWeight,
+    dayIndex: s.dayIndex,
+    dayUsage: s.dayUsage,
+    lastDiscrepancy: s.lastDiscrepancy as unknown as Record<string, unknown> | null,
+    timesIgnored: s.timesIgnored,
+    eventsApplied: s.eventsApplied,
+  }
+}
+
+/** Eventos de un agregado desde `since` (inclusive), en orden de ocurrencia. */
+export async function loadAggregateEvents(key: AggregateKey, since: Date | null) {
+  const tenantId = new mongoose.Types.ObjectId(key.tenantId)
+  const time = since ? { occurredAt: { $gte: since } } : {}
+  const [own, sales] = await Promise.all([
+    InventoryLedger.find({
+      tenantId,
+      skuId: new mongoose.Types.ObjectId(key.skuId),
+      storageLocationId: new mongoose.Types.ObjectId(key.storageLocationId),
+      ...time,
+    }).lean(),
+    InventoryLedger.find({
+      tenantId,
+      eventType: 'SaleRecorded',
+      'payload.consumption': { $elemMatch: { skuId: key.skuId, storageLocationId: key.storageLocationId } },
+      ...time,
+    }).lean(),
+  ])
+  return [...own, ...sales].sort(
+    (a, b) => a.occurredAt.getTime() - b.occurredAt.getTime() || String(a._id).localeCompare(String(b._id)),
   )
+}
 
-  // 4. Actualizar estado
-  state!.estimateMu = projection.estimateMu
-  state!.estimateSigma = projection.estimateSigma
-  state!.confidenceLevel = projection.confidenceLevel
-  state!.hypothesisFlags = projection.hypothesisFlags
-  state!.daysSinceObservation = projection.daysSinceObservation
-  state!.lastPhysicalObservationAt = projection.lastPhysicalObservationAt
-  state!.lastPhysicalObservationMethod = projection.lastPhysicalObservationMethod
-  state!.openEvidenceRequest = projection.openEvidenceRequest
-  state!.openEvidenceRequestId = projection.openEvidenceRequestId
-  state!.evidenceDegradationStep = projection.evidenceDegradationStep
-  state!.lastEventId = eventData.eventId
-  state!.lastEventSequence = (state!.lastEventSequence || 0) + 1
+/**
+ * Recalcula la creencia de un agregado. `from` = ocurrencia del evento más
+ * viejo que cambió; sin `from` (o con parámetros nuevos) recalcula desde cero.
+ */
+export async function rebuildAggregate(key: AggregateKey, from?: Date): Promise<void> {
+  const storage = await InventoryStorageLocation.findOne({
+    _id: key.storageLocationId,
+    tenantId: key.tenantId,
+  }).select('locationId').lean<{ locationId: mongoose.Types.ObjectId }>()
+  if (!storage) return // depósito inexistente: el evento queda en el ledger, sin proyección
 
-  await state!.save()
+  const params = await beliefParamsForLocation(storage.locationId)
+  const filter = {
+    tenantId: new mongoose.Types.ObjectId(key.tenantId),
+    skuId: new mongoose.Types.ObjectId(key.skuId),
+    storageLocationId: new mongoose.Types.ObjectId(key.storageLocationId),
+  }
 
-  return { success: true }
+  for (let attempt = 0; attempt < MAX_REBUILD_ATTEMPTS; attempt++) {
+    const current = await InventoryState.findOne(filter).lean()
+    const fullRebuild = !from || !current || current.paramsVersion !== params.version
+
+    // Base: snapshot del inicio del día de `from` (o anterior), o vacío.
+    let base: BeliefState = emptyBelief()
+    let since: Date | null = null
+    if (!fullRebuild && from) {
+      const fromDay = Math.floor((from.getTime() + params.utcOffsetMinutes * 60_000) / 86_400_000)
+      const snap = await InventoryStateSnapshot.findOne({ ...filter, dayIndex: { $lte: fromDay }, paramsVersion: params.version })
+        .sort({ dayIndex: -1 })
+        .lean()
+      if (snap) {
+        base = stateFromDoc(snap.state)
+        since = snap.snapshotAt
+      }
+    }
+
+    const events = await loadAggregateEvents(key, since)
+    const deltas = events.flatMap((ev) => deltasForAggregate(ev, key.skuId, key.storageLocationId, params))
+    const snapshots: Array<{ dayIndex: number; state: BeliefState }> = []
+    const next = foldDeltas(base, deltas, params, (dayIndex, st) => snapshots.push({ dayIndex, state: st }))
+
+    const fields = { ...docFromState(next), paramsVersion: params.version, rebuiltAt: new Date(), locationId: storage.locationId }
+    let written = false
+    if (current) {
+      const res = await InventoryState.updateOne({ _id: current._id, rev: current.rev }, { $set: fields, $inc: { rev: 1 } })
+      written = res.matchedCount === 1
+    } else {
+      try {
+        await InventoryState.create({ ...filter, ...fields, rev: 1 })
+        written = true
+      } catch (err) {
+        if ((err as { code?: number }).code !== 11000) throw err
+      }
+    }
+    if (!written) continue // otro proceso escribió: recalcular con lo nuevo
+
+    if (snapshots.length > 0) {
+      await InventoryStateSnapshot.bulkWrite(
+        snapshots.map(({ dayIndex, state }) => ({
+          updateOne: {
+            filter: { ...filter, dayIndex },
+            update: {
+              $set: {
+                snapshotAt: new Date(dayStartMs(dayIndex, params)),
+                state: docFromState(state),
+                paramsVersion: params.version,
+              },
+            },
+            upsert: true,
+          },
+        })),
+        { ordered: false },
+      )
+    }
+    return
+  }
+  console.error('[inventory] rebuildAggregate: no se pudo escribir tras reintentos', keyOf(key))
+}
+
+/** Re-proyecta TODO el inventario de un tenant (cambio de parámetros, reparación). */
+export async function rebuildTenant(tenantId: string): Promise<number> {
+  const tid = new mongoose.Types.ObjectId(tenantId)
+  const [own, sales] = await Promise.all([
+    InventoryLedger.aggregate<{ _id: { s: mongoose.Types.ObjectId; d: mongoose.Types.ObjectId } }>([
+      { $match: { tenantId: tid, skuId: { $ne: null } } },
+      { $group: { _id: { s: '$skuId', d: '$storageLocationId' } } },
+    ]),
+    InventoryLedger.aggregate<{ _id: { s: string; d: string } }>([
+      { $match: { tenantId: tid, eventType: 'SaleRecorded' } },
+      { $unwind: '$payload.consumption' },
+      { $group: { _id: { s: '$payload.consumption.skuId', d: '$payload.consumption.storageLocationId' } } },
+    ]),
+  ])
+  const keys = new Map<string, AggregateKey>()
+  for (const g of [...own, ...sales]) {
+    const k = { tenantId, skuId: String(g._id.s), storageLocationId: String(g._id.d) }
+    keys.set(keyOf(k), k)
+  }
+  for (const k of keys.values()) await rebuildAggregate(k)
+  return keys.size
 }

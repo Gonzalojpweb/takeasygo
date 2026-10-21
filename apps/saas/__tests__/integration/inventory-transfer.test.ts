@@ -18,6 +18,7 @@ import InventoryLedger from '@/models/InventoryLedger'
 import InventoryState from '@/models/InventoryState'
 import { POST as transfer, GET as listTransfers } from '@/app/api/[tenant]/inventory/transfers/route'
 import { auth } from '@/lib/auth'
+import { appendEvents } from '@/lib/inventory/projector'
 
 const SLUG = 'stock-test'
 let tenant: any
@@ -36,12 +37,14 @@ beforeEach(async () => {
   depB = await InventoryStorageLocation.create({ tenantId: tenant._id, locationId: locB._id, name: 'Cámara B', type: 'cold_storage' })
   sku = await InventorySKU.create({
     tenantId: tenant._id, name: 'Carne', category: 'meat_poultry', canonicalUnit: 'kg',
-    yieldPrior: { alpha: 1, beta: 1, source: 'category_benchmark' },
+    nameKey: 'carne', lastUnitCostCents: 900_000,
   })
-  await InventoryState.create({
-    tenantId: tenant._id, skuId: sku._id, storageLocationId: depA._id,
-    estimateMu: 10, estimateSigma: 1, confidenceLevel: 'high', lastEventId: 'seed', lastEventSequence: 1,
-  })
+  // Línea base: conteo físico de 10 kg en A (el estado se proyecta del ledger).
+  await appendEvents([{
+    eventId: 'seed-count', tenantId: tenant._id, locationId: locA._id, skuId: sku._id, storageLocationId: depA._id,
+    eventType: 'PhysicalCountObserved', occurredAt: new Date(Date.now() - 60_000), source: 'manual',
+    observationMethod: 'manual_scale', payload: { observedQuantity: 10, unit: 'kg' },
+  }])
   setSessionUser({ id: 'a1', role: 'admin', tenantId: tenant._id.toString(), assignedLocations: [] })
 })
 
@@ -76,8 +79,10 @@ describe('transferencia de stock', () => {
 
     const a = await InventoryState.findOne({ storageLocationId: depA._id }).lean() as any
     const b = await InventoryState.findOne({ storageLocationId: depB._id }).lean() as any
-    expect(a.estimateMu).toBe(7)
-    expect(b.estimateMu).toBe(3)
+    expect(a.mu).toBe(7)
+    expect(b.mu).toBe(3)
+    // El costo promedio del origen viaja con la mercadería.
+    expect(b.avgUnitCostCents).toBe(900_000)
   })
 
   it('reintentar con el mismo transferId no duplica el movimiento', async () => {
@@ -85,7 +90,7 @@ describe('transferencia de stock', () => {
     await post(body({ transferId: 'transfer-fijo-1' }))
     expect(await InventoryLedger.countDocuments({ correlationId: 'transfer-fijo-1' })).toBe(2)
     const a = await InventoryState.findOne({ storageLocationId: depA._id }).lean() as any
-    expect(a.estimateMu).toBe(7)
+    expect(a.mu).toBe(7)
   })
 
   it('usuario de la sede B no puede sacar stock de la sede A → 404', async () => {
@@ -110,5 +115,17 @@ describe('transferencia de stock', () => {
     setSessionUser({ id: 'm1', role: 'manager', tenantId: tenant._id.toString(), assignedLocations: [locB._id.toString()] })
     const res = await listTransfers(new NextRequest(`http://localhost/api/${SLUG}/inventory/transfers`), params)
     expect((await res.json()).transfers).toHaveLength(1)
+  })
+
+  it('un cajero no puede transferir (capacidad manage) → 403', async () => {
+    setSessionUser({ id: 'c1', role: 'cashier', tenantId: tenant._id.toString(), assignedLocations: [] })
+    expect((await post(body())).status).toBe(403)
+  })
+
+  it('plan sin inventario → 403 PLAN_REQUIRED (Lock + CTA)', async () => {
+    await Tenant.updateOne({ _id: tenant._id }, { $set: { plan: 'try' } })
+    const res = await post(body())
+    expect(res.status).toBe(403)
+    expect((await res.json()).code).toBe('PLAN_REQUIRED')
   })
 })

@@ -21,8 +21,8 @@ const SESSION_RE = /\brequireAuth\b|\brequireAdminRole\b|\benforcePermission\w*\
 /** Modelos cuyos documentos pertenecen a una sede. */
 const SEDE_MODEL_RE = /models\/(Order|Reservation|Menu|CashRegister|CashMovement|Table|Printer|Promotion|InventoryStorageLocation|PreClosePrintJob|Location|Rating|LoyaltyMember|StoreItem|StoreRedemption|QrPromo|Feedback|AuditLog)'/
 
-/** Guards de sede (lib/location-scope, dashboard-scope, loyalty-scope, inventory/storage-scope, POS). */
-const SEDE_GUARD_RE = /\bguardRequestLocation\b|\bguardResourceLocation\b|\bguardSharedOrLocation\b|\bscopedLocationIds\b|\bscopeLocationFilter\b|\benforceLocationScope\b|\bcanAccessLocation\b|\bassignedLocations\b|\bresolveDashboardScope\b|\bguardStorageLocation\b|\bguardMemberLocation\b|\bloyaltyListFilter\b|\bposRoute\b|\benforceSedeWriteScope\b/
+/** Guards de sede (lib/location-scope, dashboard-scope, loyalty-scope, inventory/route, POS). */
+const SEDE_GUARD_RE = /\bguardRequestLocation\b|\bguardResourceLocation\b|\bguardSharedOrLocation\b|\bscopedLocationIds\b|\bscopeLocationFilter\b|\benforceLocationScope\b|\bcanAccessLocation\b|\bassignedLocations\b|\bresolveDashboardScope\b|\binventoryRoute\b|\bguardMemberLocation\b|\bloyaltyListFilter\b|\bposRoute\b|\benforceSedeWriteScope\b/
 
 const TENANT_LEVEL_BY_DESIGN = new Map<string, string>([
   ['admin/user-location-roles/route.ts', 'gobernanza de roles por sede: la asignación es del admin de tenant'],

@@ -1,82 +1,50 @@
 // ============================================================================
-// INVENTORY STATE — Tipos del estado proyectado
-// FASE04 §3.6–3.7
+// INVENTORY STATE v2 — Creencia del sistema sobre un insumo × depósito
+// ============================================================================
+// El estado NO es "el stock": es la mejor estimación (μ) con su incertidumbre
+// (σ) y la evidencia que la sostiene. Es una proyección descartable del
+// ledger: si hay conflicto, gana el ledger (D-05).
 // ============================================================================
 
 import type { ObservationMethod } from "./events"
 
-// ── Flags de hipótesis ───────────────────────────────────────────────────────
-export type HypothesisFlag =
-  | "possible_under_portioning"
-  | "possible_unrecorded_waste"
-  | "possible_recipe_drift"
-  | "possible_reception_error"
-  | "possible_measurement_error"
-  | "stock_negative_contradiction"
-  | "yield_drift_detected"
+export type InventoryFlag =
+  /** Nunca se contó: μ parte de cero y no representa el stock real (D-11). */
+  | "never_observed"
+  /** μ < 0: se consumió más de lo que el sistema sabía que había (D-06). */
+  | "negative_estimate"
+  /** El último conteo difiere del estimado más de lo que explica la incertidumbre. */
+  | "discrepancy"
+  /** Hay ventas de platos sin receta en el período (consumo desconocido). */
+  | "unmapped_sales"
 
-// ── Nivel de confianza derivado ──────────────────────────────────────────────
-export type ConfidenceLevel = "high" | "medium" | "low" | "critical"
+/** Nivel operacional para la UI. "unknown" = sin conteo inicial. */
+export type ConfidenceLevel = "high" | "medium" | "low" | "critical" | "unknown"
 
-// ── Estado proyectado (1 doc por SKU × ubicación) ───────────────────────────
-export interface InventoryState {
-  id: string
-  tenantId: string
-  skuId: string
-  storageLocationId: string
-
-  // Estado estimado
-  estimateMu: number
-  estimateSigma: number
-  confidenceLevel: ConfidenceLevel
-
-  // Última evidencia física
-  lastPhysicalObservationAt?: Date
-  lastPhysicalObservationMethod?: ObservationMethod
-  daysSinceObservation: number
-
-  // Solicitudes de evidencia abiertas
-  openEvidenceRequest: boolean
-  openEvidenceRequestId?: string
-  evidenceDegradationStep: 0 | 1 | 2 | 3
-
-  // Árbol de hipótesis activo
-  hypothesisFlags: HypothesisFlag[]
-
-  // Velocidad de consumo (rolling 7 días)
-  consumptionVelocity7d: number
-
-  // Referencia al ledger
-  lastEventId: string
-  lastEventSequence: number
-
-  updatedAt: Date
+export interface DiscrepancyRecord {
+  at: string
+  expected: number
+  observed: number
+  difference: number
+  /** Diferencia en desvíos estándar de la predicción. */
+  zScore: number
+  /** Valor económico de la diferencia. @storedAs cents */
+  valueCents: number
 }
 
-// ── Snapshot histórico ───────────────────────────────────────────────────────
-export interface InventoryStateSnapshot {
-  id: string
-  tenantId: string
-  skuId: string
-  storageLocationId: string
-  snapshotAt: Date
-  state: Omit<InventoryState, "id" | "tenantId" | "updatedAt">
-  lastEventId: string
-  lastEventSequence: number
-  createdAt: Date
-}
-
-// ── Prioridad EER (calculada al vuelo, NO persistida) ────────────────────────
-export interface InventoryPriority {
-  skuId: string
-  storageLocationId: string
-  skuName: string
-  category: string
-  eerScore: number
-  estimateMu: number
-  estimateSigma: number
-  confidenceLevel: ConfidenceLevel
-  daysSinceObservation: number
-  consumptionVelocity7d: number
-  hypothesisFlags: HypothesisFlag[]
+export interface InventoryBelief {
+  mu: number
+  sigma: number
+  /** Fecha (de ocurrencia) hasta la que está proyectado el estado. */
+  asOf: string | null
+  anchored: boolean
+  lastObservedAt: string | null
+  lastObservationMethod: ObservationMethod | null
+  /** Consumo diario suavizado (EWMA) en unidad canónica. */
+  dailyUsage: number
+  /** Costo promedio ponderado por unidad canónica. @storedAs cents */
+  avgUnitCostCents: number
+  flags: InventoryFlag[]
+  lastDiscrepancy: DiscrepancyRecord | null
+  eventsApplied: number
 }

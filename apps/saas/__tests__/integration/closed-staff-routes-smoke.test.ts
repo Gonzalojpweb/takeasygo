@@ -17,7 +17,7 @@ vi.mock('@/lib/tia/metrics', () => ({
 import { GET as crmCustomersGet } from '@/app/api/[tenant]/crm/customers/route'
 import { GET as crmSegmentsGet } from '@/app/api/[tenant]/crm/segments/route'
 import { GET as tiaMetricsGet } from '@/app/api/[tenant]/tia/metrics/route'
-import { GET as inventoryPrioritiesGet } from '@/app/api/[tenant]/inventory/priorities/route'
+import { GET as inventoryTransfersGet } from '@/app/api/[tenant]/inventory/transfers/route'
 import { GET as funnelGet } from '@/app/api/[tenant]/funnel/route'
 import { GET as tripsGet } from '@/app/api/[tenant]/delivery/persons/[id]/trips/route'
 
@@ -47,7 +47,7 @@ const ROUTES: Array<{ name: string; call: (r: NextRequest) => Promise<Response>;
   { name: 'crm/customers', call: (r) => crmCustomersGet(r, params()) },
   { name: 'crm/segments', call: (r) => crmSegmentsGet(r, params()) },
   { name: 'tia/metrics', call: (r) => tiaMetricsGet(r, params()) },
-  { name: 'inventory/priorities', call: (r) => inventoryPrioritiesGet(r, params()) },
+  { name: 'inventory/transfers', call: (r) => inventoryTransfersGet(r, params()) },
   { name: 'funnel', call: (r) => funnelGet(r, params()) },
   { name: 'delivery/trips (id fantasma)', call: (r) => tripsGet(r, params({ id: '000000000000000000000000' })) },
 ]

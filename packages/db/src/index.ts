@@ -8,15 +8,7 @@ export { UserModel } from "./models/user"
 export { ConsumerModel } from "./models/consumer"
 export { TenantModel } from "./models/tenant"
 
-// ── Inventory (FASE04 — Event Ledger + Estado derivado) ──────────────────────
-export { InventorySKUModel, type IInventorySKUDocument } from "./models/inventory-sku"
-export { InventoryStorageLocationModel, type IInventoryStorageLocationDocument } from "./models/inventory-storage-location"
-export { InventoryUnitEquivalenceModel, type IInventoryUnitEquivalenceDocument } from "./models/inventory-unit-equivalence"
-export { InventoryRecipeModel, type IInventoryRecipeDocument } from "./models/inventory-recipe"
-export { InventoryLedgerModel, type IInventoryEventDocument } from "./models/inventory-ledger"
-export { InventoryStateModel, type IInventoryStateDocument } from "./models/inventory-state"
-export { InventoryStateSnapshotModel, type IInventoryStateSnapshotDocument } from "./models/inventory-state-snapshot"
-export { InventorySkuMenuLinkModel, type IInventorySkuMenuLinkDocument } from "./models/inventory-sku-menu-link"
+// Inventory: los modelos viven SOLO en apps/saas/models (DECISIONES_VIGENTES D-15).
 
 // ── Compliance Engine ────────────────────────────────────────────────────────
 export { ComplianceConfigModel, DEFAULT_SLA_RULES, type IComplianceConfigDocument, type ISlaRule } from "./models/compliance-config"

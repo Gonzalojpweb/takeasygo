@@ -1,70 +1,73 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 // ============================================================================
-// InventoryRecipe — Recetas y transformaciones
-// FASE04 §3.4 — Colección: inventory_recipes
+// InventoryRecipe v2 — Receta versionada e inmutable
+// Colección: inventory_recipes · DECISIONES_VIGENTES D-08
+// ============================================================================
+// · kind 'dish': consumo por porción de un ítem del menú de una sede
+//   (menuItemId) y opcionalmente de una variante (variantName).
+// · kind 'preparation': tanda de producción de un insumo `prepared`
+//   (items → outputQuantity de outputSkuId). Las sub-recetas salen solas:
+//   el plato consume "Salsa de tomate", producir salsa consume tomate.
+// · Editar = nueva versión. La anterior queda isCurrent=false; los eventos
+//   de venta referencian (recipeId, version) y nunca cambian.
 // ============================================================================
 
-export interface IRecipeInput {
+export interface IRecipeItem {
   skuId: mongoose.Types.ObjectId
   quantity: number
   unit: 'kg' | 'g' | 'l' | 'ml' | 'unit'
-  yieldPrior: { alpha: number; beta: number }
-  yieldObservedMean?: number
-  yieldObservationsCount: number
-}
-
-export interface IRecipeOutput {
-  skuId: mongoose.Types.ObjectId
-  expectedQuantity: number
-  unit: 'kg' | 'g' | 'l' | 'ml' | 'unit'
-  isPrimary: boolean
 }
 
 export interface IInventoryRecipe extends Document {
   tenantId: mongoose.Types.ObjectId
+  locationId: mongoose.Types.ObjectId | null
+  kind: 'dish' | 'preparation'
+  /** Clave estable de la receta a través de sus versiones. */
+  recipeKey: string
   name: string
-  type: 'production' | 'portioning' | 'cooking'
-  inputs: IRecipeInput[]
-  outputs: IRecipeOutput[]
-  expectedWastePct: number
+  menuItemId: string | null
+  variantName: string | null
+  outputSkuId: mongoose.Types.ObjectId | null
+  outputQuantity: number | null
+  items: IRecipeItem[]
   version: number
-  isActive: boolean
+  isCurrent: boolean
+  createdBy: string | null
   createdAt: Date
-  updatedAt: Date
 }
 
-const RecipeInputSchema = new Schema<IRecipeInput>({
+const RecipeItemSchema = new Schema<IRecipeItem>({
   skuId: { type: Schema.Types.ObjectId, ref: 'InventorySKU', required: true },
   quantity: { type: Number, required: true },
   unit: { type: String, enum: ['kg', 'g', 'l', 'ml', 'unit'], required: true },
-  yieldPrior: {
-    alpha: { type: Number, required: true },
-    beta: { type: Number, required: true },
-  },
-  yieldObservedMean: { type: Number, default: null },
-  yieldObservationsCount: { type: Number, default: 0 },
-}, { _id: false })
-
-const RecipeOutputSchema = new Schema<IRecipeOutput>({
-  skuId: { type: Schema.Types.ObjectId, ref: 'InventorySKU', required: true },
-  expectedQuantity: { type: Number, required: true },
-  unit: { type: String, enum: ['kg', 'g', 'l', 'ml', 'unit'], required: true },
-  isPrimary: { type: Boolean, default: true },
 }, { _id: false })
 
 const InventoryRecipeSchema = new Schema<IInventoryRecipe>({
-  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-  name: { type: String, required: true },
-  type: { type: String, enum: ['production', 'portioning', 'cooking'], required: true },
-  inputs: { type: [RecipeInputSchema], default: [] },
-  outputs: { type: [RecipeOutputSchema], default: [] },
-  expectedWastePct: { type: Number, default: 0, min: 0, max: 1 },
-  version: { type: Number, default: 1 },
-  isActive: { type: Boolean, default: true },
-}, { timestamps: true })
+  tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
+  kind: { type: String, enum: ['dish', 'preparation'], required: true },
+  recipeKey: { type: String, required: true },
+  name: { type: String, required: true, trim: true, maxlength: 160 },
+  menuItemId: { type: String, default: null },
+  variantName: { type: String, default: null },
+  outputSkuId: { type: Schema.Types.ObjectId, ref: 'InventorySKU', default: null },
+  outputQuantity: { type: Number, default: null },
+  items: { type: [RecipeItemSchema], default: [] },
+  version: { type: Number, required: true, min: 1 },
+  isCurrent: { type: Boolean, default: true },
+  createdBy: { type: String, default: null },
+}, { timestamps: { createdAt: true, updatedAt: false } })
 
-InventoryRecipeSchema.index({ tenantId: 1, isActive: 1 })
+InventoryRecipeSchema.index({ tenantId: 1, recipeKey: 1, version: 1 }, { unique: true, name: 'recipe_version' })
+// Una sola versión vigente por clave.
+InventoryRecipeSchema.index(
+  { tenantId: 1, recipeKey: 1 },
+  { unique: true, partialFilterExpression: { isCurrent: true }, name: 'recipe_current' },
+)
+InventoryRecipeSchema.index({ tenantId: 1, locationId: 1, kind: 1, isCurrent: 1 })
 
-const InventoryRecipe = mongoose.models.InventoryRecipe || mongoose.model<IInventoryRecipe>('InventoryRecipe', InventoryRecipeSchema, 'inventory_recipes')
+const InventoryRecipe =
+  (mongoose.models.InventoryRecipe as mongoose.Model<IInventoryRecipe>) ||
+  mongoose.model<IInventoryRecipe>('InventoryRecipe', InventoryRecipeSchema, 'inventory_recipes')
 export default InventoryRecipe

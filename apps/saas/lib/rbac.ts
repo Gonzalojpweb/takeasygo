@@ -63,6 +63,8 @@ export type Permission =
   | 'reservations.delete'
   | 'promotions.write'
   | 'discounts.write'
+  | 'inventory.read'
+  | 'inventory.capture'
   | 'inventory.write'
   | 'reports.read'
   | 'reports.cash'
@@ -93,6 +95,8 @@ const ALL_PERMISSIONS: Permission[] = [
   'reservations.delete',
   'promotions.write',
   'discounts.write',
+  'inventory.read',
+  'inventory.capture',
   'inventory.write',
   'reports.read',
   'reports.cash',
@@ -130,6 +134,8 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
     'reservations.delete',
     'promotions.write',
     'discounts.write',
+    'inventory.read',
+    'inventory.capture',
     'inventory.write',
     'reports.read',
     'reports.cash',
@@ -146,12 +152,14 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
     'orders.write',
     'kitchen.read',
     'menu.read',
+    'inventory.capture',
     'rooms.access',
   ],
   cashier: [
     'orders.read',
     'orders.write',
     'kitchen.read',
+    'inventory.capture',
     'cash.open',
     'cash.close',
     'cash.movements.read',
@@ -183,6 +191,7 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
   auditor: [
     'orders.read',
     'menu.read',
+    'inventory.read',
     'reservations.read',
     'reports.read',
     'reports.view_consolidated',

@@ -13,7 +13,8 @@
     "./mongo": "./dist/mongo.js",
     "./src/mongo": {
       "types": "./src/mongo.ts"
-    }
+    },
+    "./inventory": "./dist/inventory/index.js"
   },
   "scripts": {
     "build": "tsc",
