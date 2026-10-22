@@ -18,7 +18,6 @@
 
 import mongoose from 'mongoose'
 import InventoryLedger from '@/models/InventoryLedger'
-import InventoryRecipe from '@/models/InventoryRecipe'
 import InventoryModifierRule from '@/models/InventoryModifierRule'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
@@ -28,7 +27,9 @@ import {
   modifierLabel,
   orderConsumes,
   planSaleCorrections,
+  resolveDishRecipe,
   saleEventId,
+  unresolvedRecipeWarning,
   summarizeRecorded,
   type DesiredSaleLine,
   type SelectedModifier,
@@ -36,7 +37,7 @@ import {
 } from '@takeasygo/business/inventory'
 import { canAccess, type Plan } from '@/lib/plans'
 import { appendEvents, type NewLedgerEvent } from './projector'
-import { consumptionStorageFor, dishRecipeKey } from './catalog'
+import { consumptionStorageFor, dishRecipeKey, loadCurrentRecipes } from './catalog'
 import InventorySKU from '@/models/InventorySKU'
 
 interface OrderLike {
@@ -126,11 +127,9 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
     keys.add(dishRecipeKey(String(order.locationId), c.line.menuItemId, c.line.variantName))
     keys.add(dishRecipeKey(String(order.locationId), c.line.menuItemId, null))
   }
-  const recipes = keys.size
-    ? await InventoryRecipe.find({ tenantId: tenantObjectId, recipeKey: { $in: [...keys] }, isCurrent: true }).lean()
-    : []
+  const recipeByKey = await loadCurrentRecipes(tenantObjectId, { recipeKeys: [...keys] })
+  const recipes = [...recipeByKey.values()]
   const rules = needsRecipes.length ? await InventoryModifierRule.find({ tenantId: tenantObjectId, isActive: true }).lean() : []
-  const recipeByKey = new Map(recipes.map((r) => [r.recipeKey, r]))
   const skuIds = new Set<string>()
   for (const r of recipes) for (const i of r.items) skuIds.add(String(i.skuId))
   for (const r of rules) for (const i of r.items) skuIds.add(String(i.skuId))
@@ -175,20 +174,21 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
       return { ...base, payload: { ...common, recipeId: null, recipeVersion: null, consumption: c.consumption, unmapped: false, warnings: [] } }
     }
     const line = desired.find((d) => d.lineId === c.lineId)!
-    // Receta de la variante; si la variante no tiene propia, la base del plato.
-    // Usar la base para "Triple" casi seguro subestima el consumo: se marca
-    // (baseRecipeFallback + warning) para que la UI lo pida configurar.
-    const variantRecipe = c.line.menuItemId && c.line.variantName
-      ? recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, c.line.variantName)) ?? null
-      : null
-    const baseRecipe = c.line.menuItemId
-      ? recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, null)) ?? null
-      : null
-    const recipe = variantRecipe ?? baseRecipe
-    const baseRecipeFallback = Boolean(c.line.variantName && !variantRecipe && baseRecipe)
+    // D-26: variante con receta propia, o confirmada "igual a la base"; una
+    // variante sin ninguna de las dos NO descuenta (nunca se asume la base).
+    const asResolvable = (r: (typeof recipes)[number] | undefined) =>
+      r ? { ...r, id: String(r._id), items: r.items.map((i) => ({ skuId: String(i.skuId), quantity: i.quantity, unit: i.unit })) } : null
+    const { recipe, status } = resolveDishRecipe({
+      variantName: c.line.variantName,
+      variantRecipe: c.line.menuItemId && c.line.variantName
+        ? asResolvable(recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, c.line.variantName)))
+        : null,
+      baseRecipe: c.line.menuItemId ? asResolvable(recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, null))) : null,
+    })
+    const pending = unresolvedRecipeWarning(status, c.line.variantName)
     const exploded = explodeSaleLine({
       portions: c.portions,
-      recipe: recipe ? { id: String(recipe._id), version: recipe.version, items: recipe.items.map((i) => ({ skuId: String(i.skuId), quantity: i.quantity, unit: i.unit })) } : null,
+      recipe: recipe ? { id: recipe.id, version: recipe.version, items: [...recipe.items] } : null,
       modifiers: line.modifiers,
       rules: ruleList,
       skus,
@@ -199,14 +199,13 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
       ...base,
       payload: {
         ...common,
-        recipeId: recipe ? String(recipe._id) : null,
+        recipeId: recipe?.id ?? null,
         recipeVersion: recipe?.version ?? null,
         consumption: exploded.consumption,
         unmapped: exploded.unmapped,
-        baseRecipeFallback,
-        warnings: baseRecipeFallback
-          ? [`La variante "${c.line.variantName}" no tiene receta propia: se descontó la receta base`, ...exploded.warnings]
-          : exploded.warnings,
+        unmappedReason: exploded.unmapped ? (status === 'variant_unconfirmed' ? 'variant_unconfirmed' : 'no_recipe') : null,
+        variantUsesBase: status === 'base_confirmed',
+        warnings: pending ? [pending, ...exploded.warnings] : exploded.warnings,
       },
     }
   })

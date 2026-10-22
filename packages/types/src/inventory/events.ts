@@ -157,11 +157,12 @@ export interface SaleRecordedPayload {
   /** true si el plato no tiene receta: venta registrada, consumo desconocido. */
   unmapped: boolean
   /**
-   * true si se vendió una variante ("Triple") SIN receta propia y se descontó
-   * la receta base del plato. El consumo probablemente está subestimado: la UI
-   * lo muestra como pendiente de configurar (antes pasaba en silencio).
+   * Por qué no descontó (si `unmapped`): el plato no tiene receta, o se vendió
+   * una variante sin receta propia ni confirmación de que usa la base (D-26).
    */
-  baseRecipeFallback?: boolean
+  unmappedReason?: "no_recipe" | "variant_unconfirmed" | null
+  /** Variante confirmada como "igual a la base": descontó la receta base. */
+  variantUsesBase?: boolean
   warnings: string[]
 }
 

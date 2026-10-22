@@ -41,6 +41,10 @@ export const FLAGS = {
   /** Renovación automática de tokens OAuth MP: el cron mp-oauth-renew
    *  renueva los tokens por vencer. Off = nunca renueva (manual). */
   MP_OAUTH_AUTO_RENEW: 'mp.oauthAutoRenew',
+  /** Inventario V3 (contextos Ahora · Productos · Recetas · Actividad). Off =
+   *  la pantalla clásica de siempre. La clásica sigue accesible en
+   *  /admin/inventario/clasico mientras dure la transición. */
+  INVENTORY_V3: 'inventory.v3',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

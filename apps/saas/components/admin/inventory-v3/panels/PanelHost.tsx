@@ -1,0 +1,73 @@
+'use client'
+
+// ============================================================================
+// PanelHost — un solo panel abierto a la vez
+// ============================================================================
+// Las vistas piden un panel (`ctx.open({...})`); acá se decide cuál. Cada
+// pedido monta un panel nuevo (key) → estado limpio, y un panel puede pasar
+// a otro (detalle → contar) sin volver a la lista.
+// ============================================================================
+
+import type { V3Context } from '../InventoryV3'
+import CountPanel from './CountPanel'
+import WastePanel from './WastePanel'
+import ReceivePanel from './ReceivePanel'
+import ProductPanel from './ProductPanel'
+import RecipePanel from './RecipePanel'
+
+export type PanelRequest =
+  | { type: 'receive'; skuId?: string }
+  | { type: 'count'; skuId: string; storageLocationId?: string | null }
+  | { type: 'waste'; skuId: string; storageLocationId?: string | null }
+  | { type: 'product'; skuId: string; storageLocationId?: string | null }
+  | { type: 'recipe'; menuItemId: string; variantName?: string | null }
+
+export interface PanelProps {
+  ctx: V3Context
+  onClose: () => void
+  onSwitch: (p: PanelRequest) => void
+  /** Algo se registró: las vistas recargan. */
+  onChanged: () => void
+}
+
+function keyOf(r: PanelRequest): string {
+  switch (r.type) {
+    case 'receive':
+      return `receive:${r.skuId ?? ''}`
+    case 'recipe':
+      return `recipe:${r.menuItemId}:${r.variantName ?? ''}`
+    default:
+      return `${r.type}:${r.skuId}:${r.storageLocationId ?? ''}`
+  }
+}
+
+export default function PanelHost({
+  ctx,
+  request,
+  onClose,
+  onSwitch,
+  onChanged,
+}: { request: PanelRequest | null } & PanelProps) {
+  if (!request) return null
+  // Si el catálogo llega con el panel abierto, se remonta con los datos del insumo.
+  const k = `${keyOf(request)}|${ctx.catalogReady}`
+  const common = { ctx, onClose, onSwitch, onChanged }
+  switch (request.type) {
+    case 'count':
+      return <CountPanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
+    case 'waste':
+      return <WastePanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
+    case 'receive':
+      return <ReceivePanel key={k} {...common} skuId={request.skuId ?? null} />
+    case 'product':
+      return <ProductPanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
+    case 'recipe':
+      return <RecipePanel key={k} {...common} menuItemId={request.menuItemId} variantName={request.variantName ?? null} />
+  }
+}
+
+/** Depósito por defecto para una acción: el pedido, o el de consumo de la sede. */
+export function resolveStorage(ctx: V3Context, requested: string | null): string | null {
+  if (requested && ctx.storages.some((s) => s._id === requested)) return requested
+  return ctx.storages.find((s) => s.isDefaultConsumption)?._id ?? ctx.storages[0]?._id ?? null
+}

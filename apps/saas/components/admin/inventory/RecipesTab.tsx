@@ -144,8 +144,8 @@ export default function RecipesTab({
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {variants.map((v) => {
-                              // Variante sin receta propia con base cargada: se vende
-                              // descontando la base (ej. "Triple" como "Simple").
+                              // D-26: variante sin receta propia ni confirmación → NO
+                              // descuenta. Se marca para que la carguen o la confirmen.
                               const ownRecipe = it.recipes.some((r) => r.variantName === v)
                               const usesBase = v !== null && !ownRecipe && it.recipes.some((r) => r.variantName === null)
                               return (
@@ -154,9 +154,9 @@ export default function RecipesTab({
                                   type="button"
                                   onClick={() => setEditing(editing?.menuItemId === it.menuItemId && editing.variantName === v ? null : { menuItemId: it.menuItemId, variantName: v })}
                                   className={`h-11 rounded-xl border px-3 text-sm font-bold hover:bg-muted ${usesBase ? 'border-amber-500/50 bg-amber-500/10 text-amber-800' : 'border-border'}`}
-                                  title={usesBase ? 'Sin receta propia: se descuenta la receta base' : undefined}
+                                  title={usesBase ? 'Sin receta confirmada: sus ventas no descuentan insumos' : undefined}
                                 >
-                                  {v === null ? (it.hasRecipe ? 'Editar' : 'Cargar receta') : usesBase ? `${v} · usa la base` : v}
+                                  {v === null ? (it.hasRecipe ? 'Editar' : 'Cargar receta') : usesBase ? `${v} · sin confirmar` : v}
                                 </button>
                               )
                             })}
@@ -165,7 +165,7 @@ export default function RecipesTab({
                         {it.variants.length > 0 && it.recipes.some((r) => r.variantName === null) &&
                           it.variants.some((v) => !it.recipes.some((r) => r.variantName === v.name)) && (
                           <p className="mt-2 text-xs font-medium text-amber-700">
-                            Las variantes marcadas descuentan la receta base: si llevan más cantidad (doble, triple), cargales su receta.
+                            Las variantes marcadas no descuentan insumos hasta que les cargues su receta (o confirmes en Inventario V3 que consumen igual que la base).
                           </p>
                         )}
                         {editing?.menuItemId === it.menuItemId && (
@@ -328,6 +328,8 @@ function RecipeEditor({
         method: 'POST',
         body: {
           locationId,
+          // Solo alta de insumos: nunca cambia el estado de la sede.
+          mode: 'none',
           skus: missing.map((s) => ({ name: s.name, category: s.category, canonicalUnit: s.canonicalUnit, businessImpact: s.businessImpact })),
         },
       })

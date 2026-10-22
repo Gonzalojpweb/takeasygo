@@ -11,6 +11,12 @@ import mongoose, { Schema, Document } from 'mongoose'
 //   el plato consume "Salsa de tomate", producir salsa consume tomate.
 // · Editar = nueva versión. La anterior queda isCurrent=false; los eventos
 //   de venta referencian (recipeId, version) y nunca cambian.
+// · Variante con `usesBaseRecipe`: el responsable CONFIRMÓ que la variante
+//   consume igual que la base (sin ítems propios). Una variante sin receta
+//   y sin esa confirmación NO descuenta (D-26): nunca se asume "Doble = base".
+// · `removedAt`: la receta se quitó (el plato vuelve a "sin receta"). Junto
+//   con la versión más alta permite resolver la vigente aunque un guardado se
+//   haya cortado a mitad (R5, ver catalog.ts:loadCurrentRecipes).
 // ============================================================================
 
 export interface IRecipeItem {
@@ -33,6 +39,8 @@ export interface IInventoryRecipe extends Document {
   items: IRecipeItem[]
   version: number
   isCurrent: boolean
+  usesBaseRecipe: boolean
+  removedAt: Date | null
   createdBy: string | null
   createdAt: Date
 }
@@ -56,6 +64,8 @@ const InventoryRecipeSchema = new Schema<IInventoryRecipe>({
   items: { type: [RecipeItemSchema], default: [] },
   version: { type: Number, required: true, min: 1 },
   isCurrent: { type: Boolean, default: true },
+  usesBaseRecipe: { type: Boolean, default: false },
+  removedAt: { type: Date, default: null },
   createdBy: { type: String, default: null },
 }, { timestamps: { createdAt: true, updatedAt: false } })
 

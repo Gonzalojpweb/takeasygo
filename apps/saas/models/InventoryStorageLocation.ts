@@ -15,6 +15,12 @@ export interface IInventoryStorageLocation extends Document {
   name: string
   type: 'cold_storage' | 'dry_storage' | 'bar' | 'kitchen' | 'other'
   isDefaultConsumption: boolean
+  /**
+   * Solo en el depósito de consumo: si las ventas de la sede descuentan.
+   * false = sede "en preparación" (recetas y conteo inicial sin que las
+   * ventas descuenten todavía). Ausente = true (sedes activadas antes).
+   */
+  salesConsumption: boolean
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -26,6 +32,7 @@ const InventoryStorageLocationSchema = new Schema<IInventoryStorageLocation>({
   name: { type: String, required: true, trim: true, maxlength: 80 },
   type: { type: String, enum: ['cold_storage', 'dry_storage', 'bar', 'kitchen', 'other'], required: true },
   isDefaultConsumption: { type: Boolean, default: false },
+  salesConsumption: { type: Boolean, default: true },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 

@@ -118,11 +118,14 @@ export async function recordReceipt(ctx: InventoryContext, input: z.infer<typeof
     },
   }])
 
-  if (res.inserted > 0 && unitCostCents !== null) {
-    await InventorySKU.updateOne(
-      { _id: sku._id, tenantId: ctx.tenantObjectId },
-      { $set: { lastUnitCostCents: unitCostCents, ...(input.supplierName ? { supplierName: input.supplierName } : {}) } },
-    )
+  if (res.inserted > 0) {
+    // Precio de referencia y presentación habitual ("caja de 6 kg"): la
+    // próxima recepción de este insumo arranca con esos datos.
+    const set: Record<string, unknown> = {}
+    if (unitCostCents !== null) set.lastUnitCostCents = unitCostCents
+    if (input.supplierName) set.supplierName = input.supplierName
+    if (input.pack) set.lastPack = { label: input.unit.trim().slice(0, 40) || 'bulto', quantity: input.pack.quantity, unit: input.pack.unit }
+    if (Object.keys(set).length > 0) await InventorySKU.updateOne({ _id: sku._id, tenantId: ctx.tenantObjectId }, { $set: set })
   }
   return { duplicate: res.inserted === 0, quantity, unit: sku.canonicalUnit, unitCostCents }
 }

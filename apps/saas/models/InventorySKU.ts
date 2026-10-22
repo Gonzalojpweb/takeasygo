@@ -30,6 +30,8 @@ export interface IInventorySKU extends Document {
   lastUnitCostCents: number
   parLevel: number | null
   supplierName: string | null
+  /** Presentación habitual de compra ("caja de 6 kg"), recordada de la última recepción. */
+  lastPack: { label: string; quantity: number; unit: (typeof SKU_UNITS)[number] } | null
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -48,6 +50,14 @@ const InventorySKUSchema = new Schema<IInventorySKU>({
   lastUnitCostCents: { type: Number, default: 0, min: 0 },
   parLevel: { type: Number, default: null, min: 0 },
   supplierName: { type: String, default: null, maxlength: 120 },
+  lastPack: {
+    type: new Schema({
+      label: { type: String, required: true, trim: true, maxlength: 40 },
+      quantity: { type: Number, required: true, min: 0 },
+      unit: { type: String, enum: SKU_UNITS, required: true },
+    }, { _id: false }),
+    default: null,
+  },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true })
 

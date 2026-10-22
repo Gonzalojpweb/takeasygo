@@ -3,7 +3,7 @@
 // ============================================================================
 // Roles (aprobado 2026-10-21): inventario solo para admin, manager, gerente de
 // operaciones y jefe de cocina. Más las correcciones de la auditoría Fase 0:
-//   R1 variante sin receta propia → marcada (no en silencio)
+//   R1/D-26 variante sin receta ni confirmación → no descuenta (pendiente)
 //   R2 montos en pesos solo para quien tiene `read`
 //   R3 onOrderConfirmed termina aunque ya se respondió (runAfterResponse)
 //   R4 el cron re-proyecta los insumos con estado atrasado
@@ -145,25 +145,62 @@ describe('roles de inventario', () => {
   })
 })
 
-describe('R1 — variante sin receta propia', () => {
-  it('usa la base y queda MARCADA; con receta propia, no', async () => {
+// D-26 (Inventario V3, reemplaza el R1 de la Fase 1): una variante sin receta
+// propia NI confirmación de "igual a la base" NO descuenta — antes descontaba
+// la base marcada. Nunca se asume que "Triple" consume como la base.
+describe('R1 / D-26 — consumo por variante', () => {
+  it('variante sin receta ni confirmación: NO descuenta y queda pendiente con motivo', async () => {
     await syncOrderConsumption(order('Triple'))
-    const fallback: any = await InventoryLedger.findOne({ eventType: 'SaleRecorded', 'payload.variantName': 'Triple' }).lean()
-    expect(fallback.payload.baseRecipeFallback).toBe(true)
-    expect(fallback.payload.unmapped).toBe(false)
-    expect(fallback.payload.warnings.join(' ')).toMatch(/Triple.*receta base/)
+    const ev: any = await InventoryLedger.findOne({ eventType: 'SaleRecorded', 'payload.variantName': 'Triple' }).lean()
+    expect(ev.payload.unmapped).toBe(true)
+    expect(ev.payload.unmappedReason).toBe('variant_unconfirmed')
+    expect(ev.payload.consumption).toEqual([])
+    expect(ev.payload.warnings.join(' ')).toMatch(/Triple.*no tiene receta confirmada/)
+  })
 
+  it('variante con receta propia descuenta la suya (no la base)', async () => {
     await recipesPut(json('PUT', 'recipes', dobleRecipe()), P)
     await syncOrderConsumption(order('Doble', '64b00000000000000000e002'))
     const own: any = await InventoryLedger.findOne({ eventType: 'SaleRecorded', 'payload.variantName': 'Doble' }).lean()
-    expect(own.payload.baseRecipeFallback).toBe(false)
+    expect(own.payload.unmapped).toBe(false)
+    expect(own.payload.variantUsesBase).toBe(false)
     expect(own.payload.consumption.find((c: any) => c.skuId === carneId).quantity).toBeCloseTo(0.3, 6)
   })
 
-  it('un plato sin variante no se marca', async () => {
+  it('variante confirmada "igual a la base" descuenta la base; cancelar devuelve exacto', async () => {
+    const res = await recipesPut(json('PUT', 'recipes', {
+      kind: 'dish', locationId: loc._id.toString(), menuItemId: MENU_ITEM, variantName: 'Simple', name: 'Hamburguesa (Simple)',
+      usesBaseRecipe: true, items: [],
+    }), P)
+    expect(res.status).toBe(200)
+    const sold = order('Simple', '64b00000000000000000e003')
+    await syncOrderConsumption(sold)
+    const ev: any = await InventoryLedger.findOne({ eventType: 'SaleRecorded', 'payload.variantName': 'Simple' }).lean()
+    expect(ev.payload.variantUsesBase).toBe(true)
+    expect(ev.payload.consumption.find((c: any) => c.skuId === carneId).quantity).toBeCloseTo(0.15, 6)
+
+    await syncOrderConsumption({ ...sold, status: 'cancelled' })
+    const events: any[] = await InventoryLedger.find({ eventType: 'SaleRecorded', correlationId: String(sold._id) }).lean()
+    const net = events.flatMap((e) => e.payload.consumption).filter((c) => c.skuId === carneId).reduce((a, c) => a + c.quantity, 0)
+    expect(net).toBeCloseTo(0, 6)
+    expect(events.map((e) => e.payload.reason).sort()).toEqual(['cancelled', 'sold'])
+  })
+
+  it('confirmar "igual a la base" exige que exista la base', async () => {
+    const other = new mongoose.Types.ObjectId().toString()
+    const res = await recipesPut(json('PUT', 'recipes', {
+      kind: 'dish', locationId: loc._id.toString(), menuItemId: other, variantName: 'Doble', name: 'Otro (Doble)', usesBaseRecipe: true, items: [],
+    }), P)
+    expect(res.status).toBe(409)
+    expect((await res.json()).error).toMatch(/receta base/)
+  })
+
+  it('un plato sin variante descuenta su receta y no lleva marcas', async () => {
     await syncOrderConsumption(order(null))
     const ev: any = await InventoryLedger.findOne({ eventType: 'SaleRecorded' }).lean()
-    expect(ev.payload.baseRecipeFallback).toBe(false)
+    expect(ev.payload.unmapped).toBe(false)
+    expect(ev.payload.unmappedReason).toBeNull()
+    expect(ev.payload.variantUsesBase).toBe(false)
   })
 })
 

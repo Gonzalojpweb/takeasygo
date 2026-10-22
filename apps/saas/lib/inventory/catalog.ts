@@ -6,7 +6,7 @@ import mongoose from 'mongoose'
 import { z } from 'zod'
 import InventorySKU, { SKU_CATEGORIES, SKU_IMPACTS, SKU_UNITS, type IInventorySKU } from '@/models/InventorySKU'
 import InventoryStorageLocation from '@/models/InventoryStorageLocation'
-import InventoryRecipe from '@/models/InventoryRecipe'
+import InventoryRecipe, { type IInventoryRecipe } from '@/models/InventoryRecipe'
 import InventoryModifierRule from '@/models/InventoryModifierRule'
 import InventoryLedger from '@/models/InventoryLedger'
 import Location from '@/models/Location'
@@ -92,11 +92,23 @@ export async function requireSku(tenantId: mongoose.Types.ObjectId, skuId: unkno
 
 // ── Depósitos ────────────────────────────────────────────────────────────────
 
+export type InventorySetupStatus = 'off' | 'preparing' | 'active'
+
 /**
- * Activa inventario en una sede: crea su depósito de consumo si no existe
- * (D-12). Idempotente.
+ * Crea el depósito de consumo de una sede si no existe (D-12). Idempotente.
+ *
+ *   salesConsumption true  → sede ACTIVA: las ventas descuentan.
+ *   salesConsumption false → sede EN PREPARACIÓN: se cargan recetas y el
+ *                            conteo inicial sin que las ventas descuenten.
+ *
+ * Nunca pasa una sede activa a "en preparación": eso lo hace solo
+ * setSalesConsumption, explícitamente.
  */
-export async function ensureConsumptionStorage(tenantId: mongoose.Types.ObjectId, locationId: mongoose.Types.ObjectId) {
+export async function ensureConsumptionStorage(
+  tenantId: mongoose.Types.ObjectId,
+  locationId: mongoose.Types.ObjectId,
+  opts: { salesConsumption?: boolean } = {},
+) {
   const existing = await InventoryStorageLocation.findOne({ tenantId, locationId, isDefaultConsumption: true }).lean()
   if (existing) return existing
   try {
@@ -106,6 +118,7 @@ export async function ensureConsumptionStorage(tenantId: mongoose.Types.ObjectId
       name: 'Cocina',
       type: 'kitchen',
       isDefaultConsumption: true,
+      salesConsumption: opts.salesConsumption ?? true,
     })
     return created.toObject()
   } catch (err) {
@@ -116,10 +129,33 @@ export async function ensureConsumptionStorage(tenantId: mongoose.Types.ObjectId
   }
 }
 
+/** Depósito del que descuentan las ventas de la sede, o null si la sede no está ACTIVA. */
 export async function consumptionStorageFor(tenantId: mongoose.Types.ObjectId | string, locationId: mongoose.Types.ObjectId | string) {
-  return InventoryStorageLocation.findOne({ tenantId, locationId, isDefaultConsumption: true, isActive: true })
+  return InventoryStorageLocation.findOne({ tenantId, locationId, isDefaultConsumption: true, isActive: true, salesConsumption: { $ne: false } })
     .select('_id locationId')
     .lean<{ _id: mongoose.Types.ObjectId; locationId: mongoose.Types.ObjectId }>()
+}
+
+/** Estado de inventario de cada sede pedida (off · preparing · active). */
+export async function setupStatusByLocation(tenantId: mongoose.Types.ObjectId, locationIds: mongoose.Types.ObjectId[] | null) {
+  const storages = await InventoryStorageLocation.find({
+    tenantId,
+    isDefaultConsumption: true,
+    isActive: true,
+    ...(locationIds ? { locationId: { $in: locationIds } } : {}),
+  }).select('locationId salesConsumption').lean()
+  return new Map<string, InventorySetupStatus>(
+    storages.map((s) => [String(s.locationId), s.salesConsumption === false ? 'preparing' : 'active']),
+  )
+}
+
+/** Activa (o pausa) el descuento por ventas de una sede ya preparada. */
+export async function setSalesConsumption(tenantId: mongoose.Types.ObjectId, locationId: mongoose.Types.ObjectId, enabled: boolean) {
+  const res = await InventoryStorageLocation.updateOne(
+    { tenantId, locationId, isDefaultConsumption: true },
+    { $set: { salesConsumption: enabled } },
+  )
+  if (res.matchedCount === 0) throw InventoryError.notFound('La sede no tiene inventario preparado')
 }
 
 /** Depósito del tenant (y de una sede del alcance), o 404. */
@@ -162,6 +198,8 @@ export const dishRecipeSchema = z.object({
   variantName: z.string().trim().max(120).nullish(),
   name: z.string().trim().min(1).max(160),
   items: z.array(recipeItemSchema.extend({ quantity: positive })).max(60),
+  /** Variante confirmada como "igual a la base" (sin insumos propios). */
+  usesBaseRecipe: z.boolean().optional(),
 })
 
 export const preparationRecipeSchema = z.object({
@@ -199,7 +237,18 @@ async function validateRecipeItems(tenantId: mongoose.Types.ObjectId, items: Arr
   return skus
 }
 
-/** Guarda una NUEVA versión de la receta (la anterior queda histórica). */
+/**
+ * Guarda una NUEVA versión de la receta (la anterior queda histórica).
+ *
+ * Orden a prueba de cortes (R5): 1) se crea la versión nueva SIN vigencia,
+ * 2) la vigente deja de serlo, 3) la nueva pasa a vigente. Si el proceso se
+ * corta entre 2 y 3, la clave queda sin vigente pero su versión más alta no
+ * está quitada: loadCurrentRecipes la toma (y repara la marca). Antes el
+ * orden era inverso y un corte dejaba el plato "sin receta" en silencio.
+ *
+ * Variante con `usesBaseRecipe`: confirmación explícita de que la variante
+ * consume igual que la base (exige base vigente; sin insumos propios).
+ */
 export async function saveRecipe(
   tenantId: mongoose.Types.ObjectId,
   input: z.infer<typeof recipeInputSchema>,
@@ -212,7 +261,25 @@ export async function saveRecipe(
   if (input.kind === 'dish') {
     await requireLocation(tenantId, input.locationId, assertLocation)
     recipeKey = dishRecipeKey(input.locationId, input.menuItemId, input.variantName)
-    extra = { locationId: input.locationId, menuItemId: input.menuItemId, variantName: input.variantName || null, outputSkuId: null, outputQuantity: null }
+    const usesBase = Boolean(input.usesBaseRecipe)
+    if (usesBase) {
+      if (!input.variantName) throw InventoryError.validation('Solo una variante puede usar la receta base')
+      if (input.items.length > 0) throw InventoryError.validation('Una variante que usa la receta base no lleva insumos propios')
+      const baseKey = dishRecipeKey(input.locationId, input.menuItemId, null)
+      if (!(await loadCurrentRecipes(tenantId, { recipeKeys: [baseKey] })).has(baseKey)) {
+        throw InventoryError.conflict('Primero cargá la receta base del plato')
+      }
+    } else if (input.items.length === 0) {
+      throw InventoryError.validation('Agregá al menos un insumo a la receta')
+    }
+    extra = {
+      locationId: input.locationId,
+      menuItemId: input.menuItemId,
+      variantName: input.variantName || null,
+      outputSkuId: null,
+      outputQuantity: null,
+      usesBaseRecipe: usesBase,
+    }
   } else {
     const out = (await loadSkuMap(tenantId, [input.outputSkuId])).get(input.outputSkuId)
     if (!out) throw InventoryError.validation('Insumo de salida inexistente')
@@ -223,35 +290,93 @@ export async function saveRecipe(
   }
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const current = await InventoryRecipe.findOne({ tenantId, recipeKey, isCurrent: true }).lean()
     const last = await InventoryRecipe.findOne({ tenantId, recipeKey }).sort({ version: -1 }).select('version').lean()
-    const version = (last?.version ?? 0) + 1
-    if (current) await InventoryRecipe.updateOne({ _id: current._id, isCurrent: true }, { $set: { isCurrent: false } })
+    let created
     try {
-      const created = await InventoryRecipe.create({
+      // 1) Versión nueva, todavía sin vigencia. El índice {recipeKey, version}
+      //    descarta a la edición concurrente que eligió el mismo número.
+      created = await InventoryRecipe.create({
         tenantId,
         kind: input.kind,
         recipeKey,
         name: input.name,
         items: input.items,
-        version,
-        isCurrent: true,
+        version: (last?.version ?? 0) + 1,
+        isCurrent: false,
         createdBy: actorId,
         ...extra,
       })
-      return created.toObject()
     } catch (err) {
-      // Carrera con otra edición: devolver la vigente a su lugar y reintentar.
-      if (current) await InventoryRecipe.updateOne({ _id: current._id }, { $set: { isCurrent: true } }).catch(() => {})
-      if ((err as { code?: number }).code !== 11000) throw err
+      if ((err as { code?: number }).code === 11000) continue
+      throw err
     }
+    // 2) La vigente deja de serlo.
+    await InventoryRecipe.updateOne({ tenantId, recipeKey, isCurrent: true, _id: { $ne: created._id } }, { $set: { isCurrent: false } })
+    // 3) La nueva pasa a vigente.
+    try {
+      await InventoryRecipe.updateOne({ _id: created._id }, { $set: { isCurrent: true } })
+    } catch (err) {
+      // Otra edición tomó la vigencia entre 2 y 3: gana la otra.
+      if ((err as { code?: number }).code === 11000) {
+        throw InventoryError.conflict('La receta se acaba de editar desde otro lugar; revisala y volvé a guardar')
+      }
+      throw err
+    }
+    return { ...created.toObject(), isCurrent: true }
   }
   throw InventoryError.conflict('La receta se está editando desde otro lugar; reintentá')
 }
 
-/** Desactiva la receta vigente (el plato vuelve a "sin receta"). */
+/** Quita la receta vigente (el plato vuelve a "sin receta"; la historia no cambia). */
 export async function removeRecipe(tenantId: mongoose.Types.ObjectId, recipeKey: string) {
-  await InventoryRecipe.updateOne({ tenantId, recipeKey, isCurrent: true }, { $set: { isCurrent: false } })
+  await InventoryRecipe.updateOne({ tenantId, recipeKey, isCurrent: true }, { $set: { isCurrent: false, removedAt: new Date() } })
+  // Si un guardado se había cortado (sin vigente), la versión más alta también queda quitada.
+  const latest = await InventoryRecipe.findOne({ tenantId, recipeKey }).sort({ version: -1 }).select('_id removedAt').lean()
+  if (latest && !latest.removedAt) await InventoryRecipe.updateOne({ _id: latest._id }, { $set: { removedAt: new Date() } })
+}
+
+export type CurrentRecipe = Pick<
+  IInventoryRecipe,
+  'recipeKey' | 'kind' | 'name' | 'locationId' | 'menuItemId' | 'variantName' | 'outputSkuId' | 'outputQuantity' | 'items' | 'version' | 'usesBaseRecipe'
+> & { _id: mongoose.Types.ObjectId }
+
+/**
+ * Recetas vigentes por clave: fuente única para ventas y lecturas.
+ *
+ * La vigente es la marcada `isCurrent`. Si una clave no tiene vigente pero su
+ * versión más alta no está quitada (`removedAt`), es un guardado cortado
+ * entre "despublicar la anterior" y "publicar la nueva" (R5): esa versión ES
+ * la vigente, y se repara la marca.
+ */
+export async function loadCurrentRecipes(
+  tenantId: mongoose.Types.ObjectId | string,
+  scope: { recipeKeys: string[] } | { kind: 'dish' | 'preparation'; locationId?: mongoose.Types.ObjectId | string },
+): Promise<Map<string, CurrentRecipe>> {
+  const tid = typeof tenantId === 'string' ? new mongoose.Types.ObjectId(tenantId) : tenantId
+  const filter: Record<string, unknown> = { tenantId: tid }
+  if ('recipeKeys' in scope) {
+    if (scope.recipeKeys.length === 0) return new Map()
+    filter.recipeKey = { $in: scope.recipeKeys }
+  } else {
+    filter.kind = scope.kind
+    if (scope.locationId) filter.locationId = new mongoose.Types.ObjectId(String(scope.locationId))
+  }
+  const current = await InventoryRecipe.find({ ...filter, isCurrent: true }).lean<CurrentRecipe[]>()
+  const out = new Map<string, CurrentRecipe>(current.map((r) => [r.recipeKey, r]))
+
+  // Versión más alta de cada clave sin vigente: si no está quitada, es un guardado cortado.
+  const tops = await InventoryRecipe.aggregate<{ _id: string; doc: CurrentRecipe & { removedAt: Date | null } }>([
+    { $match: filter },
+    { $sort: { version: -1 } },
+    { $group: { _id: '$recipeKey', doc: { $first: '$$ROOT' } } },
+  ])
+  for (const { _id: key, doc } of tops) {
+    if (out.has(key) || doc.removedAt) continue
+    out.set(key, doc)
+    // Reparar la marca; si otra edición ganó la vigencia, la próxima lectura la ve.
+    await InventoryRecipe.updateOne({ _id: doc._id, isCurrent: false }, { $set: { isCurrent: true } }).catch(() => undefined)
+  }
+  return out
 }
 
 // ── Reglas de modificadores ──────────────────────────────────────────────────

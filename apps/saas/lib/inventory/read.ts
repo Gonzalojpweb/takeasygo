@@ -10,14 +10,17 @@ import mongoose from 'mongoose'
 import InventoryState from '@/models/InventoryState'
 import InventorySKU from '@/models/InventorySKU'
 import InventoryStorageLocation from '@/models/InventoryStorageLocation'
-import InventoryRecipe from '@/models/InventoryRecipe'
 import InventoryLedger from '@/models/InventoryLedger'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
+import Order from '@/models/Order'
 import {
   beliefAt,
+  CONSUMING_ORDER_STATUSES,
   computePriority,
   confidenceLevelOf,
+  normalizeName,
+  resolveDishRecipe,
   convertQuantity,
   isInventoryUnit,
   selectVerifications,
@@ -29,7 +32,7 @@ import {
 import type { InventoryBelief } from '@takeasygo/types'
 import { getLocalDayAndMinutes, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { beliefParamsForLocation, stateFromDoc } from './projector'
-import { dishRecipeKey } from './catalog'
+import { dishRecipeKey, loadCurrentRecipes, type CurrentRecipe } from './catalog'
 import { InventoryError, type InventoryContext } from './route'
 
 export interface StockRow {
@@ -178,10 +181,23 @@ export async function loadToday(ctx: InventoryContext, requestedLocationId: stri
 export function stripTodayValues(data: Awaited<ReturnType<typeof loadToday>>) {
   return {
     ...data,
-    verifications: data.verifications.map(({ valueAtRiskCents: _v, interruptionCostCents: _i, scoreCents: _s, reasons, ...rest }) => {
+    verifications: data.verifications.map((v) => {
       // Algunos motivos citan montos ("la incertidumbre equivale a $…").
-      const safe = reasons.filter((r) => !r.includes('$'))
-      return { ...rest, reasons: safe.length > 0 ? safe : ['Conviene verificarlo hoy'] }
+      const safe = v.reasons.filter((r) => !r.includes('$'))
+      return {
+        skuId: v.skuId,
+        storageLocationId: v.storageLocationId,
+        storageName: v.storageName,
+        name: v.name,
+        unit: v.unit,
+        mu: v.mu,
+        sigma: v.sigma,
+        anchored: v.anchored,
+        stockoutProbability: v.stockoutProbability,
+        coverageDays: v.coverageDays,
+        stockAlert: v.stockAlert,
+        reasons: safe.length > 0 ? safe : ['Conviene verificarlo hoy'],
+      }
     }),
     totals: { skus: data.totals.skus, neverCounted: data.totals.neverCounted },
   }
@@ -236,7 +252,7 @@ export async function loadHistory(ctx: InventoryContext, skuId: string, opts: { 
       observed: e.eventType === 'PhysicalCountObserved' ? p.observedQuantity : null,
       detail:
         e.eventType === 'SaleRecorded'
-          ? `${p.portions > 0 ? '' : 'Reversión: '}${Math.abs(p.portions)} × ${p.name}${p.variantName ? ` ${p.variantName}` : ''}${p.orderNumber ? ` (pedido ${p.orderNumber})` : ''}${p.baseRecipeFallback ? ' · con receta base' : ''}`
+          ? `${p.portions > 0 ? '' : 'Reversión: '}${Math.abs(p.portions)} × ${p.name}${p.variantName ? ` ${p.variantName}` : ''}${p.orderNumber ? ` (pedido ${p.orderNumber})` : ''}${p.variantUsesBase ? ' · igual a la base' : ''}${p.unmappedReason === 'variant_unconfirmed' ? ' · variante sin receta confirmada' : ''}`
           : p.reason ?? p.supplierName ?? p.notes ?? null,
     }
   })
@@ -311,44 +327,149 @@ export function recipeCostCents(items: Array<{ skuId: unknown; quantity: number;
   return { costCents: Math.round(total), missingCost: missing }
 }
 
+/** Porciones vendidas por plato y variante (últimos `days` días) para priorizar. */
+async function salesRanking(ctx: InventoryContext, locationId: mongoose.Types.ObjectId, days = 30) {
+  const since = new Date(Date.now() - days * 86_400_000)
+  const rows = await Order.aggregate<{ _id: { m: unknown; v: string | null }; portions: number }>([
+    { $match: { tenantId: ctx.tenantObjectId, locationId, createdAt: { $gte: since }, status: { $in: [...CONSUMING_ORDER_STATUSES] } } },
+    { $unwind: '$items' },
+    { $match: { 'items.menuItemId': { $ne: null } } },
+    { $group: { _id: { m: '$items.menuItemId', v: { $ifNull: ['$items.selectedVariant.name', null] } }, portions: { $sum: '$items.quantity' } } },
+  ])
+  const byItem = new Map<string, { total: number; byVariant: Map<string, number> }>()
+  for (const r of rows) {
+    const key = String(r._id.m)
+    const cur = byItem.get(key) ?? { total: 0, byVariant: new Map<string, number>() }
+    cur.total += r.portions
+    if (r._id.v) cur.byVariant.set(normalizeName(r._id.v), (cur.byVariant.get(normalizeName(r._id.v)) ?? 0) + r.portions)
+    byItem.set(key, cur)
+  }
+  return byItem
+}
+
+/** Estado de cobertura de un plato, del más al menos resuelto. */
+export type DishCoverage = 'controlled' | 'needs_counts' | 'variants_pending' | 'no_recipe'
+
+/**
+ * Platos del menú de la sede con su receta vigente, estado de cada variante
+ * (D-26), cobertura real, costo teórico, ventas recientes y recetas huérfanas
+ * (R9: recetas de platos o variantes que ya no están en el menú).
+ */
 export async function loadRecipesView(ctx: InventoryContext, locationId: string) {
   if (!mongoose.Types.ObjectId.isValid(locationId)) throw InventoryError.validation('locationId inválido')
   ctx.assertLocation(locationId)
   const locOid = new mongoose.Types.ObjectId(locationId)
-  const [menu, recipes, preparations, costs] = await Promise.all([
+  const [menu, recipeMap, preparationMap, costs, ranking, consumption] = await Promise.all([
     Menu.findOne({ tenantId: ctx.tenantObjectId, locationId: locOid }).lean(),
-    InventoryRecipe.find({ tenantId: ctx.tenantObjectId, kind: 'dish', locationId: locOid, isCurrent: true }).lean(),
-    InventoryRecipe.find({ tenantId: ctx.tenantObjectId, kind: 'preparation', isCurrent: true }).lean(),
+    loadCurrentRecipes(ctx.tenantObjectId, { kind: 'dish', locationId: locOid }),
+    loadCurrentRecipes(ctx.tenantObjectId, { kind: 'preparation' }),
     costMap(ctx, locOid),
+    salesRanking(ctx, locOid),
+    InventoryStorageLocation.findOne({ tenantId: ctx.tenantObjectId, locationId: locOid, isDefaultConsumption: true }).select('_id').lean(),
   ])
+  // Insumos con línea base (contados) en el depósito de consumo de la sede.
+  const anchored = new Set(
+    consumption
+      ? (await InventoryState.find({ tenantId: ctx.tenantObjectId, storageLocationId: consumption._id, anchored: true }).select('skuId').lean()).map((s) => String(s.skuId))
+      : [],
+  )
+
   const items = flattenMenu(menu as never)
-  const byKey = new Map(recipes.map((r) => [r.recipeKey, r]))
+  const recipeView = (r: CurrentRecipe, priceCents: number) => {
+    const { costCents, missingCost } = recipeCostCents(r.items, costs)
+    return {
+      recipeId: String(r._id),
+      recipeKey: r.recipeKey,
+      variantName: r.variantName,
+      version: r.version,
+      usesBaseRecipe: Boolean(r.usesBaseRecipe),
+      items: r.items.map((i) => ({ skuId: String(i.skuId), quantity: i.quantity, unit: i.unit, skuName: costs.get(String(i.skuId))?.name ?? '—' })),
+      costCents,
+      missingCost,
+      priceCents,
+      foodCostPct: priceCents > 0 && costCents > 0 ? Math.round((costCents / priceCents) * 1000) / 10 : null,
+    }
+  }
+
+  const usedKeys = new Set<string>()
   const view = items.map((it) => {
-    const keys = [{ variantName: null as string | null, priceCents: it.priceCents }, ...it.variants.map((v) => ({ variantName: v.name, priceCents: v.priceCents }))]
-    const recipesForItem = keys
-      .map((k) => {
-        const r = byKey.get(dishRecipeKey(locationId, it.menuItemId, k.variantName))
-        if (!r) return null
-        const { costCents, missingCost } = recipeCostCents(r.items, costs)
-        return {
-          recipeId: String(r._id),
-          recipeKey: r.recipeKey,
-          variantName: k.variantName,
-          version: r.version,
-          items: r.items.map((i) => ({ skuId: String(i.skuId), quantity: i.quantity, unit: i.unit, skuName: costs.get(String(i.skuId))?.name ?? '—' })),
-          costCents,
-          missingCost,
-          priceCents: k.priceCents,
-          foodCostPct: k.priceCents > 0 ? Math.round((costCents / k.priceCents) * 1000) / 10 : null,
-        }
+    const baseKey = dishRecipeKey(locationId, it.menuItemId, null)
+    const base = recipeMap.get(baseKey) ?? null
+    if (base) usedKeys.add(baseKey)
+    const sold = ranking.get(it.menuItemId)
+    const effectiveSkus = new Set<string>()
+    if (base && !base.usesBaseRecipe) for (const i of base.items) effectiveSkus.add(String(i.skuId))
+
+    const variants = it.variants.map((v) => {
+      const key = dishRecipeKey(locationId, it.menuItemId, v.name)
+      const own = recipeMap.get(key) ?? null
+      if (own) usedKeys.add(key)
+      const { status } = resolveDishRecipe({
+        variantName: v.name,
+        variantRecipe: own ? { id: String(own._id), version: own.version, items: [], usesBaseRecipe: own.usesBaseRecipe } : null,
+        baseRecipe: base ? { id: String(base._id), version: base.version, items: [], usesBaseRecipe: base.usesBaseRecipe } : null,
       })
-      .filter(Boolean)
-    return { ...it, recipes: recipesForItem, hasRecipe: recipesForItem.length > 0 }
+      if (own && !own.usesBaseRecipe) for (const i of own.items) effectiveSkus.add(String(i.skuId))
+      return {
+        name: v.name,
+        priceCents: v.priceCents,
+        status,
+        soldLast30d: sold?.byVariant.get(normalizeName(v.name)) ?? 0,
+        recipe: own ? recipeView(own, v.priceCents) : null,
+      }
+    })
+
+    const missingCounts = [...effectiveSkus]
+      .filter((id) => !anchored.has(id))
+      .map((id) => ({ skuId: id, name: costs.get(id)?.name ?? '—' }))
+    const pendingVariants = variants.filter((v) => v.status === 'variant_unconfirmed' || v.status === 'no_recipe').length
+    const coverage: DishCoverage = !base
+      ? 'no_recipe'
+      : pendingVariants > 0
+        ? 'variants_pending'
+        : missingCounts.length > 0
+          ? 'needs_counts'
+          : 'controlled'
+
+    const baseView = base ? recipeView(base, it.priceCents) : null
+    return {
+      ...it,
+      soldLast30d: sold?.total ?? 0,
+      coverage,
+      base: baseView,
+      variantStates: variants,
+      missingCounts,
+      // Compatibilidad con la UI clásica.
+      recipes: [baseView, ...variants.map((v) => v.recipe)].filter(Boolean),
+      hasRecipe: Boolean(base),
+    }
   })
+  view.sort((a, b) => b.soldLast30d - a.soldLast30d || a.name.localeCompare(b.name, 'es'))
+
+  // R9: recetas vigentes que ya no corresponden a un plato o variante del menú.
+  const orphans = [...recipeMap.values()]
+    .filter((r) => !usedKeys.has(r.recipeKey))
+    .map((r) => ({
+      recipeKey: r.recipeKey,
+      name: r.name,
+      menuItemId: r.menuItemId,
+      variantName: r.variantName,
+      reason: items.some((i) => i.menuItemId === r.menuItemId) ? ('variant_missing' as const) : ('dish_missing' as const),
+    }))
+
+  const count = (c: DishCoverage) => view.filter((v) => v.coverage === c).length
   return {
     items: view,
-    coverage: { total: view.length, withRecipe: view.filter((v) => v.hasRecipe).length },
-    preparations: preparations.map((p) => ({
+    coverage: {
+      total: view.length,
+      withRecipe: view.filter((v) => v.hasRecipe).length,
+      controlled: count('controlled'),
+      needsCounts: count('needs_counts'),
+      variantsPending: count('variants_pending'),
+      noRecipe: count('no_recipe'),
+    },
+    orphans,
+    preparations: [...preparationMap.values()].map((p) => ({
       recipeId: String(p._id),
       name: p.name,
       outputSkuId: String(p.outputSkuId),

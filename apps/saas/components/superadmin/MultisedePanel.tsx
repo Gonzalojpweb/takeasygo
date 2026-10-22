@@ -32,6 +32,7 @@ const FLAG_KEYS = [
   'config.layers',
   'numbering.perLocation',
   'mp.perLocation',
+  'inventory.v3',
 ] as const
 
 const FLAG_LABELS: Record<string, string> = {
@@ -40,6 +41,7 @@ const FLAG_LABELS: Record<string, string> = {
   'config.layers': 'Config 3 capas',
   'numbering.perLocation': 'Numeración por sede',
   'mp.perLocation': 'MP por sede',
+  'inventory.v3': 'Inventario V3',
 }
 
 const MODE_FLAGS = new Set<string>(['multisede.strictLocationId', 'rbac.sedeScope'])

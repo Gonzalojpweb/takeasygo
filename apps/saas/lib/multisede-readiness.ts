@@ -10,6 +10,7 @@ export const FLAG_KEYS = [
   FLAGS.CONFIG_LAYERS,
   FLAGS.NUMBERING_PER_LOCATION,
   FLAGS.MP_PER_LOCATION,
+  FLAGS.INVENTORY_V3,
 ] as const
 
 export const FLAG_LABELS: Record<string, string> = {
@@ -18,6 +19,7 @@ export const FLAG_LABELS: Record<string, string> = {
   'config.layers': 'Configuración en 3 capas',
   'numbering.perLocation': 'Numeración por sede',
   'mp.perLocation': 'Mercado Pago por sede',
+  'inventory.v3': 'Inventario V3',
 }
 
 export const MODE_FLAGS: string[] = [FLAGS.STRICT_LOCATION_ID, FLAGS.RBAC_SEDE_SCOPE]
@@ -28,6 +30,7 @@ export const FLAG_CONDITION_IDS: Record<string, string[]> = {
   'config.layers': [],
   'numbering.perLocation': ['prefix', 'prefix-dup'],
   'mp.perLocation': ['mp-cuenta', 'mp-sede', 'mp-pendientes'],
+  'inventory.v3': [],
 }
 
 export type CheckLevel = 'ok' | 'warn' | 'blocker' | 'info'
