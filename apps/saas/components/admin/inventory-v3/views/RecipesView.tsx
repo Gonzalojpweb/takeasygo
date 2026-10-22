@@ -9,7 +9,7 @@
 // ============================================================================
 
 import { useState } from 'react'
-import { ChefHat, ChevronRight, Search } from 'lucide-react'
+import { ChefHat, ChevronRight, CookingPot, Plus, Search, SlidersHorizontal } from 'lucide-react'
 import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
 import type { DishCoverage, DishView, RecipesData } from '../data/types'
@@ -17,6 +17,14 @@ import { EmptyBlock, ErrorBlock, LoadingBlock, Notice, Spinner, StatusTag, Filte
 import type { V3Context } from '../InventoryV3'
 
 type Filter = 'all' | 'pending' | 'ready'
+type Section = 'dishes' | 'modifiers' | 'preparations'
+
+interface ModifierRule {
+  optionName: string
+  groupName: string | null
+  items: Array<{ skuId: string; quantity: number; unit: string }>
+  isActive: boolean
+}
 
 const COVERAGE: Record<DishCoverage, { tone: 'ok' | 'warning' | 'neutral'; label: string }> = {
   controlled: { tone: 'ok', label: 'Descuenta' },
@@ -32,6 +40,10 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
   const [filter, setFilter] = useState<Filter>('pending')
   const [removing, setRemoving] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [section, setSection] = useState<Section>('dishes')
+  const rules = useResource(section === 'modifiers' ? `${ctx.tenantSlug}|modifier-rules|${ctx.version}` : null, (signal) =>
+    invApi<{ rules: ModifierRule[] }>(ctx.tenantSlug, 'modifier-rules', { signal }),
+  )
   const data = useResource(`${ctx.tenantSlug}|recipes|${ctx.location.id}|${ctx.version}`, (signal) =>
     invApi<RecipesData>(ctx.tenantSlug, `recipes?locationId=${ctx.location.id}`, { signal }),
   )
@@ -39,13 +51,6 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
   if (data.status === 'loading') return <LoadingBlock label="Cargando recetas" rows={5} />
   if (data.status === 'error' && !data.data) return <ErrorBlock error={data.error} onRetry={data.reload} what="las recetas" />
   const r = data.data!
-  if (r.items.length === 0) {
-    return (
-      <EmptyBlock icon={<ChefHat size={32} />} title="Esta sede no tiene menú cargado">
-        Las recetas se arman sobre los platos del menú. Cargá el menú y volvé acá.
-      </EmptyBlock>
-    )
-  }
 
   const q = query.trim().toLowerCase()
   const visible = r.items.filter(
@@ -65,8 +70,104 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
     else data.reload()
   }
 
+  const options = [...new Set(r.items.flatMap((d) => d.modifiers))].sort((a, b) => a.localeCompare(b, 'es'))
+
+  const sectionPicker = (
+    <div role="group" aria-label="Qué querés ver" className="flex flex-wrap gap-2">
+      <FilterChip active={section === 'dishes'} onClick={() => setSection('dishes')}>Platos ({r.items.length})</FilterChip>
+      <FilterChip active={section === 'modifiers'} onClick={() => setSection('modifiers')}>Opciones del menú ({options.length})</FilterChip>
+      <FilterChip active={section === 'preparations'} onClick={() => setSection('preparations')}>Preparaciones ({r.preparations.length})</FilterChip>
+    </div>
+  )
+
+  if (section === 'modifiers') {
+    return (
+      <div className="space-y-5">
+        {sectionPicker}
+        <p className="max-w-2xl text-sm text-muted-foreground">
+          Opciones que cambian lo que lleva un plato: «Extra queso» suma queso, «Sin cebolla» la resta. Se aplican por porción, en todos los platos donde aparezcan.
+        </p>
+        {options.length === 0 ? (
+          <EmptyBlock icon={<SlidersHorizontal size={28} />} title="El menú no tiene opciones de personalización" />
+        ) : rules.status === 'loading' ? (
+          <LoadingBlock rows={4} label="Cargando opciones" />
+        ) : rules.status === 'error' && !rules.data ? (
+          <ErrorBlock error={rules.error} onRetry={rules.reload} what="las opciones" />
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border-2 border-border bg-card" aria-label="Opciones del menú">
+            {options.map((o) => {
+              const rule = rules.data?.rules.find((x) => x.optionName.toLowerCase() === o.toLowerCase() && x.groupName === null)
+              const active = Boolean(rule?.isActive)
+              return (
+                <li key={o}>
+                  <button
+                    type="button"
+                    onClick={() => ctx.open({ type: 'modifier', optionName: o })}
+                    className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/40"
+                  >
+                    <span className="min-w-0 flex-1 truncate font-bold">{o}</span>
+                    <StatusTag tone={active ? 'ok' : 'neutral'}>{active ? `Cambia ${rule!.items.length} ${rule!.items.length === 1 ? 'insumo' : 'insumos'}` : 'Sin efecto en insumos'}</StatusTag>
+                    <ChevronRight size={18} aria-hidden className="shrink-0 text-muted-foreground" />
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  if (section === 'preparations') {
+    return (
+      <div className="space-y-5">
+        {sectionPicker}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Lo que se elabora en la cocina (salsas, masas, caldos): una tanda usa insumos y rinde un elaborado que después usan los platos.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {ctx.caps.capture && r.preparations.length > 0 && (
+              <button type="button" className={btnSecondary} onClick={() => ctx.open({ type: 'production' })}>
+                <CookingPot size={18} aria-hidden /> Registrar producción
+              </button>
+            )}
+            <button type="button" className={btnSecondary} onClick={() => ctx.open({ type: 'preparation' })}>
+              <Plus size={18} aria-hidden /> Nueva preparación
+            </button>
+          </div>
+        </div>
+        {r.preparations.length === 0 ? (
+          <EmptyBlock icon={<CookingPot size={28} />} title="Todavía no hay preparaciones">
+            Cargalas si en la cocina elaboran salsas, masas o caldos que después usan los platos.
+          </EmptyBlock>
+        ) : (
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border-2 border-border bg-card" aria-label="Preparaciones">
+            {r.preparations.map((p) => (
+              <li key={p.recipeId} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-bold">{p.name}</span>
+                  <span className="block text-sm text-muted-foreground">{p.items.map((i) => i.skuName).join(', ')}</span>
+                </span>
+                {ctx.caps.capture && (
+                  <button type="button" className={btnSecondary} onClick={() => ctx.open({ type: 'production', recipeId: p.recipeId })}>
+                    Producir
+                  </button>
+                )}
+                <button type="button" className={btnSecondary} onClick={() => ctx.open({ type: 'preparation', recipeId: p.recipeId })}>
+                  Editar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
+      {sectionPicker}
       {data.status === 'error' && <Notice tone="error">No se pudo actualizar: {data.error.message}</Notice>}
       <div className="rounded-2xl border-2 border-border bg-card p-4">
         <p className="text-sm font-bold text-muted-foreground">Cobertura del menú</p>
@@ -93,7 +194,11 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {r.items.length === 0 ? (
+        <EmptyBlock icon={<ChefHat size={32} />} title="Esta sede no tiene menú cargado">
+          Las recetas se arman sobre los platos del menú. Cargá el menú y volvé acá.
+        </EmptyBlock>
+      ) : visible.length === 0 ? (
         <EmptyBlock icon={<ChefHat size={28} />} title={filter === 'pending' && !q ? '¡No quedan platos pendientes!' : 'Nada coincide con la búsqueda'} />
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border-2 border-border bg-card" aria-label="Platos del menú">

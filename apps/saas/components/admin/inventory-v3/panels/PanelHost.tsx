@@ -14,6 +14,13 @@ import WastePanel from './WastePanel'
 import ReceivePanel from './ReceivePanel'
 import ProductPanel from './ProductPanel'
 import RecipePanel from './RecipePanel'
+import AdjustPanel from './AdjustPanel'
+import TransferPanel from './TransferPanel'
+import SkuSettingsPanel from './SkuSettingsPanel'
+import LocationSettingsPanel from './LocationSettingsPanel'
+import ModifierPanel from './ModifierPanel'
+import PreparationPanel from './PreparationPanel'
+import ProductionPanel from './ProductionPanel'
 
 export type PanelRequest =
   | { type: 'receive'; skuId?: string }
@@ -21,6 +28,13 @@ export type PanelRequest =
   | { type: 'waste'; skuId: string; storageLocationId?: string | null }
   | { type: 'product'; skuId: string; storageLocationId?: string | null }
   | { type: 'recipe'; menuItemId: string; variantName?: string | null }
+  | { type: 'adjust'; skuId: string; storageLocationId?: string | null }
+  | { type: 'transfer'; skuId: string; storageLocationId?: string | null }
+  | { type: 'sku-settings'; skuId: string }
+  | { type: 'location-settings' }
+  | { type: 'modifier'; optionName: string }
+  | { type: 'preparation'; recipeId?: string | null }
+  | { type: 'production'; recipeId?: string | null }
 
 export interface PanelProps {
   ctx: V3Context
@@ -36,6 +50,15 @@ function keyOf(r: PanelRequest): string {
       return `receive:${r.skuId ?? ''}`
     case 'recipe':
       return `recipe:${r.menuItemId}:${r.variantName ?? ''}`
+    case 'sku-settings':
+      return `sku-settings:${r.skuId}`
+    case 'location-settings':
+      return 'location-settings'
+    case 'modifier':
+      return `modifier:${r.optionName}`
+    case 'preparation':
+    case 'production':
+      return `${r.type}:${r.recipeId ?? ''}`
     default:
       return `${r.type}:${r.skuId}:${r.storageLocationId ?? ''}`
   }
@@ -63,6 +86,20 @@ export default function PanelHost({
       return <ProductPanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
     case 'recipe':
       return <RecipePanel key={k} {...common} menuItemId={request.menuItemId} variantName={request.variantName ?? null} />
+    case 'adjust':
+      return <AdjustPanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
+    case 'transfer':
+      return <TransferPanel key={k} {...common} skuId={request.skuId} storageLocationId={request.storageLocationId ?? null} />
+    case 'sku-settings':
+      return <SkuSettingsPanel key={k} {...common} skuId={request.skuId} />
+    case 'location-settings':
+      return <LocationSettingsPanel key={k} {...common} />
+    case 'modifier':
+      return <ModifierPanel key={k} {...common} optionName={request.optionName} />
+    case 'preparation':
+      return <PreparationPanel key={k} {...common} recipeId={request.recipeId ?? null} />
+    case 'production':
+      return <ProductionPanel key={k} {...common} recipeId={request.recipeId ?? null} />
   }
 }
 

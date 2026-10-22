@@ -209,3 +209,49 @@ describe('accesibilidad de las piezas base (HTML renderizado)', () => {
     expect(html).toMatch(/<label for="([^"]+)"[^>]*>Agregar insumo<\/label>/)
   })
 })
+
+describe('filas de modificadores (pueden restar)', () => {
+  it('negativo válido en modificadores; 0 nunca', async () => {
+    const { validateRows } = await import('@/lib/inventory/ui/recipe-draft')
+    const skus = new Map([['q', { _id: 'q', name: 'Queso', canonicalUnit: 'kg' }]])
+    const rows = [
+      { key: 'a', skuId: 'q', quantity: '-20', unit: 'g' },
+      { key: 'b', skuId: 'q', quantity: '0', unit: 'g' },
+    ]
+    const withNeg = validateRows(rows, skus, { allowNegative: true })
+    expect(withNeg.a).toBeUndefined()
+    expect(withNeg.b).toHaveProperty('quantity')
+    expect(validateRows(rows, skus, { allowNegative: false }).a).toHaveProperty('quantity')
+  })
+})
+
+describe('InventoryV3: primer render de cada contexto (sin errores, accesible)', () => {
+  const caps = { read: true, capture: true, recipes: true, manage: true }
+  const locations = [
+    { id: 'l1', name: 'Centro', status: 'active' as const, inventoryActive: true },
+    { id: 'l2', name: 'Norte', status: 'preparing' as const, inventoryActive: false },
+  ]
+  for (const view of ['ahora', 'productos', 'recetas', 'actividad']) {
+    it(`vista ${view}`, async () => {
+      const { default: InventoryV3 } = await import('@/components/admin/inventory-v3/InventoryV3')
+      const html = renderToStaticMarkup(h(InventoryV3, { tenantSlug: 't', capabilities: caps, locations, initialView: view, initialLocationId: 'l1' }))
+      expect(html).toContain('<h1')
+      expect(html).toContain('role="tablist"')
+      expect(html).toContain('aria-label="Contextos de inventario"')
+      expect(html).toContain('Recibir mercadería')
+      expect(html).toMatch(/role="status"[^>]*aria-busy="true"/) // estado de carga anunciado
+    })
+  }
+
+  it('sin permisos de gestión no aparecen acciones de gestión ni contextos sin acceso', async () => {
+    const { default: InventoryV3 } = await import('@/components/admin/inventory-v3/InventoryV3')
+    const html = renderToStaticMarkup(
+      h(InventoryV3, { tenantSlug: 't', capabilities: { read: false, capture: true, recipes: false, manage: false }, locations, initialView: 'recetas', initialLocationId: 'l1' }),
+    )
+    expect(html).not.toContain('Configuración de la sede')
+    expect(html).toMatch(/Ahora<\/button>/) // control: así se ve una pestaña
+    expect(html).not.toMatch(/Recetas<\/button>/)
+    expect(html).not.toMatch(/Actividad<\/button>/)
+    expect(html).not.toMatch(/Productos<\/button>/)
+  })
+})

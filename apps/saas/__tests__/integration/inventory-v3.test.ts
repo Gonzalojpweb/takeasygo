@@ -306,3 +306,47 @@ describe('recepción: presentación habitual', () => {
     expect(sku.lastPack).toEqual({ label: 'cajón', quantity: 18, unit: 'kg' })
   })
 })
+
+describe('preparaciones y producción', () => {
+  it('una tanda descuenta insumos y suma el elaborado; reintentar no duplica', async () => {
+    await setupPost(json('POST', 'setup', { locationId: String(loc._id) }), P)
+    const tomate = await createSku('Tomate', 'kg', 200_000)
+    const salsaRes = await skusPost(json('POST', 'skus', { name: 'Salsa de tomate', category: 'other', canonicalUnit: 'l', kind: 'prepared' }), P)
+    const salsa = (await salsaRes.json()).sku._id as string
+    const prep = await recipesPut(json('PUT', 'recipes', { kind: 'preparation', outputSkuId: salsa, outputQuantity: 5, name: 'Salsa de tomate', items: [{ skuId: tomate, quantity: 4, unit: 'kg' }] }), P)
+    const recipeId = (await prep.json()).recipe._id as string
+    const storage = (await (await setupPost(json('POST', 'setup', { locationId: String(loc._id), mode: 'none' }), P)).json()).storageLocationId
+
+    const { POST: productionPost } = await import('@/app/api/[tenant]/inventory/production/route')
+    const body = { clientEventId: 'prod-v3-0001', recipeId, storageLocationId: storage, batches: 2 }
+    const first = await productionPost(json('POST', 'production', body), P)
+    expect(first.status).toBe(201)
+    expect((await first.json()).outputQuantity).toBe(10)
+    const again = await productionPost(json('POST', 'production', body), P)
+    expect(again.status).toBe(200)
+    const events = await InventoryLedger.find({ eventType: 'ProductionTransformed' }).lean()
+    expect(events).toHaveLength(2) // 1 insumo + 1 elaborado, sin duplicar
+
+    const { entries } = await (await activityGet(get(`activity?locationId=${loc._id}&kinds=production`), P)).json()
+    expect(entries.map((e: any) => e.lines[0].delta).sort((a: number, b: number) => a - b)).toEqual([-8, 10])
+  })
+})
+
+describe('privacidad de montos en la actividad (defensa en profundidad)', () => {
+  it('un rol sin `read` no recibe costos aunque llegue a la función', async () => {
+    await setupPost(json('POST', 'setup', { locationId: String(loc._id) }), P)
+    const carne = await createSku('Carne', 'kg')
+    const storage = (await (await setupPost(json('POST', 'setup', { locationId: String(loc._id), mode: 'none' }), P)).json()).storageLocationId
+    await receiptsPost(json('POST', 'receipts', { clientEventId: 'rcv-priv-0001', skuId: carne, storageLocationId: storage, quantity: 1, unit: 'kg', totalCostCents: 800_000 }), P)
+    const { loadActivity } = await import('@/lib/inventory/activity')
+    const ctx: any = {
+      tenantObjectId: tenant._id,
+      user: { id: 'c1', role: 'cashier' },
+      scopedLocationIds: null,
+      assertLocation: () => {},
+    }
+    const { entries } = await loadActivity(ctx, { locationId: String(loc._id), limit: 10 })
+    expect(entries[0].kind).toBe('receipt')
+    expect(entries[0]).not.toHaveProperty('unitCostCents')
+  })
+})

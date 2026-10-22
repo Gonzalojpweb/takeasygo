@@ -7,13 +7,13 @@
 // ledger, y ofrece las acciones del contexto: recibir, contar, merma.
 // ============================================================================
 
-import { ClipboardCheck, Trash2, Truck } from 'lucide-react'
+import { ArrowRightLeft, ClipboardCheck, Settings2, SlidersHorizontal, Trash2, Truck } from 'lucide-react'
 import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
 import type { HistoryEvent, StockData } from '../data/types'
 import { CONFIDENCE_TEXT, estimateText, formatDelta, formatQty, pesos, relativeTime } from '@/lib/inventory/ui/format'
 import { productState } from '@/lib/inventory/ui/product-status'
-import { ErrorBlock, LoadingBlock, Notice, Panel, StatusTag, btnPrimary, btnSecondary } from '../ui'
+import { ErrorBlock, LoadingBlock, Notice, Panel, StatusTag, btnGhost, btnPrimary, btnSecondary } from '../ui'
 import { resolveStorage, type PanelProps } from './PanelHost'
 
 const EVENT_TEXT: Record<string, string> = {
@@ -73,6 +73,20 @@ export default function ProductPanel({ ctx, onClose, onSwitch, skuId, storageLoc
           </Notice>
         )}
         {row && <Summary row={row} unit={unit} showMoney={ctx.caps.read} />}
+
+        {ctx.caps.manage && (
+          <section aria-label="Gestión" className="flex flex-wrap gap-2">
+            <button type="button" className={btnGhost} onClick={() => onSwitch({ type: 'adjust', skuId, storageLocationId: storage })}>
+              <SlidersHorizontal size={18} aria-hidden /> Ajustar
+            </button>
+            <button type="button" className={btnGhost} onClick={() => onSwitch({ type: 'transfer', skuId, storageLocationId: storage })}>
+              <ArrowRightLeft size={18} aria-hidden /> Transferir
+            </button>
+            <button type="button" className={btnGhost} onClick={() => onSwitch({ type: 'sku-settings', skuId })}>
+              <Settings2 size={18} aria-hidden /> Configurar insumo
+            </button>
+          </section>
+        )}
 
         <section aria-labelledby="hist-title" className="space-y-3">
           <h3 id="hist-title" className="text-base font-black">

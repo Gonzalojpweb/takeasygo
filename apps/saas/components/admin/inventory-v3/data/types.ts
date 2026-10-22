@@ -106,10 +106,22 @@ export interface DishView {
   missingCounts: Array<{ skuId: string; name: string }>
 }
 
+export interface PreparationSummary {
+  recipeId: string
+  name: string
+  outputSkuId: string
+  outputQuantity: number | null
+  version: number
+  items: RecipeItemView[]
+  costCents: number
+  missingCost: number
+}
+
 export interface RecipesData {
   items: DishView[]
   coverage: CoverageSummary
   orphans: Orphan[]
+  preparations: PreparationSummary[]
 }
 
 export interface SkuOption {

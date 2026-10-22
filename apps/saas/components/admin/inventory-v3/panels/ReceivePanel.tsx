@@ -31,6 +31,7 @@ import { UNIT_SHORT, formatQty, pesos } from '@/lib/inventory/ui/format'
 import { EmptyBlock, Field, LoadingBlock, Notice, Panel, SearchPicker, Spinner, btnGhost, btnPrimary, btnSecondary, inputClass } from '../ui'
 import { resolveStorage, type PanelProps } from './PanelHost'
 import type { SkuOption } from '../data/types'
+import { SKU_CATEGORIES } from '../RowsEditor'
 
 type Action =
   | { t: 'add'; sku: SkuOption }
@@ -80,6 +81,25 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
   }, [skuId, ctx.catalogReady, ctx.skus])
   const [step, setStep] = useState<Step>('edit')
   const [showErrors, setShowErrors] = useState(false)
+  // Alta de un insumo que no está en el catálogo (ej. descartables), sin salir del panel.
+  const [creating, setCreating] = useState<{ name: string; canonicalUnit: string; category: string } | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [createBusy, setCreateBusy] = useState(false)
+
+  async function createSku() {
+    if (!creating) return
+    setCreateBusy(true)
+    setCreateError(null)
+    const res = await invApi<{ sku: SkuOption }>(ctx.tenantSlug, 'skus', { method: 'POST', body: { ...creating, businessImpact: 'medium' } })
+    setCreateBusy(false)
+    if (!res.ok) {
+      setCreateError(res.error.message)
+      return
+    }
+    dispatch({ t: 'add', sku: res.data.sku })
+    setCreating(null)
+    ctx.refreshCatalog()
+  }
   const opts = { allowCost }
   const summary = summarize(session)
   const raw = ctx.skus.filter((s) => s.kind === 'raw')
@@ -298,16 +318,55 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
           )}
         </div>
 
-        <SearchPicker
-          label="Agregar insumo"
-          placeholder="Buscá por nombre…"
-          items={pickerItems}
-          autoFocus={!skuId}
-          onPick={(id) => {
-            const sku = ctx.skus.find((s) => s._id === id)
-            if (sku) dispatch({ t: 'add', sku })
-          }}
-        />
+        {creating ? (
+          <div className="space-y-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
+            <p className="font-bold">Nuevo insumo: «{creating.name}»</p>
+            {createError && <Notice tone="error">{createError}</Notice>}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="¿Cómo se mide?" hint="Es la unidad de todo su historial: elegila bien.">
+                {(a11y) => (
+                  <select {...a11y} value={creating.canonicalUnit} onChange={(e) => setCreating({ ...creating, canonicalUnit: e.target.value })} className={inputClass}>
+                    <option value="kg">Por peso (kg)</option>
+                    <option value="l">Por volumen (litros)</option>
+                    <option value="unit">Por unidades</option>
+                  </select>
+                )}
+              </Field>
+              <Field label="Categoría">
+                {(a11y) => (
+                  <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
+                    {SKU_CATEGORIES.map(([k, v]) => (
+                      <option key={k} value={k}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" className={btnPrimary} onClick={createSku} disabled={createBusy}>
+                {createBusy ? <Spinner label="Creando insumo" /> : <PackagePlus size={16} aria-hidden />} Crear y agregar
+              </button>
+              <button type="button" className={btnGhost} onClick={() => setCreating(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <SearchPicker
+            label="Agregar insumo"
+            placeholder="Buscá por nombre…"
+            items={pickerItems}
+            autoFocus={!skuId}
+            onPick={(id) => {
+              const sku = ctx.skus.find((s) => s._id === id)
+              if (sku) dispatch({ t: 'add', sku })
+            }}
+            onCreate={ctx.caps.recipes ? (name) => setCreating({ name, canonicalUnit: 'kg', category: 'other' }) : undefined}
+            createLabel="Crear insumo"
+          />
+        )}
 
         {session.lines.length === 0 ? (
           <EmptyBlock icon={<PackagePlus size={28} />} title="Todavía no agregaste insumos">

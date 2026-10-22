@@ -120,7 +120,7 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
             <li key={i.key}>
               <button
                 type="button"
-                onClick={() => ctx.open(i.storageLocationId ? { type: 'product', skuId: i.skuId, storageLocationId: i.storageLocationId } : { type: 'count', skuId: i.skuId, storageLocationId: null })}
+                onClick={() => ctx.open({ type: 'product', skuId: i.skuId, storageLocationId: i.storageLocationId })}
                 className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/40"
               >
                 <span className="min-w-0 flex-1">
@@ -134,7 +134,7 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
                 </span>
                 <StatusTag tone={i.state.tone}>{i.state.label}</StatusTag>
                 <ChevronRight size={18} aria-hidden className="shrink-0 text-muted-foreground" />
-                <span className="sr-only">{i.storageLocationId ? 'Ver detalle' : 'Contar por primera vez'}</span>
+                <span className="sr-only">Ver detalle</span>
               </button>
             </li>
           ))}

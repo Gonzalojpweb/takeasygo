@@ -13,7 +13,7 @@
 // ============================================================================
 
 import { useMemo, useState } from 'react'
-import { ArrowRight, CopyPlus, Plus, Sparkles, Trash2 } from 'lucide-react'
+import { ArrowRight, CopyPlus, Sparkles } from 'lucide-react'
 import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
 import type { DishSuggestion, DishView, RecipesData, SkuOption } from '../data/types'
@@ -24,15 +24,13 @@ import {
   draftPayload,
   draftSummary,
   isDirty,
-  removeRow,
-  updateRow,
   validateDraft,
   type DraftSku,
   type RecipeDraft,
 } from '@/lib/inventory/ui/recipe-draft'
-import { compatibleUnits } from '@/lib/inventory/ui/fields'
 import { UNIT_SHORT, pesos } from '@/lib/inventory/ui/format'
-import { ErrorBlock, Field, LoadingBlock, Notice, Panel, SearchPicker, Spinner, StatusTag, btnGhost, btnPrimary, btnSecondary, inputClass } from '../ui'
+import { ErrorBlock, LoadingBlock, Notice, Panel, Spinner, StatusTag, btnGhost, btnPrimary, btnSecondary } from '../ui'
+import RowsEditor, { type NewSkuInput } from '../RowsEditor'
 import type { PanelProps } from './PanelHost'
 
 const VARIANT_STATUS: Record<string, { tone: 'ok' | 'warning' | 'neutral'; label: string }> = {
@@ -41,18 +39,6 @@ const VARIANT_STATUS: Record<string, { tone: 'ok' | 'warning' | 'neutral'; label
   variant_unconfirmed: { tone: 'warning', label: 'Sin confirmar: no descuenta' },
   no_recipe: { tone: 'neutral', label: 'Sin receta' },
 }
-
-const CATEGORIES: Array<[string, string]> = [
-  ['meat_poultry', 'Carnes y aves'],
-  ['fish_seafood', 'Pescados y mariscos'],
-  ['vegetables', 'Verduras'],
-  ['fruits', 'Frutas'],
-  ['dairy', 'Lácteos'],
-  ['dry_goods', 'Almacén'],
-  ['beverages', 'Bebidas'],
-  ['packaging', 'Descartables'],
-  ['other', 'Otros'],
-]
 
 type Step = 'edit' | 'confirm' | 'saved'
 
@@ -121,7 +107,6 @@ function Editor({
   const [serverError, setServerError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
-  const [creating, setCreating] = useState<{ name: string; unit: string; category: string } | null>(null)
   const [extraSkus, setExtraSkus] = useState<SkuOption[]>([])
   const [confirmRemove, setConfirmRemove] = useState(false)
 
@@ -157,22 +142,19 @@ function Editor({
     setConfirmRemove(false)
   }
 
-  async function createSku() {
-    if (!creating) return
-    setBusy(true)
+  async function createSku(input: NewSkuInput): Promise<SkuOption | null> {
+    setServerError(null)
     const res = await invApi<{ sku: SkuOption }>(ctx.tenantSlug, 'skus', {
       method: 'POST',
-      body: { name: creating.name, category: creating.category, canonicalUnit: creating.unit, businessImpact: 'medium' },
+      body: { name: input.name, category: input.category, canonicalUnit: input.canonicalUnit, businessImpact: 'medium' },
     })
-    setBusy(false)
     if (!res.ok) {
       setServerError(res.error.message)
-      return
+      return null
     }
     setExtraSkus((x) => [...x, res.data.sku])
-    setDraft((d) => addRow(d, res.data.sku))
-    setCreating(null)
     ctx.refreshCatalog()
+    return res.data.sku
   }
 
   async function applySuggestions() {
@@ -249,14 +231,6 @@ function Editor({
     const v = other.base ? other.variantStates.find((x) => x.status === 'variant_unconfirmed' || x.status === 'no_recipe')?.name ?? null : null
     return { menuItemId: other.menuItemId, variantName: v, label: v ? `${other.name} ${v}` : other.name }
   }, [all, dish, target])
-
-  const pickerItems = useMemo(
-    () =>
-      [...skus.values()]
-        .filter((s) => s.isActive !== false && !draft.rows.some((r) => r.skuId === s._id))
-        .map((s) => ({ id: s._id, label: s.name, meta: UNIT_SHORT[s.canonicalUnit] })),
-    [skus, draft.rows],
-  )
 
   const title = target ? `${dish.name} · ${target}` : dish.name
   const recipeView = existing
@@ -439,93 +413,19 @@ function Editor({
               </div>
             </div>
 
-            {draft.rows.length === 0 ? (
+            {draft.rows.length === 0 && (
               <p className="rounded-xl border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
                 Buscá abajo cada insumo que lleva una porción. Si no existe, lo creás ahí mismo.
               </p>
-            ) : (
-              <ul className="space-y-2">
-                {draft.rows.map((r) => {
-                  const sku = skus.get(r.skuId)
-                  const e = showErrors ? validation.rows[r.key] ?? {} : {}
-                  const units = sku ? compatibleUnits(sku.canonicalUnit) : ['g']
-                  return (
-                    <li key={r.key} className="grid grid-cols-[1fr_6rem_5.5rem_auto] items-start gap-2 rounded-xl border-2 border-border p-3">
-                      <div className="min-w-0 pt-2">
-                        <p className="truncate font-bold">{sku?.name ?? 'Insumo'}</p>
-                        {e.skuId && <p className="text-sm font-semibold text-red-700 dark:text-red-300">{e.skuId}</p>}
-                      </div>
-                      <Field label="Cantidad" error={e.quantity} className="[&>label]:sr-only">
-                        {(a11y) => <input {...a11y} inputMode="decimal" value={r.quantity} onChange={(ev) => setDraft(updateRow(draft, r.key, { quantity: ev.target.value }))} className={inputClass} placeholder="150" aria-label={`Cantidad de ${sku?.name ?? 'insumo'} por porción`} />}
-                      </Field>
-                      <Field label="Unidad" error={e.unit} className="[&>label]:sr-only">
-                        {(a11y) => (
-                          <select {...a11y} value={r.unit} onChange={(ev) => setDraft(updateRow(draft, r.key, { unit: ev.target.value }))} className={inputClass} aria-label={`Unidad de ${sku?.name ?? 'insumo'}`}>
-                            {units.map((u) => (
-                              <option key={u} value={u}>
-                                {UNIT_SHORT[u]}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </Field>
-                      <button type="button" className={`${btnGhost} min-w-11`} onClick={() => setDraft(removeRow(draft, r.key))} aria-label={`Quitar ${sku?.name ?? 'insumo'}`}>
-                        <Trash2 size={18} aria-hidden />
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
             )}
+            <RowsEditor
+              rows={draft.rows}
+              onChange={(rows) => setDraft({ ...draft, rows })}
+              skus={skus}
+              errors={showErrors ? validation.rows : {}}
+              onCreateSku={createSku}
+            />
             {showErrors && validation.form && <p className="text-sm font-semibold text-red-700 dark:text-red-300">{validation.form}</p>}
-
-            {creating ? (
-              <div className="space-y-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
-                <p className="font-bold">Nuevo insumo: «{creating.name}»</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Field label="¿Cómo se mide?" hint="Es la unidad de todo su historial: elegila bien.">
-                    {(a11y) => (
-                      <select {...a11y} value={creating.unit} onChange={(e) => setCreating({ ...creating, unit: e.target.value })} className={inputClass}>
-                        <option value="kg">Por peso (kg)</option>
-                        <option value="l">Por volumen (litros)</option>
-                        <option value="unit">Por unidades</option>
-                      </select>
-                    )}
-                  </Field>
-                  <Field label="Categoría">
-                    {(a11y) => (
-                      <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
-                        {CATEGORIES.map(([k, v]) => (
-                          <option key={k} value={k}>
-                            {v}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </Field>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button type="button" className={btnPrimary} onClick={createSku} disabled={busy}>
-                    {busy ? <Spinner label="Creando insumo" /> : <Plus size={16} aria-hidden />} Crear y agregar
-                  </button>
-                  <button type="button" className={btnGhost} onClick={() => setCreating(null)}>
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <SearchPicker
-                label="Agregar insumo"
-                placeholder="Buscá: carne, pan, queso…"
-                items={pickerItems}
-                onPick={(id) => {
-                  const sku = skus.get(id)
-                  if (sku) setDraft(addRow(draft, sku))
-                }}
-                onCreate={(name) => setCreating({ name, unit: 'kg', category: 'other' })}
-                createLabel="Crear insumo"
-              />
-            )}
           </section>
         )}
 

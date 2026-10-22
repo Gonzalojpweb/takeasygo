@@ -15,12 +15,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, PackageOpen, Truck, UtensilsCrossed, Zap } from 'lucide-react'
+import { ClipboardList, PackageOpen, Settings2, Truck, UtensilsCrossed, Zap } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { invApi } from './data/api'
 import { useResource } from './data/useResource'
 import type { Capabilities, LocationOption, SetupStatus, SkuOption, StorageOption } from './data/types'
-import { StatusTag, btnPrimary } from './ui'
+import { StatusTag, btnPrimary, btnSecondary } from './ui'
 import NowView from './views/NowView'
 import ProductsView from './views/ProductsView'
 import RecipesView from './views/RecipesView'
@@ -46,8 +46,15 @@ export interface V3Context {
   tenantSlug: string
   caps: Capabilities
   location: LocationOption
+  /** Insumos activos (los que se pueden usar). */
   skus: SkuOption[]
+  /** Incluye desactivados (solo con manage). */
+  allSkus: SkuOption[]
   storages: StorageOption[]
+  /** Depósitos activos de TODAS las sedes del alcance (transferencias). */
+  allStorages: StorageOption[]
+  /** Sedes del alcance (nombres para transferencias). */
+  locations: LocationOption[]
   /** El catálogo (insumos y depósitos) ya llegó al menos una vez. */
   catalogReady: boolean
   /** Cambia cuando algo se registró: las vistas recargan. */
@@ -95,7 +102,8 @@ export default function InventoryV3({
 
   const catalog = useResource(`${tenantSlug}|catalog`, async (signal) => {
     const [skus, storages] = await Promise.all([
-      invApi<{ skus: SkuOption[] }>(tenantSlug, 'skus', { signal }),
+      // Gestión ve también los insumos desactivados (para reactivarlos).
+      invApi<{ skus: SkuOption[] }>(tenantSlug, capabilities.manage ? 'skus?all=1' : 'skus', { signal }),
       invApi<{ storages: StorageOption[] }>(tenantSlug, 'storage-locations', { signal }),
     ])
     if (!skus.ok) return skus
@@ -117,8 +125,11 @@ export default function InventoryV3({
             tenantSlug,
             caps: capabilities,
             location,
-            skus: catalog.data?.skus ?? [],
+            skus: (catalog.data?.skus ?? []).filter((s) => s.isActive),
+            allSkus: catalog.data?.skus ?? [],
             storages: (catalog.data?.storages ?? []).filter((s) => s.locationId === location.id && s.isActive),
+            allStorages: (catalog.data?.storages ?? []).filter((s) => s.isActive),
+            locations,
             catalogReady: catalog.data !== null,
             version,
             open: setPanel,
@@ -127,7 +138,7 @@ export default function InventoryV3({
             refreshStatus,
           }
         : null,
-    [location, tenantSlug, capabilities, catalog.data, catalog.reload, version, refreshStatus],
+    [location, locations, tenantSlug, capabilities, catalog.data, catalog.reload, version, refreshStatus],
   )
 
   if (!ctx || !location) {
@@ -166,6 +177,11 @@ export default function InventoryV3({
                 ))}
               </select>
             </label>
+          )}
+          {capabilities.manage && location.status !== 'off' && (
+            <button type="button" className={btnSecondary} onClick={() => setPanel({ type: 'location-settings' })}>
+              <Settings2 size={18} aria-hidden /> Configuración de la sede
+            </button>
           )}
           {capabilities.capture && location.status !== 'off' && (
             <button type="button" className={btnPrimary} onClick={() => setPanel({ type: 'receive' })}>

@@ -99,17 +99,38 @@ export function validateDraft(d: RecipeDraft, skus: ReadonlyMap<string, DraftSku
   }
 
   if (d.rows.length === 0) form = 'Agregá al menos un insumo'
-  for (const r of d.rows) {
+  Object.assign(rows, validateRows(d.rows, skus, { allowNegative: false }))
+  return { rows, form, valid: form === null && Object.keys(rows).length === 0 }
+}
+
+/**
+ * Errores por fila. `allowNegative`: reglas de modificadores ("Sin cebolla"
+ * resta −20 g); en recetas y preparaciones la cantidad es siempre positiva.
+ */
+export function validateRows(
+  rows: readonly DraftRow[],
+  skus: ReadonlyMap<string, DraftSku>,
+  opts: { allowNegative: boolean },
+): Record<string, FieldErrors<RowField>> {
+  const out: Record<string, FieldErrors<RowField>> = {}
+  for (const r of rows) {
     const e: FieldErrors<RowField> = {}
     const sku = skus.get(r.skuId)
     if (!sku) e.skuId = 'Elegí un insumo'
     else if (sku.isActive === false) e.skuId = 'Este insumo está desactivado'
     const q = parseDecimal(r.quantity)
-    if (q === null || q <= 0) e.quantity = 'Cantidad por porción mayor a 0'
+    if (q === null || q === 0 || (!opts.allowNegative && q < 0)) {
+      e.quantity = opts.allowNegative ? 'Cantidad distinta de 0 (negativa para "sin…")' : 'Cantidad por porción mayor a 0'
+    }
     if (sku && !(compatibleUnits(sku.canonicalUnit) as string[]).includes(r.unit)) e.unit = `Se mide en ${sku.canonicalUnit}`
-    if (Object.keys(e).length) rows[r.key] = e
+    if (Object.keys(e).length) out[r.key] = e
   }
-  return { rows, form, valid: form === null && Object.keys(rows).length === 0 }
+  return out
+}
+
+/** Filas → items de la API (cantidades ya validadas). */
+export function rowsToItems(rows: readonly DraftRow[]) {
+  return rows.map((r) => ({ skuId: r.skuId, quantity: parseDecimal(r.quantity) as number, unit: r.unit }))
 }
 
 /** Payload exacto para PUT /inventory/recipes. */
@@ -123,7 +144,7 @@ export function draftPayload(d: RecipeDraft, locationId: string) {
     usesBaseRecipe: d.mode === 'same_as_base',
     items: d.mode === 'same_as_base'
       ? []
-      : d.rows.map((r) => ({ skuId: r.skuId, quantity: parseDecimal(r.quantity) as number, unit: r.unit })),
+      : rowsToItems(d.rows),
   }
 }
 
