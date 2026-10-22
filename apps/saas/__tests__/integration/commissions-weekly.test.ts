@@ -44,6 +44,8 @@ import { auth } from '@/lib/auth'
 import { calculateFinalTotal } from '@/lib/pricing'
 import { feesByOrder, loadCommissionWeeks, payableFrom, summarizeAlerts, syncWeeklyStatements, weekKeyOf } from '@/lib/commission-weeks'
 import { feeOriginOf, loadWeekTickets } from '@/lib/commission-tickets'
+import { shouldPopup } from '@/lib/commissions-ui'
+import { POST as superadminSettle } from '@/app/api/superadmin/commissions/route'
 import { settleCommissionIntent } from '@/lib/commission-payments'
 import { GET as alertsGet } from '@/app/api/[tenant]/commissions/alerts/route'
 import { GET as weekGet } from '@/app/api/[tenant]/commissions/weeks/[key]/route'
@@ -51,8 +53,9 @@ import { POST as payPost } from '@/app/api/[tenant]/commissions/pay/route'
 import { POST as webhook } from '@/app/api/webhooks/mercadopago/commission/route'
 
 const SLUG = 'com-sem'
-// Jueves 22/10/2026 12:00 ART. Semanas: 19/10 (en curso), 12/10 (cerrada, en plazo), 05/10 (vencida).
-const NOW = new Date('2026-10-22T15:00:00Z')
+// Martes 20/10/2026 12:00 ART (día de pago). Semanas: 19/10 (en curso),
+// 12/10 (cerró el lunes, se paga hoy: pendiente), 05/10 (vencida).
+const NOW = new Date('2026-10-20T15:00:00Z')
 let tenant: any
 let other: any
 
@@ -131,11 +134,11 @@ describe('semanas en hora de Argentina', () => {
     await order('2026-10-06T15:00:00Z', 30_000) // semana 05/10 → vencida
     const paidOrder = await order('2026-10-13T15:00:00Z', 20_000) // semana 12/10
     await order('2026-10-14T15:00:00Z', 25_000) // semana 12/10 → pendiente
-    await order('2026-10-20T15:00:00Z', 10_000) // semana 19/10 → en curso
-    await order('2026-10-20T16:00:00Z', 99_000, { payment: { method: 'mercadopago' } })
-    await order('2026-10-20T17:00:00Z', 99_000, { status: 'cancelled' })
-    await order('2026-10-20T18:00:00Z', 99_000, { payment: { status: 'pending' } })
-    await order('2026-10-20T19:00:00Z', 99_000, { tenantId: other._id })
+    await order('2026-10-19T15:00:00Z', 10_000) // semana 19/10 → en curso
+    await order('2026-10-19T16:00:00Z', 99_000, { payment: { method: 'mercadopago' } })
+    await order('2026-10-19T17:00:00Z', 99_000, { status: 'cancelled' })
+    await order('2026-10-19T18:00:00Z', 99_000, { payment: { status: 'pending' } })
+    await order('2026-10-19T19:00:00Z', 99_000, { tenantId: other._id })
     await CommissionSettlement.create({ tenantId: tenant._id, from: new Date('2026-10-12'), to: new Date('2026-10-19'), amountCollected: 20_000, collectedAt: NOW, collectedBy: 'test', orderIds: [String(paidOrder._id)], status: 'paid' })
 
     const weeks = await loadCommissionWeeks(tenant._id, { now: NOW })
@@ -153,7 +156,7 @@ describe('qué cobra «Pagar»', () => {
   it('vencidas + pendientes por defecto; "todo" suma la semana en curso; o una semana puntual', async () => {
     const a = await order('2026-10-06T15:00:00Z', 30_000)
     const b = await order('2026-10-14T15:00:00Z', 25_000)
-    const c = await order('2026-10-20T15:00:00Z', 10_000)
+    const c = await order('2026-10-19T15:00:00Z', 10_000)
     const weeks = await loadCommissionWeeks(tenant._id, { now: NOW })
     const fees = await feesByOrder(weeks.flatMap((w) => w.pendingOrderIds))
     const due = payableFrom(weeks, { kind: 'due' }, fees)
@@ -245,7 +248,7 @@ describe('flujo completo por API: avisos → pagar → webhook de MP', () => {
     try {
       const a = await order('2026-10-06T15:00:00Z', 30_000)
       const b = await order('2026-10-14T15:00:00Z', 25_000)
-      await order('2026-10-20T15:00:00Z', 10_000) // en curso: no entra en «due»
+      await order('2026-10-19T15:00:00Z', 10_000) // en curso: no entra en «due»
       const P = { params: Promise.resolve({ tenant: SLUG }) }
 
       const alerts = await (await alertsGet(new NextRequest(`http://localhost/api/${SLUG}/commissions/alerts`), P)).json()
@@ -322,5 +325,62 @@ describe('permisos y validaciones', () => {
     const stmts = await WeeklyCommissionStatement.find({ tenantId: tenant._id }).lean()
     expect(stmts).toHaveLength(1)
     expect(stmts[0]).toMatchObject({ status: 'vencido', amount: 30_000, orderCount: 1, orderIds: [String(a._id)] })
+  })
+})
+
+
+describe('calendario: cierra el lunes, se paga el martes, vencida desde el miércoles', () => {
+  it('el aviso en pantalla arranca el martes y, si no paga, sigue hasta que paga o el superadmin la marca cobrada', async () => {
+    const thisWeek = await order('2026-10-14T15:00:00Z', 25_000) // semana del 12/10
+    const nextWeek = await order('2026-10-19T12:00:00Z', 9_000) // lunes 19/10 09:00 ART: semana siguiente
+    const at = async (iso: string) => summarizeAlerts(await loadCommissionWeeks(tenant._id, { now: new Date(iso) }))
+
+    // Lunes 19/10 10:00 ART: la semana cerró → pendiente. Barra sí, golpe en pantalla todavía no.
+    const monday = await at('2026-10-19T13:00:00Z')
+    expect(monday).toMatchObject({ level: 'pendiente', pending: { cents: 25_000, notifyFrom: '2026-10-20T03:00:00.000Z' } })
+    expect(shouldPopup('pendiente', 25_000, null, Date.parse('2026-10-19T13:00:00Z'), monday.pending.notifyFrom)).toBe(false)
+
+    // Martes 20/10 (día de pago) 09:00 ART: aparece el aviso.
+    const tuesday = await at('2026-10-20T12:00:00Z')
+    expect(tuesday.level).toBe('pendiente')
+    expect(shouldPopup('pendiente', 25_000, null, Date.parse('2026-10-20T12:00:00Z'), tuesday.pending.notifyFrom)).toBe(true)
+    // Martes 23:59 ART: todavía en plazo.
+    expect((await at('2026-10-21T02:59:00Z')).level).toBe('pendiente')
+
+    // Miércoles 21/10 00:00 ART sin pagar: vencida. Avisa ya y se repite cada 2 h.
+    const wednesday = await at('2026-10-21T03:00:00Z')
+    expect(wednesday).toMatchObject({ level: 'vencida', overdue: { cents: 25_000, weeks: 1 } })
+    const t = Date.parse('2026-10-21T03:00:00Z')
+    const shown = { level: 'pendiente' as const, cents: 25_000, at: Date.parse('2026-10-20T12:00:00Z') }
+    expect(shouldPopup('vencida', 25_000, shown, t)).toBe(true) // pasó a vencida: avisa enseguida
+    const last = { level: 'vencida' as const, cents: 25_000, at: t }
+    expect(shouldPopup('vencida', 25_000, last, t + 3_600_000)).toBe(false)
+    expect(shouldPopup('vencida', 25_000, last, t + 2 * 3_600_000)).toBe(true)
+
+    // Una semana después sigue vencida (no se "olvida"). Para entonces también
+    // venció la semana del 19/10 (su martes de pago fue el 27/10): 25.000 + 9.000.
+    const later = await loadCommissionWeeks(tenant._id, { now: new Date('2026-10-29T15:00:00Z') })
+    expect(later.find((w) => w.key === '2026-10-12')?.status).toBe('vencida')
+    expect(summarizeAlerts(later).overdue).toMatchObject({ cents: 34_000, weeks: 2 })
+
+    // El superadmin marca la semana como cobrada (como lo hace su panel).
+    await syncWeeklyStatements(tenant._id, { now: new Date('2026-10-29T15:00:00Z') })
+    const stmt: any = await WeeklyCommissionStatement.findOne({ tenantId: tenant._id, orderIds: String(thisWeek._id) }).lean()
+    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'superadmin', tenantId: null })
+    vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as any)
+    const res = await superadminSettle(new NextRequest('http://localhost/api/superadmin/commissions', {
+      method: 'POST',
+      body: JSON.stringify({ tenantId: String(tenant._id), from: stmt.weekStart, to: stmt.weekEnd, statementId: String(stmt._id) }),
+    }))
+    expect(res.status).toBe(200)
+    expect((await res.json()).settlement.orderIds).toEqual([String(thisWeek._id)]) // no se lleva el lunes siguiente
+
+    // Se terminó el aviso de esa semana; la semana siguiente sigue su propio curso.
+    const after = await at('2026-10-29T15:00:00Z')
+    expect(after.overdue.cents).toBe(9_000) // solo el pedido de la semana del 19/10 (venció el 28/10)
+    const settledWeek = (await loadCommissionWeeks(tenant._id, { now: new Date('2026-10-29T15:00:00Z') })).find((w) => w.key === '2026-10-12')
+    expect(settledWeek?.status).toBe('pagada')
+    expect((await WeeklyCommissionStatement.findById(stmt._id).lean())?.status).toBe('pagado')
+    void nextWeek
   })
 })

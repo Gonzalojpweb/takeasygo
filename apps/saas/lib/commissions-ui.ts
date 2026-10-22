@@ -26,10 +26,13 @@ export interface LastPopup {
 /**
  * ¿Mostrar el aviso ahora? Sí si nunca se mostró, si empeoró el nivel o
  * cambió el monto, o si pasó el intervalo de repetición del nivel.
+ * Pendiente: recién desde el martes (día de pago, `notifyFrom`); antes solo
+ * se ve la barra. Vencida: sin espera, hasta que se pague.
  */
-export function shouldPopup(level: CommissionAlertLevel, cents: number, last: LastPopup | null, now: number): boolean {
+export function shouldPopup(level: CommissionAlertLevel, cents: number, last: LastPopup | null, now: number, notifyFrom?: string | null): boolean {
   const repeat = POPUP_REPEAT_MS[level]
   if (repeat === null || cents <= 0) return false
+  if (level === 'pendiente' && notifyFrom && now < new Date(notifyFrom).getTime()) return false
   if (!last) return true
   if (last.level !== level || last.cents !== cents) return true
   return now - last.at >= repeat
@@ -103,10 +106,13 @@ export function alertCopy(a: {
     }
   }
   if (a.level === 'pendiente') {
-    const due = a.pending.nextDueAt ? new Date(a.pending.nextDueAt).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }) : null
+    // nextDueAt = miércoles 00:00 → el último día para pagar es el martes.
+    const payDay = a.pending.nextDueAt
+      ? new Date(new Date(a.pending.nextDueAt).getTime() - 1).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Argentina/Buenos_Aires' })
+      : null
     return {
       title: `Tu liquidación semanal está lista: ${pesos(a.pending.cents)}`,
-      body: `Son las comisiones de los pedidos por transferencia de la semana que cerró.${due ? ` Tenés tiempo hasta el ${due}.` : ''} Adentro está el ticket de cada pedido explicado.`,
+      body: `Son las comisiones de los pedidos por transferencia de la semana que cerró.${payDay ? ` El día de pago es el ${payDay}.` : ''} Adentro está el ticket de cada pedido explicado.`,
     }
   }
   if (a.level === 'acumulada') {

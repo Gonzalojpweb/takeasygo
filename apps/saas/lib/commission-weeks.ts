@@ -15,10 +15,17 @@
 //     hora del servidor), según `createdAt`.
 //   · Pagado = el pedido figura en un CommissionSettlement. Settlements viejos
 //     sin detalle de pedidos se descuentan de lo más antiguo.
+//   · Calendario (decisión 2026-10-22): la semana cierra el lunes 00:00 y
+//     el MARTES es el día de pago.
+//       lunes 00:00   cierra → "pendiente" (se ve en el panel y la barra)
+//       martes 00:00  día de pago → empieza el aviso en pantalla (payFrom)
+//       miércoles 00:00 (fin del martes) sin pagar → "vencida" (dueAt): el
+//                     aviso se repite hasta que paga o el superadmin la
+//                     marca como cobrada.
 //   · Estados de una semana:
 //       en_curso  → la semana todavía no terminó (comisión acumulada)
-//       pendiente → cerró y está dentro del plazo de pago
-//       vencida   → cerró y pasó el plazo (dueAt) sin pagarse
+//       pendiente → cerró y todavía no pasó el martes (día de pago)
+//       vencida   → terminó el martes sin pagarse
 //       pagada    → no queda nada pendiente
 // ============================================================================
 
@@ -28,8 +35,10 @@ import CommissionSettlement from '@/models/CommissionSettlement'
 import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
 import { DEFAULT_TIMEZONE, addDaysToDateStr, getDayAndMidnightInTimezone, getTodayStrInTimezone } from '@/lib/restaurant-time'
 
-/** Días de plazo para pagar una semana cerrada antes de que quede vencida. */
-export const COMMISSION_GRACE_DAYS = 7
+/** Días desde el cierre (lunes 00:00) hasta el inicio del día de pago (martes). */
+export const COMMISSION_PAY_DAY_OFFSET = 1
+/** Días desde el cierre hasta que vence (fin del martes = miércoles 00:00). */
+export const COMMISSION_DUE_OFFSET = 2
 /** Semanas hacia atrás que se analizan (lo más viejo impago igual se ve si cae adentro). */
 export const COMMISSION_WINDOW_WEEKS = 26
 
@@ -39,8 +48,11 @@ export interface CommissionWeek {
   /** "YYYY-MM-DD" del lunes (hora local). */
   key: string
   weekStart: Date
-  /** Lunes siguiente 00:00 local (exclusivo). */
+  /** Lunes siguiente 00:00 local (exclusivo): cierre de la semana. */
   weekEnd: Date
+  /** Martes 00:00 local: día de pago, empieza el aviso en pantalla. */
+  payFrom: Date
+  /** Miércoles 00:00 local (fin del martes): si no se pagó, queda vencida. */
   dueAt: Date
   status: CommissionWeekStatus
   /** @storedAs cents */
@@ -67,11 +79,14 @@ export function weekKeyOf(date: Date, tz: string = DEFAULT_TIMEZONE): string {
 }
 
 /** Límites UTC de la semana que arranca el lunes `key`. */
-export function weekBounds(key: string, tz: string = DEFAULT_TIMEZONE): { weekStart: Date; weekEnd: Date; dueAt: Date } {
-  const weekStart = getDayAndMidnightInTimezone(key, tz).date
-  const weekEnd = getDayAndMidnightInTimezone(addDaysToDateStr(key, 7), tz).date
-  const dueAt = getDayAndMidnightInTimezone(addDaysToDateStr(key, 7 + COMMISSION_GRACE_DAYS), tz).date
-  return { weekStart, weekEnd, dueAt }
+export function weekBounds(key: string, tz: string = DEFAULT_TIMEZONE): { weekStart: Date; weekEnd: Date; payFrom: Date; dueAt: Date } {
+  const at = (days: number) => getDayAndMidnightInTimezone(addDaysToDateStr(key, days), tz).date
+  return {
+    weekStart: at(0),
+    weekEnd: at(7),
+    payFrom: at(7 + COMMISSION_PAY_DAY_OFFSET),
+    dueAt: at(7 + COMMISSION_DUE_OFFSET),
+  }
 }
 
 /** Filtro de pedidos que generan comisión a pagar por el restaurante. */
@@ -168,7 +183,8 @@ export type CommissionAlertLevel = 'none' | 'acumulada' | 'pendiente' | 'vencida
 export interface CommissionAlerts {
   level: CommissionAlertLevel
   overdue: { cents: number; weeks: number; oldestDueAt: string | null }
-  pending: { cents: number; weeks: number; nextDueAt: string | null }
+  /** notifyFrom: desde cuándo avisar en pantalla (martes, día de pago). */
+  pending: { cents: number; weeks: number; nextDueAt: string | null; notifyFrom: string | null }
   accrued: { cents: number; orders: number }
 }
 
@@ -182,7 +198,12 @@ export function summarizeAlerts(weeks: CommissionWeek[]): CommissionAlerts {
   return {
     level: overdue.length ? 'vencida' : pending.length ? 'pendiente' : accrued > 0 ? 'acumulada' : 'none',
     overdue: { cents: sum(overdue), weeks: overdue.length, oldestDueAt: overdue[0]?.dueAt.toISOString() ?? null },
-    pending: { cents: sum(pending), weeks: pending.length, nextDueAt: pending[0]?.dueAt.toISOString() ?? null },
+    pending: {
+      cents: sum(pending),
+      weeks: pending.length,
+      nextDueAt: pending[0]?.dueAt.toISOString() ?? null,
+      notifyFrom: pending[0]?.payFrom.toISOString() ?? null,
+    },
     accrued: { cents: accrued, orders: current.reduce((s, w) => s + w.pendingOrderIds.length, 0) },
   }
 }

@@ -3,7 +3,10 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import CommissionSettlement from '@/models/CommissionSettlement'
-import { syncWeeklyStatements } from '@/lib/commission-weeks'
+import mongoose from 'mongoose'
+import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
+import { syncWeeklyStatements, weekBounds, weekKeyOf } from '@/lib/commission-weeks'
+import { addDaysToDateStr, getDayAndMidnightInTimezone } from '@/lib/restaurant-time'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { toPesos } from '@takeasygo/business'
 
@@ -118,20 +121,36 @@ export async function POST(request: NextRequest) {
     statementId?: string
   }
 
-  if (!tenantId || !from || !to) {
-    return NextResponse.json({ error: 'tenantId, from, to requeridos' }, { status: 400 })
+  if (!tenantId || !mongoose.Types.ObjectId.isValid(tenantId) || ((!from || !to) && !statementId)) {
+    return NextResponse.json({ error: 'tenantId y (statementId o from/to) requeridos' }, { status: 400 })
   }
 
-  const fromDate = new Date(from)
-  const toDate = new Date(to)
-  toDate.setHours(23, 59, 59, 999)
+  // Rango a saldar, en HORA ARGENTINA. Con statementId: exactamente esa
+  // semana (lunes 00:00 → domingo 23:59:59). Antes se hacía setHours en la
+  // hora del servidor (UTC) y marcar una semana podía saldar también
+  // pedidos del lunes siguiente.
+  let fromDate: Date
+  let toDate: Date
+  if (statementId) {
+    if (!mongoose.Types.ObjectId.isValid(statementId)) return NextResponse.json({ error: 'statementId inválido' }, { status: 400 })
+    const stmt = await WeeklyCommissionStatement.findOne({ _id: statementId, tenantId }).select('weekStart').lean<{ weekStart: Date } | null>()
+    if (!stmt) return NextResponse.json({ error: 'Semana no encontrada' }, { status: 404 })
+    const bounds = weekBounds(weekKeyOf(stmt.weekStart))
+    fromDate = bounds.weekStart
+    toDate = new Date(bounds.weekEnd.getTime() - 1)
+  } else {
+    fromDate = /^\d{4}-\d{2}-\d{2}$/.test(from) ? getDayAndMidnightInTimezone(from).date : new Date(from)
+    toDate = /^\d{4}-\d{2}-\d{2}$/.test(to)
+      ? new Date(getDayAndMidnightInTimezone(addDaysToDateStr(to, 1)).date.getTime() - 1)
+      : new Date(to)
+  }
+  if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+    return NextResponse.json({ error: 'Rango inválido' }, { status: 400 })
+  }
 
-  // Get orders in range that are not yet settled
-  const existingSettlements = await CommissionSettlement.find({
-    tenantId,
-    from: { $lte: toDate },
-    to: { $gte: fromDate },
-  }).lean()
+  // Pedidos ya saldados por CUALQUIER pago del comercio (no solo los que se
+  // solapan en fechas): nunca se cobra dos veces el mismo pedido.
+  const existingSettlements = await CommissionSettlement.find({ tenantId }).select('orderIds').lean()
 
   const settledOrderIds = new Set<string>()
   for (const s of existingSettlements) {

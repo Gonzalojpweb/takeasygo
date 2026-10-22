@@ -48,6 +48,10 @@ function writeLast(slug: string, v: LastPopup) {
 export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: { tenantSlug: string; initial: CommissionAlerts; canPay: boolean }) {
   const [alerts, setAlerts] = useState<CommissionAlerts>(initial)
   const [popupOpen, setPopupOpen] = useState(false)
+  // Reloj del aviso: con el panel abierto, vuelve a evaluar cada 5 minutos
+  // (el martes empieza a avisar y una semana vencida se repite cada 2 h
+  // aunque el monto no cambie).
+  const [tick, setTick] = useState(0)
   const pathname = usePathname()
   const onCommissionsPage = pathname?.includes('/admin/commissions') ?? false
   const { knock, stop: stopKnock } = useKnockSound()
@@ -66,7 +70,10 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
   }, [tenantSlug])
 
   useEffect(() => {
-    const id = setInterval(refresh, REFRESH_MS)
+    const id = setInterval(() => {
+      refresh()
+      setTick((t) => t + 1)
+    }, REFRESH_MS)
     const onVisible = () => document.visibilityState === 'visible' && refresh()
     document.addEventListener('visibilitychange', onVisible)
     return () => {
@@ -83,7 +90,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
   useEffect(() => {
     if (onCommissionsPage) return
     const id = window.setTimeout(() => {
-      if (!shouldPopup(alerts.level, owedCents, readLast(tenantSlug), Date.now())) return
+      if (!shouldPopup(alerts.level, owedCents, readLast(tenantSlug), Date.now(), alerts.pending.notifyFrom)) return
       writeLast(tenantSlug, { level: alerts.level, cents: owedCents, at: Date.now() })
       lastFocus.current = document.activeElement as HTMLElement | null
       setPopupOpen(true)
@@ -92,7 +99,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
       hapticWarning()
     }, 0)
     return () => window.clearTimeout(id)
-  }, [alerts.level, owedCents, tenantSlug, onCommissionsPage, knock, playRing, hapticWarning])
+  }, [alerts.level, alerts.pending.notifyFrom, owedCents, tenantSlug, onCommissionsPage, knock, playRing, hapticWarning, tick])
 
   const close = useCallback(() => {
     stopKnock()
