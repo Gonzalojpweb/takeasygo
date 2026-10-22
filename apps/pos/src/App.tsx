@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useAuth } from "./hooks/useAuth"
 import { db } from "./db/dexie"
@@ -12,6 +12,8 @@ import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { ActionBar } from "./components/layout/ActionBar"
+import { UpdateBanner } from "./components/layout/UpdateBanner"
+import { applyAppUpdate, isAppUpdateReady, subscribeAppUpdate } from "./services/app-update"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import { contextsForRole, findContext, roleLabel, type ContextId } from "./components/layout/contexts"
 import type { SessionProfile } from "./services/auth-api"
@@ -46,6 +48,13 @@ function App() {
   // Desbloquea el audio en el primer gesto del usuario (autoplay, §7.4).
   useEffect(() => installAudioUnlock(), [])
   const [activeContext, setActiveContext] = useState<ContextId>("counter")
+  const updateReady = useSyncExternalStore(subscribeAppUpdate, isAppUpdateReady)
+
+  // Versión nueva sin sesión activa (login, carga o justo después de cerrar
+  // sesión): se aplica sola. Con sesión activa se avisa (UpdateBanner).
+  useEffect(() => {
+    if (updateReady && state.status !== "authenticated") applyAppUpdate()
+  }, [updateReady, state.status])
 
   useEffect(() => {
     if (state.status !== "authenticated" || !state.tenantId || !state.jwt) {
@@ -285,6 +294,7 @@ function App() {
         setActiveContext={setActiveContext}
         logout={logout}
       />
+      {updateReady && <UpdateBanner />}
     </LayoutProvider>
   )
 }

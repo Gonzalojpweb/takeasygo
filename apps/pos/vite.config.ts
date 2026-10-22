@@ -8,6 +8,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      // El registro y la política de recarga viven en src/services/app-update.ts
+      // (el registerSW inyectado activaba la versión nueva sin recargar la
+      // página: convivían dos versiones del POS).
+      injectRegister: false,
       includeAssets: ["favicon.svg", "manifest.json"],
       manifest: {
         name: "TakeasyGO POS",
@@ -38,17 +42,23 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,json}"],
+        // index.html NO se precachea: servirlo cache-first mostraba la versión
+        // vieja en cada apertura. Solo assets con hash (inmutables).
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/api\.takeasygo\.com\/.*/i,
+            // Navegaciones: siempre la red (versión publicada); la copia
+            // guardada solo se usa sin conexión o si la red no responde en 4 s.
+            urlPattern: ({ request }) => request.mode === "navigate",
             handler: "NetworkFirst",
             options: {
-              cacheName: "api-cache",
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60, // 1 hour
-              },
+              cacheName: "pos-pages",
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 5 },
             },
           },
         ],

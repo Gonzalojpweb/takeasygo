@@ -2119,3 +2119,41 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
   .order-item-qty button, .order-item-actions button { min-width: 44px; min-height: 44px; }
   .toast-container { top: auto; bottom: calc(var(--sp-3) + 140px); left: var(--sp-3); right: var(--sp-3); }
 }
+
+/* ── Aviso de versión nueva (services/app-update.ts) ─────────────────────── */
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  max-width: calc(100vw - 32px);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--text-primary);
+  color: var(--surface);
+  border-radius: 12px;
+  box-shadow: var(--depth-2);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+}
+.update-banner button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: 8px;
+  background: var(--primary-action);
+  color: #fff;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .update-banner { left: 16px; right: 16px; transform: none; max-width: none; bottom: calc(var(--sp-3) + 140px); }
+  .update-banner span { flex: 1; }
+}
