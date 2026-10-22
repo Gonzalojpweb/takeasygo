@@ -52,6 +52,8 @@ interface Props {
   tenantSlug: string
   plan?: string
   role?: string
+  /** % de comisión de transferencia que paga el cliente en delivery (comercio o default de plataforma). */
+  effectiveTransferCommissionPercent?: number
 }
 
 /** Texto de ayuda siempre visible bajo un campo, en lenguaje simple. */
@@ -59,7 +61,7 @@ function FieldHelp({ children }: { children: string }) {
   return <p className="text-[10px] leading-snug text-muted-foreground/60 mt-1.5">{children}</p>
 }
 
-export default function SettingsForm({ tenant, locations, tenantSlug, plan, role }: Props) {
+export default function SettingsForm({ tenant, locations, tenantSlug, plan, role, effectiveTransferCommissionPercent }: Props) {
   const router = useRouter()
   const canManageSensitiveSettings = role === 'admin' || role === 'superadmin'
   const [loading, setLoading] = useState(false)
@@ -2168,7 +2170,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                   tenantSlug={tenantSlug}
                   initialSurcharges={tenant.paymentSurcharges}
                   takeasygoFeePercent={tenant.mpOAuth?.commissionPercent ?? 1}
-                  transferPlatformFeePercent={tenant.transfer?.commissionPercent ?? 0}
+                  transferPlatformFeePercent={effectiveTransferCommissionPercent ?? tenant.transfer?.commissionPercent ?? 0}
                 />
               </div>
             </TabsContent>

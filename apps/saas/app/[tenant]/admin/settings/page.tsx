@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
+import PlatformConfig from '@/models/PlatformConfig'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
@@ -40,6 +41,15 @@ export default async function SettingsPage() {
 
   const plan = tenant.plan ?? 'try'
 
+  // % de comisión de transferencia que REALMENTE se le cobra al cliente en
+  // delivery: el del comercio si tiene uno, si no el default de la plataforma
+  // (lib/pricing.ts). La vista previa de recargos tiene que mostrar este.
+  const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean<{ platformFees?: { takeasygoTransferCommissionPercent?: number } }>()
+  const tenantTransfer = (tenant as unknown as { transfer?: { commissionPercent?: number | null } }).transfer
+  const effectiveTransferCommissionPercent = (tenantTransfer?.commissionPercent ?? 0) > 0
+    ? tenantTransfer!.commissionPercent!
+    : (platformConfig?.platformFees?.takeasygoTransferCommissionPercent ?? 0)
+
   return (
     <div>
       <h1 className="text-white text-2xl font-bold mb-6">Configuración</h1>
@@ -49,6 +59,7 @@ export default async function SettingsPage() {
         tenantSlug={tenantSlug || ''}
         plan={plan}
         role={role}
+        effectiveTransferCommissionPercent={effectiveTransferCommissionPercent}
       />
     </div>
   )

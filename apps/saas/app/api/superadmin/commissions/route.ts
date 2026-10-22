@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import CommissionSettlement from '@/models/CommissionSettlement'
-import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
+import { syncWeeklyStatements } from '@/lib/commission-weeks'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { toPesos } from '@takeasygo/business'
 
@@ -138,11 +138,15 @@ export async function POST(request: NextRequest) {
     for (const id of s.orderIds) settledOrderIds.add(id)
   }
 
+  // Solo transferencias con comisión: las de MercadoPago se cobran solas en
+  // cada pago; sumarlas acá inflaba lo "cobrado" (bug corregido).
   const orders = await Order.find({
     tenantId,
     deletedAt: null,
     status: { $ne: 'cancelled' },
     'payment.status': 'approved',
+    'payment.method': 'transfer',
+    'payment.platformFeeAmount': { $gt: 0 },
     createdAt: { $gte: fromDate, $lte: toDate },
     _id: { $nin: Array.from(settledOrderIds) },
   }).select('_id payment.platformFeeAmount payment.method').lean()
@@ -169,24 +173,11 @@ export async function POST(request: NextRequest) {
     status: 'paid',
   })
 
-  // Si se proporcionó statementId, marcar el WeeklyCommissionStatement como pagado
-  if (statementId) {
-    await WeeklyCommissionStatement.findOneAndUpdate(
-      { _id: statementId, tenantId, status: { $ne: 'pagado' } },
-      { $set: { status: 'pagado', paidAt: new Date(), paidBy: collectedBy } }
-    )
-  } else {
-    // Si no se proporcionó statementId, intentar encontrar statements pendientes/vencidos
-    // que se superpongan con el rango de fechas y marcarlos como pagados
-    await WeeklyCommissionStatement.updateMany(
-      {
-        tenantId,
-        weekStart: { $gte: fromDate, $lte: toDate },
-        status: { $ne: 'pagado' },
-      },
-      { $set: { status: 'pagado', paidAt: new Date(), paidBy: collectedBy } }
-    )
-  }
+  // Semanas: el estado sale de lo realmente saldado (fuente única). Una
+  // semana se marca pagada solo si TODOS sus pedidos quedaron cubiertos.
+  // (`statementId` se acepta por compatibilidad, pero ya no fuerza el estado.)
+  void statementId
+  await syncWeeklyStatements(tenantId, { paidBy: collectedBy })
 
   // Resetear commissionBalance.transfer del tenant (el admin ya pagó)
   await Tenant.findOneAndUpdate(

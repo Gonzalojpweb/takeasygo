@@ -24,18 +24,12 @@ export async function GET(
 
     const tenantId = tenant._id
 
-    // Transferencias sin pagar del mes actual — misma fórmula que el panel de
-    // comisiones (lib/commissions): órdenes transfer del período menos las que
-    // ya están cubiertas por un pago registrado. En CENTAVOS (igual que antes).
-    const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-
-    const { computeTransferPayable } = await import('@/lib/commissions')
-    const payable = await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
-
-    const pending = payable.pendingCents
-    const orderCount = payable.orderCount
+    // Todo lo pendiente por transferencias (fuente única lib/commission-weeks:
+    // vencido + pendiente + semana en curso). En CENTAVOS (igual que antes).
+    const { loadCommissionWeeks } = await import('@/lib/commission-weeks')
+    const weeks = await loadCommissionWeeks(tenantId)
+    const pending = weeks.reduce((s, w) => s + w.pendingCents, 0)
+    const orderCount = weeks.reduce((s, w) => s + w.pendingOrderIds.length, 0)
 
     // Cumulative balance (lifetime)
     const balance = tenant.commissionBalance?.transfer ?? 0

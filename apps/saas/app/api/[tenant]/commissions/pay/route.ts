@@ -1,131 +1,119 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { connectDB } from '@/lib/mongoose'
-import Tenant from '@/models/Tenant'
-import { requireAdminRole, getSessionUser } from '@/lib/apiAuth'
-import User from '@/models/User'
-import { getPlatformMPClient } from '@/lib/mp-platform'
+import { z } from 'zod'
 import { Preference } from 'mercadopago'
 import { toPesos } from '@takeasygo/business'
-import { computeTransferPayable } from '@/lib/commissions'
+import { getSessionUser } from '@/lib/apiAuth'
+import User from '@/models/User'
+import CommissionPaymentIntent from '@/models/CommissionPaymentIntent'
+import { getPlatformMPClient } from '@/lib/mp-platform'
 import { getBaseUrl } from '@/lib/site-url'
+import { feesByOrder, loadCommissionWeeks, payableFrom, type PayScope } from '@/lib/commission-weeks'
+import { isValidCalendarDate } from '@/lib/restaurant-time'
+import { logAudit } from '@/lib/audit'
+import { commissionsTenant } from '../_shared'
+
+const bodySchema = z.object({
+  /** due = semanas cerradas (vencidas + pendientes) · all = + semana en curso · week = una semana */
+  scope: z.enum(['due', 'all', 'week']).default('due'),
+  weekKey: z.string().optional(),
+})
 
 /**
- * POST /api/{tenant}/commissions/pay
+ * POST /api/{tenant}/commissions/pay (admin · manager)
  *
- * Crea una Preferencia de MercadoPago para que el admin pague
- * sus comisiones pendientes por transferencia a la cuenta de TakeasyGO.
+ * Crea el cobro de las comisiones por transferencia a la cuenta de
+ * MercadoPago de la PLATAFORMA (donde caen las comisiones de TakeasyGO).
  *
- * Body: { from?: string, to?: string }  (opcional, default = mes actual)
- * Response: { initPoint, amount, from, to }
+ * Congela QUÉ se paga en un CommissionPaymentIntent (pedidos exactos y
+ * monto). El webhook de MP salda exactamente esos pedidos cuando el pago se
+ * aprueba y marca pagadas las semanas cubiertas.
+ *
+ * Response: { initPoint, amount (pesos), orderCount, weeks }
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ tenant: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
-    const { tenant: tenantSlug } = await params
-    await connectDB()
+    const { tenant: slug } = await params
+    const ctx = await commissionsTenant(request, slug, 'pay')
+    if ('error' in ctx) return ctx.error
 
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
+    const parsed = bodySchema.safeParse(await request.json().catch(() => ({})))
+    if (!parsed.success) return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
+    const { scope: kind, weekKey } = parsed.data
+    if (kind === 'week' && (!weekKey || !isValidCalendarDate(weekKey))) {
+      return NextResponse.json({ error: 'Indicá la semana a pagar' }, { status: 400 })
+    }
+    const scope: PayScope = kind === 'week' ? { kind, key: weekKey! } : { kind }
+
+    const weeks = await loadCommissionWeeks(ctx.tenant._id, { tz: ctx.tz })
+    const fees = await feesByOrder(weeks.flatMap((w) => w.pendingOrderIds))
+    const payable = payableFrom(weeks, scope, fees)
+    if (payable.amount <= 0 || payable.orderIds.length === 0) {
+      return NextResponse.json({ error: 'No hay comisiones pendientes para pagar' }, { status: 400 })
     }
 
-    const authError = await requireAdminRole(request, tenant._id.toString())
-    if (authError) return authError
+    const user = await getSessionUser(request)
+    const payerEmail = user?.id ? (await User.findById(user.id).select('email').lean<{ email?: string }>())?.email : undefined
 
-    // Obtener email del admin para pre-fill en checkout MP
-    const sessionUser = await getSessionUser(request)
-    const adminEmail = sessionUser?.id
-      ? (await User.findById(sessionUser.id).select('email').lean())?.email
-      : undefined
+    // Un cobro nuevo deja "superado" al anterior impago (si igual se paga, el
+    // webhook lo acredita: la plata de un pago real nunca se ignora).
+    await CommissionPaymentIntent.updateMany({ tenantId: ctx.tenant._id, status: 'pending' }, { $set: { status: 'superseded' } })
+    const intent = await CommissionPaymentIntent.create({
+      tenantId: ctx.tenant._id,
+      orderIds: payable.orderIds,
+      weekStarts: payable.weekStarts,
+      amount: payable.amount,
+      createdBy: user?.id ? String(user.id) : null,
+    })
 
-    const body = await request.json().catch(() => ({}))
-    const { from: fromParam, to: toParam } = body as { from?: string; to?: string }
-
-    // Calcular rango de fechas (default: mes actual)
-    // Parse "YYYY-MM-DD" as local date (new Date("YYYY-MM-DD") parses as UTC, causing off-by-one)
-    const parseLocal = (s: string) => {
-      const [y, m, d] = s.split('-').map(Number)
-      return new Date(y, (m ?? 1) - 1, d ?? 1)
-    }
-
-    const now = new Date()
-    const from = fromParam ? parseLocal(fromParam) : new Date(now.getFullYear(), now.getMonth(), 1)
-    const to = toParam ? parseLocal(toParam) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
-
-    if (from.getTime() > to.getTime()) {
-      return NextResponse.json(
-        { error: 'Rango inválido: la fecha de inicio debe ser anterior o igual a la de fin' },
-        { status: 400 }
-      )
-    }
-
-    // Monto exacto = transferencia del período no cubiertas por pagos registrados.
-    // Misma fórmula que GET /commissions (transfer.pending) — el botón del panel
-    // y el webhook de MP liquidan este mismo número.
-    // Nota: platformFeeAmount es 0 para órdenes takeaway (solo delivery genera comisión).
-    // Ver lib/pricing.ts:getPlatformFeePercent para la regla de negocio.
-    const payable = await computeTransferPayable(tenant._id, from, to)
-    const pending = payable.pendingCents
-
-    if (pending <= 0) {
-      return NextResponse.json(
-        { error: 'No hay comisiones pendientes de transferencia en este período' },
-        { status: 400 }
-      )
-    }
-
-    // Crear Preferencia MP con credenciales de la plataforma
     const { client } = await getPlatformMPClient()
-    const preference = new Preference(client)
-
-    // Dirección canónica única (NEXT_PUBLIC_URL > NEXTAUTH_URL > origin).
     const appUrl = getBaseUrl(request)
-    const periodLabel = `${from.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} - ${to.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}`
-
-    const result = await preference.create({
+    const label = payable.weekStarts.length === 1
+      ? `semana del ${payable.weekStarts[0].toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', timeZone: ctx.tz || 'America/Argentina/Buenos_Aires' })}`
+      : `${payable.weekStarts.length} semanas`
+    const result = await new Preference(client).create({
       body: {
         items: [
           {
-            id: `commission-${tenant._id}-${from.getTime()}`,
-            title: `Comisión TakeasyGO - Transferencias - ${periodLabel}`,
+            id: `commission-intent-${intent._id}`,
+            title: `Comisión TakeasyGO por transferencias (${label}) — ${payable.orderIds.length} pedidos`,
             quantity: 1,
-            unit_price: toPesos(pending),
+            unit_price: toPesos(payable.amount),
             currency_id: 'ARS',
           },
         ],
-        payer: adminEmail ? { email: adminEmail } : undefined,
-        external_reference: `commission:${tenant._id}:${from.toISOString()}:${to.toISOString()}`,
+        payer: payerEmail ? { email: payerEmail } : undefined,
+        external_reference: `commission-intent:${intent._id}`,
         back_urls: {
-          success: `${appUrl}/${tenantSlug}/admin/reports?commission=paid`,
-          failure: `${appUrl}/${tenantSlug}/admin/reports?commission=failed`,
-          pending: `${appUrl}/${tenantSlug}/admin/reports?commission=pending`,
+          success: `${appUrl}/${slug}/admin/commissions?pago=ok`,
+          failure: `${appUrl}/${slug}/admin/commissions?pago=error`,
+          pending: `${appUrl}/${slug}/admin/commissions?pago=pendiente`,
         },
         auto_return: 'approved' as const,
         notification_url: `${appUrl}/api/webhooks/mercadopago/commission`,
       },
     })
-
     if (!result.init_point) {
-      return NextResponse.json(
-        { error: 'Error al crear preferencia de pago' },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: 'MercadoPago no devolvió el link de pago. Reintentá.' }, { status: 502 })
     }
+    await CommissionPaymentIntent.updateOne({ _id: intent._id }, { $set: { preferenceId: result.id ?? null } })
+
+    logAudit({
+      tenantId: String(ctx.tenant._id),
+      action: 'commissions.payment_started',
+      entity: 'commission',
+      entityId: String(intent._id),
+      details: { scope: kind, weekKey: weekKey ?? null, amount: payable.amount, orders: payable.orderIds.length },
+      request,
+    })
 
     return NextResponse.json({
       initPoint: result.init_point,
-      amount: toPesos(pending),
-      from: from.toISOString(),
-      to: to.toISOString(),
-      orderCount: payable.orderCount,
+      amount: toPesos(payable.amount),
+      orderCount: payable.orderIds.length,
+      weeks: payable.weekStarts.length,
     })
-  } catch (error: any) {
+  } catch (error) {
     console.error('[commissions/pay]', error)
-    return NextResponse.json(
-      { error: error?.message || 'Error interno' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'No se pudo iniciar el pago. Reintentá en unos segundos.' }, { status: 500 })
   }
 }

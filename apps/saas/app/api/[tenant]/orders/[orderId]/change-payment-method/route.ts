@@ -162,6 +162,9 @@ export async function POST(
     order.payment.surchargePercent = pricing.surchargePercent
     order.payment.surchargeAmount = pricing.surchargeAmount
     order.payment.platformFeeAmount = pricing.platformFeeAmount
+    // Desglose de quién paga la comisión (solo transferencia; resto: sin desglose).
+    order.payment.platformFeeCustomerAmount = pricing.platformFeeCustomerAmount ?? null
+    order.payment.merchantSurchargeAmount = pricing.merchantSurchargeAmount ?? null
     order.total = pricing.finalTotal
     
     // ── Aplicar descuento de efectivo si el nuevo método es cash ────────

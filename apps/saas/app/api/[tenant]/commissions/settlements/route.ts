@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import CommissionSettlement from '@/models/CommissionSettlement'
-import { requireAuth } from '@/lib/apiAuth'
+import { getSessionUser } from '@/lib/apiAuth'
+import { canViewCommissions } from '@/lib/commission-access'
 import { toPesos } from '@takeasygo/business'
 
 /**
  * GET /api/{tenant}/commissions/settlements
  *
- * Retorna el historial de settlements del superadmin para este tenant.
+ * Retorna el historial de pagos de comisiones del comercio (admin, manager
+ * y cajero: lib/commission-access.ts).
  *
  * Response: { settlements: Array<{ from, to, amountCollected, collectedBy, collectedAt, notes }> }
  */
@@ -25,8 +27,11 @@ export async function GET(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
-    if (authError) return authError
+    const user = await getSessionUser(request)
+    if (!user?.role) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    if ((user.role !== 'superadmin' && user.tenantId !== tenant._id.toString()) || !canViewCommissions(user.role)) {
+      return NextResponse.json({ error: 'Tu rol no tiene acceso a comisiones' }, { status: 403 })
+    }
 
     const settlements = await CommissionSettlement.find({ tenantId: tenant._id })
       .sort({ collectedAt: -1 })

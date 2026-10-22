@@ -2039,6 +2039,9 @@ export async function POST(
       'payment.surchargePercent': pricing.surchargePercent,
       'payment.surchargeAmount': pricing.surchargeAmount,
       'payment.platformFeeAmount': pricing.platformFeeAmount,
+      // Desglose de quién paga la comisión (transferencia delivery): cliente vs comercio.
+      'payment.platformFeeCustomerAmount': pricing.platformFeeCustomerAmount ?? null,
+      'payment.merchantSurchargeAmount': pricing.merchantSurchargeAmount ?? null,
       'payment.transferAccount': resolvedTransferAccount,
       notes: body.notes || '',
       trackingToken: crypto.randomUUID(),

@@ -207,15 +207,14 @@ export async function GET(
     }))
 
     // ── Process Comisiones ──
-    // Misma fórmula que el panel de comisiones y el banner (lib/commissions):
-    // transferencias del mes menos las ya cubiertas por pagos registrados.
-    // Es deuda del negocio con la plataforma: solo en la vista consolidada.
-    const { computeTransferPayable } = await import('@/lib/commissions')
-    const transferPayable = consolidated
-      ? await computeTransferPayable(tenantId, startOfMonth, endOfMonth)
-      : null
-    const pending = transferPayable?.pendingCents ?? 0
-    const commissionOrderCount = transferPayable?.orderCount ?? 0
+    // Fuente única (lib/commission-weeks): TODO lo que se le debe a la
+    // plataforma por transferencias (semanas vencidas, pendientes y la
+    // semana en curso) — el mismo número que el centro de avisos y la página
+    // de Comisiones. Es deuda del negocio: solo en la vista consolidada.
+    const { loadCommissionWeeks } = await import('@/lib/commission-weeks')
+    const commissionWeeks = consolidated ? await loadCommissionWeeks(tenantId) : []
+    const pending = commissionWeeks.reduce((s, w) => s + w.pendingCents, 0)
+    const commissionOrderCount = commissionWeeks.reduce((s, w) => s + w.pendingOrderIds.length, 0)
     const balance = tenant.commissionBalance?.transfer ?? 0
     const threshold = tenant.commissionThreshold ?? null
 

@@ -10,6 +10,10 @@ export interface IWeeklyCommissionStatement extends Document {
   paidAt: Date | null
   paidBy: string | null
   orderCount: number
+  /** Pedidos (transferencia delivery) congelados al cerrar la semana. */
+  orderIds: string[]
+  /** Vence: pasado este momento, una semana impaga queda "vencida". */
+  dueAt: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -25,6 +29,8 @@ const WeeklyCommissionStatementSchema = new Schema<IWeeklyCommissionStatement>(
     paidAt: { type: Date, default: null },
     paidBy: { type: String, default: null },
     orderCount: { type: Number, required: true, min: 0 },
+    orderIds: { type: [String], default: [] },
+    dueAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

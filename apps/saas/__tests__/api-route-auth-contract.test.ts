@@ -17,8 +17,10 @@ import { join } from 'node:path'
 
 const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 
+// commissionsTenant (app/api/[tenant]/commissions/_shared.ts): wrapper que exige
+// sesión (getSessionUser) + rol de lib/commission-access.ts, como posRoute.
 const GUARD_RE =
-  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b/
+  /\brequireAuth\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b|\bcommissionsTenant\b/
 
 const OPEN_BY_DESIGN = new Set([
   // PÚBLICO por diseño (carta, cotizaciones, eventos, feedback, promo)

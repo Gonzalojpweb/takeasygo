@@ -9,9 +9,11 @@ import type { Types } from 'mongoose'
  * Reglas:
  *  - Una orden "entra" al período por createdAt, si está aprobada y no cancelada.
  *  - La comisión de la orden es `payment.platformFeeAmount` (centavos).
- *  - Una orden está "pagada" si su _id aparece en `orderIds` de algún
- *    CommissionSettlement que solape el período (criterio usado por el webhook
- *    de pago de MP y por el superadmin al registrar un pago).
+ *  - MercadoPago y Kripton: la comisión se cobra SOLA en cada pago aprobado
+ *    (split del pago). Siempre cuenta como cobrada: nunca queda pendiente.
+ *  - Transferencia: una orden está "pagada" si su _id aparece en `orderIds`
+ *    de algún CommissionSettlement que solape el período (webhook de pago de
+ *    comisiones y registro manual del superadmin).
  *  - Settlements viejos sin `orderIds` se descuentan del pendiente en orden
  *    (queda `unattributedSettled` para mostrarlo como ajuste).
  *
@@ -64,6 +66,9 @@ export interface PeriodCommissions {
   /** settlements solapados sin detalle de órdenes (datos viejos), en centavos */
   unattributedSettled: number
 }
+
+/** Medios cuya comisión se cobra automáticamente en cada pago. */
+export const AUTO_COLLECTED_METHODS = new Set(['mercadopago', 'kripton'])
 
 interface RawOrder {
   _id: Types.ObjectId
@@ -153,7 +158,7 @@ export async function computePeriodCommissions(
     total += fee
     row.orderCount += 1
     row.total += fee
-    if (settledIds.has(String(o._id))) {
+    if (settledIds.has(String(o._id)) || AUTO_COLLECTED_METHODS.has(method)) {
       settled += fee
       settledOrderCount += 1
       row.settled += fee

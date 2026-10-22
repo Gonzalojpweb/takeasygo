@@ -206,3 +206,15 @@ describe('computeTransferPayable', () => {
     expect(payable.pendingCents).toBe(0)
   })
 })
+
+describe('MercadoPago y Kripton: cobradas automáticamente', () => {
+  it('su comisión cuenta como cobrada aunque no figure en ningún pago registrado', async () => {
+    await makeOrder({ createdAt: d('2026-10-05T12:00:00Z'), method: 'mercadopago', fee: 700 })
+    await makeOrder({ createdAt: d('2026-10-06T12:00:00Z'), method: 'transfer', fee: 1000 })
+    const period = await computePeriodCommissions(TENANT_A, FROM, TO)
+    const mp = period.breakdown.find((r) => r.method === 'mercadopago')!
+    expect(mp).toMatchObject({ total: 700, settled: 700, pending: 0, settledOrderCount: 1 })
+    expect(period.pending).toBe(1000) // solo la transferencia queda por pagar
+    expect(period.total).toBe(period.settled + period.pending)
+  })
+})

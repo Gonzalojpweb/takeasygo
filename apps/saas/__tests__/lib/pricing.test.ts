@@ -76,18 +76,39 @@ describe('calculateFinalTotal - transferencia', () => {
     expect(takeawayFees).toBe(0) // 0%
   })
 
-  it('Transferencia + 0% recargo del tenant → comisión usa % default de plataforma (absorbida por restaurante)', () => {
+  // Decisión de negocio 2026-10-22: la comisión de transferencia (delivery)
+  // la paga SIEMPRE el cliente. Antes, con 0 % en el comercio, la comisión
+  // se cobraba igual pero la absorbía el restaurante.
+  it('Transferencia + 0% en el comercio → el cliente paga la comisión con el % default de plataforma', () => {
     const tenantNoSurcharge = {
-      transfer: { commissionPercent: 0 }, // 0% recargo → restaurante absorbe
+      transfer: { commissionPercent: 0 },
     }
     const pcConDefault = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 1 } } // 1% default transfer
     // baseTotal = 50000 (subtotal 48000 + delivery 2000)
     const r = calculateFinalTotal(50000, 'transfer', tenantNoSurcharge, pcConDefault, undefined, 'delivery', 2000)
-    expect(r.surchargeAmount).toBe(0) // cliente no paga nada extra
-    expect(r.surchargePercent).toBe(0)
-    // platformFeeAmount = 1% de 48000 (subtotal) = 480 → restaurante le debe esto a TakeasyGO
-    expect(r.platformFeeAmount).toBe(480)
-    expect(r.finalTotal).toBe(50000) // cliente paga solo subtotal + delivery, sin recargo
+    expect(r.platformFeeAmount).toBe(480) // 1 % de 48000 (sin envío)
+    expect(r.surchargeAmount).toBe(480) // lo paga el cliente
+    expect(r.surchargePercent).toBe(1)
+    expect(r.platformFeeCustomerAmount).toBe(480)
+    expect(r.merchantSurchargeAmount).toBe(0)
+    expect(r.finalTotal).toBe(50480)
+  })
+
+  it('Transferencia + delivery: el cliente paga EXACTAMENTE la comisión (nunca el restaurante), con o sin recargo propio', () => {
+    const pc = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 3 } }
+    for (const tenantCase of [
+      {},
+      { transfer: { commissionPercent: null } },
+      { transfer: { commissionPercent: 2.5 } },
+      { transfer: { commissionPercent: 2.5 }, paymentSurcharges: { transfer: { feePercent: 4 } } },
+      { paymentSurcharges: { transfer: { feePercent: 4 } } },
+    ]) {
+      const r = calculateFinalTotal(123457, 'transfer', tenantCase as never, pc, undefined, 'delivery', 3457)
+      expect(r.platformFeeAmount).toBeGreaterThan(0)
+      expect(r.platformFeeCustomerAmount).toBe(r.platformFeeAmount)
+      expect(r.surchargeAmount).toBe(r.platformFeeAmount + (r.merchantSurchargeAmount ?? 0))
+      expect(r.finalTotal).toBe(123457 + r.surchargeAmount)
+    }
   })
 })
 

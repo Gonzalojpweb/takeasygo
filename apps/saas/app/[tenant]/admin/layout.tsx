@@ -1,3 +1,6 @@
+import CommissionAlertCenter from '@/components/admin/commissions/CommissionAlertCenter'
+import { loadCommissionWeeks, summarizeAlerts, type CommissionAlerts } from '@/lib/commission-weeks'
+import { canPayCommissions, canViewCommissions } from '@/lib/commission-access'
 import { Toaster } from '@/components/ui/sonner'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import { auth } from '@/lib/auth'
@@ -133,13 +136,17 @@ export default async function AdminLayout({
     })
   }
 
-  // Commission badge: reuse tenantDoc (already fetched with commissionBalance/commissionThreshold)
+  // Comisiones por transferencia (admin, manager y cajero): badge del menú
+  // = semanas cerradas sin pagar (vencidas + pendientes) y estado inicial del
+  // centro de avisos. Fuente única: lib/commission-weeks.
   let commissionBadge = 0
-  if (session.user.role === 'admin' && tenantDoc) {
-    const balancePesos = (tenantDoc?.commissionBalance?.transfer ?? 0) / 100
-    const threshold = tenantDoc?.commissionThreshold ?? null
-    if (threshold != null && balancePesos >= threshold) {
-      commissionBadge = 1
+  let commissionAlerts: CommissionAlerts | null = null
+  if (canViewCommissions(session.user.role) && session.user.role !== 'superadmin' && tenantDoc) {
+    try {
+      commissionAlerts = summarizeAlerts(await loadCommissionWeeks(tenantDoc._id))
+      commissionBadge = commissionAlerts.overdue.weeks + commissionAlerts.pending.weeks
+    } catch (err) {
+      console.error('[admin/layout] comisiones', err)
     }
   }
 
@@ -196,6 +203,7 @@ export default async function AdminLayout({
           {/* Main Content */}
           <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
             {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
+            {commissionAlerts && <CommissionAlertCenter tenantSlug={tenant} initial={commissionAlerts} canPay={canPayCommissions(session.user.role)} />}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10 flex flex-col">
               <div className="w-full flex-1 min-h-0 flex flex-col">
                 <ComplianceAlertBanner tenantSlug={tenant} />

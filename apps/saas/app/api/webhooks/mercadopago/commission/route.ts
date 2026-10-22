@@ -8,12 +8,20 @@ import { getPlatformMPClient, getPlatformWebhookSecret } from '@/lib/mp-platform
 import { Payment } from 'mercadopago'
 import { NextRequest, NextResponse } from 'next/server'
 import { toPesos } from '@takeasygo/business'
+import { settleCommissionIntent } from '@/lib/commission-payments'
+import { syncWeeklyStatements } from '@/lib/commission-weeks'
 
 /**
  * POST /api/webhooks/mercadopago/commission
  *
- * Webhook para pagos de comisiones de TakeasyGO (external_reference: commission:...).
- * Cuando un admin paga sus comisiones vía MP:
+ * Webhook para pagos de comisiones de TakeasyGO.
+ *
+ * external_reference `commission-intent:<id>` (botón «Pagar» actual): salda
+ * EXACTAMENTE los pedidos congelados en la intención, verificando el monto
+ * (lib/commission-payments.ts) y marca pagadas las semanas cubiertas.
+ *
+ * external_reference `commission:{tenantId}:{from}:{to}` (formato anterior,
+ * por si queda algún link viejo sin pagar). Cuando un admin paga así:
  *  1. Verifica el pago contra la API de MP
  *  2. Crea un CommissionSettlement
  *  3. Decrementa tenant.commissionBalance.transfer
@@ -134,6 +142,19 @@ export async function POST(request: NextRequest) {
     }
 
     const extRef = paymentData.external_reference
+
+    if (extRef?.startsWith('commission-intent:')) {
+      const result = await settleCommissionIntent(extRef.slice('commission-intent:'.length), {
+        id: String(paymentId),
+        amountPesos: Number(paymentData.transaction_amount ?? 0),
+      })
+      // amount_mismatch no se marca procesado: queda visible en logs para revisión.
+      if (result.status !== 'amount_mismatch') {
+        await ProcessedWebhookEvents.create({ requestId: dedupKey }).catch(() => {})
+      }
+      return NextResponse.json({ received: true, ...result })
+    }
+
     if (!extRef?.startsWith('commission:')) {
       return NextResponse.json({ received: true, ignored: true })
     }
@@ -209,6 +230,9 @@ export async function POST(request: NextRequest) {
       { _id: { $in: orders.map(o => o._id) } },
       { $set: { 'payment.commissionBalanceAdded': false } },
     )
+
+    // Semanas: las que quedaron cubiertas pasan a pagadas (antes nunca se marcaban).
+    await syncWeeklyStatements(tenant._id, { paidBy: `mp-payment-${paymentId}` })
 
     // Registrar como procesado
     await ProcessedWebhookEvents.create({

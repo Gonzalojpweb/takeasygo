@@ -225,6 +225,10 @@ export interface IOrder extends Document {
     surchargeAmount: number
     /** Comisión de la plataforma en centavos. @storedAs cents */
     platformFeeAmount: number
+    /** Parte de la comisión que pagó el cliente vía recargo (null = sin desglose). @storedAs cents */
+    platformFeeCustomerAmount?: number | null
+    /** Recargo propio del comercio (null = sin desglose). @storedAs cents */
+    merchantSurchargeAmount?: number | null
     // ── Transferencia ────────────────────────────────────────────────────
     transferConfirmed: boolean
     transferConfirmedAt: Date | null
@@ -679,6 +683,14 @@ const OrderSchema = new Schema(
       surchargeAmount: { type: Number, default: 0, min: 0 },
       /** @storedAs cents */
       platformFeeAmount: { type: Number, default: 0, min: 0 },
+      /**
+       * Parte de la comisión de plataforma que pagó el CLIENTE vía recargo
+       * (transferencia delivery). null = pedido anterior al registro del
+       * desglose (no se puede afirmar quién la pagó). @storedAs cents
+       */
+      platformFeeCustomerAmount: { type: Number, default: null, min: 0 },
+      /** Recargo propio del comercio (queda en el negocio). null = sin desglose. @storedAs cents */
+      merchantSurchargeAmount: { type: Number, default: null, min: 0 },
       // ── Transferencia ───────────────────────────────────────────────
       transferConfirmed: { type: Boolean, default: false },
       transferConfirmedAt: { type: Date, default: null },

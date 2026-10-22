@@ -4,6 +4,14 @@ export interface PricingResult {
   surchargeAmount: number
   finalTotal: number
   platformFeeAmount: number
+  /**
+   * Transferencia (delivery): parte de la comisión de plataforma que se le
+   * RECARGÓ al cliente (porcentaje de plataforma × subtotal sin envío).
+   * 0 = la comisión no se recargó y la absorbe el comercio. @storedAs cents
+   */
+  platformFeeCustomerAmount?: number
+  /** Transferencia: recargo propio del comercio (queda en el negocio). @storedAs cents */
+  merchantSurchargeAmount?: number
 }
 
 export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer' | 'cash'
@@ -91,34 +99,46 @@ export function calculateFinalTotal(
   /** Delivery cost in cents. For transfer, the surcharge is calculated on (baseTotal - deliveryCost) — delivery is a passthrough and excluded from the commission base. */
   deliveryCost?: number
 ): PricingResult {
-  // ── Transferencia: se maneja aparte porque recargo (cliente) y comisión (restaurante) pueden diferir ──
-  // El cliente paga la suma de dos porcentajes (solo en delivery):
-  //  - la comisión de plataforma TakeasyGO (tenant.transfer.commissionPercent o % default), y
-  //  - el recargo propio opcional del comercio (tenant.paymentSurcharges.transfer.feePercent).
-  // A TakeasyGO le corresponde solo la comisión de plataforma; el recargo propio
-  // queda en el negocio. Si ambos son 0%, la comisión de plataforma igual existe
-  // (% default) pero la absorbe el restaurante (surchargeAmount = 0, platformFeeAmount > 0).
-  // El recargo se calcula solo sobre subtotal (sin delivery) — delivery es passthrough.
+  // ── Transferencia (solo delivery) ──
+  // REGLA (decisión de negocio, 2026-10-22): la comisión de TakeasyGO la paga
+  // SIEMPRE el cliente, como cargo por usar la app. El restaurante nunca la
+  // absorbe. El cliente paga:
+  //  - la comisión de plataforma: % del comercio (tenant.transfer.commissionPercent)
+  //    o, si no tiene uno (> 0), el % por defecto de la plataforma, y
+  //  - el recargo propio opcional del comercio (tenant.paymentSurcharges.transfer.feePercent),
+  //    que queda en el negocio.
+  // A TakeasyGO le corresponde solo la comisión, y el cliente paga EXACTAMENTE
+  // ese monto (mismo redondeo): platformFeeCustomerAmount === platformFeeAmount.
+  // Base: subtotal sin envío (el delivery es passthrough al repartidor).
+  // Antes, con % del comercio en 0, la comisión se cobraba igual pero no se le
+  // recargaba al cliente: la pagaba el restaurante (bug corregido).
   if (paymentMethod === 'transfer') {
     if (orderMode !== 'delivery') {
-      return { baseTotal, surchargePercent: 0, surchargeAmount: 0, finalTotal: baseTotal, platformFeeAmount: 0 }
+      return { baseTotal, surchargePercent: 0, surchargeAmount: 0, finalTotal: baseTotal, platformFeeAmount: 0, platformFeeCustomerAmount: 0, merchantSurchargeAmount: 0 }
     }
 
     const merchantFeePercent = tenant.paymentSurcharges?.transfer?.feePercent ?? 0
-    const platformPercent = tenant.transfer?.commissionPercent ?? 0
-    const surchargePercent = merchantFeePercent + platformPercent
+    const tenantPercent = tenant.transfer?.commissionPercent ?? 0
+    const platformPercent = tenantPercent > 0
+      ? tenantPercent
+      : (overridePlatformFeePercent ?? platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
 
     const subtotal = baseTotal - (deliveryCost ?? 0)
-    const surchargeAmount = Math.round(subtotal * surchargePercent / 100)
+    const platformFeeAmount = Math.ceil(subtotal * platformPercent / 100)
+    const merchantSurchargeAmount = Math.round(subtotal * merchantFeePercent / 100)
+    const surchargeAmount = platformFeeAmount + merchantSurchargeAmount
+    const surchargePercent = merchantFeePercent + platformPercent
     const finalTotal = baseTotal + surchargeAmount
 
-    // Comisión: usar % del tenant si es > 0, si no el % default de plataforma
-    const commissionPercent = platformPercent > 0
-      ? platformPercent
-      : (overridePlatformFeePercent ?? platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
-    const platformFeeAmount = Math.ceil(subtotal * commissionPercent / 100)
-
-    return { baseTotal, surchargePercent, surchargeAmount, finalTotal, platformFeeAmount }
+    return {
+      baseTotal,
+      surchargePercent,
+      surchargeAmount,
+      finalTotal,
+      platformFeeAmount,
+      platformFeeCustomerAmount: platformFeeAmount,
+      merchantSurchargeAmount,
+    }
   }
 
   // ── MP / Kripton / Efectivo: lógica original ──

@@ -1,145 +1,51 @@
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
-import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
-import { NextRequest, NextResponse } from 'next/server'
+import { commissionableFilter, syncWeeklyStatements } from '@/lib/commission-weeks'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
 /**
- * Cron de cierre semanal de comisiones por transferencia.
- * Corre los lunes a las 08:00 UTC (05:00 ART).
+ * Cierre semanal de comisiones por transferencia (lunes 08:00 UTC = 05:00 ART).
  *
- * 1. Calcula weekStart (último lunes 00:00) y weekEnd (domingo 23:59)
- * 2. Para cada tenant activo con órdenes de transfer en la semana:
- *    - Crea WeeklyCommissionStatement con upsert (idempotente)
- *    - Marca como vencidos los statements pendientes de semanas anteriores
+ * Para cada comercio con pedidos que generan comisión, lleva las
+ * liquidaciones semanales al estado real (lib/commission-weeks.ts, fuente
+ * única): crea la de la semana que cerró (lunes a domingo, HORA ARGENTINA),
+ * congela sus pedidos y vencimiento, y actualiza pendiente / vencida /
+ * pagada según lo saldado. Idempotente: correrlo de nuevo no duplica nada.
+ *
+ * Antes calculaba la semana en UTC y por `confirmedAt`, mientras el panel
+ * usaba hora local y `createdAt`: los montos podían no coincidir.
  */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization')
-    if (!CRON_SECRET || authHeader !== `Bearer ${CRON_SECRET}`) {
+    if (!CRON_SECRET || request.headers.get('authorization') !== `Bearer ${CRON_SECRET}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
     await connectDB()
-
     const now = new Date()
+    const tenants = await Tenant.find({ isActive: true }).select('_id timezone').lean<Array<{ _id: import('mongoose').Types.ObjectId; timezone?: string | null }>>()
 
-    // Calcular weekStart (lunes 00:00 UTC de la semana ANTERIOR)
-    const dayOfWeek = now.getUTCDay() // 0=Sun, 1=Mon
-    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-    const weekStart = new Date(Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - daysSinceMonday - 7,
-      0, 0, 0, 0
-    ))
-    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000 - 1000)
-
-    // Solo ejecutar lunes (dayOfWeek === 1)
-    if (dayOfWeek !== 1) {
-      return NextResponse.json({ success: true, skipped: true, reason: 'Not Monday', dayOfWeek })
-    }
-
-    // Buscar tenants activos
-    const tenants = await Tenant.find({ isActive: true })
-      .select('slug name')
-      .lean()
-
+    let processed = 0
     let created = 0
-    let skipped = 0
-    let vencidos = 0
-
-    for (const tenant of tenants) {
-      // Verificar si ya existe un statement para esta semana (idempotencia)
-      const existing = await WeeklyCommissionStatement.findOne({
-        tenantId: tenant._id,
-        weekStart,
-      }).lean()
-
-      if (existing) {
-        skipped++
-        continue
-      }
-
-      // Contar y sumar comisiones de transfer confirmadas en la semana
-      const result = await Order.aggregate([
-        {
-          $match: {
-            tenantId: tenant._id,
-            'payment.method': 'transfer',
-            'payment.status': { $ne: 'cancelled' },
-            'statusTimestamps.confirmedAt': { $gte: weekStart, $lte: weekEnd },
-          },
-        },
-        {
-          $group: {
-            _id: null,
-            totalCommission: { $sum: '$payment.platformFeeAmount' },
-            orderCount: { $sum: 1 },
-          },
-        },
-      ])
-
-      const totalCommission = result[0]?.totalCommission || 0
-      const orderCount = result[0]?.orderCount || 0
-
-      // Solo crear statement si hubo comisiones
-      if (totalCommission <= 0) {
-        skipped++
-        continue
-      }
-
-      // Crear statement con upsert (idempotente)
-      await WeeklyCommissionStatement.findOneAndUpdate(
-        { tenantId: tenant._id, weekStart },
-        {
-          $setOnInsert: {
-            tenantId: tenant._id,
-            weekStart,
-            weekEnd,
-            amount: totalCommission,
-            status: 'pendiente',
-            closedAt: now,
-            orderCount,
-          },
-        },
-        { upsert: true, new: true }
-      )
-
-      created++
-
-      // Marcar como vencidos los statements pendientes de semanas anteriores
-      const updated = await WeeklyCommissionStatement.updateMany(
-        {
-          tenantId: tenant._id,
-          weekStart: { $lt: weekStart },
-          status: 'pendiente',
-        },
-        { $set: { status: 'vencido' } }
-      )
-
-      if (updated.modifiedCount > 0) {
-        vencidos += updated.modifiedCount
+    let paid = 0
+    const failed: string[] = []
+    for (const t of tenants) {
+      if (!(await Order.exists(commissionableFilter(t._id)))) continue
+      try {
+        const r = await syncWeeklyStatements(t._id, { now, tz: t.timezone || undefined })
+        processed++
+        created += r.created
+        paid += r.paid
+      } catch (err) {
+        failed.push(String(t._id))
+        console.error('[Cron:weekly-commission-close] comercio', String(t._id), err)
       }
     }
-
-    return NextResponse.json({
-      success: true,
-      timestamp: now.toISOString(),
-      weekStart: weekStart.toISOString(),
-      weekEnd: weekEnd.toISOString(),
-      created,
-      skipped,
-      vencidos,
-      totalTenants: tenants.length,
-    })
+    return NextResponse.json({ success: failed.length === 0, timestamp: now.toISOString(), processed, created, paid, failed, totalTenants: tenants.length })
   } catch (error) {
     console.error('[Cron:weekly-commission-close] Error:', error)
-    return NextResponse.json(
-      { error: 'Error ejecutando cron job', details: String(error) },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Error ejecutando cron job' }, { status: 500 })
   }
 }
