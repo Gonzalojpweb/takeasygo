@@ -156,6 +156,12 @@ export interface SaleRecordedPayload {
   consumption: SaleConsumptionLine[]
   /** true si el plato no tiene receta: venta registrada, consumo desconocido. */
   unmapped: boolean
+  /**
+   * true si se vendió una variante ("Triple") SIN receta propia y se descontó
+   * la receta base del plato. El consumo probablemente está subestimado: la UI
+   * lo muestra como pendiente de configurar (antes pasaba en silencio).
+   */
+  baseRecipeFallback?: boolean
   warnings: string[]
 }
 

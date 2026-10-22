@@ -188,7 +188,7 @@ export const superadminCreateUserSchema = z.object({
   email:    z.string().email().max(200).trim(),
   password: z.string().min(8).max(128),
   // superadmin no puede crearse desde la UI — solo los roles operativos
-  role:     z.enum(['admin', 'manager', 'staff', 'cashier']),
+  role:     z.enum(['admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier']),
   tenantId: objectIdSchema,
 })
 

@@ -143,18 +143,31 @@ export default function RecipesTab({
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-1">
-                            {variants.map((v) => (
-                              <button
-                                key={v ?? 'base'}
-                                type="button"
-                                onClick={() => setEditing(editing?.menuItemId === it.menuItemId && editing.variantName === v ? null : { menuItemId: it.menuItemId, variantName: v })}
-                                className="h-11 rounded-xl border border-border px-3 text-sm font-bold hover:bg-muted"
-                              >
-                                {v ?? (it.hasRecipe ? 'Editar' : 'Cargar receta')}
-                              </button>
-                            ))}
+                            {variants.map((v) => {
+                              // Variante sin receta propia con base cargada: se vende
+                              // descontando la base (ej. "Triple" como "Simple").
+                              const ownRecipe = it.recipes.some((r) => r.variantName === v)
+                              const usesBase = v !== null && !ownRecipe && it.recipes.some((r) => r.variantName === null)
+                              return (
+                                <button
+                                  key={v ?? 'base'}
+                                  type="button"
+                                  onClick={() => setEditing(editing?.menuItemId === it.menuItemId && editing.variantName === v ? null : { menuItemId: it.menuItemId, variantName: v })}
+                                  className={`h-11 rounded-xl border px-3 text-sm font-bold hover:bg-muted ${usesBase ? 'border-amber-500/50 bg-amber-500/10 text-amber-800' : 'border-border'}`}
+                                  title={usesBase ? 'Sin receta propia: se descuenta la receta base' : undefined}
+                                >
+                                  {v === null ? (it.hasRecipe ? 'Editar' : 'Cargar receta') : usesBase ? `${v} · usa la base` : v}
+                                </button>
+                              )
+                            })}
                           </div>
                         </div>
+                        {it.variants.length > 0 && it.recipes.some((r) => r.variantName === null) &&
+                          it.variants.some((v) => !it.recipes.some((r) => r.variantName === v.name)) && (
+                          <p className="mt-2 text-xs font-medium text-amber-700">
+                            Las variantes marcadas descuentan la receta base: si llevan más cantidad (doble, triple), cargales su receta.
+                          </p>
+                        )}
                         {editing?.menuItemId === it.menuItemId && (
                           <RecipeEditor
                             key={`${it.menuItemId}|${editing.variantName}`}

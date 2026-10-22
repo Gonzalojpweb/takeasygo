@@ -96,12 +96,20 @@ export default async function AdminDashboard() {
 
   // Get userName from auth session for ICOWidget personalization
   let userName = ''
+  let role: string | undefined
   try {
     const { auth } = await import('@/lib/auth')
     const session = await auth()
     userName = session?.user?.name ?? session?.user?.email ?? ''
+    role = session?.user?.role
   } catch {
     // auth may fail in some contexts, fallback to empty
+  }
+
+  // El jefe de cocina no opera ventas: su inicio es Inventario.
+  if (role === 'kitchen_lead') {
+    const { redirect } = await import('next/navigation')
+    redirect(`/${tenantSlug}/admin/inventario`)
   }
 
   // Fetch consolidated dashboard data (single request replaces 9 individual fetches)

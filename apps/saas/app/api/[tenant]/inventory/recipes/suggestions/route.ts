@@ -5,12 +5,12 @@ import { inventoryRoute, InventoryError } from '@/lib/inventory/route'
 import { loadRecipesView } from '@/lib/inventory/read'
 
 /**
- * GET /api/[tenant]/inventory/recipes/suggestions?locationId= (manage)
+ * GET /api/[tenant]/inventory/recipes/suggestions?locationId= (recipes)
  * Progressive Zero-Setup: para cada plato SIN receta, los insumos típicos
  * sugeridos (diccionario TGO), indicando si el insumo ya existe en el
  * catálogo. Nada se crea acá: el encargado confirma desde la UI.
  */
-export const GET = inventoryRoute('manage', async (ctx) => {
+export const GET = inventoryRoute('recipes', async (ctx) => {
   const locationId = ctx.request.nextUrl.searchParams.get('locationId')
   if (!locationId) throw InventoryError.validation('locationId requerido')
   const [{ items }, skus] = await Promise.all([

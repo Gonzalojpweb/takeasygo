@@ -86,7 +86,7 @@ export async function PATCH(
 
     const update: Record<string, any> = {}
     if (role !== undefined) {
-      const validRoles = ['admin', 'manager', 'staff', 'cashier', 'consumer', 'seller']
+      const validRoles = ['admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier', 'consumer', 'seller']
       if (!validRoles.includes(role)) {
         return NextResponse.json({ error: 'Rol inválido' }, { status: 400 })
       }

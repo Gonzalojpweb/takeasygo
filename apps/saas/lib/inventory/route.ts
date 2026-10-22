@@ -6,12 +6,21 @@
 //   tenant → sesión → plan (Lock) → capacidad del ROL → handler
 //                                                     └ throw → JSON tipado
 //
-// Capacidades (DECISIONES_VIGENTES D-09, corrige INV-11/INV-16):
-//   read     admin · manager                    stock, costos, historial
-//   capture  admin · manager · cashier · staff  recepción, conteo, merma,
-//                                               lista "Verificá estos N"
-//   manage   admin · manager                    catálogo, recetas, depósitos,
-//                                               AJUSTES, transferencias
+// Capacidades (DECISIONES_VIGENTES D-09; roles aprobados 2026-10-21):
+//   read     admin · manager · ops · cocina  stock, costos, historial
+//   capture  admin · manager · ops · cocina  recepción, conteo, merma,
+//                                            producción, "Verificá estos N"
+//   recipes  admin · manager · ops · cocina  recetas, modificadores, alta de
+//                                            insumos desde sugerencias
+//   manage   admin · manager · ops           activar sede, editar insumos,
+//                                            depósitos, AJUSTES, transferencias,
+//                                            reconciliación y rebuild
+//
+//   ops = operations_manager (Gerente de operaciones)
+//   cocina = kitchen_lead (Jefe de cocina)
+//
+// Cajero, staff y mozo NO tienen inventario: alimentan el inventario
+// vendiendo (cada venta descuenta su receta), no cargándolo.
 //
 // El control por rol se aplica SIEMPRE. Si el tenant tiene la matriz RBAC v3
 // activa, además se exige el permiso equivalente (inventory.read /
@@ -27,17 +36,21 @@ import { getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest, type Permission } from '@/lib/rbac'
 import { canAccess, type Plan } from '@/lib/plans'
 
-export type InventoryCapability = 'read' | 'capture' | 'manage'
+export type InventoryCapability = 'read' | 'capture' | 'recipes' | 'manage'
+
+const BACK_OFFICE = ['admin', 'manager', 'operations_manager', 'kitchen_lead'] as const
 
 const CAPABILITY_ROLES: Record<InventoryCapability, readonly string[]> = {
-  read: ['admin', 'manager'],
-  capture: ['admin', 'manager', 'cashier', 'staff'],
-  manage: ['admin', 'manager'],
+  read: BACK_OFFICE,
+  capture: BACK_OFFICE,
+  recipes: BACK_OFFICE,
+  manage: ['admin', 'manager', 'operations_manager'],
 }
 
 const CAPABILITY_PERMISSION: Record<InventoryCapability, Permission> = {
   read: 'inventory.read',
   capture: 'inventory.capture',
+  recipes: 'inventory.write',
   manage: 'inventory.write',
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import InventoryStorageLocation from '@/models/InventoryStorageLocation'
+import { logAudit } from '@/lib/audit'
 import { inventoryRoute, readInventoryBody } from '@/lib/inventory/route'
 import { requireLocation } from '@/lib/inventory/catalog'
 
@@ -23,5 +24,13 @@ export const POST = inventoryRoute('manage', async (ctx) => {
   const input = createSchema.parse(await readInventoryBody(ctx.request))
   const loc = await requireLocation(ctx.tenantObjectId, input.locationId, ctx.assertLocation)
   const storage = await InventoryStorageLocation.create({ tenantId: ctx.tenantObjectId, locationId: loc._id, name: input.name, type: input.type })
+  logAudit({
+    tenantId: ctx.tenantId,
+    action: 'inventory.storage.create',
+    entity: 'inventory',
+    entityId: String(storage._id),
+    details: { locationId: String(loc._id), name: input.name, type: input.type },
+    request: ctx.request,
+  })
   return NextResponse.json({ storage }, { status: 201 })
 })

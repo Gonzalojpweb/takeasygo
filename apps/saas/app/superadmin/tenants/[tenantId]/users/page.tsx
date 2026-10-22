@@ -40,7 +40,7 @@ export default async function TenantUsersPage({ params }: Props) {
         _id: u._id.toString(),
         name: u.name,
         email: u.email,
-        role: u.role as 'admin' | 'manager' | 'staff' | 'cashier',
+        role: u.role as 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier',
         isActive: u.isActive,
         createdAt: u.createdAt.toISOString(),
         assignedLocations: (u.assignedLocations || []).map((id: Types.ObjectId) => id.toString()),

@@ -199,7 +199,7 @@ describe('captura de evidencia', () => {
 
   it('"Verificá estos N" prioriza lo nunca contado y explica por qué', async () => {
     await syncOrderConsumption(order())
-    as({ id: 'c1', role: 'cashier' })
+    as({ id: 'k1', role: 'kitchen_lead' })
     const res = await todayGet(new NextRequest(`http://localhost/api/${SLUG}/inventory/today?locationId=${loc._id}`), P)
     expect(res.status).toBe(200)
     const body = await res.json()
@@ -223,9 +223,16 @@ describe('seguridad', () => {
     expect((await adjustPost(json('POST', 'adjustments', { skuId: carneId, storageLocationId: storageId, delta: -1, unit: 'kg', reason: 'corto' }), P)).status).toBe(400)
   })
 
-  it('cajero no ve stock valorizado (read) pero sí la lista del día (capture)', async () => {
-    as({ id: 'c1', role: 'cashier' })
-    expect((await stockGet(new NextRequest(`http://localhost/api/${SLUG}/inventory/stock`), P)).status).toBe(403)
+  // Decisión 2026-10-21: cajero, staff y mozo NO tienen inventario (antes el
+  // cajero tenía la lista del día). Alimentan el inventario vendiendo.
+  it('cajero, staff y mozo no tienen inventario: ni stock, ni lista del día, ni carga', async () => {
+    for (const role of ['cashier', 'staff', 'waiter']) {
+      as({ id: `u-${role}`, role })
+      expect((await stockGet(new NextRequest(`http://localhost/api/${SLUG}/inventory/stock`), P)).status, role).toBe(403)
+      expect((await todayGet(new NextRequest(`http://localhost/api/${SLUG}/inventory/today?locationId=${loc._id}`), P)).status, role).toBe(403)
+      expect((await countsPost(json('POST', 'counts', { skuId: carneId, storageLocationId: storageId, observedQuantity: 1, unit: 'kg', observationMethod: 'visual_count' }), P)).status, role).toBe(403)
+      expect((await receiptsPost(json('POST', 'receipts', { skuId: carneId, storageLocationId: storageId, quantity: 1, unit: 'kg' }), P)).status, role).toBe(403)
+    }
   })
 
   it('usuario de otra sede: no puede contar en un depósito ajeno → 404', async () => {

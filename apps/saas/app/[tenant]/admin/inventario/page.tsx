@@ -69,6 +69,9 @@ export default async function InventarioPage() {
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
         <PackageSearch size={32} className="text-muted-foreground" />
         <p className="text-muted-foreground font-medium">Tu rol no tiene acceso a Inventario.</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Lo gestionan administración, managers, el gerente de operaciones y el jefe de cocina. Las ventas descuentan insumos solas.
+        </p>
       </div>
     )
   }
@@ -86,6 +89,7 @@ export default async function InventarioPage() {
     <InventoryDashboard
       tenantSlug={tenantSlug}
       canRead={canRoleUse(role, 'read')}
+      canRecipes={canRoleUse(role, 'recipes')}
       canManage={canRoleUse(role, 'manage')}
       locations={locations.map((l) => ({ id: String(l._id), name: String(l.name), inventoryActive: active.has(String(l._id)) }))}
     />

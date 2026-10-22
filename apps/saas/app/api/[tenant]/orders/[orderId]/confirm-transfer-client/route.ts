@@ -9,6 +9,7 @@ import { sendAdminPushNotification } from '@/lib/push'
 import { rateLimit } from '@/lib/rateLimit'
 import { resolveAdminWhatsApp } from '@/lib/location-resolvers'
 import { getBaseUrl } from '@/lib/site-url'
+import { runAfterResponse } from '@/lib/after-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -59,7 +60,7 @@ export async function PATCH(
 
     // ── Imprimir comanda al confirmar transferencia ──────────────────
     const { onOrderConfirmed } = await import('@/lib/printing')
-    onOrderConfirmed(order).catch(() => {})
+    runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
 
     // ── Notificar al restaurante via WhatsApp ───────────────────────
     // Destino y flags con override por sede de ESTA orden.

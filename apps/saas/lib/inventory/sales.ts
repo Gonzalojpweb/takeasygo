@@ -175,11 +175,17 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
       return { ...base, payload: { ...common, recipeId: null, recipeVersion: null, consumption: c.consumption, unmapped: false, warnings: [] } }
     }
     const line = desired.find((d) => d.lineId === c.lineId)!
-    const recipe = c.line.menuItemId
-      ? recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, c.line.variantName)) ??
-        recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, null)) ??
-        null
+    // Receta de la variante; si la variante no tiene propia, la base del plato.
+    // Usar la base para "Triple" casi seguro subestima el consumo: se marca
+    // (baseRecipeFallback + warning) para que la UI lo pida configurar.
+    const variantRecipe = c.line.menuItemId && c.line.variantName
+      ? recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, c.line.variantName)) ?? null
       : null
+    const baseRecipe = c.line.menuItemId
+      ? recipeByKey.get(dishRecipeKey(String(order.locationId), c.line.menuItemId, null)) ?? null
+      : null
+    const recipe = variantRecipe ?? baseRecipe
+    const baseRecipeFallback = Boolean(c.line.variantName && !variantRecipe && baseRecipe)
     const exploded = explodeSaleLine({
       portions: c.portions,
       recipe: recipe ? { id: String(recipe._id), version: recipe.version, items: recipe.items.map((i) => ({ skuId: String(i.skuId), quantity: i.quantity, unit: i.unit })) } : null,
@@ -197,7 +203,10 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
         recipeVersion: recipe?.version ?? null,
         consumption: exploded.consumption,
         unmapped: exploded.unmapped,
-        warnings: exploded.warnings,
+        baseRecipeFallback,
+        warnings: baseRecipeFallback
+          ? [`La variante "${c.line.variantName}" no tiene receta propia: se descontó la receta base`, ...exploded.warnings]
+          : exploded.warnings,
       },
     }
   })

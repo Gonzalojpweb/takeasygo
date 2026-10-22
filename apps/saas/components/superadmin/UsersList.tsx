@@ -45,6 +45,8 @@ const ROLE_BADGES: Record<string, { label: string; className: string }> = {
   consumer: { label: 'Consumer', className: 'bg-blue-500/10 text-blue-500 border-blue-500/20' },
   admin: { label: 'Admin', className: 'bg-primary/10 text-primary border-primary/20' },
   manager: { label: 'Manager', className: 'bg-violet-500/10 text-violet-500 border-violet-500/20' },
+  operations_manager: { label: 'Gerente de operaciones', className: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' },
+  kitchen_lead: { label: 'Jefe de cocina', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
   staff: { label: 'Staff', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
   cashier: { label: 'Cajero', className: 'bg-sky-500/10 text-sky-500 border-sky-500/20' },
   seller: { label: 'Vendedor', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
@@ -142,6 +144,8 @@ export default function UsersList({}: Props) {
               <option value="consumer">Consumer</option>
               <option value="admin">Admin</option>
               <option value="manager">Manager</option>
+              <option value="operations_manager">Gerente de operaciones</option>
+              <option value="kitchen_lead">Jefe de cocina</option>
               <option value="staff">Staff</option>
               <option value="cashier">Cajero</option>
               <option value="seller">Vendedor</option>

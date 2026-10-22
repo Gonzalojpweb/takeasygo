@@ -5,7 +5,7 @@ import { UserPlus, KeyRound, Mail, Eye, EyeOff, Check, AlertCircle } from 'lucid
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 
-type UserRole = 'admin' | 'manager' | 'staff' | 'cashier' | 'seller'
+type UserRole = 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier' | 'seller'
 
 interface TenantUser {
     _id: string
@@ -26,6 +26,8 @@ interface TenantUsersManagerProps {
 const ROLE_CONFIG: Record<UserRole, { label: string; className: string }> = {
     admin: { label: 'Admin', className: 'bg-primary/10 text-primary border-primary/20' },
     manager: { label: 'Manager', className: 'bg-violet-500/10 text-violet-500 border-violet-500/20' },
+    operations_manager: { label: 'Gerente de operaciones', className: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' },
+    kitchen_lead: { label: 'Jefe de cocina', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
     staff: { label: 'Staff', className: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
     cashier: { label: 'Cajero', className: 'bg-sky-500/10 text-sky-500 border-sky-500/20' },
     seller: { label: 'Vendedor', className: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' },
@@ -295,6 +297,8 @@ export default function TenantUsersManager({ tenantId, initialUsers, locations }
                             >
                                 <option value="admin">Admin</option>
                                 <option value="manager">Manager</option>
+                                <option value="operations_manager">Gerente de operaciones</option>
+                                <option value="kitchen_lead">Jefe de cocina</option>
                                 <option value="staff">Staff</option>
                                 <option value="cashier">Cajero</option>
                                 <option value="seller">Vendedor</option>

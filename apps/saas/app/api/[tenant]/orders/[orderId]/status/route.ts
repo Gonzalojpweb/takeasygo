@@ -25,6 +25,7 @@ import { allowedTransitionsFrom } from '@/lib/order-transitions'
 import { matchesInternalSecret } from '@/lib/internal-secret'
 import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 import webpush from 'web-push'
+import { runAfterResponse } from '@/lib/after-response'
 
 try {
   webpush.setVapidDetails(
@@ -525,7 +526,7 @@ export async function PATCH(
     if (status === 'confirmed' && previousStatus !== 'confirmed') {
       await finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
       const { onOrderConfirmed } = await import('@/lib/printing')
-      onOrderConfirmed(order).catch(() => {})
+      runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
 
       // checkout_completed (gate becameCompleted sobre previousStatus +
       // dedup atómico por orderId — criterio único en lib/events-server.ts)

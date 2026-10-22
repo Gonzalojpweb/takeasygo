@@ -4,9 +4,12 @@
 // InventoryDashboard — TGO Inventory v2 en el admin
 // ============================================================================
 // Pestañas por capacidad del rol (las APIs vuelven a validar todo):
-//   Hoy · Recepción              → capture (admin, manager, cajero, staff)
-//   Stock                        → read    (admin, manager)
-//   Recetas · Configuración      → manage  (admin, manager)
+//   Hoy · Recepción · Stock  → capture/read (admin, manager, gerente de
+//                                            operaciones, jefe de cocina)
+//   Recetas                  → recipes      (los mismos)
+//   Configuración            → manage       (admin, manager, gerente de
+//                                            operaciones)
+// Cajero, staff y mozo no tienen inventario (lib/inventory/route.ts).
 // ============================================================================
 
 import { useState } from 'react'
@@ -27,11 +30,12 @@ interface LocationOption {
 interface Props {
   tenantSlug: string
   canRead: boolean
+  canRecipes: boolean
   canManage: boolean
   locations: LocationOption[]
 }
 
-export default function InventoryDashboard({ tenantSlug, canRead, canManage, locations: initialLocations }: Props) {
+export default function InventoryDashboard({ tenantSlug, canRead, canRecipes, canManage, locations: initialLocations }: Props) {
   const [locationId, setLocationId] = useState(initialLocations.find((l) => l.inventoryActive)?.id ?? initialLocations[0]?.id ?? '')
 
   // Catálogo compartido por las pestañas; `stamp` remonta Hoy/Stock al recargar.
@@ -87,7 +91,7 @@ export default function InventoryDashboard({ tenantSlug, canRead, canManage, loc
           <TabsTrigger value="today">Hoy</TabsTrigger>
           {canRead && <TabsTrigger value="stock">Stock</TabsTrigger>}
           <TabsTrigger value="receipt">Recepción</TabsTrigger>
-          {canManage && <TabsTrigger value="recipes">Recetas</TabsTrigger>}
+          {canRecipes && <TabsTrigger value="recipes">Recetas</TabsTrigger>}
           {canManage && <TabsTrigger value="setup">Configuración</TabsTrigger>}
         </TabsList>
 
@@ -102,7 +106,7 @@ export default function InventoryDashboard({ tenantSlug, canRead, canManage, loc
         <TabsContent value="receipt" className="mt-6">
           <ReceiptTab tenantSlug={tenantSlug} skus={skus} storages={locationStorages} onDone={loadCatalog} />
         </TabsContent>
-        {canManage && (
+        {canRecipes && (
           <TabsContent value="recipes" className="mt-6">
             <RecipesTab tenantSlug={tenantSlug} locationId={locationId} skus={skus} onCatalogChange={loadCatalog} />
           </TabsContent>

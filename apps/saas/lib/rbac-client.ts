@@ -20,7 +20,7 @@ export type ClientPermission =
   | 'payments.configure' | 'fiscal.configure'
   | 'rooms.access'
 
-export type ClientLocationRole = 'admin' | 'manager' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'seller'
+export type ClientLocationRole = 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'seller'
 
 const ALL: ClientPermission[] = [
   'orders.read', 'orders.write', 'orders.cancel', 'kitchen.read',
@@ -51,9 +51,11 @@ export const CLIENT_ROLE_PERMISSIONS: Record<ClientLocationRole, readonly Client
     'users.read', 'users.write',
     'printjobs.manage', 'rooms.access',
   ],
-  staff: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'inventory.capture', 'rooms.access'],
+  operations_manager: ['orders.read', 'kitchen.read', 'menu.read', 'inventory.read', 'inventory.capture', 'inventory.write', 'rooms.access'],
+  kitchen_lead: ['orders.read', 'kitchen.read', 'menu.read', 'inventory.read', 'inventory.capture', 'inventory.write', 'rooms.access'],
+  staff: ['orders.read', 'orders.write', 'kitchen.read', 'menu.read', 'rooms.access'],
   cashier: [
-    'orders.read', 'orders.write', 'kitchen.read', 'inventory.capture',
+    'orders.read', 'orders.write', 'kitchen.read',
     'cash.open', 'cash.close', 'cash.movements.read', 'cash.movements.write',
     'menu.read', 'reservations.write', 'reports.cash', 'rooms.access',
   ],

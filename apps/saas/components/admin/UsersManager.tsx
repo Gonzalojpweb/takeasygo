@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils'
 const ROLE_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
   admin: { label: 'Admin', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20', icon: ShieldCheck },
   manager: { label: 'Manager', color: 'bg-blue-500/10 text-blue-500 border-blue-500/20', icon: Shield },
+  operations_manager: { label: 'Gerente de operaciones', color: 'bg-violet-500/10 text-violet-500 border-violet-500/20', icon: Shield },
+  kitchen_lead: { label: 'Jefe de cocina', color: 'bg-orange-500/10 text-orange-500 border-orange-500/20', icon: UserIcon },
   staff: { label: 'Staff', color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', icon: UserIcon },
   cashier: { label: 'Cashier', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20', icon: UserIcon },
 }
@@ -185,6 +187,8 @@ export default function UsersManager({ users, tenantSlug, tenantId, locations }:
                          className={cn(inputCls, "appearance-none cursor-pointer")}>
                          <option value="admin">Administrador (Control total)</option>
                          <option value="manager">Mánager (Gestión de ventas)</option>
+                         <option value="operations_manager">Gerente de operaciones (Inventario y operación)</option>
+                         <option value="kitchen_lead">Jefe de cocina (Inventario y recetas)</option>
                          <option value="staff">Personal (Visualización)</option>
                          <option value="cashier">Cajero (Operativa)</option>
                        </select>

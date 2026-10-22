@@ -14,8 +14,8 @@
 //   3. La escritura del estado es condicional a `rev` (concurrencia
 //      optimista). Si otro proceso escribió en el medio, se recalcula.
 //
-// Si el paso 2 falla después del 1, el evento NO se pierde: el próximo evento
-// del agregado, la lectura con `rebuildIfStale` o el cron lo proyectan, porque
+// Si el paso 2 falla después del 1, el evento NO se pierde: lo proyecta el
+// próximo evento del agregado o el cron diario (repairStaleAggregates), porque
 // cada rebuild relee el ledger completo desde el snapshot.
 // ============================================================================
 
@@ -326,4 +326,64 @@ export async function rebuildTenant(tenantId: string): Promise<number> {
   }
   for (const k of keys.values()) await rebuildAggregate(k)
   return keys.size
+}
+
+/**
+ * Red de seguridad de la proyección (cron diario). Un agregado está
+ * desactualizado si el ledger tiene eventos REGISTRADOS después de su último
+ * rebuild (o si nunca se proyectó): pasa cuando appendEvents insertó pero el
+ * rebuild falló (corte, timeout). Se re-proyecta desde el evento más viejo
+ * pendiente. Idempotente: un agregado al día no se toca.
+ */
+export async function repairStaleAggregates(opts: { hours?: number; tenantId?: string } = {}): Promise<{ checked: number; repaired: number }> {
+  const since = new Date(Date.now() - (opts.hours ?? 36) * 3_600_000)
+  const match: Record<string, unknown> = { recordedAt: { $gte: since } }
+  if (opts.tenantId) match.tenantId = new mongoose.Types.ObjectId(opts.tenantId)
+
+  type Group = { _id: { t: mongoose.Types.ObjectId; s: unknown; d: unknown }; from: Date; lastRecorded: Date }
+  const [own, sales] = await Promise.all([
+    InventoryLedger.aggregate<Group>([
+      { $match: { ...match, skuId: { $ne: null } } },
+      { $group: { _id: { t: '$tenantId', s: '$skuId', d: '$storageLocationId' }, from: { $min: '$occurredAt' }, lastRecorded: { $max: '$recordedAt' } } },
+    ]),
+    InventoryLedger.aggregate<Group>([
+      { $match: { ...match, eventType: 'SaleRecorded' } },
+      { $unwind: '$payload.consumption' },
+      {
+        $group: {
+          _id: { t: '$tenantId', s: '$payload.consumption.skuId', d: '$payload.consumption.storageLocationId' },
+          from: { $min: '$occurredAt' },
+          lastRecorded: { $max: '$recordedAt' },
+        },
+      },
+    ]),
+  ])
+
+  // Un mismo agregado puede venir de las dos consultas: se combina.
+  const pending = new Map<string, { key: AggregateKey; from: Date; lastRecorded: Date }>()
+  for (const g of [...own, ...sales]) {
+    const key = { tenantId: String(g._id.t), skuId: String(g._id.s), storageLocationId: String(g._id.d) }
+    const cur = pending.get(keyOf(key))
+    pending.set(keyOf(key), {
+      key,
+      from: cur && cur.from < g.from ? cur.from : g.from,
+      lastRecorded: cur && cur.lastRecorded > g.lastRecorded ? cur.lastRecorded : g.lastRecorded,
+    })
+  }
+
+  let repaired = 0
+  for (const { key, from, lastRecorded } of pending.values()) {
+    if (!mongoose.Types.ObjectId.isValid(key.skuId) || !mongoose.Types.ObjectId.isValid(key.storageLocationId)) continue
+    const state = await InventoryState.findOne({ tenantId: key.tenantId, skuId: key.skuId, storageLocationId: key.storageLocationId })
+      .select('rebuiltAt')
+      .lean<{ rebuiltAt?: Date }>()
+    if (state?.rebuiltAt && state.rebuiltAt >= lastRecorded) continue
+    try {
+      await rebuildAggregate(key, from)
+      repaired++
+    } catch (err) {
+      console.error('[inventory] repairStaleAggregates: no se pudo re-proyectar', keyOf(key), err)
+    }
+  }
+  return { checked: pending.size, repaired }
 }

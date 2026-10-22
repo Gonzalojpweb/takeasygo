@@ -2,6 +2,7 @@ import { sendAdminPushNotification } from '@/lib/push'
 import { pushOrderToSyncLayer, confirmOrderPaymentCore, notifySyncLayerStatus } from '@/lib/sync-layer'
 import type { IOrder } from '@/models/Order'
 import type { ITenant } from '@/models/Tenant'
+import { runAfterResponse } from '@/lib/after-response'
 
 /**
  * Efectos post-creación/post-confirmación de una orden, en UNA sola función con
@@ -123,7 +124,7 @@ export async function applyStatusTransitionSideEffects(args: {
 
   if (order.status === 'confirmed') {
     const { onOrderConfirmed } = await import('@/lib/printing')
-    onOrderConfirmed(order).catch(() => {})
+    runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
   }
 }
 
@@ -212,6 +213,6 @@ export async function syncOrderAfterStatusSet(args: {
 
   if (order.status === 'confirmed') {
     const { onOrderConfirmed } = await import('@/lib/printing')
-    onOrderConfirmed(order).catch(() => {})
+    runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
   }
 }

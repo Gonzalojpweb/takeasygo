@@ -9,6 +9,7 @@ import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { rateLimit } from '@/lib/rateLimit'
+import { runAfterResponse } from '@/lib/after-response'
 
 /** Resumen compacto para que el fallback client de order-success pueda emitir
  *  checkout_completed si el server no llegó a hacerlo (mismo dedup por orderId). */
@@ -172,7 +173,7 @@ export async function GET(
 
       finalizeHiddenRewardClaims(order._id, order.customerPhoneHash).catch(() => {})
       const { onOrderConfirmed } = await import('@/lib/printing')
-      onOrderConfirmed(order).catch(() => {})
+      runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
 
       // checkout_completed (gate becameCompleted + dedup atómico por orderId)
       captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>

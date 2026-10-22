@@ -9,6 +9,7 @@ import { addPointsFromOrder, processRewardDeduction } from '@/lib/loyalty'
 import { confirmOrderPayment } from '@/lib/sync-layer'
 import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { incrementCommissionBalance } from '@/lib/commission-balance'
+import { runAfterResponse } from '@/lib/after-response'
 
 export async function PATCH(
   request: NextRequest,
@@ -105,7 +106,7 @@ export async function PATCH(
     const hasPendingPrintJobs = order.printJobs?.some(j => j.status === 'pending')
     if (!hasPendingPrintJobs) {
       const { onOrderConfirmed } = await import('@/lib/printing')
-      onOrderConfirmed(order).catch(() => {})
+      runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
     }
 
     // ── Acumular comisión en balance del tenant (idempotente vía flag) ──

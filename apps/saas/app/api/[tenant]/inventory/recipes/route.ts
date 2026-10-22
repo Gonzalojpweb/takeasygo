@@ -15,8 +15,8 @@ export const GET = inventoryRoute('read', async (ctx) => {
   return NextResponse.json(await loadRecipesView(ctx, locationId))
 })
 
-/** PUT /api/[tenant]/inventory/recipes (manage) — guarda una NUEVA versión. */
-export const PUT = inventoryRoute('manage', async (ctx) => {
+/** PUT /api/[tenant]/inventory/recipes (recipes) — guarda una NUEVA versión. */
+export const PUT = inventoryRoute('recipes', async (ctx) => {
   const input = recipeInputSchema.parse(await readInventoryBody(ctx.request))
   const recipe = await saveRecipe(ctx.tenantObjectId, input, ctx.user.id, ctx.assertLocation)
   logAudit({
@@ -30,8 +30,8 @@ export const PUT = inventoryRoute('manage', async (ctx) => {
   return NextResponse.json({ recipe })
 })
 
-/** DELETE /api/[tenant]/inventory/recipes?recipeKey= (manage) — el plato queda sin receta (la historia no cambia). */
-export const DELETE = inventoryRoute('manage', async (ctx) => {
+/** DELETE /api/[tenant]/inventory/recipes?recipeKey= (recipes) — el plato queda sin receta (la historia no cambia). */
+export const DELETE = inventoryRoute('recipes', async (ctx) => {
   const recipeKey = ctx.request.nextUrl.searchParams.get('recipeKey')
   if (!recipeKey || !/^(dish|prep):[\w:*.\- ]{1,200}$/.test(recipeKey)) throw InventoryError.validation('recipeKey inválido')
   if (recipeKey.startsWith('dish:')) ctx.assertLocation(recipeKey.split(':')[1])

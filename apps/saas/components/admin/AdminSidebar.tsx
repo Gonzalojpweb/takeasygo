@@ -147,7 +147,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
     {
       section: 'Principal',
       items: [
-        { href: base, label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff', 'cashier'] },
+        { href: base, label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'operations_manager', 'staff', 'cashier'] },
       ],
     },
     {
@@ -158,7 +158,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
         ...(posEnabled ? [{ href: `${base}/caja-pos`, label: 'Cajas POS', icon: Banknote, roles: ['admin', 'manager'] }] : []),
-        { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'inventory' },
+        { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'operations_manager', 'kitchen_lead'], feature: 'inventory' },
         { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
       ],
     },
@@ -217,7 +217,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
     {
       section: 'Soporte',
       items: [
-        { href: `${base}/ayuda`, label: 'Centro de Ayuda', icon: BookOpen, roles: ['admin', 'manager', 'staff', 'cashier'] },
+        { href: `${base}/ayuda`, label: 'Centro de Ayuda', icon: BookOpen, roles: ['admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier'] },
         { href: `${base}/updates`, label: 'Novedades', icon: Bell, roles: ['admin', 'manager'], badge: unreadAnnouncements },
       ],
     },

@@ -110,6 +110,8 @@ InventoryEventSchema.index(
 InventoryEventSchema.index({ tenantId: 1, correlationId: 1, eventType: 1 }, { name: 'ledger_correlation' })
 // Historial por sede.
 InventoryEventSchema.index({ tenantId: 1, locationId: 1, occurredAt: -1 }, { name: 'ledger_location_history' })
+// Reparación de proyecciones (cron, cruza tenants): eventos registrados en las últimas horas.
+InventoryEventSchema.index({ recordedAt: 1 }, { name: 'ledger_recorded_at' })
 
 const InventoryLedger =
   (mongoose.models.InventoryLedger as mongoose.Model<IInventoryEvent>) ||

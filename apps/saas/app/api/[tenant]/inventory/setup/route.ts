@@ -5,8 +5,8 @@ import InventoryStorageLocation from '@/models/InventoryStorageLocation'
 import InventorySKU from '@/models/InventorySKU'
 import { normalizeName } from '@takeasygo/business/inventory'
 import { logAudit } from '@/lib/audit'
-import { inventoryRoute, readInventoryBody } from '@/lib/inventory/route'
-import { ensureConsumptionStorage, requireLocation, skuInputSchema, createSku } from '@/lib/inventory/catalog'
+import { canRoleUse, inventoryRoute, readInventoryBody, InventoryError } from '@/lib/inventory/route'
+import { consumptionStorageFor, ensureConsumptionStorage, requireLocation, skuInputSchema, createSku } from '@/lib/inventory/catalog'
 
 /**
  * GET /api/[tenant]/inventory/setup (read)
@@ -38,13 +38,20 @@ const setupSchema = z.object({
 })
 
 /**
- * POST /api/[tenant]/inventory/setup (manage)
+ * POST /api/[tenant]/inventory/setup (recipes; activar exige manage)
  * Activa inventario en una sede (crea su depósito de consumo) y da de alta
  * en bloque los insumos confirmados. Idempotente.
+ *
+ * El jefe de cocina lo usa para dar de alta los insumos sugeridos al armar
+ * una receta, pero ACTIVAR una sede (que las ventas empiecen a descontar) es
+ * una decisión de gestión: si la sede todavía no está activa, exige manage.
  */
-export const POST = inventoryRoute('manage', async (ctx) => {
+export const POST = inventoryRoute('recipes', async (ctx) => {
   const input = setupSchema.parse(await readInventoryBody(ctx.request))
   const loc = await requireLocation(ctx.tenantObjectId, input.locationId, ctx.assertLocation)
+  if (!canRoleUse(ctx.user.role, 'manage') && !(await consumptionStorageFor(ctx.tenantObjectId, loc._id))) {
+    throw InventoryError.forbidden('Activar inventario en una sede lo hace un administrador, manager o gerente de operaciones')
+  }
   const storage = await ensureConsumptionStorage(ctx.tenantObjectId, loc._id)
 
   const existing = await InventorySKU.find({ tenantId: ctx.tenantObjectId }).select('nameKey').lean()

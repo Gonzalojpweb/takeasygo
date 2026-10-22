@@ -8,6 +8,7 @@ import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { rateLimit } from '@/lib/rateLimit'
+import { runAfterResponse } from '@/lib/after-response'
 
 export async function GET(
   request: NextRequest,
@@ -86,7 +87,7 @@ export async function GET(
     if (order.status === 'confirmed') {
       finalizeHiddenRewardClaims(order._id, order.customer?.phoneHash).catch(() => {})
       const { onOrderConfirmed } = await import('@/lib/printing')
-      onOrderConfirmed(order).catch(() => {})
+      runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(order))
       // checkout_completed (gate becameCompleted + dedup atómico por orderId)
       captureCheckoutCompletedFromOrder(order, tenant._id, previousStatus).catch(err =>
         console.error('[verify-payment] checkout_completed event error:', err)

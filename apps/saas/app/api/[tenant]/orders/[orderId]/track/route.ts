@@ -11,6 +11,7 @@ import { finalizeHiddenRewardClaims } from '@/lib/hidden-rewards'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
+import { runAfterResponse } from '@/lib/after-response'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -202,7 +203,7 @@ export async function POST(
             await dbOrder.save()
             finalizeHiddenRewardClaims(dbOrder._id, dbOrder.customerPhoneHash).catch(() => {})
             const { onOrderConfirmed } = await import('@/lib/printing')
-            onOrderConfirmed(dbOrder).catch(() => {})
+            runAfterResponse('onOrderConfirmed', () => onOrderConfirmed(dbOrder))
             // checkout_completed (gate becameCompleted + dedup atómico por orderId)
             captureCheckoutCompletedFromOrder(dbOrder, tenantId, previousStatus).catch(err =>
               console.error('[track] checkout_completed event error:', err)

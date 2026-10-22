@@ -8,11 +8,13 @@ import mongoose, { Schema, Document, Types } from 'mongoose'
  * superadmin queda fuera del modelo (acceso total por diseño) y
  * consumer no es un rol de sede.
  */
-export type LocationRole = 'admin' | 'manager' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'seller'
+export type LocationRole = 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'seller'
 
 export const LOCATION_ROLES: LocationRole[] = [
   'admin',
   'manager',
+  'operations_manager',
+  'kitchen_lead',
   'staff',
   'cashier',
   'waiter',

@@ -171,6 +171,22 @@ export async function loadToday(ctx: InventoryContext, requestedLocationId: stri
   }
 }
 
+/**
+ * "Hoy" sin montos en pesos, para roles sin `read`: conservan qué contar y
+ * por qué (los motivos son texto operativo), no cuánto vale.
+ */
+export function stripTodayValues(data: Awaited<ReturnType<typeof loadToday>>) {
+  return {
+    ...data,
+    verifications: data.verifications.map(({ valueAtRiskCents: _v, interruptionCostCents: _i, scoreCents: _s, reasons, ...rest }) => {
+      // Algunos motivos citan montos ("la incertidumbre equivale a $…").
+      const safe = reasons.filter((r) => !r.includes('$'))
+      return { ...rest, reasons: safe.length > 0 ? safe : ['Conviene verificarlo hoy'] }
+    }),
+    totals: { skus: data.totals.skus, neverCounted: data.totals.neverCounted },
+  }
+}
+
 /** Priorización completa (para depurar/explicar por qué se pide o no). */
 export async function loadPriorityDebug(ctx: InventoryContext, requestedLocationId: string | null) {
   const { rows } = await loadStock(ctx, requestedLocationId)
@@ -220,7 +236,7 @@ export async function loadHistory(ctx: InventoryContext, skuId: string, opts: { 
       observed: e.eventType === 'PhysicalCountObserved' ? p.observedQuantity : null,
       detail:
         e.eventType === 'SaleRecorded'
-          ? `${p.portions > 0 ? '' : 'Reversión: '}${Math.abs(p.portions)} × ${p.name}${p.orderNumber ? ` (pedido ${p.orderNumber})` : ''}`
+          ? `${p.portions > 0 ? '' : 'Reversión: '}${Math.abs(p.portions)} × ${p.name}${p.variantName ? ` ${p.variantName}` : ''}${p.orderNumber ? ` (pedido ${p.orderNumber})` : ''}${p.baseRecipeFallback ? ' · con receta base' : ''}`
           : p.reason ?? p.supplierName ?? p.notes ?? null,
     }
   })

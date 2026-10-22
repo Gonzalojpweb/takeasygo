@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import InventoryStorageLocation from '@/models/InventoryStorageLocation'
+import { logAudit } from '@/lib/audit'
 import { inventoryRoute, readInventoryBody, InventoryError } from '@/lib/inventory/route'
 import { requireStorage } from '@/lib/inventory/catalog'
 
@@ -20,5 +21,13 @@ export const PATCH = inventoryRoute<{ tenant: string; storageId: string }>('mana
   }
   Object.assign(doc, patch)
   await doc.save()
+  logAudit({
+    tenantId: ctx.tenantId,
+    action: 'inventory.storage.update',
+    entity: 'inventory',
+    entityId: String(doc._id),
+    details: patch,
+    request: ctx.request,
+  })
   return NextResponse.json({ storage: doc })
 })

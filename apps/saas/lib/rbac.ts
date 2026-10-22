@@ -36,6 +36,15 @@
 //   - nuevos admin-only: payments.configure, fiscal.configure.
 //   - nuevos admin+manager: discounts.write.
 //   - rooms.access para todos los roles (incluye host; contrato M4 sockets).
+//
+// Inventario (aprobado por Gonzalo, 2026-10-21):
+//   - inventory.* SOLO admin, manager y los roles de back-office nuevos:
+//     operations_manager (Gerente de operaciones) y kitchen_lead (Jefe de
+//     cocina). staff y cashier pierden inventory.capture; el mozo nunca lo
+//     tuvo. Quien vende alimenta el inventario vendiendo, no cargándolo.
+//   - kitchen_lead tiene inventory.write para recetas; el guard de inventario
+//     (lib/inventory/route.ts) le niega igual la capacidad 'manage'
+//     (activar sede, depósitos, ajustes, transferencias).
 // ============================================================================
 
 import { NextResponse } from 'next/server'
@@ -147,19 +156,35 @@ export const ROLE_PERMISSIONS: Record<LocationRole, readonly Permission[]> = {
     'printjobs.manage',
     'rooms.access',
   ],
+  operations_manager: [
+    'orders.read',
+    'kitchen.read',
+    'menu.read',
+    'inventory.read',
+    'inventory.capture',
+    'inventory.write',
+    'rooms.access',
+  ],
+  kitchen_lead: [
+    'orders.read',
+    'kitchen.read',
+    'menu.read',
+    'inventory.read',
+    'inventory.capture',
+    'inventory.write',
+    'rooms.access',
+  ],
   staff: [
     'orders.read',
     'orders.write',
     'kitchen.read',
     'menu.read',
-    'inventory.capture',
     'rooms.access',
   ],
   cashier: [
     'orders.read',
     'orders.write',
     'kitchen.read',
-    'inventory.capture',
     'cash.open',
     'cash.close',
     'cash.movements.read',
@@ -269,6 +294,8 @@ export function legacyHasPermission(user: RbacUser, permission: Permission): boo
   const role = user.role
   if (role === 'admin') return true
   if (role === 'manager') return roleHasPermission('manager', permission)
+  if (role === 'operations_manager') return roleHasPermission('operations_manager', permission)
+  if (role === 'kitchen_lead') return roleHasPermission('kitchen_lead', permission)
   if (role === 'staff') return roleHasPermission('staff', permission)
   if (role === 'cashier') return roleHasPermission('cashier', permission)
   if (role === 'waiter') return roleHasPermission('waiter', permission)

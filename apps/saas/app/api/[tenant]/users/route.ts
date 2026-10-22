@@ -6,8 +6,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 
-// Roles que un admin puede crear — nunca puede escalar a admin ni superadmin
-const ALLOWED_ROLES = ['manager', 'staff', 'cashier'] as const
+// Roles que un admin puede crear — nunca puede escalar a admin ni superadmin.
+// operations_manager (Gerente de operaciones) y kitchen_lead (Jefe de cocina)
+// gestionan inventario; no operan caja ni POS.
+const ALLOWED_ROLES = ['manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier'] as const
 
 export async function GET(
   request: NextRequest,
