@@ -3,7 +3,23 @@
 // ============================================================================
 
 import { describe, it, expect } from 'vitest'
-import { POPUP_REPEAT_MS, alertCopy, originMessage, pesos, shouldPopup } from '@/lib/commissions-ui'
+import { POPUP_REPEAT_MS, alertCopy, isHeadlineView, originMessage, pesos, shouldPopup } from '@/lib/commissions-ui'
+
+describe('cartel grande del total a pagar: dashboard y pedidos', () => {
+  it('se muestra en el dashboard y en pedidos (con o sin barra final)', () => {
+    expect(isHeadlineView('/keke/admin', 'keke')).toBe(true)
+    expect(isHeadlineView('/keke/admin/', 'keke')).toBe(true)
+    expect(isHeadlineView('/keke/admin/orders', 'keke')).toBe(true)
+    expect(isHeadlineView('/keke/admin/orders/history', 'keke')).toBe(true)
+  })
+  it('en el resto de las vistas queda la barra', () => {
+    expect(isHeadlineView('/keke/admin/menu', 'keke')).toBe(false)
+    expect(isHeadlineView('/keke/admin/commissions', 'keke')).toBe(false)
+    expect(isHeadlineView('/keke/admin/ordersx', 'keke')).toBe(false)
+    expect(isHeadlineView('/otro/admin', 'keke')).toBe(false)
+    expect(isHeadlineView(null, 'keke')).toBe(false)
+  })
+})
 
 const H = 3_600_000
 

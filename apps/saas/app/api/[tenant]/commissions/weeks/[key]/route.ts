@@ -19,10 +19,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!isValidCalendarDate(key) || weekKeyOf(weekBounds(key, ctx.tz).weekStart, ctx.tz) !== key) {
       return NextResponse.json({ error: 'Semana inválida' }, { status: 400 })
     }
+    // MercadoPago / Kripton: solo el superadmin (el comercio no lo ve).
+    const isSuperadmin = ctx.role === 'superadmin'
     const [detail, weeks, auto] = await Promise.all([
       loadWeekTickets(ctx.tenant._id, key, ctx.tz),
       loadCommissionWeeks(ctx.tenant._id, { tz: ctx.tz }),
-      loadAutoCollectedByWeek(ctx.tenant._id, { tz: ctx.tz }),
+      isSuperadmin ? loadAutoCollectedByWeek(ctx.tenant._id, { tz: ctx.tz }) : null,
     ])
     const week = weeks.find((w) => w.key === key)
     return NextResponse.json(
@@ -32,8 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         status: week?.status ?? (detail.tickets.length ? 'pagada' : 'en_curso'),
         // Pendiente según la fuente única (incluye créditos viejos sin detalle).
         pendingCents: week?.pendingCents ?? detail.totals.pendingCents,
-        // MercadoPago / Kripton de la semana: cobradas automáticamente.
-        autoCollected: auto.get(key) ?? { cents: 0, orders: 0 },
+        ...(auto ? { autoCollected: auto.get(key) ?? { cents: 0, orders: 0 } } : {}),
       },
       { headers: { 'Cache-Control': 'no-store' } },
     )

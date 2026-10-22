@@ -49,6 +49,7 @@ import { POST as superadminSettle } from '@/app/api/superadmin/commissions/route
 import { settleCommissionIntent } from '@/lib/commission-payments'
 import { GET as alertsGet } from '@/app/api/[tenant]/commissions/alerts/route'
 import { GET as weekGet } from '@/app/api/[tenant]/commissions/weeks/[key]/route'
+import { GET as weeksGet } from '@/app/api/[tenant]/commissions/weeks/route'
 import { POST as payPost } from '@/app/api/[tenant]/commissions/pay/route'
 import { POST as webhook } from '@/app/api/webhooks/mercadopago/commission/route'
 
@@ -316,6 +317,27 @@ describe('permisos y validaciones', () => {
     expect((await weekGet(new NextRequest(`http://localhost/x`), P('2026-10-14'))).status).toBe(400) // miércoles
     expect((await weekGet(new NextRequest(`http://localhost/x`), P('no-fecha'))).status).toBe(400)
     expect((await weekGet(new NextRequest(`http://localhost/x`), P('2026-10-12'))).status).toBe(200)
+  })
+
+  it('MercadoPago cobrado solo: el comercio no lo ve; el superadmin sí', async () => {
+    await order('2026-10-14T15:00:00Z', 25_000)
+    await order('2026-10-14T16:00:00Z', 12_345, { payment: { method: 'mercadopago' } })
+    const P = { params: Promise.resolve({ tenant: SLUG }) }
+    const PK = { params: Promise.resolve({ tenant: SLUG, key: '2026-10-12' }) }
+    for (const role of ['admin', 'manager', 'cashier']) {
+      await as(role)
+      const list = await (await weeksGet(new NextRequest(`http://localhost/api/${SLUG}/commissions/weeks`), P)).json()
+      const week = await (await weekGet(new NextRequest(`http://localhost/x`), PK)).json()
+      expect(list.autoCollected, role).toBeUndefined()
+      expect(week.autoCollected, role).toBeUndefined()
+      expect(JSON.stringify([list, week]), role).not.toContain('12345')
+    }
+    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'superadmin', tenantId: null })
+    vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as any)
+    const list = await (await weeksGet(new NextRequest(`http://localhost/api/${SLUG}/commissions/weeks`), P)).json()
+    const week = await (await weekGet(new NextRequest(`http://localhost/x`), PK)).json()
+    expect(list.autoCollected).toMatchObject({ cents: 12_345, orders: 1 })
+    expect(week.autoCollected).toMatchObject({ cents: 12_345, orders: 1 })
   })
 
   it('el cierre semanal es idempotente y congela los pedidos de cada semana', async () => {

@@ -38,6 +38,17 @@ export function shouldPopup(level: CommissionAlertLevel, cents: number, last: La
   return now - last.at >= repeat
 }
 
+/**
+ * Vistas donde el aviso de comisiones se muestra como cartel grande con el
+ * total a pagar: el dashboard (/admin) y pedidos (/admin/orders...).
+ */
+export function isHeadlineView(pathname: string | null | undefined, tenantSlug: string): boolean {
+  if (!pathname) return false
+  const base = `/${tenantSlug}/admin`
+  const path = pathname.replace(/\/+$/, '')
+  return path === base || path === `${base}/orders` || path.startsWith(`${base}/orders/`)
+}
+
 export function pesos(cents: number): string {
   return `$${(cents / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }

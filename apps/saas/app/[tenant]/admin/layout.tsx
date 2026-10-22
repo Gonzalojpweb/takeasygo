@@ -136,12 +136,13 @@ export default async function AdminLayout({
     })
   }
 
-  // Comisiones por transferencia (admin, manager y cajero): badge del menú
-  // = semanas cerradas sin pagar (vencidas + pendientes) y estado inicial del
-  // centro de avisos. Fuente única: lib/commission-weeks.
+  // Comisiones por transferencia (admin, manager y cajero; el superadmin
+  // también, para ver lo mismo que el comercio): badge del menú = semanas
+  // cerradas sin pagar (vencidas + pendientes) y estado inicial del aviso
+  // global. Fuente única: lib/commission-weeks.
   let commissionBadge = 0
   let commissionAlerts: CommissionAlerts | null = null
-  if (canViewCommissions(session.user.role) && session.user.role !== 'superadmin' && tenantDoc) {
+  if (canViewCommissions(session.user.role) && tenantDoc) {
     try {
       commissionAlerts = summarizeAlerts(await loadCommissionWeeks(tenantDoc._id))
       commissionBadge = commissionAlerts.overdue.weeks + commissionAlerts.pending.weeks
@@ -203,7 +204,14 @@ export default async function AdminLayout({
           {/* Main Content */}
           <main className="flex-1 min-h-0 overflow-hidden bg-background flex flex-col" data-lenis-prevent>
             {tenantId && canAccess(plan, 'adminPushNotifications') && <AdminPushBanner tenantId={tenantId} />}
-            {commissionAlerts && <CommissionAlertCenter tenantSlug={tenant} initial={commissionAlerts} canPay={canPayCommissions(session.user.role)} />}
+            {commissionAlerts && (
+              <CommissionAlertCenter
+                tenantSlug={tenant}
+                initial={commissionAlerts}
+                canPay={canPayCommissions(session.user.role)}
+                superadminView={isSuperadmin}
+              />
+            )}
             <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-8 lg:p-10 flex flex-col">
               <div className="w-full flex-1 min-h-0 flex flex-col">
                 <ComplianceAlertBanner tenantSlug={tenant} />

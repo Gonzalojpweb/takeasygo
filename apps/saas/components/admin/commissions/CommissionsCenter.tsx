@@ -196,18 +196,18 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
         </h2>
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-foreground">
           {COMMISSION_EXPLAINER.map((t) => <li key={t}>{t}</li>)}
-          <li>Los pedidos pagados con MercadoPago no generan nada para pagar: su comisión se cobra sola en cada pago y figura como cobrada. El efectivo no paga comisión.</li>
+          <li>Solo generan comisión para pagar los pedidos de delivery pagados por transferencia.</li>
         </ul>
       </section>
 
-      {/* MercadoPago: cobrada automáticamente */}
+      {/* MercadoPago: cobrada automáticamente (la API lo manda solo al superadmin) */}
       {auto.cents > 0 && (
         <section aria-labelledby="mp-title" className={cn('space-y-1 rounded-2xl border-2 p-5', TONE.ok)}>
           <h2 id="mp-title" className="flex items-center gap-2 text-base font-black">
-            <CheckCircle2 size={18} aria-hidden /> MercadoPago: {pesos(auto.cents)} cobrada automáticamente
+            <CheckCircle2 size={18} aria-hidden /> MercadoPago: {pesos(auto.cents)} cobrada automáticamente · vista superadmin
           </h2>
           <p className="text-sm">
-            Comisión de {auto.orders} pedido(s) pagados con MercadoPago en las últimas semanas. Ya está cobrada: se descontó sola en cada pago. No tenés que hacer nada.
+            Comisión de {auto.orders} pedido(s) pagados con MercadoPago en las últimas semanas, cobrada sola en cada pago. El comercio no ve este bloque.
           </p>
         </section>
       )}

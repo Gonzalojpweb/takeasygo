@@ -1,10 +1,16 @@
 'use client'
 
 // ============================================================================
-// Centro de avisos de comisiones (solo el administrador del comercio)
+// Centro de avisos de comisiones — aviso GLOBAL del panel del comercio
 // ============================================================================
-// · Barra fija arriba del contenido: roja si hay semanas vencidas, ámbar si
-//   hay una liquidación pendiente, discreta si solo hay comisión acumulada.
+// · Barra fija arriba del contenido en todas las vistas: roja si hay semanas
+//   vencidas, ámbar si hay una liquidación pendiente, discreta si solo hay
+//   comisión acumulada.
+// · En el dashboard y en pedidos (donde el equipo pasa el día) la barra se
+//   convierte en un cartel grande con el TOTAL A PAGAR y su desglose, para
+//   que no se pase por alto.
+// · El superadmin que entra al panel de un comercio ve la barra y el cartel
+//   (para validar qué ve el comercio), sin golpe ni sonido y sin pagar.
 // · "Golpe" en pantalla (como un pedido nuevo): popup con sacudida, golpe
 //   sintetizado + sonido y vibración. Vencida: se repite cada 2 h; pendiente:
 //   una vez por día; también si cambia el monto. Respeta movimiento reducido.
@@ -16,13 +22,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { AlertTriangle, BellRing, Coins, Hand, X } from 'lucide-react'
+import { AlertTriangle, BellRing, Coins, Hand, Receipt, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useKnockSound } from '@/hooks/useKnockSound'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import type { CommissionAlerts } from '@/lib/commission-weeks'
-import { alertCopy, shouldPopup, type LastPopup } from '@/lib/commissions-ui'
+import { alertCopy, isHeadlineView, pesos, shouldPopup, type LastPopup } from '@/lib/commissions-ui'
 
 const REFRESH_MS = 5 * 60_000
 
@@ -45,7 +51,24 @@ function writeLast(slug: string, v: LastPopup) {
   }
 }
 
-export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: { tenantSlug: string; initial: CommissionAlerts; canPay: boolean }) {
+function fmtPayDay(iso: string | null): string | null {
+  if (!iso) return null
+  // dueAt = miércoles 00:00 → el último día para pagar es el martes.
+  return new Date(new Date(iso).getTime() - 1).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'America/Argentina/Buenos_Aires' })
+}
+
+export default function CommissionAlertCenter({
+  tenantSlug,
+  initial,
+  canPay,
+  superadminView = false,
+}: {
+  tenantSlug: string
+  initial: CommissionAlerts
+  canPay: boolean
+  /** Superadmin mirando el panel del comercio: sin golpe/sonido ni pago. */
+  superadminView?: boolean
+}) {
   const [alerts, setAlerts] = useState<CommissionAlerts>(initial)
   const [popupOpen, setPopupOpen] = useState(false)
   // Reloj del aviso: con el panel abierto, vuelve a evaluar cada 5 minutos
@@ -54,6 +77,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
   const [tick, setTick] = useState(0)
   const pathname = usePathname()
   const onCommissionsPage = pathname?.includes('/admin/commissions') ?? false
+  const headline = isHeadlineView(pathname, tenantSlug)
   const { knock, stop: stopKnock } = useKnockSound()
   const { play: playRing, stop: stopRing } = useNotificationSound('/LLAMADA.mp3')
   const { warning: hapticWarning } = useHaptic()
@@ -88,7 +112,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
   // La decisión depende del navegador (último aviso guardado): se toma fuera
   // del render, en el próximo tick, y se cancela si cambia antes.
   useEffect(() => {
-    if (onCommissionsPage) return
+    if (onCommissionsPage || superadminView) return
     const id = window.setTimeout(() => {
       if (!shouldPopup(alerts.level, owedCents, readLast(tenantSlug), Date.now(), alerts.pending.notifyFrom)) return
       writeLast(tenantSlug, { level: alerts.level, cents: owedCents, at: Date.now() })
@@ -99,7 +123,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
       hapticWarning()
     }, 0)
     return () => window.clearTimeout(id)
-  }, [alerts.level, alerts.pending.notifyFrom, owedCents, tenantSlug, onCommissionsPage, knock, playRing, hapticWarning, tick])
+  }, [alerts.level, alerts.pending.notifyFrom, owedCents, tenantSlug, onCommissionsPage, superadminView, knock, playRing, hapticWarning, tick])
 
   const close = useCallback(() => {
     stopKnock()
@@ -122,10 +146,63 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
   const overdue = alerts.level === 'vencida'
   const pending = alerts.level === 'pendiente'
   const href = `/${tenantSlug}/admin/commissions`
+  const payLabel = canPay && !superadminView ? 'Ver detalle y pagar' : 'Ver detalle'
+  const totalDueCents = alerts.overdue.cents + alerts.pending.cents
+  const payDay = fmtPayDay(alerts.pending.nextDueAt)
 
   return (
     <>
-      {/* Barra persistente */}
+      {headline && (overdue || pending) ? (
+        /* Cartel grande con el total a pagar: dashboard y pedidos */
+        <section
+          role={overdue ? 'alert' : 'status'}
+          aria-labelledby="commission-headline-title"
+          className={cn(
+            'border-b-2 px-4 py-4 md:px-8',
+            overdue
+              ? 'border-red-400 bg-red-50 text-red-950 dark:border-red-800 dark:bg-red-950/50 dark:text-red-50'
+              : 'border-amber-400 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-50',
+          )}
+        >
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-1 items-start gap-3">
+              <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white', overdue ? 'bg-red-600' : 'bg-amber-500')} aria-hidden>
+                {overdue ? <AlertTriangle size={24} /> : <Receipt size={24} />}
+              </div>
+              <div className="min-w-0 space-y-1">
+                <p className="text-xs font-extrabold uppercase tracking-wide opacity-80">
+                  {overdue ? 'Comisiones vencidas' : 'Liquidación semanal'} · pedidos por transferencia (delivery)
+                  {superadminView && ' · vista superadmin'}
+                </p>
+                <h2 id="commission-headline-title" className="text-xl font-black leading-tight sm:text-2xl">
+                  Total a pagar: <span className="tabular-nums">{pesos(totalDueCents)}</span>
+                </h2>
+                <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm font-medium">
+                  {alerts.overdue.cents > 0 && (
+                    <li>
+                      Vencido: <strong className="tabular-nums">{pesos(alerts.overdue.cents)}</strong> ({alerts.overdue.weeks === 1 ? '1 semana' : `${alerts.overdue.weeks} semanas`})
+                    </li>
+                  )}
+                  {alerts.pending.cents > 0 && (
+                    <li>
+                      Pendiente: <strong className="tabular-nums">{pesos(alerts.pending.cents)}</strong>
+                      {payDay && ` · día de pago: ${payDay}`}
+                    </li>
+                  )}
+                </ul>
+                <p className="text-sm opacity-80">La comisión la pagaron tus clientes como cargo por usar la app: no sale de tu precio de carta ni de tu margen.</p>
+              </div>
+            </div>
+            <Link
+              href={href}
+              className={cn('inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl px-6 text-base font-black text-white', overdue ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600')}
+            >
+              {canPay && !superadminView ? `Pagar ${pesos(totalDueCents)}` : 'Ver detalle'}
+            </Link>
+          </div>
+        </section>
+      ) : (
+      /* Barra persistente (resto de las vistas) */
       <div
         role={overdue ? 'alert' : 'status'}
         className={cn(
@@ -148,10 +225,11 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
               overdue ? 'bg-red-600 text-white hover:bg-red-700' : pending ? 'bg-amber-500 text-white hover:bg-amber-600' : 'border border-border bg-background hover:bg-muted',
             )}
           >
-            {(overdue || pending) && canPay ? 'Ver detalle y pagar' : 'Ver detalle'}
+            {overdue || pending ? payLabel : 'Ver detalle'}
           </Link>
         )}
       </div>
+      )}
 
       {/* Golpe en pantalla */}
       <AnimatePresence>
@@ -200,7 +278,7 @@ export default function CommissionAlertCenter({ tenantSlug, initial, canPay }: {
                       onClick={close}
                       className={cn('inline-flex min-h-11 flex-1 items-center justify-center rounded-xl px-4 text-sm font-bold text-white', overdue ? 'bg-red-600 hover:bg-red-700' : 'bg-amber-500 hover:bg-amber-600')}
                     >
-                      {canPay ? 'Ver detalle y pagar' : 'Ver detalle'}
+                      {payLabel}
                     </Link>
                     <button type="button" onClick={close} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-border px-4 text-sm font-semibold text-muted-foreground hover:bg-muted">
                       Más tarde
