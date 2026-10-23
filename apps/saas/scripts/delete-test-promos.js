@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const MONGO_URI = 'mongodb+srv://pgonzalojose_db_user:6oXEemLauaEuPoaq@takeasygo.ssjlhfw.mongodb.net/?appName=takeasygo';
+const MONGO_URI = (process.env.MONGODB_URI ?? '');
 
 async function run() {
   const ids = process.argv.slice(2);

@@ -12,7 +12,7 @@ import mongoose from 'mongoose'
  * Uso: npx tsx scripts/audit-commission-model.ts
  */
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pgonzalojose_db_user:6oXEemLauaEuPoaq@takeasygo.ssjlhfw.mongodb.net/?appName=takeasygo'
+const MONGODB_URI = process.env.MONGODB_URI || ''
 
 const c2p = (cents: number) => `$${(cents / 100).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 

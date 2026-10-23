@@ -81,7 +81,7 @@ async function migrate() {
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE'}`)
   console.log(`Timestamp: ${new Date().toISOString()}\n`)
 
-  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pgonzalojose_db_user:6oXEemLauaEuPoaq@takeasygo.ssjlhfw.mongodb.net/?appName=takeasygo'
+  const MONGODB_URI = process.env.MONGODB_URI || ''
   await mongoose.connect(MONGODB_URI, { dbName: 'test' })
   const db = mongoose.connection.db!
 

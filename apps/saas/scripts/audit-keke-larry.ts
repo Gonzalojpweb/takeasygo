@@ -7,7 +7,7 @@ import * as path from 'path'
 // Script de extracción de datos (READ-ONLY)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pgonzalojose_db_user:6oXEemLauaEuPoaq@takeasygo.ssjlhfw.mongodb.net/?appName=takeasygo'
+const MONGODB_URI = process.env.MONGODB_URI || ''
 
 interface AuditResult {
   timestamp: string

@@ -7,7 +7,7 @@ import * as path from 'path'
 // Análisis profundo de comportamiento de acumulación vs canje
 // ============================================================================
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pgonzalojose_db_user:6oXEemLauaEuPoaq@takeasygo.ssjlhfw.mongodb.net/?appName=takeasygo'
+const MONGODB_URI = process.env.MONGODB_URI || ''
 const TENANT_ID = '69f8bf6ad3fcc97fd64bec87'
 const OUTPUT_DIR = path.join(__dirname, '../reward-intelligence-data-keke-larry')
 
