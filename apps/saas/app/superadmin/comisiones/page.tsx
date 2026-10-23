@@ -11,6 +11,7 @@ import {
   ArrowRightLeft, Info, ChevronDown, ChevronRight, Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import TransferLocksPanel from '@/components/superadmin/TransferLocksPanel'
 import { toPesos } from '@takeasygo/business/browser'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -286,6 +287,9 @@ export default function SuperAdminComisionesPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-10">
+      {/* ── Transferencias bloqueadas por deuda (> tope) ── */}
+      <TransferLocksPanel />
+
       {/* ── Global Summary (from dashboard API) ── */}
       {globalData && (
         <div className="space-y-4">

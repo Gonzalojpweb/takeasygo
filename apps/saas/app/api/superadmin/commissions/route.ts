@@ -113,16 +113,18 @@ export async function POST(request: NextRequest) {
   await connectDB()
 
   const body = await request.json()
-  const { tenantId, from, to, notes, statementId } = body as {
+  const { tenantId, from, to, notes, statementId, all } = body as {
     tenantId: string
     from: string
     to: string
     notes?: string
     statementId?: string
+    /** Toda la deuda impaga hasta ahora (incluida la semana en curso): pago recibido fuera de la plataforma. */
+    all?: boolean
   }
 
-  if (!tenantId || !mongoose.Types.ObjectId.isValid(tenantId) || ((!from || !to) && !statementId)) {
-    return NextResponse.json({ error: 'tenantId y (statementId o from/to) requeridos' }, { status: 400 })
+  if (!tenantId || !mongoose.Types.ObjectId.isValid(tenantId) || ((!from || !to) && !statementId && all !== true)) {
+    return NextResponse.json({ error: 'tenantId y (statementId, from/to o all) requeridos' }, { status: 400 })
   }
 
   // Rango a saldar, en HORA ARGENTINA. Con statementId: exactamente esa
@@ -131,7 +133,12 @@ export async function POST(request: NextRequest) {
   // pedidos del lunes siguiente.
   let fromDate: Date
   let toDate: Date
-  if (statementId) {
+  if (all === true) {
+    // Todo lo impago hasta este momento (los pedidos ya saldados se excluyen
+    // abajo): habilita de nuevo las transferencias del comercio.
+    fromDate = new Date(0)
+    toDate = new Date()
+  } else if (statementId) {
     if (!mongoose.Types.ObjectId.isValid(statementId)) return NextResponse.json({ error: 'statementId inválido' }, { status: 400 })
     const stmt = await WeeklyCommissionStatement.findOne({ _id: statementId, tenantId }).select('weekStart').lean<{ weekStart: Date } | null>()
     if (!stmt) return NextResponse.json({ error: 'Semana no encontrada' }, { status: 404 })

@@ -7,6 +7,7 @@ import { resolveCashConfig } from '@/lib/cash'
 import { canAccess, type Plan } from '@/lib/plans'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
 import { resolveTransferAccountForLocation, withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
+import { loadTransferLock } from '@/lib/commission-weeks'
 import type { ITenant } from '@/models/Tenant'
 import type { IPlatformConfig } from '@/models/PlatformConfig'
 
@@ -68,6 +69,11 @@ export interface PaymentMethodContext {
   locationCash: LocationCashConfig | null
   locationMpAccountId: string | null
   locationTransferAccountId: string | null
+  /**
+   * Transferencias apagadas por deuda de comisiones (> $5.000 impagos,
+   * lib/commission-weeks). Se vuelven a habilitar solas al pagar.
+   */
+  transferLockedByCommissions: boolean
 }
 
 /**
@@ -86,7 +92,7 @@ export async function loadPaymentMethodContext(
   const [tenant, platformConfig] = await Promise.all([
     Tenant.findOne({ slug: tenantSlug })
       .select(
-        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash'
+        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash timezone'
       )
       .lean() as unknown as ITenant | null,
     PlatformConfig.findById('platform')
@@ -95,6 +101,11 @@ export async function loadPaymentMethodContext(
   ])
 
   if (!tenant) throw new TenantNotFoundError('Tenant no encontrado')
+
+  // Bloqueo por deuda de comisiones: se calcula una vez por contexto y vale
+  // para todas las sedes (la deuda es del comercio entero).
+  const transferLock = await loadTransferLock(String(tenant._id), tenant.timezone || undefined)
+  const transferLockedByCommissions = transferLock.locked
 
   let locationCash: LocationCashConfig | null = null
   let locationMpAccountId: string | null = null
@@ -119,11 +130,11 @@ export async function loadPaymentMethodContext(
     // calcule precios con este ctx) ve los valores ya resueltos.
     return {
       tenant: withLocationCommercialSettings(tenant, locationDoc.settings),
-      platformConfig, locationCash, locationMpAccountId, locationTransferAccountId,
+      platformConfig, locationCash, locationMpAccountId, locationTransferAccountId, transferLockedByCommissions,
     }
   }
 
-  return { tenant, platformConfig, locationCash, locationMpAccountId, locationTransferAccountId }
+  return { tenant, platformConfig, locationCash, locationMpAccountId, locationTransferAccountId, transferLockedByCommissions }
 }
 
 /**
@@ -197,7 +208,9 @@ export function buildPaymentMethodCatalog(
 
   // ── Transferencia: UNA resolución por sede (override → activa → legacy) ──
   const transferAccount = resolveTransferAccountForLocation(tenant, locationTransferAccountId)
-  const transferEnabled = !!tenant.transfer?.enabled && !!transferAccount?.alias
+  // Deuda de comisiones > $5.000: la transferencia se apaga para el cliente
+  // (catálogo, cambio de medio y creación del pedido usan este mismo dato).
+  const transferEnabled = !!tenant.transfer?.enabled && !!transferAccount?.alias && !ctx.transferLockedByCommissions
 
   const trPricing = calculateFinalTotal(
     baseTotal,

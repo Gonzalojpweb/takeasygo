@@ -52,6 +52,7 @@ import { notifyCashOrderCreated, syncOrderAfterStatusSet } from '@/lib/order-sid
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
+import { loadTransferLock } from '@/lib/commission-weeks'
 
 try {
   webpush.setVapidDetails(
@@ -471,6 +472,20 @@ export async function POST(
     }
     const body = parsed.data
     tenantId = tenant._id
+
+    // ── Transferencias apagadas por deuda de comisiones (> $5.000) ──────
+    // Mismo dato que el catálogo del checkout (lib/commission-weeks): aunque
+    // alguien arme el pedido a mano, no entra una transferencia. Va antes de
+    // cualquier efecto (cupones, club, stock). Se habilita sola al pagar.
+    if ((body.paymentMethod || 'mercadopago') === 'transfer') {
+      const lock = await loadTransferLock(tenant._id, tenant.timezone || undefined)
+      if (lock.locked) {
+        return NextResponse.json(
+          { error: 'Este comercio no está recibiendo pagos por transferencia en este momento. Elegí MercadoPago u otro medio de pago.', code: 'TRANSFER_UNAVAILABLE' },
+          { status: 409 }
+        )
+      }
+    }
 
     // ── Member Token: validar token de miembro del club (header x-member-token) ──
     const memberTokenHeader = request.headers.get('x-member-token')

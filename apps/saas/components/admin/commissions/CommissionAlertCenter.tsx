@@ -28,7 +28,7 @@ import { useKnockSound } from '@/hooks/useKnockSound'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import type { CommissionAlerts } from '@/lib/commission-weeks'
-import { alertCopy, isHeadlineView, pesos, shouldPopup, type LastPopup } from '@/lib/commissions-ui'
+import { alertCopy, isHeadlineView, pesos, popupLevel, shouldPopup, type LastPopup } from '@/lib/commissions-ui'
 
 const REFRESH_MS = 5 * 60_000
 
@@ -106,7 +106,10 @@ export default function CommissionAlertCenter({
     }
   }, [refresh])
 
-  const owedCents = alerts.level === 'vencida' ? alerts.overdue.cents : alerts.pending.cents
+  // Transferencias apagadas por deuda: insiste como vencida y por el total.
+  const locked = alerts.transferLock?.locked ?? false
+  const level = popupLevel(alerts)
+  const owedCents = locked ? alerts.transferLock.owedCents : alerts.level === 'vencida' ? alerts.overdue.cents : alerts.pending.cents
 
   // ¿Golpear la pantalla? (no en la propia página de comisiones: ya está ahí)
   // La decisión depende del navegador (último aviso guardado): se toma fuera
@@ -114,8 +117,8 @@ export default function CommissionAlertCenter({
   useEffect(() => {
     if (onCommissionsPage || superadminView) return
     const id = window.setTimeout(() => {
-      if (!shouldPopup(alerts.level, owedCents, readLast(tenantSlug), Date.now(), alerts.pending.notifyFrom)) return
-      writeLast(tenantSlug, { level: alerts.level, cents: owedCents, at: Date.now() })
+      if (!shouldPopup(level, owedCents, readLast(tenantSlug), Date.now(), locked ? null : alerts.pending.notifyFrom)) return
+      writeLast(tenantSlug, { level, cents: owedCents, at: Date.now() })
       lastFocus.current = document.activeElement as HTMLElement | null
       setPopupOpen(true)
       knock()
@@ -123,7 +126,7 @@ export default function CommissionAlertCenter({
       hapticWarning()
     }, 0)
     return () => window.clearTimeout(id)
-  }, [alerts.level, alerts.pending.notifyFrom, owedCents, tenantSlug, onCommissionsPage, superadminView, knock, playRing, hapticWarning, tick])
+  }, [level, locked, alerts.pending.notifyFrom, owedCents, tenantSlug, onCommissionsPage, superadminView, knock, playRing, hapticWarning, tick])
 
   const close = useCallback(() => {
     stopKnock()
@@ -143,11 +146,13 @@ export default function CommissionAlertCenter({
 
   const copy = alertCopy(alerts)
   if (!copy) return null
-  const overdue = alerts.level === 'vencida'
-  const pending = alerts.level === 'pendiente'
+  const overdue = alerts.level === 'vencida' || locked
+  const pending = alerts.level === 'pendiente' && !locked
   const href = `/${tenantSlug}/admin/commissions`
   const payLabel = canPay && !superadminView ? 'Ver detalle y pagar' : 'Ver detalle'
-  const totalDueCents = alerts.overdue.cents + alerts.pending.cents
+  // Con transferencias apagadas se paga TODO (incluida la semana en curso)
+  // para que se habiliten apenas se acredita.
+  const totalDueCents = locked ? alerts.transferLock.owedCents : alerts.overdue.cents + alerts.pending.cents
   const payDay = fmtPayDay(alerts.pending.nextDueAt)
 
   return (
@@ -171,7 +176,7 @@ export default function CommissionAlertCenter({
               </div>
               <div className="min-w-0 space-y-1">
                 <p className="text-xs font-extrabold uppercase tracking-wide opacity-80">
-                  {overdue ? 'Comisiones vencidas' : 'Liquidación semanal'} · pedidos por transferencia (delivery)
+                  {locked ? 'Transferencias desactivadas' : overdue ? 'Comisiones vencidas' : 'Liquidación semanal'} · pedidos por transferencia (delivery)
                   {superadminView && ' · vista superadmin'}
                 </p>
                 <h2 id="commission-headline-title" className="text-xl font-black leading-tight sm:text-2xl">
@@ -189,7 +194,17 @@ export default function CommissionAlertCenter({
                       {payDay && ` · día de pago: ${payDay}`}
                     </li>
                   )}
+                  {locked && alerts.accrued.cents > 0 && (
+                    <li>
+                      Semana en curso: <strong className="tabular-nums">{pesos(alerts.accrued.cents)}</strong>
+                    </li>
+                  )}
                 </ul>
+                {locked && (
+                  <p className="text-sm font-bold">
+                    Tu deuda supera el tope de {pesos(alerts.transferLock.thresholdCents)}: tus clientes no pueden pagarte por transferencia (ni delivery ni take away) hasta que pagues. Pueden pagar con MercadoPago. Se habilita sola apenas se acredita el pago.
+                  </p>
+                )}
                 <p className="text-sm opacity-80">La comisión la pagaron tus clientes como cargo por usar la app: no sale de tu precio de carta ni de tu margen.</p>
               </div>
             </div>
@@ -255,7 +270,7 @@ export default function CommissionAlertCenter({
                   </div>
                   <p className="flex items-center gap-1.5 text-[13px] font-extrabold uppercase tracking-wide">
                     <BellRing size={14} aria-hidden />
-                    {overdue ? 'Comisiones vencidas' : 'Liquidación semanal'}
+                    {locked ? 'Transferencias desactivadas' : overdue ? 'Comisiones vencidas' : 'Liquidación semanal'}
                   </p>
                   <button type="button" onClick={close} className="ml-auto flex h-10 w-10 items-center justify-center rounded-xl hover:bg-white/15" aria-label="Cerrar aviso">
                     <X size={18} aria-hidden />
