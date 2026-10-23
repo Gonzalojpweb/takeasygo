@@ -216,6 +216,8 @@ export function evaluateReadiness(signals: ReadinessSignals): {
   verdictFor(FLAGS.CONFIG_LAYERS, [])
   verdictFor(FLAGS.NUMBERING_PER_LOCATION, ['prefix', 'prefix-dup'])
   verdictFor(FLAGS.MP_PER_LOCATION, ['mp-cuenta', 'mp-sede', 'mp-pendientes'])
+  // Inventario V3: es una pantalla nueva, no requiere multisede ni otra condición.
+  verdictFor(FLAGS.INVENTORY_V3, [])
 
   return { checks, verdicts }
 }

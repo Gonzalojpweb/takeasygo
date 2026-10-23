@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  FLAG_KEYS,
   blockersForChanges,
   evaluateReadiness,
   flagOn,
@@ -75,6 +76,14 @@ describe('evaluateReadiness', () => {
     expect(verdicts['multisede.cashSede']).toBeUndefined() // flag retirado
     expect(verdicts['mp.perLocation'].state).toBe('LISTA')
     expect(verdicts['rbac.sedeScope'].state).toBe('LISTA')
+  })
+
+  it('cada llave del panel tiene su estado (Inventario V3 incluido, sin condiciones de multisede)', () => {
+    const { verdicts } = evaluateReadiness(
+      baseSignals({ locations: { total: 1, activas: 1, sinPrefijo: ['Única'], dupPrefijos: [], sinTimezone: 1, sinCuentaMp: ['Única'] } })
+    )
+    for (const key of FLAG_KEYS) expect(verdicts[key], key).toBeDefined()
+    expect(verdicts['inventory.v3'].state).toBe('LISTA') // una sola sede y sin prefijo: igual se puede encender
   })
 
   it('sedes sin prefijo bloquean numbering.perLocation', () => {

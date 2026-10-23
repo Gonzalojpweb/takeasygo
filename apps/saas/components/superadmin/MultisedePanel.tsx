@@ -404,7 +404,7 @@ export default function MultisedePanel() {
 
       {/* Detalle del negocio */}
       <Dialog open={!!selected} onOpenChange={open => { if (!open) { setSelectedSlug(null); setConfirmText('') } }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto overscroll-contain">
           {selected && (
             <>
               <DialogHeader>
