@@ -8,8 +8,8 @@ import { TRANSFER_LOCK_THRESHOLD_CENTS, loadCommissionWeeks, summarizeAlerts } f
  * GET /api/superadmin/commissions/transfer-locks (superadmin)
  *
  * Comercios con deuda de comisiones por transferencia impaga, del mayor al
- * menor, y cuáles tienen las transferencias APAGADAS por superar el tope
- * (lib/commission-weeks). Desde el panel el superadmin puede marcar toda la
+ * menor, y cuáles tienen las transferencias APAGADAS por tener más del tope
+ * VENCIDO (lib/commission-weeks). Desde el panel el superadmin puede marcar toda la
  * deuda como cobrada (POST /api/superadmin/commissions con `all: true`) si
  * recibió el pago por fuera de la plataforma: eso las vuelve a habilitar.
  *
@@ -31,7 +31,7 @@ export async function GET() {
         tenantId: String(t._id),
         name: t.name,
         slug: t.slug,
-        owedCents: alerts.transferLock.owedCents,
+        owedCents: alerts.overdue.cents + alerts.pending.cents + alerts.accrued.cents,
         overdueCents: alerts.overdue.cents,
         pendingCents: alerts.pending.cents,
         accruedCents: alerts.accrued.cents,

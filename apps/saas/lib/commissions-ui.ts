@@ -113,12 +113,12 @@ export function alertCopy(a: {
   overdue: { cents: number; weeks: number }
   pending: { cents: number; weeks: number; nextDueAt: string | null }
   accrued: { cents: number }
-  transferLock?: { locked: boolean; owedCents: number; thresholdCents: number }
+  transferLock?: { locked: boolean; overdueCents: number; thresholdCents: number }
 }): { title: string; body: string } | null {
   if (a.transferLock?.locked) {
     return {
-      title: `Transferencias desactivadas: debés ${pesos(a.transferLock.owedCents)} de comisiones`,
-      body: `Tu deuda de comisiones supera el tope de ${pesos(a.transferLock.thresholdCents)}. Hasta que la pagues, tus clientes no pueden pagarte por transferencia (ni delivery ni take away): pueden pagar con MercadoPago. Apenas se acredita el pago, las transferencias se vuelven a habilitar solas.`,
+      title: `Transferencias desactivadas: tenés ${pesos(a.transferLock.overdueCents)} de comisiones vencidas`,
+      body: `Lo vencido supera el tope de ${pesos(a.transferLock.thresholdCents)}. Hasta que lo pagues, tus clientes no pueden pagarte por transferencia (ni delivery ni take away): pueden pagar con MercadoPago. Apenas se acredita el pago, las transferencias se vuelven a habilitar solas.`,
     }
   }
   if (a.level === 'vencida') {

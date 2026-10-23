@@ -3,8 +3,8 @@
 // ============================================================================
 // Transferencias bloqueadas por deuda de comisiones (superadmin)
 // ============================================================================
-// Comercios con comisiones por transferencia impagas. Los que superan el
-// tope tienen las transferencias APAGADAS (solo cobran por MercadoPago).
+// Comercios con comisiones por transferencia impagas. Los que tienen más
+// del tope VENCIDO tienen las transferencias APAGADAS (solo MercadoPago).
 // «Marcar todo cobrado» registra el pago recibido por fuera de la plataforma
 // y las vuelve a habilitar en el acto (el bloqueo se calcula en vivo).
 // ============================================================================
@@ -80,7 +80,7 @@ export default function TransferLocksPanel() {
             Transferencias bloqueadas por deuda
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal mt-1">
-            Deuda impaga (vencido + pendiente + semana en curso). Si supera {pesos(threshold)}, el comercio no recibe transferencias: solo MercadoPago. Se habilita sola al pagar, o al marcarla cobrada acá.
+            Si lo VENCIDO supera {pesos(threshold)}, el comercio no recibe transferencias: solo MercadoPago. Lo pendiente y la semana en curso no bloquean. Se habilita sola al pagar, o al marcarla cobrada acá.
           </p>
         </div>
         {rows && <Badge variant={locked ? 'destructive' : 'secondary'} className="text-xs font-medium shrink-0">{locked} bloqueado(s)</Badge>}

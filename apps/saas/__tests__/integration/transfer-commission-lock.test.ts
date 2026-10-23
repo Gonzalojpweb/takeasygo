@@ -1,10 +1,11 @@
 // ============================================================================
-// transfer-commission-lock.test.ts — deuda de comisiones > $5.000 apaga la
+// transfer-commission-lock.test.ts — más de $5.000 VENCIDOS apaga la
 // transferencia; pagar (MP) o el cobro del superadmin la vuelve a habilitar
 // ============================================================================
 // Protege, operación por operación:
-//   · el tope: hasta $5.000 se puede; más de $5.000 se apaga
-//   · cuenta toda la deuda impaga (vencida + pendiente + semana en curso)
+//   · el tope: hasta $5.000 vencidos se puede; más de $5.000 se apaga
+//   · solo cuenta lo VENCIDO: lo pendiente (en plazo) y la semana en curso
+//     no bloquean aunque la suma pase el tope
 //   · el catálogo del checkout (delivery Y take away) deja solo MercadoPago
 //   · la creación del pedido rechaza una transferencia armada a mano
 //   · se habilita sola al acreditarse el pago por MP (webhook)
@@ -12,7 +13,7 @@
 //   · el aviso del panel lo explica
 // ============================================================================
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import mongoose from 'mongoose'
 import { NextRequest } from 'next/server'
 import './setup'
@@ -33,6 +34,12 @@ import { GET as locksGet } from '@/app/api/superadmin/commissions/transfer-locks
 import { POST as createOrder } from '@/app/api/[tenant]/orders/route'
 
 const SLUG = 'lock-tr'
+// Martes 20/10/2026 12:00 ART (día de pago). Semanas:
+//   05/10 → vencida · 12/10 → pendiente (se paga hoy) · 19/10 → en curso
+const NOW = new Date('2026-10-20T15:00:00Z')
+const VENCIDA = new Date('2026-10-07T15:00:00Z')
+const PENDIENTE = new Date('2026-10-14T15:00:00Z')
+const EN_CURSO = new Date('2026-10-20T12:00:00Z')
 let tenant: { _id: mongoose.Types.ObjectId }
 
 async function order(createdAt: Date, fee: number) {
@@ -51,8 +58,6 @@ async function order(createdAt: Date, fee: number) {
   })
 }
 
-const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000)
-
 async function transferEnabled(mode: 'delivery' | 'takeaway') {
   const ctx = await loadPaymentMethodContext(SLUG)
   return isPaymentMethodAvailable(buildPaymentMethodCatalog(ctx, mode), 'transfer')
@@ -65,6 +70,8 @@ async function asSuperadmin() {
 
 beforeEach(async () => {
   vi.clearAllMocks()
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(NOW)
   tenant = await Tenant.create({
     slug: SLUG,
     name: 'Pizzería',
@@ -75,39 +82,52 @@ beforeEach(async () => {
   })
 })
 
-describe('tope de deuda', () => {
-  it('hasta $5.000 se puede; más de $5.000 se apaga', () => {
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+describe('tope de deuda vencida', () => {
+  it('hasta $5.000 vencidos se puede; más de $5.000 se apaga', () => {
     expect(TRANSFER_LOCK_THRESHOLD_CENTS).toBe(500_000)
     expect(isTransferLocked(0)).toBe(false)
     expect(isTransferLocked(500_000)).toBe(false)
     expect(isTransferLocked(500_001)).toBe(true)
   })
 
-  it('cuenta toda la deuda impaga: vencida + pendiente + semana en curso', async () => {
-    await order(daysAgo(20), 200_000)
-    await order(daysAgo(9), 200_000)
-    await order(daysAgo(0), 100_001)
+  it('lo pendiente y la semana en curso NO bloquean, aunque la suma pase el tope', async () => {
+    await order(VENCIDA, 490_000) // $4.900 vencidos
+    await order(PENDIENTE, 300_000)
+    await order(EN_CURSO, 300_000)
     const alerts = summarizeAlerts(await loadCommissionWeeks(tenant._id))
-    expect(alerts.transferLock).toEqual({ locked: true, owedCents: 500_001, thresholdCents: 500_000 })
+    expect(alerts.overdue.cents).toBe(490_000)
+    expect(alerts.transferLock).toEqual({ locked: false, overdueCents: 490_000, thresholdCents: 500_000 })
+    expect(await transferEnabled('delivery')).toBe(true)
+  })
+
+  it('más de $5.000 vencidos bloquea', async () => {
+    await order(VENCIDA, 500_001)
+    expect(summarizeAlerts(await loadCommissionWeeks(tenant._id)).transferLock).toEqual({ locked: true, overdueCents: 500_001, thresholdCents: 500_000 })
+  })
+
+  it('una semana pendiente que no se paga el martes pasa a vencida y ahí bloquea', async () => {
+    await order(PENDIENTE, 600_000)
+    expect((await loadTransferLock(tenant._id)).locked).toBe(false) // martes: todavía en plazo
+    vi.setSystemTime(new Date('2026-10-21T03:00:00Z')) // miércoles 00:00 ART
+    expect((await loadTransferLock(tenant._id)).locked).toBe(true)
   })
 })
 
 describe('checkout y creación del pedido', () => {
-  it('con deuda > $5.000 la transferencia desaparece en delivery y en take away', async () => {
-    await order(daysAgo(0), 300_000)
-    expect(await transferEnabled('delivery')).toBe(true)
-    expect(await transferEnabled('takeaway')).toBe(true)
-
-    await order(daysAgo(0), 300_000)
+  it('con más de $5.000 vencidos la transferencia desaparece en delivery y en take away', async () => {
+    await order(VENCIDA, 600_000)
     expect(await transferEnabled('delivery')).toBe(false)
     expect(await transferEnabled('takeaway')).toBe(false)
     const ctx = await loadPaymentMethodContext(SLUG)
-    const catalog = buildPaymentMethodCatalog(ctx, 'delivery')
-    expect(catalog.transfer).toBeNull() // ni el alias se muestra
+    expect(buildPaymentMethodCatalog(ctx, 'delivery').transfer).toBeNull() // ni el alias se muestra
   })
 
   it('un pedido por transferencia armado a mano se rechaza (409) antes de cualquier efecto', async () => {
-    await order(daysAgo(0), 600_000)
+    await order(VENCIDA, 600_000)
     const before = await Order.countDocuments({ tenantId: tenant._id })
     const res = await createOrder(
       new NextRequest(`http://localhost/api/${SLUG}/orders`, {
@@ -133,55 +153,56 @@ describe('checkout y creación del pedido', () => {
 })
 
 describe('se vuelve a habilitar', () => {
-  it('sola, cuando se acredita el pago por MercadoPago', async () => {
-    const a = await order(daysAgo(9), 400_000)
-    const b = await order(daysAgo(0), 200_000)
+  it('sola, cuando se acredita el pago por MercadoPago de lo vencido', async () => {
+    const a = await order(VENCIDA, 600_000)
+    await order(EN_CURSO, 900_000) // la semana en curso no importa
     expect((await loadTransferLock(tenant._id)).locked).toBe(true)
 
-    const intent = await CommissionPaymentIntent.create({ tenantId: tenant._id, orderIds: [String(a._id), String(b._id)], weekStarts: [], amount: 600_000 })
+    const intent = await CommissionPaymentIntent.create({ tenantId: tenant._id, orderIds: [String(a._id)], weekStarts: [], amount: 600_000 })
     expect(await settleCommissionIntent(String(intent._id), { id: 'mp-lock-1', amountPesos: 6_000 })).toMatchObject({ status: 'settled' })
-    expect((await loadTransferLock(tenant._id)).locked).toBe(false)
+    expect(await loadTransferLock(tenant._id)).toMatchObject({ locked: false, overdueCents: 0 })
     expect(await transferEnabled('takeaway')).toBe(true)
   })
 
   it('cuando el superadmin marca todo como cobrado (pago fuera de la plataforma)', async () => {
-    await order(daysAgo(20), 300_000)
-    await order(daysAgo(0), 300_000) // semana en curso: también entra
+    await order(VENCIDA, 600_000)
+    await order(EN_CURSO, 100_000)
     await asSuperadmin()
 
     const list = await (await locksGet()).json()
-    expect(list.tenants.find((t: { slug: string }) => t.slug === SLUG)).toMatchObject({ locked: true, owedCents: 600_000 })
+    expect(list.tenants.find((t: { slug: string }) => t.slug === SLUG)).toMatchObject({ locked: true, overdueCents: 600_000, owedCents: 700_000 })
 
     const res = await superadminSettle(new NextRequest('http://localhost/api/superadmin/commissions', {
       method: 'POST',
       body: JSON.stringify({ tenantId: String(tenant._id), all: true }),
     }))
     expect(res.status).toBe(200)
-    expect((await loadTransferLock(tenant._id)).owedCents).toBe(0)
+    expect(await loadTransferLock(tenant._id)).toMatchObject({ locked: false, overdueCents: 0 })
     expect(await transferEnabled('delivery')).toBe(true)
   })
 
-  it('pagar solo una parte que deja la deuda en $5.000 o menos también habilita', async () => {
-    const a = await order(daysAgo(9), 200_000)
-    await order(daysAgo(0), 400_000)
+  it('pagar una parte que deja lo vencido en $5.000 o menos también habilita', async () => {
+    const a = await order(VENCIDA, 200_000)
+    await order(VENCIDA, 400_000)
     expect((await loadTransferLock(tenant._id)).locked).toBe(true)
     const intent = await CommissionPaymentIntent.create({ tenantId: tenant._id, orderIds: [String(a._id)], weekStarts: [], amount: 200_000 })
     await settleCommissionIntent(String(intent._id), { id: 'mp-lock-2', amountPesos: 2_000 })
-    expect(await loadTransferLock(tenant._id)).toMatchObject({ locked: false, owedCents: 400_000 })
+    expect(await loadTransferLock(tenant._id)).toMatchObject({ locked: false, overdueCents: 400_000 })
   })
 })
 
 describe('aviso del panel', () => {
-  it('explica que las transferencias están apagadas y cómo se habilitan', () => {
+  it('explica que las transferencias están apagadas por lo vencido y cómo se habilitan', () => {
     const copy = alertCopy({
-      level: 'acumulada',
-      overdue: { cents: 0, weeks: 0 },
+      level: 'vencida',
+      overdue: { cents: 600_000, weeks: 1 },
       pending: { cents: 0, weeks: 0, nextDueAt: null },
-      accrued: { cents: 600_000 },
-      transferLock: { locked: true, owedCents: 600_000, thresholdCents: 500_000 },
+      accrued: { cents: 0 },
+      transferLock: { locked: true, overdueCents: 600_000, thresholdCents: 500_000 },
     })
     expect(copy?.title).toContain('Transferencias desactivadas')
     expect(copy?.title).toContain('$6.000,00')
+    expect(copy?.title).toContain('vencidas')
     expect(copy?.body).toContain('MercadoPago')
     expect(copy?.body).toContain('se vuelven a habilitar solas')
   })

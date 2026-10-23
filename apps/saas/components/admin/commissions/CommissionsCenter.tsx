@@ -170,7 +170,7 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
             <AlertTriangle size={18} aria-hidden /> Transferencias desactivadas
           </p>
           <p className="text-sm">
-            Tu deuda de comisiones ({pesos(alerts.transferLock.owedCents)}) supera el tope de {pesos(alerts.transferLock.thresholdCents)}. Hasta que la pagues, tus clientes no pueden pagarte por transferencia, ni en delivery ni en take away: pueden pagar con MercadoPago. Apenas se acredita el pago, se vuelven a habilitar solas.
+            Tus comisiones vencidas ({pesos(alerts.transferLock.overdueCents)}) superan el tope de {pesos(alerts.transferLock.thresholdCents)}. Hasta que las pagues, tus clientes no pueden pagarte por transferencia, ni en delivery ni en take away: pueden pagar con MercadoPago. Apenas se acredita el pago, se vuelven a habilitar solas.
           </p>
         </div>
       )}
@@ -178,7 +178,7 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
       {/* Pagar */}
       <section aria-labelledby="pay-title" className="space-y-3 rounded-2xl border-2 border-border bg-card p-5">
         <h2 id="pay-title" className="text-lg font-black">
-          {locked ? `Total a pagar: ${pesos(allCents)}` : dueCents > 0 ? `Total a pagar: ${pesos(dueCents)}` : 'Estás al día'}
+          {dueCents > 0 ? `Total a pagar: ${pesos(dueCents)}` : 'Estás al día'}
         </h2>
         <p className="text-sm text-muted-foreground">
           El pago se hace por MercadoPago y va a la cuenta de TakeasyGO. Se acredita solo: no tenés que enviar comprobantes.
@@ -189,15 +189,15 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
         )}
         <div className={cn('flex flex-wrap gap-2', !canPay && 'hidden')}>
           {locked ? (
-            <button type="button" onClick={() => pay('all')} disabled={paying !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60">
-              {paying === 'all' && <Loader2 size={16} aria-hidden className="animate-spin" />} Pagar {pesos(allCents)} y habilitar transferencias
+            <button type="button" onClick={() => pay('due')} disabled={paying !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-red-600 px-5 text-sm font-bold text-white hover:bg-red-700 disabled:opacity-60">
+              {paying === 'due' && <Loader2 size={16} aria-hidden className="animate-spin" />} Pagar {pesos(dueCents)} y habilitar transferencias
             </button>
           ) : dueCents > 0 && (
             <button type="button" onClick={() => pay('due')} disabled={paying !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-bold text-primary-foreground disabled:opacity-60">
               {paying === 'due' && <Loader2 size={16} aria-hidden className="animate-spin" />} Pagar {pesos(dueCents)} con MercadoPago
             </button>
           )}
-          {!locked && alerts.accrued.cents > 0 && (
+          {alerts.accrued.cents > 0 && (
             <button type="button" onClick={() => pay('all')} disabled={paying !== null} className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-border px-5 text-sm font-bold disabled:opacity-60">
               {paying === 'all' && <Loader2 size={16} aria-hidden className="animate-spin" />}
               {dueCents > 0 ? `Pagar todo, incluida esta semana (${pesos(allCents)})` : `Adelantar lo de esta semana (${pesos(alerts.accrued.cents)})`}

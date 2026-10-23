@@ -106,10 +106,10 @@ export default function CommissionAlertCenter({
     }
   }, [refresh])
 
-  // Transferencias apagadas por deuda: insiste como vencida y por el total.
+  // Transferencias apagadas por deuda vencida: insiste como vencida.
   const locked = alerts.transferLock?.locked ?? false
   const level = popupLevel(alerts)
-  const owedCents = locked ? alerts.transferLock.owedCents : alerts.level === 'vencida' ? alerts.overdue.cents : alerts.pending.cents
+  const owedCents = alerts.level === 'vencida' ? alerts.overdue.cents : alerts.pending.cents
 
   // ¿Golpear la pantalla? (no en la propia página de comisiones: ya está ahí)
   // La decisión depende del navegador (último aviso guardado): se toma fuera
@@ -150,9 +150,8 @@ export default function CommissionAlertCenter({
   const pending = alerts.level === 'pendiente' && !locked
   const href = `/${tenantSlug}/admin/commissions`
   const payLabel = canPay && !superadminView ? 'Ver detalle y pagar' : 'Ver detalle'
-  // Con transferencias apagadas se paga TODO (incluida la semana en curso)
-  // para que se habiliten apenas se acredita.
-  const totalDueCents = locked ? alerts.transferLock.owedCents : alerts.overdue.cents + alerts.pending.cents
+  // Pagar lo vencido (+ lo pendiente) alcanza para habilitar las transferencias.
+  const totalDueCents = alerts.overdue.cents + alerts.pending.cents
   const payDay = fmtPayDay(alerts.pending.nextDueAt)
 
   return (
@@ -194,15 +193,10 @@ export default function CommissionAlertCenter({
                       {payDay && ` · día de pago: ${payDay}`}
                     </li>
                   )}
-                  {locked && alerts.accrued.cents > 0 && (
-                    <li>
-                      Semana en curso: <strong className="tabular-nums">{pesos(alerts.accrued.cents)}</strong>
-                    </li>
-                  )}
                 </ul>
                 {locked && (
                   <p className="text-sm font-bold">
-                    Tu deuda supera el tope de {pesos(alerts.transferLock.thresholdCents)}: tus clientes no pueden pagarte por transferencia (ni delivery ni take away) hasta que pagues. Pueden pagar con MercadoPago. Se habilita sola apenas se acredita el pago.
+                    Lo vencido supera el tope de {pesos(alerts.transferLock.thresholdCents)}: tus clientes no pueden pagarte por transferencia (ni delivery ni take away) hasta que pagues. Pueden pagar con MercadoPago. Se habilita sola apenas se acredita el pago.
                   </p>
                 )}
                 <p className="text-sm opacity-80">La comisión la pagaron tus clientes como cargo por usar la app: no sale de tu precio de carta ni de tu margen.</p>

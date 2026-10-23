@@ -27,13 +27,14 @@
 //       pendiente → cerró y todavía no pasó el martes (día de pago)
 //       vencida   → terminó el martes sin pagarse
 //       pagada    → no queda nada pendiente
-//   · Bloqueo de transferencias (decisión 2026-10-22): si la deuda total
-//     impaga (vencida + pendiente + acumulada de la semana en curso) SUPERA
-//     $5.000, el comercio deja de recibir pagos por transferencia (delivery
-//     y take away): el cliente solo ve MercadoPago (y efectivo si lo tiene).
-//     Se vuelve a habilitar solo, en cuanto la deuda baja a $5.000 o menos:
-//     cuando paga desde el panel (webhook de MP) o cuando el superadmin la
-//     marca como cobrada. No hay flag guardado: se calcula siempre de lo
+//   · Bloqueo de transferencias (decisión 2026-10-22): si lo VENCIDO (semanas
+//     que pasaron su martes de pago sin pagarse) SUPERA $5.000, el comercio
+//     deja de recibir pagos por transferencia (delivery y take away): el
+//     cliente solo ve MercadoPago (y efectivo si lo tiene). Lo pendiente
+//     (todavía en plazo) y lo acumulado de la semana en curso NO bloquean.
+//     Se vuelve a habilitar solo, en cuanto lo vencido baja a $5.000 o menos:
+//     cuando paga desde el panel (webhook de MP) o cuando el superadmin lo
+//     marca como cobrado. No hay flag guardado: se calcula siempre de lo
 //     realmente impago, así nunca queda trabado por un estado viejo.
 // ============================================================================
 
@@ -49,7 +50,7 @@ export const COMMISSION_PAY_DAY_OFFSET = 1
 export const COMMISSION_DUE_OFFSET = 2
 /** Semanas hacia atrás que se analizan (lo más viejo impago igual se ve si cae adentro). */
 export const COMMISSION_WINDOW_WEEKS = 26
-/** Deuda impaga a partir de la cual (estrictamente mayor) se apagan las transferencias. @storedAs cents */
+/** Deuda VENCIDA a partir de la cual (estrictamente mayor) se apagan las transferencias. @storedAs cents */
 export const TRANSFER_LOCK_THRESHOLD_CENTS = 500_000
 
 export type CommissionWeekStatus = 'en_curso' | 'pendiente' | 'vencida' | 'pagada'
@@ -197,15 +198,15 @@ export interface CommissionAlerts {
   pending: { cents: number; weeks: number; nextDueAt: string | null; notifyFrom: string | null }
   accrued: { cents: number; orders: number }
   /**
-   * Deuda total impaga (vencido + pendiente + acumulado) y si por eso están
-   * apagadas las transferencias. @storedAs cents
+   * Transferencias apagadas por deuda VENCIDA mayor al tope (lo pendiente y
+   * lo de la semana en curso no cuentan). @storedAs cents
    */
-  transferLock: { locked: boolean; owedCents: number; thresholdCents: number }
+  transferLock: { locked: boolean; overdueCents: number; thresholdCents: number }
 }
 
-/** ¿La deuda impaga apaga las transferencias? (estrictamente mayor al tope) */
-export function isTransferLocked(owedCents: number): boolean {
-  return owedCents > TRANSFER_LOCK_THRESHOLD_CENTS
+/** ¿Lo vencido apaga las transferencias? (estrictamente mayor al tope) */
+export function isTransferLocked(overdueCents: number): boolean {
+  return overdueCents > TRANSFER_LOCK_THRESHOLD_CENTS
 }
 
 /** Resumen para avisos: lo vencido manda, después lo pendiente, después lo acumulado. */
@@ -215,9 +216,9 @@ export function summarizeAlerts(weeks: CommissionWeek[]): CommissionAlerts {
   const current = weeks.filter((w) => w.status === 'en_curso')
   const sum = (ws: CommissionWeek[]) => ws.reduce((s, w) => s + w.pendingCents, 0)
   const accrued = sum(current)
-  const owedCents = sum(overdue) + sum(pending) + accrued
+  const overdueCents = sum(overdue)
   return {
-    transferLock: { locked: isTransferLocked(owedCents), owedCents, thresholdCents: TRANSFER_LOCK_THRESHOLD_CENTS },
+    transferLock: { locked: isTransferLocked(overdueCents), overdueCents, thresholdCents: TRANSFER_LOCK_THRESHOLD_CENTS },
     level: overdue.length ? 'vencida' : pending.length ? 'pendiente' : accrued > 0 ? 'acumulada' : 'none',
     overdue: { cents: sum(overdue), weeks: overdue.length, oldestDueAt: overdue[0]?.dueAt.toISOString() ?? null },
     pending: {
@@ -241,7 +242,7 @@ export async function loadTransferLock(tenantId: Id, tz?: string): Promise<Commi
     return summarizeAlerts(await loadCommissionWeeks(tenantId, { tz })).transferLock
   } catch (err) {
     console.error('[commission-weeks] no se pudo calcular el bloqueo de transferencias', err)
-    return { locked: false, owedCents: 0, thresholdCents: TRANSFER_LOCK_THRESHOLD_CENTS }
+    return { locked: false, overdueCents: 0, thresholdCents: TRANSFER_LOCK_THRESHOLD_CENTS }
   }
 }
 
