@@ -238,7 +238,9 @@ describe('InventoryV3: primer render de cada contexto (sin errores, accesible)',
       expect(html).toContain('<h1')
       expect(html).toContain('role="tablist"')
       expect(html).toContain('aria-label="Contextos de inventario"')
-      expect(html).toContain('Recibir mercadería')
+      expect(html).toContain('Registrar mercadería')
+      expect(html).toContain('Ver ayuda') // el centro de ayuda está en todas las vistas
+      expect(html).toContain('Inventario activo') // estado de la sede, con texto (no solo color)
       expect(html).toMatch(/role="status"[^>]*aria-busy="true"/) // estado de carga anunciado
     })
   }
