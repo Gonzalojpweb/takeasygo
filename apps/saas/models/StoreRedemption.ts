@@ -34,6 +34,8 @@ export interface IStoreRedemption extends Document {
   source: StoreRedemptionSource
   /** Pedido del que forma parte el premio. null = canje standalone. */
   orderId?: mongoose.Types.ObjectId | null
+  /** Premio del programa de referidos (pointsUsed 0). null = canje normal. */
+  referralId?: mongoose.Types.ObjectId | null
 
   // Metadata
   locationId?: mongoose.Types.ObjectId  // Dónde se reclamó (o sede del pedido)
@@ -70,7 +72,8 @@ const StoreRedemptionSchema = new Schema<IStoreRedemption>(
     pointsUsed: {
       type: Number,
       required: [true, 'Los puntos usados son obligatorios'],
-      min: [1, 'Mínimo 1 punto'],
+      // 0 solo para premios del programa de referidos (no cuestan puntos).
+      min: [0, 'Los puntos usados no pueden ser negativos'],
     },
 
     cashValue: {
@@ -111,6 +114,13 @@ const StoreRedemptionSchema = new Schema<IStoreRedemption>(
     locationId: {
       type: Schema.Types.ObjectId,
       ref: 'Location',
+      default: null,
+    },
+
+    /** Premio del programa de referidos (lib/referrals). */
+    referralId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Referral',
       default: null,
     },
 

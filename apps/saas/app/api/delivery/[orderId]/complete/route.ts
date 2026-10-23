@@ -7,6 +7,8 @@ import crypto from 'crypto'
 import webpush from 'web-push'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { syncReferralsForOrder } from '@/lib/referrals'
+import { runAfterResponse } from '@/lib/after-response'
 import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
 
 try {
@@ -145,6 +147,8 @@ export async function POST(
     addPointsFromOrder(order, { _id: person.tenantId } as any).catch(err =>
       console.error('[Loyalty] Error sumando puntos en delivery:', err)
     )
+    // Programa de referidos: el pedido entregado puede cumplir un paso del invitado.
+    runAfterResponse('referidos (entregado por repartidor)', () => syncReferralsForOrder(order))
 
     return NextResponse.json({
       order: {

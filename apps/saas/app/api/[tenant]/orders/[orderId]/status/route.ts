@@ -14,6 +14,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { triggerBackgroundAdjustment } from '@/lib/hooks/useEstimatedTimeAdjustment'
 import { addPointsFromOrder } from '@/lib/loyalty'
+import { syncReferralsForOrder } from '@/lib/referrals'
 import { cotizarEnvio, isRapiboyEnabled, recotizarParaReady } from '@/lib/delivery/cotizar'
 import { crearViajeOnDemand, cancelarViaje, RapiboyError } from '@/lib/rapiboy/client'
 import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
@@ -416,6 +417,9 @@ export async function PATCH(
         // Revertir reward redemptions (loyalty points, store stock)
         await revertRewardRedemptions(order, tenant)
 
+        // Programa de referidos: si este pedido había cumplido un paso, se revierte.
+        runAfterResponse('referidos (cancelado)', () => syncReferralsForOrder(order))
+
         // Marcar payment.status como cancelled:
         //  - approved (cobrado de verdad) → cancelled en cualquier método.
         //  - pending + efectivo → cancelled: el cobro nunca se concretó y el
@@ -627,6 +631,8 @@ export async function PATCH(
       addPointsFromOrder(order, tenant).catch(err => 
         console.error('[Loyalty] Error sumando puntos en delivered:', err)
       )
+      // Programa de referidos: el pedido entregado puede cumplir un paso del invitado.
+      runAfterResponse('referidos (entregado)', () => syncReferralsForOrder(order))
 
       // ── Push notification al cliente: pedido entregado + link a rating ──────
       if ((order as any).clientToken) {

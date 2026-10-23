@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
 import ClubInfoSettings from '@/components/admin/ClubInfoSettings'
 import LoyaltyManager from '@/components/admin/LoyaltyManager'
+import ReferralProgramSettings from '@/components/admin/ReferralProgramSettings'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import type { Plan } from '@/lib/plans'
 import type { Types } from 'mongoose'
@@ -66,6 +67,12 @@ export default async function ClubPage({ params }: PageProps) {
           welcomeMessage: tenant.loyalty?.welcomeMessage ?? '',
         }}
       />
+
+      {/* Programa de referidos: nivel comercio (admin o manager sin sedes asignadas). */}
+      {(['admin', 'superadmin'].includes(session.user.role ?? '') ||
+        (session.user.role === 'manager' && (session.user.assignedLocations ?? []).length === 0)) && (
+        <ReferralProgramSettings tenantSlug={tenantSlug} />
+      )}
 
       <LoyaltyManager
         tenantSlug={tenantSlug}

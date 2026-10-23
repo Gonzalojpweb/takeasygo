@@ -53,6 +53,7 @@ import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 import { loadTransferLock } from '@/lib/commission-weeks'
+import { attachReferralFromRequest } from '@/lib/referrals'
 
 try {
   webpush.setVapidDetails(
@@ -1715,7 +1716,7 @@ export async function POST(
       }).select('_id').lean()
       if (!existingMember) {
         const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
-        await LoyaltyMember.create({
+        const created = await LoyaltyMember.create({
           tenantId: tenant._id,
           phone: body.customer.phone,
           phoneHash: pHash,
@@ -1727,7 +1728,17 @@ export async function POST(
           'loyalty.points': welcomePoints,
         }).catch((err) => {
           console.error('[HiddenRewards] LoyaltyMember upsert failed:', err)
+          return null
         })
+        // Programa de referidos: si llegó con el link de un miembro (cookie), se vincula.
+        if (created) {
+          await attachReferralFromRequest(request, {
+            tenantSlug,
+            tenantId: tenant._id,
+            inviteeMemberId: created._id,
+            bodyCode: (rawBody as { referralCode?: unknown } | null)?.referralCode,
+          })
+        }
       }
     }
 
@@ -1957,6 +1968,13 @@ export async function POST(
             ...(body.customer.birthDate ? { birthDate: new Date(body.customer.birthDate) } : {}),
           })
           await member.save()
+          // Programa de referidos: si llegó con el link de un miembro (cookie), se vincula.
+          await attachReferralFromRequest(request, {
+            tenantSlug,
+            tenantId: tenant._id,
+            inviteeMemberId: member._id,
+            bodyCode: (rawBody as { referralCode?: unknown } | null)?.referralCode,
+          })
         }
       }
     } else {

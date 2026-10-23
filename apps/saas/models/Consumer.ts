@@ -8,6 +8,7 @@ export type ConsumerSource =
   | 'explore'
   | 'promotion'
   | 'hidden_reward'
+  | 'referral'
   | 'corporate_session'
   | 'pos_manual'
   | 'backfill'
@@ -53,7 +54,7 @@ const ConsumerSchema = new Schema<IConsumer>(
       type: String,
       required: true,
       enum: ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore',
-        'promotion', 'hidden_reward', 'corporate_session', 'pos_manual',
+        'promotion', 'hidden_reward', 'referral', 'corporate_session', 'pos_manual',
         'backfill', 'unknown'],
     },
     tags: {

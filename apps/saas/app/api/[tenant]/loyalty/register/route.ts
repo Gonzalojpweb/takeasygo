@@ -6,6 +6,7 @@ import { hashPhone } from '@/lib/crypto'
 import { signMemberToken } from '@/lib/memberToken'
 import { rateLimit } from '@/lib/rateLimit'
 import { requireLocationId } from '@/lib/loyalty-location'
+import { attachReferralFromRequest } from '@/lib/referrals'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -145,6 +146,14 @@ export async function POST(
       ...(locationId ? { locationId } : {})
     })
 
+    // Programa de referidos: si llegó con el link de un miembro, se vincula.
+    const referral = await attachReferralFromRequest(request, {
+      tenantSlug,
+      tenantId: tenant._id,
+      inviteeMemberId: member._id,
+      bodyCode: body.referralCode,
+    })
+
     // Emitir token de miembro para promo club (JWT, exp 90 días)
     let memberToken: string | null = null
     try {
@@ -166,7 +175,8 @@ export async function POST(
         publicId: member.wallet?.publicId
       },
       memberToken,
-      welcomePoints
+      welcomePoints,
+      referred: referral?.attached === true,
     })
 
   } catch (error) {

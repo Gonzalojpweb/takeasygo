@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose'
 import type { ConsumerSource } from './Consumer'
 
 export type LoyaltyMemberStatus = 'active' | 'inactive' | 'blocked'
-export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import' | 'explore' | 'promotion' | 'hidden_reward'
+export type LoyaltyMemberSource = 'checkout' | 'qr_scan' | 'admin' | 'manual_import' | 'explore' | 'promotion' | 'hidden_reward' | 'referral'
 export type LoyaltyTier = 'none' | 'bronze' | 'silver' | 'gold'
 
 export interface ILoyaltyMember extends Document {
@@ -91,6 +91,8 @@ export interface ILoyaltyMember extends Document {
   }
 
   notes:     string   // nota interna del admin
+  /** Código del link «Invitá y ganá» (se genera la primera vez que lo pide). Ver lib/referrals. */
+  referralCode?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -155,7 +157,7 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
     },
     source: {
       type:    String,
-      enum:    ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore', 'promotion', 'hidden_reward'],
+      enum:    ['checkout', 'qr_scan', 'admin', 'manual_import', 'explore', 'promotion', 'hidden_reward', 'referral'],
       default: 'admin',
     },
 
@@ -266,8 +268,19 @@ const LoyaltyMemberSchema = new Schema<ILoyaltyMember>(
       default: '',
       trim:    true,
     },
+
+    // Sin default: el índice único parcial solo aplica a los que tienen código.
+    referralCode: {
+      type: String,
+    },
   },
   { timestamps: true }
+)
+
+// Código de referido único por comercio (solo miembros que ya lo generaron).
+LoyaltyMemberSchema.index(
+  { tenantId: 1, referralCode: 1 },
+  { unique: true, partialFilterExpression: { referralCode: { $type: 'string' } } }
 )
 
 // ── Índices compuestos ────────────────────────────────────────────────────────

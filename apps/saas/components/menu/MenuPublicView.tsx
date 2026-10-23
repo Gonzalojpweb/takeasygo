@@ -9,7 +9,7 @@ import { evaluateRewardRedemption } from '@takeasygo/business'
 import {
   ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
   Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
-  Award, Wallet, Tag, Heart,
+  Award, Wallet, Tag, Heart, UserPlus,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -1997,6 +1997,14 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
               >
                 <Award size={16} />
                 Socio del Club — {clubMembership.name}
+              </Link>
+              <Link
+                href={`/${tenant.slug}/club/invitar`}
+                className="flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-80"
+                style={{ color: primary }}
+              >
+                <UserPlus size={14} />
+                Invitá y ganá
               </Link>
               {clubMembership.walletEnabled && (
                 <Link

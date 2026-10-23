@@ -36,6 +36,7 @@ const OPEN_BY_DESIGN = new Set([
   'menu/[locationId]/promotions/route.ts',
   'payment-methods/route.ts',
   'qr-promo/route.ts',
+  'referrals/code/[code]/route.ts', // link de invitación: solo nombre e inicial del que invita; rate limit 30/min por IP
   'scheduled-orders/validate/route.ts',
 
   // CONSUMIDOR con protección propia (member token / tracking token /
@@ -66,6 +67,7 @@ const OPEN_BY_DESIGN = new Set([
   'payments/create-kripton-preference/route.ts',
   'payments/create-preference/route.ts',
   'promotions/loyalty-register/route.ts',
+  'referrals/identify/route.ts', // teléfono + email deben coincidir; rate limit 5/h por IP y por teléfono
   'reservas/preference/route.ts',
 
   // STAFF-empresa B2B: cerradas con requireCorpAccess (sesión NextAuth +
