@@ -30,7 +30,7 @@ import ReferralEvent from '@/models/ReferralEvent'
 import ReferralProgram from '@/models/ReferralProgram'
 import { hashPhone } from '@/lib/crypto'
 import { signMemberToken } from '@/lib/memberToken'
-import { attachReferral, computeTargets, ensureReferralCode, syncReferral, syncReferralsForOrder, displayName, type QualifyingOrder } from '@/lib/referrals'
+import { attachReferral, computeTargets, ensureReferralCode, inviteeSpend, requiredSpendCents, syncReferral, syncReferralsForOrder, displayName, type QualifyingOrder, type TargetRules } from '@/lib/referrals'
 import { POST as registerPost } from '@/app/api/[tenant]/loyalty/register/route'
 import { GET as meGet } from '@/app/api/[tenant]/referrals/me/route'
 import { GET as codeGet } from '@/app/api/[tenant]/referrals/code/[code]/route'
@@ -59,16 +59,19 @@ async function member(name: string, phone: string, over: Record<string, unknown>
   })
 }
 
-async function order(phone: string, mode: 'takeaway' | 'delivery' | 'dine-in', createdAt: Date, status = 'delivered') {
+/** Pedido del invitado. `pesos` = productos del pedido (default $10.000). */
+async function order(phone: string, mode: 'takeaway' | 'delivery' | 'dine-in', createdAt: Date, status = 'delivered', pesos = 10_000) {
+  const cents = pesos * 100
   return Order.create({
     tenantId: tenant._id,
     locationId: new mongoose.Types.ObjectId(),
     orderNumber: `R-${Math.random().toString(36).slice(2, 9)}`,
     status,
     orderMode: mode,
-    items: [{ name: 'Pizza', quantity: 1, basePrice: 1_000_000, extraPrice: 0, price: 1_000_000, subtotal: 1_000_000 }],
-    subtotal: 1_000_000,
-    total: 1_000_000,
+    items: [{ name: 'Pizza', quantity: 1, basePrice: cents, extraPrice: 0, price: cents, subtotal: cents }],
+    subtotal: cents,
+    total: cents + 150_000, // el envío NO cuenta para los mínimos
+    deliveryCost: 150_000,
     customer: { name: 'Cliente', phone, phoneHash: hashPhone(phone) },
     payment: { method: 'cash', status: status === 'cancelled' ? 'cancelled' : 'approved' },
     createdAt,
@@ -112,24 +115,47 @@ beforeEach(async () => {
 })
 
 describe('qué pasos cumple cada pedido', () => {
-  const o = (mode: string, day: number): QualifyingOrder => ({ _id: new mongoose.Types.ObjectId(), orderMode: mode, createdAt: new Date(Date.UTC(2026, 9, 1) + day * DAY) })
+  const o = (mode: string, day: number, pesos = 10_000): QualifyingOrder => ({ _id: new mongoose.Types.ObjectId(), orderMode: mode, createdAt: new Date(Date.UTC(2026, 9, 1) + day * DAY), amountCents: pesos * 100 })
+  const rules = (min = 0, by: Partial<Record<string, number>> = {}): TargetRules => ({ secondOrderWindowDays: 30, minFor: (t) => (by[t] ?? min) * 100 })
   it('take away primero, salón después, segunda compra dentro del plazo', () => {
-    const t = computeTargets([o('takeaway', 0), o('dine-in', 3)], 30)
+    const t = computeTargets([o('takeaway', 0), o('dine-in', 3)], rules())
     expect(t.registered.met && t.first_online_order.met && t.visit.met && t.second_order.met).toBe(true)
   })
   it('primera compra en el local: cuenta la visita, la online todavía no', () => {
-    const t = computeTargets([o('dine-in', 0)], 30)
+    const t = computeTargets([o('dine-in', 0)], rules())
     expect(t.registered.met).toBe(true)
     expect(t.visit.met).toBe(true)
     expect(t.first_online_order.met).toBe(false)
     expect(t.second_order.met).toBe(false)
   })
   it('la segunda compra fuera del plazo no cuenta', () => {
-    expect(computeTargets([o('delivery', 0), o('delivery', 31)], 30).second_order.met).toBe(false)
+    expect(computeTargets([o('delivery', 0), o('delivery', 31)], rules()).second_order.met).toBe(false)
   })
   it('sin pedidos no se cumple nada', () => {
-    const t = computeTargets([], 30)
+    const t = computeTargets([], rules())
     expect(Object.values(t).some((x) => x.met)).toBe(false)
+  })
+  it('compra mínima: un café no cumple ningún paso; un pedido que llega al mínimo, sí', () => {
+    const cafe = [o('takeaway', 0, 2_000), o('dine-in', 1, 2_000)]
+    const t = computeTargets(cafe, rules(8_000))
+    expect(Object.values(t).some((x) => x.met)).toBe(false)
+    const real = computeTargets([o('takeaway', 0, 2_000), o('takeaway', 1, 9_000)], rules(8_000))
+    expect(real.first_online_order.met).toBe(true)
+    expect(real.second_order.met).toBe(false) // el café no es la «primera» de la segunda compra
+  })
+  it('mínimo distinto por paso: la visita al local pide más', () => {
+    const t = computeTargets([o('takeaway', 0, 9_000), o('dine-in', 2, 9_000)], rules(8_000, { visit: 12_000 }))
+    expect(t.first_online_order.met).toBe(true)
+    expect(t.visit.met).toBe(false)
+    expect(computeTargets([o('dine-in', 2, 13_000)], rules(8_000, { visit: 12_000 })).visit.met).toBe(true)
+  })
+  it('gasto del invitado: solo suman los pedidos que llegan al mínimo', () => {
+    expect(inviteeSpend([o('takeaway', 0, 2_000), o('takeaway', 1, 9_000), o('dine-in', 2, 15_000)], 8_000 * 100)).toBe(24_000 * 100)
+  })
+  it('tope de costo: premio de $9.000 al 15 % → $60.000 de gasto', () => {
+    expect(requiredSpendCents({ rewardStoreItemId: 'x', rewardValueCents: 900_000, rewardMaxCostPct: 15 })).toBe(6_000_000)
+    expect(requiredSpendCents({ rewardStoreItemId: 'x', rewardValueCents: 900_000, rewardMaxCostPct: 0 })).toBe(0) // sin tope
+    expect(requiredSpendCents({ rewardStoreItemId: null, rewardValueCents: 900_000, rewardMaxCostPct: 15 })).toBe(0) // sin premio
   })
   it('el que invita ve solo nombre e inicial', () => {
     expect(displayName('Lucía Martínez')).toBe('Lucía M.')
@@ -262,6 +288,30 @@ describe('puntos y premio, paso a paso (Pedro invita a Lucía)', () => {
     expect((await ReferralEvent.findOne({ referralId, task: 'registered' }).lean<{ status: string }>())!.status).toBe('pending')
   })
 
+  it('con mínimo y tope: el café no suma y el premio espera al gasto mínimo', async () => {
+    // Premio de $9.000 al 15 % → $60.000; cada pedido cuenta desde $8.000.
+    await ReferralProgram.updateOne({ tenantId: tenant._id }, { $set: { minOrderCents: 800_000, rewardValueCents: 900_000, rewardMaxCostPct: 15 } })
+    const { r } = await invite('Lucía Martínez', LUCIA)
+    const referralId = (r as { referralId: string }).referralId
+    const now = Date.now()
+
+    await order(LUCIA, 'takeaway', new Date(now + 60_000), 'delivered', 2_000) // un café
+    await syncReferral(referralId)
+    expect(await pointsOf(pedro._id)).toBe(0)
+
+    await order(LUCIA, 'takeaway', new Date(now + 120_000), 'delivered', 20_000)
+    await order(LUCIA, 'dine-in', new Date(now + 180_000), 'delivered', 25_000)
+    const s1 = await syncReferral(referralId)
+    expect(s1).toMatchObject({ completed: true, reward: 'waiting_spend', spentCents: 4_500_000, requiredSpendCents: 6_000_000 })
+    expect(await pointsOf(pedro._id)).toBe(400) // los puntos por paso se ganan igual
+    expect(await StoreRedemption.countDocuments({ referralId })).toBe(0)
+
+    await order(LUCIA, 'delivery', new Date(now + 240_000), 'delivered', 16_000)
+    const s2 = await syncReferral(referralId)
+    expect(s2).toMatchObject({ reward: 'granted', spentCents: 6_100_000 })
+    expect(await StoreRedemption.countDocuments({ referralId })).toBe(1)
+  })
+
   it('los pedidos que no están entregados no cuentan', async () => {
     const { r } = await invite('Lucía Martínez', LUCIA)
     await order(LUCIA, 'takeaway', new Date(Date.now() + 60_000), 'preparing')
@@ -313,6 +363,10 @@ describe('pantallas', () => {
       enabled: true,
       tasks: { registered: { enabled: true, points: 10 }, first_online_order: { enabled: true, points: 20 }, visit: { enabled: false, points: 0 }, second_order: { enabled: true, points: 30 } },
       rewardStoreItemId: String(item._id),
+      rewardValueCents: 900_000,
+      rewardMaxCostPct: 15,
+      minOrderCents: 800_000,
+      minOrderByTask: { first_online_order: null, visit: 1_200_000, second_order: null },
       rewardValidityDays: 15,
       secondOrderWindowDays: 45,
       monthlyInviteLimit: 5,
@@ -325,8 +379,15 @@ describe('pantallas', () => {
     await as('manager')
     expect((await put()).status).toBe(200)
     const got = await (await adminGet(new NextRequest('http://localhost/x'), P)).json()
-    expect(got.program).toMatchObject({ enabled: true, secondOrderWindowDays: 45, tasks: { visit: { enabled: false }, second_order: { points: 30 } } })
+    expect(got.program).toMatchObject({ enabled: true, secondOrderWindowDays: 45, tasks: { visit: { enabled: false }, second_order: { points: 30 } }, minOrderCents: 800_000, minOrderByTask: { visit: 1_200_000 } })
+    expect(got.requiredSpendCents).toBe(6_000_000)
     expect(got.storeItems[0]).toMatchObject({ name: 'Pizza grande gratis' })
+
+    // Con premio y tope, el valor del premio es obligatorio (sin él no hay cuenta posible).
+    const sinValor = adminPut(new NextRequest('http://localhost/x', { method: 'PUT', body: JSON.stringify({ ...body, rewardValueCents: null }) }), P)
+    const res = await sinValor
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toContain('valor del premio')
   })
 
   it('sin token del club no se ve nada', async () => {

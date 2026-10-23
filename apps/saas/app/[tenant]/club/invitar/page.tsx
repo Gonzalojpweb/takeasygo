@@ -24,6 +24,8 @@ import {
   TASK_ORDER,
   clubTokenKey,
   memberRules,
+  minimumsText,
+  pesosAR,
   inviteLink,
   shareMessage,
   whatsappShareUrl,
@@ -41,13 +43,16 @@ interface MeView {
     tasks: Array<{ task: ReferralTaskKey; label: string; points: number }>
     reward: { name: string } | null
     secondOrderWindowDays: number
+    minOrderCents: number
+    minOrderByTask: Partial<Record<'first_online_order' | 'visit' | 'second_order', number | null>>
+    requiredSpendCents: number
     rewardValidityDays: number
     monthlyInviteLimit: number
     startsAt: string | null
     endsAt: string | null
   }
   stats: { invited: number; completed: number; pointsEarned: number; pointsPending: number }
-  invitees: Array<{ referralId: string; name: string; joinedAt: string; steps: Record<ReferralTaskKey, StepState>; pointsEarned: number; completed: boolean; rewardState: string }>
+  invitees: Array<{ referralId: string; name: string; joinedAt: string; steps: Record<ReferralTaskKey, StepState>; pointsEarned: number; completed: boolean; rewardState: string; spentCents: number }>
   rewards: Array<{ code: string; status: string; expiresAt: string | null; name: string }>
 }
 
@@ -231,7 +236,12 @@ function ReadyView({ slug, view, link, message, copied, onCopy, onShare }: { slu
     monthlyInviteLimit: view.program.monthlyInviteLimit,
     rewardName: view.program.reward?.name ?? null,
     endsAt: view.program.endsAt,
+    minOrderCents: view.program.minOrderCents,
+    minOrderByTask: view.program.minOrderByTask,
+    requiredSpendCents: view.program.requiredSpendCents,
   })
+  const mins = minimumsText(view.program)
+  const needSpend = view.program.reward ? view.program.requiredSpendCents : 0
   return (
     <>
       {/* Cómo funciona */}
@@ -292,9 +302,10 @@ function ReadyView({ slug, view, link, message, copied, onCopy, onShare }: { slu
         <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3 text-amber-900">
           <Trophy size={22} aria-hidden className="shrink-0" />
           <p className="text-sm font-semibold">
-            Hasta {totalPoints} puntos por amigo{view.program.reward ? <> y, al completar todo, <strong>{view.program.reward.name}</strong>.</> : '.'}
+            Hasta {totalPoints} puntos por amigo{view.program.reward ? <> y, al completar todo, <strong>{view.program.reward.name}</strong>{needSpend > 0 && <> (cuando tu amigo lleve {pesosAR(needSpend)} en compras)</>}.</> : '.'}
           </p>
         </div>
+        {mins && <p className="text-xs text-muted-foreground">{mins}</p>}
         {view.program.endsAt && <p className="text-xs text-gray-500">La promoción vale para amigos que se sumen hasta el {fmtDate(view.program.endsAt)}.</p>}
       </section>
 
@@ -364,6 +375,16 @@ function ReadyView({ slug, view, link, message, copied, onCopy, onShare }: { slu
                     </li>
                   ))}
                 </ol>
+                {needSpend > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-gray-600">
+                      Compras para tu premio: <strong className="text-gray-900">{pesosAR(Math.min(inv.spentCents, needSpend))}</strong> de {pesosAR(needSpend)}
+                    </p>
+                    <div role="progressbar" aria-label={`Compras de ${inv.name} para tu premio`} aria-valuenow={Math.min(100, Math.round((inv.spentCents / needSpend) * 100))} aria-valuemin={0} aria-valuemax={100} className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, (inv.spentCents / needSpend) * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
                 {inv.completed && <p className="text-sm font-bold text-emerald-700">¡Completó todo el recorrido!</p>}
               </li>
             ))}

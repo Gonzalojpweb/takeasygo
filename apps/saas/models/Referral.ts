@@ -35,6 +35,8 @@ export interface IReferral extends Document {
     grantedAt: Date | null
     revokedAt: Date | null
   }
+  /** Lo que gastó el invitado en pedidos que cuentan (productos, sin envío). @storedAs cents */
+  spentCents: number
   lastSyncedAt: Date | null
   createdAt: Date
   updatedAt: Date
@@ -57,6 +59,7 @@ const ReferralSchema = new Schema<IReferral>(
       grantedAt: { type: Date, default: null },
       revokedAt: { type: Date, default: null },
     },
+    spentCents: { type: Number, default: 0, min: 0 },
     lastSyncedAt: { type: Date, default: null },
   },
   { timestamps: true },

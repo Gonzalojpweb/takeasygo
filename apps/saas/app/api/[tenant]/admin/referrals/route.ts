@@ -8,7 +8,7 @@ import ReferralProgram from '@/models/ReferralProgram'
 import { getSessionUser } from '@/lib/apiAuth'
 import { canAccess, type Plan } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
-import { loadAdminReferralOverview, loadProgram } from '@/lib/referrals'
+import { averageTicketCents, loadAdminReferralOverview, loadProgram, requiredSpendCents } from '@/lib/referrals'
 
 /**
  * /api/{tenant}/admin/referrals — programa «Invitá y ganá» (admin · manager)
@@ -46,18 +46,21 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const ctx = await context(request, (await params).tenant)
     if ('error' in ctx) return ctx.error
-    const [program, overview, items] = await Promise.all([
+    const [program, overview, items, avgTicket] = await Promise.all([
       loadProgram(ctx.tenant._id),
       loadAdminReferralOverview(ctx.tenant._id),
       StoreItem.find({ tenantId: ctx.tenant._id, isActive: true })
-        .select('_id name pointsCost stock')
+        .select('_id name pointsCost stock cashValue')
         .sort({ name: 1 })
-        .lean<Array<{ _id: Types.ObjectId; name: string; pointsCost: number; stock?: number | null }>>(),
+        .lean<Array<{ _id: Types.ObjectId; name: string; pointsCost: number; stock?: number | null; cashValue?: number | null }>>(),
+      averageTicketCents(ctx.tenant._id),
     ])
     return NextResponse.json(
       {
         program,
-        storeItems: items.map((i) => ({ id: String(i._id), name: i.name, pointsCost: i.pointsCost, stock: i.stock ?? null })),
+        requiredSpendCents: requiredSpendCents(program),
+        averageTicketCents: avgTicket,
+        storeItems: items.map((i) => ({ id: String(i._id), name: i.name, pointsCost: i.pointsCost, stock: i.stock ?? null, cashValueCents: i.cashValue ?? null })),
         ...overview,
       },
       { headers: { 'Cache-Control': 'no-store' } },
@@ -74,6 +77,14 @@ const bodySchema = z
     enabled: z.boolean(),
     tasks: z.object({ registered: task, first_online_order: task, visit: task, second_order: task }),
     rewardStoreItemId: z.string().regex(/^[a-f0-9]{24}$/).nullable(),
+    rewardValueCents: z.number().int().min(0).max(1_000_000_000).nullable(),
+    rewardMaxCostPct: z.number().min(0).max(100),
+    minOrderCents: z.number().int().min(0).max(1_000_000_000),
+    minOrderByTask: z.object({
+      first_online_order: z.number().int().min(0).max(1_000_000_000).nullable(),
+      visit: z.number().int().min(0).max(1_000_000_000).nullable(),
+      second_order: z.number().int().min(0).max(1_000_000_000).nullable(),
+    }),
     rewardValidityDays: z.number().int().min(1).max(365),
     secondOrderWindowDays: z.number().int().min(1).max(365),
     monthlyInviteLimit: z.number().int().min(0).max(1000),
@@ -82,6 +93,10 @@ const bodySchema = z
   })
   .refine((b) => !b.startsAt || !b.endsAt || new Date(b.startsAt) < new Date(b.endsAt), { message: 'La fecha de fin tiene que ser posterior al inicio', path: ['endsAt'] })
   .refine((b) => !b.enabled || Object.values(b.tasks).some((t) => t.enabled), { message: 'Activá al menos un paso', path: ['tasks'] })
+  .refine((b) => !b.rewardStoreItemId || b.rewardMaxCostPct <= 0 || (b.rewardValueCents ?? 0) > 0, {
+    message: 'Cargá el valor del premio: lo necesitamos para calcular cuánto tiene que gastar el invitado antes de recibirlo',
+    path: ['rewardValueCents'],
+  })
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   try {
@@ -103,6 +118,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           enabled: b.enabled,
           tasks: b.tasks,
           rewardStoreItemId: b.rewardStoreItemId,
+          rewardValueCents: b.rewardValueCents,
+          rewardMaxCostPct: b.rewardMaxCostPct,
+          minOrderCents: b.minOrderCents,
+          minOrderByTask: b.minOrderByTask,
           rewardValidityDays: b.rewardValidityDays,
           secondOrderWindowDays: b.secondOrderWindowDays,
           monthlyInviteLimit: b.monthlyInviteLimit,
@@ -120,7 +139,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       details: { enabled: b.enabled, rewardStoreItemId: b.rewardStoreItemId },
       request,
     })
-    return NextResponse.json({ program: await loadProgram(ctx.tenant._id) })
+    const saved = await loadProgram(ctx.tenant._id)
+    return NextResponse.json({ program: saved, requiredSpendCents: requiredSpendCents(saved) })
   } catch (error) {
     console.error('[admin/referrals PUT]', error)
     return NextResponse.json({ error: 'Error al guardar el programa de referidos' }, { status: 500 })

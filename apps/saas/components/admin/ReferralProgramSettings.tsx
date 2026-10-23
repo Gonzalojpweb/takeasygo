@@ -17,15 +17,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { ChevronRight, Gift, Info, Loader2, Save, ShieldCheck, Trophy, UserPlus } from 'lucide-react'
+import { ChevronRight, Gift, Info, Loader2, Save, Scale, ShieldCheck, Trophy, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { ADMIN_AUTOMATIC_RULES, ADMIN_SETUP_STEPS, STEP_STATE_LABEL, TASK_COPY, TASK_ORDER, type ReferralTaskKey, type StepState } from '@/lib/referrals-ui'
+import { ADMIN_AUTOMATIC_RULES, ADMIN_SETUP_STEPS, STEP_STATE_LABEL, TASK_COPY, TASK_ORDER, pesosAR, requiredSpendFor, type ReferralTaskKey, type StepState } from '@/lib/referrals-ui'
 
 interface Program {
   enabled: boolean
   tasks: Record<ReferralTaskKey, { enabled: boolean; points: number }>
   rewardStoreItemId: string | null
+  rewardValueCents: number | null
+  rewardMaxCostPct: number
+  minOrderCents: number
+  minOrderByTask: Partial<Record<OrderTask, number | null>>
   rewardValidityDays: number
   secondOrderWindowDays: number
   monthlyInviteLimit: number
@@ -33,10 +37,14 @@ interface Program {
   endsAt: string | null
 }
 
+type OrderTask = 'first_online_order' | 'visit' | 'second_order'
+const ORDER_TASKS: OrderTask[] = ['first_online_order', 'visit', 'second_order']
+
 interface Overview {
   program: Program
-  storeItems: Array<{ id: string; name: string; pointsCost: number; stock: number | null }>
-  totals: { referrals: number; completed: number; withPurchase: number; rewardsGranted: number; pointsCredited: number }
+  averageTicketCents: number | null
+  storeItems: Array<{ id: string; name: string; pointsCost: number; stock: number | null; cashValueCents: number | null }>
+  totals: { referrals: number; completed: number; withPurchase: number; rewardsGranted: number; pointsCredited: number; invitedSpendCents: number }
   ranking: Array<{ memberId: string; name: string; invited: number; completed: number; points: number }>
   recent: Array<{ referralId: string; name: string; referrerName: string; joinedAt: string; steps: Record<ReferralTaskKey, StepState>; pointsEarned: number; completed: boolean }>
 }
@@ -44,6 +52,9 @@ interface Overview {
 const labelCls = 'text-xs font-bold uppercase tracking-wider text-muted-foreground'
 const inputCls = 'bg-muted/40 border-2 border-border/60 h-11 rounded-xl text-sm font-medium'
 const toDateInput = (iso: string | null) => (iso ? iso.slice(0, 10) : '')
+/** Centavos ↔ pesos enteros en los inputs de plata. */
+const toPesosInput = (cents: number | null | undefined) => (cents ? String(Math.round(cents / 100)) : '')
+const fromPesosInput = (v: string) => Math.max(0, Math.round((Number(v.replace(/\./g, '').replace(',', '.')) || 0) * 100))
 /** Fecha del input (día local) → ISO: inicio 00:00 y fin 23:59 hora de Argentina. */
 const fromDateInput = (v: string, end: boolean) => (v ? new Date(`${v}T${end ? '23:59:59' : '00:00:00'}-03:00`).toISOString() : null)
 
@@ -113,7 +124,10 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
   }
 
   const totalPoints = TASK_ORDER.reduce((s, t) => s + (program.tasks[t].enabled ? program.tasks[t].points : 0), 0)
-  const rewardName = data.storeItems.find((i) => i.id === program.rewardStoreItemId)?.name
+  const rewardItem = data.storeItems.find((i) => i.id === program.rewardStoreItemId) ?? null
+  const rewardName = rewardItem?.name
+  const needSpend = rewardItem ? requiredSpendFor(program.rewardValueCents, program.rewardMaxCostPct) : 0
+  const hasPerTask = ORDER_TASKS.some((t) => program.minOrderByTask[t] != null)
 
   return (
     <Card className="rounded-[2rem] border-2 border-border/60 overflow-hidden">
@@ -224,7 +238,12 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
             <select
               id="ref-reward-item"
               value={program.rewardStoreItemId ?? ''}
-              onChange={(e) => setProgram({ ...program, rewardStoreItemId: e.target.value || null })}
+              onChange={(e) => {
+                const id = e.target.value || null
+                const item = data.storeItems.find((i) => i.id === id)
+                // Si la tienda ya tiene el valor del premio, se usa para el tope de costo.
+                setProgram({ ...program, rewardStoreItemId: id, rewardValueCents: item?.cashValueCents ?? (id ? program.rewardValueCents : null) })
+              }}
               className={cn(inputCls, 'w-full px-3')}
             >
               <option value="">Sin premio (solo puntos)</option>
@@ -241,6 +260,105 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
           <div className="space-y-2">
             <Label htmlFor="ref-validity" className={labelCls}>Días para usar el premio</Label>
             <Input id="ref-validity" type="number" min={1} max={365} value={program.rewardValidityDays} onChange={(e) => setProgram({ ...program, rewardValidityDays: Math.max(1, Math.min(365, Number(e.target.value) || 1)) })} className={inputCls} />
+          </div>
+        </section>
+
+        {/* Protección del margen */}
+        <section aria-labelledby="ref-margin" className="space-y-5 rounded-2xl border-2 border-emerald-600/25 bg-emerald-50/40 p-6 dark:bg-emerald-950/15">
+          <div className="space-y-1">
+            <h3 id="ref-margin" className="flex items-center gap-2 text-base font-bold"><Scale size={18} aria-hidden className="text-emerald-700" /> Cuidá tu margen</h3>
+            <p className="text-sm text-muted-foreground">
+              Dos protecciones para que el programa traiga clientes que compran de verdad: que un café no cuente como «primera compra» y que el premio nunca cueste más de lo que dejó el invitado.
+            </p>
+          </div>
+
+          {/* 1. Compra mínima */}
+          <div className="space-y-3">
+            <p className="text-sm font-bold">1. Compra mínima por pedido</p>
+            <p className="text-sm text-muted-foreground">
+              Un pedido del invitado cumple un paso solo si sus productos suman al menos este monto. Se mide ya con descuentos y <strong>sin el envío</strong>. Un pedido más chico se vende igual; solo que no suma para el programa.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="ref-min" className={labelCls}>Mínimo por pedido ($)</Label>
+                <Input id="ref-min" inputMode="numeric" placeholder="0 = sin mínimo" value={toPesosInput(program.minOrderCents)} onChange={(e) => setProgram({ ...program, minOrderCents: fromPesosInput(e.target.value) })} className={cn(inputCls, 'w-44')} />
+              </div>
+              {data.averageTicketCents ? (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Tu ticket promedio (últimos 90 días): <strong className="text-foreground">{pesosAR(data.averageTicketCents)}</strong></p>
+                  <button type="button" className="font-bold text-primary underline-offset-2 hover:underline" onClick={() => setProgram({ ...program, minOrderCents: Math.round(data.averageTicketCents! / 10000) * 10000 })}>
+                    Usar mi ticket promedio
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Cuando haya pedidos entregados, te sugerimos tu ticket promedio.</p>
+              )}
+            </div>
+            {program.minOrderCents === 0 && !hasPerTask && (
+              <p className="flex items-start gap-2 rounded-xl border-2 border-amber-600/30 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                <Info size={16} aria-hidden className="mt-0.5 shrink-0" /> Sin mínimo, cualquier pedido cuenta, aunque sea un café. Te recomendamos usar tu ticket promedio.
+              </p>
+            )}
+            <details className="rounded-xl border-2 border-border bg-background p-3" open={hasPerTask}>
+              <summary className="cursor-pointer text-sm font-bold">Usar un mínimo distinto por paso (opcional)</summary>
+              <p className="mt-2 text-xs text-muted-foreground">Por ejemplo, la visita al local con un mínimo más alto, porque en el salón el ticket suele ser mayor. Vacío = usa el mínimo general.</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                {ORDER_TASKS.map((t) => (
+                  <div key={t} className="space-y-1.5">
+                    <Label htmlFor={`ref-min-${t}`} className={labelCls}>{TASK_COPY[t].short} ($)</Label>
+                    <Input
+                      id={`ref-min-${t}`}
+                      inputMode="numeric"
+                      placeholder={program.minOrderCents ? `General: ${Math.round(program.minOrderCents / 100)}` : 'General'}
+                      value={toPesosInput(program.minOrderByTask[t])}
+                      onChange={(e) => setProgram({ ...program, minOrderByTask: { ...program.minOrderByTask, [t]: e.target.value.trim() ? fromPesosInput(e.target.value) : null } })}
+                      className={inputCls}
+                    />
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+
+          {/* 2. Tope de costo del premio */}
+          <div className="space-y-3 border-t border-emerald-600/20 pt-4">
+            <p className="text-sm font-bold">2. Tope de costo del premio</p>
+            <p className="text-sm text-muted-foreground">
+              Elegí qué parte de lo que gastó el invitado estás dispuesto a devolver en premio. El sistema calcula solo cuánto tiene que haber gastado antes de entregarlo; si cambiás el premio por uno más caro, el mínimo sube solo.
+            </p>
+            {!rewardItem ? (
+              <p className="text-sm text-muted-foreground">Elegí un premio arriba para configurar el tope.</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="ref-reward-value" className={labelCls}>Valor del premio ($)</Label>
+                    <Input id="ref-reward-value" inputMode="numeric" value={toPesosInput(program.rewardValueCents)} onChange={(e) => setProgram({ ...program, rewardValueCents: e.target.value.trim() ? fromPesosInput(e.target.value) : null })} className={cn(inputCls, 'w-40')} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="ref-reward-pct" className={labelCls}>Tope (% de lo gastado)</Label>
+                    <Input id="ref-reward-pct" type="number" min={0} max={100} value={program.rewardMaxCostPct} onChange={(e) => setProgram({ ...program, rewardMaxCostPct: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} className={cn(inputCls, 'w-32')} />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  El valor es lo que te cuesta o lo que cobrás ese producto; si la tienda ya lo tenía cargado, lo tomamos de ahí. Un tope de entre 10 % y 20 % es habitual en gastronomía.
+                </p>
+                {program.rewardMaxCostPct <= 0 ? (
+                  <p className="flex items-start gap-2 rounded-xl border-2 border-amber-600/30 bg-amber-50 p-3 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                    <Info size={16} aria-hidden className="mt-0.5 shrink-0" /> Sin tope: el premio se entrega al completar los pasos, sin importar cuánto gastó el invitado.
+                  </p>
+                ) : !program.rewardValueCents ? (
+                  <p role="alert" className="rounded-xl border-2 border-red-600/30 bg-red-50 p-3 text-sm font-semibold text-red-900 dark:bg-red-950/30 dark:text-red-100">
+                    Cargá el valor del premio para poder calcular el gasto mínimo.
+                  </p>
+                ) : (
+                  <p className="rounded-xl border-2 border-emerald-600/30 bg-background p-3 text-sm">
+                    Para entregar <strong>«{rewardName}»</strong> ({pesosAR(program.rewardValueCents)}), cada invitado tiene que haber gastado al menos{' '}
+                    <strong className="text-emerald-700 dark:text-emerald-300">{pesosAR(needSpend)}</strong> en compras que cuentan. Así el premio es, como mucho, el {program.rewardMaxCostPct} % de lo que dejó.
+                  </p>
+                )}
+              </>
+            )}
           </div>
         </section>
 
@@ -272,7 +390,8 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-orange-50 p-4 text-sm text-orange-950 dark:bg-orange-950/30 dark:text-orange-100">
           <p>
-            Por cada amigo que complete todo, el socio gana <strong>{totalPoints} puntos</strong>{rewardName ? <> y <strong>{rewardName}</strong></> : null}.
+            Por cada amigo que complete todo, el socio gana <strong>{totalPoints} puntos</strong>{rewardName ? <> y <strong>{rewardName}</strong>{needSpend > 0 && <> cuando el amigo haya gastado {pesosAR(needSpend)}</>}</> : null}.
+            {program.minOrderCents > 0 && <> Cada pedido cuenta desde {pesosAR(program.minOrderCents)}.</>}
           </p>
           <Button onClick={save} disabled={saving} className="rounded-xl">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Save className="mr-2 h-4 w-4" aria-hidden />} Guardar
@@ -288,6 +407,15 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
             <Stat label="Completaron todo" value={data.totals.completed} />
             <Stat label="Premios entregados" value={data.totals.rewardsGranted} />
           </div>
+          {data.totals.referrals > 0 && (
+            <p className="rounded-2xl border-2 border-border/50 p-4 text-sm">
+              Los invitados ya compraron <strong>{pesosAR(data.totals.invitedSpendCents)}</strong> en pedidos que cuentan
+              {program.rewardValueCents && data.totals.rewardsGranted > 0 ? (
+                <> y los premios entregados valen <strong>{pesosAR(program.rewardValueCents * data.totals.rewardsGranted)}</strong></>
+              ) : null}
+              .
+            </p>
+          )}
 
           {data.ranking.length > 0 && (
             <div className="space-y-2">

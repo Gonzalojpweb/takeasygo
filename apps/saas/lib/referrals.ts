@@ -12,6 +12,13 @@
 //                          de `secondOrderWindowDays` desde el primero.
 // Al completar TODOS los pasos activos, el que invita recibe el premio: un
 // artículo de la tienda del club, como canje sin costo con código.
+//
+// Protección del margen (decisión 2026-10-23):
+//   · Un pedido cumple un paso solo si sus productos (con descuentos, sin
+//     envío) llegan al monto mínimo (general o del paso). Un café no alcanza.
+//   · El premio llega recién cuando el invitado gastó lo suficiente para que
+//     el valor del premio no supere `rewardMaxCostPct` % de ese gasto.
+//     Ej.: premio de $9.000 al 15 % → $60.000 de gasto del invitado.
 // El invitado recibe los puntos de bienvenida que el club ya tiene.
 //
 // Cómo se calcula (mismo criterio que las comisiones): el avance NO se
@@ -37,7 +44,7 @@ import LoyaltyMember from '@/models/LoyaltyMember'
 import Order from '@/models/Order'
 import Referral, { type IReferral } from '@/models/Referral'
 import ReferralEvent, { type ReferralEventStatus } from '@/models/ReferralEvent'
-import ReferralProgram, { REFERRAL_TASKS, type ReferralTask } from '@/models/ReferralProgram'
+import ReferralProgram, { REFERRAL_TASKS, type ReferralOrderTask, type ReferralTask } from '@/models/ReferralProgram'
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import { referralCookieName } from '@/lib/referrals-ui'
@@ -71,6 +78,13 @@ export interface ProgramConfig {
   enabled: boolean
   tasks: Record<ReferralTask, { enabled: boolean; points: number }>
   rewardStoreItemId: string | null
+  /** @storedAs cents */
+  rewardValueCents: number | null
+  rewardMaxCostPct: number
+  /** @storedAs cents */
+  minOrderCents: number
+  /** @storedAs cents */
+  minOrderByTask: Partial<Record<ReferralOrderTask, number | null>>
   rewardValidityDays: number
   secondOrderWindowDays: number
   monthlyInviteLimit: number
@@ -87,6 +101,10 @@ export const DEFAULT_PROGRAM: ProgramConfig = {
     second_order: { enabled: true, points: 150 },
   },
   rewardStoreItemId: null,
+  rewardValueCents: null,
+  rewardMaxCostPct: 15,
+  minOrderCents: 0,
+  minOrderByTask: {},
   rewardValidityDays: 30,
   secondOrderWindowDays: 30,
   monthlyInviteLimit: 20,
@@ -98,6 +116,10 @@ interface ProgramDoc {
   enabled?: boolean
   tasks?: Partial<Record<ReferralTask, { enabled?: boolean; points?: number }>>
   rewardStoreItemId?: Types.ObjectId | null
+  rewardValueCents?: number | null
+  rewardMaxCostPct?: number
+  minOrderCents?: number
+  minOrderByTask?: Partial<Record<ReferralOrderTask, number | null>> | null
   rewardValidityDays?: number
   secondOrderWindowDays?: number
   monthlyInviteLimit?: number
@@ -106,7 +128,7 @@ interface ProgramDoc {
 }
 
 export function programFromDoc(doc: ProgramDoc | null): ProgramConfig {
-  if (!doc) return { ...DEFAULT_PROGRAM, tasks: { ...DEFAULT_PROGRAM.tasks } }
+  if (!doc) return { ...DEFAULT_PROGRAM, tasks: { ...DEFAULT_PROGRAM.tasks }, minOrderByTask: {} }
   const tasks = {} as ProgramConfig['tasks']
   for (const t of REFERRAL_TASKS) {
     tasks[t] = {
@@ -118,12 +140,36 @@ export function programFromDoc(doc: ProgramDoc | null): ProgramConfig {
     enabled: doc.enabled ?? false,
     tasks,
     rewardStoreItemId: doc.rewardStoreItemId ? String(doc.rewardStoreItemId) : null,
+    rewardValueCents: doc.rewardValueCents ?? null,
+    rewardMaxCostPct: doc.rewardMaxCostPct ?? DEFAULT_PROGRAM.rewardMaxCostPct,
+    minOrderCents: doc.minOrderCents ?? 0,
+    minOrderByTask: {
+      first_online_order: doc.minOrderByTask?.first_online_order ?? null,
+      visit: doc.minOrderByTask?.visit ?? null,
+      second_order: doc.minOrderByTask?.second_order ?? null,
+    },
     rewardValidityDays: doc.rewardValidityDays ?? DEFAULT_PROGRAM.rewardValidityDays,
     secondOrderWindowDays: doc.secondOrderWindowDays ?? DEFAULT_PROGRAM.secondOrderWindowDays,
     monthlyInviteLimit: doc.monthlyInviteLimit ?? DEFAULT_PROGRAM.monthlyInviteLimit,
     startsAt: doc.startsAt ?? null,
     endsAt: doc.endsAt ?? null,
   }
+}
+
+/** Monto mínimo de productos para que un pedido cumpla este paso. @storedAs cents */
+export function minOrderFor(p: Pick<ProgramConfig, 'minOrderCents' | 'minOrderByTask'>, task: ReferralTask): number {
+  if (task === 'registered') return p.minOrderCents
+  return p.minOrderByTask[task] ?? p.minOrderCents
+}
+
+/**
+ * Cuánto tiene que haber gastado el invitado para que el premio no supere
+ * el tope de costo. 0 = sin requisito (sin premio, sin valor o sin tope).
+ * @storedAs cents
+ */
+export function requiredSpendCents(p: Pick<ProgramConfig, 'rewardStoreItemId' | 'rewardValueCents' | 'rewardMaxCostPct'>): number {
+  if (!p.rewardStoreItemId || !p.rewardValueCents || p.rewardMaxCostPct <= 0) return 0
+  return Math.ceil((p.rewardValueCents * 100) / p.rewardMaxCostPct)
 }
 
 export async function loadProgram(tenantId: Id): Promise<ProgramConfig> {
@@ -342,6 +388,13 @@ export interface QualifyingOrder {
   _id: Types.ObjectId
   orderMode: string
   createdAt: Date
+  /** Productos del pedido con descuentos, sin envío. @storedAs cents */
+  amountCents: number
+}
+
+export interface TargetRules {
+  secondOrderWindowDays: number
+  minFor: (task: ReferralTask) => number
 }
 
 export type TaskTargets = Record<ReferralTask, { met: boolean; orderId: Types.ObjectId | null }>
@@ -350,18 +403,30 @@ export type TaskTargets = Record<ReferralTask, { met: boolean; orderId: Types.Ob
  * Qué pasos se cumplen con estos pedidos (entregados, ordenados por fecha).
  * Pura: la usan la sincronización y los tests.
  */
-export function computeTargets(orders: QualifyingOrder[], secondOrderWindowDays: number): TaskTargets {
-  const first = orders[0] ?? null
-  const online = orders.find((o) => o.orderMode === 'delivery' || o.orderMode === 'takeaway') ?? null
-  const visit = orders.find((o) => o.orderMode === 'dine-in') ?? null
-  const second = orders[1] ?? null
-  const secondInWindow = !!first && !!second && second.createdAt.getTime() - first.createdAt.getTime() <= secondOrderWindowDays * DAY_MS
+export function computeTargets(orders: QualifyingOrder[], rules: TargetRules): TaskTargets {
+  // Solo cuentan los pedidos que llegan al mínimo de cada paso.
+  const reaching = (task: ReferralTask) => orders.filter((o) => o.amountCents >= rules.minFor(task))
+  const first = reaching('registered')[0] ?? null
+  const online = reaching('first_online_order').find((o) => o.orderMode === 'delivery' || o.orderMode === 'takeaway') ?? null
+  const visit = reaching('visit').find((o) => o.orderMode === 'dine-in') ?? null
+  const forSecond = reaching('second_order')
+  const [a, second] = [forSecond[0] ?? null, forSecond[1] ?? null]
+  const secondInWindow = !!a && !!second && second.createdAt.getTime() - a.createdAt.getTime() <= rules.secondOrderWindowDays * DAY_MS
   return {
     registered: { met: !!first, orderId: first?._id ?? null },
     first_online_order: { met: !!online, orderId: online?._id ?? null },
     visit: { met: !!visit, orderId: visit?._id ?? null },
     second_order: { met: secondInWindow, orderId: secondInWindow ? second!._id : null },
   }
+}
+
+/** Lo que gastó el invitado en pedidos que llegan al mínimo general. @storedAs cents */
+export function inviteeSpend(orders: QualifyingOrder[], minOrderCents: number): number {
+  return orders.filter((o) => o.amountCents >= minOrderCents).reduce((s, o) => s + o.amountCents, 0)
+}
+
+export function targetRules(p: ProgramConfig): TargetRules {
+  return { secondOrderWindowDays: p.secondOrderWindowDays, minFor: (t) => minOrderFor(p, t) }
 }
 
 async function loadQualifyingOrders(referral: Pick<IReferral, 'tenantId' | 'inviteePhoneHash' | 'joinedAt'>): Promise<QualifyingOrder[]> {
@@ -373,10 +438,13 @@ async function loadQualifyingOrders(referral: Pick<IReferral, 'tenantId' | 'invi
     'payment.status': { $nin: ['rejected', 'cancelled'] },
     createdAt: { $gte: new Date(referral.joinedAt.getTime() - JOIN_GRACE_MS) },
   })
-    .select('_id orderMode createdAt')
+    .select('_id orderMode createdAt subtotal discountAmount')
     .sort({ createdAt: 1, _id: 1 })
-    .limit(20)
-    .lean<QualifyingOrder[]>()
+    .limit(50)
+    .lean<Array<{ _id: Types.ObjectId; orderMode: string; createdAt: Date; subtotal?: number; discountAmount?: number }>>()
+    .then((rows) =>
+      rows.map((o) => ({ _id: o._id, orderMode: o.orderMode, createdAt: o.createdAt, amountCents: Math.max(0, (o.subtotal ?? 0) - (o.discountAmount ?? 0)) })),
+    )
 }
 
 async function applyPoints(memberId: Types.ObjectId, delta: number) {
@@ -417,8 +485,13 @@ export interface SyncSummary {
   referralId: string
   credited: ReferralTask[]
   reverted: ReferralTask[]
+  /** Pasos activos completos (el premio además pide el gasto mínimo). */
   completed: boolean
-  reward: 'granted' | 'revoked' | 'unchanged' | 'no_reward_configured' | 'reward_unavailable'
+  /** @storedAs cents */
+  spentCents: number
+  /** @storedAs cents */
+  requiredSpendCents: number
+  reward: 'granted' | 'revoked' | 'unchanged' | 'no_reward_configured' | 'reward_unavailable' | 'waiting_spend'
 }
 
 /**
@@ -434,9 +507,11 @@ export async function syncReferral(referralId: Id, opts: { now?: Date } = {}): P
     loadQualifyingOrders(referral),
     ReferralEvent.find({ referralId: referral._id }).lean<Array<{ _id: Types.ObjectId; task: ReferralTask; status: ReferralEventStatus }>>(),
   ])
-  const targets = computeTargets(orders, program.secondOrderWindowDays)
+  const targets = computeTargets(orders, targetRules(program))
+  const spentCents = inviteeSpend(orders, program.minOrderCents)
+  const needSpend = requiredSpendCents(program)
   const byTask = new Map(events.map((e) => [e.task, e]))
-  const summary: SyncSummary = { referralId: String(referral._id), credited: [], reverted: [], completed: false, reward: 'unchanged' }
+  const summary: SyncSummary = { referralId: String(referral._id), credited: [], reverted: [], completed: false, spentCents, requiredSpendCents: needSpend, reward: 'unchanged' }
   let creditedPoints = 0
   let revertedPoints = 0
   const credit = async (task: ReferralTask, eventId: Types.ObjectId, orderId: Types.ObjectId | null) => {
@@ -488,18 +563,21 @@ export async function syncReferral(referralId: Id, opts: { now?: Date } = {}): P
   const completed = required.length > 0 && required.every((t) => creditedTasks.has(t))
   summary.completed = completed
 
-  if (completed) {
+  // El premio pide los pasos completos Y el gasto mínimo (tope de costo).
+  const eligible = completed && spentCents >= needSpend
+  if (eligible) {
     summary.reward = await grantReward(referral, program, now)
     if (referral.status !== 'completed') {
       await Referral.updateOne({ _id: referral._id, status: 'active' }, { $set: { status: 'completed', completedAt: now } })
     }
   } else {
     if (referral.reward?.state === 'granted') summary.reward = await revokeReward(referral, now)
+    else if (completed) summary.reward = 'waiting_spend'
     if (referral.status === 'completed') {
       await Referral.updateOne({ _id: referral._id }, { $set: { status: 'active', completedAt: null } })
     }
   }
-  await Referral.updateOne({ _id: referral._id }, { $set: { lastSyncedAt: now } })
+  await Referral.updateOne({ _id: referral._id }, { $set: { lastSyncedAt: now, spentCents } })
 
   // Avisos al que invita (solo lo que cambió en esta sincronización).
   if (summary.credited.length || summary.reverted.length || summary.reward === 'granted') {
@@ -654,6 +732,8 @@ export interface InviteeView {
   pointsEarned: number
   completed: boolean
   rewardState: IReferral['reward']['state']
+  /** @storedAs cents */
+  spentCents: number
 }
 
 async function inviteeViews(referrals: IReferral[]): Promise<InviteeView[]> {
@@ -676,6 +756,7 @@ async function inviteeViews(referrals: IReferral[]): Promise<InviteeView[]> {
       pointsEarned: mine.filter((e) => e.status === 'credited').reduce((s, e) => s + e.points, 0),
       completed: r.status === 'completed',
       rewardState: r.reward?.state ?? 'none',
+      spentCents: r.spentCents ?? 0,
     }
   })
 }
@@ -705,6 +786,9 @@ export async function loadMemberReferralView(tenantId: Id, memberId: Id) {
       tasks: activeTasks(program).map((t) => ({ task: t, label: REFERRAL_TASK_LABEL[t], points: program.tasks[t].points })),
       reward: program.rewardStoreItemId ? { name: itemName.get(program.rewardStoreItemId) ?? 'Premio del club' } : null,
       secondOrderWindowDays: program.secondOrderWindowDays,
+      minOrderCents: program.minOrderCents,
+      minOrderByTask: program.minOrderByTask,
+      requiredSpendCents: requiredSpendCents(program),
       rewardValidityDays: program.rewardValidityDays,
       monthlyInviteLimit: program.monthlyInviteLimit,
       startsAt: program.startsAt?.toISOString() ?? null,
@@ -724,6 +808,20 @@ export async function loadMemberReferralView(tenantId: Id, memberId: Id) {
       name: itemName.get(String(r.storeItemId)) ?? 'Premio del club',
     })),
   }
+}
+
+/**
+ * Ticket promedio de productos (con descuentos, sin envío) de los pedidos
+ * entregados de los últimos `days` días: el admin lo usa de referencia para
+ * el monto mínimo. null si no hay pedidos. @storedAs cents
+ */
+export async function averageTicketCents(tenantId: Id, days = 90): Promise<number | null> {
+  const [row] = await Order.aggregate<{ avg: number; n: number }>([
+    { $match: { tenantId: oid(tenantId), deletedAt: null, status: 'delivered', createdAt: { $gte: new Date(Date.now() - days * DAY_MS) } } },
+    { $project: { amount: { $max: [0, { $subtract: [{ $ifNull: ['$subtotal', 0] }, { $ifNull: ['$discountAmount', 0] }] }] } } },
+    { $group: { _id: null, avg: { $avg: '$amount' }, n: { $sum: 1 } } },
+  ])
+  return row && row.n > 0 ? Math.round(row.avg) : null
 }
 
 /** Panel del admin: ranking de los que más invitan y últimos referidos. */
@@ -752,6 +850,8 @@ export async function loadAdminReferralOverview(tenantId: Id) {
       withPurchase: invitees.filter((i) => i.steps.first_online_order === 'credited' || i.steps.visit === 'credited').length,
       rewardsGranted: referrals.filter((r) => r.reward?.state === 'granted').length,
       pointsCredited: invitees.reduce((s, i) => s + i.pointsEarned, 0),
+      /** Lo que compraron los invitados (pedidos que cuentan). @storedAs cents */
+      invitedSpendCents: referrals.reduce((s, r) => s + (r.spentCents ?? 0), 0),
     },
     ranking: [...ranking.entries()].map(([memberId, v]) => ({ memberId, ...v })).sort((a, b) => b.completed - a.completed || b.invited - a.invited).slice(0, 20),
     recent: referrals.slice(0, 50).map((r, i) => ({ ...invitees[i], referrerName: referrerName.get(String(r.referrerMemberId)) ?? 'Miembro' })),
