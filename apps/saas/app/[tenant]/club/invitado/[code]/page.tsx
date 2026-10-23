@@ -10,11 +10,11 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Gift, Loader2, PartyPopper, UserPlus } from 'lucide-react'
+import { Gift, Info, Loader2, PartyPopper, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { clubMembershipKey, clubTokenKey, rememberReferralCode } from '@/lib/referrals-ui'
+import { clubMembershipKey, clubTokenKey, inviteeRules, rememberReferralCode } from '@/lib/referrals-ui'
 
 interface InviteInfo {
   valid: boolean
@@ -144,6 +144,21 @@ export default function ReferralInvitePage({ params }: { params: Promise<{ tenan
                 </p>
               </div>
             )}
+
+            <section aria-labelledby="invitee-how" className="space-y-2 rounded-2xl border-2 border-border/60 bg-white/80 p-5">
+              <h2 id="invitee-how" className="flex items-center gap-2 text-base font-black text-gray-900">
+                <Info size={18} aria-hidden /> Cómo funciona para vos
+              </h2>
+              <ul className="list-disc space-y-1.5 pl-5 text-sm text-gray-700">
+                {inviteeRules({
+                  tenantName: state.info.tenantName ?? 'el comercio',
+                  referrerName: state.info.referrerName ?? 'Quien te invitó',
+                  welcomePoints: state.info.welcomePoints ?? 0,
+                }).map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </section>
 
             <form onSubmit={join} className="space-y-4 rounded-[2rem] border-2 border-border/60 bg-white p-6 shadow-xl">
               <h2 className="text-lg font-black text-gray-900">Sumate al club</h2>

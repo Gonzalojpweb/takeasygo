@@ -11,10 +11,17 @@ import { isValidOrderTransition, allowedOrderTransitions } from '@takeasygo/busi
 import { toPosOrder, type PosOrderStatusValue } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
+import Tenant from '@/models/Tenant'
+import { encrypt, hashPhone } from '@/lib/crypto'
+import { addPointsFromOrder } from '@/lib/loyalty'
+import { syncReferralsForOrder } from '@/lib/referrals'
+import { runAfterResponse } from '@/lib/after-response'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/orders/[id] — una orden por su posId
-// PATCH /api/[tenant]/pos/orders/[id] — transición de estado (o notas)
+// PATCH /api/[tenant]/pos/orders/[id] — transición de estado, notas o el
+//       celular del cliente (socio del club: suma puntos del club y, si lo
+//       invitó un socio, cuenta para el programa de referidos)
 // ============================================================================
 
 /** Estados que liberan la mesa (espejo de cancelOrder/deliverOrder del POS). */
@@ -74,9 +81,10 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
 
   const nextStatus = body.status
   const notes = body.notes
+  const customerPhone = body.customerPhone
 
-  if (nextStatus === undefined && notes === undefined) {
-    throw PosError.validation('Se esperaba status o notes')
+  if (nextStatus === undefined && notes === undefined && customerPhone === undefined) {
+    throw PosError.validation('Se esperaba status, notes o customerPhone')
   }
 
   const current = await findPosOrder(ctx, posId)
@@ -93,6 +101,23 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
     }
     update.notes = notes
     audit.notes = true
+  }
+
+  // Celular del cliente: se guarda cifrado + su hash (misma forma que los
+  // pedidos online). '' lo quita. El audit no guarda el número.
+  if (customerPhone !== undefined) {
+    if (typeof customerPhone !== 'string') throw PosError.validation('customerPhone inválido')
+    const digits = customerPhone.replace(/\D/g, '')
+    if (digits.length === 0) {
+      update['customer.phone'] = ''
+      update['customer.phoneHash'] = null
+    } else if (digits.length < 8 || digits.length > 15) {
+      throw PosError.validation('El celular del cliente no es válido')
+    } else {
+      update['customer.phone'] = encrypt(customerPhone.trim())
+      update['customer.phoneHash'] = hashPhone(customerPhone)
+    }
+    audit.customerPhone = digits.length > 0 ? 'set' : 'cleared'
   }
 
   if (nextStatus !== undefined) {
@@ -222,6 +247,24 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
       },
       { $set: { status: 'free', currentOrderId: null, needsBill: false } }
     )
+  }
+
+  // Club: con el celular del cliente, el pedido entregado suma los puntos del
+  // club y cuenta para el programa de referidos (visita al local). Una
+  // cancelación revierte el paso del referido. Después de responder.
+  const finalStatus = (updated as unknown as { status: string }).status
+  if (finalStatus === 'delivered' && (to === 'delivered' || customerPhone !== undefined)) {
+    runAfterResponse('club (pedido POS entregado)', async () => {
+      const [full, tenant] = await Promise.all([
+        Order.findOne({ tenantId: ctx.tenantId, locationId: ctx.locationId, posId }),
+        Tenant.findById(ctx.tenantId).select('_id loyalty pointsConfig').lean(),
+      ])
+      if (!full?.customer?.phoneHash || !tenant) return
+      await addPointsFromOrder(full, tenant)
+      await syncReferralsForOrder(full)
+    })
+  } else if (to === 'cancelled') {
+    runAfterResponse('referidos (pedido POS cancelado)', () => syncReferralsForOrder(updated as never))
   }
 
   await logAudit({

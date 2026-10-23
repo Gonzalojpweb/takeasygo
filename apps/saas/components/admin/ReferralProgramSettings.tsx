@@ -17,10 +17,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Gift, Loader2, Save, Trophy, UserPlus } from 'lucide-react'
+import { ChevronRight, Gift, Info, Loader2, Save, ShieldCheck, Trophy, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { STEP_STATE_LABEL, TASK_COPY, TASK_ORDER, type ReferralTaskKey, type StepState } from '@/lib/referrals-ui'
+import { ADMIN_AUTOMATIC_RULES, ADMIN_SETUP_STEPS, STEP_STATE_LABEL, TASK_COPY, TASK_ORDER, type ReferralTaskKey, type StepState } from '@/lib/referrals-ui'
 
 interface Program {
   enabled: boolean
@@ -127,6 +127,49 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
         </div>
       </CardHeader>
       <CardContent className="p-8 space-y-8">
+        {/* Cómo funciona */}
+        <section aria-labelledby="ref-how" className="space-y-4 rounded-2xl border-2 border-border/50 bg-muted/20 p-6">
+          <h3 id="ref-how" className="flex items-center gap-2 text-base font-bold"><Info size={18} aria-hidden /> Cómo funciona</h3>
+          <ol className="flex flex-wrap items-stretch gap-2 text-sm">
+            {[
+              { who: 'Socio', what: 'Comparte su link desde «Invitá y ganá» (menú → Socio del Club)' },
+              { who: 'Amigo', what: 'Se suma al club con el link y recibe los puntos de bienvenida' },
+              ...TASK_ORDER.filter((t) => t !== 'registered' && program.tasks[t].enabled).map((t) => ({ who: 'Amigo', what: TASK_COPY[t].title })),
+              { who: 'Socio', what: rewardName ? `Gana puntos en cada paso y, al final, «${rewardName}»` : 'Gana puntos en cada paso (y el premio, si elegís uno)' },
+            ].map((s, i, arr) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className="rounded-xl border border-border/60 bg-background px-3 py-2">
+                  <span className={cn('block text-[10px] font-black uppercase tracking-wider', s.who === 'Socio' ? 'text-orange-600' : 'text-teal-600')}>{s.who}</span>
+                  {s.what}
+                </span>
+                {i < arr.length - 1 && <ChevronRight size={16} aria-hidden className="text-muted-foreground" />}
+              </li>
+            ))}
+          </ol>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="space-y-2">
+              <p className="text-sm font-bold">Qué tenés que hacer vos</p>
+              <ol className="space-y-2">
+                {ADMIN_SETUP_STEPS.map((s, i) => (
+                  <li key={s.title} className="flex gap-3 text-sm">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-orange-100 text-xs font-black text-orange-700">{i + 1}</span>
+                    <span><strong>{s.title}.</strong> <span className="text-muted-foreground">{s.body}</span></span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="space-y-2">
+              <p className="flex items-center gap-2 text-sm font-bold"><ShieldCheck size={16} aria-hidden className="text-emerald-600" /> Reglas que el sistema aplica siempre</p>
+              <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
+                {ADMIN_AUTOMATIC_RULES.map((r) => <li key={r}>{r}</li>)}
+              </ul>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Costo para tu comercio: los puntos se canjean en tu tienda del club, y el premio llega recién cuando el amigo compró dos veces y fue al local. Si apagás el programa, los amigos que ya se sumaron siguen su recorrido; no se suman nuevos.
+          </p>
+        </section>
+
         {/* Activar */}
         <div className="flex items-center justify-between gap-4 p-6 rounded-2xl bg-muted/30 border border-border/40">
           <div>
@@ -151,7 +194,7 @@ export default function ReferralProgramSettings({ tenantSlug }: { tenantSlug: st
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{TASK_COPY[t].title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {t === 'second_order' ? `Segunda compra dentro de los ${program.secondOrderWindowDays} días desde la primera.` : t === 'visit' ? 'Primer pedido consumido en el local (QR de la mesa).' : TASK_COPY[t].detail}
+                    {t === 'second_order' ? `Segunda compra dentro de los ${program.secondOrderWindowDays} días desde la primera.` : t === 'visit' ? 'Primer pedido en el local: desde el QR de la mesa o cobrado en el POS con su celular.' : TASK_COPY[t].detail}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

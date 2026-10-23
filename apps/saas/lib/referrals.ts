@@ -41,6 +41,8 @@ import ReferralProgram, { REFERRAL_TASKS, type ReferralTask } from '@/models/Ref
 import StoreItem from '@/models/StoreItem'
 import StoreRedemption from '@/models/StoreRedemption'
 import { referralCookieName } from '@/lib/referrals-ui'
+import { notifyReferrer, type ReferralNotice } from '@/lib/referral-notifications'
+import { runAfterResponse } from '@/lib/after-response'
 
 type Id = Types.ObjectId | string
 const oid = (id: Id) => (typeof id === 'string' ? new mongoose.Types.ObjectId(id) : id)
@@ -211,6 +213,7 @@ export type AttachResult =
 
 interface MemberLike {
   _id: Types.ObjectId
+  name?: string | null
   phoneHash?: string | null
   userId?: Types.ObjectId | null
   email?: string | null
@@ -305,6 +308,8 @@ export async function attachReferral(args: {
       if ((err as { code?: number }).code !== 11000) throw err
     })
   }
+  const pendingPoints = program.tasks.registered.enabled ? program.tasks.registered.points : 0
+  queueNotice(tenantId, referrer._id, { kind: 'joined', inviteeName: displayName(invitee.name), pendingPoints })
   return { attached: true, referralId: String(referral._id) }
 }
 
@@ -321,7 +326,7 @@ export async function attachReferralFromRequest(
     const code = referralCodeFromRequest(request, args.tenantSlug, args.bodyCode)
     if (!code) return { attached: false, reason: 'no_code' }
     const invitee = await LoyaltyMember.findOne({ _id: oid(args.inviteeMemberId), tenantId: oid(args.tenantId) })
-      .select('_id phoneHash userId email deviceFingerprints joinedAt')
+      .select('_id name phoneHash userId email deviceFingerprints joinedAt')
       .lean<MemberLike | null>()
     if (!invitee) return null
     return await attachReferral({ tenantId: args.tenantId, invitee, code, deviceId: requestDeviceId(request) })
@@ -379,28 +384,33 @@ async function applyPoints(memberId: Types.ObjectId, delta: number) {
   await LoyaltyMember.updateOne({ _id: memberId }, { $inc: { 'loyalty.points': delta } })
 }
 
-/** pending|reverted → credited. Devuelve true si esta llamada ganó la transición. */
-async function creditEvent(eventId: Types.ObjectId, orderId: Types.ObjectId | null, now: Date) {
+/** Aviso push al que invita, después de responder (nunca corta el flujo). */
+function queueNotice(tenantId: Types.ObjectId, memberId: Types.ObjectId, notice: ReferralNotice) {
+  runAfterResponse(`aviso referidos (${notice.kind})`, () => notifyReferrer(tenantId, memberId, notice))
+}
+
+/** pending|reverted → credited. Devuelve los puntos sumados, o null si otra llamada ganó la transición. */
+async function creditEvent(eventId: Types.ObjectId, orderId: Types.ObjectId | null, now: Date): Promise<number | null> {
   const flipped = await ReferralEvent.findOneAndUpdate(
     { _id: eventId, status: { $in: ['pending', 'reverted'] } },
     { $set: { status: 'credited', orderId, creditedAt: now, revertedAt: null } },
     { returnDocument: 'after' },
   ).lean<{ points: number; referrerMemberId: Types.ObjectId } | null>()
-  if (!flipped) return false
+  if (!flipped) return null
   await applyPoints(flipped.referrerMemberId, flipped.points)
-  return true
+  return flipped.points
 }
 
-/** credited → reverted (o pending, en el registro). Resta los puntos una sola vez. */
-async function revertEvent(eventId: Types.ObjectId, to: Extract<ReferralEventStatus, 'pending' | 'reverted'>, now: Date) {
+/** credited → reverted (o pending, en el registro). Resta los puntos una sola vez; devuelve cuántos (null si no ganó). */
+async function revertEvent(eventId: Types.ObjectId, to: Extract<ReferralEventStatus, 'pending' | 'reverted'>, now: Date): Promise<number | null> {
   const flipped = await ReferralEvent.findOneAndUpdate(
     { _id: eventId, status: 'credited' },
     { $set: { status: to, revertedAt: now, ...(to === 'pending' ? { orderId: null } : {}) } },
     { returnDocument: 'after' },
   ).lean<{ points: number; referrerMemberId: Types.ObjectId } | null>()
-  if (!flipped) return false
+  if (!flipped) return null
   await applyPoints(flipped.referrerMemberId, -flipped.points)
-  return true
+  return flipped.points
 }
 
 export interface SyncSummary {
@@ -427,6 +437,14 @@ export async function syncReferral(referralId: Id, opts: { now?: Date } = {}): P
   const targets = computeTargets(orders, program.secondOrderWindowDays)
   const byTask = new Map(events.map((e) => [e.task, e]))
   const summary: SyncSummary = { referralId: String(referral._id), credited: [], reverted: [], completed: false, reward: 'unchanged' }
+  let creditedPoints = 0
+  let revertedPoints = 0
+  const credit = async (task: ReferralTask, eventId: Types.ObjectId, orderId: Types.ObjectId | null) => {
+    const pts = await creditEvent(eventId, orderId, now)
+    if (pts === null) return // otra sincronización ganó esta transición
+    summary.credited.push(task)
+    creditedPoints += pts
+  }
 
   for (const task of REFERRAL_TASKS) {
     const existing = byTask.get(task)
@@ -445,17 +463,21 @@ export async function syncReferral(referralId: Id, opts: { now?: Date } = {}): P
             points: program.tasks[task].points,
             status: 'pending',
           })
-          if (await creditEvent(created._id, target.orderId, now)) summary.credited.push(task)
+          await credit(task, created._id, target.orderId)
         } catch (err) {
           if ((err as { code?: number }).code !== 11000) throw err
           // Otra sincronización lo creó en paralelo: que acredite ella.
         }
       } else if (existing.status !== 'credited') {
-        if (await creditEvent(existing._id, target.orderId, now)) summary.credited.push(task)
+        await credit(task, existing._id, target.orderId)
       }
     } else if (existing?.status === 'credited') {
       // El registro vuelve a "pendiente" (si compra de nuevo, se acredita otra vez).
-      if (await revertEvent(existing._id, task === 'registered' ? 'pending' : 'reverted', now)) summary.reverted.push(task)
+      const pts = await revertEvent(existing._id, task === 'registered' ? 'pending' : 'reverted', now)
+      if (pts !== null) {
+        summary.reverted.push(task)
+        revertedPoints += pts
+      }
     }
   }
 
@@ -478,6 +500,23 @@ export async function syncReferral(referralId: Id, opts: { now?: Date } = {}): P
     }
   }
   await Referral.updateOne({ _id: referral._id }, { $set: { lastSyncedAt: now } })
+
+  // Avisos al que invita (solo lo que cambió en esta sincronización).
+  if (summary.credited.length || summary.reverted.length || summary.reward === 'granted') {
+    const invitee = await LoyaltyMember.findById(referral.inviteeMemberId).select('name').lean<{ name?: string } | null>()
+    const inviteeName = displayName(invitee?.name)
+    const steps = (ts: ReferralTask[]) => ts.map((t) => REFERRAL_TASK_LABEL[t].toLowerCase())
+    if (summary.credited.length && creditedPoints > 0) {
+      queueNotice(referral.tenantId, referral.referrerMemberId, { kind: 'credited', inviteeName, points: creditedPoints, steps: steps(summary.credited) })
+    }
+    if (summary.reverted.length && revertedPoints > 0) {
+      queueNotice(referral.tenantId, referral.referrerMemberId, { kind: 'reverted', inviteeName, points: revertedPoints, steps: steps(summary.reverted) })
+    }
+    if (summary.reward === 'granted' && program.rewardStoreItemId) {
+      const item = await StoreItem.findById(oid(program.rewardStoreItemId)).select('name').lean<{ name?: string } | null>()
+      queueNotice(referral.tenantId, referral.referrerMemberId, { kind: 'reward', inviteeName, rewardName: item?.name ?? 'tu premio' })
+    }
+  }
   return summary
 }
 
@@ -666,6 +705,9 @@ export async function loadMemberReferralView(tenantId: Id, memberId: Id) {
       tasks: activeTasks(program).map((t) => ({ task: t, label: REFERRAL_TASK_LABEL[t], points: program.tasks[t].points })),
       reward: program.rewardStoreItemId ? { name: itemName.get(program.rewardStoreItemId) ?? 'Premio del club' } : null,
       secondOrderWindowDays: program.secondOrderWindowDays,
+      rewardValidityDays: program.rewardValidityDays,
+      monthlyInviteLimit: program.monthlyInviteLimit,
+      startsAt: program.startsAt?.toISOString() ?? null,
       endsAt: program.endsAt?.toISOString() ?? null,
     },
     stats: {

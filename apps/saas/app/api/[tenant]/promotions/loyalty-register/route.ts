@@ -94,6 +94,18 @@ export async function POST(
     })
 
     if (existing) {
+      // Seguridad: el celular solo no alcanza para recuperar la sesión de un
+      // socio (cualquiera que lo sepa se la llevaría). Tiene que coincidir
+      // también el email con el que se sumó. Mismo criterio que
+      // /referrals/identify.
+      const sameEmail = String(existing.email || '').toLowerCase().trim() === String(email || '').toLowerCase().trim()
+      if (!sameEmail) {
+        return NextResponse.json(
+          { error: 'Ese celular ya es socio del club con otro email. Ingresá el email con el que te sumaste.', code: 'MEMBER_EMAIL_MISMATCH' },
+          { status: 409 }
+        )
+      }
+
       // Member existe: aggiornar deviceFingerprints con FIFO (máx 3)
       const current = (existing as any).deviceFingerprints || []
       if (!current.includes(deviceId)) {

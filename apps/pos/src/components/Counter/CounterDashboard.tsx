@@ -21,7 +21,7 @@ import { useNow } from "../../hooks/useNow"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone } from "../../services/order"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { PosApiError } from "../../services/pos-api"
@@ -105,6 +105,8 @@ export function CounterDashboard() {
   // de la orden ANTES del primer intento para que un reintento no la duplique.
   const [paying, setPaying] = useState(false)
   const [sendToKitchen, setSendToKitchen] = useState(true)
+  /** Celular del cliente para el club (opcional, se pide al cobrar). */
+  const [clubPhone, setClubPhone] = useState("")
   const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean } | null>(null)
   const pendingOrderIdRef = useRef<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
@@ -781,9 +783,21 @@ export function CounterDashboard() {
       }
 
       const label = selectedTable ? `M${selectedTable.number}` : "mostrador"
+      let clubPhoneFailed = false
       for (const order of toCharge) {
         const allocated = allocation.get(order.id) ?? []
         await recordPayments(tenantId, order.id, allocated)
+
+        // Club: el celular viaja ANTES de entregar, así el pedido entregado
+        // suma los puntos del cliente. Si falla, el cobro sigue: es un extra.
+        if (clubPhone.replace(/\D/g, "").length >= 8) {
+          try {
+            await setOrderCustomerPhone(tenantId, order.id, clubPhone)
+          } catch (err) {
+            console.warn("[Counter] No se pudo guardar el celular del club:", err)
+            clubPhoneFailed = true
+          }
+        }
 
         // Registro en caja por parte: relatedOrderId lleva `#n` cuando la
         // orden tiene varias partes (el índice único del server es por
@@ -819,6 +833,8 @@ export function CounterDashboard() {
       }
 
       setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen })
+      if (clubPhoneFailed) showErrorToast("El cobro quedó registrado, pero no se pudo guardar el celular del club.")
+      setClubPhone("")
       pendingOrderIdRef.current = null
       setCart([])
       setScene("cierre")
@@ -828,7 +844,7 @@ export function CounterDashboard() {
     } finally {
       setPaying(false)
     }
-  }, [tenantId, paying, view, sendToKitchen, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast])
+  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)
@@ -838,6 +854,7 @@ export function CounterDashboard() {
     setSelectedCategory(null)
     setLastSale(null)
     setSendToKitchen(true)
+    setClubPhone("")
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -1603,7 +1620,13 @@ export function CounterDashboard() {
               </div>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
                 {/* key: si el total cambia (ronda nueva por polling) el cobro arranca de cero */}
-                <CheckoutPanel key={chargeTotal} total={chargeTotal} busy={paying} onConfirm={handlePay} />
+                <CheckoutPanel
+                  key={chargeTotal}
+                  total={chargeTotal}
+                  busy={paying}
+                  onConfirm={handlePay}
+                  clubPhone={{ value: clubPhone, onChange: setClubPhone }}
+                />
               </div>
             </div>
           )}
@@ -1711,6 +1734,7 @@ export function CounterDashboard() {
                   busy={paying}
                   onConfirm={handlePay}
                   sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
+                  clubPhone={{ value: clubPhone, onChange: setClubPhone }}
                 />
               </div>
             </div>

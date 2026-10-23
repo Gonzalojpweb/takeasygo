@@ -193,6 +193,25 @@ export async function recordPayments(
 }
 
 /**
+ * Celular del cliente en la orden (socio del club). El server lo guarda
+ * cifrado: al entregarse, el pedido suma los puntos del club y cuenta para
+ * el programa de referidos (visita al local). '' lo quita.
+ */
+export async function setOrderCustomerPhone(
+  tenantId: string,
+  orderId: string,
+  phone: string
+): Promise<Order> {
+  return runMutation(async () =>
+    saveOrder(
+      await patchOrder(tenantId, `/orders/${encodeURIComponent(orderId)}`, {
+        customerPhone: phone,
+      })
+    )
+  )
+}
+
+/**
  * Lleva una orden cobrada hasta `delivered` recorriendo el grafo legal
  * (confirmed → preparing → ready → delivered). Se usa al cerrar una mesa o
  * una venta de entrega inmediata: la orden ya se sirvió. Idempotente: si ya

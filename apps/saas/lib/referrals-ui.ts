@@ -14,7 +14,7 @@ export const TASK_ORDER: ReferralTaskKey[] = ['registered', 'first_online_order'
 export const TASK_COPY: Record<ReferralTaskKey, { title: string; short: string; detail: string }> = {
   registered: { title: 'Se suma al club con tu link', short: 'Se sumó', detail: 'Los puntos se acreditan cuando hace su primera compra.' },
   first_online_order: { title: 'Hace su primera compra online', short: 'Compra online', detail: 'Un pedido delivery o take away entregado.' },
-  visit: { title: 'Va al local', short: 'Fue al local', detail: 'Pide en el local desde el QR de la mesa.' },
+  visit: { title: 'Va al local', short: 'Fue al local', detail: 'Pide en el local desde el QR de la mesa o da su celular al pagar en la caja.' },
   second_order: { title: 'Vuelve a comprar', short: 'Volvió', detail: 'Una segunda compra dentro del plazo.' },
 }
 
@@ -49,6 +49,93 @@ export function shareMessage(clubName: string, link: string): string {
 export function whatsappShareUrl(text: string): string {
   return `https://wa.me/?text=${encodeURIComponent(text)}`
 }
+
+// ── Reglas y condiciones (fuente única de los textos) ─────────────────────
+// Las mismas reglas se explican al socio, al invitado y al admin, cada uno
+// desde su lado. Si cambia una regla en lib/referrals.ts, se cambia acá.
+
+export interface RulesInput {
+  tenantName: string
+  activeTasks: ReferralTaskKey[]
+  secondOrderWindowDays: number
+  rewardValidityDays: number
+  monthlyInviteLimit: number
+  rewardName: string | null
+  endsAt: string | null
+}
+
+const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' })
+
+/** Cómo funciona, para el socio que invita (3 pasos). */
+export const MEMBER_HOW_IT_WORKS = [
+  { title: 'Compartí tu link', body: 'Mandalo por WhatsApp o redes. Es personal: así sabemos que tu amigo viene de tu parte.' },
+  { title: 'Tu amigo se suma y compra', body: 'Se suma gratis al club con tu link y empieza a pedir. Él también suma sus propios puntos.' },
+  { title: 'Vos ganás en cada paso', body: 'Sumás puntos cada vez que tu amigo avanza y, al completar todo, te ganás el premio.' },
+]
+
+/** Reglas y condiciones que lee el socio que invita. */
+export function memberRules(r: RulesInput): Array<{ title: string; body: string }> {
+  const rules: Array<{ title: string; body: string }> = [
+    { title: 'Solo amigos nuevos', body: `Cuentan personas que nunca compraron en ${r.tenantName} ni eran socias del club.` },
+    { title: 'Con tu link', body: 'Tu amigo tiene que sumarse con tu link. Si lo abre y se suma más tarde desde el mismo celular (hasta 30 días), también cuenta.' },
+    { title: 'Mismo celular', body: 'Tu amigo tiene que pedir con el celular con el que se sumó: así reconocemos sus compras.' },
+    { title: 'Un paso cuenta cuando el pedido se entrega', body: 'Los puntos se suman cuando el pedido de tu amigo se entrega. Si después se cancela, se descuentan los puntos de ese paso.' },
+  ]
+  if (r.activeTasks.includes('registered')) {
+    rules.push({ title: 'Puntos del registro', body: 'Quedan «pendientes» hasta que tu amigo hace su primera compra. Si nunca compra, no se acreditan.' })
+  }
+  if (r.activeTasks.includes('visit')) {
+    rules.push({ title: 'Visita al local', body: 'Cuenta cuando tu amigo pide en el local desde el QR de la mesa, o cuando da su celular al pagar en la caja.' })
+  }
+  if (r.activeTasks.includes('second_order')) {
+    rules.push({ title: 'Volver a comprar', body: `La segunda compra tiene que ser dentro de los ${r.secondOrderWindowDays} días de la primera.` })
+  }
+  if (r.rewardName) {
+    rules.push({
+      title: 'El premio',
+      body: `«${r.rewardName}» se desbloquea cuando tu amigo completa todos los pasos. Lo usás en el local mostrando el código; vence a los ${r.rewardValidityDays} días. Si antes de usarlo se cancela un pedido que lo había desbloqueado, el premio se cancela.`,
+    })
+  }
+  if (r.monthlyInviteLimit > 0) rules.push({ title: 'Límite', body: `Hasta ${r.monthlyInviteLimit} amigos nuevos cada 30 días.` })
+  rules.push(
+    { title: 'Un amigo, un socio', body: 'Cada amigo cuenta para un solo socio: el primero que lo invitó.' },
+    { title: 'No vale invitarte a vos', body: 'Ni con otro número, otro email o desde tu mismo celular: esas invitaciones no suman.' },
+  )
+  if (r.endsAt) rules.push({ title: 'Vigencia', body: `Vale para amigos que se sumen hasta el ${fmtDay(r.endsAt)}. Los que ya se sumaron siguen sumando después.` })
+  rules.push({ title: 'Privacidad', body: 'De tus amigos solo ves el nombre, la inicial del apellido y en qué paso van. Ellos no ven tus datos.' })
+  return rules
+}
+
+/** Lo que lee el amigo invitado antes de sumarse. */
+export function inviteeRules(r: { tenantName: string; referrerName: string; welcomePoints: number }): string[] {
+  return [
+    `Sumarte al club es gratis${r.welcomePoints > 0 ? ` y recibís ${r.welcomePoints} puntos de bienvenida` : ''}.`,
+    `Cada compra en ${r.tenantName} te suma puntos que podés canjear por premios.`,
+    'Pedí siempre con este mismo celular para que tus compras sumen.',
+    `${r.referrerName} va a ver tu nombre, la inicial de tu apellido y si ya compraste. Nada más: ni tu celular ni tu email.`,
+    'Esta invitación es para personas que todavía no son socias ni compraron en el comercio.',
+  ]
+}
+
+/** Lo que tiene que hacer el comercio para que el programa funcione. */
+export const ADMIN_SETUP_STEPS = [
+  { title: 'Cargá el premio', body: 'Creá el premio como artículo en la Tienda del club (por ejemplo «Pizza grande gratis») y elegilo acá abajo.' },
+  { title: 'Definí puntos y reglas', body: 'Elegí cuántos puntos gana el socio por cada paso de su amigo, los plazos y el límite. Después activá el programa.' },
+  { title: 'Avisale al equipo de caja', body: 'Al cobrar en el POS, que pregunten «¿sos socio del club?» y carguen el celular: así la compra suma puntos y cuenta como visita.' },
+  { title: 'Entregá los premios', body: 'Cuando un socio muestre el código de su premio, validalo en Tienda → Solicitudes, como cualquier canje.' },
+]
+
+/** Reglas automáticas que el sistema aplica siempre (el admin no las configura). */
+export const ADMIN_AUTOMATIC_RULES = [
+  'Solo cuentan personas nuevas: que nunca compraron en tu comercio ni eran socias del club.',
+  'Cada amigo cuenta para un solo socio: el primero que lo invitó.',
+  'No vale invitarse a uno mismo: se controla el celular, el email, el usuario y el dispositivo.',
+  'Un paso cuenta cuando el pedido se entrega. Si el pedido se cancela, los puntos de ese paso se descuentan solos.',
+  'Los puntos del registro quedan pendientes hasta la primera compra del amigo: un registro falso no cuesta nada.',
+  'El premio se entrega una sola vez por amigo. Si se cancela un pedido antes de que el socio lo use, el premio se cancela y vuelve el stock.',
+  'Los puntos ganados quedan fijos: si cambiás la configuración, aplica a lo que se gane desde ese momento.',
+  'Los socios ven solo nombre e inicial de sus amigos; los amigos no ven datos del socio.',
+]
 
 export const clubTokenKey = (tenantSlug: string) => `club_token_${tenantSlug}`
 export const clubMembershipKey = (tenantSlug: string, locationId?: string | null) => (locationId ? `club_${tenantSlug}_${locationId}` : `club_${tenantSlug}`)

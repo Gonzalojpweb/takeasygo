@@ -33,9 +33,17 @@ interface CheckoutPanelProps {
   onConfirm: (parts: CheckoutPart[]) => void
   /** Mostrador: "Enviar a cocina" (la orden nace confirmada e imprime comanda). */
   sendToKitchen?: { value: boolean; onChange: (value: boolean) => void }
+  /** Celular del cliente para el club (opcional): suma puntos y cuenta como visita. */
+  clubPhone?: { value: string; onChange: (value: string) => void }
 }
 
-export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen }: CheckoutPanelProps) {
+/** Celular válido para el club: vacío (no se usa) u 8 a 15 dígitos. */
+export function isClubPhoneValid(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "")
+  return digits.length === 0 || (digits.length >= 8 && digits.length <= 15)
+}
+
+export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone }: CheckoutPanelProps) {
   const [parts, setParts] = useState<CheckoutPart[]>([])
   const [amountText, setAmountText] = useState<Record<string, string>>({})
   const [received, setReceived] = useState("")
@@ -215,13 +223,41 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen }:
         </label>
       )}
 
+      {clubPhone && (
+        <div className="card" style={{ padding: "var(--sp-3)" }}>
+          <label htmlFor="club-phone" className="text-sm" style={{ display: "block", marginBottom: "var(--sp-1)", fontWeight: 600 }}>
+            Celular del cliente para el club <span className="text-muted">(opcional)</span>
+          </label>
+          <input
+            id="club-phone"
+            className="search-input"
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            placeholder="Ej: 11 2345 6789"
+            value={clubPhone.value}
+            onChange={(e) => clubPhone.onChange(e.target.value)}
+            aria-invalid={!isClubPhoneValid(clubPhone.value)}
+          />
+          <div className="text-sm text-muted" style={{ marginTop: "var(--sp-1)" }}>
+            {isClubPhoneValid(clubPhone.value)
+              ? "Si es socio del club, la compra le suma puntos. Si lo invitó otro socio, cuenta como su visita al local."
+              : "Revisá el número: tiene que tener entre 8 y 15 dígitos."}
+          </div>
+        </div>
+      )}
+
       {hasExternal && (
         <div className="text-sm text-muted text-center">
           Confirmá solo cuando el terminal / la transferencia esté aprobada.
         </div>
       )}
 
-      <button className="btn btn-primary" disabled={!complete || busy} onClick={() => onConfirm(parts)}>
+      <button
+        className="btn btn-primary"
+        disabled={!complete || busy || (clubPhone ? !isClubPhoneValid(clubPhone.value) : false)}
+        onClick={() => onConfirm(parts)}
+      >
         {busy ? "Registrando cobro…" : `Confirmar cobro ${formatCurrency(total)}`}
       </button>
     </div>

@@ -44,6 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       {
         member: { name: member.name, points: member.loyalty?.points ?? 0 },
         clubName: tenant.loyalty?.clubName || `Club ${tenant.name}`,
+        tenantName: tenant.name,
         clubEnabled: tenant.loyalty?.enabled ?? false,
         ...view,
       },

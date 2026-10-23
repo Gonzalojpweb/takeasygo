@@ -12,16 +12,18 @@
 
 import { use, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Check, Copy, Gift, Loader2, MessageCircle, Share2, Trophy, Users } from 'lucide-react'
+import { Bell, BellOff, Check, Copy, Gift, Info, Loader2, MessageCircle, Share2, Trophy, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import {
+  MEMBER_HOW_IT_WORKS,
   STEP_STATE_LABEL,
   TASK_COPY,
   TASK_ORDER,
   clubTokenKey,
+  memberRules,
   inviteLink,
   shareMessage,
   whatsappShareUrl,
@@ -32,12 +34,16 @@ import {
 interface MeView {
   member: { name: string; points: number }
   clubName: string
+  tenantName: string
   open: boolean
   code: string | null
   program: {
     tasks: Array<{ task: ReferralTaskKey; label: string; points: number }>
     reward: { name: string } | null
     secondOrderWindowDays: number
+    rewardValidityDays: number
+    monthlyInviteLimit: number
+    startsAt: string | null
     endsAt: string | null
   }
   stats: { invited: number; completed: number; pointsEarned: number; pointsPending: number }
@@ -200,6 +206,7 @@ export default function InviteAndEarnPage({ params }: { params: Promise<{ tenant
 
         {state.kind === 'ready' && (state.view.open || state.view.invitees.length > 0) && (
           <ReadyView
+            slug={slug}
             view={state.view}
             link={link}
             message={message}
@@ -213,11 +220,34 @@ export default function InviteAndEarnPage({ params }: { params: Promise<{ tenant
   )
 }
 
-function ReadyView({ view, link, message, copied, onCopy, onShare }: { view: MeView; link: string; message: string; copied: boolean; onCopy: () => void; onShare: () => void }) {
+function ReadyView({ slug, view, link, message, copied, onCopy, onShare }: { slug: string; view: MeView; link: string; message: string; copied: boolean; onCopy: () => void; onShare: () => void }) {
   const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
   const totalPoints = view.program.tasks.reduce((s, t) => s + t.points, 0)
+  const rules = memberRules({
+    tenantName: view.tenantName,
+    activeTasks: view.program.tasks.map((t) => t.task),
+    secondOrderWindowDays: view.program.secondOrderWindowDays,
+    rewardValidityDays: view.program.rewardValidityDays,
+    monthlyInviteLimit: view.program.monthlyInviteLimit,
+    rewardName: view.program.reward?.name ?? null,
+    endsAt: view.program.endsAt,
+  })
   return (
     <>
+      {/* Cómo funciona */}
+      <section aria-labelledby="how-works-title" className="space-y-3 rounded-[2rem] border-2 border-border/60 bg-white p-6 shadow-sm">
+        <h2 id="how-works-title" className="text-lg font-black text-gray-900">Cómo funciona</h2>
+        <ol className="grid gap-3 sm:grid-cols-3">
+          {MEMBER_HOW_IT_WORKS.map((s, i) => (
+            <li key={s.title} className="rounded-2xl bg-orange-50 p-3">
+              <p className="text-xs font-black uppercase tracking-wide text-orange-700">Paso {i + 1}</p>
+              <p className="font-bold text-gray-900">{s.title}</p>
+              <p className="mt-0.5 text-xs text-gray-600">{s.body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {/* Link */}
       {view.open && link && (
         <section aria-labelledby="link-title" className="space-y-3 rounded-[2rem] border-2 border-border/60 bg-white p-6 shadow-xl">
@@ -267,6 +297,9 @@ function ReadyView({ view, link, message, copied, onCopy, onShare }: { view: MeV
         </div>
         {view.program.endsAt && <p className="text-xs text-gray-500">La promoción vale para amigos que se sumen hasta el {fmtDate(view.program.endsAt)}.</p>}
       </section>
+
+      {/* Avisos */}
+      <PushToggle slug={slug} />
 
       {/* Resumen */}
       <section aria-label="Tu resumen" className="grid grid-cols-3 gap-3">
@@ -337,9 +370,142 @@ function ReadyView({ view, link, message, copied, onCopy, onShare }: { view: MeV
           </ul>
         )}
       </section>
+
+      {/* Reglas y condiciones */}
+      <section aria-labelledby="rules-title" className="space-y-3 rounded-[2rem] border-2 border-border/60 bg-white p-6">
+        <h2 id="rules-title" className="flex items-center gap-2 text-lg font-black text-gray-900"><Info size={20} aria-hidden /> Reglas y condiciones</h2>
+        <dl className="space-y-3">
+          {rules.map((r) => (
+            <div key={r.title}>
+              <dt className="text-sm font-bold text-gray-900">{r.title}</dt>
+              <dd className="text-sm text-gray-600">{r.body}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="text-xs text-gray-500">Las condiciones las define {view.tenantName} y pueden cambiar para invitaciones nuevas. Lo que ya ganaste no cambia.</p>
+      </section>
     </>
   )
 }
+
+// ── Avisos al celular ──────────────────────────────────────────────────────
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ''
+
+function urlBase64ToUint8Array(base64: string) {
+  const padding = '='.repeat((4 - (base64.length % 4)) % 4)
+  const raw = atob((base64 + padding).replace(/-/g, '+').replace(/_/g, '/'))
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)))
+}
+
+function clientToken(): string {
+  let token = localStorage.getItem('tgo-client-token')
+  if (!token) {
+    token = crypto.randomUUID()
+    localStorage.setItem('tgo-client-token', token)
+  }
+  return token
+}
+
+type PushState = 'unsupported' | 'off' | 'on' | 'denied' | 'busy'
+
+function PushToggle({ slug }: { slug: string }) {
+  const flagKey = `tgo_ref_push_${slug}`
+  const [state, setState] = useState<PushState>('off')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!VAPID_PUBLIC_KEY || !('serviceWorker' in navigator) || !('PushManager' in window) || typeof Notification === 'undefined') {
+        setState('unsupported')
+        return
+      }
+      if (Notification.permission === 'denied') {
+        setState('denied')
+        return
+      }
+      try {
+        setState(localStorage.getItem(flagKey) === 'on' && Notification.permission === 'granted' ? 'on' : 'off')
+      } catch {
+        setState('off')
+      }
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [flagKey])
+
+  async function enable() {
+    setState('busy')
+    setError(null)
+    try {
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        setState(permission === 'denied' ? 'denied' : 'off')
+        return
+      }
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      const reg = await navigator.serviceWorker.ready
+      const sub =
+        (await reg.pushManager.getSubscription()) ??
+        (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) }))
+      const res = await fetch(`/api/${slug}/referrals/notifications`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-member-token': localStorage.getItem(clubTokenKey(slug)) ?? '' },
+        body: JSON.stringify({ clientToken: clientToken(), subscription: sub.toJSON() }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || 'No se pudieron activar los avisos')
+      localStorage.setItem(flagKey, 'on')
+      setState('on')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No se pudieron activar los avisos')
+      setState('off')
+    }
+  }
+
+  async function disable() {
+    setState('busy')
+    try {
+      await fetch(`/api/${slug}/referrals/notifications?clientToken=${encodeURIComponent(clientToken())}`, {
+        method: 'DELETE',
+        headers: { 'x-member-token': localStorage.getItem(clubTokenKey(slug)) ?? '' },
+      })
+      localStorage.removeItem(flagKey)
+    } catch {
+      // Si falla, el próximo intento lo vuelve a pedir.
+    }
+    setState('off')
+  }
+
+  if (state === 'unsupported') return null
+  return (
+    <section aria-labelledby="push-title" className="flex flex-wrap items-center gap-3 rounded-2xl border-2 border-border/60 bg-white p-4">
+      {state === 'on' ? <Bell size={22} aria-hidden className="text-orange-600" /> : <BellOff size={22} aria-hidden className="text-gray-400" />}
+      <div className="min-w-0 flex-1">
+        <h2 id="push-title" className="font-bold text-gray-900">Avisos en este celular</h2>
+        <p className="text-xs text-gray-600">
+          {state === 'on'
+            ? 'Te avisamos cuando un amigo se suma, cuando ganás puntos y cuando desbloqueás un premio.'
+            : state === 'denied'
+              ? 'Bloqueaste las notificaciones de este sitio. Habilitalas en la configuración del navegador.'
+              : 'Activalos para enterarte cuando un amigo se suma, cuando ganás puntos y cuando desbloqueás un premio.'}
+        </p>
+        {error && <p role="alert" className="text-xs font-semibold text-red-700">{error}</p>}
+      </div>
+      {state !== 'denied' && (
+        <Button
+          type="button"
+          variant={state === 'on' ? 'outline' : 'default'}
+          disabled={state === 'busy'}
+          onClick={state === 'on' ? disable : enable}
+          className={cn('rounded-xl', state !== 'on' && 'bg-orange-500 hover:bg-orange-600')}
+        >
+          {state === 'busy' && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+          {state === 'on' ? 'Desactivar' : 'Activar avisos'}
+        </Button>
+      )}
+    </section>
+  )
+}
+
 
 function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
   return (
