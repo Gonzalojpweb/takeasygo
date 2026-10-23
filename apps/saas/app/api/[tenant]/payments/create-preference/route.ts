@@ -12,6 +12,7 @@ import { calculateFinalTotal } from '@/lib/pricing'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
+import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago, markSplitRevoked } from '@/lib/mp-split-guard'
 import { getBaseUrl } from '@/lib/site-url'
 import { withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
 
@@ -57,6 +58,13 @@ if (!success) {
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
 
     const oauthValid = isOAuthValid(account)
+
+    // Candado del split: sin split vigente, MercadoPago está pausado en este
+    // comercio (nunca se cobra sin comisión). El pedido queda esperando pago
+    // y el cliente puede elegir otro medio (flujo de cambio de medio).
+    if (!canChargeWithMercadoPago(tenant, account)) {
+      return NextResponse.json({ error: MP_PAUSED_CUSTOMER_MESSAGE, code: 'MP_PAUSED' }, { status: 409 })
+    }
 
     // Calcular marketplace_fee consistente con orders/route.ts
     const platformFeePercent = (oauthValid && account.commissionPercent != null)
@@ -239,6 +247,11 @@ if (!success) {
         }
       })
     } catch (prefError: any) {
+      // MercadoPago rechazó el token del split: el dueño quitó el permiso.
+      const mpStatus = prefError?.status ?? prefError?.statusCode ?? prefError?.cause?.status
+      if (oauthValid && (mpStatus === 401 || mpStatus === 403)) {
+        await markSplitRevoked(tenant._id, account.accountId, 'cobro').catch(() => undefined)
+      }
       if (retry) {
         // Reintento en el flujo de emergencia: la orden se queda en
         // awaiting_payment a propósito. No hay rollback, no hay cancelación.

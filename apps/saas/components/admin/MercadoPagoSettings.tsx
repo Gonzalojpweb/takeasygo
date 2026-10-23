@@ -56,9 +56,24 @@ interface Props {
   mpAccounts?: MpAccount[]
   mpMode?: 'shared' | 'perLocation'
   mpPerLocationEnabled?: boolean
+  /** Candado del split (tenant.mpSplitGuard.locked). null = se deduce. Ver lib/mp-split-guard. */
+  splitLocked?: boolean | null
 }
 
-export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth, mpAccounts = [], mpMode = 'shared', mpPerLocationEnabled = false }: Props) {
+/** ¿El split de esta cuenta está vigente? (réplica de isOAuthValid) */
+function splitConnected(a: { oauthIsConnected?: boolean; oauthExpiresAt?: string | null }): boolean {
+  return !!a.oauthIsConnected && (!a.oauthExpiresAt || new Date(a.oauthExpiresAt).getTime() > Date.now())
+}
+
+export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth, mpAccounts = [], mpMode = 'shared', mpPerLocationEnabled = false, splitLocked = null }: Props) {
+  // Candado del split: una vez conectado, lo administra TakeasyGO. El admin
+  // no ve el botón de conexión ni puede borrar la cuenta conectada; si el
+  // split se cae, MercadoPago queda pausado hasta reconectar.
+  const everConnected = !!mpOAuth?.authorizedAt || mpAccounts.some((a) => !!a.oauthAuthorizedAt)
+  const splitRequired = splitLocked === true || (splitLocked == null && everConnected)
+  const activeAccount = mpAccounts.find((a) => a.isActive) ?? null
+  const activeSplitOk = activeAccount ? splitConnected(activeAccount) : !!mpOAuth?.isConnected
+  const mpPaused = splitRequired && (!!activeAccount || isConfigured) && !activeSplitOk
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -384,7 +399,12 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
                     : <Stethoscope size={12} />}
                   Verificar
                 </button>
-                {!acc.isActive && (
+                {splitRequired && splitConnected(acc) && (
+                  <span className="flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700" title="Conectada al split de TakeasyGO: la administra TakeasyGO">
+                    <Lock size={10} /> Split
+                  </span>
+                )}
+                {!acc.isActive && !(splitRequired && splitConnected(acc)) && (
                   <button
                     onClick={() => handleDelete(acc._id)}
                     disabled={loading}
@@ -599,11 +619,31 @@ export default function MercadoPagoSettings({ tenantSlug, isConfigured, mpOAuth,
 
         {/* ── OAuth Split Payments ── */}
         <div className="border-t border-border/40 pt-8 space-y-3">
-          <MpOAuthConnectButton
-            tenantSlug={tenantSlug}
-            isConnected={mpOAuth?.isConnected ?? false}
-            authorizedAt={mpOAuth?.authorizedAt}
-          />
+          {mpPaused && (
+            <div role="alert" className="space-y-1 rounded-2xl border-2 border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-900 dark:bg-red-950/40 dark:text-red-100">
+              <p className="flex items-center gap-2 font-bold"><AlertCircle size={16} /> MercadoPago está pausado</p>
+              <p>
+                La cuenta que cobra no tiene el split de pagos de TakeasyGO conectado (se venció o se quitó el permiso desde MercadoPago).
+                Hasta reconectarla, tus clientes no pueden pagar con MercadoPago; sí con efectivo o transferencia.
+                Reconectala con el botón de abajo, iniciando sesión con la cuenta de MercadoPago donde cobrás, o pedile el link a TakeasyGO.
+              </p>
+            </div>
+          )}
+          {splitRequired && activeSplitOk ? (
+            <div className="space-y-1 rounded-2xl border-2 border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100">
+              <p className="flex items-center gap-2 font-bold"><ShieldCheck size={16} /> Split de pagos conectado · administrado por TakeasyGO</p>
+              <p>
+                Cada cobro con MercadoPago entra a tu cuenta y MercadoPago descuenta sola la comisión de TakeasyGO.
+                La conexión la administra TakeasyGO: no hace falta que hagas nada. Si necesitás cambiar la cuenta de cobro, escribinos.
+              </p>
+            </div>
+          ) : (
+            <MpOAuthConnectButton
+              tenantSlug={tenantSlug}
+              isConnected={mpOAuth?.isConnected ?? false}
+              authorizedAt={mpOAuth?.authorizedAt}
+            />
+          )}
           <button
             onClick={() => handleVerify('legacy')}
             disabled={verifyingId !== null}

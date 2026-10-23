@@ -5,6 +5,8 @@ import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
 import { encrypt, decrypt } from '@/lib/crypto'
 import { verifyMpOauthState } from '@/lib/mp-oauth-state'
+import MpSplitLink from '@/models/MpSplitLink'
+import { setSplitLock } from '@/lib/mp-split-guard'
 
 /**
  * GET /api/mp-oauth/callback
@@ -57,9 +59,20 @@ export async function GET(request: NextRequest) {
     const sessionUser = session?.user ?? null
     const isSuperAdmin = sessionUser?.role === 'superadmin'
 
+    // Link de autorización del superadmin (lib/mp-split-guard): el dueño del
+    // restaurante lo abre sin sesión del panel. El resultado se muestra en
+    // una página pública, no en el panel.
+    const earlyState = state ? verifyMpOauthState(state) : null
+    const viaLink = !!earlyState?.linkId
+    const linkResult = (estado: 'ok' | 'error', reason?: string) =>
+      NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}/autorizar-mercadopago/listo?estado=${estado}${reason ? `&motivo=${encodeURIComponent(reason)}` : ''}`
+      )
+
     // reason = código de diagnóstico que la UI muestra al usuario (y que
     // permite identificar exactamente qué rama falló si persiste el error).
     const failRedirect = (reason: string, tenantSlugHint?: string) => {
+      if (viaLink) return linkResult('error', reason)
       const slug = sessionUser?.tenantSlug ?? tenantSlugHint ?? null
       const path = slug
         ? `/${slug}/admin/settings?mp_oauth=error&reason=${encodeURIComponent(reason)}`
@@ -67,9 +80,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${process.env.NEXTAUTH_URL}${path}`)
     }
     const failAt = (reason: string, slug: string) =>
-      NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/${slug}/admin/settings?mp_oauth=error&reason=${encodeURIComponent(reason)}`
-      )
+      viaLink
+        ? linkResult('error', reason)
+        : NextResponse.redirect(
+            `${process.env.NEXTAUTH_URL}/${slug}/admin/settings?mp_oauth=error&reason=${encodeURIComponent(reason)}`
+          )
 
     if (error) {
       console.error('[MP OAuth callback] error from MP:', error)
@@ -89,17 +104,45 @@ export async function GET(request: NextRequest) {
     const tenantSlug: string = stateObj.tenantSlug
     const accountId: string | undefined = stateObj.accountId
 
-    // Sesión obligatoria y perteneciente al tenant del state.
-    if (!sessionUser) {
-      console.error('[MP OAuth callback] sin sesión')
-      return failRedirect('no_session', tenantSlug)
-    }
-    if (!isSuperAdmin && sessionUser.tenantSlug !== tenantSlug) {
-      console.error('[MP OAuth callback] sesión pertenece a otro tenant')
-      return failRedirect('tenant_mismatch', tenantSlug)
-    }
-
     await connectDB()
+
+    // Sesión obligatoria y perteneciente al tenant del state — salvo el link
+    // del superadmin, que se valida acá: existe, es de este comercio, no se
+    // usó y no venció. Se reclama (usedAt) para que sirva una sola vez; si
+    // algo falla más abajo, se libera para reintentar.
+    let claimedLinkId: string | null = null
+    if (stateObj.linkId) {
+      const linkTenant = await Tenant.findOne({ slug: tenantSlug }).select('_id').lean<{ _id: import('mongoose').Types.ObjectId }>()
+      const claimed = linkTenant
+        ? await MpSplitLink.findOneAndUpdate(
+            { _id: stateObj.linkId, tenantId: linkTenant._id, usedAt: null, expiresAt: { $gt: new Date() } },
+            { $set: { usedAt: new Date() } },
+            { returnDocument: 'after' }
+          ).lean()
+        : null
+      if (!claimed) {
+        console.error('[MP OAuth callback] link de autorización inválido, usado o vencido')
+        return failRedirect('link_invalid', tenantSlug)
+      }
+      claimedLinkId = String(stateObj.linkId)
+    } else {
+      if (!sessionUser) {
+        console.error('[MP OAuth callback] sin sesión')
+        return failRedirect('no_session', tenantSlug)
+      }
+      if (!isSuperAdmin && sessionUser.tenantSlug !== tenantSlug) {
+        console.error('[MP OAuth callback] sesión pertenece a otro tenant')
+        return failRedirect('tenant_mismatch', tenantSlug)
+      }
+    }
+    // Libera el link si la conexión no se completa (para poder reintentar).
+    const releaseLink = async () => {
+      if (claimedLinkId) await MpSplitLink.updateOne({ _id: claimedLinkId }, { $set: { usedAt: null } }).catch(() => undefined)
+    }
+    const failLink = async (reason: string) => {
+      await releaseLink()
+      return failAt(reason, tenantSlug)
+    }
 
     // Get OAuth credentials from PlatformConfig (configured by superadmin)
     const platformConfig = await PlatformConfig.findById('platform').lean() as any
@@ -111,7 +154,7 @@ export async function GET(request: NextRequest) {
 
     if (!MP_APP_ID || !MP_APP_SECRET) {
       console.error('[MP OAuth] Missing credentials - cannot exchange code')
-      return failAt('no_credentials', tenantSlug)
+      return await failLink('no_credentials')
     }
 
     // Exchange code for token
@@ -131,18 +174,18 @@ export async function GET(request: NextRequest) {
       if (!res.ok) {
         const detail = await res.text()
         console.error('[MP OAuth] token exchange failed:', detail)
-        return failAt('exchange_failed', tenantSlug)
+        return await failLink('exchange_failed')
       }
       tokenData = await res.json()
     } catch (err) {
       console.error('[MP OAuth] network error:', err)
-      return failAt('exchange_network_error', tenantSlug)
+      return await failLink('exchange_network_error')
     }
 
     const { access_token, refresh_token, expires_in } = tokenData
     if (!access_token) {
       console.error('[MP OAuth] No access_token in response')
-      return failAt('no_access_token', tenantSlug)
+      return await failLink('no_access_token')
     }
 
     // ── Identificar el user_id de MP del token OAuth nuevo ──────────────────
@@ -210,7 +253,7 @@ export async function GET(request: NextRequest) {
             `[MP OAuth] user_id_mismatch tenant=${tenantSlug} account=${targetAccount._id} ` +
             `oauth=${oauthUserId} manual=${manualUserId} — NO se guarda`
           )
-          return failAt('user_id_mismatch', tenantSlug)
+          return await failLink('user_id_mismatch')
         }
       }
 
@@ -231,7 +274,7 @@ export async function GET(request: NextRequest) {
             `[MP OAuth] user_id_conflict tenant=${tenantSlug} user_id=${oauthUserId} ` +
             `ya asociado a tenant=${(otherTenant as any).slug} — NO se guarda`
           )
-          return failAt('user_id_conflict', tenantSlug)
+          return await failLink('user_id_conflict')
         }
       }
 
@@ -243,7 +286,7 @@ export async function GET(request: NextRequest) {
         encRefreshToken = refresh_token ? encrypt(refresh_token) : null
       } catch (encErr: any) {
         console.error('[MP OAuth] encrypt failed — token NO sobrescrito:', encErr?.message)
-        return failAt('encrypt_failed', tenantSlug)
+        return await failLink('encrypt_failed')
       }
 
       if (targetAccount) {
@@ -253,6 +296,7 @@ export async function GET(request: NextRequest) {
         targetAccount.oauthIsConnected = true
         targetAccount.oauthAuthorizedAt = new Date()
         targetAccount.oauthMpUserId = oauthUserId
+        targetAccount.oauthRevokedAt = null
         tenant.markModified('mpAccounts')
         await tenant.save()
         console.log(
@@ -265,9 +309,16 @@ export async function GET(request: NextRequest) {
       console.error('[MP OAuth] DB save failed:', dbErr)
       // Incluir mensaje de error real en el redirect para diagnóstico
       const msg = dbErr?.message?.slice(0, 100) || 'unknown'
-      return failAt(`db_save_failed:${encodeURIComponent(msg)}`, tenantSlug)
+      return await failLink(`db_save_failed:${encodeURIComponent(msg)}`)
     }
 
+    // Candado del split: conectado = administrado por TakeasyGO desde ahora.
+    const lockTenant = await Tenant.findOne({ slug: tenantSlug }).select('_id').lean<{ _id: string }>()
+    if (lockTenant) {
+      await setSplitLock(lockTenant._id, true, claimedLinkId ? `link:${claimedLinkId}` : (sessionUser?.email ?? sessionUser?.role ?? 'admin'))
+    }
+
+    if (viaLink) return linkResult('ok')
     return NextResponse.redirect(`${process.env.NEXTAUTH_URL}/${tenantSlug}/admin/settings?mp_oauth=success`)
   } catch (err) {
     console.error('[MP OAuth] unhandled error:', err)
@@ -291,6 +342,7 @@ async function saveLegacyMpOAuth(
       'mpOAuth.authorizedAt': new Date(),
       'mpOAuth.isConnected': true,
       'mpOAuth.mpUserId': mpUserId,
+      'mpOAuth.revokedAt': null,
     }
   )
   console.log(`[MP OAuth] Saved to legacy mpOAuth mpUserId=${mpUserId ?? 'unknown'}`)

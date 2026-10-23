@@ -8,6 +8,7 @@ import { canAccess, type Plan } from '@/lib/plans'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
 import { resolveTransferAccountForLocation, withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
 import { loadTransferLock } from '@/lib/commission-weeks'
+import { canChargeWithMercadoPago } from '@/lib/mp-split-guard'
 import type { ITenant } from '@/models/Tenant'
 import type { IPlatformConfig } from '@/models/PlatformConfig'
 
@@ -92,7 +93,7 @@ export async function loadPaymentMethodContext(
   const [tenant, platformConfig] = await Promise.all([
     Tenant.findOne({ slug: tenantSlug })
       .select(
-        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts plan features cash timezone'
+        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts mpSplitGuard plan features cash timezone'
       )
       .lean() as unknown as ITenant | null,
     PlatformConfig.findById('platform')
@@ -161,7 +162,9 @@ export function buildPaymentMethodCatalog(
 
   // ── MP: la cuenta se resuelve por sede; si no, la default del tenant ──────
   const mpAccount = getMpAccountForLocation(tenant, locationMpAccountId)
-  const mpEnabled = !!mpAccount
+  // Candado del split (lib/mp-split-guard): con candado, MercadoPago solo
+  // cobra con split vigente; si se cayó, se pausa en vez de cobrar sin comisión.
+  const mpEnabled = !!mpAccount && canChargeWithMercadoPago(tenant, mpAccount)
 
   const mpPricing = calculateFinalTotal(
     baseTotal,

@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
+import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago } from '@/lib/mp-split-guard'
 import { getBaseUrl } from '@/lib/site-url'
 
 export async function POST(
@@ -53,6 +54,11 @@ export async function POST(
         { error: 'MercadoPago no configurado para esta sede. Configuralo en la pestaña Pagos.' },
         { status: 400 }
       )
+    }
+
+    // Candado del split: sin split vigente, MercadoPago está pausado.
+    if (!canChargeWithMercadoPago(tenant, account)) {
+      return NextResponse.json({ error: MP_PAUSED_CUSTOMER_MESSAGE, code: 'MP_PAUSED' }, { status: 409 })
     }
 
     // Se guarda antes de crear la preferencia: si el webhook llega primero,

@@ -2,7 +2,8 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { encrypt } from '@/lib/crypto'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminRole } from '@/lib/apiAuth'
+import { getSessionUser, requireAdminRole } from '@/lib/apiAuth'
+import { isAccountConnectedNow, isSplitRequired } from '@/lib/mp-split-guard'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 
@@ -53,6 +54,15 @@ export async function PUT(
         }
       } catch {
         // sin red o token inválido — mpUserId queda como estaba
+      }
+      // Candado del split: las credenciales tienen que ser de la MISMA cuenta
+      // de MercadoPago que autorizó el split (la plata cae en esa cuenta).
+      const newUserId = updateSet['mpAccounts.$.mpUserId']
+      if (isSplitRequired(tenant) && account.oauthMpUserId && typeof newUserId === 'number' && newUserId !== account.oauthMpUserId) {
+        return NextResponse.json(
+          { error: 'Estas credenciales son de otra cuenta de MercadoPago. Tienen que ser de la misma cuenta conectada al split de TakeasyGO.', code: 'MP_ACCOUNT_MISMATCH' },
+          { status: 409 }
+        )
       }
     }
     if (body.publicKey) updateSet['mpAccounts.$.publicKey'] = encrypt(body.publicKey)
@@ -109,6 +119,16 @@ export async function DELETE(
     const account = tenant.mpAccounts?.find((a: any) => a._id?.toString() === accountId)
     if (!account) {
       return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+    }
+
+    // Candado del split: la cuenta conectada al split no la puede borrar el
+    // admin (solo TakeasyGO). Ver lib/mp-split-guard.
+    const sessionUser = await getSessionUser(request)
+    if (sessionUser?.role !== 'superadmin' && isSplitRequired(tenant) && isAccountConnectedNow(tenant, accountId)) {
+      return NextResponse.json(
+        { error: 'Esta cuenta está conectada al split de TakeasyGO y la administra TakeasyGO. Para cambiarla, escribinos.', code: 'MP_SPLIT_LOCKED' },
+        { status: 403 }
+      )
     }
 
     // Cannot delete the only active account

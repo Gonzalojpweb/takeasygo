@@ -6,6 +6,7 @@ import PlatformConfig from '@/models/PlatformConfig'
 import { decrypt } from '@/lib/crypto'
 import { signMpOauthState } from '@/lib/mp-oauth-state'
 import { enforcePermissionForRequest } from '@/lib/rbac'
+import { isAccountConnectedNow, isSplitRequired } from '@/lib/mp-split-guard'
 
 /**
  * GET /api/[tenant]/admin/mp-oauth/connect
@@ -63,6 +64,16 @@ export async function GET(
   // State firmado: HMAC + nonce + expiración, atado al tenant de la URL.
   // accountId es opcional — si viene, el callback guarda los tokens en esa cuenta.
   const urlAccountId = request.nextUrl.searchParams.get('accountId')
+
+  // Candado del split (lib/mp-split-guard): con una conexión VIGENTE, el
+  // admin no la puede reemplazar (solo TakeasyGO). Si la conexión se cayó o
+  // la cuenta nunca se conectó, sí puede conectar: eso activa la comisión.
+  if (!isSuperAdmin && tenant && isSplitRequired(tenant) && isAccountConnectedNow(tenant, urlAccountId)) {
+    return NextResponse.json(
+      { error: 'El split de MercadoPago ya está conectado y lo administra TakeasyGO.', code: 'MP_SPLIT_LOCKED' },
+      { status: 403 }
+    )
+  }
   const state = signMpOauthState({ tenantSlug, accountId: urlAccountId })
 
   const authUrl = new URL('https://auth.mercadopago.com/authorization')

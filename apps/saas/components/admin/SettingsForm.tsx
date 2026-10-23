@@ -2039,6 +2039,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     mpAccounts={tenant.mpAccounts}
                     mpMode={(tenant as any).mpMode}
                     mpPerLocationEnabled={(tenant as any).flags?.['mp.perLocation'] === true}
+                    splitLocked={(tenant as any).mpSplitGuard?.locked ?? null}
                   />
                 </div>
               </TabsContent>

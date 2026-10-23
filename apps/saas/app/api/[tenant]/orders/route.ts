@@ -54,6 +54,8 @@ import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { verifyMemberToken } from '@/lib/memberToken'
 import { loadTransferLock } from '@/lib/commission-weeks'
 import { attachReferralFromRequest } from '@/lib/referrals'
+import { getMpAccountForLocation } from '@/lib/mercadopago'
+import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago, isSplitRequired } from '@/lib/mp-split-guard'
 
 try {
   webpush.setVapidDetails(
@@ -478,6 +480,21 @@ export async function POST(
     // Mismo dato que el catálogo del checkout (lib/commission-weeks): aunque
     // alguien arme el pedido a mano, no entra una transferencia. Va antes de
     // cualquier efecto (cupones, club, stock). Se habilita sola al pagar.
+    // ── MercadoPago pausado por el candado del split (lib/mp-split-guard) ──
+    // Con candado y sin split vigente en la cuenta de la sede, no se cobra
+    // con MercadoPago (nunca sin comisión). Antes de cualquier efecto.
+    // (Solo si el pedido elige MercadoPago explícitamente: los pedidos
+    // empresa diferidos no mandan medio. Igual create-preference lo vuelve a
+    // controlar antes de cobrar.)
+    if (body.paymentMethod === 'mercadopago' && isSplitRequired(tenant)) {
+      const loc = body.locationId && mongoose.Types.ObjectId.isValid(String(body.locationId))
+        ? await Location.findOne({ _id: body.locationId, tenantId: tenant._id }).select('settings.mpAccountId').lean<{ settings?: { mpAccountId?: string | null } }>()
+        : null
+      if (!canChargeWithMercadoPago(tenant, getMpAccountForLocation(tenant, loc?.settings?.mpAccountId ?? null))) {
+        return NextResponse.json({ error: MP_PAUSED_CUSTOMER_MESSAGE, code: 'MP_PAUSED' }, { status: 409 })
+      }
+    }
+
     if ((body.paymentMethod || 'mercadopago') === 'transfer') {
       const lock = await loadTransferLock(tenant._id, tenant.timezone || undefined)
       if (lock.locked) {

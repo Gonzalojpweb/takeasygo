@@ -210,6 +210,22 @@ export interface ITenant extends Document {
     mpUserId?: number | null
     /** Última renovación automática exitosa vía refresh_token */
     lastRefreshedAt?: Date | null
+    /** MercadoPago respondió que el permiso fue quitado (lib/mp-split-guard). */
+    revokedAt?: Date | null
+  }
+  /**
+   * Candado del split de MercadoPago (lib/mp-split-guard). Con el candado,
+   * la conexión la administra TakeasyGO: el admin no puede reemplazarla ni
+   * borrar la cuenta conectada, y MercadoPago SOLO cobra con split (si se
+   * cae, se pausa en vez de cobrar sin comisión).
+   * locked null = se deduce (bloqueado si alguna vez se conectó el split).
+   */
+  mpSplitGuard?: {
+    locked: boolean | null
+    lockedAt: Date | null
+    lockedBy: string | null
+    unlockedAt: Date | null
+    unlockedBy: string | null
   }
   /** Multi-account MercadoPago — one active at a time */
   mpAccounts: {
@@ -232,6 +248,8 @@ export interface ITenant extends Document {
     mpUserId?: number | null
     /** user_id de MP al que pertenece el oauthAccessToken */
     oauthMpUserId?: number | null
+    /** MercadoPago respondió que el permiso fue quitado (lib/mp-split-guard). */
+    oauthRevokedAt?: Date | null
   }[]
   /** Modo de cuentas MP:
    *  - 'shared' (default): todas las sedes usan la cuenta activa del tenant.
@@ -648,6 +666,16 @@ const TenantSchema = new Schema<ITenant>(
       mpUserId: { type: Number, default: null },
       /** Última renovación automática exitosa vía refresh_token */
       lastRefreshedAt: { type: Date, default: null },
+      /** MercadoPago respondió que el permiso fue quitado */
+      revokedAt: { type: Date, default: null },
+    },
+    /** Candado del split de MercadoPago (lib/mp-split-guard). */
+    mpSplitGuard: {
+      locked:     { type: Boolean, default: null },
+      lockedAt:   { type: Date, default: null },
+      lockedBy:   { type: String, default: null },
+      unlockedAt: { type: Date, default: null },
+      unlockedBy: { type: String, default: null },
     },
     // ── Multi-account MercadoPago ──────────────────────────────────────────
     mpAccounts: {
@@ -669,6 +697,8 @@ const TenantSchema = new Schema<ITenant>(
         mpUserId:          { type: Number, default: null },
         /** user_id de MP al que pertenece el oauthAccessToken */
         oauthMpUserId:     { type: Number, default: null },
+        /** MercadoPago respondió que el permiso fue quitado */
+        oauthRevokedAt:    { type: Date, default: null },
       }],
       default: [],
     },

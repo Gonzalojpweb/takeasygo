@@ -13,6 +13,8 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 export interface MpOauthState {
   tenantSlug: string
   accountId?: string
+  /** Link de autorización del superadmin (MpSplitLink): el callback no exige sesión. */
+  linkId?: string
   nonce: string
   ts: number
   exp: number
@@ -30,7 +32,7 @@ function signPayload(payloadB64: string, secret: string): string {
 }
 
 export function signMpOauthState(
-  input: { tenantSlug: string; accountId?: string | null },
+  input: { tenantSlug: string; accountId?: string | null; linkId?: string | null },
   secret?: string
 ): string {
   const s = resolveSecret(secret)
@@ -41,6 +43,7 @@ export function signMpOauthState(
   const state: MpOauthState = {
     tenantSlug: input.tenantSlug,
     ...(input.accountId ? { accountId: input.accountId } : {}),
+    ...(input.linkId ? { linkId: input.linkId } : {}),
     nonce: randomBytes(16).toString('base64url'),
     ts: now,
     exp: now + STATE_TTL_MS,
