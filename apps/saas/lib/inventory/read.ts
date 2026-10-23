@@ -265,6 +265,8 @@ interface MenuItemView {
   name: string
   categoryName: string
   priceCents: number
+  /** Foto del plato en el menú (para reconocerlo en Recetas). */
+  imageUrl: string | null
   variants: Array<{ name: string; priceCents: number }>
   modifiers: string[]
 }
@@ -280,7 +282,7 @@ function flattenMenu(menu: { categories?: unknown[] } | null): MenuItemView[] {
     }
   }
   const pushItems = (items: unknown[] | undefined, categoryName: string, inherited: unknown[]) => {
-    for (const it of (items ?? []) as Array<{ _id?: unknown; name: string; price?: number; variants?: Array<{ name: string; price: number; customizationGroups?: unknown[] }>; customizationGroups?: unknown[] }>) {
+    for (const it of (items ?? []) as Array<{ _id?: unknown; name: string; price?: number; imageUrl?: string; variants?: Array<{ name: string; price: number; customizationGroups?: unknown[] }>; customizationGroups?: unknown[] }>) {
       if (!it._id) continue
       const mods = new Set<string>()
       optionNames([...inherited, ...(it.customizationGroups ?? [])], mods)
@@ -290,6 +292,7 @@ function flattenMenu(menu: { categories?: unknown[] } | null): MenuItemView[] {
         name: it.name,
         categoryName,
         priceCents: it.price ?? 0,
+        imageUrl: it.imageUrl || null,
         variants: (it.variants ?? []).map((v) => ({ name: v.name, priceCents: v.price })),
         modifiers: [...mods],
       })

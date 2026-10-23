@@ -79,6 +79,12 @@ export default function ActivityView({ ctx }: { ctx: V3Context }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">Cada entrada, salida, conteo y ajuste, con fecha, persona y motivo. Nada se borra.</p>
+        <button type="button" className="min-h-11 text-sm font-bold text-primary underline-offset-2 hover:underline" onClick={() => ctx.help('actividad')}>
+          ¿Cómo leer la actividad?
+        </button>
+      </div>
       <div role="group" aria-label="Filtrar actividad" className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <FilterChip

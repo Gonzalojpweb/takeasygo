@@ -3,14 +3,16 @@
 // ============================================================================
 // Recibir mercadería — varios insumos en una misma sesión
 // ============================================================================
-// Cargar → Revisar → Confirmar. El backend registra UNA línea por operación:
+// Productos → Cantidades → Confirmar (referencia: inventoryUI.png). El
+// primer paso muestra los insumos más usados de la sede para tocarlos con un
+// «+», sin escribir. El backend registra UNA línea por operación:
 // no se presenta como transacción atómica. Cada línea muestra su resultado;
 // si alguna falla, las demás quedan registradas y "Reintentar" reenvía solo
 // las fallidas con el MISMO id (el servidor no duplica).
 // ============================================================================
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { CheckCircle2, PackagePlus, RefreshCw, Trash2, Truck, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, PackagePlus, Plus, RefreshCw, Trash2, Truck, XCircle } from 'lucide-react'
 import { invApi } from '../data/api'
 import {
   addLine,
@@ -29,8 +31,11 @@ import {
 import { compatibleUnits } from '@/lib/inventory/ui/fields'
 import { UNIT_SHORT, formatQty, pesos } from '@/lib/inventory/ui/format'
 import { EmptyBlock, Field, LoadingBlock, Notice, Panel, SearchPicker, Spinner, btnGhost, btnPrimary, btnSecondary, inputClass } from '../ui'
+import { SkuIcon, Stepper } from '../visual'
+import { useResource } from '../data/useResource'
+import { cn } from '@/lib/utils'
 import { resolveStorage, type PanelProps } from './PanelHost'
-import type { SkuOption } from '../data/types'
+import type { SkuOption, StockData } from '../data/types'
 import { SKU_CATEGORIES } from '../RowsEditor'
 
 type Action =
@@ -61,7 +66,10 @@ function reducer(s: ReceiveSession, a: Action): ReceiveSession {
   }
 }
 
-type Step = 'edit' | 'review' | 'sent'
+type Step = 'pick' | 'edit' | 'review' | 'sent'
+
+const STEPS = ['Productos', 'Cantidades', 'Confirmar']
+const TOP_USED = 9
 
 export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelProps & { skuId: string | null }) {
   const allowCost = ctx.caps.read
@@ -79,7 +87,7 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
     const pre = ctx.skus.find((s) => s._id === skuId)
     if (pre) dispatch({ t: 'add', sku: pre })
   }, [skuId, ctx.catalogReady, ctx.skus])
-  const [step, setStep] = useState<Step>('edit')
+  const [step, setStep] = useState<Step>(skuId ? 'edit' : 'pick')
   const [showErrors, setShowErrors] = useState(false)
   // Alta de un insumo que no está en el catálogo (ej. descartables), sin salir del panel.
   const [creating, setCreating] = useState<{ name: string; canonicalUnit: string; category: string } | null>(null)
@@ -107,6 +115,23 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
     () => raw.filter((s) => !session.lines.some((l) => l.sku._id === s._id && l.status !== 'done')).map((s) => ({ id: s._id, label: s.name, meta: UNIT_SHORT[s.canonicalUnit] })),
     [raw, session.lines],
   )
+
+  // Más usados de la sede (por consumo diario estimado); sin datos, los primeros del catálogo.
+  const stock = useResource(step === 'pick' ? `${ctx.tenantSlug}|stock|${ctx.location.id}|${ctx.version}` : null, (signal) =>
+    invApi<StockData>(ctx.tenantSlug, `stock?locationId=${ctx.location.id}`, { signal }),
+  )
+  const mostUsed = useMemo(() => {
+    const byUsage = [...(stock.data?.rows ?? [])].sort((a, b) => b.belief.dailyUsage - a.belief.dailyUsage).map((r) => r.skuId)
+    const ordered = [...new Set(byUsage)].map((id) => raw.find((s) => s._id === id)).filter(Boolean) as SkuOption[]
+    const rest = raw.filter((s) => !ordered.includes(s)).sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    return [...ordered, ...rest].slice(0, TOP_USED)
+  }, [stock.data, raw])
+  const selectedIds = new Set(session.lines.filter((l) => l.status !== 'done').map((l) => l.sku._id))
+  function toggle(sku: SkuOption) {
+    const line = session.lines.find((l) => l.sku._id === sku._id && l.status !== 'done')
+    if (line) dispatch({ t: 'remove', key: line.key })
+    else dispatch({ t: 'add', sku })
+  }
 
   async function send(lines: ReceiveLine[]) {
     if (!storageId || lines.length === 0) return
@@ -164,7 +189,7 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
                 className={failed.length ? btnGhost : btnPrimary}
                 onClick={() => {
                   dispatch({ t: 'reset' })
-                  setStep('edit')
+                  setStep('pick')
                 }}
               >
                 Registrar otra recepción
@@ -227,19 +252,22 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
       <Panel
         open
         onOpenChange={(o) => !o && onClose()}
-        title="Revisá antes de confirmar"
-        description="Cada insumo se registra por separado: si alguno falla, los demás quedan registrados."
+        title="Registrar mercadería"
+        description="Paso 3 de 3: revisá y confirmá. Cada insumo se registra por separado: si alguno falla, los demás quedan."
         footer={
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btnPrimary} onClick={() => send(toSend)} autoFocus>
               <Truck size={18} aria-hidden /> Confirmar recepción ({toSend.length})
             </button>
             <button type="button" className={btnSecondary} onClick={() => setStep('edit')}>
-              Volver a editar
+              <ArrowLeft size={18} aria-hidden /> Volver a cantidades
             </button>
           </div>
         }
       >
+        <div className="mb-5">
+          <Stepper steps={STEPS} current={2} />
+        </div>
         <dl className="mb-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="font-bold">Proveedor</dt>
@@ -252,12 +280,15 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
         </dl>
         <ul className="space-y-2">
           {toSend.map((l) => (
-            <li key={l.key} className="rounded-xl border-2 border-border p-3">
+            <li key={l.key} className="flex items-center gap-3 rounded-xl border-2 border-border p-3">
+              <SkuIcon category={(l.sku as SkuOption).category} size="sm" />
+              <div className="min-w-0">
               <p className="font-bold">{l.sku.name}</p>
               <p className="text-sm text-muted-foreground">
                 {l.byPack ? `${l.quantity} ${l.packLabel} de ${l.packSize} ${UNIT_SHORT[l.packUnit]}` : `${l.quantity} ${UNIT_SHORT[l.unit]}`}
                 {allowCost && l.total.trim() && ` · total $${l.total}`}
               </p>
+              </div>
             </li>
           ))}
         </ul>
@@ -265,60 +296,7 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
     )
   }
 
-  // ── Carga ────────────────────────────────────────────────────────────────
-  return (
-    <Panel
-      open
-      onOpenChange={(o) => !o && onClose()}
-      title="Recibir mercadería"
-      description="Cargá lo que llegó como figura en el remito. Podés sumar varios insumos."
-      wide
-      footer={
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={btnPrimary}
-            disabled={pending.length === 0 || !storageId}
-            onClick={() => {
-              setShowErrors(true)
-              if (invalid.length === 0) setStep('review')
-            }}
-          >
-            Revisar ({pending.length})
-          </button>
-          {showErrors && invalid.length > 0 && (
-            <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
-              Revisá {invalid.length === 1 ? 'la línea marcada' : `las ${invalid.length} líneas marcadas`}.
-            </p>
-          )}
-        </div>
-      }
-    >
-      <div className="space-y-5">
-        {!storageId && <Notice tone="error">La sede no tiene depósito de inventario. Primero hay que prepararla.</Notice>}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Proveedor (opcional)">
-            {(a11y) => <input {...a11y} value={session.supplier} maxLength={120} onChange={(e) => dispatch({ t: 'header', patch: { supplier: e.target.value } })} className={inputClass} />}
-          </Field>
-          <Field label="Factura o remito (opcional)">
-            {(a11y) => <input {...a11y} value={session.invoice} maxLength={80} onChange={(e) => dispatch({ t: 'header', patch: { invoice: e.target.value } })} className={inputClass} />}
-          </Field>
-          {ctx.storages.length > 1 && (
-            <Field label="Depósito" className="sm:col-span-2">
-              {(a11y) => (
-                <select {...a11y} value={storageId ?? ''} onChange={(e) => setStorageId(e.target.value)} className={inputClass}>
-                  {ctx.storages.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-          )}
-        </div>
-
-        {creating ? (
+  const creatingBox = creating ? (
           <div className="space-y-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
             <p className="font-bold">Nuevo insumo: «{creating.name}»</p>
             {createError && <Notice tone="error">{createError}</Notice>}
@@ -353,6 +331,157 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
               </button>
             </div>
           </div>
+  ) : null
+
+  // ── Paso 1: productos ────────────────────────────────────────────────────
+  if (step === 'pick') {
+    return (
+      <Panel
+        open
+        onOpenChange={(o) => !o && onClose()}
+        title="Registrar mercadería"
+        description="Paso 1 de 3: elegí lo que llegó. Tocá «+» en los más usados o buscá cualquier otro."
+        wide
+        footer={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-muted-foreground" aria-live="polite">
+              Seleccionados: {selectedIds.size} {selectedIds.size === 1 ? 'producto' : 'productos'}
+            </p>
+            <button type="button" className={btnPrimary} disabled={selectedIds.size === 0} onClick={() => setStep('edit')}>
+              Continuar <ArrowRight size={18} aria-hidden />
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          <Stepper steps={STEPS} current={0} />
+          {creating ? (
+            creatingBox
+          ) : (
+            <SearchPicker
+              label="Buscar insumo"
+              placeholder="Buscá por nombre…"
+              items={pickerItems}
+              autoFocus
+              onPick={(id) => {
+                const sku = ctx.skus.find((s) => s._id === id)
+                if (sku) dispatch({ t: 'add', sku })
+              }}
+              onCreate={ctx.caps.recipes ? (name) => setCreating({ name, canonicalUnit: 'kg', category: 'other' }) : undefined}
+              createLabel="Crear insumo"
+            />
+          )}
+          <section aria-labelledby="most-used" className="space-y-3">
+            <h3 id="most-used" className="text-base font-black">
+              Productos más usados
+            </h3>
+            {stock.status === 'loading' && raw.length > 0 ? (
+              <LoadingBlock rows={2} label="Cargando los más usados" />
+            ) : mostUsed.length === 0 ? (
+              <EmptyBlock icon={<PackagePlus size={28} />} title="Todavía no hay insumos">
+                Buscá arriba y creá el primero.
+              </EmptyBlock>
+            ) : (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {mostUsed.map((s) => {
+                  const on = selectedIds.has(s._id)
+                  return (
+                    <li key={s._id}>
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggle(s)}
+                        className={cn(
+                          'flex h-full w-full flex-col items-start gap-2 rounded-2xl border-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/40',
+                          on ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40',
+                        )}
+                      >
+                        <span className="flex w-full items-start justify-between gap-2">
+                          <SkuIcon category={s.category} size="lg" />
+                          <span aria-hidden className={cn('inline-flex size-8 items-center justify-center rounded-full border-2', on ? 'border-primary bg-primary text-primary-foreground' : 'border-border')}>
+                            {on ? <Check size={16} aria-hidden /> : <Plus size={16} aria-hidden />}
+                          </span>
+                        </span>
+                        <span className="block w-full">
+                          <span className="block truncate font-bold">{s.name}</span>
+                          <span className="block text-xs text-muted-foreground">{UNIT_SHORT[s.canonicalUnit]}</span>
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+          {selectedIds.size > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Elegidos: {session.lines.filter((l) => l.status !== 'done').map((l) => l.sku.name).join(', ')}
+            </p>
+          )}
+        </div>
+      </Panel>
+    )
+  }
+
+  // ── Paso 2: cantidades ───────────────────────────────────────────────────
+  return (
+    <Panel
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Registrar mercadería"
+      description="Paso 2 de 3: cargá cuánto llegó, como figura en el remito."
+      wide
+      footer={
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={btnGhost} onClick={() => setStep('pick')}>
+            <ArrowLeft size={18} aria-hidden /> Productos
+          </button>
+          <button
+            type="button"
+            className={btnPrimary}
+            disabled={pending.length === 0 || !storageId}
+            onClick={() => {
+              setShowErrors(true)
+              if (invalid.length === 0) setStep('review')
+            }}
+          >
+            Continuar ({pending.length}) <ArrowRight size={18} aria-hidden />
+          </button>
+          {showErrors && invalid.length > 0 && (
+            <p role="alert" className="text-sm font-semibold text-red-700 dark:text-red-300">
+              Revisá {invalid.length === 1 ? 'la línea marcada' : `las ${invalid.length} líneas marcadas`}.
+            </p>
+          )}
+        </div>
+      }
+    >
+      <div className="space-y-5">
+        <Stepper steps={STEPS} current={1} />
+        {!storageId && <Notice tone="error">La sede no tiene depósito de inventario. Primero hay que prepararla.</Notice>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Proveedor (opcional)">
+            {(a11y) => <input {...a11y} value={session.supplier} maxLength={120} onChange={(e) => dispatch({ t: 'header', patch: { supplier: e.target.value } })} className={inputClass} />}
+          </Field>
+          <Field label="Factura o remito (opcional)">
+            {(a11y) => <input {...a11y} value={session.invoice} maxLength={80} onChange={(e) => dispatch({ t: 'header', patch: { invoice: e.target.value } })} className={inputClass} />}
+          </Field>
+          {ctx.storages.length > 1 && (
+            <Field label="Depósito" className="sm:col-span-2">
+              {(a11y) => (
+                <select {...a11y} value={storageId ?? ''} onChange={(e) => setStorageId(e.target.value)} className={inputClass}>
+                  {ctx.storages.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          )}
+        </div>
+
+        {creating ? (
+          creatingBox
         ) : (
           <SearchPicker
             label="Agregar insumo"
@@ -419,7 +548,10 @@ function LineEditor({
   return (
     <li className="space-y-3 rounded-2xl border-2 border-border p-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-black">{line.sku.name}</p>
+        <p className="flex items-center gap-3 font-black">
+          <SkuIcon category={(line.sku as SkuOption).category} size="sm" />
+          {line.sku.name}
+        </p>
         <button type="button" onClick={onRemove} className={`${btnGhost} min-w-11`} aria-label={`Quitar ${line.sku.name}`}>
           <Trash2 size={18} aria-hidden />
         </button>

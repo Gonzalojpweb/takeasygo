@@ -15,12 +15,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ClipboardList, PackageOpen, Settings2, Truck, UtensilsCrossed, Zap } from 'lucide-react'
+import { CircleHelp, ClipboardList, PackageOpen, Settings2, Truck, UtensilsCrossed, Zap } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { invApi } from './data/api'
 import { useResource } from './data/useResource'
 import type { Capabilities, LocationOption, SetupStatus, SkuOption, StorageOption } from './data/types'
-import { StatusTag, btnPrimary, btnSecondary } from './ui'
+import { btnPrimary, btnSecondary } from './ui'
+import HelpCenter from './HelpCenter'
+import { HELP_BY_VIEW, type HelpTopicId } from '@/lib/inventory/ui/help-content'
+import { cn } from '@/lib/utils'
 import NowView from './views/NowView'
 import ProductsView from './views/ProductsView'
 import RecipesView from './views/RecipesView'
@@ -36,10 +39,10 @@ const VIEWS: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ size
   { id: 'actividad', label: 'Actividad', icon: ClipboardList, needs: 'read' },
 ]
 
-const STATUS_TAG: Record<SetupStatus, { tone: 'ok' | 'warning' | 'neutral'; label: string }> = {
-  active: { tone: 'ok', label: 'Activo: las ventas descuentan' },
-  preparing: { tone: 'warning', label: 'En preparación: las ventas todavía no descuentan' },
-  off: { tone: 'neutral', label: 'Sin inventario' },
+const STATUS_PILL: Record<SetupStatus, { dot: string; cls: string; label: string; title: string }> = {
+  active: { dot: 'bg-emerald-500', cls: 'border-emerald-600/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200', label: 'Inventario activo', title: 'Las ventas descuentan insumos solas' },
+  preparing: { dot: 'bg-amber-500', cls: 'border-amber-600/30 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100', label: 'En preparación', title: 'Las ventas todavía no descuentan' },
+  off: { dot: 'bg-slate-400', cls: 'border-border bg-muted text-foreground', label: 'Sin inventario', title: 'Esta sede todavía no tiene inventario' },
 }
 
 export interface V3Context {
@@ -61,6 +64,8 @@ export interface V3Context {
   version: number
   open: (p: PanelRequest) => void
   goTo: (view: ViewId) => void
+  /** Abre el centro de ayuda (en un tema, o en el de la pantalla actual). */
+  help: (topic?: HelpTopicId) => void
   refreshCatalog: () => void
   refreshStatus: () => Promise<void>
 }
@@ -91,6 +96,9 @@ export default function InventoryV3({
   const [view, setView] = useState<ViewId>(() => (allowed.some((v) => v.id === initialView) ? (initialView as ViewId) : 'ahora'))
   const [panel, setPanel] = useState<PanelRequest | null>(null)
   const [version, setVersion] = useState(0)
+  // Centro de ayuda: cada apertura remonta el panel en el tema pedido.
+  const [help, setHelp] = useState<{ topic: HelpTopicId | null; n: number } | null>(null)
+  const openHelp = useCallback((topic?: HelpTopicId) => setHelp((h) => ({ topic: topic ?? null, n: (h?.n ?? 0) + 1 })), [])
 
   // URL ← contexto y sede (sin recargar ni ensuciar el historial).
   useEffect(() => {
@@ -134,30 +142,40 @@ export default function InventoryV3({
             version,
             open: setPanel,
             goTo: setView,
+            help: openHelp,
             refreshCatalog: catalog.reload,
             refreshStatus,
           }
         : null,
-    [location, locations, tenantSlug, capabilities, catalog.data, catalog.reload, version, refreshStatus],
+    [location, locations, tenantSlug, capabilities, catalog.data, catalog.reload, version, refreshStatus, openHelp],
   )
 
   if (!ctx || !location) {
     return <p className="py-24 text-center text-muted-foreground">No hay sedes disponibles para tu usuario.</p>
   }
 
-  const tag = STATUS_TAG[location.status]
+  const pill = STATUS_PILL[location.status]
 
   return (
     <div className="space-y-5 pb-16">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Inventario</h1>
-          <p className="mt-1 text-sm font-medium text-muted-foreground">El restaurante trabaja; TakeasyGO controla y acompaña.</p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <StatusTag tone={tag.tone}>{tag.label}</StatusTag>
-          </div>
+          <p className="mt-1 text-sm font-medium text-muted-foreground">Control automático de tu mercadería</p>
         </div>
-        <div className="flex w-full flex-wrap items-end gap-2 sm:w-auto">
+        <div className="flex flex-wrap items-center gap-2">
+          <span title={pill.title} className={cn('inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-bold', pill.cls)}>
+            <span aria-hidden className={cn('size-2.5 rounded-full', pill.dot)} />
+            {pill.label}
+            <span className="sr-only">: {pill.title}</span>
+          </span>
+          <button type="button" className={btnSecondary} onClick={() => openHelp(HELP_BY_VIEW[view])}>
+            <CircleHelp size={18} aria-hidden /> Ver ayuda
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap items-end justify-end gap-2">
           {locations.length > 1 && (
             <label className="flex flex-1 flex-col gap-1 text-sm font-bold sm:flex-none">
               Sede
@@ -185,11 +203,10 @@ export default function InventoryV3({
           )}
           {capabilities.capture && location.status !== 'off' && (
             <button type="button" className={btnPrimary} onClick={() => setPanel({ type: 'receive' })}>
-              <Truck size={18} aria-hidden /> Recibir mercadería
+              <Truck size={18} aria-hidden /> Registrar mercadería
             </button>
           )}
-        </div>
-      </header>
+      </div>
 
       <Tabs value={view} onValueChange={(v) => setView(v as ViewId)} className="gap-5">
         <TabsList aria-label="Contextos de inventario" className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl bg-muted p-1 sm:w-fit">
@@ -226,6 +243,8 @@ export default function InventoryV3({
           Abrir la pantalla clásica
         </Link>
       </p>
+
+      {help && <HelpCenter key={help.n} ctx={ctx} open topic={help.topic} onClose={() => setHelp(null)} />}
 
       <PanelHost
         ctx={ctx}

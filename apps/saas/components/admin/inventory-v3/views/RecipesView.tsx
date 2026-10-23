@@ -14,6 +14,8 @@ import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
 import type { DishCoverage, DishView, RecipesData } from '../data/types'
 import { EmptyBlock, ErrorBlock, LoadingBlock, Notice, Spinner, StatusTag, FilterChip, btnSecondary, inputClass } from '../ui'
+import { DishThumb, ProgressBar } from '../visual'
+import { cn } from '@/lib/utils'
 import type { V3Context } from '../InventoryV3'
 
 type Filter = 'all' | 'pending' | 'ready'
@@ -26,18 +28,18 @@ interface ModifierRule {
   isActive: boolean
 }
 
-const COVERAGE: Record<DishCoverage, { tone: 'ok' | 'warning' | 'neutral'; label: string }> = {
-  controlled: { tone: 'ok', label: 'Descuenta' },
-  needs_counts: { tone: 'warning', label: 'Descuenta · falta conteo inicial' },
-  variants_pending: { tone: 'warning', label: 'Variantes sin confirmar' },
-  no_recipe: { tone: 'neutral', label: 'Sin receta' },
+const COVERAGE: Record<DishCoverage, { label: string; pill: string; action: string }> = {
+  controlled: { label: 'Receta completa', pill: 'bg-emerald-50 text-emerald-800 border-emerald-600/30 dark:bg-emerald-950/40 dark:text-emerald-200', action: 'Editar' },
+  needs_counts: { label: 'Descuenta · falta conteo inicial', pill: 'bg-sky-50 text-sky-800 border-sky-600/30 dark:bg-sky-950/40 dark:text-sky-200', action: 'Editar' },
+  variants_pending: { label: 'Variantes sin confirmar', pill: 'bg-amber-50 text-amber-900 border-amber-600/30 dark:bg-amber-950/40 dark:text-amber-100', action: 'Completar' },
+  no_recipe: { label: 'Sin receta', pill: 'bg-orange-50 text-orange-800 border-orange-600/30 dark:bg-orange-950/40 dark:text-orange-200', action: 'Cargar receta' },
 }
 
 const isPending = (d: DishView) => d.coverage === 'no_recipe' || d.coverage === 'variants_pending'
 
 export default function RecipesView({ ctx }: { ctx: V3Context }) {
   const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<Filter>('pending')
+  const [filter, setFilter] = useState<Filter>('all')
   const [removing, setRemoving] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [section, setSection] = useState<Section>('dishes')
@@ -169,14 +171,28 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
     <div className="space-y-5">
       {sectionPicker}
       {data.status === 'error' && <Notice tone="error">No se pudo actualizar: {data.error.message}</Notice>}
-      <div className="rounded-2xl border-2 border-border bg-card p-4">
-        <p className="text-sm font-bold text-muted-foreground">Cobertura del menú</p>
-        <p className="mt-1 text-2xl font-black">
-          {ready} de {r.coverage.total} platos descuentan insumos
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {pendingCount === 0 ? 'Todo el menú está configurado.' : `${pendingCount} pendientes: sus ventas no descuentan hasta cargar o confirmar la receta.`}
-        </p>
+      <div className="rounded-2xl border-2 border-border bg-card p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-bold text-muted-foreground">Configurar recetas</p>
+            <p className="mt-1 text-2xl font-black">
+              {ready} de {r.coverage.total} platos descuentan insumos
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {pendingCount === 0 ? 'Todo el menú está configurado.' : `Vinculá tus platos con sus ingredientes para activar el control automático. ${pendingCount} pendientes.`}
+            </p>
+          </div>
+          <button type="button" className="min-h-11 text-sm font-bold text-primary underline-offset-2 hover:underline" onClick={() => ctx.help('recetas')}>
+            ¿Cómo cargo una receta?
+          </button>
+        </div>
+        <div className="mt-3">
+          <ProgressBar
+            value={r.coverage.total ? (ready / r.coverage.total) * 100 : 0}
+            label="Platos con receta"
+            tone={ready === r.coverage.total ? 'ok' : ready / Math.max(1, r.coverage.total) >= 0.5 ? 'warning' : 'danger'}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -188,9 +204,9 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
           <input id="dish-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar plato o categoría…" className={`${inputClass} pl-10`} />
         </div>
         <div role="group" aria-label="Filtrar platos" className="flex flex-wrap gap-2">
-          <FilterChip active={filter === 'pending'} onClick={() => setFilter('pending')}>Pendientes ({pendingCount})</FilterChip>
-          <FilterChip active={filter === 'ready'} onClick={() => setFilter('ready')}>Listos ({r.items.length - pendingCount})</FilterChip>
           <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>Todos ({r.items.length})</FilterChip>
+          <FilterChip active={filter === 'ready'} onClick={() => setFilter('ready')}>Con receta ({r.items.length - pendingCount})</FilterChip>
+          <FilterChip active={filter === 'pending'} onClick={() => setFilter('pending')}>Pendientes ({pendingCount})</FilterChip>
         </div>
       </div>
 
@@ -211,8 +227,9 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
                 <button
                   type="button"
                   onClick={() => ctx.open({ type: 'recipe', menuItemId: d.menuItemId, variantName: firstPending })}
-                  className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/40"
+                  className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/40"
                 >
+                  <DishThumb imageUrl={d.imageUrl} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold">{d.name}</span>
                     <span className="block text-sm text-muted-foreground">
@@ -220,10 +237,22 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
                       {d.soldLast30d > 0 && ` · ${d.soldLast30d} vendidos en 30 días`}
                       {d.variantStates.length > 0 && ` · variantes ${confirmed}/${d.variantStates.length}`}
                     </span>
+                    <span className={cn('mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-bold sm:hidden', c.pill)}>
+                      <span aria-hidden className="size-1.5 rounded-full bg-current" /> {c.label}
+                    </span>
                   </span>
-                  <StatusTag tone={c.tone}>{c.label}</StatusTag>
+                  <span className={cn('hidden items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold sm:inline-flex', c.pill)}>
+                    <span aria-hidden className="size-1.5 rounded-full bg-current" /> {c.label}
+                  </span>
+                  <span
+                    className={cn(
+                      'hidden min-h-10 items-center rounded-xl border-2 px-3 text-sm font-bold md:inline-flex',
+                      d.coverage === 'controlled' || d.coverage === 'needs_counts' ? 'border-border' : 'border-primary text-primary',
+                    )}
+                  >
+                    {c.action}
+                  </span>
                   <ChevronRight size={18} aria-hidden className="shrink-0 text-muted-foreground" />
-                  <span className="sr-only">Editar receta</span>
                 </button>
               </li>
             )

@@ -15,6 +15,8 @@ export interface DraftSku {
   name: string
   canonicalUnit: string
   isActive?: boolean
+  /** Categoría del insumo (solo para el ícono). */
+  category?: string
 }
 
 export interface DraftRow {

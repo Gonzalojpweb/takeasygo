@@ -98,6 +98,7 @@ export interface DishView {
   name: string
   categoryName: string
   priceCents: number
+  imageUrl?: string | null
   modifiers: string[]
   soldLast30d: number
   coverage: DishCoverage

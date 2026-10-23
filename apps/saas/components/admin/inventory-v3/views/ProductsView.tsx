@@ -16,6 +16,7 @@ import type { StockData } from '../data/types'
 import { estimateText } from '@/lib/inventory/ui/format'
 import { needsAttention, productState, type ProductStateView } from '@/lib/inventory/ui/product-status'
 import { EmptyBlock, ErrorBlock, LoadingBlock, Notice, StatusTag, FilterChip, btnPrimary, inputClass } from '../ui'
+import { SkuIcon } from '../visual'
 import type { V3Context } from '../InventoryV3'
 
 type Filter = 'all' | 'attention' | 'no_data'
@@ -25,6 +26,7 @@ interface Item {
   skuId: string
   storageLocationId: string | null
   name: string
+  category: string
   storageName: string | null
   main: string
   range: string | null
@@ -48,6 +50,7 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
         skuId: r.skuId,
         storageLocationId: r.storageLocationId,
         name: r.name,
+        category: r.category,
         storageName: r.storageName,
         main: est.main,
         range: est.range,
@@ -59,6 +62,7 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
       skuId: u.skuId,
       storageLocationId: null,
       name: u.name,
+      category: u.category,
       storageName: null,
       main: 'Sin conteo inicial',
       range: null,
@@ -101,10 +105,13 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
           <Search size={18} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input id="product-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar producto…" className={`${inputClass} pl-10`} />
         </div>
-        <div role="group" aria-label="Filtrar productos" className="flex flex-wrap gap-2">
+        <div role="group" aria-label="Filtrar productos" className="flex flex-wrap items-center gap-2">
           <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>Todos ({items.length})</FilterChip>
           <FilterChip active={filter === 'attention'} onClick={() => setFilter('attention')}>Atención ({counts.attention})</FilterChip>
           <FilterChip active={filter === 'no_data'} onClick={() => setFilter('no_data')}>Sin conteo ({counts.no_data})</FilterChip>
+          <button type="button" className="min-h-11 px-2 text-sm font-bold text-primary underline-offset-2 hover:underline" onClick={() => ctx.help('productos')}>
+            ¿Qué significa cada estado?
+          </button>
         </div>
       </div>
 
@@ -123,6 +130,7 @@ export default function ProductsView({ ctx }: { ctx: V3Context }) {
                 onClick={() => ctx.open({ type: 'product', skuId: i.skuId, storageLocationId: i.storageLocationId })}
                 className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-primary/40"
               >
+                <SkuIcon category={i.category} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-bold">{i.name}</span>
                   {i.storageName && ctx.storages.length > 1 && <span className="block text-xs text-muted-foreground">{i.storageName}</span>}

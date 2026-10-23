@@ -14,6 +14,7 @@ import type { FieldErrors } from '@/lib/inventory/ui/fields'
 import { compatibleUnits, recipeDefaultUnit } from '@/lib/inventory/ui/fields'
 import { UNIT_SHORT } from '@/lib/inventory/ui/format'
 import { Field, SearchPicker, Spinner, btnGhost, btnPrimary, inputClass } from './ui'
+import { SkuIcon } from './visual'
 
 export const SKU_CATEGORIES: Array<[string, string]> = [
   ['meat_poultry', 'Carnes y aves'],
@@ -93,7 +94,8 @@ export default function RowsEditor({
             const units = sku ? compatibleUnits(sku.canonicalUnit) : ['g']
             const label = sku?.name ?? 'insumo'
             return (
-              <li key={r.key} className="grid grid-cols-[1fr_6rem_5.5rem_auto] items-start gap-2 rounded-xl border-2 border-border p-3">
+              <li key={r.key} className="grid grid-cols-[auto_1fr_6rem_5.5rem_auto] items-start gap-2 rounded-xl border-2 border-border p-3">
+                <SkuIcon category={sku?.category} size="sm" className="mt-1.5" />
                 <div className="min-w-0 pt-2">
                   <p className="truncate font-bold">{sku?.name ?? 'Insumo'}</p>
                   {e.skuId && <p className="text-sm font-semibold text-red-700 dark:text-red-300">{e.skuId}</p>}

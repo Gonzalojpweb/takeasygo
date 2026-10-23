@@ -63,6 +63,9 @@ export default function SetupGuide({ ctx, overview, onChanged }: { ctx: V3Contex
           En cuatro pasos el sistema empieza a descontar insumos solo con cada venta. No hace falta cargar todo el menú:
           empezá por lo que más vendés.
         </p>
+        <button type="button" className="mt-2 min-h-11 text-sm font-bold text-primary underline-offset-2 hover:underline" onClick={() => ctx.help('empezar')}>
+          Ver la guía de puesta en marcha
+        </button>
       </div>
       {error && <Notice tone="error">{error}</Notice>}
 

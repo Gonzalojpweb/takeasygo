@@ -31,6 +31,8 @@ import {
 import { UNIT_SHORT, pesos } from '@/lib/inventory/ui/format'
 import { ErrorBlock, LoadingBlock, Notice, Panel, Spinner, StatusTag, btnGhost, btnPrimary, btnSecondary } from '../ui'
 import RowsEditor, { type NewSkuInput } from '../RowsEditor'
+import { DishThumb } from '../visual'
+import { CircleHelp } from 'lucide-react'
 import type { PanelProps } from './PanelHost'
 
 const VARIANT_STATUS: Record<string, { tone: 'ok' | 'warning' | 'neutral'; label: string }> = {
@@ -352,6 +354,16 @@ function Editor({
       }
     >
       <div className="space-y-6">
+        <div className="flex items-center gap-4 rounded-2xl border-2 border-border p-3">
+          <DishThumb imageUrl={dish.imageUrl} size="lg" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-black">{dish.name}</p>
+            <p className="text-sm text-muted-foreground">Plato del menú · {dish.categoryName}</p>
+          </div>
+          <StatusTag tone={dish.coverage === 'controlled' || dish.coverage === 'needs_counts' ? 'ok' : dish.coverage === 'variants_pending' ? 'warning' : 'neutral'}>
+            {dish.coverage === 'controlled' || dish.coverage === 'needs_counts' ? 'Activa' : dish.coverage === 'variants_pending' ? 'Variantes pendientes' : 'Sin receta'}
+          </StatusTag>
+        </div>
         {serverError && <Notice tone="error">{serverError} Lo que cargaste sigue acá.</Notice>}
         {notice && <Notice tone="info">{notice}</Notice>}
 
@@ -396,9 +408,12 @@ function Editor({
         {draft.mode === 'own' && (
           <section aria-labelledby="ingredients-title" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 id="ingredients-title" className="text-base font-black">
-                Insumos por porción
-              </h3>
+              <div>
+                <h3 id="ingredients-title" className="text-base font-black">
+                  Ingredientes por porción
+                </h3>
+                <p className="text-sm text-muted-foreground">Estos ingredientes se descuentan automáticamente cuando se vende.</p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {target !== null && dish.base && draft.rows.length === 0 && (
                   <button type="button" className={btnSecondary} onClick={() => setDraft(copyFromBase(draft, dish.base!.items))}>
@@ -428,6 +443,10 @@ function Editor({
             {showErrors && validation.form && <p className="text-sm font-semibold text-red-700 dark:text-red-300">{validation.form}</p>}
           </section>
         )}
+
+        <button type="button" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-bold text-primary" onClick={() => ctx.help(dish.variantStates.length > 0 ? 'variantes' : 'recetas')}>
+          <CircleHelp size={16} aria-hidden /> {dish.variantStates.length > 0 ? '¿Cómo funcionan las variantes?' : '¿Cómo cargo bien una receta?'}
+        </button>
 
         {recipeView && ctx.caps.read && (
           <p className="text-sm text-muted-foreground">
