@@ -4,6 +4,7 @@ import { getSocket } from "../../services/socket-client"
 import { useAuth } from "../../hooks/useAuth"
 import { requestSsoToken } from "../../services/sso"
 import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
+import { CURRENT_BUILD, versionLabel } from "../../services/app-update"
 
 // ============================================================================
 // Header — identidad permanente: ¿dónde estoy? (W0S §2, VLS §3)
@@ -189,8 +190,8 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
           <div className="header-clock">
             {time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
           </div>
-          <div className="header-clock-day">
-            {time.toLocaleDateString("es-AR", { weekday: "long" })}
+          <div className="header-clock-day" title={versionLabel()}>
+            {time.toLocaleDateString("es-AR", { weekday: "long" })} · v{CURRENT_BUILD.version.slice(0, 7)}
           </div>
         </div>
         <div className="header-user">

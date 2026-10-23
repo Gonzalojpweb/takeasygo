@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Actualizando el POS…</title>
+  <style>
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0b0f10; color: #f2f5f5; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 26rem; padding: 2rem; text-align: center; }
+    h1 { font-size: 1.25rem; margin: 0 0 .5rem; }
+    p { margin: .25rem 0; color: #b9c4c4; }
+    a { color: #6fd3c7; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Actualizando el POS a la última versión…</h1>
+    <p id="msg">Borrando la copia guardada en este dispositivo.</p>
+    <p><small>Tu sesión y tus datos no se borran.</small></p>
+  </main>
+  <script>
+    // Página independiente de la app (no la carga el bundle): sirve también
+    // para un dispositivo trabado en una versión vieja que no tiene el
+    // control de versión nuevo. Desregistra los service workers, borra el
+    // Cache Storage del sitio y vuelve al POS desde la red.
+    (async function () {
+      var msg = document.getElementById("msg")
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          var regs = await navigator.serviceWorker.getRegistrations()
+          await Promise.all(regs.map(function (r) { return r.unregister() }))
+        }
+      } catch (e) {}
+      try {
+        if (window.caches && caches.keys) {
+          var keys = await caches.keys()
+          await Promise.all(keys.map(function (k) { return caches.delete(k) }))
+        }
+      } catch (e) {}
+      try { localStorage.removeItem("pos:hard-reset") } catch (e) {}
+      msg.textContent = "Listo. Abriendo el POS…"
+      setTimeout(function () { window.location.replace("/?v=" + Date.now()) }, 600)
+    })()
+  </script>
+</body>
+</html>

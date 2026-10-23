@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { FormEvent } from "react"
 import { getLocations, loginWithPin, loginWithEmail } from "../services/auth-api"
 import type { PosLocation } from "../services/auth-api"
+import { versionLabel } from "../services/app-update"
 
 interface LoginScreenProps {
   onLogin: (
@@ -350,6 +351,13 @@ export function LoginScreen({ onLogin, error, loading }: LoginScreenProps) {
           </button>
         </form>
       )}
+      {/* Para saber qué versión tiene este equipo (y compararla con la publicada). */}
+      <p style={{ marginTop: "1.5rem", textAlign: "center", fontSize: "0.75rem", color: "#888" }}>
+        {versionLabel()} ·{" "}
+        <a href="/reset.html" style={{ color: "#aaa" }}>
+          ¿Ves una versión vieja? Actualizar
+        </a>
+      </p>
     </div>
   )
 }

@@ -1,11 +1,42 @@
-import { defineConfig } from "vite"
+import { defineConfig, type Plugin } from "vite"
 import react from "@vitejs/plugin-react"
 import { VitePWA } from "vite-plugin-pwa"
 import path from "node:path"
+import { execSync } from "node:child_process"
+
+// ── Sello de versión ─────────────────────────────────────────────────────────
+// Cada build lleva su versión (commit) adentro del bundle (__POS_BUILD__) y en
+// /version.json (nunca cacheado). Al abrir, la app compara las dos: si no
+// coinciden, la página vino de una copia vieja y se limpia sola
+// (src/services/app-update.ts). Además se muestra en pantalla.
+function resolveCommit(): string {
+  const fromVercel = process.env.VERCEL_GIT_COMMIT_SHA
+  if (fromVercel) return fromVercel.slice(0, 8)
+  try {
+    return execSync("git rev-parse --short=8 HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim()
+  } catch {
+    return "local"
+  }
+}
+const BUILD = { version: resolveCommit(), builtAt: new Date().toISOString() }
+
+function versionFile(): Plugin {
+  return {
+    name: "pos-version-file",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify(BUILD) })
+    },
+  }
+}
 
 export default defineConfig({
+  define: {
+    __POS_BUILD__: JSON.stringify(BUILD),
+  },
   plugins: [
     react(),
+    versionFile(),
     VitePWA({
       registerType: "autoUpdate",
       // El registro y la política de recarga viven en src/services/app-update.ts
