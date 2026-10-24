@@ -41,6 +41,7 @@ import {
 import { playOrderNotification, installAudioUnlock } from "./services/notification-sound"
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
+import { ManagerApprovalDialog } from "./components/shared/ManagerApprovalDialog"
 
 function App() {
   const { state, login, logout } = useAuth()
@@ -370,12 +371,14 @@ function AppShell({
         {current.id === "counter" && <CounterDashboard />}
         {current.id === "waiter" && <WaiterDashboard />}
         {current.id === "flota" && <FlotaWidget />}
-        {current.id === "caja" && <CashDashboard />}
+        {current.id === "caja" && <CashDashboard role={role} />}
         {current.id === "ventas" && <SalesDashboard />}
       </main>
 
       <ContextPanel empty={current.empty} />
       <ActionBar />
+      {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
+      <ManagerApprovalDialog />
     </div>
   )
 }

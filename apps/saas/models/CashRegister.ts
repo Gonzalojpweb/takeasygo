@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import type { CashChannel, CashRegisterStatus } from '@takeasygo/types'
+import type { CashChannel, CashClosingCount, CashRegisterStatus } from '@takeasygo/types'
 
 // ============================================================================
 // CashRegister — cajas del POS Online (V1)
@@ -40,6 +40,8 @@ export interface ICashRegister extends Document {
   /** Snapshot inmutable (ZReport). Mixed a propósito: no se castea ni se recalcula. */
   zReport: Record<string, unknown> | null
   shareToken: string | null
+  /** Conteo por billete declarado al cerrar (cierre ciego). Montos en centavos. */
+  closingCount: CashClosingCount | null
   createdAt: Date
   updatedAt: Date
 }
@@ -65,6 +67,17 @@ const CashRegisterSchema = new Schema<ICashRegister>(
     defaultForChannel: { type: String, enum: ['counter', 'takeasygo', null], default: null },
     zReport: { type: Schema.Types.Mixed, default: null },
     shareToken: { type: String, default: null },
+    closingCount: {
+      type: new Schema(
+        {
+          bills: [{ _id: false, value: { type: Number, required: true }, count: { type: Number, required: true, min: 0 } }],
+          coins: { type: Number, default: 0, min: 0 },
+          total: { type: Number, required: true, min: 0 },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 )

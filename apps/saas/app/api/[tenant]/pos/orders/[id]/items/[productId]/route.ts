@@ -4,6 +4,7 @@ import { logAudit } from '@/lib/audit'
 import type { OrderStatus } from '@takeasygo/types'
 import { canEditOrderItems } from '@takeasygo/business'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
+import { requireManagerApproval } from '@/lib/pos-online/approval'
 import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, recomputeOrderTotals, type SaasOrderItemDraft } from '@/lib/pos-online/orderMapper'
@@ -37,6 +38,27 @@ function assertEditable(status: string): void {
 }
 
 /** Recalcula el subtotal de un item para una nueva cantidad. */
+/**
+ * Fase 1 de caja (2026-10): quitar o bajar productos de una orden que YA se
+ * mandó a cocina (`confirmed`) es la "anulación post-comanda" — necesita el
+ * PIN de un encargado si lo hace un cajero o un mozo. Antes de mandar a
+ * cocina (`pending`) se edita libre.
+ */
+async function approveIfSentToKitchen(
+  ctx: Parameters<Parameters<typeof posRoute>[1]>[0],
+  status: string,
+  details: Record<string, unknown>
+): Promise<string | null> {
+  if (status !== 'confirmed') return null
+  const approval = await requireManagerApproval(
+    ctx,
+    'order.item.reduce',
+    'Quitar productos que ya se mandaron a cocina necesita la aprobación de un encargado'
+  )
+  details.approvedBy = approval.approvedBy
+  return approval.approvedBy
+}
+
 function withQuantity(item: SaasOrderItemDraft, quantity: number): SaasOrderItemDraft {
   return { ...item, quantity, subtotal: (item.basePrice + item.extraPrice) * quantity }
 }
@@ -90,6 +112,12 @@ export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => 
     throw PosError.notFound('Producto no encontrado en la orden')
   }
 
+  const auditDetails: Record<string, unknown> = { productId: pid, quantity }
+  const currentQuantity = matches.reduce((sum, i) => sum + i.quantity, 0)
+  if (quantity < currentQuantity) {
+    await approveIfSentToKitchen(ctx, current.status, auditDetails)
+  }
+
   // Espejo del POS: quantity 0 equivale a quitarlo.
   const items =
     quantity === 0
@@ -103,7 +131,7 @@ export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => 
     action: 'pos.order.item.quantity',
     entity: 'Order',
     entityId: String(current.posId),
-    details: { productId: pid, quantity, total: saved.total },
+    details: { ...auditDetails, total: saved.total },
     request: ctx.request,
     userId: ctx.user.id,
     userRole: ctx.user.role,
@@ -124,6 +152,9 @@ export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) =>
     throw PosError.notFound('Producto no encontrado en la orden')
   }
 
+  const auditDetails: Record<string, unknown> = { productId: pid }
+  await approveIfSentToKitchen(ctx, current.status, auditDetails)
+
   const saved = await saveItems(ctx, current.posId as string, current.updatedAt, items)
 
   await logAudit({
@@ -131,7 +162,7 @@ export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) =>
     action: 'pos.order.item.remove',
     entity: 'Order',
     entityId: String(current.posId),
-    details: { productId: pid, total: saved.total },
+    details: { ...auditDetails, total: saved.total },
     request: ctx.request,
     userId: ctx.user.id,
     userRole: ctx.user.role,

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { posRoute } from '@/lib/pos-online/route'
-import { toPosMovement, toPosRegister } from '@/lib/pos-online/cashMapper'
+import { redactRegisterForRole, toPosMovement, toPosRegister } from '@/lib/pos-online/cashMapper'
 import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cashRepo'
 
 // ============================================================================
@@ -12,9 +12,12 @@ export const GET = posRoute<{ tenant: string; id: string }>('cash.read', async (
   const movements = await loadMovementsForRegister(register._id)
 
   return NextResponse.json({
-    register: toPosRegister(
-      register,
-      movements.map((m) => toPosMovement(m))
+    register: redactRegisterForRole(
+      toPosRegister(
+        register,
+        movements.map((m) => toPosMovement(m))
+      ),
+      ctx.user.role
     ),
     serverTime: new Date().toISOString(),
   })

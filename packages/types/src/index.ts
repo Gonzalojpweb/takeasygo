@@ -302,6 +302,8 @@ export interface Order {
   orderMode?: string
   /** Origen del pago: pos_charged = cobrado en POS, external_prepaid = pagado online */
   paymentSource?: 'pos_charged' | 'external_prepaid'
+  /** Venta anulada con devolución (Fase 1 de caja). Ausente si no se anuló. */
+  voided?: { at: Date; reason: string }
   /** Timestamp de integración al POS */
   integratedAt?: Date
   /** Quién integró el pedido al POS */
@@ -466,6 +468,8 @@ export interface CashRegister {
   difference?: number
   movements: CashMovement[]
   status: CashRegisterStatus
+  /** Conteo por billete declarado al cerrar (cierre ciego). */
+  closingCount?: CashClosingCount | null
   /**
    * Canal default para routing de pedidos TakeasyGO.
    * Decisión: Consenso v1 §2.3 — Multi-caja routing.
@@ -517,6 +521,41 @@ export interface CashMovement {
    * SOLO movimientos con paymentMethod === 'cash', sin importar channel.
    */
   paymentMethod: PaymentMethod
+  /** Categoría del egreso (gastos y retiros). Fase 1 de caja (2026-10). */
+  category?: CashExpenseCategory | null
+  /** Quién aprobó el movimiento con su PIN (retiros, anulaciones). */
+  approvedBy?: string | null
+  /**
+   * Origen del movimiento:
+   *  - pos: lo cargó el POS (manual o cobro registrado por el POS)
+   *  - payment: lo registró el server al cobrar la orden
+   *  - void: devolución automática de una venta anulada
+   */
+  source?: CashMovementSource
+}
+
+export type CashMovementSource = "pos" | "payment" | "void"
+
+/** Categorías de egreso (ver @takeasygo/business cash-control). */
+export type CashExpenseCategory =
+  | "suppliers"
+  | "supplies"
+  | "services"
+  | "salaries"
+  | "owner_withdrawal"
+  | "other"
+
+/** Conteo de un billete en el cierre ciego. `value` en centavos. */
+export interface CashDenominationCount {
+  value: number
+  count: number
+}
+
+/** Conteo físico declarado al cerrar (cierre ciego). Montos en centavos. */
+export interface CashClosingCount {
+  bills: CashDenominationCount[]
+  coins: number
+  total: number
 }
 
 export type CashMovementType =
@@ -588,6 +627,16 @@ export interface ZReport {
   expenseTotal: number
   salesTotal: number
   refundTotal: number
+
+  // ── Control (Fase 1, 2026-10) — opcionales: los Z viejos no los tienen ──
+  /** Retiros de efectivo (vales). */
+  withdrawalTotal?: number
+  /** Egresos (gastos + retiros) por categoría. */
+  byCategory?: Partial<Record<CashExpenseCategory, number>>
+  /** Ventas anuladas en el turno (devoluciones automáticas). */
+  voidCount?: number
+  /** Conteo físico por billete declarado al cerrar. */
+  closingCount?: CashClosingCount | null
 
   // ── Metadata ─────────────────────────────────────────────────────
   generatedAt: Date

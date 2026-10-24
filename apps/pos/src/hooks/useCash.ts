@@ -10,7 +10,13 @@ import {
   getRegisterHistoryByDate,
   getPendingMovements,
 } from "../services/cash"
-import type { CashMovementType, CashChannel, PaymentMethod } from "@takeasygo/types"
+import type {
+  CashChannel,
+  CashClosingCount,
+  CashExpenseCategory,
+  CashMovementType,
+  PaymentMethod,
+} from "@takeasygo/types"
 
 export function useCash() {
   const { state } = useAuth()
@@ -43,9 +49,14 @@ export function useCash() {
         if (!tenantId) throw new Error("[useCash] Not authenticated")
         return openRegister(tenantId, initialAmount, openedBy, defaultForChannel)
       },
-      closeRegister: (registerId: string, finalAmount: number, closedBy: string) => {
+      closeRegister: (
+        registerId: string,
+        finalAmount: number,
+        closedBy: string,
+        closingCount?: Pick<CashClosingCount, "bills" | "coins">
+      ) => {
         if (!tenantId) throw new Error("[useCash] Not authenticated")
-        return closeRegisterService(tenantId, registerId, finalAmount, closedBy)
+        return closeRegisterService(tenantId, registerId, finalAmount, closedBy, closingCount)
       },
       addMovement: (
         registerId: string,
@@ -55,7 +66,8 @@ export function useCash() {
         userId: string,
         channel: CashChannel,
         paymentMethod: PaymentMethod,
-        relatedOrderId?: string
+        relatedOrderId?: string,
+        category?: CashExpenseCategory
       ) => {
         if (!tenantId) throw new Error("[useCash] Not authenticated")
         return addMovementService(
@@ -67,7 +79,8 @@ export function useCash() {
           userId,
           channel,
           paymentMethod,
-          relatedOrderId
+          relatedOrderId,
+          category
         )
       },
       assignPendingMovements: (registerId: string) => {

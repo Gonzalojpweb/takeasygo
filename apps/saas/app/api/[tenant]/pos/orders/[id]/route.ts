@@ -16,6 +16,7 @@ import { encrypt, hashPhone } from '@/lib/crypto'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { runAfterResponse } from '@/lib/after-response'
+import { requireManagerApproval } from '@/lib/pos-online/approval'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/orders/[id] — una orden por su posId
@@ -64,6 +65,8 @@ function statusTimestampsFor(to: PosOrderStatusValue): Record<string, unknown> {
     case 'delivered':
       return { 'statusTimestamps.deliveredAt': now }
     case 'cancelled':
+      // cancelledBy es el ACTOR (client/admin/system), no el usuario: el
+      // usuario que canceló queda en el audit log (pos.order.update).
       return { 'statusTimestamps.cancelledAt': now, 'statusTimestamps.cancelledBy': 'admin' }
     default:
       return {}
@@ -132,6 +135,25 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
     if (!isValidOrderTransition(from, to)) {
       // El POS no reimplementa el grafo: recibe los destinos legales.
       throw PosError.transition(from, to, allowedOrderTransitions(from))
+    }
+
+    // Fase 1 de caja (2026-10): una orden COBRADA no se cancela acá — se
+    // anula con POST /pos/orders/[id]/void, que registra la devolución en la
+    // caja y pide encargado. Cancelar un pedido que ya salió a cocina
+    // también necesita encargado (la comida se hizo y no se cobra).
+    if (to === 'cancelled') {
+      const paid = (current as unknown as { posPayments?: unknown[] | null }).posPayments
+      if (paid && paid.length > 0) {
+        throw PosError.conflict('Esta orden ya está cobrada: usá «Anular venta» para devolver el dinero')
+      }
+      if (from !== 'pending') {
+        const approval = await requireManagerApproval(
+          ctx,
+          'order.cancel',
+          'Cancelar un pedido que ya está en cocina necesita la aprobación de un encargado'
+        )
+        audit.approvedBy = approval.approvedBy
+      }
     }
 
     update.status = to

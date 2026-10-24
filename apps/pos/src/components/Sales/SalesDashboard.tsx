@@ -4,6 +4,9 @@ import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
 import { db } from "../../db/dexie"
 import { formatCurrency, formatTime } from "../../utils/format"
+import { VOID_REASONS, VOID_REASON_LABELS, type VoidReason } from "@takeasygo/business/browser"
+import { voidOrder } from "../../services/order"
+import { isPosApiError } from "../../services/pos-api"
 
 type Period = "today" | "week" | "month"
 type ChannelFilter = "all" | "pos" | "external"
@@ -14,6 +17,11 @@ export function SalesDashboard() {
   const [period, setPeriod] = useState<Period>("today")
   const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all")
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
+  // Anular venta (Fase 1 de caja): motivo en el mismo panel, sin pantalla nueva.
+  const [voiding, setVoiding] = useState(false)
+  const [voidReason, setVoidReason] = useState<VoidReason | null>(null)
+  const [voidBusy, setVoidBusy] = useState(false)
+  const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null)
   const { setContextPanel, setActionBar } = useLayout()
 
   const orders = useLiveQuery(
@@ -61,7 +69,32 @@ export function SalesDashboard() {
 
   const handleSelectOrder = useCallback((orderId: string) => {
     setSelectedOrder(orderId === selectedOrder ? null : orderId)
+    setVoiding(false)
+    setVoidReason(null)
   }, [selectedOrder])
+
+  const flash = useCallback((kind: "success" | "error", text: string) => {
+    setNotice({ kind, text })
+    setTimeout(() => setNotice(null), 4000)
+  }, [])
+
+  const handleVoid = useCallback(async (orderId: string) => {
+    if (!tenantId || !voidReason) return
+    setVoidBusy(true)
+    try {
+      await voidOrder(tenantId, orderId, voidReason)
+      flash("success", "Venta anulada. La devolución quedó registrada en la caja.")
+      setSelectedOrder(null)
+      setVoiding(false)
+      setVoidReason(null)
+    } catch (err) {
+      if (!(isPosApiError(err) && err.code === "approval_cancelled")) {
+        flash("error", err instanceof Error ? err.message : "No se pudo anular la venta")
+      }
+    } finally {
+      setVoidBusy(false)
+    }
+  }, [tenantId, voidReason, flash])
 
   useEffect(() => {
     if (loading) {
@@ -99,16 +132,48 @@ export function SalesDashboard() {
                 <span>Total</span>
                 <span>{formatCurrency(order.total)}</span>
               </div>
+              {voiding && (
+                <div className="void-form">
+                  <span className="cash-label">¿Por qué se anula?</span>
+                  <div className="chip-row" role="radiogroup" aria-label="Motivo de la anulación">
+                    {VOID_REASONS.map((r) => (
+                      <button
+                        key={r}
+                        role="radio"
+                        aria-checked={voidReason === r}
+                        className={`chip ${voidReason === r ? "active" : ""}`}
+                        onClick={() => setVoidReason(r)}
+                      >
+                        {VOID_REASON_LABELS[r]}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="cash-help">
+                    Se devuelve {formatCurrency(order.total)} y queda en el cierre de caja. Un cajero necesita el PIN del encargado.
+                  </p>
+                </div>
+              )}
             </div>
           ),
         })
       }
+      // Solo ventas cobradas en el POS se anulan acá (las online se gestionan en el SaaS).
+      const canVoid = order?.paymentSource === "pos_charged" && !order.voided
       setActionBar({
         left: (
-          <button className="btn btn-ghost" onClick={() => setSelectedOrder(null)}>
-            ← Volver
+          <button className="btn btn-ghost" onClick={() => (voiding ? setVoiding(false) : setSelectedOrder(null))}>
+            {voiding ? "Cancelar" : "← Volver"}
           </button>
         ),
+        right: canVoid ? (
+          voiding ? (
+            <button className="btn btn-danger" disabled={!voidReason || voidBusy} onClick={() => handleVoid(order.id)}>
+              Anular y devolver
+            </button>
+          ) : (
+            <button className="btn btn-ghost" onClick={() => setVoiding(true)}>Anular venta</button>
+          )
+        ) : undefined,
       })
     } else {
       setContextPanel({
@@ -157,7 +222,7 @@ export function SalesDashboard() {
       })
       setActionBar(null)
     }
-  }, [loading, selectedOrder, period, channelFilter, metrics, periodOrders, orders, setContextPanel, setActionBar])
+  }, [loading, selectedOrder, period, channelFilter, metrics, periodOrders, orders, voiding, voidReason, voidBusy, handleVoid, setContextPanel, setActionBar])
 
   const PERIOD_LABEL = { today: "Hoy", week: "Esta semana", month: "Este mes" }
 
@@ -254,6 +319,14 @@ export function SalesDashboard() {
           </div>
         )}
       </div>
+
+      {notice && (
+        <div className="toast-container">
+          <div className={`toast ${notice.kind}`} role={notice.kind === "error" ? "alert" : "status"}>
+            <span className="toast-message">{notice.text}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

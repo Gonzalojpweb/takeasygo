@@ -107,6 +107,7 @@ apps/sync/.env.local
 
 /POS
 /docs
+/ADMIN
 
 
 /.env.example

@@ -1,5 +1,6 @@
 import type {
   CashChannel,
+  CashExpenseCategory,
   CashMovement,
   CashRegister,
   PaymentMethod,
@@ -56,6 +57,22 @@ export function generateZReport(input: ZReportInput): ZReport {
   const expenseTotal = sumByType(movements, ["expense", "withdrawal", "refund"])
   const salesTotal = sumByType(movements, ["sale"])
   const refundTotal = sumByType(movements, ["refund"])
+  const withdrawalTotal = sumByType(movements, ["withdrawal"])
+
+  // ── Egresos por categoría (gastos + retiros) ─────────────────────
+  const byCategory: Partial<Record<CashExpenseCategory, number>> = {}
+  for (const m of movements) {
+    if ((m.type !== "expense" && m.type !== "withdrawal") || !m.category) continue
+    byCategory[m.category] = (byCategory[m.category] ?? 0) + m.amount
+  }
+
+  // Una venta anulada deja una devolución por cada parte del cobro: se
+  // cuentan las órdenes, no las partes (`orderId#n` → `orderId`).
+  const voidCount = new Set(
+    movements
+      .filter((m) => m.type === "refund" && m.source === "void" && m.relatedOrderId)
+      .map((m) => String(m.relatedOrderId).split("#")[0])
+  ).size
 
   return {
     registerId: register.id,
@@ -79,6 +96,10 @@ export function generateZReport(input: ZReportInput): ZReport {
     expenseTotal,
     salesTotal,
     refundTotal,
+    withdrawalTotal,
+    byCategory,
+    voidCount,
+    closingCount: register.closingCount ?? null,
 
     // ── Metadata ───────────────────────────────────────────────────
     generatedAt: new Date(),

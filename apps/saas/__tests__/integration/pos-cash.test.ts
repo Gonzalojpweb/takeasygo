@@ -23,6 +23,10 @@ import { POST as closePost } from '@/app/api/[tenant]/pos/cash/registers/[id]/cl
  *   §2.1 un (registerId, relatedOrderId, type) repetido devuelve el existente
  *   §3  el Z se genera UNA VEZ al cerrar y el arqueo se recalcula desde los
  *       movimientos reales (no se confía en el valor denormalizado)
+ *
+ * Fase 1 de caja (2026-10): el saldo esperado en vivo solo lo recibe un
+ * encargado/admin (cierre ciego). Estos tests operan como encargado; el
+ * cierre ciego del cajero tiene sus propios tests en pos-cash-control.test.ts.
  */
 
 vi.mock('@/lib/mongoose', () => ({
@@ -40,7 +44,7 @@ let locationId: string
 
 function token(): string {
   return signJwt(
-    { sub: '64b0000000000000000000a1', tenantId, role: 'cashier', deviceType: 'hub' },
+    { sub: '64b0000000000000000000a1', tenantId, role: 'manager', deviceType: 'hub' },
     PRIVATE_PEM
   )
 }
@@ -252,6 +256,7 @@ describe('POST /pos/cash/registers/[id]/movements', () => {
       amount: 500,
       reason: 'Compra de hielo',
       paymentMethod: 'cash',
+      category: 'supplies',
     })
     expect(egreso.status).toBe(201)
     const body = await egreso.json()
@@ -377,6 +382,7 @@ describe('POST /pos/cash/registers/[id]/close — Z report', () => {
       amount: 500,
       reason: 'Retiro',
       paymentMethod: 'cash',
+      category: 'other',
     })
 
     const res = await close(registerId, 101000)

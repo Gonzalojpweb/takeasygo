@@ -126,6 +126,19 @@ export interface IPosPayment {
   paidAt: Date
 }
 
+/** Anulación de una venta cobrada en el POS (Fase 1 de caja, 2026-10). */
+export interface IOrderVoid {
+  at: Date
+  /** Usuario que pidió la anulación. */
+  by: string
+  /** Encargado que la aprobó (el mismo `by` si ya era encargado). */
+  approvedBy: string
+  reason: 'load_error' | 'customer_left' | 'complaint' | 'other'
+  note: string | null
+  /** posId de la caja donde se registró la devolución. */
+  registerPosId: string
+}
+
 export interface IGroupPayment {
   _id: mongoose.Types.ObjectId
   /** Consumer record for the member (stable reference, not email as key) */
@@ -324,6 +337,8 @@ export interface IOrder extends Document {
    * POST /pos/orders/[id]/payments y la suma SIEMPRE es igual a `total`.
    */
   posPayments?: IPosPayment[]
+  /** Anulación de la venta (null/ausente = no anulada). Write-once. */
+  voided?: IOrderVoid | null
   // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
   deliveryConfirmation?: {
     customerCode: {
@@ -817,6 +832,20 @@ const OrderSchema = new Schema(
     // Array acotado (≤ 10 partes, lo valida la ruta): embebido y no colección
     // aparte porque se lee y escribe siempre junto con la orden.
     posPayments: { type: [PosPaymentSchema], default: undefined },
+    voided: {
+      type: new Schema<IOrderVoid>(
+        {
+          at: { type: Date, required: true },
+          by: { type: String, required: true },
+          approvedBy: { type: String, required: true },
+          reason: { type: String, enum: ['load_error', 'customer_left', 'complaint', 'other'], required: true },
+          note: { type: String, default: null, maxlength: 200 },
+          registerPosId: { type: String, required: true },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
     // ── Delivery Confirmation (atestación mutua) ──────────────────────────────
     deliveryConfirmation: {
       type: {

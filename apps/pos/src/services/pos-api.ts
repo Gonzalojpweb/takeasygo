@@ -1,4 +1,5 @@
 import { db } from "../db/dexie"
+import { MAX_APPROVAL_ATTEMPTS, requestManagerPin } from "./manager-approval"
 
 // ============================================================================
 // pos-api — el ÚNICO cliente HTTP de la superficie /api/[tenant]/pos/*
@@ -37,10 +38,15 @@ export type PosApiErrorCode =
   | "transition_invalid"
   | "conflict"
   | "idempotency_mismatch"
+  | "approval_required"
+  | "approval_invalid"
+  | "rate_limited"
   | "internal"
   // Códigos del lado cliente (no vienen del server)
   | "no_session"
   | "network"
+  /** El cajero cerró el pedido de PIN del encargado. */
+  | "approval_cancelled"
 
 export class PosApiError extends Error {
   readonly code: PosApiErrorCode
@@ -110,11 +116,50 @@ export interface PosApiRequest {
  * Llamada autenticada a `${VITE_SAAS_URL}/api/{tenantId}/pos/{path}`.
  * Rechaza con `PosApiError`; un 401 además dispara `auth:expired` (mismo
  * comportamiento que `checkAuth` de sync-api).
+ *
+ * Aprobación de encargado (Fase 1 de caja): si el server responde
+ * `approval_required`, se pide el PIN (services/manager-approval) y se
+ * reintenta la MISMA petición con `X-Manager-Pin`. Un PIN incorrecto vuelve a
+ * pedirlo, hasta MAX_APPROVAL_ATTEMPTS. Cancelar ⇒ `approval_cancelled`.
  */
 export async function posApi<T>(
   tenantId: string,
   path: string,
   request: PosApiRequest = {}
+): Promise<T> {
+  let managerPin: string | undefined
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await posApiOnce<T>(tenantId, path, request, managerPin)
+    } catch (err) {
+      if (
+        !isPosApiError(err) ||
+        (err.code !== "approval_required" && err.code !== "approval_invalid") ||
+        attempt >= MAX_APPROVAL_ATTEMPTS
+      ) {
+        throw err
+      }
+      const pin = await requestManagerPin({
+        message: err.code === "approval_required" ? err.message : lastApprovalMessage ?? err.message,
+        error: err.code === "approval_invalid" ? err.message : null,
+      })
+      if (err.code === "approval_required") lastApprovalMessage = err.message
+      if (!pin) {
+        throw new PosApiError("Operación cancelada: falta la aprobación del encargado", "approval_cancelled", 403)
+      }
+      managerPin = pin
+    }
+  }
+}
+
+/** Texto del último pedido de aprobación (para re-pedir tras un PIN incorrecto). */
+let lastApprovalMessage: string | null = null
+
+async function posApiOnce<T>(
+  tenantId: string,
+  path: string,
+  request: PosApiRequest,
+  managerPin: string | undefined
 ): Promise<T> {
   const base = saasUrl()
   if (!base) {
@@ -135,6 +180,7 @@ export async function posApi<T>(
   }
   if (request.body !== undefined) headers["Content-Type"] = "application/json"
   if (request.idempotencyKey) headers["Idempotency-Key"] = request.idempotencyKey
+  if (managerPin) headers["X-Manager-Pin"] = managerPin
 
   // La sede la declara el POS; el server la valida contra el tenant y NUNCA
   // elige una por su cuenta (ver resolvePosContext).

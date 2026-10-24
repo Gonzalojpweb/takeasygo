@@ -12,6 +12,7 @@ import {
   posPlatformFeeAmount,
   summaryPaymentMethod,
 } from '@/lib/pos-online/paymentPolicy'
+import { recordPartsInOpenRegister, type PaymentPartForCash } from '@/lib/pos-online/cashRecorder'
 
 // ============================================================================
 // POST /api/[tenant]/pos/orders/[id]/payments — registra el cobro de la orden
@@ -25,11 +26,43 @@ import {
 //     la orden; un cobro distinto sobre una orden ya cobrada ⇒ 409.
 //   · orden cancelada ⇒ 409; Kripton ⇒ 400 (no integrado en el POS).
 //
-// Este endpoint NO mueve la caja: los movimientos de caja los registra el POS
-// por /pos/cash/registers/[id]/movements (con su cola de pendientes cuando no
-// hay caja abierta). Acá queda la verdad del cobro EN LA ORDEN, que es lo que
-// leen reportes, comisiones y el panel de pedidos del SaaS.
+// Acá queda la verdad del cobro EN LA ORDEN (lo que leen reportes, comisiones
+// y el panel de pedidos del SaaS) y, desde la Fase 1 de caja (2026-10), la
+// venta entra en la MISMA operación a la caja abierta de la sede
+// (lib/pos-online/cashRecorder.ts, `source: 'payment'`). Sin caja abierta, el
+// POS la deja en su cola de pendientes como antes. `reason` (opcional) es el
+// concepto que se ve en la caja: "Pedido M5".
 // ============================================================================
+
+const MAX_REASON_LENGTH = 120
+
+function readReason(body: unknown, posId: string): string {
+  const raw = (body as { reason?: unknown })?.reason
+  const text = typeof raw === 'string' ? raw.trim().slice(0, MAX_REASON_LENGTH) : ''
+  return text || `Pedido ${posId.slice(0, 8)}`
+}
+
+/** Registra el cobro en la caja abierta (idempotente). Nunca corta el cobro. */
+async function recordSaleInCash(
+  ctx: Parameters<Parameters<typeof posRoute>[1]>[0],
+  posId: string,
+  parts: PaymentPartForCash[],
+  reason: string
+): Promise<string | null> {
+  try {
+    return await recordPartsInOpenRegister(ctx, {
+      orderPosId: posId,
+      parts,
+      type: 'sale',
+      source: 'payment',
+      baseReason: reason,
+      movementPosId: (part) => `pay:${part.posId}`,
+    })
+  } catch (err) {
+    console.error('[pos/payments] no se pudo registrar la venta en caja:', err)
+    return null
+  }
+}
 
 type PaidOrderDoc = PosOrderDoc & {
   total: number
@@ -41,14 +74,17 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   const posId = assertPosId(params.id)
   const body = await readPosBody(ctx.request)
   const parts = parsePosPayments(body)
+  const reason = readReason(body, posId)
 
   const order = (await findPosOrder(ctx, posId)) as PaidOrderDoc
 
-  const replay = (existing: PaidOrderDoc) => {
+  const replay = async (existing: PaidOrderDoc) => {
     if (paymentsSignature(existing.posPayments ?? []) !== paymentsSignature(parts)) {
       throw PosError.idempotencyMismatch('La orden ya fue cobrada con otro detalle', `posId=${posId}`)
     }
-    return NextResponse.json({ order: toPosOrder(existing) }, { status: 200 })
+    // Reintento: si la venta no había llegado a la caja, se completa ahora.
+    const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
+    return NextResponse.json({ order: toPosOrder(existing), cashRegisterId }, { status: 200 })
   }
 
   if (order.posPayments?.length) return replay(order)
@@ -118,5 +154,10 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ order: toPosOrder(updated as unknown as PosOrderDoc) }, { status: 201 })
+  const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
+
+  return NextResponse.json(
+    { order: toPosOrder(updated as unknown as PosOrderDoc), cashRegisterId },
+    { status: 201 }
+  )
 })

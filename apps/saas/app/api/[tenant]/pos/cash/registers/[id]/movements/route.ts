@@ -2,8 +2,21 @@ import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import CashRegister from '@/models/CashRegister'
 import CashMovement from '@/models/CashMovement'
-import { cashExpectedDelta } from '@takeasygo/business'
-import type { CashChannel, CashMovementType, PaymentMethod } from '@takeasygo/types'
+import {
+  CASH_EXPENSE_CATEGORY_LABELS,
+  cashExpectedDelta,
+  isCashExpenseCategory,
+  movementRequiresApproval,
+  movementRequiresCategory,
+} from '@takeasygo/business'
+import type {
+  CashChannel,
+  CashExpenseCategory,
+  CashMovementSource,
+  CashMovementType,
+  PaymentMethod,
+} from '@takeasygo/types'
+import { requireManagerApproval } from '@/lib/pos-online/approval'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
@@ -13,6 +26,7 @@ import {
   PAYMENT_METHODS,
   assertCents,
   assertEnum,
+  redactRegisterForRole,
   toPosMovement,
   toPosRegister,
   type PosMovementDoc,
@@ -27,6 +41,16 @@ import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cash
 //   §1    el arqueo SOLO se mueve con efectivo → cashExpectedDelta()
 //   §2.1  (registerId, relatedOrderId, type) es un índice único: el
 //         reintento devuelve el existente, jamás duplica.
+//
+// Fase 1 de caja (2026-10):
+//   · gastos y retiros llevan `category` (flujo de fondos por categoría);
+//     si el POS no manda concepto, se usa el nombre de la categoría.
+//   · un retiro hecho por un cajero exige el PIN de un encargado
+//     (lib/pos-online/approval.ts → header X-Manager-Pin).
+//   · el cobro de la orden (POST /pos/orders/[id]/payments) ya registra la
+//     venta en la caja (`source: 'payment'`). Cuando el POS manda después su
+//     propio movimiento del mismo cobro, se devuelve el del server: mismo
+//     hecho, aunque el concepto o el posId difieran.
 // ============================================================================
 
 interface MovementDraft {
@@ -41,6 +65,9 @@ interface MovementDraft {
   channel: CashChannel
   paymentMethod: PaymentMethod
   relatedOrderId: string | null
+  category: CashExpenseCategory | null
+  approvedBy: string | null
+  source: CashMovementSource
 }
 
 /** Huella del hecho de negocio. Distinta huella con el mismo posId → 409. */
@@ -54,7 +81,23 @@ function movementSignature(m: unknown): string {
     raw.channel ?? null,
     raw.relatedOrderId ?? null,
     raw.reason ?? null,
+    raw.category ?? null,
   ])
+}
+
+/**
+ * ¿El movimiento existente es la venta que el server ya registró al cobrar
+ * (`source: 'payment'`) para el mismo hecho? Entonces es el mismo cobro.
+ */
+function isServerRecordedSale(existing: unknown, draft: MovementDraft): boolean {
+  const e = (existing ?? {}) as Record<string, unknown>
+  return (
+    e.source === 'payment' &&
+    e.type === draft.type &&
+    e.amount === draft.amount &&
+    e.paymentMethod === draft.paymentMethod &&
+    e.relatedOrderId === draft.relatedOrderId
+  )
 }
 
 function isDuplicateKey(error: unknown, field: string): boolean {
@@ -76,7 +119,7 @@ function assertSameFact(existing: unknown, draft: unknown, posId: string): void 
 
 /** Devuelve el movimiento + la caja refrescada (contrato del POS). 201 al crear. */
 async function respond(
-  ctx: { tenantId: string; locationId: string },
+  ctx: { tenantId: string; locationId: string; user: { role: string } },
   registerId: unknown,
   movementDoc: unknown,
   status = 200
@@ -97,7 +140,10 @@ async function respond(
   return NextResponse.json(
     {
       movement: toPosMovement(movementDoc as PosMovementDoc),
-      register: toPosRegister(register as unknown as PosRegisterDoc, movements.map(toPosMovement)),
+      register: redactRegisterForRole(
+        toPosRegister(register as unknown as PosRegisterDoc, movements.map(toPosMovement)),
+        ctx.user.role
+      ),
       serverTime: new Date().toISOString(),
     },
     { status }
@@ -106,7 +152,7 @@ async function respond(
 
 export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async (ctx, params) => {
   const body = await readPosBody(ctx.request)
-  requireFields(body, ['id', 'type', 'amount', 'reason', 'channel', 'paymentMethod'])
+  requireFields(body, ['id', 'type', 'amount', 'channel', 'paymentMethod'])
 
   const raw = body as Record<string, unknown>
 
@@ -125,7 +171,19 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
   const channel = assertEnum(raw.channel, CASH_CHANNELS, 'channel')
   const paymentMethod = assertEnum(raw.paymentMethod, PAYMENT_METHODS, 'paymentMethod')
 
-  const reason = String(raw.reason).trim()
+  let category: CashExpenseCategory | null = null
+  if (movementRequiresCategory(type)) {
+    if (!isCashExpenseCategory(raw.category)) {
+      throw PosError.validation('Elegí una categoría para el egreso')
+    }
+    category = raw.category
+  } else if (raw.category !== undefined && raw.category !== null) {
+    throw PosError.validation('Solo los gastos y retiros llevan categoría')
+  }
+
+  const rawReason = typeof raw.reason === 'string' ? raw.reason.trim() : ''
+  if (rawReason.length > 500) throw PosError.validation('Concepto demasiado largo')
+  const reason = rawReason || (category ? CASH_EXPENSE_CATEGORY_LABELS[category] : '')
   if (!reason) throw PosError.validation('reason requerido')
 
   // Autoría SIEMPRE desde el token verificado, nunca del body: el POS
@@ -153,6 +211,9 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     channel,
     paymentMethod,
     relatedOrderId,
+    category,
+    approvedBy: null,
+    source: 'pos',
   }
 
   const scopedRegisterId = String(register._id)
@@ -174,9 +235,20 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
       .lean()
       .exec()
     if (byOrder) {
-      assertSameFact(byOrder, draft, posId)
+      if (!isServerRecordedSale(byOrder, draft)) assertSameFact(byOrder, draft, posId)
       return respond(ctx, register._id, byOrder)
     }
+  }
+
+  // Retiro de efectivo por un cajero: PIN del encargado (después de la
+  // idempotencia: el reintento de un retiro ya aprobado no lo vuelve a pedir).
+  if (movementRequiresApproval(type)) {
+    const approval = await requireManagerApproval(
+      ctx,
+      'cash.withdrawal',
+      'Un retiro de efectivo necesita la aprobación de un encargado'
+    )
+    draft.approvedBy = approval.approvedBy
   }
 
   let created
@@ -201,7 +273,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
         .lean()
         .exec()
       if (winner) {
-        assertSameFact(winner, draft, posId)
+        if (!isServerRecordedSale(winner, draft)) assertSameFact(winner, draft, posId)
         return respond(ctx, register._id, winner)
       }
       throw error
@@ -226,7 +298,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     action: 'pos.cash.movement.create',
     entity: 'CashMovement',
     entityId: String(created._id),
-    details: { posId, type, amount, paymentMethod, relatedOrderId },
+    details: { posId, type, amount, paymentMethod, relatedOrderId, category, approvedBy: draft.approvedBy },
     request: ctx.request,
     userId: ctx.user.id,
     userRole: ctx.user.role,

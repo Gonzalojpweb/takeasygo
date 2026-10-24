@@ -1,71 +1,89 @@
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useMemo } from "react"
+import {
+  ARS_BILL_DENOMINATIONS,
+  CASH_EXPENSE_CATEGORIES,
+  CASH_EXPENSE_CATEGORY_LABELS,
+  canSeeExpectedCash,
+} from "@takeasygo/business/browser"
+import type { CashChannel, CashExpenseCategory, CashMovement, CashRegister, ZReport } from "@takeasygo/types"
 import { useLayout } from "../layout/LayoutContext"
 import { useCash } from "../../hooks/useCash"
 import { useAuth } from "../../hooks/useAuth"
 import { formatCurrency, timeAgo, parsePesosInput } from "../../utils/format"
 import { fetchFailedCashSaleEvents, retryCashSaleEvent } from "../../services/sync-api"
 import type { FailedCashSaleEvent } from "../../services/sync-api"
-import type { CashMovement, CashChannel, PaymentMethod, ZReport } from "@takeasygo/types"
 import type { PendingMovementRecord } from "../../db/dexie"
+import { isPosApiError } from "../../services/pos-api"
+import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
 
-type Scene = "resumen" | "abrir" | "movimiento" | "arqueo" | "historial" | "gastos" | "z-report" | "x-report" | "pending"
+// ============================================================================
+// Caja — Fase 1 de caja profesional (2026-10)
+// ============================================================================
+// Documentación: ADMIN/FASE1_CAJA_PROFESIONAL.md.
+//
+// Una pantalla por tarea, sin formularios duplicados: el workspace tiene el
+// formulario, el panel lateral explica y la barra de acciones tiene LA acción.
+//
+//   · Cierre ciego: nadie ve el saldo esperado mientras cuenta. Se cuenta
+//     billete por billete; el total lo suma el sistema. El resultado
+//     (sobrante/faltante) aparece recién en el Z.
+//   · El cajero tampoco ve el saldo esperado en el resumen ni el reporte X
+//     (el server ni siquiera se lo manda). Encargado y admin sí.
+//   · Gastos y retiros: siempre en efectivo del cajón, con categoría en un
+//     toque. El retiro pide el PIN del encargado (diálogo automático).
+// ============================================================================
 
-const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+type Scene = "resumen" | "abrir" | "movimiento" | "arqueo" | "historial" | "z-report" | "x-report" | "pending"
+type ManualType = "expense" | "withdrawal" | "income"
+
+const NEGATIVE = new Set(["expense", "withdrawal", "refund", "cash_order_not_collected"])
+
+const MOVEMENT_LABELS: Record<string, string> = {
   income: "Ingreso",
-  expense: "Gasto",
-  withdrawal: "Retiro",
   deposit: "Depósito",
   sale: "Venta",
-  refund: "Reembolso",
+  expense: "Gasto",
+  withdrawal: "Retiro",
+  refund: "Devolución",
+  cash_order_not_collected: "No cobrado",
 }
 
-const MOVEMENT_TYPE_ICONS: Record<string, string> = {
-  income: "💵",
-  expense: "📤",
-  withdrawal: "🏧",
-  deposit: "💰",
-  sale: "🛒",
-  refund: "↩️",
+const MANUAL_TYPES: { id: ManualType; label: string; hint: string }[] = [
+  { id: "expense", label: "Gasto", hint: "Pago con plata del cajón (proveedor, compras)." },
+  { id: "withdrawal", label: "Retiro", hint: "Sacar efectivo del cajón. Pide el PIN del encargado." },
+  { id: "income", label: "Ingreso", hint: "Agregar efectivo al cajón (cambio, refuerzo)." },
+]
+
+const CHANNEL_OPTIONS: { id: CashChannel | null; label: string }[] = [
+  { id: null, label: "Todos los pedidos" },
+  { id: "counter", label: "Solo mostrador" },
+  { id: "takeasygo", label: "Solo TakeasyGO" },
+]
+
+function billLabel(cents: number): string {
+  return `$${(cents / 100).toLocaleString("es-AR")}`
 }
 
-const CHANNEL_LABELS: Record<CashChannel, string> = {
-  counter: "Mostrador",
-  takeasygo: "TakeasyGO",
+function errorText(err: unknown, fallback: string): string | null {
+  // El cajero cerró el pedido de PIN: no es un error que mostrar.
+  if (isPosApiError(err) && err.code === "approval_cancelled") return null
+  return err instanceof Error ? err.message : fallback
 }
 
-const PAYMENT_METHOD_ICONS: Record<PaymentMethod, string> = {
-  cash: "💵",
-  mercadopago: "💳",
-  posnet_debit: "💳",
-  posnet_credit: "💳",
-  kripton: "🪙",
-  transfer: "🏦",
-}
+export function CashDashboard({ role }: { role?: string }) {
+  const seesExpected = canSeeExpectedCash(role)
 
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "Efectivo",
-  mercadopago: "MP",
-  posnet_debit: "POSNET D",
-  posnet_credit: "POSNET C",
-  kripton: "Kripton",
-  transfer: "Transfer",
-}
-
-function formatDateShort(date: Date): string {
-  return date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" }) +
-    " " + date.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
-}
-
-export function CashDashboard() {
   const [scene, setScene] = useState<Scene>("resumen")
   const [initialAmount, setInitialAmount] = useState("")
   const [defaultChannel, setDefaultChannel] = useState<CashChannel | null>(null)
-  const [movementType, setMovementType] = useState<"income" | "expense">("income")
+  const [manualType, setManualType] = useState<ManualType>("expense")
+  const [category, setCategory] = useState<CashExpenseCategory | null>(null)
   const [movementAmount, setMovementAmount] = useState("")
   const [movementReason, setMovementReason] = useState("")
-  const [movementChannel, setMovementChannel] = useState<CashChannel>("counter")
-  const [movementPaymentMethod, setMovementPaymentMethod] = useState<PaymentMethod>("cash")
-  const [finalAmount, setFinalAmount] = useState("")
+  const [bills, setBills] = useState<Record<number, string>>({})
+  const [coins, setCoins] = useState("")
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [selectedZReport, setSelectedZReport] = useState<ZReport | null>(null)
@@ -73,22 +91,14 @@ export function CashDashboard() {
   const [failedEvents, setFailedEvents] = useState<FailedCashSaleEvent[]>([])
 
   const { setContextPanel, setActionBar } = useLayout()
-  const {
-    activeRegister,
-    closedRegisters,
-    loading,
-    openRegister,
-    closeRegister,
-    addMovement,
-    assignPendingMovements,
-    getPending,
-  } = useCash()
+  const { activeRegister, closedRegisters, loading, openRegister, closeRegister, addMovement, assignPendingMovements, getPending } =
+    useCash()
 
   const { state: authState } = useAuth()
   const jwt = authState.status === "authenticated" ? authState.jwt?.accessToken : undefined
-  const tenantId = authState.status === "authenticated" ? authState.tenantId : undefined
 
-  const showError = useCallback((msg: string) => {
+  const showError = useCallback((msg: string | null) => {
+    if (!msg) return
     setError(msg)
     setTimeout(() => setError(null), 4000)
   }, [])
@@ -98,640 +108,294 @@ export function CashDashboard() {
     setTimeout(() => setSuccess(null), 3000)
   }, [])
 
-  // ── Fetch failed events on mount (for badge in tab) ───────────────
-  useEffect(() => {
-    if (!jwt) return
-    fetchFailedCashSaleEvents(jwt)
-      .then((f) => setFailedEvents(f))
-      .catch(() => {})
-  }, [jwt])
+  const refreshPending = useCallback(() => {
+    getPending().then(setPendingMovements).catch(() => {})
+    if (jwt) fetchFailedCashSaleEvents(jwt).then(setFailedEvents).catch(() => {})
+  }, [getPending, jwt])
 
+  useEffect(() => {
+    refreshPending()
+  }, [refreshPending])
+
+  const go = useCallback((next: Scene) => {
+    setConfirmClose(false)
+    setScene(next)
+  }, [])
+
+  // ── Totales del turno ─────────────────────────────────────────────
+  const totals = useMemo(() => {
+    const movements = activeRegister?.movements ?? []
+    let income = 0
+    let expense = 0
+    let sales = 0
+    for (const m of movements) {
+      if (NEGATIVE.has(m.type)) expense += m.amount
+      else income += m.amount
+      if (m.type === "sale") sales++
+    }
+    return { income, expense, sales, count: movements.length }
+  }, [activeRegister])
+
+  const expected = activeRegister?.expectedAmount
+  const countedTotal = useMemo(() => {
+    let total = parsePesosInput(coins) ?? 0
+    for (const value of ARS_BILL_DENOMINATIONS) {
+      const n = Number.parseInt(bills[value] ?? "", 10)
+      if (Number.isFinite(n) && n > 0) total += value * n
+    }
+    return total
+  }, [bills, coins])
+
+  // ── Acciones ──────────────────────────────────────────────────────
   const handleOpenRegister = useCallback(async () => {
     // El cajero tipea PESOS; el server exige centavos enteros (assertCents).
-    // Auditoría §6.4: antes $1000 se guardaba como $10 y $1000,50 se rechazaba.
     const amount = parsePesosInput(initialAmount)
-    if (amount === null) {
-      showError("Ingresá un monto inicial válido")
-      return
-    }
+    if (amount === null) return showError("Ingresá el efectivo con el que abrís la caja")
+    setBusy(true)
     try {
       await openRegister(amount, "Operador", defaultChannel)
       showSuccess("Caja abierta")
       setInitialAmount("")
       setDefaultChannel(null)
-      setScene("resumen")
+      go("resumen")
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Error al abrir caja")
+      showError(errorText(err, "No se pudo abrir la caja"))
+    } finally {
+      setBusy(false)
     }
-  }, [initialAmount, defaultChannel, openRegister, showError, showSuccess])
+  }, [initialAmount, defaultChannel, openRegister, showError, showSuccess, go])
 
   const handleAddMovement = useCallback(async () => {
     if (!activeRegister) return
     const amount = parsePesosInput(movementAmount)
-    if (amount === null || amount <= 0) {
-      showError("Ingresá un monto válido")
-      return
-    }
-    if (!movementReason.trim()) {
-      showError("Ingresá un concepto")
-      return
-    }
+    if (amount === null || amount <= 0) return showError("Ingresá el monto")
+    const needsCategory = manualType !== "income"
+    if (needsCategory && !category) return showError("Elegí una categoría")
+    const reason = movementReason.trim() || (manualType === "income" ? "Ingreso de efectivo" : "")
+    setBusy(true)
     try {
       await addMovement(
         activeRegister.id,
-        movementType,
+        manualType,
         amount,
-        movementReason.trim(),
+        reason,
         "Operador",
-        movementChannel,
-        movementPaymentMethod
+        "counter",
+        "cash",
+        undefined,
+        needsCategory ? category ?? undefined : undefined
       )
-      showSuccess("Movimiento registrado")
+      showSuccess(`${MOVEMENT_LABELS[manualType]} registrado`)
       setMovementAmount("")
       setMovementReason("")
-      setScene("resumen")
+      setCategory(null)
+      go("resumen")
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Error al registrar movimiento")
+      showError(errorText(err, "No se pudo registrar el movimiento"))
+    } finally {
+      setBusy(false)
     }
-  }, [activeRegister, movementType, movementAmount, movementReason, movementChannel, movementPaymentMethod, addMovement, showError, showSuccess])
+  }, [activeRegister, movementAmount, manualType, category, movementReason, addMovement, showError, showSuccess, go])
 
   const handleCloseRegister = useCallback(async () => {
     if (!activeRegister) return
-    const amount = parsePesosInput(finalAmount)
-    if (amount === null) {
-      showError("Ingresá un monto final válido")
+    if (!confirmClose) {
+      setConfirmClose(true)
       return
     }
+    const billRows = ARS_BILL_DENOMINATIONS.map((value) => ({
+      value,
+      count: Math.max(0, Number.parseInt(bills[value] ?? "", 10) || 0),
+    })).filter((b) => b.count > 0)
+    setBusy(true)
     try {
-      const closed = await closeRegister(activeRegister.id, amount, "Operador")
-      showSuccess("Caja cerrada")
-      setFinalAmount("")
-      // Mostrar Z Report inmutable después del cierre
+      const closed = await closeRegister(activeRegister.id, countedTotal, "Operador", {
+        bills: billRows,
+        coins: parsePesosInput(coins) ?? 0,
+      })
+      setBills({})
+      setCoins("")
+      setConfirmClose(false)
       if (closed.zReport) {
         setSelectedZReport(closed.zReport)
         setScene("z-report")
       } else {
-        setScene("resumen")
+        go("resumen")
       }
+      showSuccess("Caja cerrada")
     } catch (err) {
-      showError(err instanceof Error ? err.message : "Error al cerrar caja")
+      setConfirmClose(false)
+      showError(errorText(err, "No se pudo cerrar la caja"))
+    } finally {
+      setBusy(false)
     }
-  }, [activeRegister, finalAmount, closeRegister, showError, showSuccess])
+  }, [activeRegister, confirmClose, bills, coins, countedTotal, closeRegister, showError, showSuccess, go])
 
-  const currentBalance = activeRegister
-    ? (activeRegister.expectedAmount ?? activeRegister.initialAmount)
-    : 0
+  const openZ = useCallback((register: CashRegister) => {
+    if (!register.zReport) return
+    setSelectedZReport(register.zReport)
+    setScene("z-report")
+  }, [])
 
-  const totalIncome = activeRegister
-    ? activeRegister.movements
-        .filter((m) => ["income", "deposit", "sale"].includes(m.type))
-        .reduce((s, m) => s + m.amount, 0)
-    : 0
-
-  const totalExpense = activeRegister
-    ? activeRegister.movements
-        .filter((m) => ["expense", "withdrawal", "refund"].includes(m.type))
-        .reduce((s, m) => s + m.amount, 0)
-    : 0
-
+  // ── Panel lateral + barra de acciones (una acción principal) ──────
   useEffect(() => {
-    // Sin caja activa el X no tiene datos: se muestra el resumen (derivado,
-    // sin setState dentro del efecto).
-    const effectiveScene = scene === "x-report" && !activeRegister ? "resumen" : scene
-    switch (effectiveScene) {
-      case "resumen":
-        if (loading) {
-          setContextPanel({
-            title: "Caja",
-            subtitle: "Cargando...",
-            body: <div className="loading-state"><span className="spinner" /></div>,
-          })
-          setActionBar(null)
-          break
-        }
+    const effective = (scene === "x-report" && (!activeRegister || !seesExpected)) ? "resumen" : scene
 
+    if (loading) {
+      setContextPanel({ title: "Caja", subtitle: "Cargando…", body: <div className="loading-state"><span className="spinner" /></div> })
+      setActionBar(null)
+      return
+    }
+
+    switch (effective) {
+      case "resumen": {
         if (!activeRegister) {
           setContextPanel({
             title: "Caja cerrada",
-            subtitle: "No hay una sesión activa",
-            body: (
-              <div style={{ padding: "var(--sp-4)", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
-                <div style={{ fontSize: "var(--font-size-sm)", marginBottom: 8 }}>
-                  Abrí una caja para comenzar a registrar movimientos
-                </div>
-              </div>
-            ),
+            subtitle: "No hay un turno abierto",
+            body: <p className="cash-help">Abrí la caja con el efectivo del cajón para empezar a cobrar.</p>,
           })
-          setActionBar({
-            right: (
-              <button className="btn btn-primary" onClick={() => setScene("abrir")}>
-                Abrir caja
-              </button>
-            ),
-          })
-        } else {
-          setContextPanel({
-            title: "Caja abierta",
-            subtitle: `Abierta ${timeAgo(activeRegister.openedAt)}`,
-            body: (
-              <div style={{ padding: "var(--sp-2)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Saldo esperado
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--text-primary)" }}>
-                      {formatCurrency(currentBalance)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Monto inicial
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>
-                      {formatCurrency(activeRegister.initialAmount)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Ingresos
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--success)" }}>
-                      +{formatCurrency(totalIncome)}
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Egresos
-                    </div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--error)" }}>
-                      -{formatCurrency(totalExpense)}
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--sp-3)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-                      Últimos movimientos
-                    </div>
-                    {activeRegister.movements.length === 0 ? (
-                      <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", textAlign: "center", padding: "var(--sp-2)" }}>
-                        Sin movimientos
-                      </div>
-                    ) : (
-                      activeRegister.movements.slice(-10).reverse().map((m: CashMovement) => (
-                        <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)" }}>
-                          <div>
-                            <span style={{ fontSize: "var(--font-size-sm)" }}>{MOVEMENT_TYPE_ICONS[m.type] ?? "•"} {MOVEMENT_TYPE_LABELS[m.type] ?? m.type}</span>
-                            <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>{m.reason}</div>
-                          </div>
-                          <span style={{ fontWeight: 600, color: m.type === "expense" || m.type === "withdrawal" || m.type === "refund" ? "var(--error)" : "var(--success)" }}>
-                            {m.type === "expense" || m.type === "withdrawal" || m.type === "refund" ? "-" : "+"}{formatCurrency(m.amount)}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            ),
-          })
-          setActionBar({
-            left: (
-              <>
-                <button className="btn btn-ghost btn-sm" onClick={() => setScene("movimiento")}>
-                  + Movimiento
-                </button>
-              </>
-            ),
-            right: (
-              <button className="btn btn-ghost btn-sm" onClick={() => setScene("arqueo")}>
-                Cerrar caja
-              </button>
-            ),
-          })
+          setActionBar({ right: <button className="btn btn-primary" onClick={() => go("abrir")}>Abrir caja</button> })
+          break
         }
+        setContextPanel({
+          title: "Caja abierta",
+          subtitle: `Desde ${timeAgo(activeRegister.openedAt)}`,
+          body: (
+            <dl className="cash-stats">
+              {seesExpected && expected !== undefined && (
+                <div className="cash-stat cash-stat-main"><dt>Efectivo esperado</dt><dd>{formatCurrency(expected)}</dd></div>
+              )}
+              <div className="cash-stat"><dt>Fondo inicial</dt><dd>{formatCurrency(activeRegister.initialAmount)}</dd></div>
+              <div className="cash-stat"><dt>Ventas</dt><dd>{totals.sales}</dd></div>
+              {seesExpected && (
+                <>
+                  <div className="cash-stat"><dt>Ingresos</dt><dd className="pos">+{formatCurrency(totals.income)}</dd></div>
+                  <div className="cash-stat"><dt>Egresos</dt><dd className="neg">−{formatCurrency(totals.expense)}</dd></div>
+                </>
+              )}
+              {!seesExpected && (
+                <p className="cash-help">Al cerrar vas a contar el efectivo sin ver el saldo: el resultado sale en el cierre.</p>
+              )}
+            </dl>
+          ),
+        })
+        setActionBar({
+          left: <button className="btn btn-ghost" onClick={() => go("movimiento")}>+ Gasto / retiro</button>,
+          center: seesExpected ? <button className="btn btn-ghost" onClick={() => go("x-report")}>Reporte X</button> : undefined,
+          right: <button className="btn btn-primary" onClick={() => go("arqueo")}>Cerrar caja</button>,
+        })
         break
+      }
 
       case "abrir":
         setContextPanel({
           title: "Abrir caja",
-          subtitle: "Ingresá el monto inicial",
-          body: (
-            <div style={{ padding: "var(--sp-3)" }}>
-              <div style={{ marginBottom: "var(--sp-3)" }}>
-                <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                  Monto inicial
-                </label>
-                <input
-                  className="search-input"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={initialAmount}
-                  onChange={(e) => setInitialAmount(e.target.value)}
-                  autoFocus
-                  style={{ fontSize: 24, textAlign: "center" }}
-                />
-              </div>
-            </div>
-          ),
+          subtitle: "Inicio de turno",
+          body: <p className="cash-help">Contá el efectivo del cajón e ingresalo. Es el fondo con el que arranca el turno.</p>,
         })
         setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("resumen")}>
-              ← Cancelar
-            </button>
-          ),
-          right: (
-            <button className="btn btn-primary" onClick={handleOpenRegister}>
-              Abrir caja
-            </button>
-          ),
+          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
+          right: <button className="btn btn-primary" disabled={busy} onClick={handleOpenRegister}>Abrir caja</button>,
         })
         break
 
-      case "movimiento":
+      case "movimiento": {
+        const hint = MANUAL_TYPES.find((t) => t.id === manualType)?.hint ?? ""
         setContextPanel({
-          title: "Nuevo movimiento",
-          subtitle: "Registrá ingreso o egreso",
-          body: (
-            <div style={{ padding: "var(--sp-3)", display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-              <div>
-                <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                  Tipo
-                </label>
-                <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                  <button
-                    className={`btn ${movementType === "income" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    onClick={() => setMovementType("income")}
-                    style={{ flex: 1 }}
-                  >
-                    💵 Ingreso
-                  </button>
-                  <button
-                    className={`btn ${movementType === "expense" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    onClick={() => setMovementType("expense")}
-                    style={{ flex: 1 }}
-                  >
-                    📤 Egreso
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                  Monto
-                </label>
-                <input
-                  className="search-input"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={movementAmount}
-                  onChange={(e) => setMovementAmount(e.target.value)}
-                  autoFocus
-                  style={{ fontSize: 24, textAlign: "center" }}
-                />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                  Concepto
-                </label>
-                <input
-                  className="search-input"
-                  type="text"
-                  placeholder="Ej: Pago a proveedor, Retiro, etc."
-                  value={movementReason}
-                  onChange={(e) => setMovementReason(e.target.value)}
-                />
-              </div>
-            </div>
-          ),
+          title: MOVEMENT_LABELS[manualType],
+          subtitle: "Efectivo del cajón",
+          body: <p className="cash-help">{hint} Queda registrado con tu usuario y aparece en el cierre por categoría.</p>,
         })
         setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("resumen")}>
-              ← Cancelar
-            </button>
-          ),
-          right: (
-            <button className="btn btn-primary" onClick={handleAddMovement}>
-              Registrar
-            </button>
-          ),
+          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
+          right: <button className="btn btn-primary" disabled={busy} onClick={handleAddMovement}>Registrar</button>,
         })
         break
+      }
 
       case "arqueo":
         setContextPanel({
           title: "Cierre de caja",
-          subtitle: `Saldo esperado: ${formatCurrency(currentBalance)}`,
+          subtitle: "Cierre ciego",
           body: (
-            <div style={{ padding: "var(--sp-3)" }}>
-              <div style={{ marginBottom: "var(--sp-3)" }}>
-                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
-                  Saldo esperado
-                </div>
-                <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
-                  {formatCurrency(currentBalance)}
-                </div>
-              </div>
-              <div style={{ marginBottom: "var(--sp-3)" }}>
-                <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                  Conteo físico
-                </label>
-                <input
-                  className="search-input"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={finalAmount}
-                  onChange={(e) => setFinalAmount(e.target.value)}
-                  autoFocus
-                  style={{ fontSize: 24, textAlign: "center" }}
-                />
-              </div>
-              {parsePesosInput(finalAmount) !== null && (
-                <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
-                  Diferencia: {formatCurrency((parsePesosInput(finalAmount) ?? 0) - currentBalance)}
-                </div>
-              )}
+            <div className="cash-help">
+              <p>Contá el efectivo billete por billete. El sistema suma y compara al cerrar: vas a ver el resultado en el reporte Z.</p>
+              <p className="cash-counted">Contado: <strong>{formatCurrency(countedTotal)}</strong></p>
             </div>
           ),
         })
         setActionBar({
-          left: (
-            <button className="btn btn-ghost" onClick={() => setScene("resumen")}>
-              ← Cancelar
-            </button>
-          ),
+          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
           right: (
-            <button className="btn btn-primary" onClick={handleCloseRegister}>
-              Cerrar caja
+            <button className={`btn ${confirmClose ? "btn-danger" : "btn-primary"}`} disabled={busy} onClick={handleCloseRegister}>
+              {confirmClose ? `Confirmar cierre · ${formatCurrency(countedTotal)}` : "Cerrar caja"}
             </button>
           ),
         })
-        break
-
-      case "gastos":
-        if (loading) {
-          setContextPanel({
-            title: "Gastos",
-            subtitle: "Cargando...",
-            body: <div className="loading-state"><span className="spinner" /></div>,
-          })
-          setActionBar(null)
-          break
-        }
-
-        if (!activeRegister) {
-          setContextPanel({
-            title: "Sin caja activa",
-            subtitle: "Abrí una caja para registrar gastos",
-            body: (
-              <div style={{ padding: "var(--sp-4)", textAlign: "center", color: "var(--text-muted)" }}>
-                <div style={{ fontSize: 40, marginBottom: 16 }}>🔒</div>
-              </div>
-            ),
-          })
-          setActionBar({
-            right: (
-              <button className="btn btn-primary" onClick={() => setScene("abrir")}>
-                Abrir caja
-              </button>
-            ),
-          })
-        } else {
-          const expenses = activeRegister.movements.filter((m) => m.type === "expense")
-          const totalExpenses = expenses.reduce((s, m) => s + m.amount, 0)
-          setContextPanel({
-            title: "Gastos operativos",
-            subtitle: `${expenses.length} gastos — Total: ${formatCurrency(totalExpenses)}`,
-            body: (
-              <div style={{ padding: "var(--sp-3)" }}>
-                <div style={{ display: "flex", justifyContent: "space-around", marginBottom: "var(--sp-3)" }}>
-                  <div className="card" style={{ textAlign: "center", padding: "var(--sp-3)", flex: 1 }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>Gastos</div>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>{expenses.length}</div>
-                  </div>
-                  <div className="card" style={{ textAlign: "center", padding: "var(--sp-3)", flex: 1, marginLeft: "var(--sp-2)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>Total</div>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: "var(--error)" }}>{formatCurrency(totalExpenses)}</div>
-                  </div>
-                </div>
-              </div>
-            ),
-          })
-          setActionBar({
-            center: (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setMovementType("expense"); setScene("movimiento") }}>
-                + Registrar gasto
-              </button>
-            ),
-          })
-        }
         break
 
       case "z-report":
-        if (selectedZReport) {
-          setContextPanel({
-            title: "Reporte de Cierre Z",
-            subtitle: `${formatDateShort(selectedZReport.closedAt)} — ${selectedZReport.closedBy}`,
-            body: (
-              <div style={{ padding: "var(--sp-2)", fontSize: "var(--font-size-sm)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo esperado</div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>{formatCurrency(selectedZReport.expectedAmount)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo físico</div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{formatCurrency(selectedZReport.finalAmount)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Diferencia</div>
-                    <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 700, color: selectedZReport.difference >= 0 ? "var(--success)" : "var(--error)" }}>
-                      {selectedZReport.difference >= 0 ? "+" : "-"}{formatCurrency(Math.abs(selectedZReport.difference))}
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--sp-2)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>Por canal</div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>Mostrador</span><span style={{ fontWeight: 600 }}>{formatCurrency(selectedZReport.byChannel.counter.sales)}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span>TakeasyGO</span><span style={{ fontWeight: 600 }}>{formatCurrency(selectedZReport.byChannel.takeasygo.sales)}</span>
-                    </div>
-                  </div>
-                  <div style={{ borderTop: "1px solid var(--border)", paddingTop: "var(--sp-2)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>Por método de pago</div>
-                    {Object.entries(selectedZReport.byPaymentMethod).map(([method, total]) => (
-                      <div key={method} style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span>{PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method}</span>
-                        <span style={{ fontWeight: 600 }}>{formatCurrency(total)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ),
-          })
-          setActionBar({
-            right: (
-              <button className="btn btn-primary btn-sm" onClick={() => setScene("resumen")}>
-                Volver al resumen
-              </button>
-            ),
-          })
-        }
+        setContextPanel({
+          title: "Reporte Z",
+          subtitle: selectedZReport ? new Date(selectedZReport.closedAt).toLocaleDateString("es-AR") : "",
+          body: <p className="cash-help">Es el cierre definitivo: no se modifica. El dueño lo ve en el panel, en Cajas POS.</p>,
+        })
+        setActionBar({ right: <button className="btn btn-primary" onClick={() => go(activeRegister ? "resumen" : "historial")}>Listo</button> })
         break
 
       case "x-report":
-        // X Report — cálculo on-demand desde movimientos activos
-        if (!activeRegister) break
         setContextPanel({
-          title: "Reporte Parcial (X)",
-          subtitle: `Generado ${timeAgo(new Date())} — NO es el cierre final`,
-          body: (
-            <div style={{ padding: "var(--sp-2)", fontSize: "var(--font-size-sm)" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Saldo esperado</div>
-                  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 700 }}>{formatCurrency(currentBalance)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ingresos</div>
-                  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--success)" }}>+{formatCurrency(totalIncome)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Egresos</div>
-                  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, color: "var(--error)" }}>-{formatCurrency(totalExpense)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Movimientos</div>
-                  <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600 }}>{activeRegister.movements.length}</div>
-                </div>
-              </div>
-            </div>
-          ),
+          title: "Reporte X",
+          subtitle: "Parcial — no cierra la caja",
+          body: <p className="cash-help">Foto del turno en este momento. Solo lo ven encargados y admin.</p>,
         })
-        setActionBar({
-          left: (
-            <button className="btn btn-ghost btn-sm" onClick={() => setScene("resumen")}>
-              ← Volver
-            </button>
-          ),
-          right: (
-            <button className="btn btn-primary btn-sm" onClick={() => setScene("x-report")}>
-              Refrescar
-            </button>
-          ),
+        setActionBar({ left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button> })
+        break
+
+      case "historial":
+        setContextPanel({
+          title: "Cierres anteriores",
+          subtitle: `${closedRegisters.length} cierres`,
+          body: <p className="cash-help">Tocá un cierre para ver su reporte Z.</p>,
         })
+        setActionBar(null)
         break
 
       case "pending":
-        // Movimientos huérfanos pendientes (client-side, Dexie)
-        getPending().then((p) => setPendingMovements(p))
-        // Eventos fallidos del Sync Layer (server-side, MongoDB)
-        if (jwt) {
-          fetchFailedCashSaleEvents(jwt)
-            .then((f) => setFailedEvents(f))
-            .catch(() => setFailedEvents([]))
-        }
         setContextPanel({
-          title: "Movimientos Pendientes",
-          subtitle: `${pendingMovements.length} huérfanos${failedEvents.length > 0 ? ` · ${failedEvents.length} fallidos` : ""}`,
-          body: (
-            <div style={{ padding: "var(--sp-2)", fontSize: "var(--font-size-sm)" }}>
-              {/* ── Failed events del Sync Layer ─────────────────────── */}
-              {failedEvents.length > 0 && (
-                <div style={{ marginBottom: "var(--sp-3)" }}>
-                  <div style={{ fontWeight: 600, marginBottom: "var(--sp-2)", color: "#ef4444", fontSize: "var(--font-size-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    ⚠ {failedEvents.length} venta{failedEvents.length > 1 ? "s" : ""} no registrada{failedEvents.length > 1 ? "s" : ""}
-                  </div>
-                  {failedEvents.map((e) => (
-                    <div key={e._id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--sp-2)", marginBottom: "var(--sp-1)", borderLeft: "2px solid #ef4444", background: "rgba(239,68,68,0.05)", borderRadius: "0 6px 6px 0" }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{formatCurrency(e.amount)}</div>
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                          {PAYMENT_METHOD_LABELS[e.paymentMethod as PaymentMethod] ?? e.paymentMethod} · #{e.orderId.slice(0, 8)}
-                        </div>
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "#ef4444" }}>
-                          Falló tras {e.attempts} intento{e.attempts > 1 ? "s" : ""}
-                        </div>
-                      </div>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: "#ef4444", flexShrink: 0 }}
-                        onClick={async () => {
-                          if (!jwt) return
-                          const ok = await retryCashSaleEvent(e._id, jwt)
-                          if (ok) {
-                            setFailedEvents((prev) => prev.filter((x) => x._id !== e._id))
-                            showSuccess("Reintentando entrega...")
-                          } else {
-                            showError("No se pudo reintentar. Verificá tu conexión.")
-                          }
-                        }}
-                      >
-                        Reintentar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Pending movements locales (existente) ────────────── */}
-              {pendingMovements.length > 0 && (
-                <div>
-                  {failedEvents.length > 0 && (
-                    <div style={{ fontWeight: 600, marginBottom: "var(--sp-2)", color: "var(--text-muted)", fontSize: "var(--font-size-xs)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                      Movimientos huérfanos
-                    </div>
-                  )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {pendingMovements.map((p) => (
-                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)" }}>
-                        <div>
-                          <div style={{ fontWeight: 600 }}>{formatCurrency(p.amount)}</div>
-                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                            {CHANNEL_LABELS[p.channel]} · {PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                          {p.relatedOrderId ? `#${p.relatedOrderId.slice(0, 6)}` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Empty state ─────────────────────────────────────── */}
-              {pendingMovements.length === 0 && failedEvents.length === 0 && (
-                <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "var(--sp-4)" }}>
-                  No hay movimientos pendientes
-                </div>
-              )}
-            </div>
-          ),
+          title: "Pendientes",
+          subtitle: `${pendingMovements.length + failedEvents.length} por revisar`,
+          body: <p className="cash-help">Cobros que se hicieron sin caja abierta o que no llegaron. Reasignalos a la caja actual.</p>,
         })
         setActionBar({
-          left: (
-            <button className="btn btn-ghost btn-sm" onClick={() => setScene("resumen")}>
-              ← Volver
-            </button>
-          ),
-          right: activeRegister && pendingMovements.length > 0 ? (
-            <button className="btn btn-primary btn-sm" onClick={async () => {
-              if (!activeRegister) return
-              const result = await assignPendingMovements(activeRegister.id)
-              showSuccess(`${result.assigned} movimientos reasignados`)
-              setScene("resumen")
-            }}>
-              Reasignar a caja activa
-            </button>
-          ) : null,
+          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button>,
+          right:
+            activeRegister && pendingMovements.length > 0 ? (
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  const result = await assignPendingMovements(activeRegister.id)
+                  showSuccess(`${result.assigned} movimientos reasignados`)
+                  refreshPending()
+                  go("resumen")
+                }}
+              >
+                Reasignar a la caja
+              </button>
+            ) : undefined,
         })
         break
     }
-  }, [scene, loading, activeRegister, closedRegisters, initialAmount, defaultChannel, movementType, movementAmount, movementReason, movementChannel, movementPaymentMethod, finalAmount, currentBalance, totalIncome, totalExpense, selectedZReport, pendingMovements, failedEvents, jwt, tenantId, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, assignPendingMovements, getPending, showSuccess, showError])
+  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, assignPendingMovements, refreshPending, showSuccess, go])
+
+  const pendingCount = pendingMovements.length + failedEvents.length
+  const tabs: { id: Scene; label: string; badge?: number }[] = [
+    { id: "resumen", label: "Turno" },
+    { id: "historial", label: "Cierres" },
+    ...(pendingCount > 0 ? [{ id: "pending" as Scene, label: "Pendientes", badge: pendingCount }] : []),
+  ]
+  const activeTab = scene === "historial" || scene === "pending" ? scene : "resumen"
 
   return (
     <div className="workspace">
@@ -739,421 +403,326 @@ export function CashDashboard() {
         <div>
           <div className="workspace-title">Caja</div>
           <div className="workspace-subtitle">
-            {activeRegister
-              ? `Abierta desde ${timeAgo(activeRegister.openedAt)} — Saldo: ${formatCurrency(currentBalance)}`
-              : "Sin caja activa"}
+            {activeRegister ? `Turno abierto ${timeAgo(activeRegister.openedAt)} · ${totals.count} movimientos` : "Sin turno abierto"}
           </div>
         </div>
         <div className="workspace-actions">
-          <button
-            className={`category-tab ${scene === "resumen" || scene === "z-report" || scene === "x-report" ? "active" : ""}`}
-            onClick={() => setScene("resumen")}
-          >
-            Resumen
-          </button>
-          <button
-            className={`category-tab ${scene === "historial" ? "active" : ""}`}
-            onClick={() => setScene("historial")}
-          >
-            Historial
-          </button>
-          <button
-            className={`category-tab ${scene === "gastos" ? "active" : ""}`}
-            onClick={() => setScene("gastos")}
-          >
-            Gastos
-          </button>
-          {activeRegister && (
-            <>
-              <button
-                className={`category-tab ${scene === "x-report" ? "active" : ""}`}
-                onClick={() => setScene("x-report")}
-              >
-                Reporte X
-              </button>
-              <button
-                className={`category-tab ${scene === "pending" ? "active" : ""}`}
-                onClick={() => setScene("pending")}
-              >
-                Pendientes
-                {failedEvents.length > 0 && (
-                  <span style={{
-                    marginLeft: "var(--sp-1)",
-                    padding: "1px 6px",
-                    borderRadius: 10,
-                    background: "#ef4444",
-                    color: "#fff",
-                    fontSize: "var(--font-size-xs)",
-                    fontWeight: 700,
-                    lineHeight: "16px",
-                  }}>
-                    {failedEvents.length}
-                  </span>
-                )}
-              </button>
-            </>
-          )}
+          {tabs.map((t) => (
+            <button key={t.id} className={`category-tab ${activeTab === t.id ? "active" : ""}`} onClick={() => go(t.id)}>
+              {t.label}
+              {t.badge ? <span className="tab-badge">{t.badge}</span> : null}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-        {loading && (
-          <div className="loading-state">
-            <span className="spinner" />
-            Cargando...
+      <div className="p-6 cash-body">
+        {loading && <div className="loading-state"><span className="spinner" /> Cargando…</div>}
+
+        {!loading && scene === "resumen" && !activeRegister && (
+          <div className="empty-state">
+            <span className="empty-state-icon">🔒</span>
+            <span className="empty-state-text">La caja está cerrada</span>
           </div>
         )}
 
         {!loading && scene === "resumen" && activeRegister && (
-          <div>
-            <div className="card" style={{ marginBottom: "var(--sp-4)" }}>
-              <div className="card-header">
-                <span className="card-title">Movimientos ({activeRegister.movements.length})</span>
-              </div>
-              {activeRegister.movements.length === 0 ? (
-                <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
-                  <span className="empty-state-icon">📋</span>
-                  <span className="empty-state-text">Sin movimientos registrados</span>
-                </div>
-              ) : (
-                <div className="order-items">
-                  {[...activeRegister.movements].reverse().map((m: CashMovement) => (
-                    <div key={m.id} className="order-item-card">
-                      <div className="order-item-main">
-                        <div className="order-item-top">
-                          <span className="order-item-name">
-                            {MOVEMENT_TYPE_ICONS[m.type] ?? "•"} {MOVEMENT_TYPE_LABELS[m.type] ?? m.type}
-                          </span>
-                          <span style={{
-                            fontWeight: 700,
-                            color: ["expense", "withdrawal", "refund"].includes(m.type) ? "var(--error)" : "var(--success)",
-                          }}>
-                            {["expense", "withdrawal", "refund"].includes(m.type) ? "-" : "+"}{formatCurrency(m.amount)}
-                          </span>
-                        </div>
-                        <div className="order-item-modifiers">
-                          <span>{m.reason}</span>
-                        </div>
-                        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>
-                            {CHANNEL_LABELS[m.channel] ?? m.channel}
-                          </span>
-                          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>
-                            {PAYMENT_METHOD_ICONS[m.paymentMethod] ?? "•"} {PAYMENT_METHOD_LABELS[m.paymentMethod] ?? m.paymentMethod}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+          <MovementList movements={activeRegister.movements} />
+        )}
+
+        {!loading && scene === "abrir" && (
+          <div className="cash-form">
+            <label className="cash-label" htmlFor="cash-initial">Efectivo en el cajón</label>
+            <input
+              id="cash-initial"
+              className="search-input cash-amount"
+              inputMode="decimal"
+              placeholder="$ 0"
+              value={initialAmount}
+              onChange={(e) => setInitialAmount(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleOpenRegister()}
+              autoFocus
+            />
+            <span className="cash-label">Esta caja recibe</span>
+            <div className="chip-row">
+              {CHANNEL_OPTIONS.map((c) => (
+                <button
+                  key={String(c.id)}
+                  className={`chip ${defaultChannel === c.id ? "active" : ""}`}
+                  aria-pressed={defaultChannel === c.id}
+                  onClick={() => setDefaultChannel(c.id)}
+                >
+                  {c.label}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {!loading && scene === "abrir" && (
-          <div style={{ maxWidth: 400, margin: "0 auto", padding: "var(--sp-8)" }}>
-            <div className="card text-center" style={{ padding: "var(--sp-8)" }}>
-              <div style={{ fontSize: 48, marginBottom: "var(--sp-4)" }}>🔓</div>
-              <div className="workspace-title" style={{ marginBottom: "var(--sp-2)" }}>
-                Apertura de caja
-              </div>
-              <div className="text-muted text-sm" style={{ marginBottom: "var(--sp-6)" }}>
-                Ingresá el monto inicial en efectivo
-              </div>
-              <input
-                className="search-input"
-                inputMode="decimal"
-                placeholder="Monto inicial"
-                value={initialAmount}
-                onChange={(e) => setInitialAmount(e.target.value)}
-                autoFocus
-                style={{ fontSize: 28, textAlign: "center", marginBottom: "var(--sp-4)" }}
-              />
-              <div style={{ marginBottom: "var(--sp-4)", textAlign: "left" }}>
-                <label style={{ display: "block", fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
-                  Canal default (opcional)
-                </label>
-                <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                  <button
-                    className={`btn ${defaultChannel === null ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    onClick={() => setDefaultChannel(null)}
-                    style={{ flex: 1 }}
-                  >
-                    Todos
-                  </button>
-                  <button
-                    className={`btn ${defaultChannel === "counter" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    onClick={() => setDefaultChannel("counter")}
-                    style={{ flex: 1 }}
-                  >
-                    Mostrador
-                  </button>
-                  <button
-                    className={`btn ${defaultChannel === "takeasygo" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                    onClick={() => setDefaultChannel("takeasygo")}
-                    style={{ flex: 1 }}
-                  >
-                    TakeasyGO
-                  </button>
-                </div>
-              </div>
-              <button
-                className="btn btn-primary"
-                onClick={handleOpenRegister}
-                style={{ width: "100%" }}
-              >
-                Abrir caja
-              </button>
+        {!loading && scene === "movimiento" && activeRegister && (
+          <div className="cash-form">
+            <div className="segmented" role="tablist" aria-label="Tipo de movimiento">
+              {MANUAL_TYPES.map((t) => (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={manualType === t.id}
+                  className={`segmented-option ${manualType === t.id ? "active" : ""}`}
+                  onClick={() => {
+                    setManualType(t.id)
+                    if (t.id === "withdrawal") setCategory("owner_withdrawal")
+                    else if (category === "owner_withdrawal") setCategory(null)
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
+            <input
+              className="search-input cash-amount"
+              inputMode="decimal"
+              placeholder="$ 0"
+              aria-label="Monto"
+              value={movementAmount}
+              onChange={(e) => setMovementAmount(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddMovement()}
+              autoFocus
+            />
+            {manualType !== "income" && (
+              <div className="chip-row" role="radiogroup" aria-label="Categoría">
+                {CASH_EXPENSE_CATEGORIES.map((c) => (
+                  <button
+                    key={c}
+                    role="radio"
+                    aria-checked={category === c}
+                    className={`chip ${category === c ? "active" : ""}`}
+                    onClick={() => setCategory(c)}
+                  >
+                    {CASH_EXPENSE_CATEGORY_LABELS[c]}
+                  </button>
+                ))}
+              </div>
+            )}
+            <input
+              className="search-input"
+              type="text"
+              maxLength={120}
+              placeholder="Detalle (opcional) — ej: Verdulería Don José"
+              aria-label="Detalle"
+              value={movementReason}
+              onChange={(e) => setMovementReason(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddMovement()}
+            />
           </div>
         )}
 
         {!loading && scene === "arqueo" && activeRegister && (
-          <div style={{ maxWidth: 400, margin: "0 auto", padding: "var(--sp-8)" }}>
-            <div className="card" style={{ padding: "var(--sp-6)" }}>
-              <div className="text-center" style={{ marginBottom: "var(--sp-6)" }}>
-                <div style={{ fontSize: 48, marginBottom: "var(--sp-3)" }}>🔒</div>
-                <div className="workspace-title" style={{ marginBottom: "var(--sp-1)" }}>
-                  Cierre de caja
-                </div>
-                <div className="text-muted text-sm">
-                  Contá el efectivo físico y registralo
-                </div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--sp-3)" }}>
-                <span>Saldo esperado</span>
-                <strong>{formatCurrency(currentBalance)}</strong>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "var(--sp-4)" }}>
-                <span>Movimientos</span>
-                <strong>{activeRegister.movements.length}</strong>
-              </div>
+          <div className="cash-count">
+            {ARS_BILL_DENOMINATIONS.map((value) => {
+              const count = Number.parseInt(bills[value] ?? "", 10) || 0
+              return (
+                <label key={value} className="cash-count-row">
+                  <span className="cash-count-bill">{billLabel(value)}</span>
+                  <input
+                    className="search-input cash-count-input"
+                    inputMode="numeric"
+                    placeholder="0"
+                    aria-label={`Cantidad de billetes de ${billLabel(value)}`}
+                    value={bills[value] ?? ""}
+                    onChange={(e) => {
+                      setConfirmClose(false)
+                      setBills((prev) => ({ ...prev, [value]: e.target.value.replace(/\D/g, "").slice(0, 5) }))
+                    }}
+                  />
+                  <span className="cash-count-subtotal">{count > 0 ? formatCurrency(value * count) : ""}</span>
+                </label>
+              )
+            })}
+            <label className="cash-count-row">
+              <span className="cash-count-bill">Monedas</span>
               <input
-                className="search-input"
+                className="search-input cash-count-input"
                 inputMode="decimal"
-                placeholder="Conteo físico"
-                value={finalAmount}
-                onChange={(e) => setFinalAmount(e.target.value)}
-                autoFocus
-                style={{ fontSize: 24, textAlign: "center", marginBottom: "var(--sp-4)" }}
+                placeholder="$ 0"
+                aria-label="Total en monedas"
+                value={coins}
+                onChange={(e) => {
+                  setConfirmClose(false)
+                  setCoins(e.target.value)
+                }}
               />
-              {parsePesosInput(finalAmount) !== null && (
-                <div style={{
-                  textAlign: "center",
-                  fontSize: "var(--font-size-lg)",
-                  fontWeight: 700,
-                  marginBottom: "var(--sp-4)",
-                  color: (parsePesosInput(finalAmount) ?? 0) >= currentBalance ? "var(--success)" : "var(--error)",
-                }}>
-                  Diferencia: {formatCurrency((parsePesosInput(finalAmount) ?? 0) - currentBalance)}
-                </div>
-              )}
-              <button
-                className="btn btn-primary"
-                onClick={handleCloseRegister}
-                style={{ width: "100%" }}
-              >
-                Cerrar caja
-              </button>
+              <span className="cash-count-subtotal" />
+            </label>
+            <div className="cash-count-total">
+              <span>Total contado</span>
+              <strong>{formatCurrency(countedTotal)}</strong>
             </div>
           </div>
         )}
 
-        {!loading && scene === "movimiento" && (
-          <div style={{ maxWidth: 400, margin: "0 auto", padding: "var(--sp-8)" }}>
-            <div className="card" style={{ padding: "var(--sp-6)" }}>
-              <div className="workspace-title" style={{ marginBottom: "var(--sp-4)" }}>
-                Nuevo movimiento
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                    Tipo
-                  </label>
-                  <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                    <button
-                      className={`btn ${movementType === "income" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                      onClick={() => setMovementType("income")}
-                      style={{ flex: 1 }}
-                    >
-                      💵 Ingreso
-                    </button>
-                    <button
-                      className={`btn ${movementType === "expense" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                      onClick={() => setMovementType("expense")}
-                      style={{ flex: 1 }}
-                    >
-                      📤 Egreso
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                    Canal
-                  </label>
-                  <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                    <button
-                      className={`btn ${movementChannel === "counter" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                      onClick={() => setMovementChannel("counter")}
-                      style={{ flex: 1 }}
-                    >
-                      Mostrador
-                    </button>
-                    <button
-                      className={`btn ${movementChannel === "takeasygo" ? "btn-primary" : "btn-ghost"} btn-sm`}
-                      onClick={() => setMovementChannel("takeasygo")}
-                      style={{ flex: 1 }}
-                    >
-                      TakeasyGO
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                    Método de pago
-                  </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--sp-2)" }}>
-                    {(["cash", "mercadopago", "posnet_debit", "posnet_credit", "kripton", "transfer"] as PaymentMethod[]).map((pm) => (
-                      <button
-                        key={pm}
-                        className={`btn ${movementPaymentMethod === pm ? "btn-primary" : "btn-ghost"} btn-sm`}
-                        onClick={() => setMovementPaymentMethod(pm)}
-                      >
-                        {PAYMENT_METHOD_ICONS[pm]} {PAYMENT_METHOD_LABELS[pm]}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                    Monto
-                  </label>
-                  <input
-                    className="search-input"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={movementAmount}
-                    onChange={(e) => setMovementAmount(e.target.value)}
-                    autoFocus
-                    style={{ fontSize: 24, textAlign: "center" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: "var(--font-size-sm)", fontWeight: 600, marginBottom: "var(--sp-1)" }}>
-                    Concepto
-                  </label>
-                  <input
-                    className="search-input"
-                    type="text"
-                    placeholder="Ej: Pago a proveedor, Retiro, etc."
-                    value={movementReason}
-                    onChange={(e) => setMovementReason(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
+        {!loading && scene === "z-report" && selectedZReport && <ZReportView z={selectedZReport} />}
+
+        {!loading && scene === "x-report" && activeRegister && seesExpected && (
+          <XReport register={activeRegister} />
         )}
 
         {!loading && scene === "historial" && (
-          <div>
-            {closedRegisters.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">📊</span>
-                <span className="empty-state-text">Sin cierres anteriores</span>
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {closedRegisters.map((reg) => (
-                  <div key={reg.id} className="order-card">
-                    <div className="order-card-main">
-                      <div className="order-card-header">
-                        <span className="order-card-id">Cierre #{reg.id.slice(0, 8)}</span>
-                        <span className="status-badge" style={{ background: "var(--surface-secondary)", color: "var(--text-secondary)" }}>
-                          {reg.closedAt ? timeAgo(reg.closedAt) : ""}
-                        </span>
-                      </div>
-                      <div className="order-card-items">
-                        Inicial: {formatCurrency(reg.initialAmount)} — Final: {formatCurrency(reg.finalAmount ?? 0)}
-                        {reg.difference !== 0 && ` — Dif: ${formatCurrency(reg.difference ?? 0)}`}
-                      </div>
-                    </div>
-                    <div className="order-card-total">
-                      {reg.difference !== undefined && reg.difference >= 0 ? "✓" : "⚠"}
-                    </div>
-                    <div className="order-card-actions">
-                      <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                        {reg.movements.length} movimientos
+          closedRegisters.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon">📊</span>
+              <span className="empty-state-text">Todavía no hay cierres</span>
+            </div>
+          ) : (
+            <div className="cash-history">
+              {[...closedRegisters]
+                .sort((a, b) => new Date(b.closedAt ?? 0).getTime() - new Date(a.closedAt ?? 0).getTime())
+                .map((reg) => {
+                  const diff = reg.difference ?? 0
+                  return (
+                    <button key={reg.id} className="cash-history-row" onClick={() => openZ(reg)} disabled={!reg.zReport}>
+                      <span className="cash-history-date">
+                        {reg.closedAt ? new Date(reg.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
                       </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      <span className="cash-history-total">{formatCurrency(reg.finalAmount ?? 0)}</span>
+                      <span className={`cash-history-diff ${diff === 0 ? "ok" : diff > 0 ? "over" : "short"}`}>
+                        {diff === 0 ? "Exacta" : `${diff > 0 ? "+" : "−"}${formatCurrency(Math.abs(diff))}`}
+                      </span>
+                    </button>
+                  )
+                })}
+            </div>
+          )
         )}
 
-        {!loading && scene === "gastos" && activeRegister && (
-          <div>
-            <div className="card" style={{ marginBottom: "var(--sp-4)" }}>
-              <div className="card-header">
-                <span className="card-title">Gastos operativos</span>
+        {!loading && scene === "pending" && (
+          <div className="cash-history">
+            {failedEvents.map((e) => (
+              <div key={e._id} className="cash-history-row warn">
+                <span className="cash-history-date">{PAYMENT_METHOD_LABELS[e.paymentMethod as keyof typeof PAYMENT_METHOD_LABELS] ?? e.paymentMethod} · #{e.orderId.slice(0, 8)}</span>
+                <span className="cash-history-total">{formatCurrency(e.amount)}</span>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  onClick={async () => {
+                    if (!jwt) return
+                    const ok = await retryCashSaleEvent(e._id, jwt)
+                    if (ok) {
+                      setFailedEvents((prev) => prev.filter((x) => x._id !== e._id))
+                      showSuccess("Reintentando…")
+                    } else showError("No se pudo reintentar. Revisá la conexión.")
+                  }}
+                >
+                  Reintentar
+                </button>
               </div>
-              {(() => {
-                const expenses = activeRegister.movements.filter((m) => m.type === "expense")
-                const totalExpenses = expenses.reduce((s, m) => s + m.amount, 0)
-                return expenses.length === 0 ? (
-                  <div className="empty-state" style={{ padding: "var(--sp-8)" }}>
-                    <span className="empty-state-icon">✅</span>
-                    <span className="empty-state-text">Sin gastos registrados</span>
-                  </div>
-                ) : (
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-2) var(--sp-3)", borderBottom: "2px solid var(--border)", fontWeight: 700 }}>
-                      <span>Total gastos</span>
-                      <span style={{ color: "var(--error)" }}>{formatCurrency(totalExpenses)}</span>
-                    </div>
-                    <div className="order-items">
-                      {[...expenses].reverse().map((m) => (
-                        <div key={m.id} className="order-item-card">
-                          <div className="order-item-main">
-                            <div className="order-item-top">
-                              <span className="order-item-name">📤 {m.reason}</span>
-                              <span style={{ fontWeight: 700, color: "var(--error)" }}>
-                                -{formatCurrency(m.amount)}
-                              </span>
-                            </div>
-                            <div className="order-item-modifiers">
-                              <span>{new Date(m.timestamp).toLocaleString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })()}
-            </div>
+            ))}
+            {pendingMovements.map((p) => (
+              <div key={p.id} className="cash-history-row">
+                <span className="cash-history-date">{PAYMENT_METHOD_LABELS[p.paymentMethod] ?? p.paymentMethod} · {p.reason}</span>
+                <span className="cash-history-total">{formatCurrency(p.amount)}</span>
+                <span className="cash-history-diff">{timeAgo(new Date(p.timestamp))}</span>
+              </div>
+            ))}
+            {pendingCount === 0 && (
+              <div className="empty-state"><span className="empty-state-text">No hay pendientes</span></div>
+            )}
           </div>
         )}
       </div>
 
       {error && (
         <div className="toast-container">
-          <div className="toast error">
+          <div className="toast error" role="alert">
             <span className="toast-message">{error}</span>
-            <button className="toast-close" onClick={() => setError(null)}>✕</button>
+            <button className="toast-close" aria-label="Cerrar" onClick={() => setError(null)}>✕</button>
           </div>
         </div>
       )}
       {success && (
         <div className="toast-container" style={{ bottom: 80 }}>
-          <div className="toast success">
-            <span className="toast-message">{success}</span>
-          </div>
+          <div className="toast success" role="status"><span className="toast-message">{success}</span></div>
         </div>
       )}
+    </div>
+  )
+}
+
+function MovementList({ movements }: { movements: CashMovement[] }) {
+  if (movements.length === 0) {
+    return (
+      <div className="empty-state">
+        <span className="empty-state-icon">📋</span>
+        <span className="empty-state-text">Todavía no hay movimientos en este turno</span>
+      </div>
+    )
+  }
+  return (
+    <ul className="cash-movements">
+      {[...movements].reverse().map((m) => {
+        const negative = NEGATIVE.has(m.type)
+        return (
+          <li key={m.id} className="cash-movement">
+            <div className="cash-movement-main">
+              <span className="cash-movement-type">
+                {MOVEMENT_LABELS[m.type] ?? m.type}
+                {m.category ? ` · ${CASH_EXPENSE_CATEGORY_LABELS[m.category]}` : ""}
+              </span>
+              <span className="cash-movement-reason">
+                {m.reason} · {PAYMENT_METHOD_LABELS[m.paymentMethod] ?? m.paymentMethod} ·{" "}
+                {new Date(m.timestamp).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                {m.approvedBy ? " · aprobado" : ""}
+              </span>
+            </div>
+            <span className={`cash-movement-amount ${negative ? "neg" : "pos"}`}>
+              {negative ? "−" : "+"}
+              {formatCurrency(m.amount)}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+/** Reporte X: foto del turno (solo encargado/admin). Se arma con los movimientos actuales. */
+function XReport({ register }: { register: CashRegister }) {
+  const byMethod = new Map<string, number>()
+  const byCategory = new Map<string, number>()
+  for (const m of register.movements) {
+    if (m.type === "sale") byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) + m.amount)
+    if (m.type === "refund") byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) - m.amount)
+    if (m.category) byCategory.set(m.category, (byCategory.get(m.category) ?? 0) + m.amount)
+  }
+  return (
+    <div className="z-report">
+      <div className="z-result ok">
+        <span className="z-result-label">Efectivo esperado ahora</span>
+        <span className="z-result-amount">{formatCurrency(register.expectedAmount ?? register.initialAmount)}</span>
+      </div>
+      <div className="z-grid">
+        <section className="z-block">
+          <h3>Ventas por medio de pago</h3>
+          <dl>
+            {[...byMethod].map(([method, total]) => (
+              <div key={method} className="z-count-row">
+                <dt>{PAYMENT_METHOD_LABELS[method as keyof typeof PAYMENT_METHOD_LABELS] ?? method}</dt>
+                <dd>{formatCurrency(total)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+        <section className="z-block">
+          <h3>Gastos y retiros</h3>
+          <dl>
+            {[...byCategory].map(([c, total]) => (
+              <div key={c} className="z-count-row">
+                <dt>{CASH_EXPENSE_CATEGORY_LABELS[c as CashExpenseCategory] ?? c}</dt>
+                <dd>−{formatCurrency(total)}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+      <p className="z-meta">Generado {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · no es el cierre</p>
     </div>
   )
 }

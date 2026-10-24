@@ -173,13 +173,16 @@ export async function createOrder(
 export async function recordPayments(
   tenantId: string,
   orderId: string,
-  payments: AllocatedPayment[]
+  payments: AllocatedPayment[],
+  /** Concepto en la caja ("Pedido M5"): el server registra la venta con él. */
+  reason?: string
 ): Promise<Order> {
   return runMutation(async () => {
     const order = await postOrder(
       tenantId,
       `/orders/${encodeURIComponent(orderId)}/payments`,
       {
+        ...(reason ? { reason } : {}),
         payments: payments.map((p) => ({
           id: p.id,
           method: p.method,
@@ -324,6 +327,26 @@ export async function cancelOrder(
   jwt?: string
 ): Promise<void> {
   await transition(tenantId, orderId, "cancelled", jwt)
+}
+
+/**
+ * Anula una venta COBRADA (Fase 1 de caja): el server registra la devolución
+ * en la caja abierta y, si el usuario es cajero, pide el PIN del encargado
+ * (lo resuelve posApi con el diálogo de aprobación).
+ */
+export async function voidOrder(
+  tenantId: string,
+  orderId: string,
+  reason: "load_error" | "customer_left" | "complaint" | "other",
+  note?: string
+): Promise<Order> {
+  return runMutation(async () => {
+    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/void`, {
+      reason,
+      ...(note ? { note } : {}),
+    })
+    return saveOrder(order)
+  })
 }
 
 export async function deliverOrder(

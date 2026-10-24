@@ -786,7 +786,7 @@ export function CounterDashboard() {
       let clubPhoneFailed = false
       for (const order of toCharge) {
         const allocated = allocation.get(order.id) ?? []
-        await recordPayments(tenantId, order.id, allocated)
+        await recordPayments(tenantId, order.id, allocated, `Pedido ${label}`)
 
         // Club: el celular viaja ANTES de entregar, así el pedido entregado
         // suma los puntos del cliente. Si falla, el cobro sigue: es un extra.

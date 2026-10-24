@@ -1,5 +1,7 @@
 import type {
   CashRegister,
+  CashClosingCount,
+  CashExpenseCategory,
   CashMovement,
   CashMovementType,
   CashChannel,
@@ -95,13 +97,15 @@ export async function closeRegister(
   tenantId: string,
   registerId: string,
   finalAmount: number,
-  closedBy: string
+  closedBy: string,
+  /** Cierre ciego: conteo por billete (el total lo recalcula el server). */
+  closingCount?: Pick<CashClosingCount, "bills" | "coins">
 ): Promise<CashRegister> {
   return runMutation(async () => {
     const { register } = await postRegister(
       tenantId,
       `/cash/registers/${encodeURIComponent(registerId)}/close`,
-      { finalAmount, closedBy }
+      closingCount ? { finalAmount, closedBy, closingCount } : { finalAmount, closedBy }
     )
 
     const rehydrated = rehydrateRegister(register)
@@ -128,7 +132,9 @@ export async function addMovement(
   userId: string,
   channel: CashChannel,
   paymentMethod: PaymentMethod,
-  relatedOrderId?: string
+  relatedOrderId?: string,
+  /** Gastos y retiros: categoría obligatoria (flujo de fondos). */
+  category?: CashExpenseCategory
 ): Promise<{ movement: CashMovement; register: CashRegister }> {
   // Validación de argumentos puros (no depende de estado): evita un round trip
   // cuando el caller se equivoca de frente. El server repite la misma regla.
@@ -149,6 +155,7 @@ export async function addMovement(
         paymentMethod,
         userId,
         ...(relatedOrderId ? { relatedOrderId } : {}),
+        ...(category ? { category } : {}),
       },
     })
 

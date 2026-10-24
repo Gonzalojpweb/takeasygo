@@ -7,6 +7,7 @@ import {
   registerSignature,
   toPosMovement,
   toPosRegister,
+  redactRegisterForRole,
   toSaasRegister,
   type PosRegisterInput,
 } from '@/lib/pos-online/cashMapper'
@@ -62,19 +63,23 @@ function readFilters(url: string) {
 }
 
 /** Une cada caja con sus movimientos en UNA query extra (sin N+1). */
-async function withMovements(registers: RegisterWithId[]) {
+async function withMovements(registers: RegisterWithId[], role: string) {
   const grouped = await loadMovementsByRegisterIds(registers.map((r) => r._id))
+  // Cierre ciego: el cajero no recibe el saldo esperado de la caja abierta.
   return registers.map((register) =>
-    toPosRegister(
-      register,
-      (grouped.get(String(register._id)) ?? []).map((m) => toPosMovement(m))
+    redactRegisterForRole(
+      toPosRegister(
+        register,
+        (grouped.get(String(register._id)) ?? []).map((m) => toPosMovement(m))
+      ),
+      role
     )
   )
 }
 
 /** Variante singular: el contrato responde `{ register: {...} }`, no una lista. */
-async function withMovement(register: RegisterWithId) {
-  const [mapped] = await withMovements([register])
+async function withMovement(register: RegisterWithId, role: string) {
+  const [mapped] = await withMovements([register], role)
   return mapped
 }
 
@@ -121,7 +126,7 @@ export const GET = posRoute('cash.read', async (ctx) => {
     .exec()) as unknown as RegisterWithId[]
 
   return NextResponse.json({
-    registers: await withMovements(registers),
+    registers: await withMovements(registers, ctx.user.role),
     serverTime: new Date().toISOString(),
   })
 })
@@ -150,7 +155,7 @@ export const POST = posRoute('cash.write', async (ctx) => {
       userRole: ctx.user.role,
     })
     return NextResponse.json(
-      { register: await withMovement(replayTarget) },
+      { register: await withMovement(replayTarget, ctx.user.role) },
       { status: 200 }
     )
   }
@@ -171,7 +176,7 @@ export const POST = posRoute('cash.write', async (ctx) => {
       const winner = await findRegisterByPosId(ctx, draft.posId)
       if (winner) {
         assertReplay(winner, draft, ctx.locationId)
-        return NextResponse.json({ register: await withMovement(winner) }, { status: 200 })
+        return NextResponse.json({ register: await withMovement(winner, ctx.user.role) }, { status: 200 })
       }
       throw error
     }
@@ -199,5 +204,5 @@ export const POST = posRoute('cash.write', async (ctx) => {
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ register: await withMovement(doc) }, { status: 201 })
+  return NextResponse.json({ register: await withMovement(doc, ctx.user.role) }, { status: 201 })
 })

@@ -56,6 +56,22 @@ export {
   findRegisterForChannel,
   openRegistersOf,
 } from "./cash"
+export {
+  CASH_EXPENSE_CATEGORIES,
+  CASH_EXPENSE_CATEGORY_LABELS,
+  isCashExpenseCategory,
+  movementRequiresCategory,
+  movementRequiresApproval,
+  ARS_BILL_DENOMINATIONS,
+  MAX_DENOMINATION_COUNT,
+  sumDenominations,
+  canSeeExpectedCash,
+  isApproverRole,
+  VOID_REASONS,
+  VOID_REASON_LABELS,
+  isVoidReason,
+  type VoidReason,
+} from "./cash-control"
 export { generateZReport, type ZReportInput } from "./z-report"
 export {
   flattenMenu,

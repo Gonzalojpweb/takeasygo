@@ -1,6 +1,9 @@
 import type {
   CashChannel,
+  CashClosingCount,
+  CashExpenseCategory,
   CashMovement,
+  CashMovementSource,
   CashMovementType,
   CashRegister,
   PaymentMethod,
@@ -10,7 +13,9 @@ import {
   POSITIVE_CASH_TYPES,
   NEGATIVE_CASH_TYPES,
   cashExpectedDelta,
+  canSeeExpectedCash,
 } from '@takeasygo/business'
+import { resolvePosRole } from './permissions'
 import { PosError } from './errors'
 
 // ============================================================================
@@ -66,6 +71,7 @@ export interface PosRegisterDoc {
   defaultForChannel: CashChannel | null
   zReport?: Record<string, unknown> | null
   shareToken?: string | null
+  closingCount?: CashClosingCount | null
 }
 
 export interface PosMovementDoc {
@@ -78,6 +84,9 @@ export interface PosMovementDoc {
   relatedOrderId?: string | null
   channel: CashChannel
   paymentMethod: PaymentMethod
+  category?: CashExpenseCategory | null
+  approvedBy?: string | null
+  source?: CashMovementSource
 }
 
 /**
@@ -187,6 +196,9 @@ export function toPosMovement(doc: PosMovementDoc): CashMovement {
     paymentMethod: doc.paymentMethod,
   }
   if (doc.relatedOrderId) movement.relatedOrderId = doc.relatedOrderId
+  if (doc.category) movement.category = doc.category
+  if (doc.approvedBy) movement.approvedBy = doc.approvedBy
+  movement.source = doc.source ?? 'pos'
   return movement
 }
 
@@ -215,7 +227,19 @@ export function toPosRegister(
   }
   if (doc.zReport) register.zReport = doc.zReport as unknown as ZReport
   if (doc.shareToken) register.shareToken = doc.shareToken
+  if (doc.closingCount) register.closingCount = doc.closingCount
   return register
+}
+
+/**
+ * Cierre ciego (Fase 1): mientras la caja está ABIERTA, el cajero no recibe
+ * el saldo esperado. Solo encargado/admin lo ven. Una caja cerrada se
+ * devuelve completa (el Z ya tiene la diferencia y es lo que se audita).
+ */
+export function redactRegisterForRole(register: CashRegister, role: string): CashRegister {
+  if (register.status !== 'open' || canSeeExpectedCash(resolvePosRole(role))) return register
+  const { expectedAmount: _expected, ...rest } = register
+  return rest as CashRegister
 }
 
 /**

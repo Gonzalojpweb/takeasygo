@@ -327,6 +327,8 @@ export interface PosOrderContract {
   /** Desglose del cobro (Order.posPayments). Ausente si no se cobró. */
   payments?: { method: PaymentMethod; amount: number; reference?: string }[]
   paymentSource?: 'pos_charged'
+  /** Venta anulada (Order.voided). */
+  voided?: { at: Date; reason: string }
   createdAt: Date
   updatedAt: Date
 }
@@ -359,6 +361,7 @@ export function toPosOrder(doc: {
   menuVersion?: number
   notes?: string | null
   posPayments?: { method: string; amount: number; reference?: string | null }[] | null
+  voided?: { at: Date; reason: string } | null
   createdAt: Date
   updatedAt: Date
 }): PosOrderContract {
@@ -376,6 +379,7 @@ export function toPosOrder(doc: {
 
   return {
     ...(payments ? { payments, paymentSource: 'pos_charged' as const } : {}),
+    ...(doc.voided ? { voided: { at: doc.voided.at, reason: doc.voided.reason } } : {}),
     id: doc.posId,
     tenantId: doc.tenantId.toString(),
     source: doc.source ?? 'pos',

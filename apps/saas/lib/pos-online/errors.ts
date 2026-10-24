@@ -22,13 +22,19 @@ export type PosErrorCode =
   | 'transition_invalid'// 409 — salto de estado no permitido
   | 'conflict'          // 409 — regla de negocio violada (caja abierta, etc.)
   | 'idempotency_mismatch' // 409 — mismo posId con payload distinto
+  | 'approval_required' // 403 — la operación necesita el PIN de un encargado
+  | 'approval_invalid'  // 403 — PIN de encargado incorrecto o sin permiso
+  | 'rate_limited'      // 429 — demasiados intentos
   | 'internal'          // 500 — error inesperado
 
 function defaultStatusFor(code: PosErrorCode): number {
   switch (code) {
     case 'validation': return 400
     case 'unauthorized': return 401
-    case 'forbidden': return 403
+    case 'forbidden':
+    case 'approval_required':
+    case 'approval_invalid': return 403
+    case 'rate_limited': return 429
     case 'not_found': return 404
     case 'transition_invalid':
     case 'conflict':
@@ -87,6 +93,19 @@ export class PosError extends Error {
 
   static idempotencyMismatch(message: string, detail?: string): PosError {
     return new PosError('idempotency_mismatch', message, { detail })
+  }
+
+  /** El POS muestra el pedido de PIN del encargado y reintenta con `X-Manager-Pin`. */
+  static approvalRequired(message: string): PosError {
+    return new PosError('approval_required', message)
+  }
+
+  static approvalInvalid(message = 'PIN de encargado incorrecto'): PosError {
+    return new PosError('approval_invalid', message)
+  }
+
+  static rateLimited(message = 'Demasiados intentos. Esperá unos minutos.'): PosError {
+    return new PosError('rate_limited', message)
   }
 
   static internal(message = 'Error interno', detail?: string): PosError {

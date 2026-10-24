@@ -2157,3 +2157,101 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
   .update-banner { left: 16px; right: 16px; transform: none; max-width: none; bottom: calc(var(--sp-3) + 140px); }
   .update-banner span { flex: 1; }
 }
+
+/* ========================================
+   CAJA — Fase 1 (cierre ciego, egresos con categoría, Z)
+   Docs: ADMIN/FASE1_CAJA_PROFESIONAL.md
+   ======================================== */
+.cash-body { flex: 1; overflow-y: auto; min-height: 0; }
+.cash-help { font-size: var(--font-size-sm); color: var(--text-secondary); line-height: 1.5; padding: var(--sp-2); margin: 0; }
+.cash-help p { margin: 0 0 var(--sp-2); }
+.cash-counted { font-size: var(--font-size-base); color: var(--text-primary); }
+.cash-stats { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2); margin: 0; }
+.cash-stat { display: flex; justify-content: space-between; align-items: baseline; }
+.cash-stat dt { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.cash-stat dd { margin: 0; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.cash-stat-main dd { font-size: var(--font-size-2xl); }
+.cash-stat .pos, .cash-movement-amount.pos { color: var(--success); }
+.cash-stat .neg, .cash-movement-amount.neg { color: var(--error); }
+
+.cash-form { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.cash-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-secondary); }
+.cash-amount { font-size: 28px; text-align: center; min-height: 56px; font-variant-numeric: tabular-nums; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.chip { min-height: 44px; padding: 0 var(--sp-4); border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); font: inherit; font-size: var(--font-size-sm); cursor: pointer; transition: background var(--transition-normal), border-color var(--transition-normal); }
+.chip:hover { border-color: var(--primary-action); }
+.chip.active { background: var(--primary-action); border-color: var(--primary-action); color: #fff; }
+
+.segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--surface-secondary); border-radius: 12px; }
+.segmented-option { min-height: 44px; border: none; border-radius: 9px; background: transparent; font: inherit; font-weight: var(--font-weight-semibold); color: var(--text-secondary); cursor: pointer; }
+.segmented-option.active { background: var(--surface); color: var(--text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+
+.tab-badge { margin-left: var(--sp-1); padding: 1px 6px; border-radius: 10px; background: var(--error); color: #fff; font-size: var(--font-size-xs); font-weight: 700; }
+
+.cash-movements { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.cash-movement { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.cash-movement-main { display: flex; flex-direction: column; min-width: 0; }
+.cash-movement-type { font-weight: var(--font-weight-semibold); }
+.cash-movement-reason { font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cash-movement-amount { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Conteo por billete: dos columnas en pantallas anchas, sin scroll en tablet. */
+.cash-count { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-6); }
+.cash-count-row { display: grid; grid-template-columns: 84px 1fr 110px; align-items: center; gap: var(--sp-2); }
+.cash-count-bill { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.cash-count-input { min-height: 44px; text-align: center; font-size: 18px; font-variant-numeric: tabular-nums; }
+.cash-count-subtotal { font-size: var(--font-size-sm); color: var(--text-secondary); text-align: right; font-variant-numeric: tabular-nums; }
+.cash-count-total { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding-top: var(--sp-3); margin-top: var(--sp-2); border-top: 2px solid var(--text-primary); font-size: var(--font-size-lg); }
+.cash-count-total strong { font-size: var(--font-size-2xl); font-variant-numeric: tabular-nums; }
+
+.cash-history { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 760px; margin: 0 auto; }
+.cash-history-row { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-4); align-items: center; min-height: 52px; padding: 0 var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); font: inherit; text-align: left; cursor: pointer; }
+.cash-history-row:disabled { cursor: default; opacity: .7; }
+.cash-history-row.warn { border-color: var(--error); background: var(--error-light); }
+.cash-history-date { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cash-history-total { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.cash-history-diff { font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.cash-history-diff.ok { color: var(--success); }
+.cash-history-diff.over { color: var(--info); }
+.cash-history-diff.short { color: var(--error); }
+
+/* Reporte Z / X */
+.z-report { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.z-result { display: flex; justify-content: space-between; align-items: baseline; padding: var(--sp-4) var(--sp-5); border-radius: 16px; background: var(--success-light); }
+.z-result.short { background: var(--error-light); }
+.z-result.over { background: var(--info-light); }
+.z-result-label { font-weight: var(--font-weight-semibold); }
+.z-result-amount { font-size: var(--font-size-2xl); font-weight: 700; font-variant-numeric: tabular-nums; }
+.z-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+.z-block { border: 1px solid var(--border); border-radius: 16px; padding: var(--sp-4); background: var(--surface); }
+.z-block h3 { margin: 0 0 var(--sp-3); font-size: var(--font-size-sm); color: var(--text-secondary); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: .4px; }
+.z-block dl { margin: 0; display: grid; grid-template-columns: 1fr auto; gap: var(--sp-1) var(--sp-3); }
+.z-block dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.z-count-row { display: contents; }
+.z-block .z-count, .z-block .z-totals { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px dashed var(--border); font-size: var(--font-size-sm); }
+.z-meta { font-size: var(--font-size-xs); color: var(--text-muted); text-align: center; margin: 0; }
+
+/* Aprobación de encargado */
+.approval-overlay { z-index: 1000; }
+.approval-modal { width: 380px; }
+.approval-body { padding: var(--sp-6); display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); text-align: center; }
+.approval-icon { color: var(--primary-action); }
+.approval-title { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+.approval-message { margin: 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
+.approval-pin { font-size: 28px; letter-spacing: 8px; text-align: center; min-height: 56px; width: 100%; }
+.approval-error { margin: 0; color: var(--error); font-size: var(--font-size-sm); }
+.approval-actions { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); width: 100%; }
+.approval-actions .btn { min-height: 48px; }
+
+/* Anular venta (Ventas) */
+.void-form { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-2); }
+.void-badge { display: inline-block; margin-left: var(--sp-2); padding: 1px 8px; border-radius: 999px; background: var(--error-light); color: var(--error); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+
+@media (max-width: 768px) {
+  .cash-count { grid-template-columns: 1fr; }
+  .cash-count-row { grid-template-columns: 76px 1fr 96px; }
+  .z-grid { grid-template-columns: 1fr; }
+  .cash-history-row { grid-template-columns: 1fr auto; }
+  .cash-history-diff { grid-column: 1 / -1; padding-bottom: var(--sp-2); }
+}

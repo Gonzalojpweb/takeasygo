@@ -1,5 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose'
-import type { CashChannel, CashMovementType, PaymentMethod } from '@takeasygo/types'
+import type {
+  CashChannel,
+  CashExpenseCategory,
+  CashMovementSource,
+  CashMovementType,
+  PaymentMethod,
+} from '@takeasygo/types'
 
 // ============================================================================
 // CashMovement — movimientos de caja del POS Online (V1)
@@ -33,6 +39,12 @@ export interface ICashMovement extends Document {
   relatedOrderId: string | null
   channel: CashChannel
   paymentMethod: PaymentMethod
+  /** Categoría del egreso (expense/withdrawal). Fase 1 de caja. */
+  category: CashExpenseCategory | null
+  /** Usuario (id) del encargado que aprobó con su PIN; null si no hizo falta. */
+  approvedBy: string | null
+  /** pos = cargado por el POS · payment = cobro registrado por el server · void = devolución de anulación */
+  source: CashMovementSource
   createdAt: Date
   updatedAt: Date
 }
@@ -68,6 +80,13 @@ const CashMovementSchema = new Schema<ICashMovement>(
       enum: ['cash', 'mercadopago', 'posnet_debit', 'posnet_credit', 'kripton', 'transfer'] as PaymentMethod[],
       required: true,
     },
+    category: {
+      type: String,
+      enum: ['suppliers', 'supplies', 'services', 'salaries', 'owner_withdrawal', 'other', null] as (CashExpenseCategory | null)[],
+      default: null,
+    },
+    approvedBy: { type: String, default: null },
+    source: { type: String, enum: ['pos', 'payment', 'void'] as CashMovementSource[], default: 'pos' },
   },
   { timestamps: true }
 )
