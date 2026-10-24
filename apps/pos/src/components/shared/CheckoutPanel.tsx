@@ -10,6 +10,8 @@ import {
 import { PaymentMethodGrid } from "./PaymentMethodGrid"
 import { formatCurrency, parsePesosInput, centsToPesosInput } from "../../utils/format"
 import { formatPaymentMethod, isExternalPaymentMethod } from "../../services/payment"
+import { isInvoiceChoiceValid, type FiscalConfig, type InvoiceChoice } from "../../services/fiscal"
+import { InvoicePicker } from "./InvoicePicker"
 
 // ============================================================================
 // CheckoutPanel — cobro con uno o varios métodos y montos libres
@@ -35,6 +37,8 @@ interface CheckoutPanelProps {
   sendToKitchen?: { value: boolean; onChange: (value: boolean) => void }
   /** Celular del cliente para el club (opcional): suma puntos y cuenta como visita. */
   clubPhone?: { value: string; onChange: (value: string) => void }
+  /** Factura electrónica (Fase 5): solo si el comercio factura desde el POS. */
+  invoice?: { config: FiscalConfig; value: InvoiceChoice; onChange: (value: InvoiceChoice) => void }
 }
 
 /** Celular válido para el club: vacío (no se usa) u 8 a 15 dígitos. */
@@ -43,7 +47,7 @@ export function isClubPhoneValid(phone: string): boolean {
   return digits.length === 0 || (digits.length >= 8 && digits.length <= 15)
 }
 
-export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone }: CheckoutPanelProps) {
+export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice }: CheckoutPanelProps) {
   const [parts, setParts] = useState<CheckoutPart[]>([])
   const [amountText, setAmountText] = useState<Record<string, string>>({})
   const [received, setReceived] = useState("")
@@ -247,6 +251,8 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
         </div>
       )}
 
+      {invoice && <InvoicePicker config={invoice.config} value={invoice.value} onChange={invoice.onChange} />}
+
       {hasExternal && (
         <div className="text-sm text-muted text-center">
           Confirmá solo cuando el terminal / la transferencia esté aprobada.
@@ -255,7 +261,12 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
 
       <button
         className="btn btn-primary"
-        disabled={!complete || busy || (clubPhone ? !isClubPhoneValid(clubPhone.value) : false)}
+        disabled={
+          !complete ||
+          busy ||
+          (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||
+          (invoice ? !isInvoiceChoiceValid(invoice.value) : false)
+        }
         onClick={() => onConfirm(parts)}
       >
         {busy ? "Registrando cobro…" : `Confirmar cobro ${formatCurrency(total)}`}

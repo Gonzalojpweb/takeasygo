@@ -39,6 +39,15 @@ import { GatewayFilters } from "../IncomingOrders/GatewayFilters"
 import { AutoConfirmToggle } from "../IncomingOrders/AutoConfirmToggle"
 import { SocketStatus } from "../IncomingOrders/SocketStatus"
 import type { FilterOption } from "../IncomingOrders/GatewayFilters"
+import {
+  OFF_CONFIG,
+  defaultInvoiceChoice,
+  getFiscalConfig,
+  invoiceOrder,
+  type FiscalConfig,
+  type FiscalDocumentSummary,
+  type InvoiceChoice,
+} from "../../services/fiscal"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
 type Scene = "salon" | "mesa" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
@@ -107,7 +116,23 @@ export function CounterDashboard() {
   const [sendToKitchen, setSendToKitchen] = useState(true)
   /** Celular del cliente para el club (opcional, se pide al cobrar). */
   const [clubPhone, setClubPhone] = useState("")
-  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean } | null>(null)
+  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean; invoices?: FiscalDocumentSummary[] } | null>(null)
+  // Factura electrónica (Fase 5): config del comercio y elección del cobro actual.
+  const [fiscalConfig, setFiscalConfig] = useState<FiscalConfig>(OFF_CONFIG)
+  const [invoiceChoice, setInvoiceChoice] = useState<InvoiceChoice>(() => defaultInvoiceChoice(OFF_CONFIG))
+
+  useEffect(() => {
+    if (!tenantId) return
+    let alive = true
+    getFiscalConfig(tenantId).then((config) => {
+      if (!alive) return
+      setFiscalConfig(config)
+      setInvoiceChoice(defaultInvoiceChoice(config))
+    })
+    return () => {
+      alive = false
+    }
+  }, [tenantId])
   const pendingOrderIdRef = useRef<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
@@ -832,7 +857,30 @@ export function CounterDashboard() {
         }
       }
 
-      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen })
+      // Factura (Fase 5): una por orden cobrada. Nunca corta la venta: si ARCA
+      // no responde, queda pendiente y se reintenta sola.
+      const invoices: FiscalDocumentSummary[] = []
+      if (fiscalConfig.enabled && invoiceChoice.type !== "none") {
+        for (const order of toCharge) {
+          try {
+            invoices.push(await invoiceOrder(tenantId, order.id, invoiceChoice))
+          } catch (err) {
+            invoices.push({
+              id: order.id,
+              kind: "invoice",
+              letter: "",
+              status: "retrying",
+              label: "Factura",
+              cae: null,
+              totalCents: order.total,
+              message: describePosError(err, "No se pudo facturar"),
+            })
+          }
+        }
+      }
+
+      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices })
+      setInvoiceChoice(defaultInvoiceChoice(fiscalConfig))
       if (clubPhoneFailed) showErrorToast("El cobro quedó registrado, pero no se pudo guardar el celular del club.")
       setClubPhone("")
       pendingOrderIdRef.current = null
@@ -844,7 +892,7 @@ export function CounterDashboard() {
     } finally {
       setPaying(false)
     }
-  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast])
+  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)
@@ -1626,6 +1674,7 @@ export function CounterDashboard() {
                   busy={paying}
                   onConfirm={handlePay}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
+                  invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
                 />
               </div>
             </div>
@@ -1639,6 +1688,7 @@ export function CounterDashboard() {
                 <div className="workspace-subtitle" style={{ marginBottom: 24 }}>
                   {formatCurrency(lastSale?.total ?? 0)} — Mesa {selectedTable?.number ?? "?"}
                 </div>
+                <InvoiceResults invoices={lastSale?.invoices} />
               </div>
             </div>
           )}
@@ -1735,6 +1785,7 @@ export function CounterDashboard() {
                   onConfirm={handlePay}
                   sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
+                  invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
                 />
               </div>
             </div>
@@ -1751,6 +1802,7 @@ export function CounterDashboard() {
                 {lastSale?.sentToKitchen && (
                   <div className="text-sm text-muted">Enviado a cocina — entregalo desde Mis Pedidos.</div>
                 )}
+                <InvoiceResults invoices={lastSale?.invoices} />
               </div>
             </div>
           )}
@@ -2472,6 +2524,24 @@ function PosOrderCard({ order, onConfirm, onPrepare, onMarkReady, onDeliver }: P
         </span>
         <span className="order-card-total">{formatCurrency(order.total)}</span>
       </div>
+    </div>
+  )
+}
+
+/** Resultado de la factura en la pantalla de venta completada (Fase 5). */
+function InvoiceResults({ invoices }: { invoices?: FiscalDocumentSummary[] }) {
+  if (!invoices || invoices.length === 0) return null
+  return (
+    <div className="invoice-results">
+      {invoices.map((doc) => (
+        <div key={doc.id} className={`invoice-result ${doc.status}`}>
+          {doc.status === "authorized"
+            ? `${doc.label} · CAE ${doc.cae}`
+            : doc.status === "rejected"
+              ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`
+              : "Factura esperando a ARCA — se emite sola en cuanto responda"}
+        </div>
+      ))}
     </div>
   )
 }

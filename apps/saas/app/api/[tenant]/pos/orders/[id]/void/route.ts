@@ -13,6 +13,8 @@ import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { runAfterResponse } from '@/lib/after-response'
 import { isVoidReason, VOID_REASON_LABELS } from '@takeasygo/business'
+import { documentSummary, issueCreditNoteForOrder } from '@/lib/fiscal/issue'
+import { enqueueFiscalTicket } from '@/lib/fiscal/ticket'
 import type { PaymentMethod } from '@takeasygo/types'
 
 // ============================================================================
@@ -36,7 +38,9 @@ import type { PaymentMethod } from '@takeasygo/types'
 //     contable. La orden queda `cancelled` (también `payment.status`) y con
 //     `voided` (write-once) para auditoría.
 //   · Efectos: devuelve insumos (inventario), libera la mesa, revierte el
-//     paso de referidos.
+//     paso de referidos y, si la venta estaba facturada, emite la NOTA DE
+//     CRÉDITO asociada (Fase 5). Si ARCA no responde, queda en reintento:
+//     la anulación no se frena.
 //
 // Body: { reason: 'load_error' | 'customer_left' | 'complaint' | 'other', note? }
 // ============================================================================
@@ -146,6 +150,22 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
 
   runAfterResponse('referidos (venta POS anulada)', () => syncReferralsForOrder(updated as never))
 
+  // Nota de crédito de la factura (si la había). Nunca frena la anulación.
+  let creditNote: ReturnType<typeof documentSummary> | null = null
+  try {
+    const nc = await issueCreditNoteForOrder({
+      tenantId: ctx.tenantId,
+      orderId: String((updated as unknown as { _id: unknown })._id),
+      userId: ctx.user.id,
+    })
+    if (nc) {
+      creditNote = documentSummary(nc)
+      if (nc.status === 'authorized') await enqueueFiscalTicket(nc).catch(() => undefined)
+    }
+  } catch (err) {
+    console.error('[pos/void] nota de crédito pendiente:', err)
+  }
+
   await logAudit({
     tenantId: ctx.tenantId,
     action: 'pos.order.void',
@@ -167,5 +187,5 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ order: toPosOrder(updated as never) })
+  return NextResponse.json({ order: toPosOrder(updated as never), creditNote })
 })

@@ -102,6 +102,11 @@ export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; b
   out.push(row('Total ventas', money(z.salesTotal)))
   if (z.refundTotal > 0) out.push(row('Devoluciones', money(-z.refundTotal)))
   if ((z.voidCount ?? 0) > 0) out.push(row('Ventas anuladas', String(z.voidCount)))
+  if (z.fiscal) {
+    out.push(row(`Facturado (${z.fiscal.invoices})`, money(z.fiscal.invoicedCents)))
+    if (z.fiscal.creditNotes > 0) out.push(row(`Notas de credito (${z.fiscal.creditNotes})`, money(-z.fiscal.creditedCents)))
+    if (z.fiscal.pending > 0) out.push(row('Facturas sin CAE', String(z.fiscal.pending)))
+  }
 
   const categories = Object.entries(z.byCategory ?? {}).filter(([, v]) => (v ?? 0) > 0)
   if (categories.length > 0) {

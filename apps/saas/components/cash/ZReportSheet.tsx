@@ -109,6 +109,15 @@ export function ZReportSheet({ z, header }: { z: ZReport; header: ZSheetHeader }
             {z.refundTotal > 0 && <Row label="Devoluciones" value={`−${formatCents(z.refundTotal)}`} />}
             {(z.voidCount ?? 0) > 0 && <Row label="Ventas anuladas" value={String(z.voidCount)} />}
           </div>
+          {z.fiscal && (
+            <div className="mt-2 border-t border-dashed border-border pt-2">
+              <Row label={`Facturado (${z.fiscal.invoices})`} value={formatCents(z.fiscal.invoicedCents)} />
+              {z.fiscal.creditNotes > 0 && (
+                <Row label={`Notas de crédito (${z.fiscal.creditNotes})`} value={`−${formatCents(z.fiscal.creditedCents)}`} />
+              )}
+              {z.fiscal.pending > 0 && <Row label="Esperando a ARCA" value={String(z.fiscal.pending)} />}
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl bg-muted/30 p-4">

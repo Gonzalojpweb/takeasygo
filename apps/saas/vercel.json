@@ -50,6 +50,10 @@
       "schedule": "30 5 * * *"
     },
     {
+      "path": "/api/cron/fiscal-retry",
+      "schedule": "45 5 * * *"
+    },
+    {
       "path": "/api/cron/compliance-sweep",
       "schedule": "0 7 * * *"
     },

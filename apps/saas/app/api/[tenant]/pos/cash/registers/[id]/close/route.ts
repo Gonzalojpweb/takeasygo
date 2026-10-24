@@ -16,6 +16,7 @@ import {
 } from '@/lib/pos-online/cashMapper'
 import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cashRepo'
 import { operatorName } from '@/lib/pos-online/operator'
+import { fiscalSummaryForShift } from '@/lib/fiscal/shift-summary'
 import { enqueueZPrint, type ZPrintRegister } from '@/lib/cash/z-print'
 
 // ============================================================================
@@ -97,6 +98,13 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
   }
 
   const zReport = generateZReport({ register: closedRegister, movements, closedBy })
+  // Fase 5: comprobantes electrónicos emitidos durante el turno, en la sede.
+  zReport.fiscal = await fiscalSummaryForShift({
+    tenantId: ctx.tenantId,
+    locationId: ctx.locationId,
+    from: register.openedAt,
+    to: closedAt,
+  })
   const shareToken = randomUUID()
 
   // Guard con `status: 'open'` en el filtro: dos cierres simultáneos no

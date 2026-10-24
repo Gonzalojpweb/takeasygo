@@ -77,6 +77,13 @@ export function ZReportView({ z }: { z: ZReport }) {
             {z.refundTotal > 0 && (<><dt>Devoluciones</dt><dd>−{formatCurrency(z.refundTotal)}</dd></>)}
             {(z.voidCount ?? 0) > 0 && (<><dt>Ventas anuladas</dt><dd>{z.voidCount}</dd></>)}
           </dl>
+          {z.fiscal && (
+            <dl className="z-totals">
+              <dt>Facturado ({z.fiscal.invoices})</dt><dd>{formatCurrency(z.fiscal.invoicedCents)}</dd>
+              {z.fiscal.creditNotes > 0 && (<><dt>Notas de crédito ({z.fiscal.creditNotes})</dt><dd>−{formatCurrency(z.fiscal.creditedCents)}</dd></>)}
+              {z.fiscal.pending > 0 && (<><dt>Facturas esperando a ARCA</dt><dd>{z.fiscal.pending}</dd></>)}
+            </dl>
+          )}
         </section>
 
         <section className="z-block">

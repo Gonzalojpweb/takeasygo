@@ -2255,3 +2255,14 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
   .cash-history-row { grid-template-columns: 1fr auto; }
   .cash-history-diff { grid-column: 1 / -1; padding-bottom: var(--sp-2); }
 }
+
+/* ========================================
+   FACTURA ELECTRÓNICA en el cobro — Fase 5
+   ======================================== */
+.invoice-picker .chip-row { align-items: center; }
+.invoice-fields { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
+.invoice-test { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--warning); text-transform: uppercase; letter-spacing: .4px; }
+.invoice-results { display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-3); }
+.invoice-result { font-size: var(--font-size-sm); padding: var(--sp-2) var(--sp-3); border-radius: 10px; background: var(--success-light); color: var(--success); }
+.invoice-result.rejected { background: var(--error-light); color: var(--error); }
+.invoice-result.pending, .invoice-result.retrying { background: var(--warning-light); color: var(--text-primary); }

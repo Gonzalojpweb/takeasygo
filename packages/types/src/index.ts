@@ -545,6 +545,16 @@ export type CashExpenseCategory =
   | "owner_withdrawal"
   | "other"
 
+/** Resumen de comprobantes electrónicos de un turno (centavos). */
+export interface ZFiscalSummary {
+  invoices: number
+  invoicedCents: number
+  creditNotes: number
+  creditedCents: number
+  /** Comprobantes sin CAE todavía (ARCA caída): se reintentan solos. */
+  pending: number
+}
+
 /** Conteo de un billete en el cierre ciego. `value` en centavos. */
 export interface CashDenominationCount {
   value: number
@@ -637,6 +647,8 @@ export interface ZReport {
   voidCount?: number
   /** Conteo físico por billete declarado al cerrar. */
   closingCount?: CashClosingCount | null
+  /** Comprobantes electrónicos del turno (Fase 5). Ausente si no factura. */
+  fiscal?: ZFiscalSummary | null
 
   // ── Metadata ─────────────────────────────────────────────────────
   generatedAt: Date
