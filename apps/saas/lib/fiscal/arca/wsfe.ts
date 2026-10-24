@@ -277,3 +277,106 @@ export async function feCompConsultar(
     result: getText(xml, 'Resultado'),
   }
 }
+
+// ── CAEA: Código de Autorización Electrónico Anticipado (contingencia) ─────
+// Fase 6. Un CAEA por quincena (Orden 1 = días 1–15, 2 = 16–fin de mes). Se
+// puede pedir desde 5 días antes. Los comprobantes emitidos con CAEA se
+// INFORMAN después (FECAEARegInformativo) y los puntos de venta de
+// contingencia sin movimiento se informan con FECAEASinMovimientoInformar.
+
+export interface CaeaInfo {
+  caea: string
+  period: string
+  order: 1 | 2
+  validFrom: Date | null
+  validTo: Date | null
+  reportDeadline: Date | null
+}
+
+function parseCaea(xml: string, period: string, order: 1 | 2): CaeaInfo | null {
+  const caea = getText(xml, 'CAEA')
+  if (!caea) return null
+  return {
+    caea,
+    period,
+    order,
+    validFrom: fromArcaDate(getText(xml, 'FchVigDesde') ?? ''),
+    validTo: fromArcaDate(getText(xml, 'FchVigHasta') ?? ''),
+    reportDeadline: fromArcaDate(getText(xml, 'FchTopeInf') ?? ''),
+  }
+}
+
+/** Pide el CAEA del período; si ya se había pedido, lo consulta. */
+export async function feCaeaObtener(
+  env: FiscalEnvironment,
+  auth: WsfeAuth,
+  period: string,
+  order: 1 | 2,
+  fetchImpl?: FetchLike
+): Promise<CaeaInfo> {
+  const inner = `${authXml(auth)}<ar:Periodo>${period}</ar:Periodo><ar:Orden>${order}</ar:Orden>`
+  const requested = await soapCall(env, 'FECAEASolicitar', inner, fetchImpl)
+  const got = parseCaea(requested, period, order)
+  if (got) return got
+  // 15008: «Existe un CAEA otorgado para el período»: se consulta.
+  const consulted = await soapCall(env, 'FECAEAConsultar', inner, fetchImpl)
+  const again = parseCaea(consulted, period, order)
+  if (again) return again
+  const errors = parseMessages(requested, 'Errors', 'Err')
+  throw new ArcaError('rejected', errors[0] ? `${errors[0].code}: ${errors[0].message}` : 'ARCA no otorgó el CAEA', errors[0]?.code)
+}
+
+/** Informa UN comprobante emitido con CAEA. */
+export async function feCaeaRegInformativo(
+  env: FiscalEnvironment,
+  auth: WsfeAuth,
+  req: CaeRequest & { caea: string },
+  fetchImpl?: FetchLike
+): Promise<{ result: 'A' | 'R' | 'P'; observations: ArcaMessage[]; errors: ArcaMessage[] }> {
+  const body = caeRequestXml(req)
+    .replace('<ar:FeCAEReq>', '<ar:FeCAEARegInfReq>')
+    .replace('</ar:FeCAEReq>', '</ar:FeCAEARegInfReq>')
+    .replace('<ar:FECAEDetRequest>', '<ar:FECAEADetRequest>')
+    .replace('</ar:FECAEDetRequest>', `<ar:CAEA>${escapeXml(req.caea)}</ar:CAEA></ar:FECAEADetRequest>`)
+  const xml = await soapCall(env, 'FECAEARegInformativo', authXml(auth) + body, fetchImpl)
+  const det = getAllTags(xml, 'FECAEADetResponse')[0] ?? ''
+  return {
+    result: (getText(det, 'Resultado') ?? getText(xml, 'Resultado') ?? 'R') as 'A' | 'R' | 'P',
+    observations: parseMessages(det, 'Observaciones', 'Obs'),
+    errors: parseMessages(xml, 'Errors', 'Err'),
+  }
+}
+
+/** Informa que un punto de venta de contingencia no usó el CAEA. */
+export async function feCaeaSinMovimiento(
+  env: FiscalEnvironment,
+  auth: WsfeAuth,
+  pointOfSale: number,
+  caea: string,
+  fetchImpl?: FetchLike
+): Promise<void> {
+  const xml = await soapCall(
+    env,
+    'FECAEASinMovimientoInformar',
+    `${authXml(auth)}<ar:PtoVta>${pointOfSale}</ar:PtoVta><ar:CAEA>${escapeXml(caea)}</ar:CAEA>`,
+    fetchImpl
+  )
+  const errors = parseMessages(xml, 'Errors', 'Err')
+  if (errors.length > 0) throw new ArcaError('rejected', `${errors[0].code}: ${errors[0].message}`, errors[0].code)
+}
+
+/** Período y orden de CAEA para una fecha (hora argentina). */
+export function caeaPeriodFor(date: Date): { period: string; order: 1 | 2 } {
+  const ymd = toArcaDate(date)
+  return { period: ymd.slice(0, 6), order: Number(ymd.slice(6, 8)) <= 15 ? 1 : 2 }
+}
+
+/** La quincena siguiente a la de `date`. */
+export function nextCaeaPeriod(date: Date): { period: string; order: 1 | 2 } {
+  const { period, order } = caeaPeriodFor(date)
+  if (order === 1) return { period, order: 2 }
+  const year = Number(period.slice(0, 4))
+  const month = Number(period.slice(4, 6))
+  const next = month === 12 ? `${year + 1}01` : `${year}${String(month + 1).padStart(2, '0')}`
+  return { period: next, order: 1 }
+}

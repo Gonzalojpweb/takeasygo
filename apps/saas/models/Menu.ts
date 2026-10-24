@@ -107,6 +107,8 @@ export interface IMenuItem {
     /** Días de validez del claim después del descubrimiento (default: 30) */
     claimExpiryDays: number
   }
+  /** Alícuota de IVA (%) del producto. null = la de su categoría o la del comercio. Fase 3 fiscal. */
+  ivaRate?: number | null
 }
 
 export interface IMenuSubCategory {
@@ -120,8 +122,6 @@ export interface IMenuSubCategory {
   customizationGroups?: ICustomizationGroup[]
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: IAvailabilitySlot[]
-  /** Alícuota de IVA (%) del producto. null = la de su categoría o la del comercio. Fase 3 fiscal. */
-  ivaRate?: number | null
 }
 
 export interface IMenuCategory {

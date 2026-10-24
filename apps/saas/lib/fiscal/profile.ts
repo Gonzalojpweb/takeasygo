@@ -21,7 +21,9 @@ export interface PublicFiscalProfile {
   defaultIvaRate: number
   environment: IFiscalProfile['environment']
   invoicingMode: IFiscalProfile['invoicingMode']
+  onlineInvoicing: IFiscalProfile['onlineInvoicing']
   pointsOfSale: { locationId: string; number: number }[]
+  contingency: { enabled: boolean; pointsOfSale: { locationId: string; number: number }[] }
   connection: { checkedAt: string | null; ok: boolean; environment: IFiscalProfile['environment'] | null; message: string }
   credentials: {
     hasCsr: boolean
@@ -65,7 +67,12 @@ export function toPublicProfile(p: LeanProfile | null, hasCertificate = false): 
     defaultIvaRate: p?.defaultIvaRate ?? 21,
     environment: p?.environment ?? 'homologation',
     invoicingMode: p?.invoicingMode ?? 'ask',
+    onlineInvoicing: p?.onlineInvoicing ?? 'off',
     pointsOfSale: (p?.pointsOfSale ?? []).map((x) => ({ locationId: String(x.locationId), number: x.number })),
+    contingency: {
+      enabled: p?.contingency?.enabled ?? false,
+      pointsOfSale: (p?.contingency?.pointsOfSale ?? []).map((x) => ({ locationId: String(x.locationId), number: x.number })),
+    },
     connection: {
       checkedAt: p?.connection?.checkedAt ? new Date(p.connection.checkedAt).toISOString() : null,
       ok: p?.connection?.ok ?? false,

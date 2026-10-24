@@ -19,6 +19,8 @@ export interface QrInput {
   docType: number
   docNumber: string
   cae: string
+  /** 'E' = CAE (default) · 'A' = CAEA (contingencia). */
+  authType?: 'E' | 'A'
 }
 
 function arDate(date: Date): string {
@@ -43,7 +45,7 @@ export function arcaQrPayload(input: QrInput): Record<string, string | number> {
     ctz: 1,
     tipoDocRec: input.docType,
     nroDocRec: Number(input.docNumber) || 0,
-    tipoCodAut: 'E',
+    tipoCodAut: input.authType ?? 'E',
     codAut: Number(input.cae),
   }
 }

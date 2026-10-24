@@ -498,6 +498,9 @@ export async function PATCH(
     if (status === 'cancelled') {
       const { syncOrderConsumptionSafe } = await import('@/lib/inventory/sales')
       await syncOrderConsumptionSafe(order.toObject())
+      // Fase 6: si el pedido estaba facturado, nota de crédito (nunca lanza).
+      const { creditNoteForCancelledOrder } = await import('@/lib/fiscal/online')
+      await creditNoteForCancelledOrder(order._id.toString())
     }
 
     // Compliance: cerrar las alertas SLA cuyo objetivo este movimiento ya cumplió

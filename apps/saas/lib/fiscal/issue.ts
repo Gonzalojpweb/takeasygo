@@ -13,6 +13,7 @@ import {
   type IssuerIvaCondition,
 } from '@takeasygo/business'
 import { runAfterResponse } from '@/lib/after-response'
+import { issueWithCaea } from './caea'
 import { buildFiscalLines, ivaRatesForLocation } from './order-lines'
 import { arcaQrUrl } from './qr'
 import { openArcaSession, type ArcaSession } from './arca/session'
@@ -179,15 +180,18 @@ async function markAuthorized(
 /** Pide (o recupera) el CAE de un documento pendiente. Idempotente. */
 export async function authorizeDocument(
   doc: IFiscalDocument,
-  options: { fetchImpl?: FetchLike } = {}
+  options: { fetchImpl?: FetchLike; allowContingency?: boolean } = {}
 ): Promise<IFiscalDocument> {
   if (doc.status === 'authorized') return doc
 
   return withSequenceLock(
     { tenantId: doc.tenantId, environment: doc.environment, pointOfSale: doc.pointOfSale, cbteTipo: doc.cbteTipo },
     async () => {
-      let session: ArcaSession = await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl })
+      // La sesión se abre adentro del try: si ARCA no responde ya en la
+      // autenticación, el comprobante queda en reintento (no tira error al POS).
+      let session: ArcaSession | null = null
       const call = async <T>(fn: (s: ArcaSession) => Promise<T>): Promise<T> => {
+        session ??= await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl })
         try {
           return await fn(session)
         } catch (err) {
@@ -209,7 +213,7 @@ export async function authorizeDocument(
             feCompConsultar(s.environment, s.auth, doc.pointOfSale, doc.cbteTipo, doc.reservedNumber!, s.fetchImpl)
           )
           if (prev.found && prev.cae && prev.totalCents === doc.amounts.totalCents) {
-            return markAuthorized(doc, doc.reservedNumber, prev.cae, prev.caeExpiresAt, session.cuit)
+            return markAuthorized(doc, doc.reservedNumber, prev.cae, prev.caeExpiresAt, session!.cuit)
           }
           doc.reservedNumber = null
         }
@@ -258,7 +262,7 @@ export async function authorizeDocument(
           )
 
           if (result.result === 'A' && result.cae) {
-            return markAuthorized(doc, number, result.cae, result.caeExpiresAt, session.cuit, result.observations)
+            return markAuthorized(doc, number, result.cae, result.caeExpiresAt, session!.cuit, result.observations)
           }
           const desync = result.observations.some((o) => o.code === '10016')
           if (desync && attempt === 0) continue
@@ -272,6 +276,16 @@ export async function authorizeDocument(
         return doc
       } catch (err) {
         if (err instanceof ArcaError && (err.kind === 'timeout' || err.kind === 'network' || err.kind === 'fault')) {
+          // Contingencia CAEA (Fase 6): SOLO si el pedido de CAE nunca llegó a
+          // ARCA (sin número reservado). Si se cortó a mitad, podría estar
+          // autorizado: se reintenta y se consulta, nunca se duplica.
+          if (doc.reservedNumber === null && options.allowContingency !== false) {
+            const viaCaea = await issueWithCaea(doc).catch((e) => {
+              console.error('[fiscal/caea] no se pudo usar la contingencia:', e instanceof Error ? e.message : e)
+              return null
+            })
+            if (viaCaea) return viaCaea
+          }
           // El número (si se pidió) queda reservado: el próximo intento lo consulta.
           doc.status = 'retrying'
           doc.arca.lastError = err.message
@@ -448,7 +462,8 @@ export function documentSummary(doc: IFiscalDocument) {
     cae: doc.cae,
     caeExpiresAt: doc.caeExpiresAt,
     totalCents: doc.amounts.totalCents,
-    message: doc.status === 'authorized' ? null : doc.arca.lastError || null,
+    message: doc.status === 'authorized' ? (doc.authMode === 'caea' ? 'Emitida en contingencia (CAEA)' : null) : doc.arca.lastError || null,
+    authMode: doc.authMode ?? 'cae',
     environment: doc.environment,
   }
 }

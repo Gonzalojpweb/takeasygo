@@ -42,6 +42,7 @@ import { playOrderNotification, installAudioUnlock } from "./services/notificati
 import type { Order } from "@takeasygo/types"
 import "./styles/pos.css"
 import { ManagerApprovalDialog } from "./components/shared/ManagerApprovalDialog"
+import { PointWaitingDialog } from "./components/shared/PointWaitingDialog"
 
 function App() {
   const { state, login, logout } = useAuth()
@@ -379,6 +380,8 @@ function AppShell({
       <ActionBar />
       {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
       <ManagerApprovalDialog />
+      {/* Cobro en el posnet MercadoPago Point (Fase 6). */}
+      <PointWaitingDialog />
     </div>
   )
 }

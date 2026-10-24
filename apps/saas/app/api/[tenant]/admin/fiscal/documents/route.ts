@@ -4,6 +4,7 @@ import FiscalProfile from '@/models/FiscalProfile'
 import { fiscalAdminContext } from '@/lib/fiscal/admin-context'
 import { documentSummary } from '@/lib/fiscal/issue'
 import { libroIvaCsv, libroIvaTotals, monthRange } from '@/lib/fiscal/libro-iva'
+import { libroIvaDigitalFiles } from '@/lib/fiscal/libro-iva-digital'
 
 // ============================================================================
 // GET /api/[tenant]/admin/fiscal/documents — comprobantes y Libro IVA
@@ -12,6 +13,8 @@ import { libroIvaCsv, libroIvaTotals, monthRange } from '@/lib/fiscal/libro-iva'
 //   · por defecto: lista de comprobantes del mes (todos los estados) y los
 //     totales del Libro IVA (solo autorizados, notas de crédito restan);
 //   · &format=csv: descarga el Libro IVA Ventas del mes (solo autorizados).
+//   · &format=lid-cbte | lid-alicuotas: archivos de importación del Libro
+//     IVA Digital de ARCA (ventas), ancho fijo, latin-1 (fase 6).
 // Ambiente: el del perfil (producción o pruebas), nunca mezclados.
 // Permiso: reports.read (el contador o el encargado lo pueden bajar).
 // ============================================================================
@@ -43,6 +46,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': `attachment; filename="libro-iva-ventas-${month}${environment === 'homologation' ? '-PRUEBAS' : ''}.csv"`,
+          'Cache-Control': 'no-store',
+        },
+      })
+    }
+
+    const lid = url.searchParams.get('format')
+    if (lid === 'lid-cbte' || lid === 'lid-alicuotas') {
+      const files = libroIvaDigitalFiles(authorized)
+      const body = lid === 'lid-cbte' ? files.comprobantes : files.alicuotas
+      const name = `LIBRO_IVA_DIGITAL_VENTAS_${lid === 'lid-cbte' ? 'CBTE' : 'ALICUOTAS'}_${month.replace('-', '')}${environment === 'homologation' ? '_PRUEBAS' : ''}.txt`
+      return new NextResponse(Buffer.from(body, 'latin1'), {
+        headers: {
+          'Content-Type': 'text/plain; charset=iso-8859-1',
+          'Content-Disposition': `attachment; filename="${name}"`,
           'Cache-Control': 'no-store',
         },
       })

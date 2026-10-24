@@ -49,6 +49,10 @@ export interface IFiscalDocument extends Document {
   lines: { description: string; quantity: number; totalCents: number; ivaRate: number }[]
   cae: string | null
   caeExpiresAt: Date | null
+  /** 'cae' (online) o 'caea' (contingencia: se informa a ARCA después). Fase 6. */
+  authMode: 'cae' | 'caea'
+  /** CAEA: ya informado a ARCA con FECAEARegInformativo. */
+  caeaInformedAt: Date | null
   qrUrl: string | null
   associated: {
     documentId: mongoose.Types.ObjectId
@@ -123,6 +127,8 @@ const FiscalDocumentSchema = new Schema<IFiscalDocument>(
     ],
     cae: { type: String, default: null },
     caeExpiresAt: { type: Date, default: null },
+    authMode: { type: String, enum: ['cae', 'caea'], default: 'cae' },
+    caeaInformedAt: { type: Date, default: null },
     qrUrl: { type: String, default: null },
     associated: {
       type: new Schema(
@@ -162,6 +168,8 @@ FiscalDocumentSchema.index({ tenantId: 1, environment: 1, issuedAt: -1 })
 FiscalDocumentSchema.index({ status: 1, updatedAt: 1 })
 // Comprobantes de una orden.
 FiscalDocumentSchema.index({ tenantId: 1, orderId: 1 })
+// CAEA pendientes de informar (cron).
+FiscalDocumentSchema.index({ authMode: 1, caeaInformedAt: 1, status: 1 })
 
 if (process.env.NODE_ENV !== 'production') {
   Reflect.deleteProperty(mongoose.models, 'FiscalDocument')

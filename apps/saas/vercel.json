@@ -54,6 +54,10 @@
       "schedule": "45 5 * * *"
     },
     {
+      "path": "/api/cron/fiscal-caea",
+      "schedule": "0 9 * * *"
+    },
+    {
       "path": "/api/cron/compliance-sweep",
       "schedule": "0 7 * * *"
     },

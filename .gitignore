@@ -135,3 +135,7 @@ backups/
 
 # Volcados de menú de producción (apps/saas/scripts/dump-menu.ts escribe acá por defecto)
 /menu-*.json
+
+# Archivos locales: diagnósticos con datos de comercios y capturas de referencia
+apps/saas/scripts/kekelarry-*.ts
+/inventoryUI.png

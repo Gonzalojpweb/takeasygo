@@ -53,6 +53,8 @@ export interface ILocation extends Document {
     } | null
     /** Override de cuenta MP por sede (opcional). ObjectId de mpAccounts[], null = usa tenant default */
     mpAccountId?: string | null
+    /** Posnet MercadoPago Point de la caja de la sede (id del dispositivo, modo PDV). Fase 6. */
+    mpPointDeviceId?: string | null
     /** WhatsApp de notificaciones admin por sede (opcional). null/vacío = usa Tenant.notifications.whatsappPhone */
     whatsappPhone?: string | null
     /** Cuenta de transferencia por sede (opcional). ObjectId de Tenant.transferAccounts[], null = cuenta activa del tenant */
@@ -329,6 +331,8 @@ settings: {
         },
         /** Override de cuenta MP por sede. ObjectId de mpAccounts[], null = usa tenant default */
         mpAccountId: { type: String, default: null },
+        /** Posnet MercadoPago Point de la caja (modo PDV). null = cobro manual. Fase 6. */
+        mpPointDeviceId: { type: String, default: null, maxlength: 120 },
         /** WhatsApp de notificaciones admin por sede. null/vacío = usa el global del tenant */
         whatsappPhone: { type: String, default: null },
         /** Cuenta de transferencia por sede. ObjectId de Tenant.transferAccounts[], null = cuenta activa del tenant */

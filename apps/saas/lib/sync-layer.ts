@@ -241,6 +241,11 @@ export async function confirmOrderPaymentCore(
       console.error('[sync-layer] CIS captureOrderCompleted error:', err)
     }
   }
+
+  // 3. Factura electrónica automática del pedido online (Fase 6). Solo si el
+  //    comercio la activó; nunca lanza. Efectivo se factura al entregar.
+  const { autoInvoiceOnlineOrder } = await import('@/lib/fiscal/online')
+  await autoInvoiceOnlineOrder(orderId, 'paid')
 }
 
 // ============================================================================

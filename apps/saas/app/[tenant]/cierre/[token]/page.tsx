@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import type mongoose from 'mongoose'
 import { notFound } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -36,7 +37,7 @@ export default async function SharedZPage({ params }: { params: Promise<{ tenant
 
   await connectDB()
   const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id name branding.logoUrl').lean<{
-    _id: unknown
+    _id: mongoose.Types.ObjectId
     name: string
     branding?: { logoUrl?: string }
   }>()

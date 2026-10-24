@@ -48,6 +48,7 @@ import {
   type FiscalDocumentSummary,
   type InvoiceChoice,
 } from "../../services/fiscal"
+import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/mp-point"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
 type Scene = "salon" | "mesa" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
@@ -120,6 +121,20 @@ export function CounterDashboard() {
   // Factura electrónica (Fase 5): config del comercio y elección del cobro actual.
   const [fiscalConfig, setFiscalConfig] = useState<FiscalConfig>(OFF_CONFIG)
   const [invoiceChoice, setInvoiceChoice] = useState<InvoiceChoice>(() => defaultInvoiceChoice(OFF_CONFIG))
+
+  // MercadoPago Point (Fase 6): posnet integrado de la sede. Los pagos ya
+  // aprobados se recuerdan por parte: si el registro del cobro falla y el
+  // cajero reintenta, NO se vuelve a cobrar en el posnet.
+  const [pointEnabled, setPointEnabled] = useState(false)
+  const pointPaidRef = useRef(new Map<string, string>())
+  useEffect(() => {
+    if (!tenantId) return
+    let alive = true
+    isPointEnabled(tenantId).then((enabled) => alive && setPointEnabled(enabled))
+    return () => {
+      alive = false
+    }
+  }, [tenantId])
 
   useEffect(() => {
     if (!tenantId) return
@@ -811,6 +826,15 @@ export function CounterDashboard() {
       let clubPhoneFailed = false
       for (const order of toCharge) {
         const allocated = allocation.get(order.id) ?? []
+        if (pointEnabled) {
+          for (const part of allocated) {
+            if (part.method !== "mercadopago" || part.reference) continue
+            const known = pointPaidRef.current.get(part.id)
+            const paymentId = known ?? (await chargeOnPoint(tenantId, order.id, part.amount))
+            pointPaidRef.current.set(part.id, paymentId)
+            part.reference = `MP Point ${paymentId}`
+          }
+        }
         await recordPayments(tenantId, order.id, allocated, `Pedido ${label}`)
 
         // Club: el celular viaja ANTES de entregar, así el pedido entregado
@@ -879,6 +903,7 @@ export function CounterDashboard() {
         }
       }
 
+      pointPaidRef.current.clear()
       setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices })
       setInvoiceChoice(defaultInvoiceChoice(fiscalConfig))
       if (clubPhoneFailed) showErrorToast("El cobro quedó registrado, pero no se pudo guardar el celular del club.")
@@ -888,11 +913,15 @@ export function CounterDashboard() {
       setScene("cierre")
     } catch (err) {
       console.error("[Counter] Payment failed:", err)
+      if (err instanceof PointChargeError) {
+        showErrorToast(err.canceled ? "Cobro con posnet cancelado: la venta sigue abierta." : err.message)
+        return
+      }
       showErrorToast(describePosError(err, "Error al procesar el pago. Intente nuevamente."))
     } finally {
       setPaying(false)
     }
-  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice])
+  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)

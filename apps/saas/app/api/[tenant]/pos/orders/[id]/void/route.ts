@@ -69,7 +69,8 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     // Reintento de la misma anulación: idempotente.
     return NextResponse.json({ order: toPosOrder(order as never) })
   }
-  const parts = order.posPayments ?? []
+  // PosOrderDoc declara posPayments sin posId; el documento real lo tiene.
+  const parts = (order as unknown as { posPayments?: { posId: string; method: string; amount: number }[] | null }).posPayments ?? []
   if (parts.length === 0) {
     throw PosError.conflict('La orden no está cobrada: cancelala desde el pedido')
   }

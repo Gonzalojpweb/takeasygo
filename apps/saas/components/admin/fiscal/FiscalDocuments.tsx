@@ -58,6 +58,9 @@ export default function FiscalDocuments({ tenantSlug }: { tenantSlug: string }) 
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [retrying, setRetrying] = useState<string | null>(null)
+  // Facturar un pedido a mano (Fase 6): p. ej. un pedido online con CUIT.
+  const [manual, setManual] = useState({ orderNumber: '', condition: 'consumidor_final', docNumber: '', name: '' })
+  const [issuing, setIssuing] = useState(false)
   const api = `/api/${tenantSlug}/admin/fiscal/documents`
 
   const load = useCallback(async () => {
@@ -95,6 +98,31 @@ export default function FiscalDocuments({ tenantSlug }: { tenantSlug: string }) 
     }
   }
 
+  const issueManual = async () => {
+    setIssuing(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/admin/fiscal/invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderNumber: manual.orderNumber,
+          receiver: { condition: manual.condition, docNumber: manual.docNumber || undefined, name: manual.name || undefined },
+        }),
+      })
+      const body = await res.json()
+      if (!res.ok) throw new Error(body.error ?? 'No se pudo facturar')
+      const doc = body.document
+      if (doc.status === 'authorized') toast.success(`${doc.label} emitida`)
+      else toast.warning(doc.message ?? 'La factura quedó pendiente')
+      setManual({ orderNumber: '', condition: 'consumidor_final', docNumber: '', name: '' })
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setIssuing(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className={card}>
@@ -103,7 +131,8 @@ export default function FiscalDocuments({ tenantSlug }: { tenantSlug: string }) 
             <h2 className="text-lg font-black">Libro IVA Ventas</h2>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Solo comprobantes autorizados por ARCA; las notas de crédito restan. Los comprobantes también están en ARCA →
-              «Mis Comprobantes», desde donde tu contador los importa al Libro IVA Digital.
+              «Mis Comprobantes». Para el Libro IVA Digital, tu contador puede importarlos desde ahí o subir los dos archivos de
+              abajo (comprobantes y alícuotas).
               {data?.environment === 'homologation' ? ' Estás viendo comprobantes de PRUEBA.' : ''}
             </p>
           </div>
@@ -116,7 +145,13 @@ export default function FiscalDocuments({ tenantSlug }: { tenantSlug: string }) 
               aria-label="Mes"
             />
             <a className={ghostBtn} href={`${api}?month=${month}&format=csv`}>
-              <Download size={16} /> Descargar para el contador
+              <Download size={16} /> Excel para el contador
+            </a>
+            <a className={ghostBtn} href={`${api}?month=${month}&format=lid-cbte`} title="Libro IVA Digital de ARCA: archivo de comprobantes">
+              <Download size={16} /> Libro IVA Digital: comprobantes
+            </a>
+            <a className={ghostBtn} href={`${api}?month=${month}&format=lid-alicuotas`} title="Libro IVA Digital de ARCA: archivo de alícuotas">
+              <Download size={16} /> Libro IVA Digital: alícuotas
             </a>
           </div>
         </div>
@@ -143,6 +178,53 @@ export default function FiscalDocuments({ tenantSlug }: { tenantSlug: string }) 
             {data.rejected > 0 ? `${data.rejected} rechazado(s): revisá el motivo y reintentá.` : ''}
           </p>
         )}
+      </section>
+
+      <section className={card}>
+        <h2 className="text-lg font-black">Facturar un pedido</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Para un pedido que no se facturó solo — por ejemplo, un pedido online que el cliente quiere con Factura A. Si el
+          pedido ya tiene factura, se muestra la existente.
+        </p>
+        <div className="mt-4 grid gap-2 md:grid-cols-5">
+          <input
+            className="min-h-11 rounded-2xl border-2 border-border/60 bg-background px-4 text-sm font-semibold"
+            placeholder="N° de pedido"
+            value={manual.orderNumber}
+            onChange={(e) => setManual((m) => ({ ...m, orderNumber: e.target.value }))}
+          />
+          <select
+            className="min-h-11 rounded-2xl border-2 border-border/60 bg-background px-4 text-sm font-semibold"
+            value={manual.condition}
+            onChange={(e) => setManual((m) => ({ ...m, condition: e.target.value }))}
+          >
+            <option value="consumidor_final">Consumidor final</option>
+            <option value="responsable_inscripto">Responsable Inscripto (CUIT)</option>
+            <option value="monotributo">Monotributo (CUIT)</option>
+            <option value="exento">Exento (CUIT)</option>
+          </select>
+          <input
+            className="min-h-11 rounded-2xl border-2 border-border/60 bg-background px-4 text-sm font-semibold"
+            placeholder={manual.condition === 'consumidor_final' ? 'DNI (opcional)' : 'CUIT'}
+            inputMode="numeric"
+            value={manual.docNumber}
+            onChange={(e) => setManual((m) => ({ ...m, docNumber: e.target.value }))}
+          />
+          <input
+            className="min-h-11 rounded-2xl border-2 border-border/60 bg-background px-4 text-sm font-semibold"
+            placeholder="Nombre o razón social (opcional)"
+            value={manual.name}
+            onChange={(e) => setManual((m) => ({ ...m, name: e.target.value }))}
+          />
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-5 text-sm font-black text-primary-foreground disabled:opacity-50"
+            disabled={!manual.orderNumber.trim() || issuing}
+            onClick={issueManual}
+          >
+            {issuing ? <Loader2 size={16} className="animate-spin" /> : null} Facturar
+          </button>
+        </div>
       </section>
 
       <section className={card}>

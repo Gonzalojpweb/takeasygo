@@ -19,6 +19,9 @@ import { auth } from '@/lib/auth'
 import { encrypt } from '@/lib/crypto'
 import { generateKeyAndCsr } from '@/lib/fiscal/arca/crypto'
 import { retryPendingDocuments } from '@/lib/fiscal/issue'
+import { ensureCaea, informCaea } from '@/lib/fiscal/caea'
+import { autoInvoiceOnlineOrder, creditNoteForCancelledOrder } from '@/lib/fiscal/online'
+import Order from '@/models/Order'
 import { fakeArcaCertificate, soapResponse } from '../fixtures/arca'
 import type { NextRequest } from 'next/server'
 
@@ -28,6 +31,9 @@ import { POST as INVOICE } from '@/app/api/[tenant]/pos/orders/[id]/invoice/rout
 import { POST as VOID } from '@/app/api/[tenant]/pos/orders/[id]/void/route'
 import { GET as FISCAL_CONFIG } from '@/app/api/[tenant]/pos/fiscal/route'
 import { GET as DOCUMENTS } from '@/app/api/[tenant]/admin/fiscal/documents/route'
+import { POST as MANUAL_INVOICE } from '@/app/api/[tenant]/admin/fiscal/invoice/route'
+import { POST as POINT_INTENT } from '@/app/api/[tenant]/pos/point/route'
+import { GET as POINT_STATUS } from '@/app/api/[tenant]/pos/point/[intentId]/route'
 import { NextRequest as NReq } from 'next/server'
 import { POST as OPEN } from '@/app/api/[tenant]/pos/cash/registers/route'
 import { POST as CLOSE } from '@/app/api/[tenant]/pos/cash/registers/[id]/close/route'
@@ -57,16 +63,39 @@ const arca = {
   last: new Map<string, number>(),
   authorized: new Map<string, { cae: string; total: string }>(),
   caeRequests: 0,
+  informed: 0,
 }
 
 function tag(xml: string, name: string): string {
   return new RegExp(`<ar:${name}>([^<]*)</ar:${name}>`).exec(xml)?.[1] ?? ''
 }
 
-const arcaFetch = vi.fn(async (_url: string, init?: RequestInit) => {
+// MercadoPago simulado (Point).
+const mp = { intentState: 'FINISHED', paymentStatus: 'approved', paymentAmount: 0 }
+function mpResponse(url: string, init?: RequestInit): Response {
+  const json = (b: unknown) => new Response(JSON.stringify(b), { status: 200 })
+  if (url.endsWith('/point/integration-api/devices')) return json({ devices: [{ id: 'PAX_A910__SMARTPOS123', operating_mode: 'PDV' }] })
+  if (url.includes('/payment-intents') && init?.method === 'POST') {
+    mp.paymentAmount = JSON.parse(String(init.body)).amount / 100
+    return json({ id: 'intent-1' })
+  }
+  if (url.includes('/payment-intents/')) return json({ state: mp.intentState, payment: { id: 987654 } })
+  if (url.includes('/v1/payments/')) return json({ status: mp.paymentStatus, transaction_amount: mp.paymentAmount })
+  return json({})
+}
+
+const arcaFetch = vi.fn(async (url: string, init?: RequestInit) => {
+  if (url.startsWith('https://api.mercadopago.com')) return mpResponse(url, init)
   const body = String(init?.body ?? '')
   const key = `${tag(body, 'PtoVta')}-${tag(body, 'CbteTipo')}`
   if (arca.mode === 'down') throw new Error('ECONNREFUSED')
+  if (body.includes('FECAEASolicitar')) {
+    return soapResponse('<FECAEASolicitarResult><ResultGet><CAEA>31234567890123</CAEA><Periodo>202610</Periodo><Orden>2</Orden><FchVigDesde>20261016</FchVigDesde><FchVigHasta>20991231</FchVigHasta><FchTopeInf>20991231</FchTopeInf></ResultGet></FECAEASolicitarResult>')
+  }
+  if (body.includes('FECAEARegInformativo')) {
+    arca.informed++
+    return soapResponse('<FECAEADetResponse><Resultado>A</Resultado></FECAEADetResponse>')
+  }
   if (body.includes('FECompUltimoAutorizado')) {
     return soapResponse(`<FECompUltimoAutorizadoResult><CbteNro>${arca.last.get(key) ?? 0}</CbteNro></FECompUltimoAutorizadoResult>`)
   }
@@ -136,6 +165,9 @@ beforeEach(async () => {
   arca.last.clear()
   arca.authorized.clear()
   arca.caeRequests = 0
+  arca.informed = 0
+  mp.intentState = 'FINISHED'
+  mp.paymentStatus = 'approved'
   arcaFetch.mockClear()
   ;(auth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null)
 
@@ -322,5 +354,116 @@ describe('panel: comprobantes y Libro IVA', () => {
     const csv = await DOCUMENTS(new NReq(`http://localhost/api/${SLUG}/admin/fiscal/documents?month=${month}&format=csv`), P)
     expect(csv.headers.get('content-disposition')).toContain('PRUEBAS')
     expect(await csv.text()).toContain('Factura B;006;00003;00000001')
+  })
+})
+
+describe('Fase 6 — contingencia CAEA', () => {
+  it('ARCA caída antes del pedido de CAE: sale con CAEA en el PV de contingencia y se informa después', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { contingency: { enabled: true, pointsOfSale: [{ locationId, number: 13 }] } } })
+    const got = await ensureCaea(tenantId)
+    expect(got.periods.length).toBeGreaterThan(0)
+
+    const orderId = await paidOrder()
+    arca.mode = 'down'
+    const res = await invoice(orderId)
+    expect(res.status).toBe(201)
+    const doc = await FiscalDocument.findOne({ tenantId }).lean()
+    expect(doc).toMatchObject({ status: 'authorized', authMode: 'caea', pointOfSale: 13, number: 1, cae: '31234567890123' })
+    const qr = JSON.parse(Buffer.from(doc!.qrUrl!.split('p=')[1], 'base64').toString())
+    expect(qr).toMatchObject({ tipoCodAut: 'A', ptoVta: 13 })
+
+    arca.mode = 'ok'
+    const informed = await informCaea(tenantId)
+    expect(informed.informed).toBe(1)
+    expect((await FiscalDocument.findOne({ tenantId }).lean())?.caeaInformedAt).toBeTruthy()
+  })
+
+  it('si el pedido de CAE pudo haber llegado (respuesta perdida), NO usa CAEA: reintenta', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { contingency: { enabled: true, pointsOfSale: [{ locationId, number: 13 }] } } })
+    await ensureCaea(tenantId)
+    const orderId = await paidOrder()
+    arca.mode = 'lost-response'
+    await invoice(orderId)
+    expect(await FiscalDocument.findOne({ tenantId }).lean()).toMatchObject({ status: 'retrying', authMode: 'cae', reservedNumber: 1 })
+  })
+})
+
+describe('Fase 6 — pedidos online', () => {
+  async function onlineOrder(method: string, status = 'confirmed'): Promise<string> {
+    const posId = await paidOrder()
+    const order = await Order.findOne({ tenantId, posId })
+    await Order.updateOne(
+      { _id: order!._id },
+      { $set: { source: 'takeasygo', status, 'payment.status': 'approved', 'payment.method': method, posPayments: [] } }
+    )
+    return String(order!._id)
+  }
+
+  it('con la opción activa, un pago online aprobado se factura solo; si se cancela sale la NC', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { onlineInvoicing: 'auto' } })
+    const id = await onlineOrder('mercadopago')
+    await autoInvoiceOnlineOrder(id, 'paid')
+    expect(await FiscalDocument.findOne({ tenantId, kind: 'invoice' }).lean()).toMatchObject({ status: 'authorized', letter: 'B' })
+    await creditNoteForCancelledOrder(id)
+    expect(await FiscalDocument.countDocuments({ tenantId, kind: 'credit_note', status: 'authorized' })).toBe(1)
+  })
+
+  it('efectivo: recién al entregarse; con la opción apagada, nunca', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { onlineInvoicing: 'auto' } })
+    const cash = await onlineOrder('cash')
+    await autoInvoiceOnlineOrder(cash, 'paid')
+    expect(await FiscalDocument.countDocuments({ tenantId })).toBe(0)
+    await Order.updateOne({ _id: cash }, { $set: { status: 'delivered' } })
+    await autoInvoiceOnlineOrder(cash, 'delivered')
+    expect(await FiscalDocument.countDocuments({ tenantId })).toBe(1)
+
+    await FiscalProfile.updateOne({ tenantId }, { $set: { onlineInvoicing: 'off' } })
+    const off = await onlineOrder('mercadopago')
+    await autoInvoiceOnlineOrder(off, 'paid')
+    expect(await FiscalDocument.countDocuments({ tenantId })).toBe(1)
+  })
+
+  it('el panel factura un pedido a mano con CUIT', async () => {
+    const id = await onlineOrder('mercadopago')
+    const order = await Order.findById(id).lean()
+    const admin = await User.create({ name: 'A', email: `a-${Math.random().toString(36).slice(2)}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'admin', tenantId })
+    vi.mocked(auth).mockResolvedValue({ user: { id: String(admin._id), role: 'admin', tenantId, assignedLocations: [] }, expires: '' } as never)
+    const res = await MANUAL_INVOICE(
+      new NReq(`http://localhost/api/${SLUG}/admin/fiscal/invoice`, {
+        method: 'POST',
+        body: JSON.stringify({ orderNumber: order!.orderNumber, receiver: { condition: 'responsable_inscripto', docNumber: '20123456786', name: 'Empresa SA' } }),
+      }),
+      { params: Promise.resolve({ tenant: SLUG }) }
+    )
+    expect(res.status).toBe(200)
+    expect((await res.json()).document).toMatchObject({ letter: 'A', status: 'authorized' })
+  })
+})
+
+describe('Fase 6 — MercadoPago Point', () => {
+  beforeEach(async () => {
+    await Tenant.updateOne(
+      { _id: tenantId },
+      { $set: { mpAccounts: [{ label: 'Principal', accessToken: encrypt('APP_USR-TOKEN'), publicKey: encrypt('pk'), webhookSecret: encrypt('ws'), isActive: true }] } }
+    )
+    await Location.updateOne({ _id: locationId }, { $set: { 'settings.mpPointDeviceId': 'PAX_A910__SMARTPOS123' } })
+  })
+
+  it('manda el monto al posnet y aprueba solo con el pago verificado', async () => {
+    const id = crypto.randomUUID()
+    await CREATE(req(`${BASE}/orders`, { id, items: [{ productId: PRODUCT_ID, name: 'Pizza', quantity: 1, unitPrice: 605_000, total: 605_000 }] }), tp())
+    const created = await POINT_INTENT(req(`${BASE}/point`, { orderId: id, amount: 605_000 }), tp())
+    expect(created.status).toBe(201)
+    const { intentId } = await created.json()
+
+    const status = await POINT_STATUS(req(`${BASE}/point/${intentId}`, undefined, { method: 'GET' }), { params: Promise.resolve({ tenant: SLUG, intentId }) })
+    expect(await status.json()).toMatchObject({ state: 'approved', paymentId: '987654' })
+  })
+
+  it('no se puede mandar al posnet más que el total de la orden', async () => {
+    const id = crypto.randomUUID()
+    await CREATE(req(`${BASE}/orders`, { id, items: [{ productId: PRODUCT_ID, name: 'Pizza', quantity: 1, unitPrice: 605_000, total: 605_000 }] }), tp())
+    const res = await POINT_INTENT(req(`${BASE}/point`, { orderId: id, amount: 999_999 }), tp())
+    expect(res.status).toBe(400)
   })
 })

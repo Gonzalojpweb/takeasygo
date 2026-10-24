@@ -42,7 +42,17 @@ export interface IFiscalProfile extends Document {
   defaultIvaRate: number
   environment: FiscalEnvironment
   invoicingMode: InvoicingMode
+  /** Pedidos online: 'auto' factura a consumidor final al cobrarse (Fase 6). */
+  onlineInvoicing: 'off' | 'auto'
   pointsOfSale: IPointOfSale[]
+  /**
+   * Contingencia CAEA (Fase 6): si ARCA no responde, se factura con el CAEA
+   * de la quincena en un punto de venta EXCLUSIVO de contingencia por sede.
+   */
+  contingency: {
+    enabled: boolean
+    pointsOfSale: IPointOfSale[]
+  }
   credentials: {
     /** PEM del certificado emitido por ARCA (cifrado). */
     certificate: string
@@ -109,7 +119,12 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
     },
     environment: { type: String, enum: ['homologation', 'production'], default: 'homologation' },
     invoicingMode: { type: String, enum: ['ask', 'always', 'off'], default: 'ask' },
+    onlineInvoicing: { type: String, enum: ['off', 'auto'], default: 'off' },
     pointsOfSale: { type: [PointOfSaleSchema], default: [] },
+    contingency: {
+      enabled: { type: Boolean, default: false },
+      pointsOfSale: { type: [PointOfSaleSchema], default: [] },
+    },
     credentials: {
       certificate: { type: String, default: '', select: false },
       privateKey: { type: String, default: '', select: false },

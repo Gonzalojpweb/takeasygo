@@ -102,8 +102,8 @@ export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket,
   }
   out.push(
     rule,
-    `CAE ${doc.cae ?? ''}`,
-    `Vto. CAE ${doc.caeExpiresAt ? new Date(doc.caeExpiresAt).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : ''}`
+    `${doc.authMode === 'caea' ? 'CAEA' : 'CAE'} ${doc.cae ?? ''}`,
+    `Vto. ${doc.authMode === 'caea' ? 'CAEA' : 'CAE'} ${doc.caeExpiresAt ? new Date(doc.caeExpiresAt).toLocaleDateString('es-AR', { timeZone: 'UTC' }) : ''}`
   )
   if (doc.environment === 'homologation') out.push('*** COMPROBANTE DE PRUEBA ***', '*** SIN VALIDEZ FISCAL ***')
   return out

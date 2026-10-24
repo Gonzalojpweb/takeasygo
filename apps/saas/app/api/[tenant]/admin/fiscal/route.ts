@@ -91,12 +91,19 @@ const bodySchema = z.object({
   fiscalAddress: z.string().trim().max(200),
   defaultIvaRate: z.number().refine(isIvaRate, 'Alícuota inválida'),
   invoicingMode: z.enum(['ask', 'always', 'off']),
+  onlineInvoicing: z.enum(['off', 'auto']).default('off'),
   environment: z.enum(['homologation', 'production']),
   pointsOfSale: z
     .array(z.object({ locationId: objectId, number: z.number().int().min(1).max(99998) }))
     .max(200)
     .refine((list) => new Set(list.map((p) => p.locationId)).size === list.length, 'Una sede tiene dos puntos de venta'),
   enabled: z.boolean(),
+  contingency: z
+    .object({
+      enabled: z.boolean(),
+      pointsOfSale: z.array(z.object({ locationId: objectId, number: z.number().int().min(1).max(99998) })).max(200),
+    })
+    .default({ enabled: false, pointsOfSale: [] }),
 })
 
 export async function PUT(request: NextRequest, { params }: Params) {
@@ -115,6 +122,17 @@ export async function PUT(request: NextRequest, { params }: Params) {
     if (body.pointsOfSale.some((p) => !activeIds.includes(p.locationId))) {
       return NextResponse.json({ error: 'Una de las sedes no es de este comercio' }, { status: 400 })
     }
+    // Contingencia: punto de venta propio por sede, distinto de los de CAE.
+    const cae = new Set(body.pointsOfSale.map((p) => p.number))
+    if (body.contingency.pointsOfSale.some((p) => !activeIds.includes(p.locationId) || cae.has(p.number))) {
+      return NextResponse.json(
+        { error: 'El punto de venta de contingencia tiene que ser de una sede propia y distinto de los de factura online' },
+        { status: 400 }
+      )
+    }
+    if (body.contingency.enabled && body.contingency.pointsOfSale.length === 0) {
+      return NextResponse.json({ error: 'Cargá el punto de venta de contingencia de al menos una sede' }, { status: 400 })
+    }
 
     const current = await loadFiscalProfile(ctx.tenant._id)
     // Cambiar de ambiente invalida la prueba de conexión y el ticket de ARCA.
@@ -130,8 +148,13 @@ export async function PUT(request: NextRequest, { params }: Params) {
       fiscalAddress: body.fiscalAddress,
       defaultIvaRate: body.defaultIvaRate,
       invoicingMode: body.invoicingMode,
+      onlineInvoicing: body.onlineInvoicing,
       environment: body.environment,
       pointsOfSale: body.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
+      contingency: {
+        enabled: body.contingency.enabled,
+        pointsOfSale: body.contingency.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
+      },
       ...(environmentChanged
         ? { 'connection.ok': false, 'wsaa.token': '', 'wsaa.sign': '', 'wsaa.expiresAt': null, 'wsaa.environment': null }
         : {}),

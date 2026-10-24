@@ -35,7 +35,9 @@ interface Profile {
   defaultIvaRate: number
   environment: 'homologation' | 'production'
   invoicingMode: 'ask' | 'always' | 'off'
+  onlineInvoicing: 'off' | 'auto'
   pointsOfSale: { locationId: string; number: number }[]
+  contingency: { enabled: boolean; pointsOfSale: { locationId: string; number: number }[] }
   connection: { checkedAt: string | null; ok: boolean; environment: string | null; message: string }
   credentials: {
     hasCsr: boolean
@@ -139,8 +141,13 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
           fiscalAddress: profile.fiscalAddress,
           defaultIvaRate: profile.defaultIvaRate,
           invoicingMode: profile.invoicingMode,
+          onlineInvoicing: profile.onlineInvoicing,
           environment: profile.environment,
           pointsOfSale: profile.pointsOfSale.filter((p) => p.number > 0),
+          contingency: {
+            enabled: profile.contingency.enabled,
+            pointsOfSale: profile.contingency.pointsOfSale.filter((p) => p.number > 0),
+          },
           enabled,
         }),
       })
@@ -396,6 +403,52 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
         </div>
       </section>
 
+      {/* ── 2b. Contingencia CAEA (Fase 6) ─────────────────────── */}
+      <section className={card}>
+        <h2 className="text-lg font-black">Si ARCA no responde (contingencia)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Opcional. TakeasyGO pide a ARCA por adelantado un código por quincena (CAEA). Si ARCA no responde al facturar, la
+          factura sale igual con ese código, en un punto de venta exclusivo de contingencia, y se informa sola cuando vuelve
+          la conexión. Creá en ARCA un punto de venta más por sede, del tipo <strong>«Factura electrónica — Web Services
+          (CAEA)»</strong>, y anotá su número. Tiene que ser distinto del de arriba. Sin contingencia, las facturas esperan a
+          que ARCA vuelva.
+        </p>
+        <label className="mt-4 flex items-center gap-3 font-bold">
+          <input
+            type="checkbox"
+            className="h-5 w-5"
+            checked={profile.contingency.enabled}
+            onChange={(e) => set('contingency', { ...profile.contingency, enabled: e.target.checked })}
+          />
+          Usar contingencia CAEA
+        </label>
+        {profile.contingency.enabled && (
+          <div className="mt-3 space-y-2">
+            {locations.map((l) => (
+              <label key={l.id} className="flex items-center justify-between gap-4 rounded-2xl bg-muted/30 px-4 py-2">
+                <span className="font-bold">{l.name} · contingencia</span>
+                <input
+                  className={`${input} max-w-[140px] text-center`}
+                  inputMode="numeric"
+                  placeholder="Ej: 13"
+                  value={profile.contingency.pointsOfSale.find((p) => p.locationId === l.id)?.number ?? ''}
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value.replace(/\D/g, '').slice(0, 5), 10)
+                    set('contingency', {
+                      ...profile.contingency,
+                      pointsOfSale: [
+                        ...profile.contingency.pointsOfSale.filter((x) => x.locationId !== l.id),
+                        ...(Number.isFinite(n) && n > 0 ? [{ locationId: l.id, number: n }] : []),
+                      ],
+                    })
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+        )}
+      </section>
+
       {/* ── 3. POS ─────────────────────────────────────────────── */}
       <section className={card}>
         <h2 className="text-lg font-black">3. Cómo factura el POS al cobrar</h2>
@@ -422,6 +475,22 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
             </button>
           ))}
         </div>
+        <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border-2 border-border/60 p-4">
+          <input
+            type="checkbox"
+            className="mt-1 h-5 w-5"
+            checked={profile.onlineInvoicing === 'auto'}
+            onChange={(e) => set('onlineInvoicing', e.target.checked ? 'auto' : 'off')}
+          />
+          <span>
+            <span className="font-black">Facturar pedidos online automáticamente</span>
+            <span className="block text-xs text-muted-foreground">
+              Delivery, take away y pedidos por QR: Factura a consumidor final apenas se aprueba el pago online, o al entregar si
+              pagan en efectivo. Sale impresa en la caja para ir con el pedido. Si se cancela, sale la nota de crédito. Una
+              factura con CUIT se hace desde «Comprobantes → Facturar un pedido».
+            </span>
+          </span>
+        </label>
         <div className="mt-5 flex justify-end">
           <button type="button" className={primaryBtn} disabled={saving} onClick={() => saveProfile()}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Guardar datos

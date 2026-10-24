@@ -10,6 +10,7 @@ import { Banknote, AlertTriangle, ChevronRight } from 'lucide-react'
 import { getPageScope } from '@/lib/page-scope'
 import { formatCents } from '@takeasygo/business'
 import { summarizeCashiers, summarySince, type ClosedRegisterRow } from '@/lib/cash/cashier-summary'
+import { MpPointSettings } from '@/components/cash/MpPointSettings'
 
 // ============================================================================
 // Cajas POS — cierres (reporte Z) y control de faltantes por empleado
@@ -86,6 +87,8 @@ export default async function CajaPosPage() {
           ver el saldo esperado (cierre ciego); la diferencia es la que ves acá.
         </p>
       </div>
+
+      <MpPointSettings tenantSlug={tenantSlug ?? ''} />
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4" aria-label={`Últimos ${SUMMARY_DAYS} días`}>
         <Kpi label={`Cierres (${SUMMARY_DAYS} días)`} value={String(summary.totals.closes)} />
