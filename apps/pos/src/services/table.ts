@@ -141,6 +141,35 @@ export async function setTableGuests(
 }
 
 /**
+ * Cambiar de mesa (destino libre) o unir mesas (destino ocupado + join).
+ * Fase C (2026-10): el server mueve las rondas abiertas y libera el origen;
+ * acá se reflejan las dos mesas y las rondas en la caché local para que el
+ * Salón cambie al instante (el polling lo confirma igual).
+ */
+export async function moveTable(
+  tenantId: string,
+  fromId: string,
+  toId: string,
+  join: boolean
+): Promise<{ mode: "move" | "join"; movedOrders: number }> {
+  return runMutation(async () => {
+    const res = await posApi<{ mode: "move" | "join"; movedOrders: number; from: WireTable; to: WireTable }>(
+      tenantId,
+      `/tables/${encodeURIComponent(fromId)}/move`,
+      { method: "POST", body: { toTableId: toId, ...(join ? { join: true } : {}) } }
+    )
+    await applyServerTable(res.from)
+    await applyServerTable(res.to)
+    await db.orders
+      .where("tableId")
+      .equals(fromId)
+      .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
+      .modify({ tableId: toId })
+    return { mode: res.mode, movedOrders: res.movedOrders }
+  })
+}
+
+/**
  * Vincula la orden real a una mesa que ya está ocupada por la carga en curso.
  * Va SIN status: no hay transición que validar (sigue occupied) y el server
  * guarda currentOrderId para que delivered/cancelled la libere solo.

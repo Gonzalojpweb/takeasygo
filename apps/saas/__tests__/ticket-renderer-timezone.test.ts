@@ -169,3 +169,29 @@ describe('ticket-renderer — nota por plato (Fase B, 2026-10)', () => {
     expect(norm(decode(buf!))).toContain(norm('** SIN SAL **'))
   })
 })
+
+describe('ticket-renderer — curso por plato (Fase C, 2026-10)', () => {
+  it('agrupa la comanda en orden de salida: entradas, principales, postres', () => {
+    const buf = renderOrderTicket(
+      {
+        ...baseOrder,
+        items: [
+          { name: 'Flan', basePrice: 1, price: 1, quantity: 1, subtotal: 1, course: 'postre' },
+          { name: 'Bife', basePrice: 1, price: 1, quantity: 1, subtotal: 1, course: 'principal' },
+          { name: 'Empanada', basePrice: 1, price: 1, quantity: 2, subtotal: 2, course: 'entrada' },
+        ],
+      } as unknown as RenderOrder,
+      printer as unknown as RenderPrinter,
+      'kitchen'
+    )
+    const text = norm(decode(buf!))
+    const order = ['ENTRADAS', 'EMPANADA', 'PRINCIPALES', 'BIFE', 'POSTRES', 'FLAN'].map((w) => text.indexOf(w))
+    expect(order.every((pos) => pos >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+  })
+
+  it('sin cursos no imprime encabezados de curso', () => {
+    const buf = renderOrderTicket(baseOrder as unknown as RenderOrder, printer as unknown as RenderPrinter, 'kitchen')
+    expect(decode(buf!)).not.toContain('ENTRADAS')
+  })
+})

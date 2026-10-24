@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import type { ComponentType } from "react"
-import type { Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
+import type { ItemCourse, Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
 import { calculateItemTotal, allocatePayments, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
@@ -22,8 +22,10 @@ import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { GuestsDialog } from "../shared/GuestsDialog"
+import { VoidItemDialog } from "../shared/VoidItemDialog"
+import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason } from "../../services/order"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { PosApiError } from "../../services/pos-api"
@@ -53,7 +55,7 @@ import {
 import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/mp-point"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
-type Scene = "salon" | "mesa" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
+type Scene = "salon" | "mesa" | "mover" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
 type GatewayScene = "queue" | "validation" | "transform"
 
@@ -171,7 +173,12 @@ export function CounterDashboard() {
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
-  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
+  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder, markNeedsBill, moveTable } = useTables()
+  // Fase C: quitar plato enviado (con motivo), cambiar / unir mesas.
+  const [voidTarget, setVoidTarget] = useState<{ order: Order; item: OrderItem } | null>(null)
+  const [voidBusy, setVoidBusy] = useState(false)
+  const [joinTargetId, setJoinTargetId] = useState<string | null>(null)
+  const [moveBusy, setMoveBusy] = useState(false)
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
@@ -664,6 +671,63 @@ export function CounterDashboard() {
     }
   }, [guestsPrompt, guestsBusy, occupyTableWithGuests, setTableGuests, showToast])
 
+  // ── Fase C: quitar un plato ya enviado (con motivo; PIN si es cajero) ────
+  const handleVoidConfirm = useCallback(async (removeQuantity: number, reason: ItemVoidReason) => {
+    if (!voidTarget || !tenantId || voidBusy || !voidTarget.item.lineId) return
+    const { order, item } = voidTarget
+    const lineId = item.lineId as string
+    setVoidBusy(true)
+    try {
+      await voidSentItem(tenantId, order.id, { productId: item.productId, lineId }, item.quantity - removeQuantity, reason)
+      setVoidTarget(null)
+      showToast(`${removeQuantity}× ${item.name} quitado`, "success")
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      showToast(describePosError(err, "No se pudo quitar el producto"), "error")
+    } finally {
+      setVoidBusy(false)
+    }
+  }, [voidTarget, tenantId, voidBusy, showToast])
+
+  // ── Fase C: pedir la cuenta / reabrir la mesa ─────────────────────────────
+  const handleBillRequest = useCallback(async (needsBill: boolean) => {
+    if (!selectedTableId) return
+    try {
+      await markNeedsBill(selectedTableId, needsBill)
+      showToast(needsBill ? "Cuenta pedida — la mesa no recibe más rondas hasta reabrirla" : "Mesa reabierta", "success")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo actualizar la mesa"), "error")
+    }
+  }, [selectedTableId, markNeedsBill, showToast])
+
+  // ── Fase C: cambiar de mesa (destino libre) o unir (destino ocupado) ─────
+  const doMoveTable = useCallback(async (toId: string, join: boolean) => {
+    if (!selectedTableId || moveBusy) return
+    const from = tables.find((t) => t.id === selectedTableId)
+    const to = tables.find((t) => t.id === toId)
+    setMoveBusy(true)
+    try {
+      await moveTable(selectedTableId, toId, join)
+      setJoinTargetId(null)
+      setSelectedTableId(toId)
+      setScene("mesa")
+      showToast(join ? `Mesas ${from?.number} y ${to?.number} unidas` : `Mesa ${from?.number} pasó a la ${to?.number}`, "success")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo mover la mesa"), "error")
+    } finally {
+      setMoveBusy(false)
+    }
+  }, [selectedTableId, moveBusy, tables, moveTable, showToast])
+
+  const handleMoveTarget = useCallback((tableId: string) => {
+    if (tableId === selectedTableId) return
+    const target = tables.find((t) => t.id === tableId)
+    if (!target) return
+    if (target.status === "free") void doMoveTable(tableId, false)
+    else if (target.status === "occupied") setJoinTargetId(tableId)
+    else showToast(`La mesa ${target.number} no está disponible`, "error")
+  }, [selectedTableId, tables, doMoveTable, showToast])
+
   /** Reservar / liberar desde la escena de mesa. El server valida la transición. */
   const handleTableTransition = useCallback(async (kind: "reserve" | "free") => {
     if (!selectedTableId) return
@@ -686,7 +750,7 @@ export function CounterDashboard() {
     const isFirstItem = cart.length === 0
     setCart((prev) => {
       // Suma a la línea igual SIN opciones ni nota (una con nota es otro plato).
-      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes)
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && !i.course)
       if (existing) {
         return prev.map((i) =>
           i === existing
@@ -731,8 +795,8 @@ export function CounterDashboard() {
     if (isEmptying) maybeFreeDraft(selectedTableId)
   }, [cart.length, selectedTableId, maybeFreeDraft])
 
-  const handleEditNote = useCallback((index: number, note: string) => {
-    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined } : item)))
+  const handleEditNote = useCallback((index: number, note: string, course: ItemCourse | undefined) => {
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined, course } : item)))
   }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
@@ -764,6 +828,7 @@ export function CounterDashboard() {
         // server rechazaba por descuadre o la comanda salía sin detalle.
         ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
         ...(item.notes ? { notes: item.notes } : {}),
+        ...(item.course ? { course: item.course } : {}),
       })),
     [cart]
   )
@@ -1057,7 +1122,15 @@ export function CounterDashboard() {
         setContextPanel({
           title: `Mesa ${selectedTable.number}`,
           subtitle: selectedTable.section || "Sala Principal",
-          body: <MesaContextPanel table={selectedTable} activity={activity} orders={tableOrders} now={now} />,
+          body: (
+            <MesaContextPanel
+              table={selectedTable}
+              activity={activity}
+              orders={tableOrders}
+              now={now}
+              onVoidItem={(order, item) => setVoidTarget({ order, item })}
+            />
+          ),
           openOnMobile: true,
         })
         // Action Bar con slots fijos (Axioma 04): izquierda = entidad/total,
@@ -1079,9 +1152,25 @@ export function CounterDashboard() {
                   👥 {selectedTable.guests ? `${selectedTable.guests} comensales` : "Comensales"}
                 </button>
               )}
-              {unpaid > 0 && (
+              {unpaid > 0 && !selectedTable.needsBill && (
                 <button className="btn btn-secondary" onClick={() => setScene("productos")}>
                   + Agregar productos
+                </button>
+              )}
+              {unpaid > 0 && (
+                selectedTable.needsBill ? (
+                  <button className="btn btn-secondary" onClick={() => { void handleBillRequest(false) }}>
+                    Reabrir mesa
+                  </button>
+                ) : (
+                  <button className="btn btn-secondary" onClick={() => { void handleBillRequest(true) }}>
+                    Pedir cuenta
+                  </button>
+                )
+              )}
+              {selectedTable.status === "occupied" && (
+                <button className="btn btn-secondary" onClick={() => setScene("mover")}>
+                  Cambiar / unir mesa
                 </button>
               )}
               {selectedTable.status === "free" && (
@@ -1100,9 +1189,49 @@ export function CounterDashboard() {
             <button className="btn btn-primary btn-lg" onClick={() => setScene("cobro")}>
               Cobrar {formatCurrency(unpaid)}
             </button>
+          ) : selectedTable.needsBill ? (
+            <button className="btn btn-primary btn-lg" onClick={() => { void handleBillRequest(false) }}>
+              Reabrir mesa
+            </button>
           ) : (
             <button className="btn btn-primary btn-lg" onClick={() => setScene("productos")}>
               + Agregar productos
+            </button>
+          ),
+        })
+        break
+      }
+
+      case "mover": {
+        if (!selectedTable) {
+          setScene("salon")
+          break
+        }
+        setContextPanel({
+          title: `Cambiar Mesa ${selectedTable.number}`,
+          subtitle: "Elegí la mesa destino en el salón",
+          body: (
+            <div className="mesa-panel">
+              <p className="text-sm">
+                <strong>Mesa libre:</strong> la cuenta entera (rondas, comensales y mozo) pasa a esa mesa.
+              </p>
+              <p className="text-sm" style={{ marginTop: "var(--sp-2)" }}>
+                <strong>Mesa ocupada:</strong> se unen las cuentas y se suman los comensales (te pedimos confirmación).
+              </p>
+            </div>
+          ),
+          openOnMobile: true,
+        })
+        setActionBar({
+          left: (
+            <div className="action-bar-total">
+              <span className="action-bar-total-label">Moviendo</span>
+              <span className="action-bar-total-value">Mesa {selectedTable.number}</span>
+            </div>
+          ),
+          right: (
+            <button className="btn btn-ghost btn-lg" onClick={() => setScene("mesa")} disabled={moveBusy}>
+              Cancelar
             </button>
           ),
         })
@@ -1610,7 +1739,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, moveBusy, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1635,7 +1764,7 @@ export function CounterDashboard() {
             />
           )}
 
-          {(scene === "salon" || scene === "mesa") && (
+          {(scene === "salon" || scene === "mesa" || scene === "mover") && (
             <>
               <div className="salon-content">
                 {tables.length === 0 ? (
@@ -1653,7 +1782,7 @@ export function CounterDashboard() {
                       variant="counter"
                       activity={tableActivity}
                       selectedTableId={selectedTableId}
-                      onSelectTable={handleSelectTable}
+                      onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
                     />
                   </>
                 )}
@@ -2324,6 +2453,25 @@ export function CounterDashboard() {
       )}
 
       {/* Modals */}
+      {voidTarget && (
+        <VoidItemDialog
+          name={voidTarget.item.name}
+          quantity={voidTarget.item.quantity}
+          busy={voidBusy}
+          onConfirm={(n, reason) => { void handleVoidConfirm(n, reason) }}
+          onCancel={() => setVoidTarget(null)}
+        />
+      )}
+      {joinTargetId && selectedTable && (
+        <ConfirmDialog
+          title="Unir mesas"
+          message={`La mesa ${tables.find((t) => t.id === joinTargetId)?.number} está ocupada. ¿Unir la cuenta de la mesa ${selectedTable.number} con esa? Se suman las rondas y los comensales.`}
+          confirmLabel="Unir mesas"
+          busy={moveBusy}
+          onConfirm={() => { void doMoveTable(joinTargetId, true) }}
+          onCancel={() => setJoinTargetId(null)}
+        />
+      )}
       {guestsPrompt && (() => {
         const t = tables.find((x) => x.id === guestsPrompt.tableId)
         if (!t) return null

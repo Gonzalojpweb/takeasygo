@@ -253,9 +253,44 @@ export async function addItem(
         total: item.total,
         ...(item.modifiers ? { modifiers: item.modifiers } : {}),
         ...(item.notes ? { notes: item.notes } : {}),
+        ...(item.course ? { course: item.course } : {}),
       }
     )
 
+    await saveOrder(order)
+  })
+}
+
+/** Motivos para quitar un plato ya enviado (espejo de lib/pos-online/itemVoids). */
+export const ITEM_VOID_REASONS = [
+  { id: "load_error", label: "Error de carga", wasted: false },
+  { id: "changed_mind", label: "El cliente cambió", wasted: false },
+  { id: "out_of_stock", label: "Producto agotado", wasted: false },
+  { id: "delay_complaint", label: "Demora o reclamo", wasted: true },
+  { id: "dropped", label: "Se cayó / rompió", wasted: true },
+] as const
+
+export type ItemVoidReason = (typeof ITEM_VOID_REASONS)[number]["id"]
+
+/**
+ * Fase C (2026-10): baja o quita UNA línea ya enviada a cocina, con motivo.
+ * Va por `lineId` (dos líneas del mismo producto con distinta nota son
+ * distintas). Si hace falta, pos-api pide el PIN del encargado y reintenta.
+ */
+export async function voidSentItem(
+  tenantId: string,
+  orderId: string,
+  line: { productId: string; lineId: string },
+  keepQuantity: number,
+  reason: ItemVoidReason
+): Promise<void> {
+  if (keepQuantity < 0) throw new Error("[order] Quantity cannot be negative")
+  return runMutation(async () => {
+    const order = await patchOrder(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(line.productId)}`,
+      { quantity: keepQuantity, lineId: line.lineId, reason }
+    )
     await saveOrder(order)
   })
 }

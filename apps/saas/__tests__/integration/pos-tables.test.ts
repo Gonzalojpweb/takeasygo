@@ -15,6 +15,8 @@ import { POST as ordersPost } from '@/app/api/[tenant]/pos/orders/route'
 import { PATCH as orderPatch } from '@/app/api/[tenant]/pos/orders/[id]/route'
 import { GET as tablesGet, POST as tablesPost } from '@/app/api/[tenant]/pos/tables/route'
 import { PATCH as tablePatch } from '@/app/api/[tenant]/pos/tables/[id]/route'
+import { POST as tableMove } from '@/app/api/[tenant]/pos/tables/[id]/move/route'
+import Order from '@/models/Order'
 
 /**
  * M4 — superficie POS: mesas.
@@ -39,9 +41,9 @@ const PRODUCT_ID = '64b0000000000000000000aa'
 let tenantId: string
 let locationId: string
 
-function token(): string {
+function token(role: 'cashier' | 'waiter' = 'cashier'): string {
   return signJwt(
-    { sub: '64b0000000000000000000a1', tenantId, role: 'cashier', deviceType: 'hub' },
+    { sub: '64b0000000000000000000a1', tenantId, role, deviceType: 'hub' },
     PRIVATE_PEM
   )
 }
@@ -69,10 +71,11 @@ async function createTable(overrides: Record<string, unknown> = {}): Promise<str
   return body.table.id
 }
 
-async function createOrder(): Promise<string> {
+async function createOrder(tableId?: string): Promise<string> {
   const res = await ordersPost(
     req(ORDERS_URL, {
       id: crypto.randomUUID(),
+      ...(tableId ? { tableId } : {}),
       items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 1, unitPrice: 1500, total: 1500 }],
     }, AUTH()),
     { params: Promise.resolve({ tenant: SLUG }) }
@@ -438,5 +441,78 @@ describe('la ruta [tenant] acepta el ObjectId (lo que el POS tiene a mano)', () 
       { params: Promise.resolve({ tenant: tenantId }) }
     )
     expect(res.status).toBe(403)
+  })
+})
+
+
+describe('Fase C — cuenta pedida, cambiar y unir mesas', () => {
+  const move = (fromId: string, body: Record<string, unknown>, headers = AUTH()) =>
+    tableMove(req(`${TABLES_URL}/${fromId}/move`, body, headers), detailParams(fromId))
+
+  async function openTable(number: number, guests: number): Promise<string> {
+    const id = await createTable({ number })
+    const res = await tablePatch(req(`${TABLES_URL}/${id}`, { status: 'occupied', guests }, AUTH()), detailParams(id))
+    expect(res.status).toBe(200)
+    return id
+  }
+
+  it('mesa con la cuenta pedida no recibe rondas nuevas hasta reabrirla', async () => {
+    const tableId = await openTable(1, 2)
+    await createOrder(tableId)
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { needsBill: true }, AUTH()), detailParams(tableId))
+
+    const blocked = await ordersPost(
+      req(ORDERS_URL, { id: crypto.randomUUID(), tableId, items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 1, unitPrice: 1500, total: 1500 }] }, AUTH()),
+      listParams
+    )
+    expect(blocked.status).toBe(409)
+
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { needsBill: false }, AUTH()), detailParams(tableId))
+    await createOrder(tableId)
+  })
+
+  it('cambiar a una mesa libre: rondas, comensales y cuenta pasan; el origen queda libre', async () => {
+    const from = await openTable(1, 3)
+    const to = await createTable({ number: 2 })
+    const orderA = await createOrder(from)
+    const orderB = await createOrder(from)
+
+    const res = await move(from, { toTableId: to })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toMatchObject({ mode: 'move', movedOrders: 2 })
+    expect(body.to).toMatchObject({ status: 'occupied', guests: 3 })
+    expect(body.from.status).toBe('free')
+    expect(body.from.guests).toBeUndefined()
+
+    const orders = await Order.find({ posId: { $in: [orderA, orderB] } }).lean()
+    expect(orders.every((o) => o.posTableId === to)).toBe(true)
+  })
+
+  it('unir con una mesa ocupada exige confirmación y suma comensales', async () => {
+    const from = await openTable(1, 2)
+    const to = await openTable(2, 4)
+    await createOrder(from)
+
+    const unconfirmed = await move(from, { toTableId: to })
+    expect(unconfirmed.status).toBe(409)
+
+    const res = await move(from, { toTableId: to, join: true })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.mode).toBe('join')
+    expect(body.to).toMatchObject({ status: 'occupied', guests: 6 })
+    expect(body.from.status).toBe('free')
+  })
+
+  it('no se mueve a una mesa reservada ni el mozo puede reubicar', async () => {
+    const from = await openTable(1, 2)
+    const reserved = await createTable({ number: 2 })
+    await tablePatch(req(`${TABLES_URL}/${reserved}`, { status: 'reserved' }, AUTH()), detailParams(reserved))
+    expect((await move(from, { toTableId: reserved })).status).toBe(409)
+
+    const free = await createTable({ number: 3 })
+    const waiter = { authorization: `Bearer ${token('waiter')}`, 'x-location-id': locationId }
+    expect((await move(from, { toTableId: free }, waiter)).status).toBe(403)
   })
 })

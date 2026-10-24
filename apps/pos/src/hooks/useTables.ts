@@ -8,6 +8,7 @@ import {
   occupyTableForLoading,
   occupyTableWithGuests,
   setTableGuests,
+  moveTable,
   bindTableOrder,
   freeTable,
   reserveTable,
@@ -50,6 +51,10 @@ export function useTables() {
       setTableGuests: (tableId: string, guests: number) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
         return setTableGuests(tenantId, tableId, guests)
+      },
+      moveTable: (fromId: string, toId: string, join: boolean) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return moveTable(tenantId, fromId, toId, join)
       },
       bindTableOrder: (tableId: string, serverId: string, orderId: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")

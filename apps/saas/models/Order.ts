@@ -57,6 +57,8 @@ export interface IOrderItem {
   slotName?: string            // Nombre del slot para ticket cocina
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
+  /** Curso (POS, Fase C): entrada / principal / postre. null = sin curso. */
+  course?: 'entrada' | 'principal' | 'postre' | null
   /**
    * Nota de cocina por item ("sin cebolla", "bien hecho").
    * El POS la emite en cada OrderItem; sin este campo se perdería al
@@ -127,6 +129,23 @@ export interface IPosPayment {
 }
 
 /** Anulación de una venta cobrada en el POS (Fase 1 de caja, 2026-10). */
+export interface IOrderItemVoid {
+  at: Date
+  /** _id de la línea anulada (Order.items._id). */
+  lineId: string
+  menuItemId: string | null
+  name: string
+  quantity: number
+  /** Precio unitario de la línea (base + extras), en centavos. */
+  unitPrice: number
+  reason: 'load_error' | 'changed_mind' | 'out_of_stock' | 'delay_complaint' | 'dropped'
+  /** true ⇒ el plato se preparó y se perdió: los insumos van a merma. */
+  wasted: boolean
+  by: string
+  byRole: string
+  approvedBy: string | null
+}
+
 export interface IOrderVoid {
   at: Date
   /** Usuario que pidió la anulación. */
@@ -339,6 +358,11 @@ export interface IOrder extends Document {
   posPayments?: IPosPayment[]
   /** Anulación de la venta (null/ausente = no anulada). Write-once. */
   voided?: IOrderVoid | null
+  /**
+   * Platos quitados o bajados DESPUÉS de mandarlos a cocina (Fase C,
+   * 2026-10). Append-only: base de «anulaciones por operador» y de la merma.
+   */
+  itemVoids?: IOrderItemVoid[]
   // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
   deliveryConfirmation?: {
     customerCode: {
@@ -479,6 +503,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   slotName: { type: String, default: null },
     hasCategoryDiscount: { type: Boolean, default: false },
     notes: { type: String, default: null },
+    course: { type: String, enum: ['entrada', 'principal', 'postre', null], default: null },
   })
 
 const GroupPaymentSchema = new Schema<IGroupPayment>({
@@ -832,6 +857,32 @@ const OrderSchema = new Schema(
     // Array acotado (≤ 10 partes, lo valida la ruta): embebido y no colección
     // aparte porque se lee y escribe siempre junto con la orden.
     posPayments: { type: [PosPaymentSchema], default: undefined },
+    // Acotado por los ítems de la orden; se lee siempre con ella.
+    itemVoids: {
+      type: [
+        new Schema<IOrderItemVoid>(
+          {
+            at: { type: Date, required: true },
+            lineId: { type: String, required: true },
+            menuItemId: { type: String, default: null },
+            name: { type: String, required: true },
+            quantity: { type: Number, required: true, min: 1 },
+            unitPrice: { type: Number, required: true, min: 0 },
+            reason: {
+              type: String,
+              enum: ['load_error', 'changed_mind', 'out_of_stock', 'delay_complaint', 'dropped'],
+              required: true,
+            },
+            wasted: { type: Boolean, required: true },
+            by: { type: String, required: true },
+            byRole: { type: String, required: true },
+            approvedBy: { type: String, default: null },
+          },
+          { _id: false }
+        ),
+      ],
+      default: undefined,
+    },
     voided: {
       type: new Schema<IOrderVoid>(
         {

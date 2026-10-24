@@ -25,7 +25,7 @@ import { POST as CREATE } from '@/app/api/[tenant]/pos/orders/route'
 import { PATCH } from '@/app/api/[tenant]/pos/orders/[id]/route'
 import { POST as PAY } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
 import { POST as VOID } from '@/app/api/[tenant]/pos/orders/[id]/void/route'
-import { DELETE as REMOVE_ITEM } from '@/app/api/[tenant]/pos/orders/[id]/items/[productId]/route'
+import { DELETE as REMOVE_ITEM, PATCH as PATCH_ITEM } from '@/app/api/[tenant]/pos/orders/[id]/items/[productId]/route'
 import { POST as PRINT_Z } from '@/app/api/[tenant]/pos/cash/registers/[id]/print/route'
 
 /**
@@ -58,14 +58,14 @@ let tenantId: string
 let locationId: string
 let managerId: string
 
-function token(role: 'cashier' | 'manager', sub = CASHIER_ID): string {
+function token(role: 'cashier' | 'manager' | 'waiter', sub = CASHIER_ID): string {
   return signJwt({ sub, tenantId, role, deviceType: 'hub' }, PRIVATE_PEM)
 }
 
 function req(
   url: string,
   body: unknown,
-  opts: { method?: string; role?: 'cashier' | 'manager'; pin?: string } = {}
+  opts: { method?: string; role?: 'cashier' | 'manager' | 'waiter'; pin?: string } = {}
 ): NextRequest {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -355,11 +355,77 @@ describe('cancelaciones y productos comandados', () => {
   it('quitar un producto ya comandado necesita PIN', async () => {
     const orderId = await createOrder('confirmed')
     const params = { params: Promise.resolve({ tenant: SLUG, id: orderId, productId: PRODUCT_ID }) }
-    const url = `${BASE}/orders/${orderId}/items/${PRODUCT_ID}`
+    // Fase C: además del PIN, quitar un plato enviado exige motivo.
+    const url = `${BASE}/orders/${orderId}/items/${PRODUCT_ID}?reason=load_error`
 
     const noPin = await REMOVE_ITEM(req(url, undefined, { method: 'DELETE' }), params)
     expect(noPin.status).toBe(403)
     expect((await noPin.json()).error.code).toBe('approval_required')
+  })
+})
+
+describe('Fase C — quitar platos enviados: motivo, mozo y línea exacta', () => {
+  const itemParams = (id: string) => ({ params: Promise.resolve({ tenant: SLUG, id, productId: PRODUCT_ID }) })
+
+  it('sin motivo → 400 (el motivo define stock o merma)', async () => {
+    const orderId = await createOrder('confirmed')
+    const res = await REMOVE_ITEM(
+      req(`${BASE}/orders/${orderId}/items/${PRODUCT_ID}`, undefined, { method: 'DELETE', role: 'manager' }),
+      itemParams(orderId)
+    )
+    expect(res.status).toBe(400)
+  })
+
+  it('el mozo no puede quitar platos enviados, ni con motivo', async () => {
+    const orderId = await createOrder('confirmed')
+    const res = await REMOVE_ITEM(
+      req(`${BASE}/orders/${orderId}/items/${PRODUCT_ID}?reason=load_error`, undefined, { method: 'DELETE', role: 'waiter' }),
+      itemParams(orderId)
+    )
+    expect(res.status).toBe(403)
+    expect((await Order.findOne({ posId: orderId }).lean())!.items).toHaveLength(1)
+  })
+
+  it('encargado quita con «se cayó»: queda la anulación como merma', async () => {
+    const orderId = await createOrder('confirmed')
+    const res = await REMOVE_ITEM(
+      req(`${BASE}/orders/${orderId}/items/${PRODUCT_ID}?reason=dropped`, undefined, { method: 'DELETE', role: 'manager' }),
+      itemParams(orderId)
+    )
+    expect(res.status).toBe(200)
+    const stored = await Order.findOne({ posId: orderId }).lean()
+    expect(stored!.items).toHaveLength(0)
+    expect(stored!.itemVoids).toHaveLength(1)
+    expect(stored!.itemVoids![0]).toMatchObject({ name: 'Hamburguesa', quantity: 2, unitPrice: 1500, reason: 'dropped', wasted: true, byRole: 'manager' })
+  })
+
+  it('con lineId baja SOLO esa línea (mismo producto con otra nota no se toca)', async () => {
+    const id = crypto.randomUUID()
+    const created = await CREATE(
+      req(`${BASE}/orders`, {
+        id,
+        status: 'confirmed',
+        items: [
+          { productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 1, unitPrice: 1500, total: 1500, notes: 'sin sal' },
+          { productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 2, unitPrice: 1500, total: 3000 },
+        ],
+      }),
+      tenantParams()
+    )
+    expect(created.status).toBe(201)
+    const body = await created.json()
+    const second = body.order.items[1].lineId as string
+    expect(second).toMatch(/^[a-f0-9]{24}$/)
+
+    const res = await PATCH_ITEM(
+      req(`${BASE}/orders/${id}/items/${PRODUCT_ID}`, { quantity: 1, lineId: second, reason: 'changed_mind' }, { method: 'PATCH', role: 'manager' }),
+      itemParams(id)
+    )
+    expect(res.status).toBe(200)
+    const stored = await Order.findOne({ posId: id }).lean()
+    expect(stored!.items.map((i) => [i.quantity, i.notes])).toEqual([[1, 'sin sal'], [1, null]])
+    expect(stored!.total).toBe(3000)
+    expect(stored!.itemVoids![0]).toMatchObject({ quantity: 1, reason: 'changed_mind', wasted: false })
   })
 })
 

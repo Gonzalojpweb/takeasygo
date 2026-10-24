@@ -6,6 +6,7 @@ import {
   occupyTableForLoading,
   occupyTableWithGuests,
   setTableGuests,
+  moveTable,
   bindTableOrder,
   freeTable,
   reserveTable,
@@ -36,6 +37,10 @@ const putMock = vi.hoisted(() => vi.fn())
 const getMock = vi.hoisted(() => vi.fn())
 const configGetMock = vi.hoisted(() => vi.fn())
 const enqueueMock = vi.hoisted(() => vi.fn())
+const ordersModifyMock = vi.hoisted(() => vi.fn())
+const ordersWhereMock = vi.hoisted(() =>
+  vi.fn((_field: string) => ({ equals: () => ({ filter: () => ({ modify: (changes: unknown) => ordersModifyMock(changes) }) }) }))
+)
 
 vi.mock("../db/dexie", () => ({
   db: {
@@ -47,6 +52,9 @@ vi.mock("../db/dexie", () => ({
           and: () => ({ toArray: async () => [] }),
         }),
       }),
+    },
+    orders: {
+      where: (field: string) => ordersWhereMock(field),
     },
     tenantConfig: {
       get: (...args: unknown[]) => configGetMock(...args),
@@ -252,6 +260,28 @@ describe("transiciones", () => {
     await setTableGuests(TENANT, "mesa-uuid", 6)
 
     expect(lastRequest().body).toEqual({ guests: 6 })
+  })
+
+  it("moveTable: POST /move, refleja las dos mesas y re-apunta las rondas locales (Fase C)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        mode: "join",
+        movedOrders: 2,
+        from: serverTable({ id: "mesa-a", status: "free" }),
+        to: serverTable({ id: "mesa-b", status: "occupied", guests: 6 }),
+      })
+    )
+
+    const res = await moveTable(TENANT, "mesa-a", "mesa-b", true)
+
+    const req = lastRequest()
+    expect(req.method).toBe("POST")
+    expect(req.url).toContain("/tables/mesa-a/move")
+    expect(req.body).toEqual({ toTableId: "mesa-b", join: true })
+    expect(res).toEqual({ mode: "join", movedOrders: 2 })
+    expect(putMock).toHaveBeenCalledTimes(2)
+    expect(ordersWhereMock).toHaveBeenCalledWith("tableId")
+    expect(ordersModifyMock).toHaveBeenCalledWith({ tableId: "mesa-b" })
   })
 
   it("bindTableOrder vincula la orden sin transición de estado (sin status)", async () => {

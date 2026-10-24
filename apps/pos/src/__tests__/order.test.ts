@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { createOrder, addItem, removeItem, updateItemQuantity } from "../services/order"
+import { createOrder, addItem, removeItem, updateItemQuantity, voidSentItem } from "../services/order"
 import { PosApiError, SESSION_CACHE_KEY } from "../services/pos-api"
 
 /**
@@ -229,6 +229,17 @@ describe("edición de items", () => {
     )
     expect(req.method).toBe("PATCH")
     expect(req.body).toEqual({ quantity: 3 })
+  })
+
+  it("voidSentItem → PATCH de UNA línea con lineId, cantidad que queda y motivo (Fase C)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ order: serverOrder() }))
+
+    await voidSentItem(TENANT, ORDER, { productId: PRODUCT, lineId: "64b0000000000000000000c1" }, 1, "dropped")
+
+    const req = lastRequest()
+    expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/orders/${ORDER}/items/${PRODUCT}`)
+    expect(req.method).toBe("PATCH")
+    expect(req.body).toEqual({ quantity: 1, lineId: "64b0000000000000000000c1", reason: "dropped" })
   })
 
   it("quantity 0 viaja igual: el server lo interpreta como quitar", async () => {

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import type {
+  ItemCourse,
   OrderItem as PosOrderItem,
   OrderStatus as PosOrderStatus,
   PaymentMethod,
@@ -41,6 +42,8 @@ export interface PosOrderItemInput {
   modifiers?: { name: string; price: number }[]
   /** Nota de cocina. El POS manda string, nunca null. */
   notes?: string
+  /** Curso (Fase C): entrada / principal / postre. */
+  course?: ItemCourse
 }
 
 export interface PosOrderInput {
@@ -114,6 +117,9 @@ export interface SaasOrderItemDraft {
   notes: string | null
   /** Estación de la comanda (cocina/barra). La asigna el server (printRoles.ts). */
   printRole?: 'kitchen' | 'bar' | 'both'
+  course: ItemCourse | null
+  /** Presente en documentos leídos de Mongo (id de la línea). */
+  _id?: mongoose.Types.ObjectId
 }
 
 /** Estados con los que el POS puede CREAR una orden. */
@@ -147,6 +153,9 @@ export function recomputeOrderTotals(items: SaasOrderItemDraft[]): {
 
 /** Grupo único donde el POS vuelca sus modifiers planos. */
 const MODIFIERS_GROUP_NAME = 'Modificadores'
+
+/** Cursos válidos por plato (Fase C). */
+const ITEM_COURSES = new Set<string>(['entrada', 'principal', 'postre'])
 
 /** Largo máximo de la nota por plato (entra en 3 renglones de comanda). */
 const MAX_ITEM_NOTE = 140
@@ -215,6 +224,10 @@ export function toSaasOrderItem(item: PosOrderItemInput): SaasOrderItemDraft {
     throw PosError.validation(`Item "${item.name}": la nota debe ser texto de hasta ${MAX_ITEM_NOTE} caracteres`)
   }
   const notes = typeof item.notes === 'string' && item.notes.trim() ? item.notes.trim() : null
+  if (item.course !== undefined && item.course !== null && !ITEM_COURSES.has(item.course)) {
+    throw PosError.validation(`Item "${item.name}": curso inválido`)
+  }
+  const course = item.course ?? null
 
   return {
     menuItemId: toMenuItemId(item.productId),
@@ -241,6 +254,7 @@ export function toSaasOrderItem(item: PosOrderItemInput): SaasOrderItemDraft {
           ]
         : [],
     notes,
+    course,
   }
 }
 
@@ -397,6 +411,8 @@ export function toPosOrder(doc: {
     status: doc.status,
     tableId: doc.posTableId ?? undefined,
     items: (doc.items ?? []).map((i) => ({
+      ...(i._id ? { lineId: String(i._id) } : {}),
+      ...(i.course ? { course: i.course } : {}),
       productId: i.menuItemId?.toString() ?? '',
       name: i.name,
       quantity: i.quantity,

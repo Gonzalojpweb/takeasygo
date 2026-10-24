@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import Order from '@/models/Order'
+import Table from '@/models/Table'
 import { logAudit } from '@/lib/audit'
 import type { OrderStatus } from '@takeasygo/types'
 import { canEditOrderItems } from '@takeasygo/business'
@@ -24,6 +25,16 @@ export const POST = posRoute('orders.write', async (ctx, { id }) => {
   }
 
   assertNotPaid(current)
+
+  // Fase C: mesa con la cuenta pedida → no se agrega hasta reabrirla.
+  if (current.posTableId) {
+    const table = await Table.findOne({ tenantId: ctx.tenantId, locationId: ctx.locationId, posId: current.posTableId })
+      .select('needsBill')
+      .lean()
+    if (table?.needsBill) {
+      throw PosError.conflict('La mesa pidió la cuenta: reabrila para agregar productos')
+    }
+  }
 
   const body = await readPosBody(ctx.request)
   // Forma e interna primero (400), después el catálogo vigente (409).

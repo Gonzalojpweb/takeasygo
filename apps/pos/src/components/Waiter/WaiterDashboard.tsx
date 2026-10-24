@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
-import type { Order, OrderItem, Product } from "@takeasygo/types"
+import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { ChefHat } from "lucide-react"
@@ -149,7 +149,7 @@ export function WaiterDashboard() {
       return
     }
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes)
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && !i.course)
       if (existing) {
         return prev.map((i) =>
           i === existing ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) } : i
@@ -173,8 +173,8 @@ export function WaiterDashboard() {
     setCart((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
-  const handleEditNote = useCallback((index: number, note: string) => {
-    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined } : item)))
+  const handleEditNote = useCallback((index: number, note: string, course: ItemCourse | undefined) => {
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined, course } : item)))
   }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
@@ -208,6 +208,7 @@ export function WaiterDashboard() {
             total: item.total,
             ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
             ...(item.notes ? { notes: item.notes } : {}),
+            ...(item.course ? { course: item.course } : {}),
           })),
         }
       )
@@ -229,6 +230,17 @@ export function WaiterDashboard() {
       showToast("Cuenta pedida — la caja ya la ve", "success")
     } catch (err) {
       showToast(describeError(err, "No se pudo pedir la cuenta"), "error")
+    }
+  }, [selectedTableId, markNeedsBill, showToast])
+
+  // Fase C: reabrir una mesa que pidió la cuenta (para agregar una ronda).
+  const handleReopen = useCallback(async () => {
+    if (!selectedTableId) return
+    try {
+      await markNeedsBill(selectedTableId, false)
+      showToast("Mesa reabierta", "success")
+    } catch (err) {
+      showToast(describeError(err, "No se pudo reabrir la mesa"), "error")
     }
   }, [selectedTableId, markNeedsBill, showToast])
 
@@ -291,7 +303,12 @@ export function WaiterDashboard() {
               )}
             </>
           ),
-          right: (
+          // Cuenta pedida ⇒ no se toman rondas hasta reabrir (el server lo exige).
+          right: selectedTable.needsBill ? (
+            <button className="btn btn-primary btn-lg" onClick={handleReopen}>
+              Reabrir mesa
+            </button>
+          ) : (
             <button className="btn btn-primary btn-lg" onClick={() => setScene("pedido")}>
               Tomar pedido
             </button>
@@ -339,7 +356,7 @@ export function WaiterDashboard() {
         // ProductConfigurationPanel maneja su propio panel y Action Bar.
         break
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   const kitchenRounds = useMemo(

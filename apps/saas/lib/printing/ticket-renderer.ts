@@ -72,6 +72,8 @@ interface OrderItem {
   hasCategoryDiscount?: boolean
   /** Nota del plato («sin sal»). Siempre se imprime: es una orden para la estación. */
   notes?: string | null
+  /** Curso del plato (POS, Fase C): agrupa la comanda en el orden de salida. */
+  course?: 'entrada' | 'principal' | 'postre' | null
 }
 
 interface OrderDoc {
@@ -137,6 +139,9 @@ function renderCustomizations(
 
 // ── Main Renderer ───────────────────────────────────────────────────────
 
+const COURSE_ORDER: Record<string, number> = { entrada: 0, principal: 1, postre: 2, '': 3 }
+const COURSE_LABEL: Record<string, string> = { entrada: 'ENTRADAS', principal: 'PRINCIPALES', postre: 'POSTRES', '': 'SIN CURSO' }
+
 /**
  * Nota por plato (Fase B, 2026-10). Antes no se imprimía: el POS la mandaba,
  * se guardaba en la orden, pero la cocina nunca veía el «sin sal».
@@ -191,6 +196,14 @@ export function renderOrderTicket(
   }
 
   if (itemsToPrint.length === 0) return null
+
+  // Curso (Fase C, 2026-10): si algún plato lo tiene, la comanda sale
+  // agrupada en orden de salida (entradas → principales → postres → resto),
+  // estable dentro de cada grupo.
+  const hasCourses = itemsToPrint.some((i) => i.course)
+  if (hasCourses) {
+    itemsToPrint = [...itemsToPrint].sort((a, b) => COURSE_ORDER[a.course ?? ''] - COURSE_ORDER[b.course ?? ''])
+  }
 
   // Builder con fontSize del body, lineSpacing, codepage
   const t = new TicketBuilder({
@@ -272,6 +285,7 @@ export function renderOrderTicket(
 
   // ── Items ───────────────────────────────────────────────────────────
   let lastCategory: string | null = null
+  let lastCourse: string | null | undefined = undefined
 
   // Agrupar promos consecutivas
   const promoGroups: Array<{
@@ -301,6 +315,12 @@ export function renderOrderTicket(
     if ('single' in group) {
       // ── Item normal ──
       const item = group.single
+
+      if (hasCourses && (item.course ?? null) !== lastCourse) {
+        lastCourse = item.course ?? null
+        t.text(`--- ${COURSE_LABEL[lastCourse ?? '']} ---`, { align: 'center', bold: true })
+        lastCategory = null
+      }
 
       if (item.itemType === 'reward') {
         t.text('[RECOMPENSA]')

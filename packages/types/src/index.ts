@@ -328,7 +328,12 @@ export interface OrderPayment {
   reference?: string
 }
 
+/** Curso del plato (Fase C, 2026-10): ordena la salida en cocina. */
+export type ItemCourse = "entrada" | "principal" | "postre"
+
 export interface OrderItem {
+  /** id de la línea en el server (Order.items._id). Ausente en el carrito local. */
+  lineId?: string
   productId: string
   name: string
   quantity: number
@@ -337,6 +342,7 @@ export interface OrderItem {
   total: number
   modifiers?: OrderItemModifier[]
   notes?: string
+  course?: ItemCourse
 }
 
 export interface OrderItemModifier {

@@ -96,7 +96,7 @@ async function assertTableExists(
   posTableId: string,
   tenantId: string,
   locationId: string
-): Promise<void> {
+): Promise<{ needsBill: boolean }> {
   // `tableId` es el `posId` de la mesa: un UUID que genera el POS, NO un
   // ObjectId. Se exige string acotado para que no llegue un operador de
   // query ($ne, objeto, etc.) al filtro.
@@ -104,11 +104,12 @@ async function assertTableExists(
     throw PosError.validation('tableId inválido')
   }
   const table = await Table.findOne({ tenantId, locationId, posId: posTableId })
-    .select('_id')
+    .select('_id needsBill')
     .lean()
   if (!table) {
     throw PosError.notFound('Mesa no encontrada en esta sede')
   }
+  return { needsBill: Boolean(table.needsBill) }
 }
 
 function findExisting(tenantId: string, posId: string): Promise<PosOrderDoc | null> {
@@ -172,12 +173,18 @@ export const POST = posRoute('orders.write', async (ctx) => {
     tenantSlug: ctx.tenantSlug,
   })
 
-  if (draft.posTableId) {
-    await assertTableExists(draft.posTableId, ctx.tenantId, ctx.locationId)
-  }
+  const table = draft.posTableId
+    ? await assertTableExists(draft.posTableId, ctx.tenantId, ctx.locationId)
+    : null
 
   const existing = await findExisting(ctx.tenantId, draft.posId)
   if (existing) return replayOrConflict(existing, draft)
+
+  // Fase C: la mesa que pidió la cuenta no recibe rondas nuevas hasta que se
+  // reabre (la precuenta ya salió; agregar sin avisar descuadra la cuenta).
+  if (table?.needsBill) {
+    throw PosError.conflict('La mesa pidió la cuenta: reabrila para agregar productos')
+  }
 
   // Precios contra el catálogo VIGENTE: se valida DESPUÉS del replay para que
   // un reintento idéntico de una orden ya aceptada siga devolviendo 200 aunque

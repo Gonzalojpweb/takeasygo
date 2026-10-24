@@ -2396,3 +2396,24 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .note-chip.active { border-color: var(--primary-action); background: var(--primary-action-light); color: var(--primary-action); font-weight: var(--font-weight-semibold); }
 .note-editor-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 @media (pointer: coarse) { .order-item-note-btn { min-width: 44px; min-height: 44px; } .note-chip { min-height: 40px; } }
+
+/* ========================================
+   FASE C (2026-10) — curso, quitar con motivo, cambiar/unir mesa
+   ======================================== */
+.order-item-course { display: inline-block; margin-right: 6px; padding: 0 6px; border-radius: 4px; background: var(--primary-action-light); color: var(--primary-action); font-size: 10px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.4px; vertical-align: middle; }
+.note-chip--course { font-weight: var(--font-weight-semibold); }
+.mesa-panel-items li { grid-template-columns: 24px 1fr auto auto; align-items: center; }
+.mesa-panel-note { display: block; font-size: var(--font-size-xs); color: var(--text-muted); font-style: italic; }
+.mesa-panel-void { display: flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; border: none; border-radius: 6px; background: none; color: var(--text-muted); cursor: pointer; }
+.mesa-panel-void:hover { background: var(--error-light); color: var(--error); }
+@media (pointer: coarse) { .mesa-panel-void { min-width: 44px; min-height: 44px; } }
+.void-modal { width: 440px; max-width: calc(100vw - 32px); }
+.void-qty { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); }
+.void-reasons { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.void-reason { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-height: 48px; padding: 0 var(--sp-3); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-primary); text-align: left; cursor: pointer; }
+.void-reason:hover, .void-reason:focus-visible { border-color: var(--primary-action); outline: none; }
+.void-reason.active { border-color: var(--error); background: var(--error-light); }
+.void-reason-hint { font-size: var(--font-size-xs); color: var(--text-muted); }
+.void-reason-hint.waste { color: var(--error); font-weight: var(--font-weight-semibold); }
+.void-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); width: 100%; }
+.void-actions .btn { min-height: 48px; }

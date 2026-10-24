@@ -39,6 +39,7 @@ import { canAccess, type Plan } from '@/lib/plans'
 import { appendEvents, type NewLedgerEvent } from './projector'
 import { consumptionStorageFor, dishRecipeKey, loadCurrentRecipes } from './catalog'
 import InventorySKU from '@/models/InventorySKU'
+import type { SaleConsumptionLine } from '@takeasygo/types'
 
 interface OrderLike {
   _id: unknown
@@ -274,3 +275,80 @@ export async function unmappedSalesSummary(tenantId: mongoose.Types.ObjectId, lo
   ])
 }
 
+
+// ============================================================================
+// Merma por plato anulado en el POS (Fase C, 2026-10)
+// ============================================================================
+// Quitar un plato ya enviado revierte su venta (syncOrderConsumption): los
+// insumos vuelven al stock. Si el plato SE PREPARÓ y se perdió (demora o
+// reclamo, se cayó), esos insumos no vuelven: se registran como merma con
+// lo que la venta efectivamente descontó. Flujo en la ruta:
+//   1. planVoidWaste  — ANTES de guardar (después la línea ya no existe)
+//   2. guardar ítems  — syncOrderConsumption revierte la venta
+//   3. recordVoidWasteSafe — WasteRecorded por insumo (idempotente)
+// Como todo lo de inventario: nunca lanza hacia la venta.
+// ============================================================================
+
+/** Insumos que descontaron `portions` porciones de la línea (para la merma). */
+export async function planVoidWaste(order: OrderLike, lineId: string, portions: number): Promise<SaleConsumptionLine[]> {
+  try {
+    const tenantId = String(order.tenantId)
+    if (!order.locationId || !(await tenantHasInventory(tenantId))) return []
+    const events = await InventoryLedger.find({
+      tenantId: new mongoose.Types.ObjectId(tenantId),
+      correlationId: String(order._id),
+      eventType: 'SaleRecorded',
+      'payload.lineId': lineId,
+    })
+      .select('payload')
+      .lean()
+    const rec = summarizeRecorded(events as never).get(lineId)
+    if (!rec || rec.portions <= 0) return []
+    const factor = Math.min(portions, rec.portions) / rec.portions
+    return rec.consumption
+      .map((c) => ({ ...c, quantity: Math.round(c.quantity * factor * 1e6) / 1e6 }))
+      .filter((c) => c.quantity > 0)
+  } catch (err) {
+    console.error('[inventory] planVoidWaste falló:', String(order._id), err)
+    return []
+  }
+}
+
+export async function recordVoidWasteSafe(
+  order: OrderLike,
+  voidKey: string,
+  consumption: SaleConsumptionLine[],
+  meta: { name: string; reasonLabel: string; actorId: string }
+): Promise<void> {
+  if (consumption.length === 0) return
+  try {
+    const tenantId = String(order.tenantId)
+    const storage = await consumptionStorageFor(tenantId, String(order.locationId))
+    if (!storage) return
+    const orderId = String(order._id)
+    const now = new Date()
+    await appendEvents(
+      consumption.map((c) => ({
+        eventId: `pos-void-waste:${orderId}:${voidKey}:${c.skuId}:${c.storageLocationId}`,
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        locationId: storage.locationId,
+        skuId: c.skuId,
+        storageLocationId: c.storageLocationId,
+        eventType: 'WasteRecorded' as const,
+        occurredAt: now,
+        source: 'pos' as const,
+        actorId: meta.actorId,
+        observationMethod: 'estimation' as const,
+        correlationId: orderId,
+        payload: {
+          quantity: c.quantity,
+          unit: c.unit,
+          reason: 'damage',
+          notes: `Plato anulado en POS: ${meta.name} — ${meta.reasonLabel}`,
+        },
+      }))
+    )
+  } catch (err) {
+    console.error('[inventory] recordVoidWaste falló:', String(order._id), err)
+  }
+}

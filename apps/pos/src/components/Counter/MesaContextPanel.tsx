@@ -1,5 +1,5 @@
-import type { Order, Table } from "@takeasygo/types"
-import { Clock, Users, Receipt, UtensilsCrossed } from "lucide-react"
+import type { Order, OrderItem, Table } from "@takeasygo/types"
+import { Clock, Users, Receipt, UtensilsCrossed, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
 import { MESA_STATUS_LABEL } from "../shared/MesaCard"
@@ -18,10 +18,20 @@ interface MesaContextPanelProps {
   activity?: TableActivity
   orders: Order[]
   now: number
+  /**
+   * Fase C: presente ⇒ cada plato enviado (y sin cobrar) tiene «Quitar».
+   * Solo lo pasa el Counter: el mozo no quita platos enviados.
+   */
+  onVoidItem?: (order: Order, item: OrderItem) => void
 }
 
-export function MesaContextPanel({ table, activity, orders, now }: MesaContextPanelProps) {
-  const items = orders.flatMap((o) => o.items)
+/** Una ronda se puede corregir mientras no se cobró ni pasó a preparación. */
+function isEditable(order: Order): boolean {
+  return (order.status === "pending" || order.status === "confirmed") && !order.payments?.length
+}
+
+export function MesaContextPanel({ table, activity, orders, now, onVoidItem }: MesaContextPanelProps) {
+  const lines = orders.flatMap((o) => o.items.map((item) => ({ order: o, item })))
 
   return (
     <div className="mesa-panel">
@@ -66,17 +76,31 @@ export function MesaContextPanel({ table, activity, orders, now }: MesaContextPa
           <div className="text-sm text-muted">Falta cobrar {formatCurrency(activity.unpaid)}</div>
         )}
 
-        {items.length === 0 ? (
+        {lines.length === 0 ? (
           <p className="text-sm text-muted mesa-panel-empty">
             Sin pedidos todavía. Agregá productos para abrir la cuenta.
           </p>
         ) : (
           <ul className="mesa-panel-items">
-            {items.map((item, idx) => (
-              <li key={`${item.productId}-${idx}`}>
+            {lines.map(({ order, item }, idx) => (
+              <li key={item.lineId ?? `${item.productId}-${idx}`}>
                 <span className="mesa-panel-qty">{item.quantity}</span>
-                <span className="mesa-panel-name">{item.name}</span>
+                <span className="mesa-panel-name">
+                  {item.name}
+                  {item.notes && <span className="mesa-panel-note">{item.notes}</span>}
+                </span>
                 <span className="mesa-panel-price">{formatCurrency(item.total)}</span>
+                {onVoidItem && item.lineId && isEditable(order) && (
+                  <button
+                    type="button"
+                    className="mesa-panel-void"
+                    onClick={() => onVoidItem(order, item)}
+                    aria-label={`Quitar ${item.name}`}
+                    title="Quitar (con motivo)"
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
