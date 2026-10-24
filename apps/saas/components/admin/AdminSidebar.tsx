@@ -38,6 +38,7 @@ import {
   EyeOff,
   Banknote,
   Boxes,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -209,6 +210,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/users`, label: 'Usuarios', icon: Users, roles: ['admin'], feature: 'users' },
         { href: `${base}/billing`, label: 'Facturación', icon: CreditCard, roles: ['admin'] },
+        ...(posEnabled ? [{ href: `${base}/factura-electronica`, label: 'Factura electrónica', icon: Receipt, roles: ['admin'] }] : []),
         { href: `${base}/commissions`, label: 'Comisiones', icon: Coins, roles: ['admin', 'manager', 'cashier'], badge: commissionBadge },
         { href: `${base}/settings`, label: 'Configuración', icon: Settings, roles: ['admin', 'manager'] },
         { href: `${base}/settings/pos`, label: 'Integración POS', icon: Database, roles: ['admin'], feature: 'posIntegration' },

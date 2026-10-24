@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import { isIvaRate } from '@takeasygo/business'
 
 export interface ICustomizationOption {
   _id?: mongoose.Types.ObjectId
@@ -119,6 +120,8 @@ export interface IMenuSubCategory {
   customizationGroups?: ICustomizationGroup[]
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: IAvailabilitySlot[]
+  /** Alícuota de IVA (%) del producto. null = la de su categoría o la del comercio. Fase 3 fiscal. */
+  ivaRate?: number | null
 }
 
 export interface IMenuCategory {
@@ -132,6 +135,8 @@ export interface IMenuCategory {
   items: IMenuItem[]  // items directos (cuando no hay subcategorías)
   subcategories?: IMenuSubCategory[]  // subcategorías opcionales
   printRole?: 'kitchen' | 'bar' | 'both'
+  /** Alícuota de IVA (%) de la categoría. null = la del comercio. Fase 3 fiscal. */
+  ivaRate?: number | null
   customizationGroups?: ICustomizationGroup[]
   /** Grupos globales ocultos (ids o nombres). No se muestran en el menú público. */
   disabledGroupIds?: string[]
@@ -151,6 +156,12 @@ export interface IMenu extends Document {
   isActive: boolean
   createdAt: Date
   updatedAt: Date
+}
+
+// Fase 3 fiscal: alícuotas válidas (Mongoose no valida `enum` en Number).
+const IVA_RATE_VALIDATOR = {
+  validator: (v: number | null) => v === null || v === undefined || isIvaRate(v),
+  message: 'Alícuota de IVA inválida',
 }
 
 // Declarados como Schema genérico primero para permitir referencia circular opción ↔ grupo
@@ -318,6 +329,8 @@ const MenuItemSchema = new Schema<IMenuItem>({
     },
     default: null,
   },
+  // Fase 3 fiscal: alícuota propia del producto (null = hereda).
+  ivaRate: { type: Number, default: null, validate: IVA_RATE_VALIDATOR },
 })
 
 const MenuSubCategorySchema = new Schema<IMenuSubCategory>({
@@ -390,6 +403,8 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     enum: ['kitchen', 'bar', 'both'],
     default: 'kitchen',
   },
+  // Fase 3 fiscal: alícuota de la categoría (null = la del comercio).
+  ivaRate: { type: Number, default: null, validate: IVA_RATE_VALIDATOR },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
   disabledGroupIds: { type: [String], default: [] },
   disabledOptionIds: { type: [String], default: [] },

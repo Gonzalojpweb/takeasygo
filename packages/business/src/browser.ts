@@ -51,6 +51,32 @@ export {
   isVoidReason,
   type VoidReason,
 } from "./cash-control"
+export {
+  RECEIVER_IVA_CONDITION_IDS,
+  ISSUER_IVA_CONDITION_LABELS,
+  RECEIVER_IVA_CONDITION_LABELS,
+  IVA_RATES,
+  DEFAULT_IVA_RATE,
+  isIvaRate,
+  ivaRateAfipId,
+  resolveIvaRate,
+  cbteTipo,
+  invoiceLetterFor,
+  receiverNeedsCuit,
+  computeIvaBreakdown,
+  isValidCuit,
+  normalizeCuit,
+  formatCuit,
+  isValidPointOfSale,
+  type IssuerIvaCondition,
+  type ReceiverIvaCondition,
+  type IvaRatePct,
+  type InvoiceLetter,
+  type FiscalDocKind,
+  type FiscalLine,
+  type IvaGroup,
+  type IvaBreakdown,
+} from "./fiscal"
 export { generateZReport, type ZReportInput } from "./z-report"
 export {
   type CheckoutPart,
