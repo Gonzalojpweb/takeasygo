@@ -257,6 +257,8 @@ export interface Table {
   serverId?: string
   section?: string
   needsBill?: boolean
+  /** Comensales sentados (se informa al abrir la mesa; se borra al liberarla). */
+  guests?: number
 }
 
 export type TableStatus = "free" | "occupied" | "reserved" | "closed" | "needs_attention"

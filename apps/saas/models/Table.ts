@@ -33,6 +33,11 @@ export interface ITable extends Document {
   serverId: string | null
   section: string | null
   needsBill: boolean
+  /**
+   * Comensales de la ocupación actual (Fase B, 2026-10). Se informa al abrir
+   * la mesa y se borra al liberarla. Base para «ticket por cubierto».
+   */
+  guests: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -53,6 +58,7 @@ const TableSchema = new Schema<ITable>(
     serverId: { type: String, default: null },
     section: { type: String, default: null, trim: true },
     needsBill: { type: Boolean, default: false },
+    guests: { type: Number, default: null, min: 1, max: 99 },
   },
   { timestamps: true }
 )

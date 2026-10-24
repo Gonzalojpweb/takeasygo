@@ -48,6 +48,7 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
   const ariaLabel = [
     `Mesa ${table.number}`,
     statusLabel,
+    table.guests ? `${table.guests} comensales` : null,
     amount,
     elapsed ? `abierta hace ${elapsed}` : null,
   ]
@@ -71,6 +72,7 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
       ) : (
         <span className="mesa-info">{statusLabel}</span>
       )}
+      {table.guests ? <span className="mesa-guests" aria-hidden>👥 {table.guests}</span> : null}
     </button>
   )
 }

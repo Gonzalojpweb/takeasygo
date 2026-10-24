@@ -79,6 +79,18 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     audit.needsBill = body.needsBill
   }
 
+  // ── comensales (Fase B): se informan al abrir la mesa, se pueden corregir ──
+  if (body.guests !== undefined) {
+    if (
+      body.guests !== null &&
+      (typeof body.guests !== 'number' || !Number.isInteger(body.guests) || body.guests < 1 || body.guests > 99)
+    ) {
+      throw PosError.validation('guests debe ser un entero entre 1 y 99')
+    }
+    update.guests = body.guests
+    audit.guests = body.guests
+  }
+
   // ── mesero / orden activa ─────────────────────────────────────────────────
   if (body.serverId !== undefined) {
     update.serverId = assertOptionalString(body.serverId, 'serverId')
@@ -114,6 +126,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
       update.currentOrderId = null
       update.serverId = null
       update.needsBill = false
+      update.guests = null
     }
 
     update.status = to

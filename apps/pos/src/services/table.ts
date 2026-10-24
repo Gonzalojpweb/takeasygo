@@ -114,6 +114,33 @@ export async function occupyTableForLoading(
 }
 
 /**
+ * Abre la mesa con sus comensales (Fase B, 2026-10): la gente se sentó,
+ * la mesa queda ocupada aunque todavía no haya pedido. Sin currentOrderId:
+ * la primera ronda la vincula (bindTableOrder).
+ */
+export async function occupyTableWithGuests(
+  tenantId: string,
+  tableId: string,
+  serverId: string,
+  guests: number
+): Promise<void> {
+  await patchTable(tenantId, tableId, {
+    status: "occupied",
+    serverId,
+    guests,
+  })
+}
+
+/** Corrige la cantidad de comensales sin tocar el estado de la mesa. */
+export async function setTableGuests(
+  tenantId: string,
+  tableId: string,
+  guests: number
+): Promise<void> {
+  await patchTable(tenantId, tableId, { guests })
+}
+
+/**
  * Vincula la orden real a una mesa que ya está ocupada por la carga en curso.
  * Va SIN status: no hay transición que validar (sigue occupied) y el server
  * guarda currentOrderId para que delivered/cancelled la libere solo.

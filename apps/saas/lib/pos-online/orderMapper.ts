@@ -148,6 +148,9 @@ export function recomputeOrderTotals(items: SaasOrderItemDraft[]): {
 /** Grupo único donde el POS vuelca sus modifiers planos. */
 const MODIFIERS_GROUP_NAME = 'Modificadores'
 
+/** Largo máximo de la nota por plato (entra en 3 renglones de comanda). */
+const MAX_ITEM_NOTE = 140
+
 function assertPositiveInteger(value: unknown, field: string): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
     throw PosError.validation(`${field} debe ser un entero >= 0`, `got: ${String(value)}`)
@@ -207,6 +210,12 @@ export function toSaasOrderItem(item: PosOrderItemInput): SaasOrderItemDraft {
 
   const modifiers = item.modifiers ?? []
 
+  // Nota del plato: texto libre del operador que viaja a la comanda.
+  if (item.notes !== undefined && item.notes !== null && (typeof item.notes !== 'string' || item.notes.length > MAX_ITEM_NOTE)) {
+    throw PosError.validation(`Item "${item.name}": la nota debe ser texto de hasta ${MAX_ITEM_NOTE} caracteres`)
+  }
+  const notes = typeof item.notes === 'string' && item.notes.trim() ? item.notes.trim() : null
+
   return {
     menuItemId: toMenuItemId(item.productId),
     itemType: 'menuItem',
@@ -231,7 +240,7 @@ export function toSaasOrderItem(item: PosOrderItemInput): SaasOrderItemDraft {
             },
           ]
         : [],
-    notes: item.notes ?? null,
+    notes,
   }
 }
 

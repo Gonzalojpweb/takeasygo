@@ -34,8 +34,8 @@ export function MesaContextPanel({ table, activity, orders, now }: MesaContextPa
 
       <dl className="mesa-panel-facts">
         <div>
-          <dt><Users size={14} aria-hidden /> Capacidad</dt>
-          <dd>{table.capacity} personas</dd>
+          <dt><Users size={14} aria-hidden /> {table.guests ? "Comensales" : "Capacidad"}</dt>
+          <dd>{table.guests ? `${table.guests} de ${table.capacity}` : `${table.capacity} personas`}</dd>
         </div>
         {activity && (
           <div>

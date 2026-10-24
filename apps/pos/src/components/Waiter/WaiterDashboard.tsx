@@ -11,12 +11,14 @@ import { useMenu } from "../../hooks/useMenu"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
-import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
+import { usePopularProducts } from "../../hooks/usePopularProducts"
+import { sendWaiterOrderToKitchen, WAITER_SERVER_ID } from "../../services/waiter-order"
 import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
+import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
 import { WaiterContextPanel } from "./WaiterContextPanel"
 import { formatCurrency } from "../../utils/format"
@@ -73,7 +75,11 @@ export function WaiterDashboard() {
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { tables, markNeedsBill, markNeedsAttention, occupyTable, bindTableOrder } = useTables()
+  const popularIds = usePopularProducts(tenantId)
+  const { tables, markNeedsBill, markNeedsAttention, occupyTable, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
+  // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
+  const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
+  const [guestsBusy, setGuestsBusy] = useState(false)
   const { createOrder, confirmOrder } = useOrders()
   const { products, categories } = useMenu()
   const { confirmAndSendToKitchen } = useKitchenCommands()
@@ -102,9 +108,33 @@ export function WaiterDashboard() {
 
   // ── Mesa ─────────────────────────────────────────────────────────────────
   const handleSelectTable = useCallback((tableId: string) => {
+    if (tables.find((t) => t.id === tableId)?.status === "free") {
+      setGuestsPrompt({ tableId, mode: "open" })
+      return
+    }
     setSelectedTableId(tableId)
     setScene("mesa")
-  }, [])
+  }, [tables])
+
+  const handleGuestsConfirm = useCallback(async (guests: number) => {
+    if (!guestsPrompt || guestsBusy) return
+    const { tableId, mode } = guestsPrompt
+    setGuestsBusy(true)
+    try {
+      if (mode === "open") {
+        await occupyTableWithGuests(tableId, WAITER_SERVER_ID, guests)
+        setSelectedTableId(tableId)
+        setScene("pedido")
+      } else {
+        await setTableGuests(tableId, guests)
+      }
+      setGuestsPrompt(null)
+    } catch (err) {
+      showToast(describeError(err, mode === "open" ? "No se pudo abrir la mesa" : "No se pudieron guardar los comensales"), "error")
+    } finally {
+      setGuestsBusy(false)
+    }
+  }, [guestsPrompt, guestsBusy, occupyTableWithGuests, setTableGuests, showToast])
 
   const backToTables = useCallback(() => {
     setSelectedTableId(null)
@@ -119,7 +149,7 @@ export function WaiterDashboard() {
       return
     }
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length)
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes)
       if (existing) {
         return prev.map((i) =>
           i === existing ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) } : i
@@ -129,16 +159,22 @@ export function WaiterDashboard() {
     })
   }, [])
 
-  const handleUpdateQuantity = useCallback((productId: string, quantity: number) => {
+  // Fase B: líneas por POSICIÓN (misma línea de producto con distinta nota
+  // u opciones = líneas independientes).
+  const handleUpdateQuantity = useCallback((index: number, quantity: number) => {
     setCart((prev) =>
       quantity <= 0
-        ? prev.filter((i) => i.productId !== productId)
-        : prev.map((i) => (i.productId === productId ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) } : i))
+        ? prev.filter((_, i) => i !== index)
+        : prev.map((item, i) => (i === index ? { ...item, quantity, total: calculateItemTotal({ ...item, quantity }) } : item))
     )
   }, [])
 
-  const handleRemoveItem = useCallback((productId: string) => {
-    setCart((prev) => prev.filter((i) => i.productId !== productId))
+  const handleRemoveItem = useCallback((index: number) => {
+    setCart((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const handleEditNote = useCallback((index: number, note: string) => {
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined } : item)))
   }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
@@ -242,6 +278,11 @@ export function WaiterDashboard() {
           center: (
             <>
               <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button>
+              {selectedTable.status === "occupied" && (
+                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })}>
+                  👥 {selectedTable.guests ?? "Comensales"}
+                </button>
+              )}
               {tableOrders.length > 0 && !selectedTable.needsBill && (
                 <button className="btn btn-secondary" onClick={handleRequestBill}>Pedir cuenta</button>
               )}
@@ -269,6 +310,7 @@ export function WaiterDashboard() {
               items={cart}
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
+              onEditNote={handleEditNote}
               total={cartTotal}
             />
           ),
@@ -297,7 +339,7 @@ export function WaiterDashboard() {
         // ProductConfigurationPanel maneja su propio panel y Action Bar.
         break
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   const kitchenRounds = useMemo(
@@ -341,20 +383,13 @@ export function WaiterDashboard() {
 
       {scene === "pedido" && (
         <div className="workspace-scene">
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Mesa {selectedTable?.number ?? "?"} — Tomar pedido</div>
-              <div className="workspace-subtitle">
-                {cart.length > 0 ? `${cartUnits} en la ronda · ${formatCurrency(cartTotal)}` : "Tocá un producto para agregarlo"}
-              </div>
-            </div>
-          </div>
           <ProductSelector
             products={products}
             categories={categories}
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             onSelectProduct={handleAddProduct}
+            popularIds={popularIds}
           />
         </div>
       )}
@@ -409,6 +444,21 @@ export function WaiterDashboard() {
           </div>
         </div>
       )}
+
+      {guestsPrompt && (() => {
+        const t = tables.find((x) => x.id === guestsPrompt.tableId)
+        if (!t) return null
+        return (
+          <GuestsDialog
+            tableNumber={t.number}
+            capacity={t.capacity}
+            initial={guestsPrompt.mode === "edit" ? t.guests ?? undefined : undefined}
+            busy={guestsBusy}
+            onConfirm={(n) => { void handleGuestsConfirm(n) }}
+            onCancel={() => setGuestsPrompt(null)}
+          />
+        )
+      })()}
 
       {toast && (
         <div className="toast-container" role="status">

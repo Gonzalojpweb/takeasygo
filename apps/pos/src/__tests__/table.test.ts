@@ -4,6 +4,8 @@ import {
   openTable,
   occupyTable,
   occupyTableForLoading,
+  occupyTableWithGuests,
+  setTableGuests,
   bindTableOrder,
   freeTable,
   reserveTable,
@@ -229,6 +231,27 @@ describe("transiciones", () => {
     expect(req.method).toBe("PATCH")
     expect(req.body).toEqual({ status: "occupied", serverId: "u1" })
     expect(req.body).not.toHaveProperty("currentOrderId")
+  })
+
+  it("occupyTableWithGuests abre la mesa con comensales y sin orden (Fase B)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ table: serverTable({ status: "occupied", serverId: "u1", guests: 4 }) })
+    )
+
+    await occupyTableWithGuests(TENANT, "mesa-uuid", "u1", 4)
+
+    const req = lastRequest()
+    expect(req.method).toBe("PATCH")
+    expect(req.body).toEqual({ status: "occupied", serverId: "u1", guests: 4 })
+    expect(putMock).toHaveBeenCalledWith(expect.objectContaining({ guests: 4 }))
+  })
+
+  it("setTableGuests corrige los comensales sin transición de estado", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ table: serverTable({ status: "occupied", guests: 6 }) }))
+
+    await setTableGuests(TENANT, "mesa-uuid", 6)
+
+    expect(lastRequest().body).toEqual({ guests: 6 })
   })
 
   it("bindTableOrder vincula la orden sin transición de estado (sin status)", async () => {

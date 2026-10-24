@@ -145,7 +145,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
         posId: order.posTableId,
         currentOrderId: posId,
       },
-      { $set: { status: 'free', currentOrderId: null, needsBill: false } }
+      { $set: { status: 'free', currentOrderId: null, needsBill: false, guests: null } }
     )
   }
 

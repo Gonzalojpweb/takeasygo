@@ -319,6 +319,33 @@ describe('PATCH /pos/tables/[id]', () => {
     expect(body.table.status).toBe('occupied')
   })
 
+  it('abrir la mesa con comensales: se guardan y se borran al liberarla (Fase B)', async () => {
+    const tableId = await createTable()
+    const res = await tablePatch(
+      req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 4 }, AUTH()),
+      detailParams(tableId)
+    )
+    expect(res.status).toBe(200)
+    expect((await res.json()).table).toMatchObject({ status: 'occupied', guests: 4 })
+
+    // Corregir la cantidad sin tocar el estado.
+    const fix = await tablePatch(req(`${TABLES_URL}/${tableId}`, { guests: 5 }, AUTH()), detailParams(tableId))
+    expect((await fix.json()).table).toMatchObject({ status: 'occupied', guests: 5 })
+
+    const freed = await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'free' }, AUTH()), detailParams(tableId))
+    expect(freed.status).toBe(200)
+    expect((await freed.json()).table.guests).toBeUndefined()
+    expect((await Table.findOne({ posId: tableId }).lean())!.guests).toBeNull()
+  })
+
+  it('comensales fuera de rango o no enteros → 400', async () => {
+    const tableId = await createTable()
+    for (const guests of [0, 100, 2.5, '4']) {
+      const res = await tablePatch(req(`${TABLES_URL}/${tableId}`, { guests }, AUTH()), detailParams(tableId))
+      expect(res.status).toBe(400)
+    }
+  })
+
   it('estado desconocido o body vacío → 400', async () => {
     const tableId = await createTable()
 

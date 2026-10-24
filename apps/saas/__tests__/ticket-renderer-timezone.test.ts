@@ -155,3 +155,17 @@ describe('preclose-report — fechas en timezone de la sede', () => {
     expect(norm(text)).not.toContain(norm(`Hora: ${utcTime(CREATED_AT)}`))
   })
 })
+
+describe('ticket-renderer — nota por plato (Fase B, 2026-10)', () => {
+  it('la comanda imprime la nota de cada plato', () => {
+    const buf = renderOrderTicket(
+      {
+        ...baseOrder,
+        items: [{ name: 'Milanesa', basePrice: 9000, price: 9000, quantity: 1, subtotal: 9000, printRole: 'kitchen', notes: 'sin sal' }],
+      } as unknown as RenderOrder,
+      printer as unknown as RenderPrinter,
+      'kitchen'
+    )
+    expect(norm(decode(buf!))).toContain(norm('** SIN SAL **'))
+  })
+})

@@ -267,7 +267,7 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
         posId: current.posTableId,
         currentOrderId: posId,
       },
-      { $set: { status: 'free', currentOrderId: null, needsBill: false } }
+      { $set: { status: 'free', currentOrderId: null, needsBill: false, guests: null } }
     )
   }
 

@@ -30,6 +30,7 @@ export interface SaasTableDraft {
   currentOrderId: string | null
   serverId: string | null
   needsBill: boolean
+  guests: null
 }
 
 export const TABLE_STATUSES: readonly TableStatus[] = [
@@ -75,6 +76,7 @@ export function toSaasTable(input: PosTableInput, ctx: PosTableWriteContext): Sa
     currentOrderId: null,
     serverId: null,
     needsBill: false,
+    guests: null,
   }
 }
 
@@ -93,6 +95,7 @@ export function toPosTable(doc: {
   currentOrderId?: string | null
   serverId?: string | null
   needsBill?: boolean
+  guests?: number | null
   createdAt: Date
   updatedAt: Date
 }): PosTable {
@@ -110,5 +113,6 @@ export function toPosTable(doc: {
     ...(doc.serverId ? { serverId: doc.serverId } : {}),
     ...(doc.section ? { section: doc.section } : {}),
     needsBill: doc.needsBill ?? false,
+    ...(doc.guests ? { guests: doc.guests } : {}),
   }
 }

@@ -70,6 +70,8 @@ interface OrderItem {
   selectedVariant?: { name: string; price: number }
   customizations?: CustomizationGroup[]
   hasCategoryDiscount?: boolean
+  /** Nota del plato («sin sal»). Siempre se imprime: es una orden para la estación. */
+  notes?: string | null
 }
 
 interface OrderDoc {
@@ -134,6 +136,16 @@ function renderCustomizations(
 }
 
 // ── Main Renderer ───────────────────────────────────────────────────────
+
+/**
+ * Nota por plato (Fase B, 2026-10). Antes no se imprimía: el POS la mandaba,
+ * se guardaba en la orden, pero la cocina nunca veía el «sin sal».
+ */
+function renderItemNote(t: TicketBuilder, notes: string | null | undefined, indent: string): void {
+  const note = notes?.trim()
+  if (!note) return
+  t.text(`${indent}** ${note.toUpperCase()} **`, { bold: true })
+}
 
 export function renderOrderTicket(
   order: OrderDoc,
@@ -344,6 +356,7 @@ export function renderOrderTicket(
       } else {
         renderCustomizations(t, item.customizations, '  ')
       }
+      renderItemNote(t, item.notes, '  ')
 
       t.blank()
       t.blank()
@@ -399,6 +412,7 @@ export function renderOrderTicket(
         } else {
           renderCustomizations(t, item.customizations, '    ')
         }
+        renderItemNote(t, item.notes, '    ')
       }
 
       t.blank()

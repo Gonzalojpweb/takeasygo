@@ -18,8 +18,10 @@ import { SalonMap } from "../shared/SalonMap"
 import { MesaContextPanel } from "./MesaContextPanel"
 import { useTableActivity } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
+import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
+import { GuestsDialog } from "../shared/GuestsDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
 import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone } from "../../services/order"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
@@ -168,7 +170,11 @@ export function CounterDashboard() {
   }, [])
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
-  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, bindTableOrder } = useTables()
+  const popularIds = usePopularProducts(tenantId)
+  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
+  // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
+  const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
+  const [guestsBusy, setGuestsBusy] = useState(false)
   const tableActivity = useTableActivity(tenantId)
   const now = useNow()
   const { products, categories } = useMenu()
@@ -558,7 +564,9 @@ export function CounterDashboard() {
     (tableId: string | null): boolean => {
       if (!tableId) return false
       const t = tables.find((x) => x.id === tableId)
-      return Boolean(t && t.status === "occupied" && !t.currentOrderId)
+      // Con comensales la mesa se ABRIÓ a propósito (la gente está sentada
+      // mirando la carta): no es un draft y no se suelta sola.
+      return Boolean(t && t.status === "occupied" && !t.currentOrderId && !t.guests)
     },
     [tables]
   )
@@ -623,13 +631,38 @@ export function CounterDashboard() {
       // El carrito ya tiene items: el trigger del primer item no vuelve a
       // correr, así que la mesa nueva se ocupa acá.
       maybeOccupyForLoading(tableId)
+    } else if (tables.find((t) => t.id === tableId)?.status === "free") {
+      // Fase B: una mesa libre se ABRE con sus comensales (un toque).
+      setGuestsPrompt({ tableId, mode: "open" })
+      return
     }
     setSelectedTableId(tableId)
     // Escena "Mesa seleccionada" (Scene Architecture §13): primero se ve la
     // mesa y su cuenta; agregar productos es una decisión. Si el carrito ya
     // viaja de otra mesa, se sigue cargando.
     setScene(cart.length > 0 ? "productos" : "mesa")
-  }, [selectedTableId, cart.length, maybeFreeDraft, maybeOccupyForLoading])
+  }, [selectedTableId, cart.length, tables, maybeFreeDraft, maybeOccupyForLoading])
+
+  const handleGuestsConfirm = useCallback(async (guests: number) => {
+    if (!guestsPrompt || guestsBusy) return
+    const { tableId, mode } = guestsPrompt
+    setGuestsBusy(true)
+    try {
+      await tableOpChainRef.current.catch(() => {})
+      if (mode === "open") {
+        await occupyTableWithGuests(tableId, "counter", guests)
+        setSelectedTableId(tableId)
+        setScene("productos")
+      } else {
+        await setTableGuests(tableId, guests)
+      }
+      setGuestsPrompt(null)
+    } catch (err) {
+      showToast(describePosError(err, mode === "open" ? "No se pudo abrir la mesa" : "No se pudieron guardar los comensales"), "error")
+    } finally {
+      setGuestsBusy(false)
+    }
+  }, [guestsPrompt, guestsBusy, occupyTableWithGuests, setTableGuests, showToast])
 
   /** Reservar / liberar desde la escena de mesa. El server valida la transición. */
   const handleTableTransition = useCallback(async (kind: "reserve" | "free") => {
@@ -652,10 +685,11 @@ export function CounterDashboard() {
     }
     const isFirstItem = cart.length === 0
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id)
+      // Suma a la línea igual SIN opciones ni nota (una con nota es otro plato).
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes)
       if (existing) {
         return prev.map((i) =>
-          i.productId === product.id
+          i === existing
             ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) }
             : i
         )
@@ -673,27 +707,33 @@ export function CounterDashboard() {
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
   }, [cart.length, selectedTableId, maybeOccupyForLoading])
 
-  const handleUpdateQuantity = useCallback((productId: string, quantity: number) => {
+  // Fase B: las líneas del carrito se tocan por POSICIÓN (dos líneas del
+  // mismo producto con distinta nota u opciones son independientes).
+  const handleUpdateQuantity = useCallback((index: number, quantity: number) => {
     if (quantity <= 0) {
       const isEmptying = cart.length === 1
-      setCart((prev) => prev.filter((i) => i.productId !== productId))
+      setCart((prev) => prev.filter((_, i) => i !== index))
       if (isEmptying) maybeFreeDraft(selectedTableId)
       return
     }
     setCart((prev) =>
-      prev.map((i) =>
-        i.productId === productId
-          ? { ...i, quantity, total: calculateItemTotal({ ...i, quantity }) }
-          : i
+      prev.map((item, i) =>
+        i === index
+          ? { ...item, quantity, total: calculateItemTotal({ ...item, quantity }) }
+          : item
       )
     )
   }, [cart.length, selectedTableId, maybeFreeDraft])
 
-  const handleRemoveItem = useCallback((productId: string) => {
+  const handleRemoveItem = useCallback((index: number) => {
     const isEmptying = cart.length === 1
-    setCart((prev) => prev.filter((i) => i.productId !== productId))
+    setCart((prev) => prev.filter((_, i) => i !== index))
     if (isEmptying) maybeFreeDraft(selectedTableId)
   }, [cart.length, selectedTableId, maybeFreeDraft])
+
+  const handleEditNote = useCallback((index: number, note: string) => {
+    setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined } : item)))
+  }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
     if (!configProduct) return
@@ -1034,6 +1074,11 @@ export function CounterDashboard() {
               <button className="btn btn-ghost" onClick={() => { setSelectedTableId(null); setScene("salon") }}>
                 ← Salón
               </button>
+              {selectedTable.status === "occupied" && (
+                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })}>
+                  👥 {selectedTable.guests ? `${selectedTable.guests} comensales` : "Comensales"}
+                </button>
+              )}
               {unpaid > 0 && (
                 <button className="btn btn-secondary" onClick={() => setScene("productos")}>
                   + Agregar productos
@@ -1097,6 +1142,7 @@ export function CounterDashboard() {
                 items={cart}
                 onUpdateQuantity={handleUpdateQuantity}
                 onRemoveItem={handleRemoveItem}
+                onEditNote={handleEditNote}
                 total={cartTotal}
                 primaryAction={{
                   label: cart.length > 0 ? "Revisar pedido" : "Cobrar cuenta",
@@ -1564,7 +1610,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1623,6 +1669,7 @@ export function CounterDashboard() {
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
+                popularIds={popularIds}
               />
             </div>
           )}
@@ -1712,6 +1759,7 @@ export function CounterDashboard() {
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
+                popularIds={popularIds}
               />
             </div>
           )}
@@ -2276,6 +2324,20 @@ export function CounterDashboard() {
       )}
 
       {/* Modals */}
+      {guestsPrompt && (() => {
+        const t = tables.find((x) => x.id === guestsPrompt.tableId)
+        if (!t) return null
+        return (
+          <GuestsDialog
+            tableNumber={t.number}
+            capacity={t.capacity}
+            initial={guestsPrompt.mode === "edit" ? t.guests ?? undefined : undefined}
+            busy={guestsBusy}
+            onConfirm={(n) => { void handleGuestsConfirm(n) }}
+            onCancel={() => setGuestsPrompt(null)}
+          />
+        )
+      })()}
       {showCustomerSearch && (
         <CustomerSearch
           onSelect={(c) => { setCustomer(c); setShowCustomerSearch(false) }}
