@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { requireManagerApproval } from '@/lib/pos-online/approval'
 import { toPosTable } from '@/lib/pos-online/tableMapper'
 import { findPosTable, assertTablePosId, type PosTableDoc } from '@/lib/pos-online/tableRepo'
 
@@ -47,6 +48,11 @@ export const POST = posRoute('tables.manage', async (ctx, { id }) => {
   const merging = to.status === 'occupied'
   if (merging && !join) {
     throw PosError.conflict('La mesa destino está ocupada: confirmá si querés unir las mesas')
+  }
+  // Unir reabre la cuenta del destino: si ya la había pedido, es reabrirla
+  // (misma regla que PATCH needsBill=false → PIN de encargado).
+  if (merging && to.needsBill) {
+    await requireManagerApproval(ctx, 'table.reopen', 'La mesa destino ya pidió la cuenta: unir necesita la aprobación de un encargado')
   }
 
   const toUpdate = merging

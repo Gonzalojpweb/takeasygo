@@ -259,6 +259,10 @@ export interface Table {
   needsBill?: boolean
   /** Comensales sentados (se informa al abrir la mesa; se borra al liberarla). */
   guests?: number
+  /** Sector = espacio de la sede definido en el SaaS (id). */
+  spaceId?: string
+  /** Reserva asignada mientras la mesa está reservada. */
+  reservationId?: string
 }
 
 export type TableStatus = "free" | "occupied" | "reserved" | "closed" | "needs_attention"

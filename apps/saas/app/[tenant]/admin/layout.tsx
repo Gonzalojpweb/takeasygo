@@ -23,6 +23,7 @@ import Location from '@/models/Location'
 import { canAccess, type Plan } from '@/lib/plans'
 import { countPendingRedemptions } from '@/lib/store-redemptions'
 import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
+import { countUnseenReservations } from '@/lib/reservations/unseen'
 import type { Metadata } from 'next'
 import mongoose from 'mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
@@ -161,6 +162,21 @@ export default async function AdminLayout({
     }
   }
 
+  // Badge "Reservaciones": reservas nuevas sin ver (obs. 24/10). Solo las
+  // sedes del usuario si tiene sedes asignadas.
+  let newReservations = 0
+  if (tenantDoc && canAccess(plan, 'reservations') && ['admin', 'manager'].includes(session.user.role ?? '')) {
+    try {
+      const assigned = (session.user.assignedLocations ?? []).filter((id) => mongoose.isValidObjectId(id))
+      newReservations = await countUnseenReservations(
+        tenantDoc._id,
+        assigned.length ? { locationId: { $in: assigned.map((id) => new mongoose.Types.ObjectId(id)) } } : {}
+      )
+    } catch {
+      newReservations = 0
+    }
+  }
+
   const rbacSedeScope = isFlagEnabled(tenantDoc, FLAGS.RBAC_SEDE_SCOPE)
 
   const sidebarProps = {
@@ -172,6 +188,7 @@ export default async function AdminLayout({
     unreadAnnouncements,
     commissionBadge,
     pendingRedemptions,
+    newReservations,
     businessEnabled,
     crmEnabled,
     posEnabled,

@@ -23,6 +23,11 @@ export interface IReservation extends Document {
   tablePosId?: string | null
   /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
   autoNoShowAt?: Date | null
+  /**
+   * Cuándo el local la vio (panel de reservas del SaaS o vista del POS).
+   * null = nueva: cuenta en el badge del SaaS y del POS (obs. 24/10).
+   */
+  acknowledgedAt?: Date | null
   payment: {
     /** Monto del pago en centavos. @storedAs cents */
     amount: number
@@ -56,6 +61,7 @@ const ReservationSchema = new Schema<IReservation>(
     tablePosId: { type: String, default: null },
     /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
     autoNoShowAt: { type: Date, default: null },
+    acknowledgedAt: { type: Date, default: null },
     clientToken: { type: String, default: null },
     spaceId: { type: Schema.Types.ObjectId, default: null },
     status: {
@@ -80,6 +86,8 @@ const ReservationSchema = new Schema<IReservation>(
 )
 
 ReservationSchema.index({ tenantId: 1, date: 1 })
+// Badge «reservas nuevas» (SaaS y POS): sin ver, por sede y fecha.
+ReservationSchema.index({ tenantId: 1, locationId: 1, acknowledgedAt: 1, date: 1 })
 ReservationSchema.index(
   { tenantId: 1, locationId: 1, reservationNumber: 1 },
   { unique: true, name: 'uniq_tenant_sede_resnumber' }

@@ -85,7 +85,7 @@
 
   /* Layout */
   --header-height: 52px;
-  --nav-width: 200px;
+  --nav-width: 176px;
   --nav-width-collapsed: 64px;
   --context-panel-width: 340px;
   --action-bar-height: 72px;
@@ -2464,3 +2464,184 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .cash-change { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-3) var(--sp-4); border-radius: 12px; background: var(--success-light); color: var(--success); font-weight: var(--font-weight-semibold); }
 .cash-change strong { font-size: 40px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .cash-change--short { justify-content: center; background: var(--error-light); color: var(--error); font-size: var(--font-size-lg); }
+
+/* ========================================
+   OBS. 24/10 — reservas en el POS, sectores, salón
+   ======================================== */
+.view-tab { position: relative; }
+.view-tab-badge { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--brand-orange); color: #fff; font-size: 11px; font-weight: 700; line-height: 18px; text-align: center; animation: pulse-animation 1.5s ease-in-out 3; }
+.mesa-res-time { font-weight: var(--font-weight-semibold); }
+.mesa-res-name { font-size: 11px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mesa-panel-reservation { margin: var(--sp-2) 0; padding: var(--sp-3); border-radius: 10px; background: var(--warning-light); border: 1px solid var(--warning); display: flex; flex-direction: column; gap: 2px; }
+.mesa-panel-reservation-title { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.5px; color: #7A5200; }
+
+.res-view { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-6); gap: var(--sp-3); }
+.res-summary { display: flex; flex-wrap: wrap; gap: var(--sp-5); font-size: var(--font-size-sm); color: var(--text-secondary); }
+.res-summary strong { color: var(--text-primary); font-size: var(--font-size-lg); }
+.res-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: var(--sp-3); align-content: start; overflow-y: auto; min-height: 0; }
+.res-card { display: grid; grid-template-columns: 72px 1fr; gap: var(--sp-2) var(--sp-3); padding: var(--sp-3); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.res-card--new { border-color: var(--brand-orange); box-shadow: 0 0 0 2px var(--brand-orange-surface); }
+.res-card--no_show, .res-card--cancelled { opacity: 0.55; }
+.res-time { display: flex; align-items: center; gap: 4px; font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.res-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.res-name { font-weight: var(--font-weight-semibold); display: flex; align-items: center; gap: var(--sp-2); }
+.res-new { padding: 0 6px; border-radius: 4px; background: var(--brand-orange); color: #fff; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.res-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); font-size: var(--font-size-sm); color: var(--text-secondary); }
+.res-meta span { display: inline-flex; align-items: center; gap: 4px; }
+.res-status { padding: 0 8px; border-radius: 10px; background: var(--surface-secondary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); }
+.res-status--confirmed { background: var(--success-light); color: var(--success); }
+.res-status--pending_payment, .res-status--waitlist { background: var(--warning-light); color: #7A5200; }
+.res-status--seated { background: var(--primary-action-light); color: var(--primary-action); }
+.res-table { padding: 0 8px; border: 1px solid var(--warning); border-radius: 10px; background: var(--warning-light); color: #7A5200; font: inherit; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.res-notes { display: flex; gap: 4px; font-size: var(--font-size-xs); color: var(--text-muted); font-style: italic; }
+.res-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.res-actions .btn { min-height: 44px; }
+.res-select { flex: 1 1 180px; min-height: 44px; }
+
+.setup { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-6); gap: var(--sp-4); }
+.setup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); }
+.setup-head-actions { display: flex; gap: var(--sp-2); flex-shrink: 0; }
+.setup-error { padding: var(--sp-2) var(--sp-3); border-radius: 8px; background: var(--error-light); color: var(--error); font-size: var(--font-size-sm); }
+.setup-sectors { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: var(--sp-3); overflow-y: auto; min-height: 0; align-content: start; }
+.setup-sector { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.setup-sector-head { display: flex; align-items: center; gap: var(--sp-2); }
+.setup-sector-name { font-weight: var(--font-weight-semibold); flex: 1; }
+.setup-tables { display: flex; flex-direction: column; gap: 6px; }
+.setup-table { display: flex; align-items: center; gap: var(--sp-2); padding: 4px 8px; border-radius: 8px; background: var(--surface-secondary); }
+.setup-table-number { font-weight: var(--font-weight-semibold); min-width: 72px; }
+.setup-table-cap { display: flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.setup-table-sector { margin-left: auto; min-height: 36px; max-width: 160px; }
+
+/* ========================================
+   UI/UX — OBSERVACIONES 24/10
+   1. Menú lateral más angosto y con fondo propio (petróleo oscuro, derivado
+      de --primary-action): se separa del workspace y de la columna de
+      categorías, que quedan blancas.
+   2. Barra de acciones con vida: mismo petróleo oscuro (enmarca el workspace
+      junto al menú), botones secundarios con borde claro visible y la acción
+      principal en naranja de marca. Antes: fondo blanco + botones blancos.
+   3. Dónde estoy: estados activos fuertes (barra naranja, fondo sólido) y
+      foco de teclado visible en todo el POS.
+   4. Revisión del pedido centrada (OrderReview) con «+ Agregar más» grande.
+   ======================================== */
+:root {
+  --frame-bg: #0B3D41;
+  --frame-bg-raised: #10494E;
+  --frame-text: rgba(255, 255, 255, 0.82);
+  --frame-text-muted: rgba(255, 255, 255, 0.55);
+  --frame-border: rgba(255, 255, 255, 0.14);
+}
+@media (max-width: 1280px) { :root { --nav-width: 156px; } }
+
+/* 1. Menú lateral */
+.navigation { background: var(--frame-bg); border-right: none; }
+.navigation .nav-label { color: var(--frame-text-muted); }
+.navigation .nav-item, .navigation .nav-toggle { color: var(--frame-text); }
+.navigation .nav-item .nav-item-svg, .navigation .nav-toggle svg { color: currentColor; }
+.navigation .nav-item:hover, .navigation .nav-toggle:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.navigation .nav-item:hover .nav-item-svg { color: #fff; }
+.navigation .nav-item.active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-weight: var(--font-weight-semibold);
+  box-shadow: inset 4px 0 0 var(--brand-orange);
+}
+.navigation .nav-item.active .nav-item-svg { color: #fff; }
+.navigation .nav-item-badge { background: var(--brand-orange); color: #fff; }
+
+/* 2. Barra de acciones */
+.action-bar, .action-bar--empty {
+  background: var(--frame-bg);
+  border-top: none;
+  box-shadow: 0 -4px 16px rgba(11, 61, 65, 0.18);
+  color: #fff;
+}
+.action-bar--empty { background: var(--frame-bg-raised); box-shadow: none; }
+.action-bar .action-bar-total-label { color: var(--frame-text-muted); }
+.action-bar .action-bar-total-value { color: #fff; }
+.action-bar .btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  color: #fff;
+}
+.action-bar .btn-secondary:hover:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
+.action-bar .btn-ghost { color: #fff; border: 1.5px solid rgba(255, 255, 255, 0.3); }
+.action-bar .btn-ghost:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); color: #fff; }
+.action-bar .btn-primary {
+  background: var(--brand-orange);
+  color: #fff;
+  font-weight: var(--font-weight-bold);
+  min-height: 52px;
+  box-shadow: 0 4px 14px rgba(247, 66, 17, 0.35);
+}
+.action-bar .btn-primary:hover:not(:disabled) { background: var(--brand-orange-hover); }
+.action-bar .btn:disabled { background: rgba(255, 255, 255, 0.12); border-color: transparent; color: rgba(255, 255, 255, 0.45); box-shadow: none; cursor: not-allowed; }
+
+/* 3. Dónde estoy */
+:where(button, a, select, input, textarea, [role="option"], [tabindex]):focus-visible {
+  outline: 3px solid var(--brand-orange);
+  outline-offset: 2px;
+}
+.psel-cat.active {
+  background: var(--primary-action);
+  color: #fff;
+  box-shadow: inset 4px 0 0 var(--brand-orange);
+}
+.psel-cat.active .psel-cat-count { opacity: 1; }
+.psel-cats { background: var(--surface); box-shadow: inset -1px 0 0 var(--border); }
+.psel-tile.marked {
+  border: 2px solid var(--primary-action);
+  background: var(--primary-action-light);
+  box-shadow: 0 0 0 3px rgba(6, 93, 99, 0.22);
+}
+.salon-filter.active { background: var(--primary-action); border-color: var(--primary-action); color: #fff; }
+.salon-filter.active .salon-filter-count { color: #fff; }
+.header-center .view-tab.active { background: var(--primary-action-light); border-bottom: 3px solid var(--brand-orange); }
+.mesa.seleccionada { outline: 3px solid var(--brand-orange); outline-offset: 3px; }
+
+/* 4. Revisión del pedido */
+.review {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
+}
+.review-items { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.review-items-head { display: flex; justify-content: space-between; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); font-weight: var(--font-weight-semibold); }
+.review-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; }
+.review-line { display: grid; grid-template-columns: 40px 1fr auto; gap: var(--sp-3); align-items: start; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); }
+.review-line:last-child { border-bottom: none; }
+.review-qty { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var(--primary-action-light); color: var(--primary-action); font-weight: var(--font-weight-bold); }
+.review-line-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.review-name { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+.review-mods { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.review-note { font-size: var(--font-size-sm); color: var(--brand-orange-text); font-style: italic; }
+.review-price { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.review-summary { display: flex; flex-direction: column; gap: var(--sp-3); align-self: start; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: var(--sp-4); }
+.review-title { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
+.review-totals { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: var(--sp-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.review-totals div { display: flex; justify-content: space-between; font-size: var(--font-size-sm); color: var(--text-secondary); }
+.review-totals dd { margin: 0; font-variant-numeric: tabular-nums; }
+.review-grand { font-size: var(--font-size-lg) !important; color: var(--text-primary) !important; font-weight: var(--font-weight-bold); }
+.review-add {
+  min-height: 60px;
+  font-size: var(--font-size-lg);
+  background: var(--brand-orange-surface);
+  border: 2px dashed var(--brand-orange);
+  color: var(--brand-orange-text);
+}
+.review-add:hover:not(:disabled) { background: var(--brand-orange-light); }
+.review-main { min-height: 60px; font-size: var(--font-size-lg); }
+.review-charge { min-height: 52px; font-size: var(--font-size-base); }
+@media (max-width: 1100px) { .review { grid-template-columns: 1fr; } .review-summary { align-self: stretch; } }
+@media (max-width: 768px) {
+  /* Celular: el menú es la barra inferior; el activo se marca arriba. */
+  .navigation .nav-item.active { box-shadow: inset 0 3px 0 var(--brand-orange); }
+  .navigation, .navigation.collapsed { border-top: none; }
+  .review { padding: var(--sp-3); gap: var(--sp-3); }
+}

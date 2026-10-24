@@ -12,6 +12,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
+import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
 import { SalonMap } from "../shared/SalonMap"
@@ -21,6 +22,9 @@ import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
+import { ReservationsView } from "./ReservationsView"
+import { useReservations } from "../../hooks/useReservations"
+import { actOnReservation, markReservationsSeen, type PosReservation, type ReservationAction } from "../../services/reservations"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
@@ -174,6 +178,9 @@ export function CounterDashboard() {
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
+  // Obs. 24/10: reservas del día (badge en «Reservaciones», mesa reservada en el salón).
+  const { reservations, unseen: unseenReservations, byTable: reservationsByTable, refresh: refreshReservations, clearUnseen } = useReservations(tenantId)
+  const [reservationBusyId, setReservationBusyId] = useState<string | null>(null)
   const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder, markNeedsBill, moveTable } = useTables()
   // Fase C: quitar plato enviado (con motivo), cambiar / unir mesas.
   const [voidTarget, setVoidTarget] = useState<{ order: Order; item: OrderItem } | null>(null)
@@ -553,6 +560,9 @@ export function CounterDashboard() {
     [cartTotal, unpaidTableOrders]
   )
 
+  // Fuera de los bloques por vista (ahí TS ya acotó `view`).
+  const isMostradorView = view === "mostrador"
+
   const mostradorDiscountCents = useMemo(
     () => (view === "mostrador" && mostradorDiscount && cart.length > 0 ? expectedDiscountCents(cart.map((i) => i.total), mostradorDiscount) : 0),
     [view, mostradorDiscount, cart]
@@ -646,9 +656,20 @@ export function CounterDashboard() {
 
   // Fase A (2026-10): las vistas del Counter viven en el header (una sola
   // franja arriba), no en un renglón propio que le roba alto al workspace.
+  const counterViews = useMemo(
+    () => COUNTER_VIEWS.map((v) => (v.id === "reservaciones" ? { ...v, badge: unseenReservations } : v)),
+    [unseenReservations]
+  )
   useEffect(() => {
-    setHeaderCenter(<WorkspaceViewBar views={COUNTER_VIEWS} activeView={view} onChange={handleViewChange} />)
-  }, [setHeaderCenter, view, handleViewChange])
+    setHeaderCenter(<WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />)
+  }, [setHeaderCenter, view, handleViewChange, counterViews])
+
+  // Abrir Reservaciones marca vistas las nuevas (también para el panel del SaaS).
+  useEffect(() => {
+    if (view !== "reservaciones" || !tenantId) return
+    markReservationsSeen(tenantId).then(clearUnseen).catch(() => {})
+    void refreshReservations()
+  }, [view, tenantId, clearUnseen, refreshReservations])
   useEffect(() => () => setHeaderCenter(null), [setHeaderCenter])
 
   const handleSelectTable = useCallback((tableId: string) => {
@@ -725,12 +746,41 @@ export function CounterDashboard() {
     }
   }, [tenantId, selectedTableId, showToast])
 
+  // ── Obs. 24/10: operar reservas (asignar mesa, sentar, no vino, soltar) ──
+  const handleReservationAction = useCallback(async (r: PosReservation, action: ReservationAction, tablePosId?: string) => {
+    if (!tenantId || reservationBusyId) return
+    setReservationBusyId(r.id)
+    try {
+      const updated = await actOnReservation(tenantId, r.id, action, tablePosId)
+      await refreshReservations()
+      const labels: Record<ReservationAction, string> = {
+        assign: "Mesa reservada",
+        unassign: "Mesa liberada",
+        seat: `${r.name} sentado/a`,
+        no_show: "Marcada como no vino",
+      }
+      showToast(labels[action], "success")
+      if (action === "seat" && updated.tablePosId) {
+        // Directo a la mesa para empezar a tomar el pedido.
+        setView("salon")
+        setSelectedTableId(updated.tablePosId)
+        setScene("mesa")
+      }
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo actualizar la reserva"), "error")
+    } finally {
+      setReservationBusyId(null)
+    }
+  }, [tenantId, reservationBusyId, refreshReservations, showToast])
+
   // ── Fase C: pedir la cuenta / reabrir la mesa ─────────────────────────────
   const handleBillRequest = useCallback(async (needsBill: boolean) => {
     if (!selectedTableId) return
     try {
+      // Reabrir pide el PIN de un encargado (lo resuelve pos-api con el diálogo).
       await markNeedsBill(selectedTableId, needsBill)
     } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
       showToast(describePosError(err, "No se pudo actualizar la mesa"), "error")
       return
     }
@@ -1206,7 +1256,9 @@ export function CounterDashboard() {
         }
         const activity = tableActivity.get(selectedTable.id)
         const unpaid = activity?.unpaid ?? 0
-        const canRelease = !activity && (selectedTable.status === "reserved" || selectedTable.status === "occupied")
+        const tableReservation = selectedTable.status === "reserved" ? reservationsByTable.get(selectedTable.id) : undefined
+        // Mesa reservada por una reserva: se suelta desde la reserva (no «Liberar»).
+        const canRelease = !activity && !tableReservation && (selectedTable.status === "reserved" || selectedTable.status === "occupied")
         setContextPanel({
           title: `Mesa ${selectedTable.number}`,
           subtitle: selectedTable.section || "Sala Principal",
@@ -1218,6 +1270,7 @@ export function CounterDashboard() {
               now={now}
               onVoidItem={(order, item) => setVoidTarget({ order, item })}
               onDiscountItem={(order, item) => setDiscountTarget({ scope: "line", order, item })}
+              reservation={reservationsByTable.get(selectedTable.id)}
             />
           ),
           openOnMobile: true,
@@ -1272,6 +1325,16 @@ export function CounterDashboard() {
                   Cambiar / unir mesa
                 </button>
               )}
+              {tableReservation && (
+                <>
+                  <button className="btn btn-secondary" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "no_show") }}>
+                    No vino
+                  </button>
+                  <button className="btn btn-secondary" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "unassign") }}>
+                    Soltar mesa
+                  </button>
+                </>
+              )}
               {selectedTable.status === "free" && (
                 <button className="btn btn-secondary" onClick={() => handleTableTransition("reserve")}>
                   Reservar
@@ -1284,7 +1347,11 @@ export function CounterDashboard() {
               )}
             </>
           ),
-          right: unpaid > 0 ? (
+          right: tableReservation ? (
+            <button className="btn btn-primary btn-lg" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "seat") }}>
+              Sentar a {tableReservation.name.split(" ")[0]} ({tableReservation.partySize})
+            </button>
+          ) : unpaid > 0 ? (
             <button className="btn btn-primary btn-lg" onClick={() => setScene("cobro")}>
               Cobrar {formatCurrency(unpaid)}
             </button>
@@ -1411,33 +1478,43 @@ export function CounterDashboard() {
 
       case "revision": {
         const isMostrador = view === "mostrador"
+        // UI/UX 24/10: la lista vive en el workspace (OrderReview); el panel
+        // solo resume, sin duplicarla.
         setContextPanel({
-          title: "Resumen del pedido",
-          subtitle: `${isMostrador ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`}${customer ? ` — ${customer.name}` : ""}`,
+          title: isMostrador ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`,
+          subtitle: customer ? customer.name : "Revisá y confirmá la ronda",
           body: (
-            <OrderPanel
-              title={isMostrador ? "Resumen" : "Nueva ronda"}
-              items={cart}
-              total={cartTotal}
-              primaryAction={{
-                label: `Cobrar ${formatCurrency(chargeTotal)}`,
-                onClick: () => setScene("cobro"),
-                disabled: chargeTotal === 0 || paying,
-              }}
-            />
+            <div className="mesa-panel">
+              <div className="mesa-panel-account">
+                <div className="mesa-panel-account-label">Total de la cuenta</div>
+                <div className="mesa-panel-account-total">{formatCurrency(chargeTotal)}</div>
+                {chargeTotal !== cartTotal && (
+                  <div className="text-sm text-muted">Incluye {formatCurrency(chargeTotal - cartTotal)} ya enviado a cocina</div>
+                )}
+              </div>
+            </div>
           ),
         })
         setActionBar({
           left: (
-            <button className="btn btn-ghost" onClick={() => setScene(isMostrador ? "mostrador_rapido" : "productos")}>
-              ← Agregar más
+            <button className="btn btn-secondary btn-lg" onClick={() => setScene(isMostrador ? "mostrador_rapido" : "productos")}>
+              + Agregar más
             </button>
           ),
-          right: !isMostrador && cart.length > 0 ? (
-            <button className="btn btn-secondary btn-sm" onClick={handleSendToKitchen} disabled={paying}>
-              {paying ? "Enviando…" : "Enviar a cocina (sin cobrar)"}
+          center: !isMostrador && cart.length > 0 ? (
+            <button className="btn btn-secondary" onClick={() => setScene("cobro")} disabled={paying || chargeTotal === 0}>
+              Cobrar {formatCurrency(chargeTotal)}
             </button>
           ) : undefined,
+          right: !isMostrador && cart.length > 0 ? (
+            <button className="btn btn-primary btn-lg" onClick={handleSendToKitchen} disabled={paying}>
+              {paying ? "Enviando…" : "Enviar a cocina"}
+            </button>
+          ) : (
+            <button className="btn btn-primary btn-lg" onClick={() => setScene("cobro")} disabled={paying || chargeTotal === 0}>
+              Cobrar {formatCurrency(chargeTotal)}
+            </button>
+          ),
         })
         break
       }
@@ -1838,7 +1915,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1882,6 +1959,8 @@ export function CounterDashboard() {
                       activity={tableActivity}
                       selectedTableId={selectedTableId}
                       onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
+                      reservations={reservationsByTable}
+                      onConfigure={scene === "mover" ? undefined : () => setScene("setup")}
                     />
                   </>
                 )}
@@ -1903,36 +1982,20 @@ export function CounterDashboard() {
           )}
 
           {scene === "revision" && (
-            <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
-              <div className="p-6">
-                <div className="card">
-                  <div className="card-header"><span className="card-title">Items ({cart.length})</span></div>
-                  <div className="order-items">
-                    {cart.map((item, idx) => (
-                      <div key={`${item.productId}-${idx}`} className="order-item-card">
-                        <div className="order-item-main">
-                          <div className="order-item-top">
-                            <span className="order-item-name">{item.name}</span>
-                            <span className="order-item-qty">×{item.quantity}</span>
-                            <span className="order-item-total">{formatCurrency(item.total)}</span>
-                          </div>
-                          {item.modifiers && item.modifiers.length > 0 && (
-                            <div className="order-item-modifiers">
-                              {item.modifiers.map((m, i) => (
-                                <span key={i} className="order-item-modifier">
-                                  {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {item.notes && <div className="order-item-notes">{item.notes}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OrderReview
+              title={isMostradorView ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`}
+              subtitle={[
+                !isMostradorView && selectedTable?.guests ? `${selectedTable.guests} comensales` : null,
+                customer ? customer.name : null,
+              ].filter(Boolean).join(" · ") || undefined}
+              items={cart}
+              cartTotal={cartTotal}
+              sentTotal={chargeTotal - cartTotal}
+              busy={paying}
+              onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
+              onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}
+              onCharge={() => setScene("cobro")}
+            />
           )}
 
           {scene === "cobro" && (
@@ -1995,36 +2058,20 @@ export function CounterDashboard() {
           )}
 
           {scene === "revision" && (
-            <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
-              <div className="p-6">
-                <div className="card">
-                  <div className="card-header"><span className="card-title">Items ({cart.length})</span></div>
-                  <div className="order-items">
-                    {cart.map((item, idx) => (
-                      <div key={`${item.productId}-${idx}`} className="order-item-card">
-                        <div className="order-item-main">
-                          <div className="order-item-top">
-                            <span className="order-item-name">{item.name}</span>
-                            <span className="order-item-qty">×{item.quantity}</span>
-                            <span className="order-item-total">{formatCurrency(item.total)}</span>
-                          </div>
-                          {item.modifiers && item.modifiers.length > 0 && (
-                            <div className="order-item-modifiers">
-                              {item.modifiers.map((m, i) => (
-                                <span key={i} className="order-item-modifier">
-                                  {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          {item.notes && <div className="order-item-notes">{item.notes}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <OrderReview
+              title={isMostradorView ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`}
+              subtitle={[
+                !isMostradorView && selectedTable?.guests ? `${selectedTable.guests} comensales` : null,
+                customer ? customer.name : null,
+              ].filter(Boolean).join(" · ") || undefined}
+              items={cart}
+              cartTotal={cartTotal}
+              sentTotal={chargeTotal - cartTotal}
+              busy={paying}
+              onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
+              onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}
+              onCharge={() => setScene("cobro")}
+            />
           )}
 
           {scene === "cobro" && (
@@ -2555,11 +2602,14 @@ export function CounterDashboard() {
       {/* VIEW: RESERVACIONES */}
       {/* ================================================ */}
       {view === "reservaciones" && (
-        <div className="feature-disabled" style={{ position: "relative", textAlign: "center", padding: 48 }}>
-          <div className="empty-state-icon" style={{ fontSize: 40 }}>📅</div>
-          <div className="empty-state-text">Reservaciones</div>
-          <span className="feature-disabled-tooltip">Próximamente</span>
-        </div>
+        <ReservationsView
+          reservations={reservations}
+          tables={tables}
+          busyId={reservationBusyId}
+          canManage
+          onAction={(r, action, tablePosId) => { void handleReservationAction(r, action, tablePosId) }}
+          onOpenTable={(tableId) => { setView("salon"); setSelectedTableId(tableId); setScene("mesa") }}
+        />
       )}
 
       {/* Modals */}

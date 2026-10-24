@@ -9,6 +9,7 @@ import {
   occupyTableWithGuests,
   setTableGuests,
   moveTable,
+  updateTableSetup,
   bindTableOrder,
   freeTable,
   reserveTable,
@@ -32,9 +33,13 @@ export function useTables() {
 
   const actions = useMemo(
     () => ({
-      openTable: (number: number, capacity: number, section?: string) => {
+      openTable: (number: number, capacity: number, section?: string, spaceId?: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
-        return openTable(tenantId, number, capacity, section)
+        return openTable(tenantId, number, capacity, section, spaceId)
+      },
+      updateTableSetup: (tableId: string, changes: { spaceId?: string; capacity?: number }) => {
+        if (!tenantId) throw new Error("[useTables] Not authenticated")
+        return updateTableSetup(tenantId, tableId, changes)
       },
       occupyTable: (tableId: string, serverId: string, orderId: string) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")

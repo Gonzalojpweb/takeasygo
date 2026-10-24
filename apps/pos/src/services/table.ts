@@ -34,6 +34,7 @@ async function createTable(
     number: number
     capacity: number
     section?: string
+    spaceId?: string
   }
 ): Promise<void> {
   return runMutation(async () => {
@@ -44,6 +45,7 @@ async function createTable(
         number: draft.number,
         capacity: draft.capacity,
         ...(draft.section ? { section: draft.section } : {}),
+        ...(draft.spaceId ? { spaceId: draft.spaceId } : {}),
       },
     })
     await applyServerTable(table)
@@ -73,14 +75,26 @@ export async function openTable(
   tenantId: string,
   number: number,
   capacity: number,
-  section?: string
+  section?: string,
+  /** Sector = espacio de la sede definido en el SaaS (obs. 24/10). */
+  spaceId?: string
 ): Promise<void> {
   await createTable(tenantId, {
     id: crypto.randomUUID(),
     number,
     capacity,
     section,
+    spaceId,
   })
+}
+
+/** Cambia el sector y/o la capacidad de una mesa (caja/encargado). */
+export async function updateTableSetup(
+  tenantId: string,
+  tableId: string,
+  changes: { spaceId?: string; capacity?: number }
+): Promise<void> {
+  await patchTable(tenantId, tableId, changes)
 }
 
 export async function occupyTable(

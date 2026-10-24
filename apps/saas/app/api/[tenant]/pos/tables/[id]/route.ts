@@ -9,6 +9,9 @@ import {
 import type { TableStatus } from '@takeasygo/types'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { requireManagerApproval } from '@/lib/pos-online/approval'
+import mongoose from 'mongoose'
+import { loadSectors, resolveSector } from '@/lib/pos-online/sectors'
 import { assertPosCapability, tableStatusCapability } from '@/lib/pos-online/permissions'
 import { toPosTable, TABLE_STATUSES } from '@/lib/pos-online/tableMapper'
 import { findPosTable, assertTablePosId, type PosTableDoc } from '@/lib/pos-online/tableRepo'
@@ -75,6 +78,18 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     if (typeof body.needsBill !== 'boolean') {
       throw PosError.validation('needsBill debe ser booleano')
     }
+    // Reabrir una mesa con la cuenta pedida (Fase C+, observación 24/10): solo
+    // un rol autorizado. Evita que se siga comandando sobre una cuenta que el
+    // cliente ya pagó o está pagando y que esa nueva ronda quede sin cobrar.
+    // Encargado/admin directo; cajero y mozo con el PIN de un encargado.
+    if (current.needsBill && body.needsBill === false) {
+      const approval = await requireManagerApproval(
+        ctx,
+        'table.reopen',
+        'Reabrir una mesa con la cuenta pedida necesita la aprobación de un encargado'
+      )
+      audit.reopenApprovedBy = approval.approvedBy
+    }
     update.needsBill = body.needsBill
     audit.needsBill = body.needsBill
   }
@@ -89,6 +104,23 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     }
     update.guests = body.guests
     audit.guests = body.guests
+  }
+
+  // ── sector y capacidad (obs. 24/10): solo caja/encargado (tables.manage) ──
+  if (body.spaceId !== undefined) {
+    assertPosCapability(ctx.user.role, 'tables.manage')
+    const sector = resolveSector(await loadSectors(ctx.tenantId, ctx.locationId), body.spaceId)
+    update.spaceId = new mongoose.Types.ObjectId(sector.id)
+    update.section = sector.name
+    audit.spaceId = sector.id
+  }
+  if (body.capacity !== undefined) {
+    assertPosCapability(ctx.user.role, 'tables.manage')
+    if (typeof body.capacity !== 'number' || !Number.isInteger(body.capacity) || body.capacity < 1 || body.capacity > 999) {
+      throw PosError.validation('capacity debe ser un entero entre 1 y 999')
+    }
+    update.capacity = body.capacity
+    audit.capacity = body.capacity
   }
 
   // ── mesero / orden activa ─────────────────────────────────────────────────
@@ -127,7 +159,11 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
       update.serverId = null
       update.needsBill = false
       update.guests = null
+      update.reservationId = null
     }
+    // Ocupar una mesa reservada la suelta de su reserva (para sentar una
+    // reserva el POS usa PATCH /pos/reservations/[id]).
+    if (to === 'occupied') update.reservationId = null
 
     update.status = to
     audit.from = from

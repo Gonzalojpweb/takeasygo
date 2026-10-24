@@ -46,6 +46,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { Plan, Feature } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import { useNewReservations } from './useNewReservations'
 import { getLocationColor } from '@/lib/location-colors'
 import { clientRoleHasPermission, MENU_PERMISSIONS } from '@/lib/rbac-client'
 
@@ -59,6 +60,8 @@ interface Props {
   unreadAnnouncements?: number
   commissionBadge?: number
   pendingRedemptions?: number
+  /** Reservas nuevas sin ver (obs. 24/10): badge vivo en «Reservaciones». */
+  newReservations?: number
   businessEnabled?: boolean
   crmEnabled?: boolean
   /** Tenant con POS habilitado: muestra "Cajas POS" (cierres + Z). */
@@ -126,10 +129,15 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
+  const liveNewReservations = useNewReservations(
+    tenantSlug,
+    newReservations,
+    canAccess(plan, 'reservations') && ['admin', 'manager'].includes(userRole)
+  )
 
   // Filtra un item del menú: con flag ON usa permisos (rbac-client),
   // con flag OFF usa el array roles legacy (comportamiento sin-cambio).
@@ -156,7 +164,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/orders`, label: 'Pedidos', icon: ShoppingBag, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'orders', requiresTakeaway: true },
         { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
-        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations' },
+        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations', badge: liveNewReservations },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
         ...(posEnabled ? [{ href: `${base}/caja-pos`, label: 'Cajas POS', icon: Banknote, roles: ['admin', 'manager'] }] : []),
         { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'operations_manager', 'kitchen_lead'], feature: 'inventory' },

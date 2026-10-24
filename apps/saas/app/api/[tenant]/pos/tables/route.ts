@@ -11,6 +11,8 @@ import {
   type PosTableInput,
 } from '@/lib/pos-online/tableMapper'
 import type { PosTableDoc } from '@/lib/pos-online/tableRepo'
+import mongoose from 'mongoose'
+import { loadSectors, resolveSector, withSectorNames } from '@/lib/pos-online/sectors'
 
 // ============================================================================
 // GET  /api/[tenant]/pos/tables — mesas de la sede (filtro por sección/estado)
@@ -56,8 +58,10 @@ export const GET = posRoute('tables.read', async (ctx) => {
     .lean()
     .exec()
 
+  // Sector con el nombre vigente del SaaS (obs. 24/10: fuente única).
+  const sectors = await loadSectors(ctx.tenantId, ctx.locationId)
   return NextResponse.json({
-    tables: tables.map((t) => toPosTable(t as unknown as PosTableDoc)),
+    tables: withSectorNames(tables as unknown as PosTableDoc[], sectors).map((t) => toPosTable(t)),
     serverTime: new Date().toISOString(),
   })
 })
@@ -70,6 +74,16 @@ export const POST = posRoute('tables.manage', async (ctx) => {
     tenantId: ctx.tenantId,
     locationId: ctx.locationId,
   })
+
+  // Sector = espacio de la sede (obs. 24/10). Con espacios cargados, la mesa
+  // va al elegido (o al primero si el POS no mandó ninguno); sin espacios,
+  // queda el nombre libre de siempre («Sala principal»).
+  const sectors = await loadSectors(ctx.tenantId, ctx.locationId)
+  if (sectors.length > 0) {
+    const sector = body.spaceId !== undefined && body.spaceId !== null ? resolveSector(sectors, body.spaceId) : sectors[0]
+    draft.spaceId = new mongoose.Types.ObjectId(sector.id)
+    draft.section = sector.name
+  }
 
   const existing = await Table.findOne({ tenantId: ctx.tenantId, posId: draft.posId })
     .lean()

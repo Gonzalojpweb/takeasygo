@@ -38,6 +38,14 @@ export interface ITable extends Document {
    * la mesa y se borra al liberarla. Base para «ticket por cubierto».
    */
   guests: number | null
+  /**
+   * Sector de la mesa = espacio de la sede (Location.spaces._id). Fuente
+   * única: los sectores se definen en el SaaS y el POS los usa (obs. 24/10).
+   * `section` queda como nombre para mostrar (se resuelve al listar).
+   */
+  spaceId: mongoose.Types.ObjectId | null
+  /** Reserva asignada a la mesa mientras está `reserved` (null = ninguna). */
+  reservationId: mongoose.Types.ObjectId | null
   createdAt: Date
   updatedAt: Date
 }
@@ -59,6 +67,8 @@ const TableSchema = new Schema<ITable>(
     section: { type: String, default: null, trim: true },
     needsBill: { type: Boolean, default: false },
     guests: { type: Number, default: null, min: 1, max: 99 },
+    spaceId: { type: Schema.Types.ObjectId, default: null },
+    reservationId: { type: Schema.Types.ObjectId, default: null },
   },
   { timestamps: true }
 )

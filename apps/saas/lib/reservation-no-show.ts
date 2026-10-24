@@ -12,6 +12,7 @@
 import mongoose from 'mongoose'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
+import Table from '@/models/Table'
 import { DEFAULT_TIMEZONE, addDaysToDateStr, getLocalDayAndMinutes, getTodayStrInTimezone, timeToMinutes } from '@/lib/restaurant-time'
 
 /** Marca no-show en las sedes del tenant (opcionalmente acotadas). Devuelve cuántas marcó. */
@@ -58,6 +59,14 @@ export async function applyAutoNoShow(
       { $set: { status: 'no_show', autoNoShowAt: new Date() } }
     )
     marked += res.modifiedCount
+    // Mesas que estas reservas tenían reservadas en el POS vuelven a libres
+    // (solo si siguen reservadas por ellas: si alguien la ocupó, no se toca).
+    if (res.modifiedCount > 0) {
+      await Table.updateMany(
+        { tenantId, locationId: loc._id, status: 'reserved', reservationId: { $in: expired } },
+        { $set: { status: 'free', reservationId: null } }
+      )
+    }
   }
   return marked
 }

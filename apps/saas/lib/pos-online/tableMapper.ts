@@ -31,6 +31,8 @@ export interface SaasTableDraft {
   serverId: string | null
   needsBill: boolean
   guests: null
+  spaceId: mongoose.Types.ObjectId | null
+  reservationId: null
 }
 
 export const TABLE_STATUSES: readonly TableStatus[] = [
@@ -77,6 +79,8 @@ export function toSaasTable(input: PosTableInput, ctx: PosTableWriteContext): Sa
     serverId: null,
     needsBill: false,
     guests: null,
+    spaceId: null,
+    reservationId: null,
   }
 }
 
@@ -96,6 +100,8 @@ export function toPosTable(doc: {
   serverId?: string | null
   needsBill?: boolean
   guests?: number | null
+  spaceId?: mongoose.Types.ObjectId | string | null
+  reservationId?: mongoose.Types.ObjectId | string | null
   createdAt: Date
   updatedAt: Date
 }): PosTable {
@@ -114,5 +120,7 @@ export function toPosTable(doc: {
     ...(doc.section ? { section: doc.section } : {}),
     needsBill: doc.needsBill ?? false,
     ...(doc.guests ? { guests: doc.guests } : {}),
+    ...(doc.spaceId ? { spaceId: String(doc.spaceId) } : {}),
+    ...(doc.reservationId ? { reservationId: String(doc.reservationId) } : {}),
   }
 }

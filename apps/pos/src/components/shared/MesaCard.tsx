@@ -38,9 +38,11 @@ interface MesaCardProps {
   activity?: TableActivity
   /** Reloj compartido (useNow): Date.now() en render es impuro. */
   now: number
+  /** Obs. 24/10: reserva asignada a la mesa (hora, nombre, comensales). */
+  reservation?: { time: string; name: string; partySize: number }
 }
 
-export function MesaCard({ table, variant, onClick, isSelected = false, activity, now }: MesaCardProps) {
+export function MesaCard({ table, variant, onClick, isSelected = false, activity, now, reservation }: MesaCardProps) {
   const statusLabel = table.needsBill && variant === "waiter" ? "Pide cuenta" : (MESA_STATUS_LABEL[table.status] ?? "Libre")
   const elapsed = activity ? formatElapsed(activity.openedAt, now) : null
   const amount = activity && activity.total > 0 ? formatCurrency(activity.total) : null
@@ -48,6 +50,7 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
   const ariaLabel = [
     `Mesa ${table.number}`,
     statusLabel,
+    reservation ? `reserva de ${reservation.name} a las ${reservation.time}, ${reservation.partySize} personas` : null,
     table.guests ? `${table.guests} comensales` : null,
     amount,
     elapsed ? `abierta hace ${elapsed}` : null,
@@ -68,6 +71,11 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
         <>
           <span className="mesa-info mesa-amount">{amount}</span>
           {elapsed && <span className="mesa-info">{elapsed}</span>}
+        </>
+      ) : reservation ? (
+        <>
+          <span className="mesa-info mesa-res-time">{reservation.time}</span>
+          <span className="mesa-info mesa-res-name">{reservation.name.split(" ")[0]} · {reservation.partySize}p</span>
         </>
       ) : (
         <span className="mesa-info">{statusLabel}</span>

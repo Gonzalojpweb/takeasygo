@@ -246,9 +246,11 @@ export function WaiterDashboard() {
   const handleReopen = useCallback(async () => {
     if (!selectedTableId) return
     try {
+      // Pide el PIN de un encargado: el mozo no reabre solo (observación 24/10).
       await markNeedsBill(selectedTableId, false)
       showToast("Mesa reabierta", "success")
     } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
       showToast(describeError(err, "No se pudo reabrir la mesa"), "error")
     }
   }, [selectedTableId, markNeedsBill, showToast])

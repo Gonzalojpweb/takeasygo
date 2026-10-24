@@ -2,9 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Reservation from '@/models/Reservation'
-import Table from '@/models/Table'
 import { acquireReservationLock } from '@/lib/reservation-lock'
-import { isValidTableTransition } from '@takeasygo/business'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { requireAuth, getSessionUser } from '@/lib/apiAuth'
@@ -12,6 +10,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardResourceLocation } from '@/lib/location-scope'
 import { safeDecrypt } from '@/lib/crypto'
 import { sendReservationConfirmation, sendReservationCancellation } from '@/lib/reservationNotifications'
+import { TableLinkError, assignReservationTable, releaseReservationTable, seatReservationTable } from '@/lib/reservations/tableLink'
 
 function decryptReservation(r: any) {
   return { ...r, name: safeDecrypt(r.name), phone: safeDecrypt(r.phone) }
@@ -97,22 +96,27 @@ export async function PUT(
     const decryptedPrev = decryptReservation(prev)
     const updateFields: any = { status }
 
-    // Check-in con mesa: la mesa tiene que ser de la MISMA sede de la reserva
-    // y poder pasar a ocupada (free/reserved/needs_attention → occupied).
-    if (tablePosId !== undefined && tablePosId !== null && tablePosId !== '') {
-      if (status !== 'seated' || typeof tablePosId !== 'string') {
-        return NextResponse.json({ error: 'La mesa se asigna al sentar la reserva' }, { status: 400 })
+    // Reserva ⇄ mesa del POS (obs. 24/10, lib/reservations/tableLink):
+    //   · confirmed + mesa → la mesa queda RESERVADA en el POS.
+    //   · seated (+ mesa o la ya asignada) → la mesa pasa a ocupada.
+    //   · cancelled / no_show → la mesa reservada por ella vuelve a libre.
+    const hasTable = tablePosId !== undefined && tablePosId !== null && tablePosId !== ''
+    if (hasTable && (typeof tablePosId !== 'string' || !['confirmed', 'seated'].includes(status))) {
+      if (releaseLock) await releaseLock()
+      return NextResponse.json({ error: 'La mesa se asigna al confirmar o al sentar la reserva' }, { status: 400 })
+    }
+    try {
+      if (status === 'confirmed' && hasTable) {
+        updateFields.tablePosId = await assignReservationTable(prev, tablePosId)
+      } else if (status === 'seated' && (hasTable || prev.tablePosId)) {
+        updateFields.tablePosId = await seatReservationTable(prev, hasTable ? tablePosId : null)
+      } else if (status === 'cancelled' || status === 'no_show') {
+        await releaseReservationTable(prev)
       }
-      const table = await Table.findOne({ tenantId: tenant._id, locationId: prev.locationId, posId: tablePosId })
-      if (!table) return NextResponse.json({ error: 'Mesa no encontrada en esta sede' }, { status: 404 })
-      if (table.status !== 'occupied') {
-        if (!isValidTableTransition(table.status, 'occupied')) {
-          return NextResponse.json({ error: `La mesa ${table.number} no está disponible` }, { status: 409 })
-        }
-        table.status = 'occupied'
-        await table.save()
-      }
-      updateFields.tablePosId = tablePosId
+    } catch (err) {
+      if (releaseLock) await releaseLock()
+      if (err instanceof TableLinkError) return NextResponse.json({ error: err.message }, { status: err.status })
+      throw err
     }
     if (status === 'confirmed') {
       updateFields['notifications.confirmationSent'] = true

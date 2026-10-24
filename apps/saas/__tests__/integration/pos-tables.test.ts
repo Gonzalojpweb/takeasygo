@@ -471,7 +471,13 @@ describe('Fase C — cuenta pedida, cambiar y unir mesas', () => {
     )
     expect(blocked.status).toBe(409)
 
-    await tablePatch(req(`${TABLES_URL}/${tableId}`, { needsBill: false }, AUTH()), detailParams(tableId))
+    // Reabrir: el cajero necesita PIN de encargado; el encargado reabre directo.
+    const noPin = await tablePatch(req(`${TABLES_URL}/${tableId}`, { needsBill: false }, AUTH()), detailParams(tableId))
+    expect(noPin.status).toBe(403)
+    expect((await noPin.json()).error.code).toBe('approval_required')
+    const manager = { authorization: `Bearer ${token('manager')}`, 'x-location-id': locationId }
+    const reopened = await tablePatch(req(`${TABLES_URL}/${tableId}`, { needsBill: false }, manager), detailParams(tableId))
+    expect(reopened.status).toBe(200)
     await createOrder(tableId)
   })
 

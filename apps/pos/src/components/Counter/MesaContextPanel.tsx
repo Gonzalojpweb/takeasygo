@@ -25,6 +25,8 @@ interface MesaContextPanelProps {
   onVoidItem?: (order: Order, item: OrderItem) => void
   /** Fase D: presente ⇒ cada plato sin cobrar tiene «Descuento». */
   onDiscountItem?: (order: Order, item: OrderItem) => void
+  /** Obs. 24/10: reserva asignada a esta mesa. */
+  reservation?: { time: string; name: string; partySize: number; notes?: string; spaceName?: string | null; phoneTail?: string }
 }
 
 /** Una ronda se puede corregir mientras no se cobró ni pasó a preparación. */
@@ -32,7 +34,7 @@ function isEditable(order: Order): boolean {
   return (order.status === "pending" || order.status === "confirmed") && !order.payments?.length
 }
 
-export function MesaContextPanel({ table, activity, orders, now, onVoidItem, onDiscountItem }: MesaContextPanelProps) {
+export function MesaContextPanel({ table, activity, orders, now, onVoidItem, onDiscountItem, reservation }: MesaContextPanelProps) {
   const lines = orders.flatMap((o) => o.items.map((item) => ({ order: o, item })))
 
   return (
@@ -43,6 +45,16 @@ export function MesaContextPanel({ table, activity, orders, now, onVoidItem, onD
         </span>
         {table.needsBill && <span className="status-pill status-pill--bill">Pidió la cuenta</span>}
       </div>
+
+      {reservation && (
+        <div className="mesa-panel-reservation" role="note">
+          <div className="mesa-panel-reservation-title">Reservada · {reservation.time}</div>
+          <div><strong>{reservation.name}</strong> — {reservation.partySize} {reservation.partySize === 1 ? "persona" : "personas"}</div>
+          {reservation.spaceName && <div className="text-sm text-muted">Sector: {reservation.spaceName}</div>}
+          {reservation.phoneTail && <div className="text-sm text-muted">Tel. …{reservation.phoneTail}</div>}
+          {reservation.notes && <div className="text-sm">📝 {reservation.notes}</div>}
+        </div>
+      )}
 
       <dl className="mesa-panel-facts">
         <div>

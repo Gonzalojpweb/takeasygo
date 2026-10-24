@@ -29,9 +29,13 @@ interface SalonMapProps {
   selectedTableId?: string | null
   activity: Map<string, TableActivity>
   onSelectTable: (tableId: string) => void
+  /** Obs. 24/10: reserva por mesa reservada (useReservations().byTable). */
+  reservations?: Map<string, { time: string; name: string; partySize: number }>
+  /** Presente ⇒ botón «Configurar salón» (solo caja/encargado). */
+  onConfigure?: () => void
 }
 
-export function SalonMap({ tables, variant, selectedTableId, activity, onSelectTable }: SalonMapProps) {
+export function SalonMap({ tables, variant, selectedTableId, activity, onSelectTable, reservations, onConfigure }: SalonMapProps) {
   const [filter, setFilter] = useState<Filter>("all")
   const now = useNow()
 
@@ -69,6 +73,11 @@ export function SalonMap({ tables, variant, selectedTableId, activity, onSelectT
         ))}
         {/* Fase A: el pie de estadísticas repetía estos conteos; el total queda acá. */}
         <span className="salon-total-inline">{tables.length} mesas</span>
+        {onConfigure && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onConfigure} title="Mesas, capacidad y sectores">
+            ⚙ Salón
+          </button>
+        )}
       </div>
 
       <div className="salon-map-container">
@@ -90,6 +99,7 @@ export function SalonMap({ tables, variant, selectedTableId, activity, onSelectT
                     isSelected={selectedTableId === table.id}
                     activity={activity.get(table.id)}
                     now={now}
+                    reservation={reservations?.get(table.id)}
                   />
                 ))}
               </div>

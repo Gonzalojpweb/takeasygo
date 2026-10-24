@@ -55,6 +55,10 @@ interface SeatTable {
   number: number
   capacity: number
   status: string
+  /** Sector = espacio de la sede (obs. 24/10). */
+  spaceId?: string
+  section?: string
+  reservationId?: string
 }
 
 interface Location {
@@ -117,6 +121,10 @@ export default function ReservasPanel({ reservations: initialReservations, locat
   const [seatingId, setSeatingId] = useState<string | null>(null)
   const [seatTables, setSeatTables] = useState<SeatTable[]>([])
   const [seatTablePosId, setSeatTablePosId] = useState('')
+  // 'seat' = sentar (mesa → ocupada); 'assign' = reservar la mesa de antemano.
+  const [seatMode, setSeatMode] = useState<'seat' | 'assign'>('seat')
+  // Número de mesa por posId, para mostrar «Mesa 4 reservada» en la tarjeta.
+  const [tableNumbers, setTableNumbers] = useState<Record<string, number>>({})
   const { play: playSound } = useNotificationSound('/pop.mp3')
   const knownIdsRef = useRef<Set<string>>(new Set(initialReservations.map(r => r._id)))
 
@@ -177,6 +185,34 @@ export default function ReservasPanel({ reservations: initialReservations, locat
     knownIdsRef.current = new Set(initialReservations.map(r => r._id))
   }, [initialReservations, playSound])
 
+  // Reservas nuevas (obs. 24/10): abrir el panel las marca vistas para el
+  // badge del menú y del POS. El evento avisa al menú sin esperar su sondeo.
+  useEffect(() => {
+    fetch(`/api/${tenantSlug}/reservas/unseen`, { method: 'POST' })
+      .then(() => window.dispatchEvent(new Event('takeasygo:reservations-seen')))
+      .catch(() => {})
+  }, [tenantSlug, initialReservations])
+
+  const linkedLocations = useMemo(
+    () => [...new Set(reservations.filter(r => r.tablePosId).map(r => r.locationId))].sort().join(','),
+    [reservations]
+  )
+  useEffect(() => {
+    if (!linkedLocations) return
+    let alive = true
+    Promise.all(
+      linkedLocations.split(',').map(loc =>
+        fetch(`/api/${tenantSlug}/pos/tables?locationId=${loc}`)
+          .then(res => (res.ok ? res.json() : null))
+          .then(data => (Array.isArray(data) ? data : (data?.tables ?? [])) as SeatTable[])
+          .catch(() => [] as SeatTable[])
+      )
+    ).then(lists => {
+      if (alive) setTableNumbers(Object.fromEntries(lists.flat().map(t => [t.id, t.number])))
+    })
+    return () => { alive = false }
+  }, [tenantSlug, linkedLocations])
+
   // Auto-refresh every 30s
   useEffect(() => {
     const interval = setInterval(() => router.refresh(), 30000)
@@ -207,20 +243,29 @@ export default function ReservasPanel({ reservations: initialReservations, locat
     }
   }
 
-  // "En mesa": si la sede tiene mesas en el POS, se elige una (libre o
-  // reservada, con lugar para el grupo); si no, se sienta sin mesa.
+  // Mesas candidatas para una reserva: libres (o la que ya tiene reservada),
+  // con lugar para el grupo; primero las del sector que eligió el cliente.
+  async function candidateTables(r: Reservation): Promise<SeatTable[]> {
+    const res = await fetch(`/api/${tenantSlug}/pos/tables?locationId=${r.locationId}`)
+    const data = res.ok ? await res.json() : null
+    const list: SeatTable[] = Array.isArray(data) ? data : (data?.tables ?? [])
+    const mine = (t: SeatTable) => t.id === r.tablePosId
+    const sameSpace = (t: SeatTable) => r.spaceId != null && t.spaceId === String(r.spaceId)
+    return list
+      .filter(t => (t.status === 'free' || mine(t)) && t.capacity >= r.partySize)
+      .sort((a, b) => Number(mine(b)) - Number(mine(a)) || Number(sameSpace(b)) - Number(sameSpace(a)) || a.number - b.number)
+  }
+
+  // "En mesa": si la sede tiene mesas en el POS, se elige una (la asignada
+  // primero); si no, se sienta sin mesa.
   async function startSeating(r: Reservation) {
     try {
-      const res = await fetch(`/api/${tenantSlug}/pos/tables?locationId=${r.locationId}`)
-      const data = res.ok ? await res.json() : null
-      const list: SeatTable[] = Array.isArray(data) ? data : (data?.tables ?? [])
-      const available = list
-        .filter(t => (t.status === 'free' || t.status === 'reserved') && t.capacity >= r.partySize)
-        .sort((a, b) => a.number - b.number)
+      const available = await candidateTables(r)
       if (available.length === 0) {
         await updateStatus(r._id, 'seated')
         return
       }
+      setSeatMode('seat')
       setSeatTables(available)
       setSeatTablePosId(available[0].id)
       setSeatingId(r._id)
@@ -229,10 +274,33 @@ export default function ReservasPanel({ reservations: initialReservations, locat
     }
   }
 
+  // "Asignar mesa": la mesa queda RESERVADA en el POS con esta reserva.
+  async function startAssigning(r: Reservation) {
+    try {
+      const available = await candidateTables(r)
+      if (available.length === 0) {
+        toast.error('No hay mesas libres con lugar para este grupo')
+        return
+      }
+      setSeatMode('assign')
+      setSeatTables(available)
+      setSeatTablePosId(available[0].id)
+      setSeatingId(r._id)
+    } catch {
+      toast.error('No se pudieron cargar las mesas del POS')
+    }
+  }
+
   async function confirmSeating(reservaId: string) {
     setSeatingId(null)
+    if (seatMode === 'assign') {
+      if (seatTablePosId) await updateStatus(reservaId, 'confirmed', seatTablePosId)
+      return
+    }
     await updateStatus(reservaId, 'seated', seatTablePosId || undefined)
   }
+
+  const tableLabel = (r: Reservation) => (r.tablePosId ? tableNumbers[r.tablePosId] ?? null : null)
 
   const locationName = (id: string) => locations.find(l => l._id === id)?.name || 'Sede'
 
@@ -422,6 +490,12 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                             <Users size={11} className="text-primary" />
                             {r.partySize} {r.partySize === 1 ? 'persona' : 'personas'}
                           </span>
+                          {r.tablePosId && r.status === 'confirmed' && (
+                            <span className="flex items-center gap-1 font-bold text-amber-600" title="Mesa reservada en el POS">
+                              <LayoutGrid size={11} />
+                              Mesa {tableLabel(r) ?? 'asignada'} reservada
+                            </span>
+                          )}
                           {r.spaceId && (
                             <span
                               className="flex items-center gap-1 font-bold text-primary"
@@ -493,13 +567,15 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                                       className="w-full bg-white border border-border/60 rounded-xl px-2 py-1.5 text-xs font-medium"
                                     >
                                       {seatTables.map(t => (
-                                        <option key={t.id} value={t.id}>Mesa {t.number} · {t.capacity} p.</option>
+                                        <option key={t.id} value={t.id}>
+                                          Mesa {t.number} · {t.capacity} p.{t.section ? ` · ${t.section}` : ''}
+                                        </option>
                                       ))}
-                                      <option value="">Sin mesa</option>
+                                      {seatMode === 'seat' && <option value="">Sin mesa</option>}
                                     </select>
                                     <ActionBtn
                                       icon={<UserCheck size={15} />}
-                                      label="Sentar"
+                                      label={seatMode === 'assign' ? 'Reservar mesa' : 'Sentar'}
                                       color="blue"
                                       onClick={() => confirmSeating(r._id)}
                                     />
@@ -512,12 +588,20 @@ export default function ReservasPanel({ reservations: initialReservations, locat
                                     </button>
                                   </div>
                                 ) : (
-                                  <ActionBtn
-                                    icon={<UserCheck size={15} />}
-                                    label="En mesa"
-                                    color="blue"
-                                    onClick={() => startSeating(r)}
-                                  />
+                                  <>
+                                    <ActionBtn
+                                      icon={<UserCheck size={15} />}
+                                      label="En mesa"
+                                      color="blue"
+                                      onClick={() => startSeating(r)}
+                                    />
+                                    <ActionBtn
+                                      icon={<LayoutGrid size={15} />}
+                                      label={r.tablePosId ? 'Cambiar mesa' : 'Asignar mesa'}
+                                      color="emerald"
+                                      onClick={() => startAssigning(r)}
+                                    />
+                                  </>
                                 )}
                                 <ActionBtn
                                   icon={<UserX size={15} />}
