@@ -20,6 +20,8 @@ import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 // Sin impresoras BARRA, el pedido imprime en todas (flujo histórico).
 //
 // Los pedidos no-efectivo no se tocan: imprimen en todas las impresoras.
+// Las órdenes del POS tampoco (2026-10): las carga el personal en el salón,
+// no hay pase previo por la barra; cada estación recibe lo suyo al instante.
 //
 // Uso:
 //   order.status = 'confirmed'
@@ -45,7 +47,7 @@ export async function onOrderConfirmed(order: IOrder): Promise<void> {
     if (activePrinters.length === 0) return
 
     // ── Efectivo: pase BARRA-first ──────────────────────────────────────
-    if (order.payment?.method === 'cash') {
+    if (order.payment?.method === 'cash' && order.source !== 'pos') {
       const barraPrinters = activePrinters.filter(isBarraPrinter)
       if (barraPrinters.length > 0) {
         let printJobs = await buildPrintPayload(order, barraPrinters as unknown as BuildPrinters)

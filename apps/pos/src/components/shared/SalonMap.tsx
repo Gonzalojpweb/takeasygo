@@ -67,6 +67,8 @@ export function SalonMap({ tables, variant, selectedTableId, activity, onSelectT
             <span className="salon-filter-count">{counts[f.id] ?? 0}</span>
           </button>
         ))}
+        {/* Fase A: el pie de estadísticas repetía estos conteos; el total queda acá. */}
+        <span className="salon-total-inline">{tables.length} mesas</span>
       </div>
 
       <div className="salon-map-container">
@@ -94,24 +96,6 @@ export function SalonMap({ tables, variant, selectedTableId, activity, onSelectT
             </section>
           ))
         )}
-      </div>
-
-      <div className="salon-footer">
-        <div className="salon-footer-stats">
-          {FILTERS.slice(1).map((f) => (
-            <div key={f.id} className="salon-stat">
-              <div className="salon-stat-count">
-                <span className="salon-stat-dot" style={{ background: f.dot }} aria-hidden />
-                {counts[f.id] ?? 0}
-              </div>
-              <div className="salon-stat-label">{f.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="salon-total">
-          <div className="salon-total-label">Total mesas</div>
-          <div className="salon-total-count">{tables.length}</div>
-        </div>
       </div>
     </div>
   )

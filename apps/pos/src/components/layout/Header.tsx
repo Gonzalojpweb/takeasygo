@@ -5,6 +5,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { requestSsoToken } from "../../services/sso"
 import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
 import { CURRENT_BUILD, versionLabel } from "../../services/app-update"
+import { useLayout } from "./LayoutContext"
 
 // ============================================================================
 // Header — identidad permanente: ¿dónde estoy? (W0S §2, VLS §3)
@@ -26,6 +27,7 @@ interface HeaderProps {
 }
 
 export function Header({ tenantName, locationName, userName, roleLabel, contextTitle, showSaasLink = true }: HeaderProps) {
+  const { headerCenter } = useLayout()
   const { state, logout } = useAuth()
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
@@ -123,7 +125,7 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
   return (
     <header className="header">
       <div className="header-left">
-        <div className="brand">
+        <div className="brand" title={locationName ? `${tenantName} · ${locationName}` : tenantName}>
           <div className="brand-icon" aria-hidden>T</div>
           <div className="brand-text">
             <span className="brand-tenant">{tenantName || "TakeasyGO"}</span>
@@ -136,8 +138,9 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
         </div>
       </div>
 
+      {/* Centro: las vistas del contexto (si el contexto las tiene) o su nombre. */}
       <div className="header-center">
-        <h1 className="header-context-title">{contextTitle}</h1>
+        {headerCenter ?? <h1 className="header-context-title">{contextTitle}</h1>}
       </div>
 
       <div className="header-right">
@@ -150,7 +153,7 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             title="Abrir el panel del SaaS"
           >
             <ExternalLink size={16} aria-hidden />
-            <span className="header-btn-label">{ssoLoading ? "Abriendo…" : "Ir al SaaS"}</span>
+            <span className="sr-only">{ssoLoading ? "Abriendo…" : "Ir al SaaS"}</span>
           </button>
         )}
         <button
@@ -169,7 +172,7 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             onClick={() => { void unlockAudio() }}
             title="El navegador bloquea el sonido hasta que toques la pantalla"
           >
-            <VolumeX size={16} aria-hidden /> <span className="header-btn-label">Activar sonido</span>
+            <VolumeX size={16} aria-hidden /> <span className="sr-only">Activar sonido</span>
           </button>
         )}
         {sessionWarning && (
@@ -184,17 +187,17 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
         )}
         <div className={`sync-status ${connected ? "" : "disconnected"}`} role="status">
           {connected ? <Cloud size={14} aria-hidden /> : <CloudOff size={14} aria-hidden />}
-          <span className="header-btn-label">{connected ? "Online" : "Sin conexión"}</span>
+          <span className="sr-only">{connected ? "Online" : "Sin conexión"}</span>
         </div>
         <div className="header-clock-block">
           <div className="header-clock">
             {time.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
           </div>
           <div className="header-clock-day" title={versionLabel()}>
-            {time.toLocaleDateString("es-AR", { weekday: "long" })} · v{CURRENT_BUILD.version.slice(0, 7)}
+            v{CURRENT_BUILD.version.slice(0, 7)}
           </div>
         </div>
-        <div className="header-user">
+        <div className="header-user" title={`${userName || "Operador"} · ${roleLabel}`}>
           <div className="header-avatar" aria-hidden>{initials}</div>
           <div className="header-user-text">
             <span className="header-user-name">{userName || "Operador"}</span>

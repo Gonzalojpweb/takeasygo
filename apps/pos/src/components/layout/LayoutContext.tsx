@@ -30,6 +30,13 @@ interface LayoutContextValue {
   /** Hoja del Context Panel desplegada (solo celular). */
   panelOpen: boolean
   setPanelOpen: (open: boolean) => void
+  /**
+   * Centro del Header (Fase A, 2026-10): las vistas del contexto (Salón,
+   * Mostrador…) viven ACÁ y no en un renglón propio del workspace: una sola
+   * franja arriba, más alto para trabajar. null = el título del contexto.
+   */
+  headerCenter: ReactNode | null
+  setHeaderCenter: (content: ReactNode | null) => void
 }
 
 const LayoutContext = createContext<LayoutContextValue>({
@@ -41,6 +48,8 @@ const LayoutContext = createContext<LayoutContextValue>({
   toggleSidebar: () => {},
   panelOpen: false,
   setPanelOpen: () => {},
+  headerCenter: null,
+  setHeaderCenter: () => {},
 })
 
 export function LayoutProvider({ children }: { children: ReactNode }) {
@@ -48,6 +57,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
   const [actionBar, setActionBarState] = useState<ActionBarContent | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
+  const [headerCenter, setHeaderCenter] = useState<ReactNode | null>(null)
 
   const panelTitleRef = useRef<string | null>(null)
 
@@ -72,7 +82,7 @@ export function LayoutProvider({ children }: { children: ReactNode }) {
 
   return (
     <LayoutContext.Provider
-      value={{ contextPanel, actionBar, setContextPanel, setActionBar, sidebarCollapsed, toggleSidebar, panelOpen, setPanelOpen }}
+      value={{ contextPanel, actionBar, setContextPanel, setActionBar, sidebarCollapsed, toggleSidebar, panelOpen, setPanelOpen, headerCenter, setHeaderCenter }}
     >
       {children}
     </LayoutContext.Provider>

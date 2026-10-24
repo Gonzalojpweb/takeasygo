@@ -167,7 +167,7 @@ export function CounterDashboard() {
     setTimeout(() => setToast(null), 3000)
   }, [])
 
-  const { setContextPanel, setActionBar } = useLayout()
+  const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, bindTableOrder } = useTables()
   const tableActivity = useTableActivity(tenantId)
   const now = useNow()
@@ -602,6 +602,13 @@ export function CounterDashboard() {
     }
     setScene(defaults[viewId] ?? "salon")
   }, [selectedTableId, maybeFreeDraft])
+
+  // Fase A (2026-10): las vistas del Counter viven en el header (una sola
+  // franja arriba), no en un renglón propio que le roba alto al workspace.
+  useEffect(() => {
+    setHeaderCenter(<WorkspaceViewBar views={COUNTER_VIEWS} activeView={view} onChange={handleViewChange} />)
+  }, [setHeaderCenter, view, handleViewChange])
+  useEffect(() => () => setHeaderCenter(null), [setHeaderCenter])
 
   const handleSelectTable = useCallback((tableId: string) => {
     if (selectedTableId && selectedTableId !== tableId) {
@@ -1566,7 +1573,6 @@ export function CounterDashboard() {
   return (
     <>
       {/* View Bar */}
-      <WorkspaceViewBar views={COUNTER_VIEWS} activeView={view} onChange={handleViewChange} />
 
       {/* ================================================ */}
       {/* VIEW: SALÓN */}
@@ -1585,23 +1591,6 @@ export function CounterDashboard() {
 
           {(scene === "salon" || scene === "mesa") && (
             <>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Salón</div>
-                  <div className="workspace-subtitle">
-                    {tables.length === 0
-                      ? "Configurá tu salón para comenzar"
-                      : "Seleccioná una mesa para comenzar"}
-                  </div>
-                </div>
-                <div className="workspace-actions">
-                  {tables.length === 0 && (
-                    <button className="btn btn-primary btn-sm" onClick={() => setScene("setup")}>
-                      Configurar salón
-                    </button>
-                  )}
-                </div>
-              </div>
               <div className="salon-content">
                 {tables.length === 0 ? (
                   <div className="empty-state" style={{ padding: "var(--sp-12) var(--sp-6)" }}>
@@ -1627,13 +1616,7 @@ export function CounterDashboard() {
           )}
 
           {scene === "productos" && (
-            <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Mesa {selectedTable?.number ?? "?"}</div>
-                  <div className="workspace-subtitle">Agregá productos al pedido</div>
-                </div>
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <ProductSelector
                 products={products}
                 categories={categories}
@@ -1646,14 +1629,6 @@ export function CounterDashboard() {
 
           {scene === "revision" && (
             <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Revisión del pedido</div>
-                  <div className="workspace-subtitle">
-                    Mesa {selectedTable?.number ?? "?"}{customer && ` — ${customer.name}`}
-                  </div>
-                </div>
-              </div>
               <div className="p-6">
                 <div className="card">
                   <div className="card-header"><span className="card-title">Items ({cart.length})</span></div>
@@ -1687,14 +1662,6 @@ export function CounterDashboard() {
 
           {scene === "cobro" && (
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Cobro</div>
-                  <div className="workspace-subtitle">
-                    Mesa {selectedTable?.number ?? "?"} — {formatCurrency(chargeTotal)}
-                  </div>
-                </div>
-              </div>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
                 {/* key: si el total cambia (ronda nueva por polling) el cobro arranca de cero */}
                 <CheckoutPanel
@@ -1739,12 +1706,6 @@ export function CounterDashboard() {
 
           {scene === "mostrador_rapido" && (
             <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Mostrador</div>
-                  <div className="workspace-subtitle">Venta rápida — seleccioná productos</div>
-                </div>
-              </div>
               <ProductSelector
                 products={products}
                 categories={categories}
@@ -1757,14 +1718,6 @@ export function CounterDashboard() {
 
           {scene === "revision" && (
             <div style={{ display: "flex", flexDirection: "column", minHeight: 0, overflow: "auto" }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Revisión del pedido</div>
-                  <div className="workspace-subtitle">
-                    Mostrador — {cart.length} items
-                  </div>
-                </div>
-              </div>
               <div className="p-6">
                 <div className="card">
                   <div className="card-header"><span className="card-title">Items ({cart.length})</span></div>
@@ -1798,14 +1751,6 @@ export function CounterDashboard() {
 
           {scene === "cobro" && (
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Cobro — Mostrador</div>
-                  <div className="workspace-subtitle">
-                    {formatCurrency(chargeTotal)}
-                  </div>
-                </div>
-              </div>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
                 <CheckoutPanel
                   key={chargeTotal}
@@ -1983,12 +1928,6 @@ export function CounterDashboard() {
           {/* ── KANBAN: Pedidos integrados en operación ── */}
           {entrantesSubView === "kanban" && (
             <>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">Pedidos Entrantes</div>
-                  <div className="workspace-subtitle">Órdenes del ecosistema en operación</div>
-                </div>
-              </div>
               <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
                 {kanbanOrders.length === 0 ? (
                   <div className="empty-state">
@@ -2180,12 +2119,6 @@ export function CounterDashboard() {
       {/* ================================================ */}
       {view === "mis_pedidos" && (
         <>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Mis Pedidos</div>
-              <div className="workspace-subtitle">Pedidos creados en el POS</div>
-            </div>
-          </div>
           <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             {posOrders.length === 0 ? (
               <div className="empty-state">

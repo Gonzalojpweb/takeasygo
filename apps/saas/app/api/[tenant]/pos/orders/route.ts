@@ -12,6 +12,7 @@ import {
   type SaasOrderDraft,
 } from '@/lib/pos-online/orderMapper'
 import { assertOrderAgainstCatalog } from '@/lib/pos-online/catalogPrices'
+import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
 
 // ============================================================================
 // GET  /api/[tenant]/pos/orders — lista (habilita el diff-then-put de M5)
@@ -182,6 +183,8 @@ export const POST = posRoute('orders.write', async (ctx) => {
   // un reintento idéntico de una orden ya aceptada siga devolviendo 200 aunque
   // la carta haya cambiado entre medio. Toda orden NUEVA cierra contra carta.
   await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
+  // Cocina o barra por ítem (sin esto la comanda no llegaba a las estaciones).
+  withPrintRoles(draft.items, await printRolesForLocation(ctx.tenantId, ctx.locationId))
 
   let created
   try {

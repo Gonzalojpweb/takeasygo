@@ -246,3 +246,42 @@ describe('Comanda (printJobs) al confirmar', () => {
     expect(stored!.printJobs?.length ?? 0).toBe(0)
   })
 })
+
+describe('Comanda por estación: cocina y barra (Fase B, 2026-10)', () => {
+  const DRINK_ID = '64b0000000000000000000bb'
+
+  beforeEach(async () => {
+    await Menu.updateOne(
+      { tenantId, locationId },
+      { $push: { categories: { name: 'Bebidas', sortOrder: 1, printRole: 'bar', items: [{ _id: DRINK_ID, name: 'Limonada', price: 800 }] } } }
+    )
+    await Printer.create({ tenantId, locationId, uid: 'cocina-1', name: 'Cocina', ip: '192.168.0.50', roles: ['kitchen'] })
+    await Printer.create({ tenantId, locationId, uid: 'barra-1', name: 'Barra', ip: '192.168.0.51', roles: ['bar'] })
+  })
+
+  it('cada ítem lleva su estación según la categoría y cada impresora recibe lo suyo', async () => {
+    const id = await createOrder({
+      status: 'confirmed',
+      items: [
+        { productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 1, unitPrice: 1500, total: 1500 },
+        { productId: DRINK_ID, name: 'Limonada', quantity: 2, unitPrice: 800, total: 1600 },
+      ],
+    })
+    const stored = await Order.findOne({ tenantId, posId: id }).lean()
+    expect(stored!.items.map((i) => [i.name, i.printRole])).toEqual([
+      ['Hamburguesa', 'kitchen'],
+      ['Limonada', 'bar'],
+    ])
+    const roles = (stored!.printJobs ?? []).map((j) => j.role).sort()
+    expect(roles).toEqual(['bar', 'kitchen'])
+  })
+
+  it('un pedido solo de bebidas no imprime en cocina', async () => {
+    const id = await createOrder({
+      status: 'confirmed',
+      items: [{ productId: DRINK_ID, name: 'Limonada', quantity: 1, unitPrice: 800, total: 800 }],
+    })
+    const stored = await Order.findOne({ tenantId, posId: id }).lean()
+    expect((stored!.printJobs ?? []).map((j) => j.role)).toEqual(['bar'])
+  })
+})

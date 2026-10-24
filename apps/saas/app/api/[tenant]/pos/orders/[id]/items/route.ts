@@ -7,6 +7,7 @@ import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, toSaasOrderItem, recomputeOrderTotals, type PosOrderItemInput } from '@/lib/pos-online/orderMapper'
+import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
 import { assertItemAgainstCatalog } from '@/lib/pos-online/catalogPrices'
 import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
@@ -33,6 +34,8 @@ export const POST = posRoute('orders.write', async (ctx, { id }) => {
     ctx.locationId
   )
 
+  // Cocina o barra (Fase B): la estación sale de la carta, nunca del POS.
+  withPrintRoles([item], await printRolesForLocation(ctx.tenantId, ctx.locationId))
   const items = [...(current.items ?? []), item]
   const { subtotal, total, baseTotal } = recomputeOrderTotals(items)
 

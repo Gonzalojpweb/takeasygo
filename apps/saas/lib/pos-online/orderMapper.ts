@@ -112,6 +112,8 @@ export interface SaasOrderItemDraft {
     selectedOptions: { name: string; extraPrice: number }[]
   }[]
   notes: string | null
+  /** Estación de la comanda (cocina/barra). La asigna el server (printRoles.ts). */
+  printRole?: 'kitchen' | 'bar' | 'both'
 }
 
 /** Estados con los que el POS puede CREAR una orden. */
