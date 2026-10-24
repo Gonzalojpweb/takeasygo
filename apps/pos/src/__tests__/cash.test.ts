@@ -214,9 +214,11 @@ describe("closeRegister", () => {
       },
       shareToken: "token-compartido",
     })
-    fetchMock.mockResolvedValue(jsonResponse({ register: closed }))
+    fetchMock.mockResolvedValue(jsonResponse({ register: closed, print: { ok: true, printerName: "Caja" } }))
 
-    const result = await closeRegister(TENANT, REGISTER, 10100, "Operador")
+    const { register: result, print } = await closeRegister(TENANT, REGISTER, 10100, "Operador")
+    // Fase 2: el server imprime el Z al cerrar y avisa en qué impresora.
+    expect(print).toEqual({ ok: true, printerName: "Caja" })
 
     const req = lastRequest()
     expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/cash/registers/${REGISTER}/close`)

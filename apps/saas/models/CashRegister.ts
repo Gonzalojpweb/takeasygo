@@ -23,8 +23,12 @@ export interface ICashRegister extends Document {
   posId: string
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
+  /** Nombre de quien abrió (del usuario del token). */
   openedBy: string
+  /** id del usuario que abrió (Fase 2: control por empleado). */
+  openedByUserId: string | null
   closedBy: string | null
+  closedByUserId: string | null
   openedAt: Date
   closedAt: Date | null
   /** Monto inicial en centavos. @storedAs cents */
@@ -52,7 +56,9 @@ const CashRegisterSchema = new Schema<ICashRegister>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true, index: true },
     openedBy: { type: String, required: true },
+    openedByUserId: { type: String, default: null },
     closedBy: { type: String, default: null },
+    closedByUserId: { type: String, default: null },
     openedAt: { type: Date, required: true, default: Date.now },
     closedAt: { type: Date, default: null },
     /** @storedAs cents */
@@ -100,6 +106,8 @@ CashRegisterSchema.index({ tenantId: 1, locationId: 1, status: 1, closedAt: -1 }
 // Vista consolidada del admin (Cajas POS sin filtro de sede): el índice de
 // arriba no sirve sin locationId como prefijo.
 CashRegisterSchema.index({ tenantId: 1, status: 1, closedAt: -1 })
+// Faltantes por empleado (Cajas POS, últimos 30 días).
+CashRegisterSchema.index({ tenantId: 1, closedByUserId: 1, closedAt: -1 })
 
 // Share token del Z Report (§4) — lookup directo, único entre todas las cajas.
 // partialFilterExpression en vez de sparse: el token puede ser null y null

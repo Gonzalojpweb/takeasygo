@@ -100,18 +100,38 @@ export async function closeRegister(
   closedBy: string,
   /** Cierre ciego: conteo por billete (el total lo recalcula el server). */
   closingCount?: Pick<CashClosingCount, "bills" | "coins">
-): Promise<CashRegister> {
+): Promise<{ register: CashRegister; print: ZPrintStatus }> {
   return runMutation(async () => {
-    const { register } = await postRegister(
+    const { register, print } = await posApi<{ register: CashRegister; print?: ZPrintStatus }>(
       tenantId,
       `/cash/registers/${encodeURIComponent(registerId)}/close`,
-      closingCount ? { finalAmount, closedBy, closingCount } : { finalAmount, closedBy }
+      {
+        method: "POST",
+        body: closingCount ? { finalAmount, closedBy, closingCount } : { finalAmount, closedBy },
+      }
     )
 
     const rehydrated = rehydrateRegister(register)
     await db.cashRegister.put(rehydrated)
-    return rehydrated
+    return { register: rehydrated, print: print ?? { ok: false, reason: "unknown" } }
   })
+}
+
+/** Resultado de mandar el Z a la impresora de caja (Fase 2). */
+export interface ZPrintStatus {
+  ok: boolean
+  printerName?: string
+  reason?: string
+}
+
+/** Reimprime el Z de una caja cerrada en la impresora de caja de la sede. */
+export async function printZReport(tenantId: string, registerId: string): Promise<string> {
+  const { printerName } = await posApi<{ printerName: string }>(
+    tenantId,
+    `/cash/registers/${encodeURIComponent(registerId)}/print`,
+    { method: "POST", body: {} }
+  )
+  return printerName
 }
 
 /**

@@ -15,6 +15,8 @@ import {
   type PosRegisterDoc,
 } from '@/lib/pos-online/cashMapper'
 import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cashRepo'
+import { operatorName } from '@/lib/pos-online/operator'
+import { enqueueZPrint, type ZPrintRegister } from '@/lib/cash/z-print'
 
 // ============================================================================
 // POST /api/[tenant]/pos/cash/registers/[id]/close — cierra y genera el Z
@@ -72,10 +74,8 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     throw PosError.conflict('La caja ya está cerrada')
   }
 
-  const closedBy =
-    typeof raw.closedBy === 'string' && raw.closedBy.trim()
-      ? raw.closedBy.trim().slice(0, 120)
-      : `${ctx.user.role} (${ctx.user.id})`
+  // Fase 2: quién cerró sale del usuario del token (el body es respaldo).
+  const closedBy = await operatorName(ctx, typeof raw.closedBy === 'string' ? raw.closedBy : null)
 
   const movementDocs = await loadMovementsForRegister(register._id)
   const movements = movementDocs.map(toPosMovement)
@@ -110,6 +110,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
         expectedAmount,
         difference,
         closedBy,
+        closedByUserId: ctx.user.id,
         closedAt,
         zReport: zReport as unknown as Record<string, unknown>,
         shareToken,
@@ -147,8 +148,20 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     .exec()
   if (!updated) throw PosError.notFound('Caja no encontrada')
 
+  // Fase 2: el Z sale impreso en la impresora de caja de la sede (si hay).
+  // Nunca corta el cierre: sin impresora o con error, el POS ofrece reimprimir.
+  let print: { ok: boolean; printerName?: string; reason?: string }
+  try {
+    const result = await enqueueZPrint(updated as unknown as ZPrintRegister)
+    print = result.ok ? { ok: true, printerName: result.printerName } : { ok: false, reason: result.reason }
+  } catch (err) {
+    console.error('[pos/cash/close] no se pudo encolar la impresión del Z:', err)
+    print = { ok: false, reason: 'error' }
+  }
+
   return NextResponse.json({
     register: toPosRegister(updated as unknown as PosRegisterDoc, movements),
+    print,
     serverTime: new Date().toISOString(),
   })
 })

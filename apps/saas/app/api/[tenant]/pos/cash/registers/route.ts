@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import CashRegister from '@/models/CashRegister'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
+import { operatorName } from '@/lib/pos-online/operator'
 import { PosError } from '@/lib/pos-online/errors'
 import {
   registerSignature,
@@ -140,6 +141,8 @@ export const POST = posRoute('cash.write', async (ctx) => {
     locationId: ctx.locationId,
     user: ctx.user,
   })
+  // Fase 2: el nombre de quien abre sale del usuario del token.
+  draft.openedBy = await operatorName(ctx, draft.openedBy)
 
   const replayTarget = await findRegisterByPosId(ctx, draft.posId)
   if (replayTarget) {

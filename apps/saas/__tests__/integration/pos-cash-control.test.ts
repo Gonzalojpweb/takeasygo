@@ -10,6 +10,8 @@ import Menu from '@/models/Menu'
 import User from '@/models/User'
 import CashMovement from '@/models/CashMovement'
 import CashRegister from '@/models/CashRegister'
+import Printer from '@/models/Printer'
+import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { signJwt } from '@takeasygo/business/jwt'
 import { posPinLookup } from '@takeasygo/business/pos-pin'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
@@ -24,6 +26,7 @@ import { PATCH } from '@/app/api/[tenant]/pos/orders/[id]/route'
 import { POST as PAY } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
 import { POST as VOID } from '@/app/api/[tenant]/pos/orders/[id]/void/route'
 import { DELETE as REMOVE_ITEM } from '@/app/api/[tenant]/pos/orders/[id]/items/[productId]/route'
+import { POST as PRINT_Z } from '@/app/api/[tenant]/pos/cash/registers/[id]/print/route'
 
 /**
  * Fase 1 de caja (2026-10) — control profesional.
@@ -357,5 +360,63 @@ describe('cancelaciones y productos comandados', () => {
     const noPin = await REMOVE_ITEM(req(url, undefined, { method: 'DELETE' }), params)
     expect(noPin.status).toBe(403)
     expect((await noPin.json()).error.code).toBe('approval_required')
+  })
+})
+
+describe('Fase 2 — el Z para llevarse', () => {
+  it('quien abre y cierra queda con su nombre real y su usuario', async () => {
+    const cashier = await User.create({
+      name: 'Carla Cajera',
+      email: `carla-${Math.random().toString(36).slice(2)}@test.com`,
+      password: 'x-secret-123',
+      phone: `+54${Math.floor(Math.random() * 1e10)}`,
+      role: 'cashier',
+      tenantId,
+      isActive: true,
+    })
+    const sub = cashier._id.toString()
+    const withSub = (url: string, body: unknown) =>
+      new Request(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token('cashier', sub)}`, 'x-location-id': locationId },
+        body: JSON.stringify(body),
+      }) as unknown as NextRequest
+
+    const opened = await OPEN(withSub(`${BASE}/cash/registers`, { id: crypto.randomUUID(), initialAmount: 0, openedBy: 'Operador' }), tenantParams())
+    const reg = (await opened.json()).register
+    expect(reg.openedBy).toBe('Carla Cajera')
+
+    await CLOSE(withSub(`${BASE}/cash/registers/${reg.id}/close`, { finalAmount: 0, closedBy: 'Operador' }), idParams(reg.id))
+    const saved = await CashRegister.findOne({ posId: reg.id }).lean()
+    expect(saved?.closedBy).toBe('Carla Cajera')
+    expect(saved?.closedByUserId).toBe(sub)
+    expect(saved?.openedByUserId).toBe(sub)
+  })
+
+  it('al cerrar, el Z sale a la impresora de caja; se puede reimprimir', async () => {
+    await Printer.create({ tenantId, locationId, uid: 'caja-1', name: 'Caja', ip: '192.168.0.60', roles: ['cashier'], paperWidth: 80 })
+    const reg = await openRegister()
+    const closed = await CLOSE(req(`${BASE}/cash/registers/${reg.id}/close`, { finalAmount: 100000 }), idParams(reg.id))
+    expect((await closed.json()).print).toEqual({ ok: true, printerName: 'Caja' })
+    expect(await PreClosePrintJob.countDocuments({ tenantId, status: 'pending' })).toBe(1)
+
+    const again = await PRINT_Z(req(`${BASE}/cash/registers/${reg.id}/print`, {}), idParams(reg.id))
+    expect(again.status).toBe(200)
+    expect(await PreClosePrintJob.countDocuments({ tenantId })).toBe(2)
+  })
+
+  it('sin impresora de caja el cierre sigue y avisa', async () => {
+    const reg = await openRegister()
+    const closed = await CLOSE(req(`${BASE}/cash/registers/${reg.id}/close`, { finalAmount: 100000 }), idParams(reg.id))
+    expect(closed.status).toBe(200)
+    expect((await closed.json()).print).toEqual({ ok: false, reason: 'no_printer' })
+    const reprint = await PRINT_Z(req(`${BASE}/cash/registers/${reg.id}/print`, {}), idParams(reg.id))
+    expect(reprint.status).toBe(409)
+  })
+
+  it('no se reimprime una caja abierta', async () => {
+    const reg = await openRegister()
+    const res = await PRINT_Z(req(`${BASE}/cash/registers/${reg.id}/print`, {}), idParams(reg.id))
+    expect(res.status).toBe(409)
   })
 })

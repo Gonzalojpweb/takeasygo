@@ -142,6 +142,7 @@ export interface SaasRegisterDraft {
   tenantId: string
   locationId: string
   openedBy: string
+  openedByUserId: string
   openedAt: Date
   initialAmount: number
   expectedAmount: number
@@ -171,6 +172,7 @@ export function toSaasRegister(
     tenantId: scope.tenantId,
     locationId: scope.locationId,
     openedBy,
+    openedByUserId: scope.user.id,
     openedAt: new Date(),
     initialAmount,
     // §1 — el arqueo de apertura es el efectivo inicial.

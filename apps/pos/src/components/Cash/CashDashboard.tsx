@@ -91,8 +91,9 @@ export function CashDashboard({ role }: { role?: string }) {
   const [failedEvents, setFailedEvents] = useState<FailedCashSaleEvent[]>([])
 
   const { setContextPanel, setActionBar } = useLayout()
-  const { activeRegister, closedRegisters, loading, openRegister, closeRegister, addMovement, assignPendingMovements, getPending } =
+  const { activeRegister, closedRegisters, loading, openRegister, closeRegister, addMovement, assignPendingMovements, getPending, printZ } =
     useCash()
+  const [selectedRegisterId, setSelectedRegisterId] = useState<string | null>(null)
 
   const { state: authState } = useAuth()
   const jwt = authState.status === "authenticated" ? authState.jwt?.accessToken : undefined
@@ -209,7 +210,7 @@ export function CashDashboard({ role }: { role?: string }) {
     })).filter((b) => b.count > 0)
     setBusy(true)
     try {
-      const closed = await closeRegister(activeRegister.id, countedTotal, "Operador", {
+      const { register: closed, print } = await closeRegister(activeRegister.id, countedTotal, "Operador", {
         bills: billRows,
         coins: parsePesosInput(coins) ?? 0,
       })
@@ -218,11 +219,12 @@ export function CashDashboard({ role }: { role?: string }) {
       setConfirmClose(false)
       if (closed.zReport) {
         setSelectedZReport(closed.zReport)
+        setSelectedRegisterId(closed.id)
         setScene("z-report")
       } else {
         go("resumen")
       }
-      showSuccess("Caja cerrada")
+      showSuccess(print.ok ? `Caja cerrada · Z impreso en ${print.printerName}` : "Caja cerrada")
     } catch (err) {
       setConfirmClose(false)
       showError(errorText(err, "No se pudo cerrar la caja"))
@@ -234,8 +236,22 @@ export function CashDashboard({ role }: { role?: string }) {
   const openZ = useCallback((register: CashRegister) => {
     if (!register.zReport) return
     setSelectedZReport(register.zReport)
+    setSelectedRegisterId(register.id)
     setScene("z-report")
   }, [])
+
+  const handleReprint = useCallback(async () => {
+    if (!selectedRegisterId) return
+    setBusy(true)
+    try {
+      const printer = await printZ(selectedRegisterId)
+      showSuccess(`Z enviado a ${printer}`)
+    } catch (err) {
+      showError(errorText(err, "No se pudo imprimir"))
+    } finally {
+      setBusy(false)
+    }
+  }, [selectedRegisterId, printZ, showSuccess, showError])
 
   // ── Panel lateral + barra de acciones (una acción principal) ──────
   useEffect(() => {
@@ -339,9 +355,19 @@ export function CashDashboard({ role }: { role?: string }) {
         setContextPanel({
           title: "Reporte Z",
           subtitle: selectedZReport ? new Date(selectedZReport.closedAt).toLocaleDateString("es-AR") : "",
-          body: <p className="cash-help">Es el cierre definitivo: no se modifica. El dueño lo ve en el panel, en Cajas POS.</p>,
+          body: (
+            <p className="cash-help">
+              Es el cierre definitivo: no se modifica. Sale impreso en la impresora de caja y el dueño lo ve en el panel (Cajas
+              POS), con PDF y link para compartir.
+            </p>
+          ),
         })
-        setActionBar({ right: <button className="btn btn-primary" onClick={() => go(activeRegister ? "resumen" : "historial")}>Listo</button> })
+        setActionBar({
+          left: selectedRegisterId ? (
+            <button className="btn btn-ghost" disabled={busy} onClick={handleReprint}>Reimprimir</button>
+          ) : undefined,
+          right: <button className="btn btn-primary" onClick={() => go(activeRegister ? "resumen" : "historial")}>Listo</button>,
+        })
         break
 
       case "x-report":
@@ -387,7 +413,7 @@ export function CashDashboard({ role }: { role?: string }) {
         })
         break
     }
-  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, assignPendingMovements, refreshPending, showSuccess, go])
+  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
 
   const pendingCount = pendingMovements.length + failedEvents.length
   const tabs: { id: Scene; label: string; badge?: number }[] = [

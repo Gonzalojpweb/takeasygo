@@ -9,6 +9,7 @@ import {
   assignPendingMovements as assignPendingService,
   getRegisterHistoryByDate,
   getPendingMovements,
+  printZReport,
 } from "../services/cash"
 import type {
   CashChannel,
@@ -94,6 +95,10 @@ export function useCash() {
       getPending: () => {
         if (!tenantId) throw new Error("[useCash] Not authenticated")
         return getPendingMovements(tenantId)
+      },
+      printZ: (registerId: string) => {
+        if (!tenantId) throw new Error("[useCash] Not authenticated")
+        return printZReport(tenantId, registerId)
       },
     }),
     [tenantId]
