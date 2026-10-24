@@ -440,3 +440,74 @@ export async function getActiveOrders(tenantId: string): Promise<Order[]> {
     .and((o) => !["delivered", "cancelled"].includes(o.status))
     .toArray()
 }
+
+// ============================================================================
+// Descuentos (Fase D, 2026-10) — espejo de lib/pos-online/discounts del SaaS
+// ============================================================================
+// El server decide el importe (bajando el subtotal de cada línea) y pide el
+// PIN del encargado si el operador es cajero: pos-api lo resuelve con el
+// diálogo de aprobación. Acá solo se arma el pedido y se guarda lo que
+// devolvió el server.
+
+export const DISCOUNT_REASONS = [
+  { id: "courtesy", label: "Cortesía de la casa" },
+  { id: "complaint", label: "Reclamo / demora" },
+  { id: "regular", label: "Cliente frecuente" },
+  { id: "staff", label: "Consumo del personal" },
+  { id: "promotion", label: "Promoción del local" },
+  { id: "other", label: "Otro" },
+] as const
+
+export type DiscountReason = (typeof DISCOUNT_REASONS)[number]["id"]
+
+export interface DiscountRequest {
+  kind: "percent" | "amount"
+  /** Porcentaje 1–100 o monto en centavos. */
+  value: number
+  reason: DiscountReason
+  note?: string
+}
+
+/** Descuento sobre UN plato de una ronda. */
+export async function discountOrderLine(
+  tenantId: string,
+  orderId: string,
+  lineId: string,
+  discount: DiscountRequest
+): Promise<void> {
+  return runMutation(async () => {
+    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/discounts`, { ...discount, lineId })
+    await saveOrder(order)
+  })
+}
+
+export async function removeOrderLineDiscount(tenantId: string, orderId: string, lineId: string): Promise<void> {
+  return runMutation(async () => {
+    const { order } = await posApi<{ order: WireOrder }>(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/discounts?lineId=${encodeURIComponent(lineId)}`,
+      { method: "DELETE" }
+    )
+    await saveOrder(order)
+  })
+}
+
+/** Descuento a TODA la cuenta de la mesa (el server lo reparte entre rondas). */
+export async function discountTable(tenantId: string, tableId: string, discount: DiscountRequest): Promise<number> {
+  return runMutation(async () => {
+    const res = await posApi<{ orders: WireOrder[]; discountedCents: number }>(
+      tenantId,
+      `/tables/${encodeURIComponent(tableId)}/discount`,
+      { method: "POST", body: discount }
+    )
+    for (const order of res.orders) await saveOrder(order)
+    return res.discountedCents
+  })
+}
+
+export async function removeTableDiscounts(tenantId: string, tableId: string): Promise<void> {
+  return runMutation(async () => {
+    const res = await posApi<{ orders: WireOrder[] }>(tenantId, `/tables/${encodeURIComponent(tableId)}/discount`, { method: "DELETE" })
+    for (const order of res.orders) await saveOrder(order)
+  })
+}

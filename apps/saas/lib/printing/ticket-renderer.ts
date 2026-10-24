@@ -74,6 +74,8 @@ interface OrderItem {
   notes?: string | null
   /** Curso del plato (POS, Fase C): agrupa la comanda en el orden de salida. */
   course?: 'entrada' | 'principal' | 'postre' | null
+  /** Descuento del POS (Fase D): subtotal ya neto; se muestra con precios. */
+  posDiscount?: { amountCents: number; kind: string; value: number } | null
 }
 
 interface OrderDoc {
@@ -341,6 +343,11 @@ export function renderOrderTicket(
       // Item line — price a la derecha si showPrices
       if (settings.showPrices) {
         t.row(line, money(item.price * item.quantity), { bold: true })
+        const off = item.posDiscount?.amountCents ?? 0
+        if (off > 0) {
+          const label = item.posDiscount!.kind === 'percent' ? `  DESCUENTO ${item.posDiscount!.value}%` : '  DESCUENTO'
+          t.row(label, `-${money(off)}`)
+        }
       } else {
         t.text(line, { bold: true })
       }

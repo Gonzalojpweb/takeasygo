@@ -343,6 +343,21 @@ export interface OrderItem {
   modifiers?: OrderItemModifier[]
   notes?: string
   course?: ItemCourse
+  /**
+   * Descuento aplicado a la línea (Fase D). `total` ya viene neto de este
+   * descuento; `amount` es lo descontado en centavos.
+   */
+  discount?: OrderItemDiscount
+}
+
+export interface OrderItemDiscount {
+  kind: "percent" | "amount"
+  /** Porcentaje (1–100) o monto pedido en centavos. */
+  value: number
+  /** Centavos descontados de esta línea. */
+  amount: number
+  scope: "item" | "order"
+  reason: string
 }
 
 export interface OrderItemModifier {

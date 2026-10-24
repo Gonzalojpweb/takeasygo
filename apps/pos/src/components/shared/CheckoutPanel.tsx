@@ -12,6 +12,7 @@ import { formatCurrency, parsePesosInput, centsToPesosInput } from "../../utils/
 import { formatPaymentMethod, isExternalPaymentMethod } from "../../services/payment"
 import { isInvoiceChoiceValid, type FiscalConfig, type InvoiceChoice } from "../../services/fiscal"
 import { InvoicePicker } from "./InvoicePicker"
+import { SplitByItems, type SplitLine } from "./SplitByItems"
 
 // ============================================================================
 // CheckoutPanel — cobro con uno o varios métodos y montos libres
@@ -39,6 +40,10 @@ interface CheckoutPanelProps {
   clubPhone?: { value: string; onChange: (value: string) => void }
   /** Factura electrónica (Fase 5): solo si el comercio factura desde el POS. */
   invoice?: { config: FiscalConfig; value: InvoiceChoice; onChange: (value: InvoiceChoice) => void }
+  /** Fase D: platos de la cuenta (netos) ⇒ habilita «Dividir por platos». */
+  splitLines?: SplitLine[]
+  /** Fase D: comensales de la mesa ⇒ «Por comensal» en un toque. */
+  guests?: number
 }
 
 /** Celular válido para el club: vacío (no se usa) u 8 a 15 dígitos. */
@@ -47,11 +52,12 @@ export function isClubPhoneValid(phone: string): boolean {
   return digits.length === 0 || (digits.length >= 8 && digits.length <= 15)
 }
 
-export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice }: CheckoutPanelProps) {
+export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice, splitLines, guests }: CheckoutPanelProps) {
   const [parts, setParts] = useState<CheckoutPart[]>([])
   const [amountText, setAmountText] = useState<Record<string, string>>({})
   const [received, setReceived] = useState("")
-  const [splitCount, setSplitCount] = useState(2)
+  const [splitCount, setSplitCount] = useState(guests && guests >= 2 ? guests : 2)
+  const [splittingByItems, setSplittingByItems] = useState(false)
 
   const remaining = remainingToPay(total, parts)
   const complete = isCheckoutComplete(total, parts)
@@ -89,6 +95,29 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
 
   const splitInto = (n: number) => {
     setAll(splitEvenly(total, n).map((amount) => ({ id: crypto.randomUUID(), method: "cash" as const, amount })))
+  }
+
+  /** Fase D: una parte por persona con lo que consumió (el método se elige después). */
+  const applyItemSplit = (amounts: number[]) => {
+    setAll(amounts.map((amount) => ({ id: crypto.randomUUID(), method: "cash" as const, amount })))
+    setSplittingByItems(false)
+  }
+
+  if (splittingByItems && splitLines?.length) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="text-center">
+          <div className="text-muted text-sm">Dividir por platos — total</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{formatCurrency(total)}</div>
+        </div>
+        <SplitByItems
+          lines={splitLines}
+          initialPeople={guests && guests >= 2 ? guests : 2}
+          onApply={applyItemSplit}
+          onCancel={() => setSplittingByItems(false)}
+        />
+      </div>
+    )
   }
 
   return (
@@ -191,6 +220,21 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
           partes iguales
         </button>
       </div>
+
+      {(Boolean(guests && guests >= 2) || Boolean(splitLines?.length)) && (
+        <div style={{ display: "flex", gap: "var(--sp-2)", justifyContent: "center", flexWrap: "wrap" }}>
+          {guests !== undefined && guests >= 2 && (
+            <button className="btn btn-secondary btn-sm" onClick={() => splitInto(guests)}>
+              Por comensal ({guests})
+            </button>
+          )}
+          {splitLines && splitLines.length > 0 && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setSplittingByItems(true)}>
+              Por platos
+            </button>
+          )}
+        </div>
+      )}
 
       {cashDue > 0 && (
         <div className="card" style={{ padding: "var(--sp-3)" }}>

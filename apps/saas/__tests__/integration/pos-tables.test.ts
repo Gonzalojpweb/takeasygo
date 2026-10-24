@@ -16,6 +16,7 @@ import { PATCH as orderPatch } from '@/app/api/[tenant]/pos/orders/[id]/route'
 import { GET as tablesGet, POST as tablesPost } from '@/app/api/[tenant]/pos/tables/route'
 import { PATCH as tablePatch } from '@/app/api/[tenant]/pos/tables/[id]/route'
 import { POST as tableMove } from '@/app/api/[tenant]/pos/tables/[id]/move/route'
+import { POST as tableDiscount } from '@/app/api/[tenant]/pos/tables/[id]/discount/route'
 import Order from '@/models/Order'
 
 /**
@@ -41,7 +42,7 @@ const PRODUCT_ID = '64b0000000000000000000aa'
 let tenantId: string
 let locationId: string
 
-function token(role: 'cashier' | 'waiter' = 'cashier'): string {
+function token(role: 'cashier' | 'waiter' | 'manager' = 'cashier'): string {
   return signJwt(
     { sub: '64b0000000000000000000a1', tenantId, role, deviceType: 'hub' },
     PRIVATE_PEM
@@ -514,5 +515,40 @@ describe('Fase C — cuenta pedida, cambiar y unir mesas', () => {
     const free = await createTable({ number: 3 })
     const waiter = { authorization: `Bearer ${token('waiter')}`, 'x-location-id': locationId }
     expect((await move(from, { toTableId: free }, waiter)).status).toBe(403)
+  })
+})
+
+
+describe('Fase D — descuento a toda la cuenta de la mesa', () => {
+  it('un monto se reparte entre las rondas sin cobrar y la suma es exacta', async () => {
+    const tableId = await createTable({ number: 7 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 2 }, AUTH()), detailParams(tableId))
+    const a = await createOrder(tableId)
+    const b = await createOrder(tableId)
+    const manager = { authorization: `Bearer ${token('manager')}`, 'x-location-id': locationId }
+
+    const res = await tableDiscount(
+      req(`${TABLES_URL}/${tableId}/discount`, { kind: 'amount', value: 1000, reason: 'complaint' }, manager),
+      detailParams(tableId)
+    )
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.discountedCents).toBe(1000)
+    expect(body.orders).toHaveLength(2)
+
+    const totals = (await Order.find({ posId: { $in: [a, b] } }).lean()).map((o) => o.total)
+    expect(totals.reduce((s, n) => s + n, 0)).toBe(3000 - 1000)
+  })
+
+  it('cajero necesita PIN para descontar la cuenta', async () => {
+    const tableId = await createTable({ number: 8 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied' }, AUTH()), detailParams(tableId))
+    await createOrder(tableId)
+    const res = await tableDiscount(
+      req(`${TABLES_URL}/${tableId}/discount`, { kind: 'percent', value: 10, reason: 'courtesy' }, AUTH()),
+      detailParams(tableId)
+    )
+    expect(res.status).toBe(403)
+    expect((await res.json()).error.code).toBe('approval_required')
   })
 })

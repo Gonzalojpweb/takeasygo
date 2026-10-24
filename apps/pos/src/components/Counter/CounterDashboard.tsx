@@ -24,8 +24,9 @@ import { SalonSetup } from "./SalonSetup"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
+import { DiscountDialog } from "../shared/DiscountDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest } from "../../services/order"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { PosApiError } from "../../services/pos-api"
@@ -179,6 +180,9 @@ export function CounterDashboard() {
   const [voidBusy, setVoidBusy] = useState(false)
   const [joinTargetId, setJoinTargetId] = useState<string | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
+  // Fase D: descuento a la cuenta de la mesa o a un plato.
+  const [discountTarget, setDiscountTarget] = useState<{ scope: "table" } | { scope: "line"; order: Order; item: OrderItem } | null>(null)
+  const [discountBusy, setDiscountBusy] = useState(false)
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
@@ -545,6 +549,19 @@ export function CounterDashboard() {
     [cartTotal, unpaidTableOrders]
   )
 
+  // Fase D: platos de lo que se cobra (rondas sin cobrar + carrito), netos
+  // de descuento, para «Dividir por platos». Si por algún motivo no suman el
+  // total exacto, no se ofrece (nunca dividir sobre una cuenta que no cierra).
+  const splitLines = useMemo(() => {
+    const lines = [
+      ...unpaidTableOrders.flatMap((o) =>
+        o.items.map((i, idx) => ({ key: i.lineId ?? `${o.id}-${idx}`, name: i.name, quantity: i.quantity, total: i.total }))
+      ),
+      ...cart.map((i, idx) => ({ key: `cart-${idx}`, name: i.name, quantity: i.quantity, total: i.total })),
+    ]
+    return lines.reduce((s, l) => s + l.total, 0) === chargeTotal ? lines : undefined
+  }, [unpaidTableOrders, cart, chargeTotal])
+
   // Si el carrito cambia, la orden del próximo intento es otra.
   useEffect(() => {
     pendingOrderIdRef.current = null
@@ -718,6 +735,44 @@ export function CounterDashboard() {
       setMoveBusy(false)
     }
   }, [selectedTableId, moveBusy, tables, moveTable, showToast])
+
+  // ── Fase D: descuentos (cajero: el server pide PIN de encargado) ─────────
+  const runDiscount = useCallback(async (op: () => Promise<unknown>, okMessage: string) => {
+    if (discountBusy) return
+    setDiscountBusy(true)
+    try {
+      await op()
+      setDiscountTarget(null)
+      showToast(okMessage, "success")
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      showToast(describePosError(err, "No se pudo aplicar el descuento"), "error")
+    } finally {
+      setDiscountBusy(false)
+    }
+  }, [discountBusy, showToast])
+
+  const handleDiscountConfirm = useCallback((discount: DiscountRequest) => {
+    if (!tenantId || !discountTarget) return
+    if (discountTarget.scope === "table") {
+      if (!selectedTableId) return
+      void runDiscount(() => discountTable(tenantId, selectedTableId, discount), "Descuento aplicado a la cuenta")
+    } else if (discountTarget.item.lineId) {
+      const { order, item } = discountTarget
+      void runDiscount(() => discountOrderLine(tenantId, order.id, item.lineId as string, discount), `Descuento aplicado a ${item.name}`)
+    }
+  }, [tenantId, discountTarget, selectedTableId, runDiscount])
+
+  const handleDiscountRemove = useCallback(() => {
+    if (!tenantId || !discountTarget) return
+    if (discountTarget.scope === "table") {
+      if (!selectedTableId) return
+      void runDiscount(() => removeTableDiscounts(tenantId, selectedTableId), "Descuentos quitados")
+    } else if (discountTarget.item.lineId) {
+      const { order, item } = discountTarget
+      void runDiscount(() => removeOrderLineDiscount(tenantId, order.id, item.lineId as string), "Descuento quitado")
+    }
+  }, [tenantId, discountTarget, selectedTableId, runDiscount])
 
   const handleMoveTarget = useCallback((tableId: string) => {
     if (tableId === selectedTableId) return
@@ -1129,6 +1184,7 @@ export function CounterDashboard() {
               orders={tableOrders}
               now={now}
               onVoidItem={(order, item) => setVoidTarget({ order, item })}
+              onDiscountItem={(order, item) => setDiscountTarget({ scope: "line", order, item })}
             />
           ),
           openOnMobile: true,
@@ -1167,6 +1223,11 @@ export function CounterDashboard() {
                     Pedir cuenta
                   </button>
                 )
+              )}
+              {unpaid > 0 && (
+                <button className="btn btn-secondary" onClick={() => setDiscountTarget({ scope: "table" })}>
+                  % Descuento
+                </button>
               )}
               {selectedTable.status === "occupied" && (
                 <button className="btn btn-secondary" onClick={() => setScene("mover")}>
@@ -1847,6 +1908,8 @@ export function CounterDashboard() {
                   onConfirm={handlePay}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
                   invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
+                  splitLines={splitLines}
+                  guests={selectedTable?.guests}
                 />
               </div>
             </div>
@@ -1937,6 +2000,7 @@ export function CounterDashboard() {
                   sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
                   invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
+                  splitLines={splitLines}
                 />
               </div>
             </div>
@@ -2462,6 +2526,22 @@ export function CounterDashboard() {
           onCancel={() => setVoidTarget(null)}
         />
       )}
+      {discountTarget && selectedTable && (() => {
+        // Base = importe SIN descuentos (el nuevo reemplaza a los anteriores).
+        const gross = (i: OrderItem) => i.total + (i.discount?.amount ?? 0)
+        const lines = discountTarget.scope === "table" ? unpaidTableOrders.flatMap((o) => o.items) : [discountTarget.item]
+        return (
+          <DiscountDialog
+            target={discountTarget.scope === "table" ? `Mesa ${selectedTable.number}, toda la cuenta` : discountTarget.item.name}
+            base={lines.reduce((s, i) => s + gross(i), 0)}
+            hasDiscount={lines.some((i) => i.discount)}
+            busy={discountBusy}
+            onConfirm={handleDiscountConfirm}
+            onRemove={handleDiscountRemove}
+            onCancel={() => setDiscountTarget(null)}
+          />
+        )
+      })()}
       {joinTargetId && selectedTable && (
         <ConfirmDialog
           title="Unir mesas"

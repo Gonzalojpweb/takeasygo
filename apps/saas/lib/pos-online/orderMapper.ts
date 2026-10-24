@@ -118,6 +118,18 @@ export interface SaasOrderItemDraft {
   /** Estación de la comanda (cocina/barra). La asigna el server (printRoles.ts). */
   printRole?: 'kitchen' | 'bar' | 'both'
   course: ItemCourse | null
+  /** Descuento de la línea (Fase D, lib/pos-online/discounts). */
+  posDiscount?: {
+    kind: 'percent' | 'amount'
+    value: number
+    amountCents: number
+    scope: 'item' | 'order'
+    reason: string
+    note?: string | null
+    by?: string
+    approvedBy?: string | null
+    at?: Date
+  } | null
   /** Presente en documentos leídos de Mongo (id de la línea). */
   _id?: mongoose.Types.ObjectId
 }
@@ -413,6 +425,17 @@ export function toPosOrder(doc: {
     items: (doc.items ?? []).map((i) => ({
       ...(i._id ? { lineId: String(i._id) } : {}),
       ...(i.course ? { course: i.course } : {}),
+      ...(i.posDiscount && i.posDiscount.amountCents > 0
+        ? {
+            discount: {
+              kind: i.posDiscount.kind,
+              value: i.posDiscount.value,
+              amount: i.posDiscount.amountCents,
+              scope: i.posDiscount.scope,
+              reason: i.posDiscount.reason,
+            },
+          }
+        : {}),
       productId: i.menuItemId?.toString() ?? '',
       name: i.name,
       quantity: i.quantity,

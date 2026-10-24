@@ -16,6 +16,7 @@ import {
 import { planVoidWaste, recordVoidWasteSafe, syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, recomputeOrderTotals, type SaasOrderItemDraft } from '@/lib/pos-online/orderMapper'
+import { withQuantityKeepingDiscount } from '@/lib/pos-online/discounts'
 import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
 // ============================================================================
@@ -65,8 +66,9 @@ function assertEditable(status: string): void {
   }
 }
 
+/** Nueva cantidad conservando el descuento de la línea (Fase D). */
 function withQuantity(item: SaasOrderItemDraft, quantity: number): SaasOrderItemDraft {
-  return { ...item, quantity, subtotal: (item.basePrice + item.extraPrice) * quantity }
+  return withQuantityKeepingDiscount(item, quantity)
 }
 
 interface Reduction {

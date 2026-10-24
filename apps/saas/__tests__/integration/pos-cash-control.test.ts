@@ -26,6 +26,7 @@ import { PATCH } from '@/app/api/[tenant]/pos/orders/[id]/route'
 import { POST as PAY } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
 import { POST as VOID } from '@/app/api/[tenant]/pos/orders/[id]/void/route'
 import { DELETE as REMOVE_ITEM, PATCH as PATCH_ITEM } from '@/app/api/[tenant]/pos/orders/[id]/items/[productId]/route'
+import { POST as DISCOUNT, DELETE as REMOVE_DISCOUNT } from '@/app/api/[tenant]/pos/orders/[id]/discounts/route'
 import { POST as PRINT_Z } from '@/app/api/[tenant]/pos/cash/registers/[id]/print/route'
 
 /**
@@ -484,5 +485,53 @@ describe('Fase 2 — el Z para llevarse', () => {
     const reg = await openRegister()
     const res = await PRINT_Z(req(`${BASE}/cash/registers/${reg.id}/print`, {}), idParams(reg.id))
     expect(res.status).toBe(409)
+  })
+})
+
+
+describe('Fase D — descuentos en la orden', () => {
+  const discount = (orderId: string, body: Record<string, unknown>, opts: { role?: 'cashier' | 'manager' | 'waiter'; pin?: string } = {}) =>
+    DISCOUNT(req(`${BASE}/orders/${orderId}/discounts`, body, opts), idParams(orderId))
+
+  it('cajero sin PIN → approval_required; mozo → 403', async () => {
+    const orderId = await createOrder('confirmed')
+    const noPin = await discount(orderId, { kind: 'percent', value: 10, reason: 'courtesy' })
+    expect(noPin.status).toBe(403)
+    expect((await noPin.json()).error.code).toBe('approval_required')
+
+    const waiter = await discount(orderId, { kind: 'percent', value: 10, reason: 'courtesy' }, { role: 'waiter' })
+    expect(waiter.status).toBe(403)
+    expect((await Order.findOne({ posId: orderId }).lean())!.total).toBe(3000)
+  })
+
+  it('encargado: 10% a la orden baja el total y el cobro se valida contra el total nuevo', async () => {
+    const orderId = await createOrder('confirmed')
+    const res = await discount(orderId, { kind: 'percent', value: 10, reason: 'regular' }, { role: 'manager' })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.discountedCents).toBe(300)
+    expect(body.order.total).toBe(2700)
+    expect(body.order.items[0].discount).toMatchObject({ kind: 'percent', value: 10, amount: 300, scope: 'order', reason: 'regular' })
+
+    const stored = await Order.findOne({ posId: orderId }).lean()
+    expect(stored!.items[0].subtotal).toBe(2700)
+    expect(stored!.items[0].posDiscount).toMatchObject({ amountCents: 300, by: CASHIER_ID })
+
+    const wrong = await pay(orderId, [{ method: 'cash', amount: 3000 }])
+    expect(wrong.status).toBe(400)
+    const ok = await pay(orderId, [{ method: 'cash', amount: 2700 }])
+    expect(ok.status).toBe(201)
+  })
+
+  it('una orden cobrada no se descuenta; quitar el descuento restituye el total', async () => {
+    const orderId = await createOrder('confirmed')
+    await discount(orderId, { kind: 'amount', value: 500, reason: 'complaint' }, { role: 'manager' })
+    const removed = await REMOVE_DISCOUNT(req(`${BASE}/orders/${orderId}/discounts`, undefined, { method: 'DELETE', role: 'manager' }), idParams(orderId))
+    expect(removed.status).toBe(200)
+    expect((await removed.json()).order.total).toBe(3000)
+
+    await pay(orderId, [{ method: 'cash', amount: 3000 }])
+    const paid = await discount(orderId, { kind: 'percent', value: 10, reason: 'courtesy' }, { role: 'manager' })
+    expect(paid.status).toBe(409)
   })
 })

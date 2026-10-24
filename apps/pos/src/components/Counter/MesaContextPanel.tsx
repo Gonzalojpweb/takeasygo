@@ -1,5 +1,5 @@
 import type { Order, OrderItem, Table } from "@takeasygo/types"
-import { Clock, Users, Receipt, UtensilsCrossed, X } from "lucide-react"
+import { Clock, Users, Receipt, UtensilsCrossed, X, Percent } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
 import { MESA_STATUS_LABEL } from "../shared/MesaCard"
@@ -23,6 +23,8 @@ interface MesaContextPanelProps {
    * Solo lo pasa el Counter: el mozo no quita platos enviados.
    */
   onVoidItem?: (order: Order, item: OrderItem) => void
+  /** Fase D: presente ⇒ cada plato sin cobrar tiene «Descuento». */
+  onDiscountItem?: (order: Order, item: OrderItem) => void
 }
 
 /** Una ronda se puede corregir mientras no se cobró ni pasó a preparación. */
@@ -30,7 +32,7 @@ function isEditable(order: Order): boolean {
   return (order.status === "pending" || order.status === "confirmed") && !order.payments?.length
 }
 
-export function MesaContextPanel({ table, activity, orders, now, onVoidItem }: MesaContextPanelProps) {
+export function MesaContextPanel({ table, activity, orders, now, onVoidItem, onDiscountItem }: MesaContextPanelProps) {
   const lines = orders.flatMap((o) => o.items.map((item) => ({ order: o, item })))
 
   return (
@@ -88,8 +90,24 @@ export function MesaContextPanel({ table, activity, orders, now, onVoidItem }: M
                 <span className="mesa-panel-name">
                   {item.name}
                   {item.notes && <span className="mesa-panel-note">{item.notes}</span>}
+                  {item.discount && (
+                    <span className="mesa-panel-discount">
+                      Desc. {item.discount.kind === "percent" ? `${item.discount.value}%` : formatCurrency(item.discount.amount)}
+                    </span>
+                  )}
                 </span>
                 <span className="mesa-panel-price">{formatCurrency(item.total)}</span>
+                {onDiscountItem && item.lineId && !order.payments?.length && (
+                  <button
+                    type="button"
+                    className={`mesa-panel-void mesa-panel-disc${item.discount ? " active" : ""}`}
+                    onClick={() => onDiscountItem(order, item)}
+                    aria-label={`Descuento en ${item.name}`}
+                    title="Descuento"
+                  >
+                    <Percent size={15} aria-hidden />
+                  </button>
+                )}
                 {onVoidItem && item.lineId && isEditable(order) && (
                   <button
                     type="button"

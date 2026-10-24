@@ -2417,3 +2417,37 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .void-reason-hint.waste { color: var(--error); font-weight: var(--font-weight-semibold); }
 .void-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); width: 100%; }
 .void-actions .btn { min-height: 48px; }
+
+/* ========================================
+   FASE D (2026-10) — descuentos y dividir la cuenta
+   ======================================== */
+.mesa-panel-items li { grid-template-columns: 24px 1fr auto auto auto; }
+.mesa-panel-discount { display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 4px; background: var(--success-light); color: var(--success); font-size: 10px; font-weight: var(--font-weight-semibold); }
+.mesa-panel-disc.active { color: var(--success); }
+.discount-kind { display: flex; gap: var(--sp-2); justify-content: center; }
+.discount-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); width: 100%; }
+.discount-quick .guests-btn { min-height: 48px; font-size: var(--font-size-base); }
+.discount-quick .guests-btn:last-child { grid-column: span 2; }
+.discount-amount { width: 100%; font-size: 22px; text-align: center; }
+.discount-reasons { display: grid; grid-template-columns: 1fr 1fr; }
+.discount-reasons .void-reason.active { border-color: var(--primary-action); background: var(--primary-action-light); }
+.discount-preview { display: flex; align-items: baseline; justify-content: center; gap: var(--sp-2); font-variant-numeric: tabular-nums; }
+.discount-preview strong { font-size: var(--font-size-lg); }
+
+.split-items { display: flex; flex-direction: column; gap: var(--sp-3); }
+.split-people { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; }
+.split-person { display: flex; flex-direction: column; align-items: flex-start; min-width: 108px; min-height: 52px; padding: var(--sp-1) var(--sp-3); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font: inherit; font-size: var(--font-size-xs); color: var(--text-secondary); cursor: pointer; flex-shrink: 0; }
+.split-person strong { font-size: var(--font-size-sm); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.split-person.active { border-color: var(--primary-action); background: var(--primary-action-light); color: var(--primary-action); }
+.split-person--add { min-width: 52px; align-items: center; justify-content: center; font-size: 20px; }
+.split-units { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--sp-2); max-height: 46vh; overflow-y: auto; }
+.split-unit { display: flex; flex-direction: column; justify-content: space-between; min-height: 60px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font: inherit; text-align: left; cursor: pointer; }
+.split-unit-name { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); line-height: 1.2; }
+.split-unit-foot { display: flex; justify-content: space-between; font-size: var(--font-size-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.split-unit-owner { font-weight: var(--font-weight-semibold); }
+.split-unit.mine { border-color: var(--primary-action); background: var(--primary-action-light); }
+.split-unit.taken { opacity: 0.5; }
+.split-footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+.split-footer .btn { min-height: 44px; }
+.text-error { color: var(--error); }
+.text-success { color: var(--success); }

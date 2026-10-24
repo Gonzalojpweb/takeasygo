@@ -60,6 +60,21 @@ export interface IOrderItem {
   /** Curso (POS, Fase C): entrada / principal / postre. null = sin curso. */
   course?: 'entrada' | 'principal' | 'postre' | null
   /**
+   * Descuento del POS sobre la línea (Fase D). `subtotal` ya está neto:
+   * subtotal = price × quantity − posDiscount.amountCents.
+   */
+  posDiscount?: {
+    kind: 'percent' | 'amount'
+    value: number
+    amountCents: number
+    scope: 'item' | 'order'
+    reason: string
+    note: string | null
+    by: string
+    approvedBy: string | null
+    at: Date
+  } | null
+  /**
    * Nota de cocina por item ("sin cebolla", "bien hecho").
    * El POS la emite en cada OrderItem; sin este campo se perdería al
    * sincronizar y la comanda de cocina saldría incompleta.
@@ -504,6 +519,27 @@ const OrderItemSchema = new Schema<IOrderItem>({
     hasCategoryDiscount: { type: Boolean, default: false },
     notes: { type: String, default: null },
     course: { type: String, enum: ['entrada', 'principal', 'postre', null], default: null },
+    posDiscount: {
+      type: new Schema(
+        {
+          kind: { type: String, enum: ['percent', 'amount'], required: true },
+          value: { type: Number, required: true, min: 1 },
+          amountCents: { type: Number, required: true, min: 0 },
+          scope: { type: String, enum: ['item', 'order'], required: true },
+          reason: {
+            type: String,
+            enum: ['courtesy', 'complaint', 'regular', 'staff', 'promotion', 'other'],
+            required: true,
+          },
+          note: { type: String, default: null, maxlength: 140 },
+          by: { type: String, required: true },
+          approvedBy: { type: String, default: null },
+          at: { type: Date, required: true },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   })
 
 const GroupPaymentSchema = new Schema<IGroupPayment>({

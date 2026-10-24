@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { createOrder, addItem, removeItem, updateItemQuantity, voidSentItem } from "../services/order"
+import { createOrder, addItem, removeItem, updateItemQuantity, voidSentItem, discountOrderLine } from "../services/order"
 import { PosApiError, SESSION_CACHE_KEY } from "../services/pos-api"
 
 /**
@@ -240,6 +240,17 @@ describe("edición de items", () => {
     expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/orders/${ORDER}/items/${PRODUCT}`)
     expect(req.method).toBe("PATCH")
     expect(req.body).toEqual({ quantity: 1, lineId: "64b0000000000000000000c1", reason: "dropped" })
+  })
+
+  it("discountOrderLine → POST /discounts con lineId, tipo, valor y motivo (Fase D)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ order: serverOrder(), discountedCents: 300 }))
+
+    await discountOrderLine(TENANT, ORDER, "64b0000000000000000000c1", { kind: "percent", value: 10, reason: "regular" })
+
+    const req = lastRequest()
+    expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/orders/${ORDER}/discounts`)
+    expect(req.method).toBe("POST")
+    expect(req.body).toEqual({ kind: "percent", value: 10, reason: "regular", lineId: "64b0000000000000000000c1" })
   })
 
   it("quantity 0 viaja igual: el server lo interpreta como quitar", async () => {
