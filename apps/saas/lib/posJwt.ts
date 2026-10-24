@@ -73,6 +73,19 @@ function isRsaPublicKeyPem(value: string | undefined | null): value is string {
   }
 }
 
+/**
+ * Normaliza un PEM pegado en un panel de variables (Vercel): comillas
+ * alrededor y saltos de línea escritos como texto («\n») son el error más
+ * común al cargar la clave. No afloja nada: el resultado igual tiene que
+ * parsear como RSA >= 2048 y cada token se sigue verificando con su firma.
+ */
+export function normalizePemEnv(value: string | undefined | null): string | undefined {
+  if (!value) return undefined
+  let v = value.trim()
+  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1).trim()
+  return v.replace(/\\r\\n|\\n/g, '\n')
+}
+
 let cached: ResolvedPosKey | null = null
 
 /**
@@ -92,8 +105,8 @@ export function getPosJwtPublicKey(): ResolvedPosKey {
   if (cached) return cached
 
   const candidates: Array<[string, string | undefined]> = [
-    ['POS_JWT_PUBLIC_KEY', process.env.POS_JWT_PUBLIC_KEY],
-    ['SSO_JWT_PUBLIC_KEY', process.env.SSO_JWT_PUBLIC_KEY],
+    ['POS_JWT_PUBLIC_KEY', normalizePemEnv(process.env.POS_JWT_PUBLIC_KEY)],
+    ['SSO_JWT_PUBLIC_KEY', normalizePemEnv(process.env.SSO_JWT_PUBLIC_KEY)],
   ]
 
   let sawDefined = false

@@ -122,6 +122,22 @@ describe('getPosJwtPublicKey', () => {
     expect(() => getPosJwtPublicKey()).toThrow(PosKeyConfigError)
   })
 
+  it('acepta la clave pegada en una línea con \\n escritos y entre comillas (Vercel)', () => {
+    // Error real (24/10/2026): la clave cargada en Vercel en una sola línea
+    // dejaba al SaaS sin clave válida y todo el POS daba 401.
+    process.env.SSO_JWT_PUBLIC_KEY = `"${PUBLIC_PEM.trim().replace(/\n/g, '\\n')}"`
+    __resetPosJwtKeyCacheForTests()
+    const resolved = getPosJwtPublicKey()
+    expect(resolved.source).toBe('env')
+    expect(resolved.pem).toBe(PUBLIC_PEM.trim())
+  })
+
+  it('normalizar no afloja nada: una clave inválida en una línea sigue fallando', () => {
+    process.env.POS_JWT_PUBLIC_KEY = '-----BEGIN PUBLIC KEY-----\\nbasura\\n-----END PUBLIC KEY-----'
+    __resetPosJwtKeyCacheForTests()
+    expect(() => getPosJwtPublicKey()).toThrow(PosKeyConfigError)
+  })
+
   it('FAIL-CLOSED: si la env es basura, lanza', () => {
     process.env.POS_JWT_PUBLIC_KEY = 'no-es-una-clave'
     __resetPosJwtKeyCacheForTests()
