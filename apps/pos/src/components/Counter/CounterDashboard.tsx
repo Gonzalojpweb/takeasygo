@@ -16,7 +16,8 @@ import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
 import { SalonMap } from "../shared/SalonMap"
-import { MesaContextPanel } from "./MesaContextPanel"
+import { TableDetail } from "./TableDetail"
+import { ContextActionPanel, type ContextActionGroup } from "../shared/ContextActionPanel"
 import { useTableActivity } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
@@ -38,7 +39,10 @@ import { PosApiError } from "../../services/pos-api"
 import { playOrderNotification } from "../../services/notification-sound"
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
-import { UtensilsCrossed, Store, Package, Calendar, ClipboardList } from "lucide-react"
+import {
+  UtensilsCrossed, Store, Package, Calendar, ClipboardList,
+  Plus, Users, Receipt, Unlock, Printer, Wallet, Split, Percent, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
+} from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
 import { OrderCard } from "../IncomingOrders/OrderCard"
@@ -1254,29 +1258,75 @@ export function CounterDashboard() {
           setActionBar(null)
           break
         }
+        // Contexto «Mesa» (obs. 24/10): el detalle vive en el workspace
+        // (TableDetail) y TODAS las acciones de la mesa en el Context Panel,
+        // agrupadas por tipo (registro de acciones: sumar una = una entrada).
         const activity = tableActivity.get(selectedTable.id)
         const unpaid = activity?.unpaid ?? 0
+        const occupied = selectedTable.status === "occupied"
         const tableReservation = selectedTable.status === "reserved" ? reservationsByTable.get(selectedTable.id) : undefined
         // Mesa reservada por una reserva: se suelta desde la reserva (no «Liberar»).
-        const canRelease = !activity && !tableReservation && (selectedTable.status === "reserved" || selectedTable.status === "occupied")
+        const canRelease = !activity && !tableReservation && (selectedTable.status === "reserved" || occupied)
+        const resBusy = tableReservation ? reservationBusyId === tableReservation.id : false
+        const actionGroups: ContextActionGroup[] = [
+          {
+            title: "Servicio",
+            actions: [
+              ...(!selectedTable.needsBill && (occupied || selectedTable.status === "free")
+                ? [{ id: "add", label: "Agregar productos", icon: Plus, tone: "teal" as const, onClick: () => setScene("productos") }]
+                : []),
+              ...(occupied
+                ? [{ id: "guests", label: "Comensales", hint: selectedTable.guests ? `${selectedTable.guests} personas` : "Sin cargar", icon: Users, tone: "gray" as const,
+                    onClick: () => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" }) }]
+                : []),
+              ...(unpaid > 0 && !selectedTable.needsBill
+                ? [{ id: "bill", label: "Pedir cuenta", hint: "Imprime la precuenta", icon: Receipt, tone: "amber" as const, onClick: () => { void handleBillRequest(true) } }]
+                : []),
+              ...(selectedTable.needsBill
+                ? [
+                    { id: "reopen", label: "Reabrir mesa", hint: "PIN de encargado", icon: Unlock, tone: "amber" as const, onClick: () => { void handleBillRequest(false) } },
+                    { id: "reprint", label: "Reimprimir precuenta", icon: Printer, tone: "amber" as const, onClick: () => { void handlePrintPrecuenta() } },
+                  ]
+                : []),
+            ],
+          },
+          {
+            title: "Cuenta",
+            actions: unpaid > 0
+              ? [
+                  { id: "charge", label: "Cobrar", hint: formatCurrency(unpaid), icon: Wallet, tone: "orange" as const, onClick: () => setScene("cobro") },
+                  { id: "split", label: "Dividir cuenta", hint: "Por platos o comensal", icon: Split, tone: "orange" as const, onClick: () => setScene("cobro") },
+                  { id: "discount", label: "Descuento", hint: "A toda la cuenta", icon: Percent, tone: "green" as const, onClick: () => setDiscountTarget({ scope: "table" }) },
+                ]
+              : [],
+          },
+          {
+            title: "Mesa",
+            actions: [
+              ...(occupied ? [{ id: "move", label: "Cambiar / unir", icon: ArrowLeftRight, tone: "blue" as const, onClick: () => setScene("mover") }] : []),
+              ...(selectedTable.status === "free" ? [{ id: "reserve", label: "Reservar", icon: CalendarClock, tone: "violet" as const, onClick: () => handleTableTransition("reserve") }] : []),
+              ...(canRelease ? [{ id: "release", label: "Liberar mesa", icon: DoorOpen, tone: "red" as const, onClick: () => handleTableTransition("free") }] : []),
+            ],
+          },
+          {
+            title: "Reserva",
+            actions: tableReservation
+              ? [
+                  { id: "seat", label: "Sentar", hint: `${tableReservation.name.split(" ")[0]} · ${tableReservation.partySize}p`, icon: UserCheck, tone: "teal" as const, disabled: resBusy,
+                    onClick: () => { void handleReservationAction(tableReservation, "seat") } },
+                  { id: "noshow", label: "No vino", icon: UserX, tone: "red" as const, disabled: resBusy, onClick: () => { void handleReservationAction(tableReservation, "no_show") } },
+                  { id: "unassign", label: "Soltar mesa", icon: Unlink, tone: "gray" as const, disabled: resBusy, onClick: () => { void handleReservationAction(tableReservation, "unassign") } },
+                ]
+              : [],
+          },
+        ]
         setContextPanel({
           title: `Mesa ${selectedTable.number}`,
-          subtitle: selectedTable.section || "Sala Principal",
-          body: (
-            <MesaContextPanel
-              table={selectedTable}
-              activity={activity}
-              orders={tableOrders}
-              now={now}
-              onVoidItem={(order, item) => setVoidTarget({ order, item })}
-              onDiscountItem={(order, item) => setDiscountTarget({ scope: "line", order, item })}
-              reservation={reservationsByTable.get(selectedTable.id)}
-            />
-          ),
+          subtitle: [selectedTable.section || "Sala principal", activity ? formatCurrency(activity.total) : null].filter(Boolean).join(" · "),
+          body: <ContextActionPanel groups={actionGroups} />,
           openOnMobile: true,
         })
-        // Action Bar con slots fijos (Axioma 04): izquierda = entidad/total,
-        // centro = secundarias, derecha = la ÚNICA acción principal.
+        // Barra inferior despejada: entidad/total, volver y UNA acción principal.
         setActionBar({
           left: (
             <div className="action-bar-total">
@@ -1285,70 +1335,12 @@ export function CounterDashboard() {
             </div>
           ),
           center: (
-            <>
-              <button className="btn btn-ghost" onClick={() => { setSelectedTableId(null); setScene("salon") }}>
-                ← Salón
-              </button>
-              {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })}>
-                  👥 {selectedTable.guests ? `${selectedTable.guests} comensales` : "Comensales"}
-                </button>
-              )}
-              {unpaid > 0 && !selectedTable.needsBill && (
-                <button className="btn btn-secondary" onClick={() => setScene("productos")}>
-                  + Agregar productos
-                </button>
-              )}
-              {unpaid > 0 && (
-                selectedTable.needsBill ? (
-                  <>
-                    <button className="btn btn-secondary" onClick={() => { void handleBillRequest(false) }}>
-                      Reabrir mesa
-                    </button>
-                    <button className="btn btn-secondary" onClick={() => { void handlePrintPrecuenta() }}>
-                      Reimprimir precuenta
-                    </button>
-                  </>
-                ) : (
-                  <button className="btn btn-secondary" onClick={() => { void handleBillRequest(true) }}>
-                    Pedir cuenta
-                  </button>
-                )
-              )}
-              {unpaid > 0 && (
-                <button className="btn btn-secondary" onClick={() => setDiscountTarget({ scope: "table" })}>
-                  % Descuento
-                </button>
-              )}
-              {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={() => setScene("mover")}>
-                  Cambiar / unir mesa
-                </button>
-              )}
-              {tableReservation && (
-                <>
-                  <button className="btn btn-secondary" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "no_show") }}>
-                    No vino
-                  </button>
-                  <button className="btn btn-secondary" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "unassign") }}>
-                    Soltar mesa
-                  </button>
-                </>
-              )}
-              {selectedTable.status === "free" && (
-                <button className="btn btn-secondary" onClick={() => handleTableTransition("reserve")}>
-                  Reservar
-                </button>
-              )}
-              {canRelease && (
-                <button className="btn btn-secondary" onClick={() => handleTableTransition("free")}>
-                  Liberar mesa
-                </button>
-              )}
-            </>
+            <button className="btn btn-ghost" onClick={() => { setSelectedTableId(null); setScene("salon") }}>
+              ← Salón
+            </button>
           ),
           right: tableReservation ? (
-            <button className="btn btn-primary btn-lg" disabled={reservationBusyId === tableReservation.id} onClick={() => { void handleReservationAction(tableReservation, "seat") }}>
+            <button className="btn btn-primary btn-lg" disabled={resBusy} onClick={() => { void handleReservationAction(tableReservation, "seat") }}>
               Sentar a {tableReservation.name.split(" ")[0]} ({tableReservation.partySize})
             </button>
           ) : unpaid > 0 ? (
@@ -1940,7 +1932,20 @@ export function CounterDashboard() {
             />
           )}
 
-          {(scene === "salon" || scene === "mesa" || scene === "mover") && (
+          {scene === "mesa" && selectedTable && (
+            <TableDetail
+              table={selectedTable}
+              activity={tableActivity.get(selectedTable.id)}
+              orders={tableOrders}
+              now={now}
+              reservation={selectedTable.status === "reserved" ? reservationsByTable.get(selectedTable.id) : undefined}
+              onVoidItem={(order, item) => setVoidTarget({ order, item })}
+              onDiscountItem={(order, item) => setDiscountTarget({ scope: "line", order, item })}
+              onAddProducts={() => setScene("productos")}
+            />
+          )}
+
+          {(scene === "salon" || scene === "mover" || (scene === "mesa" && !selectedTable)) && (
             <>
               <div className="salon-content">
                 {tables.length === 0 ? (

@@ -12,6 +12,7 @@ import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
+import { useReservations } from "../../hooks/useReservations"
 import { sendWaiterOrderToKitchen, WAITER_SERVER_ID } from "../../services/waiter-order"
 import { printPrecuenta } from "../../services/table"
 import { PosApiError } from "../../services/pos-api"
@@ -77,6 +78,8 @@ export function WaiterDashboard() {
 
   const { setContextPanel, setActionBar } = useLayout()
   const popularIds = usePopularProducts(tenantId)
+  // Obs. 24/10: el mozo ve las reservas sobre las mesas (la caja las opera).
+  const { byTable: reservationsByTable } = useReservations(tenantId)
   const { tables, markNeedsBill, markNeedsAttention, occupyTable, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
@@ -288,7 +291,15 @@ export function WaiterDashboard() {
         setContextPanel({
           title: `Mesa ${selectedTable.number}`,
           subtitle: selectedTable.section || "Salón",
-          body: <WaiterContextPanel table={selectedTable} orders={tableOrders} activity={activity} now={now} />,
+          body: (
+            <WaiterContextPanel
+              table={selectedTable}
+              orders={tableOrders}
+              activity={activity}
+              now={now}
+              reservation={selectedTable.status === "reserved" ? reservationsByTable.get(selectedTable.id) : undefined}
+            />
+          ),
           openOnMobile: true,
         })
         setActionBar({
@@ -367,7 +378,7 @@ export function WaiterDashboard() {
         // ProductConfigurationPanel maneja su propio panel y Action Bar.
         break
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   const kitchenRounds = useMemo(
@@ -404,6 +415,7 @@ export function WaiterDashboard() {
               activity={tableActivity}
               selectedTableId={selectedTableId}
               onSelectTable={handleSelectTable}
+              reservations={reservationsByTable}
             />
           </div>
         </>

@@ -27,9 +27,11 @@ interface WaiterContextPanelProps {
   orders: Order[]
   activity?: TableActivity
   now: number
+  /** Obs. 24/10: reserva asignada a la mesa (el mozo la ve; no la opera). */
+  reservation?: { time: string; name: string; partySize: number; notes?: string; spaceName?: string | null }
 }
 
-export function WaiterContextPanel({ table, orders, activity, now }: WaiterContextPanelProps) {
+export function WaiterContextPanel({ table, orders, activity, now, reservation }: WaiterContextPanelProps) {
   const sorted = [...orders].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
 
   return (
@@ -40,6 +42,16 @@ export function WaiterContextPanel({ table, orders, activity, now }: WaiterConte
         </span>
         {table.needsBill && <span className="status-pill status-pill--bill">Cuenta pedida</span>}
       </div>
+
+      {reservation && (
+        <div className="mesa-panel-reservation" role="note">
+          <div className="mesa-panel-reservation-title">Reservada · {reservation.time}</div>
+          <div><strong>{reservation.name}</strong> — {reservation.partySize} {reservation.partySize === 1 ? "persona" : "personas"}</div>
+          {reservation.spaceName && <div className="text-sm text-muted">Sector: {reservation.spaceName}</div>}
+          {reservation.notes && <div className="text-sm">📝 {reservation.notes}</div>}
+          <div className="text-sm text-muted">Para sentarla, avisá a la caja.</div>
+        </div>
+      )}
 
       <dl className="mesa-panel-facts">
         <div>
