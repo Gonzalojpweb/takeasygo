@@ -13,6 +13,7 @@ import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { sendWaiterOrderToKitchen, WAITER_SERVER_ID } from "../../services/waiter-order"
+import { printPrecuenta } from "../../services/table"
 import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
@@ -227,11 +228,19 @@ export function WaiterDashboard() {
     if (!selectedTableId) return
     try {
       await markNeedsBill(selectedTableId, true)
-      showToast("Cuenta pedida — la caja ya la ve", "success")
     } catch (err) {
       showToast(describeError(err, "No se pudo pedir la cuenta"), "error")
+      return
     }
-  }, [selectedTableId, markNeedsBill, showToast])
+    // Fase E: la precuenta sale en la impresora de caja; si falla, la cuenta
+    // igual quedó pedida (la caja la ve) y se avisa.
+    try {
+      if (tenantId) await printPrecuenta(tenantId, selectedTableId)
+      showToast("Cuenta pedida — precuenta impresa en caja", "success")
+    } catch (err) {
+      showToast(`Cuenta pedida. No se imprimió la precuenta: ${describeError(err, "error de impresión")}`, "error")
+    }
+  }, [tenantId, selectedTableId, markNeedsBill, showToast])
 
   // Fase C: reabrir una mesa que pidió la cuenta (para agregar una ronda).
   const handleReopen = useCallback(async () => {

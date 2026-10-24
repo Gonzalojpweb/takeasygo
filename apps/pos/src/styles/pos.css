@@ -2451,3 +2451,16 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .split-footer .btn { min-height: 44px; }
 .text-error { color: var(--error); }
 .text-success { color: var(--success); }
+
+/* ========================================
+   FASE E (2026-10) — cobro claro: billetes rápidos, vuelto grande
+   ======================================== */
+.checkout-discount { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); margin-top: 4px; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.cash-card { padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.cash-quick { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--sp-2); }
+.cash-quick-btn { min-height: 52px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font: inherit; font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; color: var(--text-primary); cursor: pointer; }
+.cash-quick-btn:hover, .cash-quick-btn:focus-visible { border-color: var(--primary-action); outline: none; }
+.cash-quick-btn.active { border-color: var(--success); background: var(--success-light); color: var(--success); }
+.cash-change { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-3) var(--sp-4); border-radius: 12px; background: var(--success-light); color: var(--success); font-weight: var(--font-weight-semibold); }
+.cash-change strong { font-size: 40px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cash-change--short { justify-content: center; background: var(--error-light); color: var(--error); font-size: var(--font-size-lg); }

@@ -511,3 +511,24 @@ export async function removeTableDiscounts(tenantId: string, tableId: string): P
     for (const order of res.orders) await saveOrder(order)
   })
 }
+
+/** Descuento a TODA una orden (Mostrador, Fase E). Devuelve la orden con el total nuevo. */
+export async function discountOrder(tenantId: string, orderId: string, discount: DiscountRequest): Promise<Order> {
+  return runMutation(async () => {
+    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/discounts`, { ...discount })
+    return saveOrder(order)
+  })
+}
+
+/**
+ * Espejo del cálculo del server (lib/pos-online/discounts): cuánto descuenta
+ * un descuento a toda la cuenta sobre líneas de importe `lineTotals`. El %
+ * se redondea por línea (como el server); el monto nunca supera el total.
+ * Sirve para mostrar el total ANTES de crear la orden (Mostrador); el server
+ * igual decide y el cobro se valida contra su total.
+ */
+export function expectedDiscountCents(lineTotals: number[], discount: Pick<DiscountRequest, "kind" | "value">): number {
+  const total = lineTotals.reduce((s, n) => s + n, 0)
+  if (discount.kind === "amount") return Math.min(total, discount.value)
+  return lineTotals.reduce((s, line) => s + Math.min(line, Math.round((line * discount.value) / 100)), 0)
+}

@@ -32,17 +32,24 @@ type PosOrderDoc = Parameters<typeof toPosOrder>[0]
  * mismo payload → replay idéntico (200); payload distinto → 409.
  * Sin esto, "idempotente" sería "silenciosamente acepto lo que sea".
  */
+/**
+ * Firma para la idempotencia del alta. Usa los importes ANTES de descuento
+ * (Fase D/E): una orden a la que después se le aplicó un descuento sigue
+ * reconociéndose como la misma si el POS reintenta el alta (p. ej. el
+ * Mostrador descuenta y el cobro se corta).
+ */
 function orderSignature(order: {
-  items?: { name: string; quantity: number; basePrice: number; price: number; subtotal: number }[]
+  items?: { name: string; quantity: number; basePrice: number; price: number; subtotal: number; posDiscount?: { amountCents: number } | null }[]
   total: number
   posTableId?: string | null
   menuVersion?: number
 }): string {
+  const items = (order.items ?? []).map((i) => [i.name, i.quantity, i.basePrice, i.price, i.subtotal + (i.posDiscount?.amountCents ?? 0)] as const)
   return JSON.stringify({
-    total: order.total,
+    total: items.reduce((s, i) => s + i[4], 0),
     table: order.posTableId ?? null,
     menuVersion: order.menuVersion ?? 1,
-    items: (order.items ?? []).map((i) => [i.name, i.quantity, i.basePrice, i.price, i.subtotal]),
+    items,
   })
 }
 

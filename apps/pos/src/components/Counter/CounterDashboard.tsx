@@ -26,7 +26,8 @@ import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest } from "../../services/order"
+import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
+import { printPrecuenta } from "../../services/table"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { PosApiError } from "../../services/pos-api"
@@ -86,7 +87,6 @@ interface ValidationItem {
   total: number
   status: "valid" | "needs_attention"
 }
-
 
 const SYNC_URL = import.meta.env.VITE_SYNC_URL
 
@@ -183,6 +183,10 @@ export function CounterDashboard() {
   // Fase D: descuento a la cuenta de la mesa o a un plato.
   const [discountTarget, setDiscountTarget] = useState<{ scope: "table" } | { scope: "line"; order: Order; item: OrderItem } | null>(null)
   const [discountBusy, setDiscountBusy] = useState(false)
+  // Fase E: descuento del Mostrador. Se elige ANTES de cobrar (la orden nace
+  // al cobrar) y se aplica en el server justo después de crearla.
+  const [mostradorDiscount, setMostradorDiscount] = useState<DiscountRequest | null>(null)
+  const [mostradorDiscountOpen, setMostradorDiscountOpen] = useState(false)
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
@@ -549,6 +553,11 @@ export function CounterDashboard() {
     [cartTotal, unpaidTableOrders]
   )
 
+  const mostradorDiscountCents = useMemo(
+    () => (view === "mostrador" && mostradorDiscount && cart.length > 0 ? expectedDiscountCents(cart.map((i) => i.total), mostradorDiscount) : 0),
+    [view, mostradorDiscount, cart]
+  )
+
   // Fase D: platos de lo que se cobra (rondas sin cobrar + carrito), netos
   // de descuento, para «Dividir por platos». Si por algún motivo no suman el
   // total exacto, no se ofrece (nunca dividir sobre una cuenta que no cierra).
@@ -706,16 +715,33 @@ export function CounterDashboard() {
     }
   }, [voidTarget, tenantId, voidBusy, showToast])
 
+  const handlePrintPrecuenta = useCallback(async (prefix = "Precuenta") => {
+    if (!tenantId || !selectedTableId) return
+    try {
+      const { printerName } = await printPrecuenta(tenantId, selectedTableId)
+      showToast(`${prefix} — precuenta enviada a ${printerName}`, "success")
+    } catch (err) {
+      showToast(`${prefix}. No se imprimió la precuenta: ${describePosError(err, "error de impresión")}`, "error")
+    }
+  }, [tenantId, selectedTableId, showToast])
+
   // ── Fase C: pedir la cuenta / reabrir la mesa ─────────────────────────────
   const handleBillRequest = useCallback(async (needsBill: boolean) => {
     if (!selectedTableId) return
     try {
       await markNeedsBill(selectedTableId, needsBill)
-      showToast(needsBill ? "Cuenta pedida — la mesa no recibe más rondas hasta reabrirla" : "Mesa reabierta", "success")
     } catch (err) {
       showToast(describePosError(err, "No se pudo actualizar la mesa"), "error")
+      return
     }
-  }, [selectedTableId, markNeedsBill, showToast])
+    if (!needsBill) {
+      showToast("Mesa reabierta", "success")
+      return
+    }
+    // Fase E: la precuenta sale por la impresora de caja. Si no se puede
+    // imprimir, la cuenta igual queda pedida (se avisa, no se revierte).
+    await handlePrintPrecuenta("Cuenta pedida")
+  }, [selectedTableId, markNeedsBill, showToast, handlePrintPrecuenta])
 
   // ── Fase C: cambiar de mesa (destino libre) o unir (destino ocupado) ─────
   const doMoveTable = useCallback(async (toId: string, join: boolean) => {
@@ -950,7 +976,7 @@ export function CounterDashboard() {
         const orderId = pendingOrderIdRef.current ?? crypto.randomUUID()
         pendingOrderIdRef.current = orderId
         ownOrderIdsRef.current.add(orderId)
-        const order = await createOrder(tableId, cartToOrderItems(), undefined, undefined, {
+        let order = await createOrder(tableId, cartToOrderItems(), undefined, undefined, {
           id: orderId,
           status: keepForKitchen ? "confirmed" : "pending",
         })
@@ -969,6 +995,11 @@ export function CounterDashboard() {
           // siguiente falla, el reintento la cobra desde ahí (no desde el
           // carrito), así que el carrito se vacía ya para no duplicarla.
           setCart([])
+        }
+        // Fase E: descuento del Mostrador. El server lo aplica (y pide el PIN
+        // si es cajero); el cobro sigue contra el total que él devuelve.
+        if (!selectedTableId && mostradorDiscount) {
+          order = await discountOrder(tenantId, order.id, mostradorDiscount)
         }
         if (!toCharge.some((o) => o.id === order.id)) toCharge.push(order)
       }
@@ -1077,6 +1108,7 @@ export function CounterDashboard() {
       setClubPhone("")
       pendingOrderIdRef.current = null
       setCart([])
+      setMostradorDiscount(null)
       setScene("cierre")
     } catch (err) {
       console.error("[Counter] Payment failed:", err)
@@ -1088,7 +1120,7 @@ export function CounterDashboard() {
     } finally {
       setPaying(false)
     }
-  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled])
+  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled, mostradorDiscount])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)
@@ -1099,6 +1131,7 @@ export function CounterDashboard() {
     setLastSale(null)
     setSendToKitchen(true)
     setClubPhone("")
+    setMostradorDiscount(null)
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -1215,9 +1248,14 @@ export function CounterDashboard() {
               )}
               {unpaid > 0 && (
                 selectedTable.needsBill ? (
-                  <button className="btn btn-secondary" onClick={() => { void handleBillRequest(false) }}>
-                    Reabrir mesa
-                  </button>
+                  <>
+                    <button className="btn btn-secondary" onClick={() => { void handleBillRequest(false) }}>
+                      Reabrir mesa
+                    </button>
+                    <button className="btn btn-secondary" onClick={() => { void handlePrintPrecuenta() }}>
+                      Reimprimir precuenta
+                    </button>
+                  </>
                 ) : (
                   <button className="btn btn-secondary" onClick={() => { void handleBillRequest(true) }}>
                     Pedir cuenta
@@ -1800,7 +1838,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, moveBusy, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -1993,10 +2031,18 @@ export function CounterDashboard() {
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
               <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
                 <CheckoutPanel
-                  key={chargeTotal}
-                  total={chargeTotal}
+                  key={`${chargeTotal}-${mostradorDiscountCents}`}
+                  total={chargeTotal - mostradorDiscountCents}
                   busy={paying}
                   onConfirm={handlePay}
+                  discount={{
+                    appliedCents: mostradorDiscountCents,
+                    label: mostradorDiscount
+                      ? (mostradorDiscount.kind === "percent" ? `${mostradorDiscount.value}%` : "") +
+                        ` (${DISCOUNT_REASONS.find((r) => r.id === mostradorDiscount.reason)?.label ?? ""})`
+                      : undefined,
+                    onEdit: () => setMostradorDiscountOpen(true),
+                  }}
                   sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
                   invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
@@ -2526,6 +2572,16 @@ export function CounterDashboard() {
           onCancel={() => setVoidTarget(null)}
         />
       )}
+      {mostradorDiscountOpen && (
+        <DiscountDialog
+          target="Mostrador, toda la venta"
+          base={cartTotal}
+          hasDiscount={Boolean(mostradorDiscount)}
+          onConfirm={(d) => { setMostradorDiscount(d); setMostradorDiscountOpen(false) }}
+          onRemove={() => { setMostradorDiscount(null); setMostradorDiscountOpen(false) }}
+          onCancel={() => setMostradorDiscountOpen(false)}
+        />
+      )}
       {discountTarget && selectedTable && (() => {
         // Base = importe SIN descuentos (el nuevo reemplaza a los anteriores).
         const gross = (i: OrderItem) => i.total + (i.discount?.amount ?? 0)
@@ -2598,7 +2654,6 @@ interface KanbanOrderCardProps {
   onSetArrived?: (orderId: string) => void
   onDeliver?: (orderId: string) => void
 }
-
 
 function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
   const isDelivery = order.source === "delivery"

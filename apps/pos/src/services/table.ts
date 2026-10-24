@@ -170,6 +170,19 @@ export async function moveTable(
 }
 
 /**
+ * Imprime la precuenta de la mesa en la impresora de caja (Fase E). No toca
+ * la mesa ni las órdenes: se puede reimprimir. Lanza PosApiError 409 si no
+ * hay impresora de caja; el que llama decide cómo avisar.
+ */
+export async function printPrecuenta(tenantId: string, tableId: string): Promise<{ printerName: string; total: number }> {
+  return posApi<{ printed: true; printerName: string; total: number }>(
+    tenantId,
+    `/tables/${encodeURIComponent(tableId)}/precuenta`,
+    { method: "POST" }
+  )
+}
+
+/**
  * Vincula la orden real a una mesa que ya está ocupada por la carga en curso.
  * Va SIN status: no hay transición que validar (sigue occupied) y el server
  * guarda currentOrderId para que delivered/cancelled la libere solo.

@@ -17,6 +17,9 @@ import { GET as tablesGet, POST as tablesPost } from '@/app/api/[tenant]/pos/tab
 import { PATCH as tablePatch } from '@/app/api/[tenant]/pos/tables/[id]/route'
 import { POST as tableMove } from '@/app/api/[tenant]/pos/tables/[id]/move/route'
 import { POST as tableDiscount } from '@/app/api/[tenant]/pos/tables/[id]/discount/route'
+import { POST as tablePrecuenta } from '@/app/api/[tenant]/pos/tables/[id]/precuenta/route'
+import Printer from '@/models/Printer'
+import PreClosePrintJob from '@/models/PreClosePrintJob'
 import Order from '@/models/Order'
 
 /**
@@ -550,5 +553,31 @@ describe('Fase D — descuento a toda la cuenta de la mesa', () => {
     )
     expect(res.status).toBe(403)
     expect((await res.json()).error.code).toBe('approval_required')
+  })
+})
+
+
+describe('Fase E — precuenta al pedir la cuenta', () => {
+  it('encola la precuenta en la impresora de caja con el total de las rondas', async () => {
+    await Printer.create({ tenantId, locationId, uid: 'caja-1', name: 'Caja', ip: '192.168.0.60', roles: ['cashier'] })
+    const tableId = await createTable({ number: 9 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 2 }, AUTH()), detailParams(tableId))
+    await createOrder(tableId)
+    await createOrder(tableId)
+
+    const res = await tablePrecuenta(req(`${TABLES_URL}/${tableId}/precuenta`, undefined, AUTH()), detailParams(tableId))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toMatchObject({ printed: true, printerName: 'Caja', total: 3000 })
+    const jobs = await PreClosePrintJob.find({ tenantId, locationId }).lean()
+    expect(jobs).toHaveLength(1)
+    expect(Buffer.from(jobs[0].data, 'base64').toString('latin1')).toContain('PRECUENTA')
+  })
+
+  it('sin impresora de caja → 409 (el POS avisa sin frenar el pedir cuenta)', async () => {
+    const tableId = await createTable({ number: 10 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied' }, AUTH()), detailParams(tableId))
+    await createOrder(tableId)
+    const res = await tablePrecuenta(req(`${TABLES_URL}/${tableId}/precuenta`, undefined, AUTH()), detailParams(tableId))
+    expect(res.status).toBe(409)
   })
 })

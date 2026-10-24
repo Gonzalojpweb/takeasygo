@@ -523,6 +523,17 @@ describe('Fase D — descuentos en la orden', () => {
     expect(ok.status).toBe(201)
   })
 
+  it('reintentar el alta de una orden ya descontada la reconoce (no es otra orden)', async () => {
+    const id = crypto.randomUUID()
+    const body = { id, status: 'pending', items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 2, unitPrice: 1500, total: 3000 }] }
+    expect((await CREATE(req(`${BASE}/orders`, body), tenantParams())).status).toBe(201)
+    await discount(id, { kind: 'percent', value: 50, reason: 'staff' }, { role: 'manager' })
+
+    const retry = await CREATE(req(`${BASE}/orders`, body), tenantParams())
+    expect(retry.status).toBe(200)
+    expect((await retry.json()).order.total).toBe(1500)
+  })
+
   it('una orden cobrada no se descuenta; quitar el descuento restituye el total', async () => {
     const orderId = await createOrder('confirmed')
     await discount(orderId, { kind: 'amount', value: 500, reason: 'complaint' }, { role: 'manager' })

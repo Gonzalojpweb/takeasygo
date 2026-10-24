@@ -131,8 +131,18 @@ export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; b
 
 /** Buffer ESC/POS del Z en base64 (lo imprime el printer-agent). */
 export function buildZTicketBuffer(z: ZReport, ctx: ZTicketContext): string {
+  return escPosFromLines(zTicketLines(z, ctx))
+}
+
+export type TicketLine = { text: string; bold?: boolean; center?: boolean; large?: boolean }
+
+/**
+ * Líneas de texto → buffer ESC/POS en base64 (CP858, corte al final). Lo
+ * comparten el Z y la precuenta del POS (Fase E): mismo canal, mismo agente.
+ */
+export function escPosFromLines(lines: TicketLine[]): string {
   const chunks: Buffer[] = [ESC_POS.INIT, ESC_POS.CODE_PAGE, Buffer.from([0x1b, 0x33, 36])]
-  for (const line of zTicketLines(z, ctx)) {
+  for (const line of lines) {
     chunks.push(line.center ? ESC_POS.ALIGN_CENTER : ESC_POS.ALIGN_LEFT)
     if (line.large) chunks.push(ESC_POS.SIZE_LARGE)
     if (line.bold) chunks.push(ESC_POS.BOLD_ON)

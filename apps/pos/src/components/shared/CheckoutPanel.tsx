@@ -44,6 +44,25 @@ interface CheckoutPanelProps {
   splitLines?: SplitLine[]
   /** Fase D: comensales de la mesa ⇒ «Por comensal» en un toque. */
   guests?: number
+  /**
+   * Fase E (Mostrador): descuento a toda la venta. `appliedCents` > 0 ⇒ se
+   * muestra la fila; `onEdit` abre el diálogo de descuento.
+   */
+  discount?: { appliedCents: number; label?: string; onEdit: () => void }
+}
+
+/** Billetes de pesos argentinos en circulación (centavos), para el vuelto. */
+const BILLS_CENTS = [100_000, 200_000, 1_000_000, 2_000_000]
+
+/**
+ * Montos rápidos para «efectivo recibido» (Fase E): el justo y los redondeos
+ * hacia arriba a billetes comunes. Máximo 5, ordenados, sin repetidos.
+ */
+export function quickCashOptions(dueCents: number): number[] {
+  if (dueCents <= 0) return []
+  const options = new Set<number>([dueCents])
+  for (const bill of BILLS_CENTS) options.add(Math.ceil(dueCents / bill) * bill)
+  return [...options].sort((a, b) => a - b).slice(0, 5)
 }
 
 /** Celular válido para el club: vacío (no se usa) u 8 a 15 dígitos. */
@@ -52,7 +71,7 @@ export function isClubPhoneValid(phone: string): boolean {
   return digits.length === 0 || (digits.length >= 8 && digits.length <= 15)
 }
 
-export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice, splitLines, guests }: CheckoutPanelProps) {
+export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice, splitLines, guests, discount }: CheckoutPanelProps) {
   const [parts, setParts] = useState<CheckoutPart[]>([])
   const [amountText, setAmountText] = useState<Record<string, string>>({})
   const [received, setReceived] = useState("")
@@ -125,6 +144,16 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
       <div className="text-center">
         <div className="text-muted text-sm">Total a cobrar</div>
         <div style={{ fontSize: 32, fontWeight: 700, color: "var(--primary-action)" }}>{formatCurrency(total)}</div>
+        {discount && (
+          <div className="checkout-discount">
+            {discount.appliedCents > 0 ? (
+              <span className="text-success">Descuento {discount.label ? `${discount.label} ` : ""}−{formatCurrency(discount.appliedCents)}</span>
+            ) : null}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={discount.onEdit}>
+              % {discount.appliedCents > 0 ? "Cambiar descuento" : "Descuento"}
+            </button>
+          </div>
+        )}
         {parts.length > 0 && (
           <div
             className="text-sm"
@@ -237,23 +266,42 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
       )}
 
       {cashDue > 0 && (
-        <div className="card" style={{ padding: "var(--sp-3)" }}>
-          <label className="text-sm text-muted" style={{ display: "block", marginBottom: "var(--sp-1)" }}>
-            Efectivo recibido (para calcular el vuelto)
+        <div className="card cash-card">
+          <label htmlFor="cash-received" className="text-sm text-muted" style={{ display: "block", marginBottom: "var(--sp-1)" }}>
+            Efectivo recibido
           </label>
+          {/* Fase E: un toque con el billete que entrega el cliente. */}
+          <div className="cash-quick" role="group" aria-label="Monto recibido">
+            {quickCashOptions(cashDue).map((amount) => (
+              <button
+                key={amount}
+                type="button"
+                className={`cash-quick-btn${receivedCents === amount ? " active" : ""}`}
+                onClick={() => setReceived(centsToPesosInput(amount))}
+              >
+                {amount === cashDue ? "Justo" : formatCurrency(amount)}
+              </button>
+            ))}
+          </div>
           <input
+            id="cash-received"
             className="search-input"
             inputMode="decimal"
-            placeholder={centsToPesosInput(cashDue)}
+            placeholder={`Otro monto (${centsToPesosInput(cashDue)})`}
             value={received}
             onChange={(e) => setReceived(e.target.value)}
           />
           {receivedCents !== null && receivedCents > 0 && (
-            <div style={{ marginTop: "var(--sp-2)", fontWeight: 700 }}>
-              {receivedCents < cashDue
-                ? `Faltan ${formatCurrency(cashDue - receivedCents)} en efectivo`
-                : `Vuelto: ${formatCurrency(cashChange(cashDue, receivedCents))}`}
-            </div>
+            receivedCents < cashDue ? (
+              <div className="cash-change cash-change--short" role="status">
+                Faltan {formatCurrency(cashDue - receivedCents)}
+              </div>
+            ) : (
+              <div className="cash-change" role="status">
+                <span>Vuelto</span>
+                <strong>{formatCurrency(cashChange(cashDue, receivedCents))}</strong>
+              </div>
+            )
           )}
         </div>
       )}
