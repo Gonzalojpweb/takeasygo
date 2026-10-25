@@ -34,6 +34,11 @@ interface ProductSelectorProps {
    * tocar un artículo lo pausa o lo reanuda en vez de agregarlo.
    */
   onToggleAvailability?: (product: Product) => void
+  /**
+   * Obs. UX 25/10: volver (a la mesa / al salón) vive ARRIBA de las
+   * categorías, no en un footer. Ausente ⇒ sin botón.
+   */
+  back?: { label: string; onClick: () => void; disabled?: boolean }
 }
 
 /** Debajo de este número de porciones el POS avisa «Quedan N». */
@@ -75,6 +80,7 @@ export function ProductSelector({
   onSelectProduct,
   popularIds = [],
   onToggleAvailability,
+  back,
 }: ProductSelectorProps) {
   const [pauseMode, setPauseMode] = useState(false)
   const [query, setQuery] = useState("")
@@ -230,6 +236,11 @@ export function ProductSelector({
   return (
     <div className="psel" ref={rootRef}>
       <aside className="psel-cats" aria-label="Categorías">
+        {back && (
+          <button type="button" className="psel-back" onClick={back.onClick} disabled={back.disabled}>
+            ← {back.label}
+          </button>
+        )}
         {hasPopular && (
           <button type="button" className={`psel-cat${showingPopular ? " active" : ""}`} onClick={() => selectCategory(POPULAR)}
             aria-pressed={showingPopular} title="Alt+1">

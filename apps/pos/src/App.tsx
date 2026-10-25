@@ -13,7 +13,6 @@ import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
-import { ActionBar } from "./components/layout/ActionBar"
 import { UpdateBanner } from "./components/layout/UpdateBanner"
 import { applyAppUpdate, isAppUpdateReady, subscribeAppUpdate } from "./services/app-update"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
@@ -381,7 +380,6 @@ function AppShell({
       </main>
 
       <ContextPanel empty={current.empty} />
-      <ActionBar />
       {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
       <ManagerApprovalDialog />
       {/* Cobro en el posnet MercadoPago Point (Fase 6). */}

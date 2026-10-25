@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
-import { ChefHat } from "lucide-react"
+import { ChefHat, Users, BellRing, ReceiptText } from "lucide-react"
 import { db } from "../../db/dexie"
 import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
@@ -22,6 +22,7 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
+import { SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { WaiterContextPanel } from "./WaiterContextPanel"
 import { formatCurrency } from "../../utils/format"
 
@@ -76,7 +77,7 @@ export function WaiterDashboard() {
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
-  const { setContextPanel, setActionBar } = useLayout()
+  const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
   // Obs. 24/10: el mozo ve las reservas sobre las mesas (la caja las opera).
   const { byTable: reservationsByTable } = useReservations(tenantId)
@@ -102,6 +103,7 @@ export function WaiterDashboard() {
     [activeOrders, selectedTableId]
   )
   const readyCount = useMemo(() => activeOrders.filter((o) => o.status === "ready").length, [activeOrders])
+  const salonView = useSalonView(tables)
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
   const cartUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart])
 
@@ -274,11 +276,7 @@ export function WaiterDashboard() {
       case "mesas":
       case "cocina":
         setContextPanel(null)
-        setActionBar(
-          scene === "cocina"
-            ? { center: <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button> }
-            : null
-        )
+        setActionBar(null)
         break
 
       case "mesa": {
@@ -311,17 +309,16 @@ export function WaiterDashboard() {
           ),
           center: (
             <>
-              <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button>
               {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })}>
-                  👥 {selectedTable.guests ?? "Comensales"}
+                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })} title="Comensales" aria-label={`Comensales: ${selectedTable.guests ?? "sin cargar"}`}>
+                  <Users size={18} aria-hidden /> {selectedTable.guests ?? "—"}
                 </button>
               )}
               {tableOrders.length > 0 && !selectedTable.needsBill && (
-                <button className="btn btn-secondary" onClick={handleRequestBill}>Pedir cuenta</button>
+                <button className="btn btn-secondary" onClick={handleRequestBill}><ReceiptText size={18} aria-hidden /> Cuenta</button>
               )}
               {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={handleCallManager}>Llamar encargado</button>
+                <button className="btn btn-secondary" onClick={handleCallManager} title="Llamar al encargado"><BellRing size={18} aria-hidden /> Encargado</button>
               )}
             </>
           ),
@@ -361,11 +358,6 @@ export function WaiterDashboard() {
               <span className="action-bar-total-value">{formatCurrency(cartTotal)}</span>
             </div>
           ),
-          center: (
-            <button className="btn btn-ghost" onClick={() => setScene("mesa")} disabled={sending}>
-              ← Mesa {selectedTable?.number ?? ""}
-            </button>
-          ),
           right: (
             <button className="btn btn-primary btn-lg" onClick={handleSendToKitchen} disabled={cart.length === 0 || sending}>
               {sending ? "Enviando…" : `Enviar a cocina${cartUnits > 0 ? ` (${cartUnits})` : ""}`}
@@ -381,6 +373,33 @@ export function WaiterDashboard() {
   }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
+  // Obs. UX 25/10: un solo header. En el salón: sectores + estados (íconos)
+  // + Cocina. En Cocina: volver a las mesas. Nada de títulos repetidos.
+  useEffect(() => {
+    if (scene === "mesas" || scene === "mesa") {
+      setHeaderCenter(
+        <SalonHeaderBar
+          view={salonView}
+          extra={
+            <button type="button" className="salon-status-btn salon-kitchen-btn" onClick={() => setScene("cocina")} title="Estado de cocina" aria-label={readyCount > 0 ? `Cocina, ${readyCount} listos` : "Cocina"}>
+              <ChefHat size={18} aria-hidden />
+              {readyCount > 0 && <span className="salon-status-count salon-ready-count">{readyCount}</span>}
+            </button>
+          }
+        />
+      )
+    } else if (scene === "cocina") {
+      setHeaderCenter(
+        <div className="salon-bar">
+          <button type="button" className="btn btn-ghost btn-sm" onClick={backToTables}>← Mesas</button>
+        </div>
+      )
+    } else {
+      setHeaderCenter(null)
+    }
+  }, [scene, salonView, readyCount, backToTables, setHeaderCenter])
+  useEffect(() => () => setHeaderCenter(null), [setHeaderCenter])
+
   const kitchenRounds = useMemo(
     () =>
       [...activeOrders]
@@ -397,20 +416,9 @@ export function WaiterDashboard() {
     <>
       {(scene === "mesas" || scene === "mesa") && (
         <>
-          <div className="workspace-header">
-            <div>
-              <div className="workspace-title">Mesas</div>
-              <div className="workspace-subtitle">Elegí una mesa para tomar el pedido</div>
-            </div>
-            <div className="workspace-actions">
-              <button className="btn btn-secondary" onClick={() => setScene("cocina")}>
-                <ChefHat size={18} aria-hidden /> Cocina
-                {readyCount > 0 && <span className="nav-item-badge" aria-label={`${readyCount} listos`}>{readyCount}</span>}
-              </button>
-            </div>
-          </div>
           <div className="salon-content">
             <WaiterSectorGrid
+              view={salonView}
               tables={tables}
               activity={tableActivity}
               selectedTableId={selectedTableId}
@@ -430,6 +438,7 @@ export function WaiterDashboard() {
             onSelectCategory={setSelectedCategory}
             onSelectProduct={handleAddProduct}
             popularIds={popularIds}
+            back={{ label: `Mesa ${selectedTable?.number ?? ""}`, onClick: () => setScene("mesa"), disabled: sending }}
           />
         </div>
       )}

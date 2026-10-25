@@ -16,7 +16,7 @@ import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
-import { SalonMap } from "../shared/SalonMap"
+import { SalonMap, SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { TableDetail } from "./TableDetail"
 import { ContextActionPanel, type ContextActionGroup } from "../shared/ContextActionPanel"
 import { useTableActivity } from "../../hooks/useTableActivity"
@@ -663,9 +663,20 @@ export function CounterDashboard() {
     ),
     [unseenReservations, pickupOrders.length, deliveryOrders.length]
   )
+  // Obs. UX 25/10: en la vista Salón el mismo header suma los sectores
+  // (cada uno a todo el workspace) y los estados como íconos con contador.
+  const salonView = useSalonView(tables)
+  const showSalonBar = view === "salon" && (scene === "salon" || scene === "mesa" || scene === "mover") && tables.length > 0
   useEffect(() => {
-    setHeaderCenter(<WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />)
-  }, [setHeaderCenter, view, handleViewChange, counterViews])
+    setHeaderCenter(
+      <div className="header-views-row">
+        <WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />
+        {showSalonBar && (
+          <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} />
+        )}
+      </div>
+    )
+  }, [setHeaderCenter, view, handleViewChange, counterViews, showSalonBar, salonView, scene])
 
   // Abrir Reservaciones marca vistas las nuevas (también para el panel del SaaS).
   useEffect(() => {
@@ -1480,11 +1491,7 @@ export function CounterDashboard() {
             <button className="btn btn-secondary" onClick={() => setScene("mostrador_entregas")}>
               <PackageCheck size={18} aria-hidden /> Para entregar{pickupOrders.length > 0 ? ` (${pickupOrders.length})` : ""}
             </button>
-          ) : (
-            <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "salon" : "mesa")}>
-              ← {cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`}
-            </button>
-          ),
+          ) : undefined,
           right: (
             <>
               {customer ? (
@@ -1998,13 +2005,12 @@ export function CounterDashboard() {
                 ) : (
                   <>
                     <SalonMap
-                      tables={tables}
+                      view={salonView}
                       variant="counter"
                       activity={tableActivity}
                       selectedTableId={selectedTableId}
                       onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
                       reservations={reservationsByTable}
-                      onConfigure={scene === "mover" ? undefined : () => setScene("setup")}
                     />
                   </>
                 )}
@@ -2022,6 +2028,10 @@ export function CounterDashboard() {
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
+                back={{
+                  label: cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`,
+                  onClick: () => setScene(cart.length > 0 ? "salon" : "mesa"),
+                }}
               />
             </div>
           )}
