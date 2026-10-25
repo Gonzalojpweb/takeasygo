@@ -1,0 +1,1627 @@
+﻿<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TakeasyGO · POS Root — Estudio documental + Diseño de pos.takeasygo.com</title>
+<meta name="description" content="Estudio detallado de la carpeta /POS, fundamentos del ecosistema TakeasyGO (SaaS, App, ROS) y propuesta de diseño para la interfaz raiz de pos.takeasygo.com." />
+<style>
+/* ==================================================================
+   Los tokens de producto son COPIAS de apps/pos/src/styles/pos.css
+   para evaluar el diseño con la paleta real del terminal.
+   ================================================================== */
+:root{
+  --brand-orange:#F74211; --brand-orange-hover:#D63800; --brand-orange-pressed:#B52E0F;
+  --brand-orange-light:rgba(247,66,17,.12); --brand-orange-surface:#FFF4F0; --brand-orange-text:#B52E0F;
+  --primary-action:#065D63; --primary-action-hover:#055257; --primary-action-light:#E8F5F6;
+  --frame-bg:#0B3D41; --frame-bg-raised:#10494E;
+  --frame-text:rgba(255,255,255,.82); --frame-text-muted:rgba(255,255,255,.55); --frame-border:rgba(255,255,255,.14);
+  --background:#FAFAF8; --surface:#FFFFFF; --surface-secondary:#F3F4F6; --border:#E7E7E4;
+  --text-primary:#1B1B1F; --text-secondary:#6B7280; --text-muted:#9AA5B0;
+  --success:#4D8B55; --success-light:#E8F5E9;
+  --warning:#F5C451; --warning-light:#FFF8E1;
+  --error:#C94C4C; --error-light:#FDECEA;
+  --info:#1565C0; --info-light:#E3F2FD;
+  --mesa-libre-solid:#91C788; --mesa-ocupada-solid:#F69947; --mesa-atencion-solid:#DE675A; --mesa-reservada-solid:#7BA2E2;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px;
+  --font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --header-height:52px; --nav-width:176px; --context-panel-width:340px; --action-bar-height:72px;
+  --transition-fast:150ms ease-out; --transition-normal:200ms ease-out;
+  --depth-1:0 2px 8px rgba(0,0,0,.05); --depth-2:0 8px 24px rgba(0,0,0,.06);
+  --ink:#14171A; --ink-2:#41474D; --ink-3:#767E86; --ink-4:#A6ADB4;
+  --paper:#FFFFFF; --paper-2:#F7F7F5; --paper-3:#EFEFEC;
+  --line:#E4E4E0; --line-2:#D3D3CE;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sc:.70;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--paper-2);color:var(--ink);font-family:var(--font-family);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+svg{display:block;max-width:100%}
+a{color:var(--primary-action);text-decoration:none;border-bottom:1px solid rgba(6,93,99,.3)}
+a:hover{border-bottom-color:var(--primary-action)}
+:focus-visible{outline:3px solid var(--brand-orange);outline-offset:2px}
+::selection{background:var(--brand-orange-light)}
+
+.shell{display:grid;grid-template-columns:264px minmax(0,1fr);max-width:1800px;margin:0 auto}
+.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:28px 20px 40px 28px;border-right:1px solid var(--line);background:var(--paper)}
+.toc .mark{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.toc .mark .ico{width:34px;height:34px;background:var(--brand-orange);color:#fff;border-radius:12px 12px 12px 0;display:grid;place-items:center;font-weight:700;font-size:16px;flex:none}
+.toc .mark b{font-size:14px;letter-spacing:-.2px;line-height:1.25}
+.toc .mark span{display:block;font-size:11px;color:var(--ink-3);font-weight:400}
+.toc .kicker{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-4);margin:26px 0 8px;font-weight:600}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc li a{display:block;padding:6px 10px;border:0;border-radius:8px;color:var(--ink-2);font-size:13px;line-height:1.35;border-left:2px solid transparent}
+.toc li a:hover{background:var(--paper-2);color:var(--ink)}
+.toc li a.on{background:var(--brand-orange-surface);color:var(--brand-orange-text);border-left-color:var(--brand-orange);font-weight:600}
+.toc li a i{font-style:normal;color:var(--ink-4);font-family:var(--mono);font-size:11px;margin-right:7px}
+.toc li a.on i{color:var(--brand-orange)}
+.toc .foot{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:11px;color:var(--ink-4);line-height:1.5}
+
+main{min-width:0;padding:0 40px 120px}
+.wrap{max-width:1440px;margin:0 auto}
+
+.cover{background:var(--frame-bg);color:#fff;border-radius:0 0 24px 24px;padding:56px 48px 44px;margin:0 -40px 44px;position:relative;overflow:hidden}
+.cover::after{content:"";position:absolute;right:-80px;bottom:-140px;width:340px;height:340px;background:radial-gradient(circle at 30% 30%,rgba(247,66,17,.30),transparent 62%);pointer-events:none}
+.cover .eyebrow{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--frame-text-muted);font-weight:600}
+.cover h1{margin:14px 0 6px;font-size:clamp(30px,4vw,46px);line-height:1.06;letter-spacing:-.03em;font-weight:700;max-width:22ch}
+.cover h1 em{font-style:normal;color:#FF8A5C}
+.cover .sub{font-size:17px;color:var(--frame-text);max-width:72ch;margin:14px 0 0}
+.cover .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;background:rgba(255,255,255,.09);border:1px solid var(--frame-border);font-size:12px;color:var(--frame-text);font-weight:500}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--brand-orange)}
+.pill.ok .dot{background:#6FD383}.pill.warn .dot{background:var(--warning)}
+.cover .grid-note{margin-top:26px;font-size:12.5px;color:var(--frame-text-muted);border-left:2px solid var(--brand-orange);padding-left:12px;max-width:84ch}
+
+section{margin:0 0 64px;scroll-margin-top:20px}
+.sec-head{display:flex;align-items:baseline;gap:14px;padding-bottom:14px;border-bottom:2px solid var(--ink);margin-bottom:26px}
+.sec-head .num{font-family:var(--mono);font-size:12px;color:var(--brand-orange);font-weight:700;letter-spacing:.06em}
+.sec-head h2{margin:0;font-size:clamp(22px,2.4vw,30px);letter-spacing:-.02em;line-height:1.15;font-weight:700}
+.sec-head .tag{margin-left:auto;font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.1em;font-weight:600;white-space:nowrap}
+h3{font-size:19px;letter-spacing:-.01em;margin:34px 0 12px;font-weight:650}
+h4{font-size:15px;margin:24px 0 8px;font-weight:650;color:var(--ink-2)}
+p{margin:0 0 14px;max-width:78ch}
+.lead{font-size:17.5px;color:var(--ink-2);max-width:76ch}
+ul.bul{margin:0 0 16px;padding-left:0;list-style:none;max-width:82ch}
+ul.bul li{position:relative;padding-left:22px;margin-bottom:9px;font-size:15px;color:var(--ink-2)}
+ul.bul li::before{content:"";position:absolute;left:4px;top:9px;width:6px;height:6px;border-radius:2px;background:var(--brand-orange)}
+ul.bul li b{color:var(--ink)}
+.note{border-left:3px solid var(--primary-action);background:var(--primary-action-light);padding:14px 18px;border-radius:0 12px 12px 0;font-size:14.5px;color:#0A4A4F;margin:18px 0;max-width:86ch}
+.note b{color:var(--primary-action)}
+.warnbox{border-left:3px solid var(--brand-orange);background:var(--brand-orange-surface);padding:14px 18px;border-radius:0 12px 12px 0;font-size:14.5px;color:#7A2E10;margin:18px 0;max-width:86ch}
+.warnbox b{color:var(--brand-orange-text)}
+.quote{margin:26px 0;padding:20px 24px;background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--ink);border-radius:0 14px 14px 0;font-size:17px;line-height:1.5;letter-spacing:-.01em}
+.quote cite{display:block;margin-top:10px;font-size:12px;color:var(--ink-3);font-style:normal;font-family:var(--mono)}
+
+.tbl-wrap{overflow-x:auto;margin:18px 0 26px;border:1px solid var(--line);border-radius:14px;background:var(--paper)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:640px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45}
+th{background:var(--paper-3);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);font-weight:700;white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:#FCFCFA}
+td code,.mono{font-family:var(--mono);font-size:12.5px;background:var(--paper-3);padding:1px 5px;border-radius:5px;color:var(--ink-2)}
+.nowrap{white-space:nowrap}
+.sev{display:inline-flex;align-items:center;gap:6px;font-weight:650;font-size:12px;white-space:nowrap}
+.sev::before{content:"";width:9px;height:9px;border-radius:50%}
+.sev.r::before{background:var(--error)}.sev.r{color:var(--error)}
+.sev.a::before{background:var(--warning)}.sev.a{color:#8A6A12}
+.sev.ok::before{background:var(--success)}.sev.ok{color:var(--success)}
+.sev.b::before{background:var(--info)}.sev.b{color:var(--info)}
+
+.cards{display:grid;gap:16px;margin:20px 0 26px}
+.c2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.c3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.c4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+.card h4{margin:0 0 8px;font-size:15.5px;color:var(--ink);display:flex;align-items:center;gap:9px}
+.card h4 .sq{width:26px;height:26px;border-radius:8px 8px 8px 0;display:grid;place-items:center;flex:none;color:#fff;font-size:12px;font-weight:700}
+.card p{font-size:14px;color:var(--ink-2);margin:0 0 8px}
+.card p:last-child{margin-bottom:0}
+.card .mini{font-size:12.5px;color:var(--ink-3)}
+.card ul{margin:6px 0 0;padding-left:16px;font-size:13.5px;color:var(--ink-2)}
+.card ul li{margin-bottom:5px}
+.card.accent{border-color:rgba(247,66,17,.35);background:linear-gradient(180deg,var(--brand-orange-surface),#fff 60%)}
+.pill-ink{display:inline-block;padding:2px 9px;border-radius:999px;background:var(--paper-3);border:1px solid var(--line-2);font-size:11.5px;color:var(--ink-2);font-weight:600;white-space:nowrap}
+.pill-orange{background:var(--brand-orange-light);border-color:rgba(247,66,17,.3);color:var(--brand-orange-text)}
+.pill-teal{background:var(--primary-action-light);border-color:rgba(6,93,99,.25);color:var(--primary-action)}
+.pill-ok{background:var(--success-light);border-color:rgba(77,139,85,.3);color:#2F6438}
+.pill-warn{background:var(--warning-light);border-color:rgba(245,196,81,.5);color:#8A6A12}
+.pill-err{background:var(--error-light);border-color:rgba(201,76,76,.3);color:var(--error)}
+
+.axioms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0 26px}
+.ax{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.45;color:var(--ink-2)}
+.ax b{display:flex;align-items:center;gap:8px;color:var(--ink);font-size:12px;letter-spacing:.06em;margin-bottom:5px;text-transform:uppercase}
+.ax b::before{content:attr(data-n);font-family:var(--mono);font-size:10.5px;background:var(--ink);color:#fff;padding:2px 6px;border-radius:5px}
+.ax i{font-style:normal;display:block;margin-top:6px;color:var(--brand-orange-text);font-size:11.5px;font-weight:650;font-family:var(--mono)}
+
+.stage-cap{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:34px 0 12px}
+.stage-cap .n{font-family:var(--mono);font-size:12px;font-weight:700;color:#fff;background:var(--ink);padding:4px 9px;border-radius:7px;letter-spacing:.04em}
+.stage-cap h4{margin:0;font-size:16.5px;color:var(--ink)}
+.stage-cap .sp{margin-left:auto;font-size:11.5px;color:var(--ink-3);font-family:var(--mono)}
+.stage{overflow-x:auto;overflow-y:hidden;border:1px solid var(--line-2);border-radius:16px;background:repeating-conic-gradient(#F1F1EE 0% 25%,#FAFAF8 0% 50%) 0 0/22px 22px;padding:18px}
+.scroller{width:calc(1920px * var(--sc));height:calc(1080px * var(--sc));position:relative}
+.frame{width:1920px;height:1080px;transform:scale(var(--sc));transform-origin:top left;background:var(--background);position:absolute;top:0;left:0;overflow:hidden;
+  display:grid;grid-template-columns:var(--nav-width) minmax(0,1fr) var(--context-panel-width);
+  grid-template-rows:var(--header-height) minmax(0,1fr) var(--action-bar-height);
+  grid-template-areas:"header header header" "nav workspace panel" "action action action";
+  font-family:var(--font-family);color:var(--text-primary);font-size:14px;line-height:1.45}
+.legend{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 18px;margin-top:14px;font-size:13px;color:var(--ink-2);background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.legend div{display:flex;gap:8px}
+.legend b{font-family:var(--mono);font-size:11px;background:var(--ink);color:#fff;border-radius:5px;padding:1px 6px;height:fit-content;flex:none;margin-top:2px}
+
+/* --- piezas internas del mockup (px reales 1:1) --- */
+.m-header{grid-area:header;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 var(--sp-4);gap:var(--sp-3);position:relative;z-index:3}
+.m-brand{display:flex;align-items:center;gap:var(--sp-2);min-width:0}
+.m-brand-ico{width:32px;height:32px;background:var(--brand-orange);border-radius:12px 12px 12px 0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px;flex:none}
+.m-brand-txt{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.m-brand-txt b{font-size:15px;letter-spacing:-.3px;white-space:nowrap}
+.m-brand-txt span{font-size:11.5px;color:var(--text-secondary);display:flex;align-items:center;gap:4px}
+.m-hcenter{font-size:13px;color:var(--text-secondary);font-weight:500}
+.m-hright{display:flex;align-items:center;gap:var(--sp-3);font-size:12.5px;color:var(--text-secondary)}
+.m-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--surface-secondary);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ink-2)}
+.m-chip .d{width:8px;height:8px;border-radius:50%;background:var(--success)}
+.m-chip.off{background:var(--warning-light);border-color:rgba(245,196,81,.6);color:#8A6A12}
+.m-chip.off .d{background:var(--warning)}
+.m-clock{text-align:right;line-height:1.15}
+.m-clock b{display:block;font-size:15px;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.m-clock span{font-size:10.5px;color:var(--text-muted);font-family:var(--mono)}
+.m-avatar{width:32px;height:32px;border-radius:50%;background:var(--primary-action);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+
+.m-nav{grid-area:nav;background:var(--frame-bg);color:var(--frame-text);padding:16px 10px;display:flex;flex-direction:column;gap:4px;position:relative;z-index:2}
+.m-nav .lab{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--frame-text-muted);padding:0 8px 8px;font-weight:600}
+.m-nav a{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;color:var(--frame-text);font-size:13.5px;border:0;border-left:3px solid transparent;min-height:44px}
+.m-nav a svg{width:20px;height:20px;flex:none;opacity:.9}
+.m-nav a:hover{background:rgba(255,255,255,.08);color:#fff}
+.m-nav a.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600;border-left-color:var(--brand-orange);box-shadow:inset 4px 0 0 var(--brand-orange)}
+.m-nav .sp{flex:1}
+.m-nav .foot{border-top:1px solid var(--frame-border);padding-top:10px;margin-top:6px}
+.m-nav a.ghost{color:var(--frame-text-muted);font-size:12.5px}
+
+.m-work{grid-area:workspace;background:var(--background);display:flex;flex-direction:column;min-width:0;overflow:hidden;position:relative}
+.m-panel{grid-area:panel;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0}
+.m-action{grid-area:action;background:var(--frame-bg);color:#fff;display:flex;align-items:center;gap:var(--sp-3);padding:0 var(--sp-5);box-shadow:0 -4px 16px rgba(11,61,65,.18);position:relative;z-index:3}
+
+.scene-head{padding:22px 32px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px}
+.scene-head .eyebrow{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);font-weight:700;margin-bottom:6px}
+.scene-head h2{margin:0;font-size:27px;letter-spacing:-.02em;font-weight:700}
+.scene-head p{margin:6px 0 0;font-size:14.5px;color:var(--text-secondary)}
+
+.entity{margin:0 32px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:18px;box-shadow:var(--depth-1)}
+.entity .big{width:46px;height:46px;border-radius:14px 14px 14px 0;background:var(--brand-orange-surface);color:var(--brand-orange-text);display:grid;place-items:center;font-weight:700;font-size:18px;flex:none;border:1px solid rgba(247,66,17,.25)}
+.entity .who{min-width:0}
+.entity .who .lb{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.entity .who b{display:block;font-size:20px;letter-spacing:-.02em;line-height:1.2}
+.entity .who span{font-size:13.5px;color:var(--text-secondary)}
+.entity .chips{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+
+.pin-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:18px 32px 26px}
+.pin-dots{display:flex;gap:14px;align-items:center}
+.pin-dots i{width:17px;height:17px;border-radius:50%;border:2px solid var(--line-2);background:transparent;display:block}
+.pin-dots i.f{background:var(--primary-action);border-color:var(--primary-action);box-shadow:0 0 0 4px rgba(6,93,99,.14)}
+.pin-hint{font-size:13.5px;color:var(--text-secondary);margin-top:-8px}
+.keypad{display:grid;grid-template-columns:repeat(3,120px);gap:14px}
+.key{width:120px;height:86px;border-radius:18px;background:var(--surface);border:1px solid var(--border);font-size:30px;font-weight:600;color:var(--text-primary);font-family:var(--font-family);display:grid;place-items:center;cursor:pointer;box-shadow:var(--depth-1);letter-spacing:-.02em;transition:background var(--transition-fast),transform var(--transition-fast)}
+.key:hover{background:var(--surface-secondary)}
+.key:active{transform:scale(.97);background:var(--primary-action-light)}
+.key.fn{background:var(--surface-secondary);box-shadow:none;font-size:16px;color:var(--text-secondary)}
+.key.go{background:var(--primary-action);border-color:var(--primary-action);color:#fff;box-shadow:0 6px 18px rgba(6,93,99,.28);font-size:17px}
+.key.go:hover{background:var(--primary-action-hover)}
+.pin-alt{display:flex;gap:14px;align-items:center;font-size:13.5px;color:var(--text-secondary)}
+.pin-alt a{color:var(--primary-action);font-weight:600}
+
+.panel-head{padding:16px 18px 12px;border-bottom:1px solid var(--border)}
+.panel-head .lb{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.panel-head b{display:block;font-size:16.5px;letter-spacing:-.01em;margin-top:3px}
+.panel-body{padding:8px 18px 16px;overflow:hidden;flex:1}
+.kv{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px dashed var(--border);font-size:13.5px}
+.kv:last-child{border-bottom:0}
+.kv .k{color:var(--text-secondary);display:flex;align-items:center;gap:8px}
+.kv .v{font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.kv .v.ok{color:var(--success)}.kv .v.warn{color:#8A6A12}.kv .v.mut{color:var(--text-muted);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--success);flex:none}
+.dot.w{background:var(--warning)}.dot.e{background:var(--error)}.dot.m{background:var(--text-muted)}
+.panel-foot{padding:12px 18px 16px;border-top:1px solid var(--border);display:grid;gap:8px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;border:1px solid transparent;font-family:var(--font-family);font-weight:650;font-size:15px;min-height:48px;padding:0 22px;cursor:pointer;transition:background var(--transition-fast)}
+.btn-primary{background:var(--brand-orange);color:#fff;box-shadow:0 6px 18px rgba(247,66,17,.32)}
+.btn-primary:hover{background:var(--brand-orange-hover)}
+.btn-secondary{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.55);color:#fff}
+.btn-quiet{background:var(--surface);border:1.5px solid var(--border);color:var(--text-primary);font-size:14px;min-height:44px}
+.btn-ghost-dark{background:transparent;border:1.5px solid rgba(255,255,255,.3);color:var(--frame-text);font-size:14px;min-height:44px}
+.btn-block{width:100%}
+.act-left{display:flex;flex-direction:column;gap:3px;min-width:240px}
+.act-left b{font-size:13.5px;font-family:var(--mono);color:var(--frame-text);font-weight:600}
+.act-left span{font-size:11.5px;color:var(--frame-text-muted)}
+.act-left a{color:#FFB797;font-size:11.5px;border-bottom-color:rgba(255,183,151,.4)}
+.act-center{flex:1;display:flex;justify-content:center;align-items:center;gap:10px;font-size:12.5px;color:var(--frame-text-muted);text-align:center}
+.act-right{display:flex;gap:10px;align-items:center}
+
+.pad{padding:18px 32px 26px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:hidden}
+.field{display:flex;flex-direction:column;gap:7px;max-width:520px}
+.field label{font-size:12.5px;font-weight:650;color:var(--ink-2)}
+.field input{height:56px;border-radius:14px;border:1.5px solid var(--border);background:var(--surface);padding:0 18px;font-size:17px;font-family:var(--font-family);color:var(--text-primary);width:100%}
+.field input::placeholder{color:var(--ink-4)}
+.field input:focus{outline:none;border-color:var(--primary-action);box-shadow:0 0 0 3px rgba(6,93,99,.16)}
+.field .help{font-size:12.5px;color:var(--text-muted)}
+.sede{display:flex;align-items:center;gap:16px;background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:16px 20px;cursor:pointer;transition:border-color var(--transition-fast),background var(--transition-fast)}
+.sede:hover{border-color:var(--line-2);background:#FCFCFA}
+.sede.on{border-color:var(--primary-action);background:var(--primary-action-light);box-shadow:0 0 0 3px rgba(6,93,99,.14)}
+.sede .radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-2);flex:none;display:grid;place-items:center}
+.sede.on .radio{border-color:var(--primary-action)}
+.sede.on .radio::after{content:"";width:11px;height:11px;border-radius:50%;background:var(--primary-action)}
+.sede .info b{display:block;font-size:17px;letter-spacing:-.01em}
+.sede .info span{font-size:13px;color:var(--text-secondary)}
+.sede .st{margin-left:auto;text-align:right}
+
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:26px;padding:22px 32px 26px;flex:1;min-height:0}
+.qr-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px;display:flex;flex-direction:column;align-items:center;gap:14px;box-shadow:var(--depth-1)}
+.qr-box .qr{width:236px;height:236px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+.code{display:flex;gap:12px;align-items:center;justify-content:center}
+.code i{width:62px;height:76px;border-radius:14px;background:var(--surface-secondary);border:1.5px solid var(--border);display:grid;place-items:center;font-style:normal;font-size:38px;font-weight:700;font-family:var(--mono)}
+.steps{display:flex;flex-direction:column;gap:12px;justify-content:center}
+.step{display:flex;gap:14px;align-items:flex-start;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px}
+.step .n{width:26px;height:26px;border-radius:9px;background:var(--ink);color:#fff;font-size:12.5px;font-weight:700;display:grid;place-items:center;flex:none;font-family:var(--mono)}
+.step b{display:block;font-size:15.5px}
+.step span{font-size:13.5px;color:var(--text-secondary)}
+.ttl{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:650;color:var(--primary-action);background:var(--primary-action-light);border:1px solid rgba(6,93,99,.25);border-radius:999px;padding:6px 12px}
+
+.views{display:flex;gap:6px;padding:0 32px;border-bottom:1px solid var(--border);background:var(--surface)}
+.view{padding:14px 16px;font-size:14px;color:var(--text-secondary);border-bottom:3px solid transparent;font-weight:550}
+.view.on{color:var(--text-primary);border-bottom-color:var(--brand-orange);background:var(--primary-action-light)}
+.filters{display:flex;gap:10px;padding:18px 32px 6px;flex-wrap:wrap}
+.filt{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;background:var(--surface);border:1.5px solid var(--border);font-size:13.5px;font-weight:600;color:var(--ink-2)}
+.filt.on{border-color:var(--primary-action);color:var(--primary-action);background:var(--primary-action-light)}
+.filt .c{background:var(--surface-secondary);border-radius:999px;padding:1px 8px;font-size:12px;font-family:var(--mono)}
+.filt.on .c{background:rgba(6,93,99,.15)}
+.floor{flex:1;margin:14px 32px 22px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:22px 26px;display:flex;flex-direction:column;gap:18px;min-height:0;overflow:hidden;background-image:radial-gradient(circle,#EDEDEA 1px,transparent 1px);background-size:26px 26px}
+.sector{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.tables{display:flex;flex-wrap:wrap;gap:16px}
+.mesa{width:118px;height:118px;border-radius:26px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:var(--surface);border:2px solid var(--line);color:var(--text-primary);box-shadow:0 8px 16px rgba(0,0,0,.08),inset 0 2px 4px rgba(255,255,255,.4)}
+.mesa b{font-size:30px;letter-spacing:-.03em;line-height:1}
+.mesa span{font-size:12px;font-weight:650;opacity:.85}
+.mesa small{font-size:11px;color:var(--text-secondary);font-weight:600}
+.mesa.lib{background:#EAF6EC;border-color:var(--mesa-libre-solid)}
+.mesa.ocu{background:#FFF6E6;border-color:var(--mesa-ocupada-solid);border-radius:24px}
+.mesa.ate{background:#FDECEA;border-color:var(--mesa-atencion-solid)}
+.mesa.res{background:#EDF3FD;border-color:var(--mesa-reservada-solid);border-radius:24px}
+.mesa.sel{outline:3px solid var(--brand-orange);outline-offset:3px}
+
+.frag{background:var(--paper);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.frag .cap{padding:14px 18px 12px;border-bottom:1px solid var(--line)}
+.frag .cap b{display:block;font-size:15px}
+.frag .cap span{font-size:12.5px;color:var(--ink-3)}
+.frag .body{padding:16px 18px;display:grid;gap:12px;font-size:13.5px;color:var(--ink-2)}
+.frag .body .mock{border-radius:12px;overflow:hidden;border:1px solid var(--line-2)}
+.frag .why{padding:12px 18px 15px;background:var(--paper-2);border-top:1px dashed var(--line-2);font-size:12.5px;color:var(--ink-2)}
+.frag .why b{color:var(--brand-orange-text)}
+.mini-bar{background:var(--frame-bg);color:#fff;display:flex;align-items:center;gap:10px;padding:12px 14px;min-height:72px}
+
+.before{background:#000;color:#fff;border-radius:16px;padding:26px;display:grid;place-items:center;min-height:520px;font-family:system-ui,sans-serif}
+.before .card{width:360px;background:#111;border:1px solid #333;border-radius:12px;padding:2rem}
+.before h1{font-size:1.5rem;font-weight:600;margin:0 0 .5rem;text-align:center}
+.before p.s{font-size:.875rem;color:#888;text-align:center;margin:0 0 1.5rem}
+.before .tabs{display:flex;gap:.5rem;margin-bottom:1.25rem}
+.before .tabs button{flex:1;padding:.5rem;border:none;border-radius:6px;font-weight:600;font-size:.875rem;cursor:pointer}
+.before .tabs .on{background:#fff;color:#000}
+.before .tabs .off{background:#222;color:#888}
+.before input{width:100%;padding:.75rem;margin-bottom:.75rem;background:#222;color:#fff;border:1px solid #444;border-radius:6px;font-size:1rem;box-sizing:border-box}
+.before .sub{width:100%;padding:.75rem;background:#fff;color:#000;border:none;border-radius:6px;font-weight:600;font-size:1rem;cursor:pointer}
+.before .foot{margin-top:1.5rem;text-align:center;font-size:.75rem;color:#888}
+
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:22px 0 8px}
+.vs .col{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--paper)}
+.vs .col > .h{padding:12px 16px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.vs .col.old > .h{background:#1A1A1A;color:#fff}
+.vs .col.new > .h{background:var(--frame-bg);color:#fff}
+.vs .col .b{padding:16px}
+.vs .col ul{margin:0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
+.vs .col ul li{margin-bottom:7px}
+
+.flow{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:26px 22px;overflow-x:auto}
+.flow .row{display:flex;align-items:center;gap:12px;min-width:max-content;padding-bottom:6px;flex-wrap:wrap}
+.node{border-radius:14px;padding:12px 16px;font-size:13.5px;font-weight:650;border:1.5px solid var(--line-2);background:var(--paper-2);color:var(--ink);min-width:150px;text-align:center;line-height:1.3}
+.node small{display:block;font-weight:500;font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.node.start{background:var(--ink);color:#fff;border-color:var(--ink)}
+.node.main{background:var(--brand-orange-surface);border-color:rgba(247,66,17,.45);color:var(--brand-orange-text)}
+.node.good{background:var(--success-light);border-color:rgba(77,139,85,.4);color:#2F6438}
+.node.err{background:var(--error-light);border-color:rgba(201,76,76,.4);color:var(--error)}
+.node.wait{background:var(--warning-light);border-color:rgba(245,196,81,.55);color:#8A6A12}
+.arrow{color:var(--ink-4);font-size:18px;flex:none}
+.flow .lbl{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);font-weight:700;margin:16px 0 8px;width:100%}
+.flow .lbl:first-child{margin-top:0}
+
+.check{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:18px 0 24px}
+.chk{display:flex;gap:12px;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:13.5px;color:var(--ink-2)}
+.chk .bx{width:20px;height:20px;border-radius:6px;background:var(--success-light);color:var(--success);display:grid;place-items:center;flex:none;font-size:12px;font-weight:800}
+.chk b{color:var(--ink);display:block;font-size:13px;margin-bottom:2px}
+.chk .ax-n{font-family:var(--mono);font-size:10.5px;color:var(--ink-4)}
+.q{background:var(--paper);border:1px solid var(--line);border-left:4px solid var(--brand-orange);border-radius:0 14px 14px 0;padding:16px 20px;margin-bottom:12px}
+.q b{display:block;font-size:15px;margin-bottom:5px}
+.q p{margin:0;font-size:14px;color:var(--ink-2)}
+.q .opts{margin-top:9px;display:flex;flex-wrap:wrap;gap:8px}
+.foot-doc{border-top:2px solid var(--ink);padding-top:22px;margin-top:20px;font-size:13px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between}
+
+/* --- estados del root (§09) --- */
+.states{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:20px 0 8px}
+.st{position:relative;background:var(--paper);border:1.5px solid var(--line-2);border-radius:14px;padding:14px 14px 13px;font-size:14px;font-weight:650;letter-spacing:-.01em;line-height:1.3}
+.st span{position:absolute;top:-10px;left:12px;font-family:var(--mono);font-size:10.5px;font-weight:700;background:var(--ink);color:#fff;padding:2px 8px;border-radius:6px;letter-spacing:.05em}
+.st small{display:block;font-weight:500;font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.4}
+.st.err{border-color:rgba(201,76,76,.45);background:var(--error-light)}
+.st.err span{background:var(--error)}
+.st.ok{border-color:rgba(77,139,85,.45);background:var(--success-light)}
+.st.ok span{background:var(--success)}
+.st.boot{border-color:rgba(247,66,17,.45);background:var(--brand-orange-surface)}
+.st.boot span{background:var(--brand-orange)}
+
+/* --- celdas de garantías (§10) --- */
+.grid12{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;margin:18px 0 6px}
+.g-cell{background:var(--paper);border:1px solid var(--line);border-left:3px solid var(--brand-orange);border-radius:0 12px 12px 0;padding:13px 16px}
+.g-cell b{display:block;font-size:14px;margin-bottom:3px}
+.g-cell span{font-size:13px;color:var(--ink-2);line-height:1.45}
+
+/* --- frame del root: sin región de navegación (§10) --- */
+.frame.root{grid-template-columns:minmax(0,1fr) var(--context-panel-width);grid-template-rows:var(--header-height) minmax(0,1fr) var(--action-bar-height);grid-template-areas:"header header" "workspace panel" "action action"}
+.frame.boot{display:flex;align-items:center;justify-content:center;background:var(--frame-bg);color:#fff}
+.bootbox{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center}
+.bootbox .lg{width:96px;height:96px;border-radius:32px 32px 32px 0;background:var(--brand-orange);display:grid;place-items:center;font-size:44px;font-weight:800;color:#fff;box-shadow:0 18px 48px rgba(247,66,17,.45)}
+.bootbox b{font-size:30px;letter-spacing:-.03em}
+.bootbox span{font-size:15px;color:var(--frame-text-muted)}
+.bootbox .bar{width:300px;height:5px;border-radius:999px;background:rgba(255,255,255,.16);overflow:hidden}
+.bootbox .bar i{display:block;height:100%;width:64%;border-radius:999px;background:var(--brand-orange);animation:bootgrow 1.6s ease-out infinite}
+.bootbox .sm{font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.45)}
+@keyframes bootgrow{0%{width:12%}70%{width:78%}100%{width:96%}}
+.m-work.center{align-items:center;justify-content:center;text-align:center}
+.access{width:560px;max-width:calc(100% - 64px);display:flex;flex-direction:column;gap:20px;text-align:left}
+.access .who{display:flex;align-items:center;gap:14px;background:var(--surface);border:1.5px solid var(--border);border-radius:16px;padding:14px 18px}
+.access .who .av{width:40px;height:40px;border-radius:13px 13px 13px 0;background:var(--brand-orange-surface);color:var(--brand-orange-text);display:grid;place-items:center;font-weight:750;font-size:15px;border:1px solid rgba(247,66,17,.25);flex:none}
+.access .who b{display:block;font-size:16.5px;letter-spacing:-.01em}
+.access .who span{font-size:13px;color:var(--text-secondary)}
+.access .who .ch{margin-left:auto}
+.modes{display:flex;gap:8px;background:var(--surface-secondary);border:1px solid var(--border);border-radius:14px;padding:5px}
+.modes button{flex:1;min-height:44px;border:0;border-radius:10px;background:transparent;font-family:var(--font-family);font-size:14.5px;font-weight:650;color:var(--text-secondary);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.modes button svg{width:18px;height:18px}
+.modes button.on{background:var(--surface);color:var(--text-primary);box-shadow:var(--depth-1);border:1px solid var(--border)}
+.overlay{position:absolute;inset:0;background:rgba(11,61,65,.72);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:6}
+.overlay .dlg{width:560px;background:var(--surface);border-radius:22px;padding:30px 32px;box-shadow:0 30px 80px rgba(0,0,0,.35);text-align:center}
+.overlay .dlg .ic{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;margin:0 auto 16px}
+.overlay .dlg h3{margin:0 0 8px;font-size:24px;letter-spacing:-.02em}
+.overlay .dlg p{margin:0 auto 20px;font-size:15px;color:var(--text-secondary);max-width:44ch}
+.overlay .dlg .row{display:flex;gap:12px;justify-content:center}
+.overlay .dlg .row .btn{min-width:200px}
+.err-title{display:flex;align-items:center;gap:14px}
+.err-title .ic{width:52px;height:52px;border-radius:16px 16px 16px 0;display:grid;place-items:center;flex:none;color:#fff}
+.err-title h4{margin:0;font-size:22px;letter-spacing:-.02em;color:var(--ink)}
+.err-title p{margin:3px 0 0;font-size:14px;color:var(--text-secondary)}
+
+/* --- mockup de teléfono (R4, 390×844) --- */.scroller.ph{width:calc(390px * var(--ph));height:calc(844px * var(--ph))}
+.frame.ph{width:390px;height:844px;transform:scale(var(--ph));display:flex;flex-direction:column;--header-height:56px;--action-bar-height:76px}
+:root{--ph:.92}
+.ph-stage{display:flex;gap:22px;align-items:flex-start;flex-wrap:wrap}
+.ph-notes{flex:1;min-width:280px}
+.pin{position:absolute;width:30px;height:30px;border-radius:50%;background:var(--brand-orange);color:#fff;font-family:var(--mono);font-size:13px;font-weight:700;display:grid;place-items:center;box-shadow:0 4px 14px rgba(247,66,17,.5);border:2.5px solid #fff;z-index:9}
+.pin.tr{top:14px;right:14px}
+.pin.br{bottom:14px;right:14px}
+.pin.bl{bottom:14px;left:14px}
+.pin.tl{top:14px;left:14px}
+
+@media (max-width:1180px){
+  .shell{grid-template-columns:1fr}
+  .toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:20px}
+  .toc ol{display:flex;flex-wrap:wrap;gap:6px}
+  .toc li a{border-left:0;border:1px solid var(--line)}
+  .toc .kicker{display:none}
+  main{padding:0 20px 80px}
+  .cover{margin:0 -20px 34px;padding:36px 24px}
+  .c3,.c4,.axioms,.check,.legend{grid-template-columns:1fr 1fr}
+  .states{grid-template-columns:1fr 1fr 1fr}
+  .grid12{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .grid12 .g-cell{grid-column:span 3 !important}
+  .vs{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .c2,.c3,.c4,.axioms,.check,.legend,.states{grid-template-columns:1fr}
+  .grid12{grid-template-columns:1fr}
+  .grid12 .g-cell{grid-column:span 1 !important}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<g id="i-grid" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></g>
+<g id="i-utensils" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6a2 2 0 0 0 2 2h3Zm0 0v7"/></g>
+<g id="i-bike" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/></g>
+<g id="i-bank" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.2"/><path d="M6 12h.01M18 12h.01"/></g>
+<g id="i-chart" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></g>
+<g id="i-gauge" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></g>
+<g id="i-file" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></g>
+<g id="i-key" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m10.7 12.3 8.3-8.3"/><path d="m16 7 3 3"/><path d="m19 4 3 3"/></g>
+<g id="i-mail" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="m22 7-9 5.7a2 2 0 0 1-2 0L2 7"/></g>
+<g id="i-phone" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M12 18h.01"/></g>
+<g id="i-help" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.2 9.3a3 3 0 0 1 5.7 1c0 2-2.9 2.7-2.9 4"/><path d="M12 17.5h.01"/></g>
+<g id="i-cloud" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a6.5 6.5 0 1 1 6.2-8.6A4.5 4.5 0 1 1 17.5 19Z"/></g>
+<g id="i-cloudoff" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m2 2 20 20"/><path d="M5.8 5.8A6.5 6.5 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.3-.2"/><path d="M21.5 16.5A4.5 4.5 0 0 0 17.5 10h-1.8A6.5 6.5 0 0 0 10 5.1"/></g>
+<g id="i-printer" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 17h10v4H7z"/></g>
+<g id="i-logout" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></g>
+<g id="i-qr" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM20 14h1M14 20h3M20 18v3"/></g>
+<g id="i-rotate" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></g>
+</defs></svg>
+
+<div class="shell">
+
+<nav class="toc" aria-label="Contenido del documento">
+  <div class="mark"><div class="ico">T</div><b>TakeasyGO POS Root<span>Estudio + diseño de interfaz</span></b></div>
+  <div class="kicker">Parte I · Estudio</div>
+  <ol>
+    <li><a href="#s1"><i>01</i>El proyecto en una página</a></li>
+    <li><a href="#s2"><i>02</i>Los tres pilares: SaaS · App · ROS</a></li>
+    <li><a href="#s3"><i>03</i>Qué es la carpeta /POS</a></li>
+    <li><a href="#s4"><i>04</i>Fundamentos: la Constitución ROS</a></li>
+    <li><a href="#s5"><i>05</i>Modelo operativo: roles, escenas, flujo</a></li>
+    <li><a href="#s6"><i>06</i>Diagnóstico de diseño y deuda</a></li>
+  </ol>
+  <div class="kicker">Parte II · El root</div>
+  <ol>
+    <li><a href="#s7"><i>07</i>El root de hoy: autopsia</a></li>
+    <li><a href="#s8"><i>08</i>Principios de diseño del root</a></li>
+    <li><a href="#s9"><i>09</i>Modelo de estados</a></li>
+    <li><a href="#s10"><i>10</i>Anatomía: 5 regiones aplicadas</a></li>
+    <li><a href="#s11"><i>11</i>Mockups R0 → R7</a></li>
+    <li><a href="#s12"><i>12</i>Tokens, especificación y copy</a></li>
+    <li><a href="#s13"><i>13</i>Validación contra axiomas</a></li>
+  </ol>
+  <div class="kicker">Parte III · Cierre</div>
+  <ol>
+    <li><a href="#s14"><i>14</i>Qué cambiaría (sin tocar código)</a></li>
+    <li><a href="#s15"><i>15</i>Decisiones abiertas</a></li>
+  </ol>
+  <div class="foot">25 · 10 · 2026<br />Documento de diseño · solo lectura.<br />Ningún archivo del proyecto fue modificado.</div>
+</nav>
+
+<main>
+<div class="wrap">
+
+  <header class="cover">
+    <div class="eyebrow">TakeasyGO · ROS Design System · Documento de diseño</div>
+    <h1>Estudio del corpus <em>/POS</em> y diseño de la interfaz raíz de pos.takeasygo.com</h1>
+    <p class="sub">Una lectura completa del concepto del producto —SaaS, App y ROS—, de sus fundamentos de diseño y del estado real de la operación, cerrada con una propuesta concreta para la primera pantalla que ve todo operador cada mañana: la raíz del POS.</p>
+    <div class="meta">
+      <span class="pill"><span class="dot"></span>Alcance: carpeta /POS (documental)</span>
+      <span class="pill ok"><span class="dot"></span>0 archivos modificados</span>
+      <span class="pill warn"><span class="dot"></span>1 entregable nuevo: este HTML</span>
+      <span class="pill"><span class="dot"></span>Mockups 1920×1080 · px reales a escala</span>
+    </div>
+    <div class="grid-note">El raíz de <b style="color:#fff">pos.takeasygo.com</b> es hoy la única superficie del ROS que no está diseñada: no tiene documento, no aparece en el Design Book, no tiene wireframe y viola la Constitución desde su primera pantalla. Se trata aquí como lo que es: <b style="color:#fff">deuda de diseño, no de código</b>.</div>
+  </header>
+
+  <!-- ========== 01 ========== -->
+  <section id="s1">
+    <div class="sec-head"><span class="num">01</span><h2>El proyecto en una página</h2><span class="tag">Parte I · Estudio</span></div>
+
+    <p class="lead">TakeasyGO se define a sí mismo como un <b>Restaurant Operating System (ROS)</b>, no como un POS, ni un ERP, ni un dashboard. No es una cuestión de naming: condiciona toda decisión de diseño posterior.</p>
+
+    <div class="quote">“No estamos diseñando un POS. Estamos definiendo cómo se operan los restaurantes de la próxima década. Un POS administra. El ROS acompaña la operación.”<cite>POS/TakeasyGO ROS Design System/CONSTITUCION/DESIGN_BOOK.md — Manifiesto v0.1</cite></div>
+
+    <div class="quote">“Aún NO somos un marketplace o red de restaurantes. Somos el Sistema Operativo Definitivo (POS + Gestión Inteligente) para el restaurante.”<cite>ventas_fase1.md — estrategia comercial, Fase 1</cite></div>
+
+    <h3>La tesis</h3>
+    <ul class="bul">
+      <li><b>Fase 1 — entrar por la operación.</b> Gana el restaurante con lo que pasa todos los días: salón, comandas, caja, fiscal, inventario. Si el sistema no sobrevive a un servicio de sábado, no hay nada que vender después.</li>
+      <li><b>Fase 2 — la red.</b> Sobre esa base se construye la capa de demanda: descubrimiento, pedidos, clubes, marketplace. La inteligencia (TIA, CIS, ICo, Club, Wallet) vive siempre arriba, nunca en el terminal.</li>
+      <li><b>Un cliente, un bundle.</b> SaaS + Sync + POS se compran juntos, pero <b>cada producto funciona solo</b>: hay comercios con POS sin SaaS y con SaaS sin POS (decisión confirmada en la evaluación del 24/10).</li>
+    </ul>
+
+    <div class="cards c4">
+      <div class="card"><h4><span class="sq" style="background:#0B3D41">S</span>SaaS</h4><p>Canal de demanda + gestión + inteligencia. <b>No sabe de mesas ni comandas.</b></p><p class="mini">Next.js 16 · multi-tenant · superadmin ~30 módulos</p></div>
+      <div class="card"><h4><span class="sq" style="background:#F74211">A</span>App / TGO</h4><p>Superficie del consumidor: descubrir, pedir, club, wallet, reservas, tracking.</p><p class="mini">PWA sobre el SaaS · “Discover before you Order”</p></div>
+      <div class="card"><h4><span class="sq" style="background:#065D63">R</span>ROS</h4><p>Toda la operación física del restaurante. Funciona offline.</p><p class="mini">POS PWA + Sync Layer + printer agent · hub &amp; spoke</p></div>
+      <div class="card accent"><h4><span class="sq" style="background:#F5C451;color:#1B1B1F">Sync</span>El puente</h4><p>Único autorizado a cruzar la frontera. <b>Nunca implementa reglas de negocio.</b></p><p class="mini">Express + Socket.io + BullMQ + Redis · colecciones <code>sync_*</code></p></div>
+    </div>
+
+    <div class="note"><b>Regla fundacional.</b> “POS ejecuta la operación. SaaS administra el negocio. Ambos pertenecen al mismo ecosistema. Nunca compiten. Nunca duplican responsabilidades. Se complementan.” Eventos hacia arriba, interpretación de negocio donde siempre vivió: puntos de loyalty, TIA, CIS, ICo, upsell, benchmarking y wallets viven exclusivamente en <code>/apps/saas</code>.</div>
+
+    <h3>Dónde vive cada cosa</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Subdominio</th><th>Qué es</th><th>Stack</th></tr></thead>
+      <tbody>
+        <tr><td class="nowrap"><code>www.takeasygo.com</code></td><td>SaaS: landing, admin multi-tenant, superadmin, app de consumidor</td><td>Next.js 16 · Vercel</td></tr>
+        <tr><td class="nowrap"><code>pos.takeasygo.com</code></td><td><b>POS / ROS — el objeto de este documento</b></td><td>Vite 6 + React 19 · PWA · Vercel</td></tr>
+        <tr><td class="nowrap"><code>takeasygo.onrender.com</code></td><td>Sync Layer (REST + WebSocket + colas)</td><td>Express 4 · Socket.io · BullMQ · Upstash Redis</td></tr>
+        <tr><td class="nowrap"><code>{tenant}.takeasygo.com</code></td><td>Menús y CRM por restaurante</td><td>SaaS · middleware <code>proxy.ts</code> → <code>x-tenant-slug</code></td></tr>
+        <tr><td class="nowrap"><code>staging-pos</code> · <code>pos2</code></td><td>Staging y segunda instancia del POS</td><td>idem</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Negocio</h3>
+    <div class="cards c3">
+      <div class="card"><h4>Planes (fuente: <code>billing-config.ts</code>)</h4><ul><li>try · <b>$35.000</b> ARS/mes</li><li>buy · <b>$45.000</b> ARS/mes</li><li>full · <b>$60.000</b> ARS/mes</li></ul></div>
+      <div class="card"><h4>Segundo ingreso</h4><p>Comisión por orden (matriz medio × modo; quién la paga se define en superadmin).</p><p class="mini"><code>ROOT/SAAS/ICO/ESQUEMA.MD</code></p></div>
+      <div class="card"><h4>Tono comercial</h4><p>Resolutivo, profesional, tecnológico y <b>anti-caos</b>. Tres pilares: control total, revolución en la cocina, carta digital inteligente.</p></div>
+    </div>
+    <div class="warnbox"><b>Desalineación detectada en el estudio:</b> <code>ROOT/PLAN-FACTURACION.md</code> cita montos viejos (65/75/90). La fuente de verdad es <code>apps/saas/lib/billing-config.ts</code>.</div>
+  </section>
+
+  <!-- ========== 02 ========== -->
+  <section id="s2">
+    <div class="sec-head"><span class="num">02</span><h2>Los tres pilares: SaaS · App · ROS</h2><span class="tag">Alcance del producto</span></div>
+
+    <p class="lead">Para diseñar la raíz del POS hay que entender qué papel ocupa el POS dentro del todo. Responsabilidades sin ambigüedades.</p>
+
+    <div class="cards c3">
+      <div class="card">
+        <h4><span class="sq" style="background:#0B3D41">01</span>SAAS — administra el negocio</h4>
+        <p><b>Responsabilidad:</b> interpretar y decidir sobre el negocio.</p>
+        <ul><li>Menú, precios, categorías, estaciones</li><li>Delivery / takeaway / QR / reservas</li><li>Club &amp; fidelización, wallet, promos</li><li>Inteligencia: TIA, CIS, ICo, Analytics</li><li>Fiscal configurable (CUIT, certificado, punto de venta)</li><li>Multi-sede estricta, RBAC matricial, auditoría</li></ul>
+        <p class="mini" style="margin-top:10px">No toca mesas, no toca comandas, no cobra en el mostrador.</p>
+      </div>
+      <div class="card">
+        <h4><span class="sq" style="background:#F74211">02</span>APP — la experiencia del cliente</h4>
+        <p><b>Responsabilidad:</b> que el cliente descubra y compre.</p>
+        <ul><li>Discovery feed, mapa, restaurant cards</li><li>Pedido takeaway / delivery / dine-in</li><li>Club, wallet (Google/Apple), tracking</li><li>Reservas, promos QR, reseñas, stories</li></ul>
+        <p class="mini" style="margin-top:10px">No es nativa: es PWA servida desde el SaaS (<code>/app</code>, <code>/[tenant]</code>).<br />Spatial UI — “Discover before you Order”.</p>
+      </div>
+      <div class="card">
+        <h4><span class="sq" style="background:#065D63">03</span>ROS — opera el local</h4>
+        <p><b>Responsabilidad:</b> que la operación física ocurra.</p>
+        <ul><li>Salón, comandas por rondas, cocina/barra</li><li>Caja, cierre ciego, Z, faltantes</li><li>Fiscal operativa (ARCA, NC, Libro IVA)</li><li>Inventario ↔ POS (pausa automática)</li><li>Reservas del día, flota, ventas del día</li></ul>
+        <p class="mini" style="margin-top:10px">Offline-first. Hub (terminal fija) + Spokes (celulares del mozo).</p>
+      </div>
+    </div>
+
+    <h3>El contrato entre mundos</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Regla sellada</th><th>Qué significa en la práctica</th></tr></thead>
+      <tbody>
+        <tr><td>Split de maestría</td><td>Sync es maestro de pedidos externos; el POS es maestro de la operación interna. <b>Las órdenes externas nunca son maestro en el POS: solo se consumen.</b></td></tr>
+        <tr><td>Conflicto</td><td>“Operaciones internas del POS ganan siempre.” El conflicto de inventario se resuelve manual, sin bloquear la cola.</td></tr>
+        <tr><td>Menú</td><td>El POS consume un <b>snapshot versionado</b>; nunca llama en vivo a <code>/api/[tenant]/menu</code>.</td></tr>
+        <tr><td>Carta pausada / sin stock</td><td>El server rechaza venderlo con 409 aunque el POS tenga carta vieja (sync ~35 s).</td></tr>
+        <tr><td>Loyalty</td><td>El POS solo dispara “orden completada”. El cálculo (fixed / percentage / hybrid, micro-bonus 0,0575) vive en <code>lib/loyalty.ts</code>.</td></tr>
+        <tr><td>Offline</td><td>Event sourcing en Dexie: cada acción se registra como evento <b>antes</b> de ejecutarse; al reconectar, replay ordenado.</td></tr>
+        <tr><td>Pedido externo sin POS</td><td>En cola con estado <code>pendiente</code> y timer: si el POS no confirma, rechazo automático + aviso al cliente.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="note"><b>Arquitectura hub &amp; spoke.</b> El hub (PC/tablet fija) corre el POS completo y es servidor local para los spokes (celulares del mozo), que hablan por WebSocket en LAN. Si el hub pierde internet, los spokes siguen funcionando. El pairing es QR + código de 6 dígitos con token de 2 minutos. <b>Ese flujo empieza exactamente en el root</b> — y hoy no existe ninguna pantalla para él en la raíz.</div>
+  </section>
+
+  <!-- ========== 03 ========== -->
+  <section id="s3">
+    <div class="sec-head"><span class="num">03</span><h2>Qué es la carpeta /POS</h2><span class="tag">Corpus analizado</span></div>
+
+    <p class="lead"><code>/POS</code> no es código: es la <b>memoria de diseño, auditoría y exploración</b> del producto. Está organizada en cinco capas con naturalezas distintas, y mezclarlas es el error más común al leerla.</p>
+
+    <div class="cards c4">
+      <div class="card"><h4>① Normativo</h4><p class="mini"><code>ROS Design System/CONSTITUCION/</code> · <code>PRODUCTO/</code></p><p>Documentos con encabezado “Documento: Normativo”. Mandan sobre cualquier decisión visual o de interacción. El orden de lectura está fijado en <code>ORDEN.md</code>.</p></div>
+      <div class="card"><h4>② Diagnóstico</h4><p class="mini">Evaluaciones · auditorías · deuda · seguridad · fiscal</p><p>Llevan fecha y commit de base. Sirven para saber <b>dónde estamos</b>, no para diseñar: pueden estar vencidos.</p></div>
+      <div class="card"><h4>③ Exploración</h4><p class="mini"><code>CONTEXTOS/*.html</code> · <code>PRODUCTO/UI/*.md</code></p><p>Prototipos HTML autocontenido (Counter v3, Waiter v3, Flota v3, Incoming Orders v3) con sus justificaciones.</p></div>
+      <div class="card"><h4>④ Evidencia y datos</h4><p class="mini"><code>EVIDENCIA_2026-10/</code> · <code>reward-intelligence-…</code></p><p>Capturas reales del producto en producción y datasets JSON de un tenant real (Keke Larry) para inteligencia de recompensas.</p></div>
+    </div>
+
+    <h3>Mapa completo</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Archivo / carpeta</th><th>Naturaleza</th><th>Qué aporta al diseño</th></tr></thead>
+      <tbody>
+        <tr><td><code>TakeasyGO_Arquitectura_v03.md</code></td><td>Arquitectura</td><td>Stack sellado, hub/spoke, sync, frontera POS↔SaaS, orden de arranque</td></tr>
+        <tr><td><code>Design_system_v03.md</code></td><td>Normativo v1.0</td><td>Tokens de color, spacing, radios, sombras, botones, prohibiciones. <b>Base del CSS real.</b></td></tr>
+        <tr><td><code>CONSTITUCION/</code> (8 docs)</td><td>Normativo</td><td>21 axiomas, VLS, gramática, sistema de componentes, lenguaje de dominio, fundamentos, implementación</td></tr>
+        <tr><td><code>PRODUCTO/</code> (12 docs)</td><td>Normativo</td><td>Roles, workspace, arquitectura de escenas, VOL, W0S, order flow, proceso de diseño</td></tr>
+        <tr><td><code>ACTUALIZACION_ROS_2026-10.md</code></td><td>Diagnóstico 21/10</td><td>Auditoría DS vs POS real: F1/F2/F3/F5 ✅ · F4 parcial · decisiones D-1…D-9</td></tr>
+        <tr><td><code>EVALUACION_POS_OPERATIVO_2026-10-24.md</code></td><td>Diagnóstico 24/10</td><td>Semáforo por área, fases A–F ejecutadas, observaciones que abren la próxima etapa</td></tr>
+        <tr><td><code>PLAN_OPERACIONES_EN_POS_2026-10-24.md</code></td><td>Plan</td><td>Qué va en el POS y qué queda en el SaaS (fases G–L)</td></tr>
+        <tr><td><code>SECURITYPOS.md</code></td><td>Seguridad</td><td>Amenazas V1…Vn, pairing, rate limiting, vida útil de tokens</td></tr>
+        <tr><td><code>DEUDA_TECNICA.md</code> + <code>DEUDA/</code></td><td>Deuda</td><td>Medición de lint / CI por paquete y deuda abierta por contexto</td></tr>
+        <tr><td><code>INVENTARIO/</code> (17 docs)</td><td>Fases + simulación</td><td>Fases 0–6 y evaluación con simulador sintético (V-A…V-F)</td></tr>
+        <tr><td><code>INCOMINGORDER/</code> · <code>ONLINE/</code></td><td>Funcional</td><td>Pedidos externos y canal online</td></tr>
+        <tr><td><code>MONOREPO.md</code> · <code>AI_ENGINEER_ONBOARDING.md</code></td><td>Técnico</td><td>Estructura del monorepo y del SaaS para onboarding</td></tr>
+        <tr><td><code>CASH_PAYMENT_IMPLEMENTATION_REPORT.md</code> · <code>REPORTE_FISCAL_COMPLIANCE.md</code></td><td>Caja / Fiscal</td><td>Medios de pago, ARCA, comprobantes, libros</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="warnbox"><b>Hueco encontrado.</b> Ningún archivo de <code>/POS</code> diseña la pantalla de acceso. No hay wireframe de login, no hay estado de arranque, no hay pairing en la raíz, no hay recuperación de local. El Design Book (18 capítulos) marca completos los capítulos 1–7 y deja sin marcar el 8–18; el capítulo 16 “Wireframe Library” no contiene el acceso. <b>El root es el primer hueco de la Constitución.</b></div>
+  </section>
+
+  <!-- ========== 04 ========== -->
+  <section id="s4">
+    <div class="sec-head"><span class="num">04</span><h2>Fundamentos: la Constitución ROS</h2><span class="tag">Normativo</span></div>
+
+    <p class="lead">El sistema de diseño de TakeasyGO no es un catálogo de componentes: es una constitución. Se lee antes de diseñar y obliga a justificar cada decisión. Estos son los 21 axiomas que gobiernan el root.</p>
+
+    <div class="axioms">
+      <div class="ax"><b data-n="01">Operation First</b>La operación está por encima de la interfaz. Toda decisión favorece la operación antes que la estética.<i>Operation First</i></div>
+      <div class="ax"><b data-n="02">Contexto, no pantallas</b>Todo ocurre dentro de un contexto operativo. La interfaz representa contextos, no pantallas.<i>Mesa · Delivery · Mostrador · Caja</i></div>
+      <div class="ax"><b data-n="03">Reconocer, no recordar</b>El operador debe reconocer. Nunca recordar. El sistema muestra lo que necesita.<i>Recognition &gt; Recall</i></div>
+      <div class="ax"><b data-n="04">Memoria muscular</b>Las acciones críticas mantienen siempre su ubicación. La posición es parte de la experiencia.<i>Cobrar · Confirmar · Buscar · Volver</i></div>
+      <div class="ax"><b data-n="05">La estructura permanece</b>La jerarquía puede cambiar. La arquitectura nunca cambia.<i>Persistence First</i></div>
+      <div class="ax"><b data-n="06">Cuatro preguntas</b>¿Qué quiero lograr? ¿Sobre qué trabajo? ¿Qué puedo hacer? ¿Qué acaba de pasar?<i>Si falta una, el contexto está incompleto</i></div>
+      <div class="ax"><b data-n="07">Una acción principal</b>Cada contexto posee una acción protagonista. Las demás acompañan. Nunca compiten.<i>Una. Nunca dos.</i></div>
+      <div class="ax"><b data-n="08">La interfaz guía</b>No espera. La siguiente acción debe ser evidente. Nunca: “¿Qué hago ahora?”<i>Guidance</i></div>
+      <div class="ax"><b data-n="09">El color comunica estado</b>Nunca decoración. Todo color transmite información operativa.<i>Color = state</i></div>
+      <div class="ax"><b data-n="10">Solo lo necesario</b>No oculta información: muestra únicamente la que aporta valor en el momento actual.<i>Progressive disclosure</i></div>
+      <div class="ax"><b data-n="11">Adaptar importancia</b>El contexto cambia qué información pesa más. Nunca mueve los fundamentos.<i>Priority ≠ structure</i></div>
+      <div class="ax"><b data-n="12">Las fotos son herramientas</b>Una imagen aparece cuando mejora reconocimiento, velocidad, ventas o aprendizaje.<i>Tools, not decoration</i></div>
+      <div class="ax"><b data-n="13">Reducir decisiones</b>El diseño no reduce información: reduce decisiones.<i>Decision load</i></div>
+      <div class="ax"><b data-n="14">Todo genera eventos</b>Cada interacción produce un evento del negocio. El ROS registra operaciones, no clics.<i>Event sourcing</i></div>
+      <div class="ax"><b data-n="15">El sistema respira</b>El espacio vacío comunica. Reduce fatiga, ordena, jerarquiza.<i>Whitespace is signal</i></div>
+      <div class="ax"><b data-n="16">La IA acompaña</b>Nunca invade: sugiere, no decide; prioriza, no interrumpe.<i>AI, not in the center</i></div>
+      <div class="ax"><b data-n="17">Offline es normal</b>No excepcional. El sistema sigue operando: la sincronización es una capacidad, no un requisito.<i>Offline as a state</i></div>
+      <div class="ax"><b data-n="18">La simplicidad nace del modelo</b>Si el modelo operativo es complejo, la interfaz nunca será simple.<i>Design from architecture</i></div>
+      <div class="ax"><b data-n="19">Fundamentos vs ocurrencias</b>Ninguna decisión visual puede existir sin un fundamento operativo.<i>No “me gustó”</i></div>
+      <div class="ax"><b data-n="20">Nunca “¿Y esto qué es?”</b>Todo elemento visible responde qué es, para qué sirve y qué pasa si lo uso.<i>Probablemente el más importante</i></div>
+      <div class="ax"><b data-n="21">La interfaz debe desaparecer</b>El mejor diseño no llama la atención: permite pensar solo en atender al cliente.<i>Disappear</i></div>
+    </div>
+
+    <h3>Los 6 principios del Visual Language System</h3>
+    <div class="cards c3">
+      <div class="card"><h4>2.1 Operation First</h4><p>“Una interfaz hermosa que ralentiza el trabajo es un fracaso.”</p></div>
+      <div class="card"><h4>2.2 Recognition First</h4><p>“El operador reconoce. Nunca memoriza.”</p></div>
+      <div class="card"><h4>2.3 Persistence First</h4><p>“La arquitectura permanece constante.”</p></div>
+      <div class="card"><h4>2.4 Context First</h4><p>“Toda operación ocurre dentro de un contexto. Nunca sobre elementos aislados.”</p></div>
+      <div class="card"><h4>2.5 Hierarchy First</h4><p>“¿Qué necesita ver primero el operador?”</p></div>
+      <div class="card"><h4>2.6 Simplicity through Structure</h4><p>“La simplicidad nunca es consecuencia de ocultar funciones: es consecuencia de una buena arquitectura.”</p></div>
+    </div>
+
+    <h3>Lo que jamás hará TakeasyGO (VLS §19)</h3>
+    <p>Nunca mover acciones críticas · nunca usar el color como único canal · nunca abrir un modal cuando basta un panel · nunca ocultar funciones esenciales · nunca sacrificar operación por estética · nunca sorprender al operador · nunca llenar una interfaz porque hay espacio · nunca diseñar una pantalla sin contexto operativo definido · nunca crear componentes sin significado semántico · nunca romper la memoria muscular.</p>
+
+    <h3>Gramática ROS: el orden de toda escena</h3>
+    <div class="flow" style="padding:20px">
+      <div class="row">
+        <div class="node">Contexto<small>¿Dónde estoy?</small></div><span class="arrow">→</span>
+        <div class="node">Entidad<small>¿Sobre qué trabajo?</small></div><span class="arrow">→</span>
+        <div class="node">Estado<small>¿Cuál es la situación?</small></div><span class="arrow">→</span>
+        <div class="node">Objetivo<small>¿Qué vine a hacer?</small></div><span class="arrow">→</span>
+        <div class="node main">Acción principal<small>Existe una. Nunca dos.</small></div><span class="arrow">→</span>
+        <div class="node">Info complementaria<small>Ayuda, no lidera</small></div>
+      </div>
+      <p style="margin:16px 0 0;font-size:13.5px;color:var(--ink-2);max-width:none"><b>Regla de calidad:</b> una escena está bien diseñada cuando un operador puede describirla en menos de 10 segundos — “Estoy en Counter trabajando sobre la Mesa 14 que está Abierta para Agregar productos y mi acción principal es Enviar Pedido.” Si no se puede escribir así, está mal diseñada.</p>
+    </div>
+
+    <div class="note"><b>Esta gramática es exactamente la que aplicamos al root en la Parte II.</b> La raíz no es una excepción: es una escena como cualquier otra y debe poder describirse en una frase.</div>
+
+    <h3>Sistema de componentes (taxonomía)</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Familia</th><th>Definición</th><th>Miembros</th></tr></thead>
+      <tbody>
+        <tr><td><b>A. Foundation</b></td><td>“Son invisibles. Construyen el sistema.”</td><td>Grid, espaciado, tipografía, elevación, movimiento, color, breakpoints</td></tr>
+        <tr><td><b>B. Structural</b></td><td>“Construyen la arquitectura.”</td><td>Header, Sidebar, Workspace, Context Panel, Action Bar, Status Bar, Overlay</td></tr>
+        <tr><td><b>C. Domain</b></td><td>“Representan entidades del restaurante.”</td><td>Mesa, Pedido, Cuenta, Producto, Cliente, Reserva, Ticket, Factura, Caja, Turno</td></tr>
+        <tr><td><b>D. Operational</b></td><td>“Representan acciones.”</td><td>Acción, Confirmación, Autorización, Búsqueda, Cobro, Transferencia, División de cuenta, Descuento</td></tr>
+        <tr><td><b>E. Feedback</b></td><td>“Comunican estados.”</td><td>Badge, Toast, Banner, Alert, Progress, Indicator, Empty State</td></tr>
+        <tr><td><b>F. Intelligence</b></td><td>“Representan decisiones inteligentes.”</td><td>Recomendación, Predicción, Prioridad, Ayuda contextual, Sugerencia IA</td></tr>
+      </tbody>
+    </table></div>
+
+    <p><b>Tres relaciones, nada más:</b> <span class="pill-ink">Contiene</span> (Mesa contiene Pedido) · <span class="pill-ink">Pertenece</span> (Pedido pertenece a Mesa) · <span class="pill-ink">Genera</span> (Pago genera Evento). Y un test de calidad que vale para el root: <i>“Si un componente necesita explicarse para entender qué hace, todavía no está bien diseñado.”</i></p>
+
+    <div class="note"><b>Frameworks adoptados (Foundation_Standards):</b> IBM Carbon · Atlassian Design System · Apple HIG · Linear · Cognitive Load Theory, Goal Directed Design, Situation Awareness, JTBD. Regla literal: <b>“adoptar antes que reinventar”</b>, y solo se desvía cuando hay una necesidad operacional del dominio gastronómico.</div>
+  </section>
+
+  <!-- ========== 05 ========== -->
+  <section id="s5">
+    <div class="sec-head"><span class="num">05</span><h2>Modelo operativo: roles, escenas, flujo</h2><span class="tag">Normativo · Producto</span></div>
+
+    <h3>Roles: “los roles no cambian el sistema. Cambian el acceso al sistema.”</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Rol</th><th>Dónde opera</th><th>Puede</th><th>No puede</th><th>Navegación que ve</th></tr></thead>
+      <tbody>
+        <tr><td><b>Cajero</b></td><td>Counter</td><td>Delivery, takeaway, telefónicos y QR sin mozo; cobrar; pedidos manuales</td><td>Inventario, reportes, configuración</td><td>Counter · Order Flow · Delivery · Cuentas</td></tr>
+        <tr><td><b>Waiter / Mozo</b></td><td>Salón (sus mesas)</td><td>Ver solo sus mesas, tomar pedidos, solicitar cuenta, servir</td><td>Delivery, cobrar, inventario, reportes</td><td>Salón · Cuentas (solicitar)</td></tr>
+        <tr><td><b>Manager / Encargado</b></td><td>Toda la operación</td><td>Ver todo, intervenir, inventario, reportes, excepciones</td><td>Configurar el sistema</td><td>Counter · Salón · Order Flow · Kitchen · Delivery · Cuentas · Inventario · Reportes</td></tr>
+        <tr><td><b>Admin</b></td><td>Configuración</td><td>Todo, sin restricciones</td><td>—</td><td>Todo + Administración</td></tr>
+      </tbody>
+    </table></div>
+    <p>En el código real los roles POS son <code>admin | manager | cashier</code> (terminal hub) y <code>waiter</code> (celular, token handheld), con etiquetas “Administrador · Encargado · Cajero · Mozo”. El usuario puede elegir rol al iniciar sesión y <b>cambiarlo durante la jornada</b> — algo que hoy no existe en el root.</p>
+
+    <h3>Workspace operativo: la regla que define todo</h3>
+    <div class="quote">“En ROS no existen aplicaciones diferentes para cada rol. Existe un único espacio operativo compartido. Lo que cambia es la experiencia, nunca la arquitectura.”<cite>PRODUCTO/Operational_Workspace_Model.md v1.1</cite></div>
+    <ul class="bul">
+      <li>El error más común es imaginar “Counter App / Waiter App / Kitchen App”. <b>Incorrecto.</b> ROS no está compuesto por apps independientes.</li>
+      <li><b>Counter ≠ Caja ≠ pantalla de cobro.</b> Counter es el <i>Workspace Operativo del Restaurante</i>: no pertenece a un rol, pertenece a la operación.</li>
+      <li>Secuencia de diseño: <b>Operación → Contexto → Escena → Experiencia → Dispositivo</b>. “El dispositivo adapta la experiencia. Nunca la define.”</li>
+      <li>Regla de oro: <b>“El rol modifica la experiencia. Nunca modifica la arquitectura.”</b></li>
+      <li>Pregunta previa a cualquier wireframe: <b>“¿Cuál es la responsabilidad de este contexto?”</b> Si no se responde en una oración sin “y”, todavía no es momento de diseñarlo.</li>
+    </ul>
+
+    <h3>Arquitectura de escenas</h3>
+    <p>Una escena <b>no representa una pantalla</b>: representa una <b>intención operativa</b>. Es un estado temporal dentro de un Contexto y modifica solo lo necesario. Nunca reemplaza al Contexto. Filosofía: <b>Persistencia Espacial</b> — el usuario no “abre otra pantalla”, <b>cambia el foco</b>.</p>
+    <div class="flow" style="padding:20px">
+      <div class="lbl">Jerarquía espacial (nunca se rompe)</div>
+      <div class="row"><div class="node">Aplicación</div><span class="arrow">→</span><div class="node">Contexto</div><span class="arrow">→</span><div class="node">Escena</div><span class="arrow">→</span><div class="node">Componente</div><span class="arrow">→</span><div class="node main">Acción</div></div>
+      <div class="lbl">Ciclo de vida de una escena</div>
+      <div class="row"><div class="node">Disponible</div><span class="arrow">→</span><div class="node">Activa</div><span class="arrow">→</span><div class="node">En interacción</div><span class="arrow">→</span><div class="node">Finalizada</div><span class="arrow">→</span><div class="node good">Regresa al contexto</div></div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Decisiones de diseño</th><th>Motivo</th></tr></thead>
+      <tbody>
+        <tr><td><b>DD-001</b> El contexto nunca desaparece</td><td>Preservar la orientación del operador</td></tr>
+        <tr><td><b>DD-002</b> Las acciones críticas nunca cambian de posición</td><td>Preservar la memoria muscular</td></tr>
+        <tr><td><b>DD-003</b> Solo el Workspace cambia entre escenas</td><td>Reducir carga cognitiva</td></tr>
+        <tr><td><b>DD-004</b> La entidad activa siempre permanece visible</td><td>Evitar errores de operación</td></tr>
+        <tr><td><b>DD-005</b> Una escena es una intención, no una pantalla</td><td>Diseñar para la operación, no para la navegación</td></tr>
+        <tr><td><b>DD-006</b> Toda transición debe tener causa evidente</td><td>Mantener la confianza en el sistema</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Escenas nunca permitidas:</b> abrir múltiples ventanas para una misma operación · perder el contexto al editar · <b>modales encadenados</b> · cambios completos de layout por acciones menores · duplicar acciones críticas en distintos lugares.</p>
+
+    <h3>Order flow: el primer segundo</h3>
+    <ul class="bul">
+      <li>Un pedido <b>“entra”</b> cuando el restaurante <b>acepta responsabilidad</b> sobre él — no cuando llega la notificación. “Antes de esa decisión, el pedido es ruido. Después, es trabajo.”</li>
+      <li>Cuatro preguntas que deben responderse <b>de un vistazo</b>: ¿qué llegó? · ¿de dónde vino? · ¿cuándo llegó? · ¿necesita acción? <b>“Si necesita más de un vistazo, el diseño falló.”</b></li>
+      <li>Al seleccionar, <b>la acción principal debe ser evidente en menos de 2 segundos</b>. Lo que puede esperar no desaparece: solo baja de prioridad visual.</li>
+      <li>Cocina ve ítems, mods, prioridad, alergias y logística — nunca precio, canal ni comisión. Counter “ve todo, decide poco, supervisa todo”.</li>
+    </ul>
+
+    <h3>Ciclo de la mesa y permisos</h3>
+    <div class="flow" style="padding:20px">
+      <div class="row">
+        <div class="node good">libre</div><span class="arrow">→</span>
+        <div class="node">abrir<small>con comensales 1–99</small></div><span class="arrow">→</span>
+        <div class="node main">ocupada</div><span class="arrow">→</span>
+        <div class="node wait">cuenta pedida</div><span class="arrow">→</span>
+        <div class="node">cobrar</div><span class="arrow">→</span>
+        <div class="node good">libre</div>
+      </div>
+      <div class="lbl">Reabrir desde “cuenta pedida” exige aprobación de encargado (auditado)</div>
+    </div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Acción</th><th>Mozo</th><th>Cajero</th><th>Encargado / Admin</th></tr></thead>
+      <tbody>
+        <tr><td>Abrir mesa (comensales), agregar, nota, curso</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Enviar ronda / pedir cuenta / reabrir</td><td>✓</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Quitar ítem ya enviado (con motivo)</td><td><span class="sev r">no, ni con PIN</span></td><td>PIN</td><td>✓</td></tr>
+        <tr><td>Cambiar o unir mesas</td><td>—</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Descuento por ítem o cuenta (con motivo)</td><td>—</td><td>PIN</td><td>✓</td></tr>
+        <tr><td>Dividir la cuenta / cobrar</td><td>—</td><td>✓</td><td>✓</td></tr>
+        <tr><td>Anular venta cobrada</td><td>—</td><td>PIN</td><td>✓</td></tr>
+      </tbody>
+    </table></div>
+    <p class="mini" style="color:var(--ink-3);font-size:13px">Motivos de eliminación que alimentan inventario/merma: error de carga · el cliente cambió · producto agotado · demora o reclamo · se cayó o rompió.</p>
+  </section>
+
+  <!-- ========== 06 ========== -->
+  <section id="s6">
+    <div class="sec-head"><span class="num">06</span><h2>Diagnóstico de diseño y deuda</h2><span class="tag">Parte I · Cierre</span></div>
+
+    <p class="lead">Estado real al 24/10/2026, según <code>EVALUACION_POS_OPERATIVO</code>, <code>ACTUALIZACION_ROS_2026-10</code> y <code>DEUDA_TECNICA</code>. Todo lo que sigue informa el diseño del root: un root nuevo tiene que convivir con esto.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Área</th><th>Estado</th><th>Hallazgo</th></tr></thead>
+      <tbody>
+        <tr><td>Layout</td><td><span class="sev ok">resuelto A</span></td><td>Header compacto de 52 px, sin títulos repetidos, todo en 1080 px sin scroll. Acción principal siempre visible.</td></tr>
+        <tr><td>Abrir mesa</td><td><span class="sev ok">resuelto B</span></td><td>Comensales obligatorios, buscador sin tildes, grilla paginada, 24 “Frecuentes”, notas y curso por plato.</td></tr>
+        <tr><td>Cocina vs. barra</td><td><span class="sev ok">bug corregido</span></td><td>Las órdenes del POS no llevaban <code>printRole</code>: cocina y barra no recibían la comanda. Ruteo ahora en servidor (subcategoría → categoría → cocina).</td></tr>
+        <tr><td>Descuentos y división</td><td><span class="sev ok">resuelto D</span></td><td>%, monto o “invita la casa”, con motivo y PIN; dividir por partes, por comensal o por platos.</td></tr>
+        <tr><td>Cobro</td><td><span class="sev ok">resuelto E</span></td><td>Vuelto a 40 px sobre fondo verde, billetes rápidos, precuenta con “NO VÁLIDO COMO FACTURA”.</td></tr>
+        <tr><td>Ventas en el POS</td><td><span class="sev ok">resuelto G–I</span></td><td>Antes calculaba sobre caché local (últimas 200 órdenes): “Semana” y “Mes” daban números distintos por dispositivo. Ahora lee del servidor con export PDF/Excel.</td></tr>
+        <tr><td>Inventario ⇄ POS</td><td><span class="sev ok">resuelto J</span></td><td>Antes el POS <b>escondía</b> los artículos pausados (el mozo no encontraba nada). Ahora se ven tachados con “Faltante” o “Sin inventario”, con pausa automática por stock.</td></tr>
+        <tr><td>Facturación</td><td><span class="sev ok">resuelto L</span></td><td>Comprobantes, reintentos, NC idempotente, Libro IVA y centro de ayuda fiscal dentro del POS.</td></tr>
+        <tr><td>Impresión escalable</td><td><span class="sev a">fase F pendiente</span></td><td>Printer agent por polling 15 s no escala: ~2.000 locales ≈ 10.000 consultas/min ociosas. Va a WebSocket contra el Sync cuando se pase ~50 locales.</td></tr>
+        <tr><td>Kitchen Display</td><td><span class="sev r">suspendido</span></td><td>“Pendiente hasta descubrir el modelo de interacción.”</td></tr>
+        <tr><td>Accesibilidad / responsive</td><td><span class="sev a">F4 parcial</span></td><td>Quedan emojis dentro de los dashboards (Foundation cap. 7 pide Lucide).</td></tr>
+        <tr><td>Incidente 24/10</td><td><span class="sev r">producción</span></td><td>Mientras <code>POS_JWT_PUBLIC_KEY</code> no tenga la clave pública del Sync de EC2 en Vercel, <b>toda escritura del POS falla con 401</b>. Es configuración, no código.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Deuda de ingeniería (medición 01/10, <code>main@e3615f6</code>)</h3>
+    <div class="cards c4">
+      <div class="card"><h4>6.066</h4><p>problemas de lint en el monorepo (3.217 errores · 2.849 warnings)</p></div>
+      <div class="card"><h4>3.908</h4><p>en <code>apps/saas</code>, de los cuales 2.255 son <code>no-explicit-any</code></p></div>
+      <div class="card"><h4>CI rojo</h4><p>el job <code>lint</code> falla y <code>build</code> depende de él: <b>el build de CI está bloqueado en cada push</b></p></div>
+      <div class="card"><h4><code>packages/ui</code></h4><p>es <code>export {}</code>: <b>el paquete de UI compartido está vacío</b> y la UI vive duplicada en saas y pos</p></div>
+    </div>
+
+    <div class="warnbox"><b>Deuda de verdad de diseño (la que importa acá):</b> coexisten <b>3 a 4 sistemas de color/acción paralelos</b> — naranja de marca <code>#F74211</code> usado como acción, teal <code>#065D63</code> como <code>--primary-action</code>, la escala de <code>Design_system_v03</code> (<code>#E56A2E</code>) y la paleta consumer oscura <code>#0d0b0a</code> / <code>#f14722</code>. El propio <code>TGO/TOF-DES-000.md</code> lo documenta como bug en producción. Cualquier decisión del root debe declarar explícitamente de qué sistema viene.</div>
+
+    <p><b>Conclusión de la Parte I:</b> el producto tiene una constitución madura, un modelo operativo claro y un POS que avanzó fuerte (fases A–L). Lo que <b>no</b> tiene es una puerta. Y la puerta es lo primero que ve el operador, todos los días, antes de cualquier escena del ROS.</p>
+  </section>
+
+  <!-- ========== 07 ========== -->
+  <section id="s7">
+    <div class="sec-head"><span class="num">07</span><h2>Autopsia: el root actual</h2><span class="tag">Parte II · Qué existe hoy</span></div>
+
+    <p class="lead">Lo que hoy sirve de raíz en <code>pos.takeasygo.com</code> es <code>apps/pos/src/components/LoginScreen.tsx</code> (363 líneas), invocado desde <code>App.tsx</code> cuando <code>state.status</code> es <code>"login"</code> o <code>"error"</code>. No es un error de implementación: es un <b>hueco de diseño</b>. Está mapeado abajo contra los axiomas que viola.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Qué hay hoy</th><th>Cómo está hecho</th><th>Lectura de diseño</th></tr></thead>
+      <tbody>
+        <tr><td>Escena única</td><td>Fondo <code>#000</code>, card <code>#111</code>, bordes <code>#333</code>, inputs <code>#222</code>, botón blanco, dos modos (PIN / Email)</td><td>Dark neutro genérico: <b>ninguna relación con el DS</b> (<code>#FAFAF8</code>, naranja <code>#F74211</code>, petrol <code>#0B3D41</code>). Sospechoso de ser plantilla de template (<span class="sev a">D-8</span>)</td></tr>
+        <tr><td>Tenant ID manual</td><td>Campo “Tenant ID” a tipear + <code>getLocations</code> para multi-sede</td><td>El operador debe <b>memorizar un código interno de sistema</b> — la antítesis de <i>Recognition First</i> y del axioma 20</td></tr>
+        <tr><td>Errores crudos</td><td><code>state.status === "error"</code> → mensaje tal cual llega del backend</td><td>Estado técnico expuesto como UX: “¿Qué hago ahora?” (axioma 08)</td></tr>
+        <tr><td>Sin estados</td><td>No existen: arranque, sin conexión, servidor caído, dispositivo no autorizado, sesión expirada</td><td>El axioma 17 (<i>Offline es normal</i>) ni siquiera se plantea en la puerta</td></tr>
+        <tr><td>Sin pairing</td><td>El dispositivo móvil accede al hub por código de apareamiento que hoy no vive en la raíz</td><td>El flujo de alta de terminales (<code>SECURITYPOS.md</code>) no tiene pantalla propia</td></tr>
+        <tr><td>Cambio de rol</td><td>Disponible recién dentro del shell, vía Header</td><td>El rol (admin/manager/cashier/waiter) no se elige en la entrada: se descubre después</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="axioms" style="margin-top:24px">
+      <div class="ax"><b data-n="04">Violado</b>Memoria muscular: no hay posición que recordar, porque no hay arquitectura que persistir.<i>Axioma 04 · 05</i></div>
+      <div class="ax"><b data-n="20">Violado</b>“¿Y esto qué es?”: el campo Tenant ID no dice qué es ni de dónde sale.<i>Axioma 20 · 03</i></div>
+      <div class="ax"><b data-n="18">Violado</b>La simplicidad no nace del modelo: el root desconoce el modelo de contexto/escena.<i>Axioma 18 · 02</i></div>
+      <div class="ax"><b data-n="09">Ausente</b>Ningún color comunica estado: la pantalla es monocroma de error a éxito.<i>Axioma 09 · 14</i></div>
+    </div>
+
+    <div class="note"><b>Qué NO está roto:</b> la mecánica es correcta — validación de PIN/email, lectura de sucursales, persistencia de sesión, redirección al contexto correcto según rol. El rediseño propuesto <b>no toca la lógica</b>: sólo le construye la escena que le falta. (Especificación en §12.)</div>
+  </section>
+
+  <!-- ========== 08 ========== -->
+  <section id="s8">
+    <div class="sec-head"><span class="num">08</span><h2>Principios del root</h2><span class="tag">Parte II · Fundamentos</span></div>
+
+    <p class="lead">Defino el acceso como una <b>escena ROS</b> sujeta a la misma gramática que cualquier otra: <code>Contexto → Entidad → Estado → Objetivo → Acción principal → Info complementaria</code>. Sus fundamentos, derivados de los 21 axiomas y del VLS:</p>
+
+    <div class="cards c3">
+      <div class="card"><h4>1. El root es Escena 0</h4><p>“Fuera de escena” no existe: antes de que el operador entre, ya está en una intención operativa — <b>“identificarme para operar”</b>. Se diseña con la misma gramática y no puede describirsese con menos de una frase.</p></div>
+      <div class="card"><h4>2. Entrar es recordar, no rellenar</h4><p>El operador reconoce su local y su rol; nunca tipea un código de sistema. Cualquier campo técnico que obligue a memorizar viola <i>Recognition First</i>.</p></div>
+      <div class="card"><h4>3. El estado es visible</h4><p>Arranque, sin conexión, servidor caído, no autorizado, sesión expirada: todos son <b>estados con mensaje propio, acción propia y color propio</b>. Un error genérico es una escena inacabada (axioma 20).</p></div>
+      <div class="card"><h4>4. Offline-first desde el primer píxel</h4><p>La raíz es lo último que depende de la red y lo primero que el operador ve. Debe comportarse con el axioma 17: <b>informar la degradación sin bloquear la intención</b>.</p></div>
+      <div class="card"><h4>5. Acción principal única</h4><p>Un root puede tener <b>una</b> acción dominante por estado: <i>Entrar</i> · <i>Reintentar</i> · <i>Aparear este dispositivo</i>. El resto acompaña (axioma 07).</p></div>
+      <div class="card"><h4>6. Vestir DS, no un dark mode</h4><p>El root declara de qué sistema viene: tokens de <code>Design_system_v03</code> + <code>pos.css</code>. Es la primera pantalla donde el POS <b>se presenta como TakeasyGO</b>, no como cualquier SaaS.</p></div>
+      <div class="card"><h4>7. La estructura del shell, antes del shell</h4><p>Misma barra superior y misma noción de “marco” que el shell operativo: el operador reconoce la arquitectura <b>antes</b> de entrar (axioma 05, persistencia).</p></div>
+      <div class="card"><h4>8. La puerta es también dispositivo</h4><p>Desktop, tablet de cocina, teléfono del mozo: el root <b>se adapta al dispositivo, no lo define</b> (Operational_Workspace_Model §dispositivo).</p></div>
+      <div class="card"><h4>9. Nada de marketing</h4><p>El root no vende: opera. Sin hero, sin beneficios, sin carouseles. “La interfaz debe desaparecer” (axioma 21).</p></div>
+    </div>
+
+    <div class="warnbox"><b>Decisión de alcance (D-0):</b> el root cubre <b>tres modos</b> — (a) terminal desktop/tablet con sesión, (b) terminal handheld que se aparea al hub, (c) recuperación de sesión expirada. Lo que <b>no</b> cubre: alta de restaurante, onboarding SaaS, password reset de plataforma (pertenecen a <code>saas.takeasygo.com</code>, ver §15).</div>
+  </section>
+
+  <!-- ========== 09 ========== -->
+  <section id="s9">
+    <div class="sec-head"><span class="num">09</span><h2>Modelo de estados del root</h2><span class="tag">Parte II · Especificación</span></div>
+
+    <p class="lead">Un root sin estados es una puerta que solo funciona cuando todo está bien. Este es el máquina de estados completa — cada nodo corresponde a un mockup de §11.</p>
+
+    <div class="states">
+      <div class="st boot"><span>R0</span>Boot / Logo<small>≤ 1,5 s · sin red requerida</small></div>
+      <div class="st"><span>R1</span>Identificación PIN<small>modos PIN ⇄ Email · local recordado</small></div>
+      <div class="st"><span>R2</span>Identificación Email<small>alias seguro · sin tenant manual</small></div>
+      <div class="st"><span>R3</span>Selección de local<small>solo si el usuario tiene &gt;1 sucursal</small></div>
+      <div class="st"><span>R4</span>Pairing de handheld<small>código de 6 dígitos + QR · teléfono 390×844</small></div>
+      <div class="st err"><span>!</span>Error: sin conexión<small>“Reintentar” · reintento automático</small></div>
+      <div class="st err"><span>!</span>Error: credenciales<small>3 intentos → bloqueo temporal 60 s</small></div>
+      <div class="st err"><span>!</span>Error: dispositivo no autorizado<small>acción: “Solicitar alta al encargado”</small></div>
+      <div class="st"><span>R6</span>Sesión expirada<small>→ vuelve a R1 conservando local + rol</small></div>
+      <div class="st ok"><span>R7</span>Shell Counter<small>el primer frame del contexto operativo</small></div>
+    </div>
+
+    <div class="tbl-wrap" style="margin-top:26px"><table>
+      <thead><tr><th>Transición</th><th>Causa</th><th>Regla de diseño</th></tr></thead>
+      <tbody>
+        <tr><td>R0 → R1</td><td>token local válido no encontrado</td><td>Nunca mostrar pantalla en blanco; el logo cubre el hidratare de IndexedDB (Dexie)</td></tr>
+        <tr><td>R0 → R7</td><td>token válido + rol resuelto</td><td>Skip directo al shell con crossfade; sin paso intermedio</td></tr>
+        <tr><td>R1 ⇄ R2</td><td>el operador cambia de modo</td><td>Transición en el mismo frame, sin recarga ni salto de layout (DD-003)</td></tr>
+        <tr><td>R1/R2 → R3</td><td><code>getLocations</code> devuelve &gt;1 sede</td><td>Si devuelve 1, R3 se omite: <b>el sistema decide, no el usuario</b></td></tr>
+        <tr><td>R1 → !credenciales</td><td>401 del backend</td><td>Mensaje accionable, contador de intentos visible, jamás el string crudo del servidor</td></tr>
+        <tr><td>! → R1</td><td>“Reintentar” o 60 s</td><td>El foco siempre vuelve al primer input; el operador no navega</td></tr>
+        <tr><td>cualquiera → !sin red</td><td><code>fetch</code> falla / offline</td><td>Degradado honesto: el PIN tecleado se conserva (no se pierde trabajo)</td></tr>
+        <tr><td>R6 → R1</td><td>token expirado desde el shell</td><td>Overlay de sesión, no redirección: el operador ve de dónde viene</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ========== 10 ========== -->
+  <section id="s10">
+    <div class="sec-head"><span class="num">10</span><h2>Anatomía de 5 regiones aplicada al root</h2><span class="tag">Parte II · Wireframe Zero</span></div>
+
+    <p class="lead">W0S define cinco regiones fijas en 1920×1080. El root <b>no rompe esa anatomía</b>: la ocupa. Cada región tiene una responsabilidad distinta y una medida heredada de <code>pos.css</code>.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Región</th><th>Medida (impl.)</th><th>Responsabilidad en el root</th></tr></thead>
+      <tbody>
+        <tr><td><b>① Header</b></td><td><code>--header-height:52px</code></td><td>Marca TakeasyGO + identidad del tenant una vez resuelta (local, rol, turno). En R0–R3: solo marca + indicador de estado de red.</td></tr>
+        <tr><td><b>② Navigation</b></td><td><code>--nav-width:176px</code> (156 ≤1280)</td><td><b>No existe en el root</b> — no hay contextos todavía. Su ausencia es intencional y se comunica: el shell aparece recién en R7.</td></tr>
+        <tr><td><b>③ Workspace</b></td><td>flex, fondo <code>#FAFAF8</code></td><td>La tarjeta de acceso: modo, credenciales, acción principal. Región dominante, con aire (axioma 15).</td></tr>
+        <tr><td><b>④ Context Panel</b></td><td><code>--context-panel-width:340px</code></td><td>Columna de contexto: estado del sistema, ayuda del dispositivo, último local usado, QR de pairing. Informativa, nunca líder.</td></tr>
+        <tr><td><b>⑤ Action Bar</b></td><td><code>--action-bar-height:72px</code> · botón ≥52px</td><td>Barra inferior con la <b>acción principal única</b> + secundarias (Soporte, Cambiar local). Misma geometría que dentro del shell: memoria muscular desde el píxel 1.</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="grid12">
+      <div class="g-cell" style="grid-column:span 4"><b>Grid 12 · base 8px</b><span>El root se alinea al mismo grid de W0S; el margen exterior es 24px, consistente con el shell.</span></div>
+      <div class="g-cell" style="grid-column:span 4"><b>Targets 44×44</b><span>Inputs, modos PIN/Email y botones cumplen el mínimo táctil del W0S, incluso en tablet.</span></div>
+      <div class="g-cell" style="grid-column:span 4"><b>Focus 3px naranja</b><span><code>outline:3px solid var(--brand-orange)</code>: navegación por teclado visible, axioma 09 aplicado al foco.</span></div>
+    </div>
+
+    <div class="note"><b>¿Por qué el root respeta las regiones si es una escena previa al shell?</b> Porque la alternativa es crear una segunda arquitectura visual para el acceso. Axíoma 05: “la jerarquía puede cambiar; la arquitectura nunca”. Si el operador aprende la geometría del producto <b>antes</b> de entrar, el shell en R7 se siente continuación, no cambio de app.</div>
+
+    <div class="tbl-wrap" style="margin-top:22px"><table>
+      <thead><tr><th>Token</th><th>Valor</th><th>Uso declarado en el root</th></tr></thead>
+      <tbody>
+        <tr><td><code>--brand-orange</code></td><td><code>#F74211</code></td><td>Acción primaria, foco, acentos de estado activo</td></tr>
+        <tr><td><code>--primary-action</code></td><td><code>#065D63</code></td><td><b>No usado en el root</b>: evita el sistema dual que ya es deuda conocida</td></tr>
+        <tr><td><code>--frame-bg</code></td><td><code>#0B3D41</code></td><td>Header petrol: continuidad con la navegación observada el 24/10</td></tr>
+        <tr><td><code>--background</code></td><td><code>#FAFAF8</code></td><td>Workspace cálido, no gris</td></tr>
+        <tr><td>Grises de borde/input</td><td><code>pos.css</code></td><td>Los mismos que el shell: ni <code>#111</code> ni <code>#222</code> del login actual</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <!-- ========== 11 ========== -->
+  <section id="s11">
+    <div class="sec-head"><span class="num">11</span><h2>Mockups R0 → R7</h2><span class="tag">Parte II · Wireframe</span></div>
+
+    <p class="lead">Ocho estados, todos a <b>1920×1080 en px reales</b> (escala 70% sobre el patrón de fondo), con los tokens de <code>pos.css</code>. Cada escena lleva su lectura gramatical — <b>Contexto · Entidad · Estado · Objetivo · Acción principal · Info complementaria</b> — que es el test de calidad del axioma 06.</p>
+
+    <div class="note"><b>Cómo leer los mockups.</b> Los números naranjas (①②③…) se explican en la leyenda bajo cada uno. Todo lo que es <i>estructura</i> (header, panel, action bar) existe hoy en el shell del POS: el root lo reutiliza tal cual. Lo que es <i>contenido</i> es nuevo.</div>
+
+    <!-- R0 -->
+    <div class="stage-cap"><span class="n">R0</span><h4>Boot / arranque</h4><span class="sp">1920×1080 · ≤ 1,5 s · sin red</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Fuera de sesión · Entidad: Terminal 01 · Estado: Preparando · Objetivo: llegar al acceso · Acción principal: ninguna (espera) · Info: versión y modo offline</p>
+    <div class="stage"><div class="scroller"><div class="frame boot">
+      <div class="bootbox">
+        <div class="lg">T</div>
+        <b>TakeasyGO</b>
+        <span>Preparando la terminal…</span>
+        <div class="bar"><i></i></div>
+        <div class="sm">pos.takeasygo.com · build 2026.10.25 · caché local activa</div>
+      </div>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> Fondo petrol <code>--frame-bg</code>: el arranque ya viste la marca, no un negro genérico.</div>
+      <div><b>2</b> Cubre la hidratación de Dexie (IndexedDB): jamás pantalla en blanco, aunque esté offline.</div>
+      <div><b>3</b> Si hay token válido, R0 salta directo a R7 con crossfade — sin pasar por el formulario.</div>
+    </div>
+
+    <!-- R1 -->
+    <div class="stage-cap"><span class="n">R1</span><h4>Identificación por PIN</h4><span class="sp">1920×1080 · estado base</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Fuera de sesión · Entidad: Terminal 01 + último usuario · Estado: esperando PIN · Objetivo: identificarme · Acción principal: <b>Entrar</b> · Info: estado del sistema</p>
+    <div class="stage"><div class="scroller"><div class="frame root">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Terminal de operación</span></div></div>
+        <div class="m-hcenter">Acceso seguro</div>
+        <div class="m-hright">
+          <span class="m-chip off"><span class="d"></span>Sin sesión</span>
+          <div class="m-clock"><b>20:41</b><span>SÁB 25/10</span></div>
+        </div>
+        <span class="pin tr">1</span>
+      </header>
+
+      <div class="m-work center">
+        <div class="access">
+          <div class="modes" style="position:relative">
+            <button class="on"><svg viewBox="0 0 24 24"><use href="#i-key"/></svg>PIN</button>
+            <button><svg viewBox="0 0 24 24"><use href="#i-mail"/></svg>Email</button>
+            <span class="pin tr">2</span>
+          </div>
+
+          <div class="who" style="position:relative">
+            <div class="av">MS</div>
+            <div><b>María Sosa</b><span>Cajero · Terminal 01 · turno noche</span></div>
+            <span class="ch pill-orange">Último usuario</span>
+            <span class="pin tr">3</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;align-items:center;gap:14px;position:relative">
+            <div class="pin-dots"><i class="f"></i><i class="f"></i><i class="f"></i><i class="f"></i><i></i><i></i></div>
+            <div class="pin-hint">Ingresá tu PIN de 6 dígitos</div>
+            <div class="keypad" style="position:relative">
+              <span class="pin tr">4</span>
+              <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+              <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+              <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+              <button class="key fn">Borrar</button><button class="key">0</button><button class="key fn">Limpiar</button>
+            </div>
+          </div>
+
+          <div class="pin-alt">¿No es tu usuario? <a>Cambiar de usuario</a> · <a>¿Olvidaste tu PIN?</a></div>
+        </div>
+      </div>
+
+      <aside class="m-panel" style="position:relative">
+        <span class="pin tl">5</span>
+        <div class="panel-head"><div class="lb">Estado del sistema</div><b>Terminal lista para operar</b></div>
+        <div class="panel-body">
+          <div class="kv"><span class="k"><span class="dot"></span>Servidor SaaS</span><span class="v ok">Operativo</span></div>
+          <div class="kv"><span class="k"><span class="dot"></span>Sync / tiempo real</span><span class="v ok">Conectado</span></div>
+          <div class="kv"><span class="k"><span class="dot w"></span>Impresora de comandas</span><span class="v warn">Sin verificar</span></div>
+          <div class="kv"><span class="k"><span class="dot m"></span>Último local</span><span class="v">Salón Principal</span></div>
+          <div class="kv"><span class="k"><span class="dot m"></span>Plan</span><span class="v mut">Crecimiento · 2/5 locales</span></div>
+          <div class="kv"><span class="k"><span class="dot m"></span>Versión</span><span class="v mut">2026.10.25</span></div>
+        </div>
+        <div class="panel-foot">
+          <button class="btn btn-quiet btn-block">Este terminal está autorizado</button>
+          <button class="btn btn-quiet btn-block">Ayuda para entrar</button>
+        </div>
+      </aside>
+
+      <footer class="m-action">
+        <div class="act-left"><b>Paso 1 · Identificación</b><span>PIN de 6 dígitos · intento 1 de 3</span></div>
+        <div class="act-center">Tu PIN viaja cifrado y no se guarda en este dispositivo.</div>
+        <div class="act-right">
+          <button class="btn btn-ghost-dark">Soporte</button>
+          <button class="btn btn-primary">Entrar</button>
+        </div>
+      </footer>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> Estado de sesión explícito en el header: nunca se adivina si se está dentro (axioma 09).</div>
+      <div><b>2</b> Modos PIN ⇄ Email en el mismo frame, sin recarga ni salto de layout (DD-003).</div>
+      <div><b>3</b> El operador se <b>reconoce</b>: su nombre, rol y turno. Cero campos a tipear (axioma 03).</div>
+      <div><b>4</b> Teclado numérico grande, targets ≥ 44 px, pensado para dedo y para teclado (W0S).</div>
+      <div><b>5</b> El Context Panel informa — nunca lidera: salud del sistema, no config.</div>
+      <div><b>6</b> Acción principal única en la Action Bar, misma posición que dentro del shell (axioma 04).</div>
+    </div>
+
+    <!-- R2 -->
+    <div class="stage-cap"><span class="n">R2</span><h4>Identificación por Email</h4><span class="sp">1920×1080 · alternativa al PIN</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Fuera de sesión · Entidad: usuario por alias · Estado: credenciales en curso · Objetivo: identificarme · Acción principal: <b>Entrar</b> · Info: local recordado</p>
+    <div class="stage"><div class="scroller"><div class="frame root">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Terminal de operación</span></div></div>
+        <div class="m-hcenter">Acceso seguro</div>
+        <div class="m-hright">
+          <span class="m-chip off"><span class="d"></span>Sin sesión</span>
+          <div class="m-clock"><b>20:41</b><span>SÁB 25/10</span></div>
+        </div>
+      </header>
+
+      <div class="m-work center">
+        <div class="access">
+          <div class="modes">
+            <button><svg viewBox="0 0 24 24"><use href="#i-key"/></svg>PIN</button>
+            <button class="on"><svg viewBox="0 0 24 24"><use href="#i-mail"/></svg>Email</button>
+          </div>
+
+          <div class="who">
+            <div class="av">MS</div>
+            <div><b>María Sosa</b><span>Cajero · Terminal 01</span></div>
+            <span class="ch pill-orange">Último usuario</span>
+          </div>
+
+          <div class="field" style="max-width:none">
+            <label>Email o alias de usuario</label>
+            <input value="maria.sosa@takeasygo.com" readonly />
+            <span class="help">Nunca te pedimos el Tenant ID: lo resolvemos nosotros.</span>
+          </div>
+          <div class="field" style="max-width:none">
+            <label>Contraseña</label>
+            <input value="••••••••••" readonly />
+          </div>
+
+          <div class="pin-alt">¿Problemas para entrar? <a>Usar PIN en su lugar</a> · <a>Recuperar acceso</a></div>
+        </div>
+      </div>
+
+      <aside class="m-panel">
+        <div class="panel-head"><div class="lb">Contexto de ingreso</div><b>Local recordado</b></div>
+        <div class="panel-body">
+          <div class="kv"><span class="k">Local</span><span class="v">Salón Principal</span></div>
+          <div class="kv"><span class="k">Dirección</span><span class="v mut">Pellegrini 1234</span></div>
+          <div class="kv"><span class="k">Sucursales del usuario</span><span class="v">3</span></div>
+          <div class="kv"><span class="k"><span class="dot"></span>Servidor</span><span class="v ok">Operativo</span></div>
+          <div class="kv"><span class="k"><span class="dot"></span>Sync</span><span class="v ok">Conectado</span></div>
+        </div>
+        <div class="panel-foot">
+          <button class="btn btn-quiet btn-block">Cambiar de local</button>
+          <button class="btn btn-quiet btn-block">Ayuda para entrar</button>
+        </div>
+      </aside>
+
+      <footer class="m-action">
+        <div class="act-left"><b>Paso 1 · Identificación</b><span>Email + contraseña · intento 1 de 3</span></div>
+        <div class="act-center">Si tenés más de un local, elegís después de entrar.</div>
+        <div class="act-right">
+          <button class="btn btn-ghost-dark">Soporte</button>
+          <button class="btn btn-primary">Entrar</button>
+        </div>
+      </footer>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> Mismo frame, mismo layout, distinto contenido: el cambio de modo no mueve ni un píxel de estructura.</div>
+      <div><b>2</b> El help del campo dice lo que el operador se preguntaría: “¿y el tenant?” (axioma 20).</div>
+      <div><b>3</b> El panel ya conoce el local: <b>el sistema recuerda, la persona no</b> (axioma 03).</div>
+    </div>
+
+    <!-- R3 -->
+    <div class="stage-cap"><span class="n">R3</span><h4>Selección de local (multi-sucursal)</h4><span class="sp">1920×1080 · solo si hay &gt;1 sede</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Fuera de sesión · Entidad: locales del usuario · Estado: 3 sucursales · Objetivo: decir dónde estoy · Acción principal: <b>Continuar</b> · Info: horario y estado de cada local</p>
+    <div class="stage"><div class="scroller"><div class="frame root">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Terminal de operación</span></div></div>
+        <div class="m-hcenter">María Sosa · Cajero</div>
+        <div class="m-hright">
+          <span class="m-chip"><span class="d"></span>Identificada</span>
+          <div class="m-clock"><b>20:41</b><span>SÁB 25/10</span></div>
+        </div>
+      </header>
+
+      <div class="m-work center">
+        <div class="access" style="width:640px">
+          <div>
+            <div class="scene-head" style="padding:0;justify-content:flex-start">
+              <div>
+                <div class="eyebrow">Paso 2 · Contexto</div>
+                <h2>¿En qué local estás?</h2>
+                <p>Elegí el local donde vas a operar hoy.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="sede on">
+            <span class="radio"></span>
+            <div class="info"><b>Salón Principal</b><span>Pellegrini 1234 · turno noche activo</span></div>
+            <div style="margin-left:auto;text-align:right"><span class="sev ok">Abierto</span></div>
+          </div>
+          <div class="sede">
+            <span class="radio"></span>
+            <div class="info"><b>Sucursal Norte</b><span>Av. Mitre 567 · cierra 23:30</span></div>
+            <div style="margin-left:auto;text-align:right"><span class="sev ok">Abierto</span></div>
+          </div>
+          <div class="sede">
+            <span class="radio"></span>
+            <div class="info"><b>Delivery Center</b><span>Depósito industria · solo pedidos</span></div>
+            <div style="margin-left:auto;text-align:right"><span class="sev a">Preparando</span></div>
+          </div>
+
+          <div class="field" style="max-width:none">
+            <span class="help">Con 1 sola sucursal esta pantalla no aparece: entrás directo al contexto (axioma 13).</span>
+          </div>
+        </div>
+      </div>
+
+      <aside class="m-panel">
+        <div class="panel-head"><div class="lb">Tu día</div><b>Turno noche</b></div>
+        <div class="panel-body">
+          <div class="kv"><span class="k">Rol</span><span class="v">Cajero</span></div>
+          <div class="kv"><span class="k">Locales del usuario</span><span class="v">3</span></div>
+          <div class="kv"><span class="k">Última sesión</span><span class="v mut">Ayer 23:12 · Salón</span></div>
+          <div class="kv"><span class="k"><span class="dot"></span>Servidor</span><span class="v ok">Operativo</span></div>
+        </div>
+        <div class="panel-foot">
+          <button class="btn btn-quiet btn-block">No es mi local</button>
+        </div>
+      </aside>
+
+      <footer class="m-action">
+        <div class="act-left"><b>Paso 2 · Local</b><span>Salón Principal seleccionado</span></div>
+        <div class="act-center">Podés cambiar de local más adelante desde tu perfil.</div>
+        <div class="act-right">
+          <button class="btn btn-ghost-dark">Volver</button>
+          <button class="btn btn-primary">Continuar</button>
+        </div>
+      </footer>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> Tarjetas, no dropdown: el operador reconoce su local por nombre y dirección (axioma 03).</div>
+      <div><b>2</b> Estado de cada local en color con texto — el color nunca es el único canal (axioma 09).</div>
+      <div><b>3</b> Se omite si hay una sola sucursal: <b>el sistema decide, no el usuario</b> (axioma 13).</div>
+    </div>
+
+    <!-- R4 -->
+    <div class="stage-cap"><span class="n">R4</span><h4>Pairing: hub (desktop) + handheld (teléfono)</h4><span class="sp">1920×1080 · + 390×844</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Fuera de sesión · Entidad: Terminal 01 ↔ Celular del mozo · Estado: alta de dispositivo · Objetivo: aparear · Acción principal: <b>Escaneá el QR</b> (teléfono) / <b>Verificar dispositivo</b> (hub) · Info: pasos</p>
+    <div class="stage"><div class="scroller"><div class="frame root">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Terminal de operación</span></div></div>
+        <div class="m-hcenter">Alta de dispositivo</div>
+        <div class="m-hright">
+          <span class="m-chip off"><span class="d"></span>Sin sesión</span>
+          <div class="m-clock"><b>20:41</b><span>SÁB 25/10</span></div>
+        </div>
+      </header>
+
+      <div class="m-work">
+        <div class="pair">
+          <div class="qr-box">
+            <span class="ttl"><svg viewBox="0 0 24 24" style="width:16px;height:16px"><use href="#i-qr"/></svg>Aparear handheld</span>
+            <div class="qr">
+              <svg viewBox="0 0 100 100" width="100%" height="100%">
+                <rect x="4" y="4" width="26" height="26" fill="none" stroke="#14171A" stroke-width="7"/>
+                <rect x="70" y="4" width="26" height="26" fill="none" stroke="#14171A" stroke-width="7"/>
+                <rect x="4" y="70" width="26" height="26" fill="none" stroke="#14171A" stroke-width="7"/>
+                <g fill="#14171A">
+                  <rect x="42" y="6" width="7" height="7"/><rect x="56" y="13" width="7" height="7"/>
+                  <rect x="42" y="20" width="7" height="7"/><rect x="63" y="27" width="7" height="7"/>
+                  <rect x="6" y="42" width="7" height="7"/><rect x="20" y="42" width="7" height="7"/>
+                  <rect x="34" y="42" width="7" height="7"/><rect x="48" y="42" width="7" height="7"/>
+                  <rect x="62" y="42" width="7" height="7"/><rect x="76" y="42" width="7" height="7"/>
+                  <rect x="42" y="56" width="7" height="7"/><rect x="56" y="56" width="7" height="7"/>
+                  <rect x="70" y="56" width="7" height="7"/><rect x="42" y="70" width="7" height="7"/>
+                  <rect x="56" y="70" width="7" height="7"/><rect x="76" y="70" width="7" height="7"/>
+                  <rect x="42" y="84" width="7" height="7"/><rect x="63" y="84" width="7" height="7"/>
+                  <rect x="84" y="84" width="7" height="7"/><rect x="70" y="63" width="7" height="7"/>
+                </g>
+              </svg>
+            </div>
+            <div class="code"><i>7</i><i>3</i><i>9</i><i>2</i><i>5</i><i>1</i></div>
+            <div style="font-size:13.5px;color:var(--text-secondary);text-align:center;max-width:36ch">O ingresá este código en la app del mozo. Caduca en <b>10:00</b>.</div>
+          </div>
+
+          <div class="steps">
+            <div class="step"><span class="n">1</span><div><b>Abrí la app del mozo en el celular</b><span>Pos.takeasygo.com → “Aparear dispositivo”</span></div></div>
+            <div class="step"><span class="n">2</span><div><b>Escaneá el QR o tipeá el código</b><span>El código es de un solo uso y expira en 10 minutos (SECURITYPOS)</span></div></div>
+            <div class="step"><span class="n">3</span><div><b>El encargado aprueba el alta</b><span>Queda auditada: dispositivo, rol y horario</span></div></div>
+            <div class="step" style="border-color:rgba(247,66,17,.4);background:var(--brand-orange-surface)"><span class="n" style="background:var(--brand-orange)">4</span><div><b>El celular pasa a ser Terminal 02</b><span>Entra al mismo contexto, con la experiencia adaptada al dispositivo</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="m-panel">
+        <div class="panel-head"><div class="lb">Dispositivos del local</div><b>Salón Principal</b></div>
+        <div class="panel-body">
+          <div class="kv"><span class="k"><span class="dot"></span>Terminal 01 · Mostrador</span><span class="v ok">Hub</span></div>
+          <div class="kv"><span class="k"><span class="dot w"></span>Celular · Mozo Ana</span><span class="v warn">Pendiente</span></div>
+          <div class="kv"><span class="k"><span class="dot m"></span>Tablet · Cocina</span><span class="v mut">Inactiva</span></div>
+          <div class="kv"><span class="k">Máximo del plan</span><span class="v">5 dispositivos</span></div>
+        </div>
+        <div class="panel-foot"><button class="btn btn-quiet btn-block">Ver historial de altas</button></div>
+      </aside>
+
+      <footer class="m-action">
+        <div class="act-left"><b>Alta de dispositivo</b><span>Código 739251 · expira en 10:00</span></div>
+        <div class="act-center">El pairing es el único camino para que un celular opere en el salón.</div>
+        <div class="act-right">
+          <button class="btn btn-ghost-dark">Cancelar</button>
+          <button class="btn btn-primary">Verificar dispositivo</button>
+        </div>
+      </footer>
+    </div></div></div>
+
+    <div class="ph-stage" style="margin-top:18px">
+      <div class="stage" style="flex:none">
+        <div class="scroller ph"><div class="frame ph">
+          <header class="m-header">
+            <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Celular · Mozo</span></div></div>
+            <div class="m-hright"><span class="m-chip off"><span class="d"></span>Sin sesión</span></div>
+          </header>
+          <div class="m-work" style="flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:16px">
+            <div>
+              <div class="eyebrow" style="font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-muted);font-weight:700">Paso 1 de 2</div>
+              <div style="font-size:24px;letter-spacing:-.02em;font-weight:700;margin-top:4px">Aparear con el mostrador</div>
+              <div style="font-size:14px;color:var(--text-secondary);margin-top:4px">Escaneá el QR que aparece en la pantalla del mostrador.</div>
+            </div>
+            <div style="background:var(--frame-bg);border-radius:20px;height:230px;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.75);gap:10px;font-size:14px">
+              <svg viewBox="0 0 24 24" style="width:34px;height:34px"><use href="#i-qr"/></svg> Cámara lista
+            </div>
+            <div style="font-size:12.5px;color:var(--text-muted);text-align:center">o ingresá el código de 6 dígitos</div>
+            <div class="code" style="gap:8px"><i style="width:44px;height:56px;font-size:26px">7</i><i style="width:44px;height:56px;font-size:26px">3</i><i style="width:44px;height:56px;font-size:26px">9</i><i style="width:44px;height:56px;font-size:26px">2</i><i style="width:44px;height:56px;font-size:26px">5</i><i style="width:44px;height:56px;font-size:26px">1</i></div>
+          </div>
+          <footer class="m-action">
+            <div class="act-right" style="width:100%"><button class="btn btn-primary btn-block">Aparear dispositivo</button></div>
+          </footer>
+        </div></div>
+      </div>
+      <div class="ph-notes">
+        <div class="frag">
+          <div class="cap"><b>R4 móvil · 390×844</b><span>La misma escena, adaptada al dispositivo</span></div>
+          <div class="body">
+            <div><b>Idioma visual idéntico</b> al desktop: mismos tokens, misma action bar petrol, misma marca en el header.</div>
+            <div><b>Una sola acción</b> en toda la pantalla: aparear. El axioma 07 no se suspende en el celular.</div>
+            <div><b>El dispositivo define la experiencia, no la arquitectura</b> (Operational_Workspace_Model): el celular no inventa una app nueva, entra al mismo contexto.</div>
+            <div>Targets ≥ 44 px y acción principal a ≥ 52 px de alto: usable con una mano en el salón.</div>
+          </div>
+          <div class="why"><b>Regla:</b> un celular nunca ve la navegación de contextos del desktop — ve su rol, sus mesas y su siguiente acción.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- R5 -->
+    <div class="stage-cap"><span class="n">R5</span><h4>Fragmentos de error</h4><span class="sp">anexos a cualquier estado</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Regla: ningún error se muestra como string crudo del backend. Cada uno tiene título propio, explicación propia y acción propia.</p>
+    <div class="cards c3" style="margin-top:0">
+      <div class="frag">
+        <div class="cap"><b>Sin conexión</b><span>red caída / servidor inalcanzable</span></div>
+        <div class="body">
+          <div style="border:1.5px solid rgba(245,196,81,.6);background:var(--warning-light);border-radius:12px;padding:14px 15px">
+            <b style="display:block;font-size:14.5px;color:#8A6A12;margin-bottom:4px">Sin conexión al servidor</b>
+            <span style="font-size:13.5px;color:var(--ink-2)">Guardamos lo que tipeaste. Reintentamos solos cada 5 s; podés forzar el reintento.</span>
+          </div>
+          <button class="btn btn-quiet btn-block" style="min-height:44px">Reintentar ahora</button>
+          <div style="font-size:12.5px;color:var(--ink-3)">Estado del SYNC: reintentando… (3/∞)</div>
+        </div>
+        <div class="why"><b>Axioma 17:</b> offline es un estado normal, no un pánico. El PIN no se pierde.</div>
+      </div>
+      <div class="frag">
+        <div class="cap"><b>Credenciales inválidas</b><span>401 del backend</span></div>
+        <div class="body">
+          <div style="border:1.5px solid rgba(201,76,76,.55);background:var(--error-light);border-radius:12px;padding:14px 15px">
+            <b style="display:block;font-size:14.5px;color:var(--error);margin-bottom:4px">PIN incorrecto</b>
+            <span style="font-size:13.5px;color:var(--ink-2)">Te quedan 1 intento. Al tercero, bloqueo temporal de 60 s.</span>
+          </div>
+          <div class="pin-dots" style="justify-content:center;gap:11px"><i class="f" style="border-color:var(--error);background:var(--error)"></i><i style="border-color:var(--error)"></i><i style="border-color:var(--error)"></i><i></i><i></i><i></i></div>
+          <button class="btn btn-quiet btn-block" style="min-height:44px">Reintentar</button>
+        </div>
+        <div class="why"><b>Axioma 08:</b> mensaje + contador + consecuencia. Nunca “Invalid credentials” solo.</div>
+      </div>
+      <div class="frag">
+        <div class="cap"><b>Dispositivo no autorizado</b><span>alta pendiente / revocada</span></div>
+        <div class="body">
+          <div style="border:1.5px solid rgba(247,66,17,.45);background:var(--brand-orange-surface);border-radius:12px;padding:14px 15px">
+            <b style="display:block;font-size:14.5px;color:var(--brand-orange-text);margin-bottom:4px">Este terminal no está autorizado</b>
+            <span style="font-size:13.5px;color:var(--ink-2)">Terminal 02 · Celular · el alta la aprueba un encargado.</span>
+          </div>
+          <button class="btn btn-primary btn-block" style="min-height:44px;font-size:14px">Solicitar alta al encargado</button>
+          <div style="font-size:12.5px;color:var(--ink-3)">Solicitud enviada a Terminal 01 · esperando aprobación</div>
+        </div>
+        <div class="why"><b>Axioma 20:</b> el error explica qué pasó, por qué y quién lo resuelve.</div>
+      </div>
+    </div>
+
+    <!-- R6 -->
+    <div class="stage-cap"><span class="n">R6</span><h4>Sesión expirada</h4><span class="sp">overlay sobre el shell · no redirección</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: el operador ya estaba trabajando · Objetivo: volver a entrar sin perder el lugar · Acción principal: <b>Volver a entrar</b></p>
+    <div class="stage"><div class="scroller"><div class="frame root">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Salón Principal</span></div></div>
+        <div class="m-hcenter">Salón · Mesa 14</div>
+        <div class="m-hright"><span class="m-chip off"><span class="d"></span>Sesión expirada</span></div>
+      </header>
+      <div class="m-work" style="background:var(--surface-secondary)"></div>
+      <aside class="m-panel"></aside>
+      <footer class="m-action"></footer>
+      <div class="overlay">
+        <div class="dlg">
+          <div class="ic" style="background:var(--warning-light);color:#8A6A12"><svg viewBox="0 0 24 24" style="width:30px;height:30px"><use href="#i-key"/></svg></div>
+          <h3>Tu sesión expiró</h3>
+          <p>Por seguridad cerramos la sesión después de 8 horas sin actividad. Tus mesas y pedidos siguen donde los dejaste.</p>
+          <div class="row">
+            <button class="btn btn-primary">Volver a entrar</button>
+            <button class="btn btn-quiet">Ver mis mesas</button>
+          </div>
+          <div style="margin-top:16px;font-size:13px;color:var(--text-secondary)">Vas a volver a <b>Salón Principal · Mesa 14</b> exactamente donde estabas.</div>
+        </div>
+      </div>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> Overlay, no redirect: el operador ve de dónde viene y a dónde vuelve (persistencia espacial).</div>
+      <div><b>2</b> El diálogo dice qué conserva el sistema: “tus mesas siguen donde los dejaste”.</div>
+      <div><b>3</b> Al volver a entrar, la ruta de regreso está guardada — axioma 05, la estructura permanece.</div>
+    </div>
+
+    <!-- R7 -->
+    <div class="stage-cap"><span class="n">R7</span><h4>Shell Counter / Salón — destino del root</h4><span class="sp">1920×1080 · W0S completo</span></div>
+    <p style="font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin:0 0 10px">Contexto: Salón · Entidad: Mesa 14 · Estado: ocupada, 4 comensales · Objetivo: atender · Acción principal: <b>Agregar producto</b> · Info: filtros y estado del sistema</p>
+    <div class="stage"><div class="scroller"><div class="frame">
+      <header class="m-header">
+        <div class="m-brand"><div class="m-brand-ico">T</div><div class="m-brand-txt"><b>TakeasyGO</b><span>Salón Principal · Terminal 01</span></div></div>
+        <div class="m-hcenter">Salón · Mesa 14 · 4 comensales</div>
+        <div class="m-hright">
+          <span class="m-chip"><span class="d"></span>Sync OK</span>
+          <div class="m-clock"><b>20:41</b><span>SÁB 25/10</span></div>
+          <div class="m-avatar">MS</div>
+        </div>
+      </header>
+
+      <nav class="m-nav">
+        <div class="lab">Contextos</div>
+        <a class="on"><svg viewBox="0 0 24 24"><use href="#i-utensils"/></svg>Salón</a>
+        <a><svg viewBox="0 0 24 24"><use href="#i-grid"/></svg>Counter</a>
+        <a><svg viewBox="0 0 24 24"><use href="#i-bike"/></svg>Delivery</a>
+        <a><svg viewBox="0 0 24 24"><use href="#i-printer"/></svg>Comandas</a>
+        <a><svg viewBox="0 0 24 24"><use href="#i-bank"/></svg>Caja</a>
+        <div class="sp"></div>
+        <div class="foot">
+          <a class="ghost"><svg viewBox="0 0 24 24"><use href="#i-gauge"/></svg>Reportes</a>
+          <a class="ghost"><svg viewBox="0 0 24 24"><use href="#i-logout"/></svg>Cerrar sesión</a>
+        </div>
+      </nav>
+
+      <div class="m-work">
+        <div class="views">
+          <span class="view on">Salón</span><span class="view">Delivery</span><span class="view">Takeaway</span><span class="view">Cuentas</span>
+        </div>
+        <div class="filters">
+          <span class="filt on">Todas <span class="c">14</span></span>
+          <span class="filt">Libres <span class="c">7</span></span>
+          <span class="filt">Ocupadas <span class="c">4</span></span>
+          <span class="filt">Atención <span class="c">2</span></span>
+          <span class="filt">Reservadas <span class="c">1</span></span>
+        </div>
+        <div class="floor">
+          <div class="sector">Salón principal</div>
+          <div class="tables">
+            <div class="mesa lib"><b>1</b><span>Libre</span></div>
+            <div class="mesa lib"><b>2</b><span>Libre</span></div>
+            <div class="mesa res"><b>3</b><span>Reservada</span><small>21:00 · 2p</small></div>
+            <div class="mesa ocu"><b>5</b><span>Ocupada</span><small>2 pers · $12.900</small></div>
+            <div class="mesa ate"><b>8</b><span>Atención</span><small>espera 6 min</small></div>
+            <div class="mesa ocu sel"><b>14</b><span>Ocupada</span><small>4 pers · $28.400</small></div>
+            <div class="mesa ocu"><b>11</b><span>Ocupada</span><small>3 pers · $19.100</small></div>
+            <div class="mesa lib"><b>7</b><span>Libre</span></div>
+          </div>
+          <div class="sector">Terraza</div>
+          <div class="tables">
+            <div class="mesa lib"><b>21</b><span>Libre</span></div>
+            <div class="mesa ate"><b>22</b><span>Atención</span><small>cuenta pedida</small></div>
+            <div class="mesa ocu"><b>23</b><span>Ocupada</span><small>6 pers · $41.500</small></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="m-panel">
+        <div class="entity" style="margin:14px 14px 0">
+          <div class="big">14</div>
+          <div class="who"><div class="lb">Mesa seleccionada</div><b>Mesa 14</b><span>Ocupada · 4 comensales · abierta 19:52</span></div>
+        </div>
+        <div class="panel-body">
+          <div class="kv"><span class="k">Mozo</span><span class="v">Ana R.</span></div>
+          <div class="kv"><span class="k">En curso</span><span class="v">2 platos</span></div>
+          <div class="kv"><span class="k">Ticket actual</span><span class="v">$28.400</span></div>
+          <div class="kv"><span class="k"><span class="dot w"></span>Espera</span><span class="v warn">6 min en 8</span></div>
+        </div>
+        <div class="panel-foot">
+          <button class="btn btn-quiet btn-block">Transferir mesa</button>
+          <button class="btn btn-quiet btn-block">Pedir cuenta</button>
+        </div>
+      </aside>
+
+      <footer class="m-action">
+        <div class="act-left"><b>Mesa 14 · 4 comensales</b><span>2 platos en curso · sin enviar</span></div>
+        <div class="act-center">Pedido sin enviar: 2 ítems esperando confirmación.</div>
+        <div class="act-right">
+          <button class="btn btn-secondary">Transferir</button>
+          <button class="btn btn-primary">Agregar producto</button>
+        </div>
+      </footer>
+    </div></div></div>
+    <div class="legend">
+      <div><b>1</b> El header del shell es <b>geometricamente idéntico</b> al del root: el operador entra sin cambio de arquitectura (axioma 05).</div>
+      <div><b>2</b> La acción principal sigue en la misma esquina de la Action Bar: memoria muscular desde R1 (axioma 04).</div>
+      <div><b>3</b> Primera vez que aparece la Navigation (176 px petrol): el root no la mostraba porque no había contextos.</div>
+      <div><b>4</b> Gramática completa de la escena: se puede describir en una frase (axioma 06).</div>
+    </div>
+  </section>
+
+  <!-- ========== 12 ========== -->
+  <section id="s12">
+    <div class="sec-head"><span class="num">12</span><h2>Tokens, especificación y copy</h2><span class="tag">Parte II · Handoff</span></div>
+
+    <p class="lead">Todo lo dibujado se explica en tokens que <b>ya existen</b> en <code>apps/pos/src/styles/pos.css</code>. No se propone ningún token nuevo: el root se construye con el material del terminal.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Elemento</th><th>Token / medida</th><th>Valor</th><th>Origen</th></tr></thead>
+      <tbody>
+        <tr><td>Acción primaria (Entrar, Continuar)</td><td><code>--brand-orange</code></td><td><code>#F74211</code> · hover <code>#D63800</code></td><td>pos.css / DS v03 (D-2)</td></tr>
+        <tr><td>Header / Action Bar / boot</td><td><code>--frame-bg</code></td><td><code>#0B3D41</code></td><td>pos.css (navegación petrol 24/10)</td></tr>
+        <tr><td>Workspace</td><td><code>--background</code> · <code>--surface</code></td><td><code>#FAFAF8</code> · <code>#FFFFFF</code></td><td>pos.css</td></tr>
+        <tr><td>Alturas estructurales</td><td><code>--header-height</code> / <code>--action-bar-height</code></td><td>52 px / 72 px</td><td>pos.css (W0S: 64 / 72-80)</td></tr>
+        <tr><td>Región de contexto</td><td><code>--context-panel-width</code></td><td>340 px</td><td>pos.css (W0S: 320-380)</td></tr>
+        <tr><td>Navegación (solo R7)</td><td><code>--nav-width</code></td><td>176 px · 156 ≤1280</td><td>pos.css</td></tr>
+        <tr><td>Foco / énfasis</td><td><code>outline:3px solid var(--brand-orange)</code></td><td>3 px + offset 2 px</td><td>pos.css</td></tr>
+        <tr><td>Estados semánticos</td><td><code>--success</code> / <code>--warning</code> / <code>--error</code></td><td>verde / ámbar / rojo con <b>siempre texto</b></td><td>pos.css · axioma 09</td></tr>
+        <tr><td>Botón de acción bar</td><td><code>.action-bar .btn-primary</code></td><td>min-height 52 px</td><td>pos.css (W0S ≥44, action bar ≥52)</td></tr>
+        <tr><td>Espaciado</td><td><code>--sp-1…--sp-12</code></td><td>4-48 px · grid base 8</td><td>pos.css · W0S</td></tr>
+        <tr><td><b>No usar</b></td><td><code>--primary-action</code> <code>#065D63</code></td><td><b>excluido del root</b></td><td>evita el sistema dual (deuda D-8)</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Especificación funcional (para implementar, no aplicada)</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Superficie</th><th>Hoy</th><th>Espec propuesta</th></tr></thead>
+      <tbody>
+        <tr><td><code>LoginScreen.tsx</code></td><td>363 líneas · dos modos + campo Tenant ID</td><td>Separar en 6 sub-escenas (R0-R6) bajo el mismo componente; <b>conservar</b> <code>loginWithPin</code>, <code>loginWithEmail</code>, <code>getLocations</code> y la persistencia existentes</td></tr>
+        <tr><td>Campo Tenant ID</td><td>input manual</td><td>Resolverlo de la sesión previa / del contexto del dispositivo; si es imprescindible para soporte, moverlo a un panel técnico colapsado (nunca en la escena principal)</td></tr>
+        <tr><td><code>state.status === "error"</code></td><td>mensaje crudo</td><td>Mapear a 4 estados tipados: <code>network</code> · <code>credentials</code> · <code>unauthorized</code> · <code>expired</code>, cada uno con copy y acción propios</td></tr>
+        <tr><td>Pairing</td><td>no existe en la raíz</td><td>Ruta <code>/pair</code> + componente HandheldPairing: QR + código de 6 dígitos (VER SECURITYPOS: un solo uso, 10 min, alta auditada)</td></tr>
+        <tr><td>Sesión expirada</td><td>redirección seca</td><td>Overlay con ruta de regreso guardada (resolver en <code>App.tsx</code> antes de mandar a <code>status:"login"</code>)</td></tr>
+        <tr><td>Cambio de rol</td><td>dentro del Header</td><td>Se suma al root: elegir rol en R1/R2 si el usuario es multi-rol (los roles ya existen: admin/manager/cashier/waiter)</td></tr>
+        <tr><td>Responsive</td><td>sin definir en raíz</td><td>Mismos breakpoints del POS: 1280 (nav 156) · 1100 · 768 (panel colapsa) · 640</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Copy (ES-AR, voz de la operación)</h3>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Estado</th><th>Título</th><th>Texto</th><th>Acción principal</th></tr></thead>
+      <tbody>
+        <tr><td>R0</td><td>TakeasyGO</td><td>Preparando la terminal…</td><td>— (espera ≤ 1,5 s)</td></tr>
+        <tr><td>R1</td><td>Ingresá tu PIN</td><td>PIN de 6 dígitos · intento 1 de 3</td><td>Entrar</td></tr>
+        <tr><td>R2</td><td>Entrá con tu email</td><td>Nunca te pedimos el Tenant ID.</td><td>Entrar</td></tr>
+        <tr><td>R3</td><td>¿En qué local estás?</td><td>Elegí el local donde vas a operar hoy.</td><td>Continuar</td></tr>
+        <tr><td>R4</td><td>Aparear con el mostrador</td><td>Escaneá el QR o ingresá el código de 6 dígitos.</td><td>Aparear dispositivo</td></tr>
+        <tr><td>!red</td><td>Sin conexión al servidor</td><td>Guardamos lo que tipeaste. Reintentamos solos.</td><td>Reintentar ahora</td></tr>
+        <tr><td>!cred</td><td>PIN incorrecto</td><td>Te quedan 1 intento. Al tercero, bloqueo de 60 s.</td><td>Reintentar</td></tr>
+        <tr><td>!auth</td><td>Este terminal no está autorizado</td><td>El alta la aprueba un encargado.</td><td>Solicitar alta al encargado</td></tr>
+        <tr><td>R6</td><td>Tu sesión expiró</td><td>Tus mesas y pedidos siguen donde los dejaste.</td><td>Volver a entrar</td></tr>
+      </tbody>
+    </table></div>
+
+    <div class="note"><b>Reglas de voz:</b> español rioplatense, tuteo, verbos en infinitivo o imperativo amable para acciones (<i>Entrar, Continuar, Reintentar</i>), frases ≤ 12 palabras, jamás jerga técnica visible (401, JWT, tenant, offline → “sin conexión”).</div>
+  </section>
+
+  <!-- ========== 13 ========== -->
+  <section id="s13">
+    <div class="sec-head"><span class="num">13</span><h2>Validación contra los axiomas</h2><span class="tag">Parte II · QC</span></div>
+    <p class="lead">Cada axioma de la Constitución, verificado contra el diseño del root. Los 21, sin excepción — es la misma grilla que la Constitución exige para cualquier escena.</p>
+
+    <div class="check">
+      <div class="chk"><span class="bx">✓</span><div><b>01 Operation First</b>Todo campo y acción del root existe por una razón operativa; nada decorativo. <span class="ax-n">Axioma 01</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>02 Contexto, no pantallas</b>El root es Escena 0 de “Fuera de sesión”; R7 continúa el mismo contexto. <span class="ax-n">Axioma 02</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>03 Reconocer, no recordar</b>Usuario recordado, local recordado, sin Tenant ID. <span class="ax-n">Axioma 03</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>04 Memoria muscular</b>Acción principal siempre abajo a la derecha, en todas las escenas. <span class="ax-n">Axioma 04</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>05 La estructura permanece</b>Header/panel/acción bar idénticos entre root y shell. <span class="ax-n">Axioma 05</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>06 Cuatro preguntas</b>Cada mockup trae su lectura gramatical completa. <span class="ax-n">Axioma 06</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>07 Una acción principal</b>Una por estado: Entrar / Continuar / Aparear / Reintentar. <span class="ax-n">Axioma 07</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>08 La interfaz guía</b>Help inline, pasos numerados, siguiente acción siempre visible. <span class="ax-n">Axioma 08</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>09 El color comunica estado</b>Chip sin sesión, estados del panel, errores con texto + color. <span class="ax-n">Axioma 09</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>10 Solo lo necesario</b>Nada de config ni reportes en la puerta; el panel solo informa salud. <span class="ax-n">Axioma 10</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>11 Adaptar importancia</b>R3 da prioridad al local solo cuando hay más de uno. <span class="ax-n">Axioma 11</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>12 Las fotos son herramientas</b>Cero imágenes decorativas; el QR de R4 es funcional. <span class="ax-n">Axioma 12</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>13 Reducir decisiones</b>Se omite R3 con una sola sede; se recuerda el último usuario. <span class="ax-n">Axioma 13</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>14 Todo genera eventos</b>El root propone emitir <code>root_login_attempt</code> / <code>device_pair_requested</code> (hoy no se registran). <span class="ax-n">Axioma 14</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>15 El sistema respira</b>Workspace centrado, sin apilar campos: 2 inputs máximo. <span class="ax-n">Axioma 15</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>16 La IA acompaña</b>Ninguna sugerencia en la puerta: el acceso es determinista. <span class="ax-n">Axioma 16</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>17 Offline es normal</b>Estado propio, reintento automático, PIN conservado. <span class="ax-n">Axioma 17</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>18 Simplicidad del modelo</b>El root refleja roles/locales/terminales que ya existen en el modelo. <span class="ax-n">Axioma 18</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>19 Fundamentos vs ocurrencias</b>Cada elemento se justifica contra un fundamento en §08. <span class="ax-n">Axioma 19</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>20 ¿Y esto qué es?</b>Cada elemento tiene etiqueta, propósito y consecuencia visibles. <span class="ax-n">Axioma 20</span></div></div>
+      <div class="chk"><span class="bx">✓</span><div><b>21 La interfaz desaparece</b>Sin hero, sin marketing: se entra y se opera. <span class="ax-n">Axioma 21</span></div></div>
+    </div>
+
+    <div class="warnbox"><b>Lectura honesta del checklist.</b> La verificación es sobre <b>este diseño</b>, no sobre el código actual. Implementado tal cual está hoy, el root incumple 4 de los 21 axiomas — 04 (memoria muscular), 09 (color = estado), 17 (offline como estado normal) y 20 (¿y esto qué es?) — que son exactamente los que este documento propone resolver en §14.</div>
+  </section>
+
+  <!-- ========== 14 ========== -->
+  <section id="s14">
+    <div class="sec-head"><span class="num">14</span><h2>Qué cambiaría (sin tocar código)</h2><span class="tag">Parte III · Plan</span></div>
+
+    <p class="lead">Este documento no modificó nada. Lo que sigue es el plan de implementación tal como debería ejecutarse, archivo por archivo, para que quede claro el tamaño del cambio.</p>
+
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>Archivo</th><th>Cambio</th><th>Tamaño</th></tr></thead>
+      <tbody>
+        <tr><td><code>apps/pos/src/components/LoginScreen.tsx</code></td><td>Descomponer en sub-escenas R0-R6, eliminar el campo Tenant ID de la escena principal, tipar los errores, agregar estados de red y expiración</td><td><span class="sev a">medio-alto</span> · reescritura de vista, lógica intacta</td></tr>
+        <tr><td><code>apps/pos/src/App.tsx</code></td><td>Interceptar sesión expirada con overlay + ruta de regreso; ruta <code>/pair</code> para handhelds</td><td><span class="sev a">medio</span></td></tr>
+        <tr><td><code>apps/pos/src/styles/pos.css</code></td><td>Solo clases nuevas para el root (ya están dibujadas); <b>cero tokens nuevos</b></td><td><span class="sev ok">bajo</span></td></tr>
+        <tr><td>Componente nuevo <code>HandheldPairing.tsx</code></td><td>QR + código de 6 dígitos + alta auditada (SECURITYPOS)</td><td><span class="sev a">medio</span></td></tr>
+        <tr><td>Test</td><td>Cubrir los 6 estados y las 8 transiciones de §09</td><td><span class="sev ok">bajo</span></td></tr>
+        <tr><td><b>Documentación</b></td><td>Crear en <code>/POS</code> el capítulo que falta: “Acceso / Raíz” (hoy el Design Book no lo tiene)</td><td><span class="sev ok">bajo</span></td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Fases sugeridas</h3>
+    <div class="flow" style="padding:22px">
+      <div class="row">
+        <div class="node start">F1 · Estados<small>errores tipados + copy + quit Tenant ID</small></div><span class="arrow">→</span>
+        <div class="node">F2 · Escenas<small>R0, R1, R2, R3 con tokens reales</small></div><span class="arrow">→</span>
+        <div class="node">F3 · Pairing<small>R4 desktop + móvil</small></div><span class="arrow">→</span>
+        <div class="node main">F4 · Expiración<small>R6 overlay + ruta de regreso</small></div><span class="arrow">→</span>
+        <div class="node good">F5 · Doc<small>capítulo Acceso en /POS</small></div>
+      </div>
+    </div>
+
+    <div class="note"><b>Estimación de impacto:</b> el 100% del cambio vive en la capa de vista del POS. Ninguna regla de negocio, ningún endpoint, ningún token de seguridad se toca — la mecánica de <code>LoginScreen</code> (PIN, email, multi-sede) ya es correcta.</div>
+  </section>
+
+  <!-- ========== 15 ========== -->
+  <section id="s15">
+    <div class="sec-head"><span class="num">15</span><h2>Decisiones abiertas</h2><span class="tag">Parte III · Para resolver</span></div>
+
+    <p class="lead">Puntos que el corpus no contesta y que conviene cerrar antes de implementar. Cada uno con opciones y una recomendación.</p>
+
+    <div class="q"><b>1 · ¿El root conoce el rol antes del login?</b>
+      <p>Hoy el rol se elige/deriva después. Si el PIN ya implica rol (admin/manager/cashier), R1 puede resolverlo y ahorrar una decisión.</p>
+      <div class="opts"><span class="pill-ink">A · Resolver del PIN (recomendado)</span><span class="pill-ink">B · Paso aparte en R3</span><span class="pill-ink">C · Mantenerlo en el Header</span></div>
+    </div>
+    <div class="q"><b>2 · ¿Dónde vive el pairing?</b>
+      <p>¿En la raíz del POS (<code>/pair</code>) o como escena dentro del shell una vez logueado el hub?</p>
+      <div class="opts"><span class="pill-ink">A · Raíz <code>/pair</code> (recomendado)</span><span class="pill-ink">B · Escena en Administración</span></div>
+    </div>
+    <div class="q"><b>3 · ¿Qué pasa con el campo Tenant ID?</b>
+      <p>Puede ser que hoy exista por soporte/multi-entorno (staging, pos2). Eliminarlo sin reemplazo puede romper el flujo de quien lo usa a propósito.</p>
+      <div class="opts"><span class="pill-ink">A · Panel técnico colapsado (recomendado)</span><span class="pill-ink">B · Detectarlo por URL</span><span class="pill-ink">C · Mantenerlo visible</span></div>
+    </div>
+    <div class="q"><b>4 · ¿R0 se muestra siempre?</b>
+      <p>Mostrarlo siempre cuesta ~1,5 s diarios por terminal; omitirlo con token válido es instantáneo pero “aparece y desaparece”.</p>
+      <div class="opts"><span class="pill-ink">A · Solo si la hidratación supera 300 ms (recomendado)</span><span class="pill-ink">B · Siempre</span><span class="pill-ink">C · Nunca</span></div>
+    </div>
+    <div class="q"><b>5 · ¿La recuperación de PIN vive acá?</b>
+      <p>“Olvidé mi PIN” implica identidad y seguridad de plataforma: corresponde al SaaS o al POS.</p>
+      <div class="opts"><span class="pill-ink">A · Handoff a SaaS con estado claro (recomendado)</span><span class="pill-ink">B · Autogestionado en el POS</span></div>
+    </div>
+    <div class="q"><b>6 · ¿Se emiten eventos del root?</b>
+      <p>El axioma 14 pide eventos de negocio. Hoy los intentos de login no parecen quedar registrados como eventos del ROS.</p>
+      <div class="opts"><span class="pill-ink">A · Sí: <code>root_login_attempt</code>, <code>device_pair_requested</code> (recomendado)</span><span class="pill-ink">B · Solo logs técnicos</span></div>
+    </div>
+  </section>
+
+  <div class="foot-doc">
+    <div><b>TakeasyGO · POS Root — Estudio documental + diseño de interfaz</b><br />Generado el 25 · 10 · 2026 · mockups 1920×1080 a escala 70% · tokens reales de <code>apps/pos/src/styles/pos.css</code>.</div>
+    <div style="text-align:right">0 archivos modificados del proyecto<br />1 entregable nuevo: <code>pos-root-interface.html</code><br />Fuentes: <code>/POS</code> · <code>apps/pos</code> · <code>apps/saas</code></div>
+  </div>
+
+</div>
+</main>
+</div>
+</body>
+</html>

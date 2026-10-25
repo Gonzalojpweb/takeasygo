@@ -381,6 +381,8 @@ function AppShell({
       />
 
       <Navigation
+        tenantName={profile?.tenantName ?? ""}
+        locationName={profile?.locationName}
         items={contexts}
         activeId={current.id}
         badges={{ counter: pendingIncoming }}

@@ -1,4 +1,4 @@
-import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react"
+import { LogOut, MapPin, PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { useLayout } from "./LayoutContext"
 import type { RosContext } from "./contexts"
 
@@ -11,6 +11,9 @@ import type { RosContext } from "./contexts"
 // ============================================================================
 
 interface NavigationProps {
+  /** Obs. UX 25/10: la marca vive arriba del sidebar (libera el header). */
+  tenantName?: string
+  locationName?: string | null
   items: readonly RosContext[]
   activeId: string
   badges?: Partial<Record<string, number>>
@@ -18,7 +21,7 @@ interface NavigationProps {
   onLogout: () => void
 }
 
-export function Navigation({ items, activeId, badges = {}, onSelect, onLogout }: NavigationProps) {
+export function Navigation({ tenantName, locationName, items, activeId, badges = {}, onSelect, onLogout }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
 
   return (
@@ -26,6 +29,17 @@ export function Navigation({ items, activeId, badges = {}, onSelect, onLogout }:
       className={`navigation${sidebarCollapsed ? " collapsed" : ""}${items.length <= 1 ? " navigation--single" : ""}`}
       aria-label="Contextos operativos"
     >
+      {/* Marca + comercio + sede, a la altura del header (obs. UX 25/10). */}
+      <div className="nav-brand" title={locationName ? `${tenantName || "TakeasyGO"} · ${locationName}` : tenantName || "TakeasyGO"}>
+        <div className="brand-icon" aria-hidden>T</div>
+        {!sidebarCollapsed && (
+          <div className="nav-brand-text">
+            <span className="nav-brand-tenant">{tenantName || "TakeasyGO"}</span>
+            {locationName && <span className="nav-brand-location"><MapPin size={11} aria-hidden /> {locationName}</span>}
+          </div>
+        )}
+      </div>
+
       <button
         type="button"
         className="nav-toggle"
