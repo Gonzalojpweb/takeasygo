@@ -12,6 +12,7 @@ import * as authApi from "../services/auth-api"
 // tuviera la suya, un rename rompería la autenticación en silencio.
 import { SESSION_CACHE_KEY } from "../services/pos-api"
 import { applyPosLocation, type LocationSwitchDb } from "../services/location-switch"
+import { readRootMemory, writeRootMemory } from "../services/root-memory"
 
 // ============================================================================
 // Ciclo de vida del token (Auditoría POS Online V1 §1.4)
@@ -58,11 +59,51 @@ function isJwtEncrypted(
   )
 }
 
+export interface LoginErrorInfo {
+  kind: authApi.LoginErrorKind
+  /** Segundos hasta poder reintentar (bloqueo temporal). */
+  retryAfter: number | null
+}
+
+/**
+ * Estados del root (obs. UX 25/10):
+ *   loading      phase "boot"  → R0 arranque (restaurando la sesión)
+ *                phase "login" → validando credenciales (la pantalla de
+ *                                acceso sigue montada: no se pierde lo tipeado)
+ *   login/error  → R1/R2/R3 acceso (errorInfo tipado, nunca el texto crudo)
+ *   authenticated→ shell
+ *   expired      → R6: la sesión venció trabajando. El shell queda montado
+ *                  (mismo contexto, misma mesa) bajo un overlay para volver a
+ *                  entrar; `busy` mientras se valida el reingreso.
+ */
 export interface AuthState {
-  status: "loading" | "login" | "authenticated" | "error"
+  status: "loading" | "login" | "authenticated" | "error" | "expired"
+  phase?: "boot" | "login"
   error?: string
+  errorInfo?: LoginErrorInfo
+  busy?: boolean
   tenantId?: string
   jwt?: authApi.LoginResponse
+}
+
+function errorInfoOf(err: unknown): LoginErrorInfo {
+  return err instanceof authApi.LoginError
+    ? { kind: err.kind, retryAfter: err.retryAfter }
+    : { kind: "unknown", retryAfter: null }
+}
+
+/** Recuerda comercio + último usuario en el equipo (solo presentación). */
+function rememberLogin(tenantId: string, result: authApi.LoginResponse, mode: "pin" | "email", locationId: string | undefined, email?: string) {
+  const prev = readRootMemory()
+  const p = result.profile
+  writeRootMemory({
+    tenantId,
+    tenantName: p?.tenantName || (prev?.tenantId === tenantId ? prev.tenantName : ""),
+    user: p?.userName ? { name: p.userName, role: p.role, mode, ...(mode === "email" && email ? { email } : {}) } : null,
+    locationId: locationId ?? (prev?.tenantId === tenantId ? prev.locationId : null),
+    locationName: p?.locationName ?? null,
+    at: new Date().toISOString(),
+  })
 }
 
 export interface AuthContextValue {
@@ -124,7 +165,10 @@ async function wipeLocalSessionData(): Promise<void> {
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({ status: "loading" })
+  const [state, setState] = useState<AuthState>({ status: "loading", phase: "boot" })
+  // Estado actual para el login asíncrono (¿reingreso desde «sesión expirada»?).
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state }, [state])
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sessionCheckRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -182,7 +226,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (Date.now() >= expiresAtMs) {
         clearTimers()
         clearCachedSession()
-        setState({ status: "login", error: "Sesión expirada, volvé a ingresar tu PIN" })
+        // R6: overlay sobre el shell, no redirección — el operador ve de
+        // dónde viene y vuelve exactamente ahí al reingresar.
+        setState((prev) =>
+          prev.status === "authenticated"
+            ? { status: "expired", tenantId: prev.tenantId, jwt: prev.jwt }
+            : { status: "login" }
+        )
         window.dispatchEvent(new CustomEvent("auth:expired"))
       }
     }
@@ -239,7 +289,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (mode: "pin" | "email", credentials: Record<string, string>) => {
-      setState({ status: "loading" })
+      const reauth = stateRef.current.status === "expired" ? stateRef.current : null
+      setState(reauth ? { ...reauth, busy: true, errorInfo: undefined } : { status: "loading", phase: "login" })
 
       try {
         let salt: Uint8Array
@@ -279,6 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
+          rememberLogin(tenantId, result, "pin", locationId)
         } else {
           const { email, password, locationId } = credentials as {
             email: string
@@ -316,11 +368,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
+          rememberLogin(tenantId, result, "email", locationId, email)
         }
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Unknown error occurred"
-        setState({ status: "error", error: message })
+        const errorInfo = errorInfoOf(err)
+        setState(reauth ? { ...reauth, busy: false, errorInfo } : { status: "error", error: message, errorInfo })
       }
     },
     []

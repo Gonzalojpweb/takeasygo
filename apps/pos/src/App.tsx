@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo, useSyncExternalStore, type CSSProperties 
 import { useLiveQuery } from "dexie-react-hooks"
 import { useAuth } from "./hooks/useAuth"
 import { db } from "./db/dexie"
-import { LoginScreen } from "./components/LoginScreen"
+import { AccessScreen } from "./components/Root/AccessScreen"
+import { BootScreen } from "./components/Root/BootScreen"
+import { SessionExpiredOverlay } from "./components/Root/SessionExpiredOverlay"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
@@ -260,45 +262,43 @@ function App() {
     }
   }, [state.status, state.tenantId, state.jwt])
 
-  if (state.status === "login" || state.status === "error") {
+  // ── Root del POS (obs. UX 25/10 — pos-root-interface.html) ──────────────
+  // R0 arranque mientras se restaura la sesión.
+  if (state.status === "loading" && state.phase !== "login") {
+    return <BootScreen />
+  }
+
+  // R1/R2/R3 acceso. Sigue montado mientras valida (phase "login"): no se
+  // pierde lo tipeado ni el paso (local elegido) si el login final falla.
+  if (state.status === "login" || state.status === "error" || state.status === "loading") {
     return (
-      <LoginScreen
+      <AccessScreen
         onLogin={login}
-        error={state.status === "error" ? state.error : undefined}
-        loading={false}
+        errorInfo={state.status === "error" ? state.errorInfo : undefined}
+        busy={state.status === "loading"}
       />
     )
   }
 
-  if (state.status === "loading") {
-    return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "var(--surface-secondary)",
-        fontFamily: "var(--font-family)",
-      }}>
-        <div className="loading-state">
-          <span className="spinner" />
-          Cargando...
-        </div>
-      </div>
-    )
-  }
-
+  // Shell. Con la sesión vencida (R6) el shell NO se desmonta: queda inerte
+  // bajo el overlay y, al reingresar, todo sigue exactamente donde estaba.
+  const expired = state.status === "expired"
   return (
     <LayoutProvider>
-      <AppShell
-        tenantId={state.tenantId}
-        profile={state.jwt?.profile}
-        tokenRole={decodeRole(state.jwt?.accessToken)}
-        activeContext={activeContext}
-        setActiveContext={setActiveContext}
-        logout={logout}
-      />
-      {updateReady && <UpdateBanner />}
+      <div className="root-shell-wrap" inert={expired || undefined} aria-hidden={expired || undefined}>
+        <AppShell
+          tenantId={state.tenantId}
+          profile={state.jwt?.profile}
+          tokenRole={decodeRole(state.jwt?.accessToken)}
+          activeContext={activeContext}
+          setActiveContext={setActiveContext}
+          logout={logout}
+        />
+      </div>
+      {expired && (
+        <SessionExpiredOverlay state={state} where={findContext(activeContext).title} onLogin={login} onLogout={() => { void logout() }} />
+      )}
+      {updateReady && !expired && <UpdateBanner />}
     </LayoutProvider>
   )
 }

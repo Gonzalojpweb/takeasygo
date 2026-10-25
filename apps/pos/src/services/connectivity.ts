@@ -16,7 +16,8 @@ function setOnline(value: boolean) {
   isOnline = value
 }
 
-async function checkHealth(): Promise<boolean> {
+/** ¿Responde el Sync? (también lo usa el root para el estado del sistema). */
+export async function checkHealth(): Promise<boolean> {
   try {
     const res = await fetch(HEALTH_ENDPOINT, {
       method: "GET",
