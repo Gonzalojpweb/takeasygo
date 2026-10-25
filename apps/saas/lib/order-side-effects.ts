@@ -1,3 +1,4 @@
+import mongoose from 'mongoose'
 import { sendAdminPushNotification } from '@/lib/push'
 import { pushOrderToSyncLayer, confirmOrderPaymentCore, notifySyncLayerStatus } from '@/lib/sync-layer'
 import type { IOrder } from '@/models/Order'
@@ -203,9 +204,9 @@ export function maybeNotifySyncLayerStatus(args: {
 const POS_ACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
 
 export async function locationHasActivePos(tenantId: unknown, locationId: unknown): Promise<boolean> {
-  if (!locationId) return false
+  if (!locationId || !mongoose.isValidObjectId(locationId) || !mongoose.isValidObjectId(tenantId)) return false
   try {
-    const loc = await Location.findOne({ _id: locationId, tenantId }).select('pos.lastSeenAt').lean<{ pos?: { lastSeenAt?: Date | null } }>()
+    const loc = await Location.findOne({ _id: String(locationId), tenantId: String(tenantId) }).select('pos.lastSeenAt').lean<{ pos?: { lastSeenAt?: Date | null } }>()
     const seen = loc?.pos?.lastSeenAt ? new Date(loc.pos.lastSeenAt).getTime() : 0
     return seen > 0 && Date.now() - seen < POS_ACTIVE_WINDOW_MS
   } catch {
