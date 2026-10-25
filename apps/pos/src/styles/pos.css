@@ -2755,3 +2755,130 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .pickup-foot { display: flex; justify-content: space-between; align-items: center; }
 .pickup-total { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 .pickup-foot .btn { min-height: 48px; }
+
+/* ========================================
+   CONTEXTO VENTAS (obs. 24/10) — lista densa paginada + detalle completo
+   ======================================== */
+/* Ningún Context Panel desborda en horizontal: los textos largos cortan. */
+.context-panel-body { overflow-x: hidden; min-width: 0; }
+.context-panel-body * { min-width: 0; }
+.context-panel-title, .context-panel-subtitle { overflow-wrap: anywhere; }
+
+.sales { display: flex; flex-direction: column; min-height: 0; padding: var(--sp-4) var(--sp-6); gap: var(--sp-3); }
+.sales-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); flex-shrink: 0; }
+.sales-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: 12px; background: var(--surface-secondary); }
+.sales-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--sp-3); border: none; border-radius: 9px; background: none; font: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); color: var(--text-secondary); cursor: pointer; }
+.sales-chip:hover { color: var(--text-primary); }
+.sales-chip.active { background: var(--primary-action); color: #fff; font-weight: var(--font-weight-semibold); }
+.sales-chip-count { font-size: var(--font-size-xs); opacity: 0.75; font-variant-numeric: tabular-nums; }
+.sales-search { display: flex; align-items: center; gap: var(--sp-2); flex: 1 1 220px; min-height: 40px; padding: 0 var(--sp-3); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text-muted); }
+.sales-search:focus-within { border-color: var(--primary-action); }
+.sales-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font: inherit; color: var(--text-primary); }
+.sales-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--sp-3); flex-shrink: 0; }
+.sales-kpis div { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.sales-kpis span { font-size: var(--font-size-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.sales-kpis strong { font-size: var(--font-size-xl); font-variant-numeric: tabular-nums; }
+.sales-table { display: flex; flex-direction: column; flex: 1; min-height: 0; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); overflow: hidden; }
+.sales-row {
+  display: grid;
+  grid-template-columns: 64px 150px minmax(140px, 1.2fr) minmax(0, 2fr) 130px 130px;
+  align-items: center; gap: var(--sp-3);
+  height: 56px; padding: 0 var(--sp-4);
+  border: none; border-bottom: 1px solid var(--border); background: none;
+  font: inherit; font-size: var(--font-size-sm); text-align: left; color: var(--text-primary); width: 100%; cursor: pointer;
+}
+.sales-row > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sales-row:hover:not(.sales-row--head) { background: var(--surface-secondary); }
+.sales-row.selected { background: var(--primary-action-light); box-shadow: inset 4px 0 0 var(--brand-orange); }
+.sales-row.voided { opacity: 0.6; }
+.sales-row--head { height: 40px; cursor: default; background: var(--surface-secondary); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.sales-rows { flex: 1; min-height: 0; overflow: hidden; }
+.sales-time { font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.sales-title { font-weight: var(--font-weight-semibold); }
+.sales-items, .sales-pay { color: var(--text-secondary); }
+.sales-right { text-align: right; justify-self: end; }
+.sales-pager { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border); flex-shrink: 0; }
+.sales-pager .text-muted { margin-right: auto; }
+@media (max-width: 1280px) { .sales-row { grid-template-columns: 56px 130px minmax(120px, 1fr) minmax(0, 1.5fr) 110px; } .sales-row > :nth-child(5) { display: none; } }
+@media (max-width: 900px) { .sales-row { grid-template-columns: 52px 44px minmax(0, 1fr) 100px; } .sales-row > :nth-child(4), .sales-row > :nth-child(5) { display: none; } .sales-row .sale-channel { font-size: 0; gap: 0; padding: 4px; } }
+
+.sale-channel { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.sale-channel--salon     { background: var(--primary-action-light); color: var(--primary-action); }
+.sale-channel--mostrador { background: var(--brand-orange-surface); color: var(--brand-orange-text); }
+.sale-channel--app       { background: var(--info-light); color: var(--info); }
+.sale-channel--delivery  { background: #F1ECFB; color: #5B3FA8; }
+.sale-voided { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--error-light); color: var(--error); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.sale-money { font-variant-numeric: tabular-nums; font-weight: var(--font-weight-semibold); white-space: nowrap; }
+
+.sale-detail { display: flex; flex-direction: column; gap: var(--sp-3); overflow-wrap: anywhere; }
+.sale-tags { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.sale-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.sale-kpis div { display: flex; flex-direction: column; padding: var(--sp-2) var(--sp-3); border-radius: 10px; background: var(--surface-secondary); }
+.sale-kpis span { font-size: var(--font-size-xs); color: var(--text-muted); }
+.sale-kpis strong { font-size: var(--font-size-lg); font-variant-numeric: tabular-nums; }
+.sale-facts { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2) var(--sp-3); margin: 0; }
+.sale-facts dt { font-size: var(--font-size-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.sale-facts dd { margin: 0; font-weight: var(--font-weight-semibold); }
+.sale-section-title { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); padding-top: var(--sp-2); border-top: 1px solid var(--border); }
+.sale-channel-row { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-3); align-items: center; font-size: var(--font-size-sm); }
+.sale-lines, .sale-payments { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sale-lines li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: var(--sp-2); align-items: start; font-size: var(--font-size-sm); }
+.sale-payments li { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--font-size-sm); }
+.sale-qty { font-weight: var(--font-weight-semibold); color: var(--text-secondary); }
+.sale-line-main { display: flex; flex-direction: column; gap: 1px; }
+.sale-line-name { font-weight: var(--font-weight-semibold); }
+.sale-line-sub { font-size: var(--font-size-xs); color: var(--text-muted); font-weight: var(--font-weight-regular); }
+.sale-line-note { font-size: var(--font-size-xs); color: var(--brand-orange-text); font-style: italic; }
+.sale-line-disc { font-size: var(--font-size-xs); color: var(--success); font-weight: var(--font-weight-semibold); }
+.sale-totals { display: flex; flex-direction: column; gap: 4px; padding-top: var(--sp-2); border-top: 1px solid var(--border); }
+.sale-totals div { display: flex; justify-content: space-between; font-size: var(--font-size-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.sale-grand { font-size: var(--font-size-lg) !important; font-weight: var(--font-weight-bold); color: var(--text-primary) !important; }
+.sale-void-info { padding: var(--sp-2) var(--sp-3); border-radius: 8px; background: var(--error-light); color: var(--error); font-size: var(--font-size-sm); }
+
+/* ========================================
+   ESCENARIO DEL SALÓN CON RELIEVE (obs. 24/10)
+   El salón se lee como un plano: piso con trama sutil y profundidad
+   interior; cada SECTOR es una zona elevada con su rótulo, separada de las
+   demás. Las mesas apoyan sobre la zona con sombra propia.
+   ======================================== */
+.salon-map-container {
+  background-color: #EEF1EE;
+  background-image:
+    radial-gradient(rgba(6, 93, 99, 0.12) 1px, transparent 1.2px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 120px);
+  background-size: 20px 20px, 100% 100%;
+  border: 1px solid #DCE2DE;
+  box-shadow: inset 0 2px 10px rgba(11, 61, 65, 0.08), inset 0 -1px 0 rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: var(--sp-4);
+}
+.salon-map-container > .empty-state { flex: 1 1 100%; }
+.salon-map-container .sector {
+  flex: 1 1 340px;
+  margin: 0;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  border-radius: 20px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FBFBF9 100%);
+  border: 1px solid #E3E7E3;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 8px 22px rgba(11, 61, 65, 0.08), 0 2px 4px rgba(11, 61, 65, 0.05);
+  position: relative;
+}
+.salon-map-container .sector::before {
+  content: "";
+  position: absolute; left: 20px; right: 20px; top: 0; height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, var(--primary-action), rgba(6, 93, 99, 0.25));
+}
+.salon-map-container .sector-header {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: var(--sp-4); padding: 4px 12px;
+  border-radius: 999px; background: var(--primary-action-light); color: var(--primary-action);
+  font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); letter-spacing: 0.8px;
+}
+.salon-map-container .sector-grid { gap: 22px; }
+.salon-map-container .mesa { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06), 0 10px 20px rgba(11, 61, 65, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.45); }
+.salon-map-container .mesa:hover { box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06), 0 14px 28px rgba(11, 61, 65, 0.18), inset 0 1px 2px rgba(255, 255, 255, 0.5); }
+.salon-map-container .mesa.seleccionada { outline: 3px solid var(--brand-orange); outline-offset: 3px; }
+@media (max-width: 768px) { .salon-map-container .sector { flex-basis: 100%; padding: var(--sp-3); } }

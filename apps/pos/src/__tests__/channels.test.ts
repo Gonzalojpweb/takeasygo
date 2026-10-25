@@ -19,3 +19,14 @@ describe("canales de pedidos externos", () => {
     expect(isExternalDeliveryOrder({ source: "pos", channel: "rappi" })).toBe(false)
   })
 })
+
+import { saleChannelOf } from "../services/channels"
+
+describe("canal de una venta (Ventas)", () => {
+  it("mesa → Salón; sin mesa → Mostrador; externo → App; plataforma → Delivery", () => {
+    expect(saleChannelOf({ source: "pos", tableId: "mesa-1" })).toBe("salon")
+    expect(saleChannelOf({ source: "pos" })).toBe("mostrador")
+    expect(saleChannelOf({ source: "external" })).toBe("app")
+    expect(saleChannelOf({ source: "external", channel: "rappi" })).toBe("delivery")
+  })
+})

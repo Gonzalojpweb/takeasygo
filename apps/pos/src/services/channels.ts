@@ -30,3 +30,40 @@ export function isExternalDeliveryOrder(order: Pick<Order, "source" | "channel">
 export function isAppOrder(order: Pick<Order, "source" | "channel">): boolean {
   return order.source === "external" && (!order.channel || order.channel === "takeasygo")
 }
+
+// ============================================================================
+// Canal de una VENTA (contexto Ventas, obs. 24/10)
+// ============================================================================
+// Cada venta dice de dónde vino: Salón (mesa), Mostrador (venta rápida sin
+// mesa), App TakeasyGO o Delivery externo. Para la App también el modo
+// (retiro, envío, en el local).
+
+export type SaleChannel = "salon" | "mostrador" | "app" | "delivery"
+
+export const SALE_CHANNEL_LABEL: Record<SaleChannel, string> = {
+  salon: "Salón",
+  mostrador: "Mostrador",
+  app: "App TakeasyGO",
+  delivery: "Delivery externo",
+}
+
+export function saleChannelOf(order: Pick<Order, "source" | "channel" | "tableId">): SaleChannel {
+  if (isExternalDeliveryOrder(order)) return "delivery"
+  if (order.source === "external" || order.source === "takeasygo") return "app"
+  return order.tableId ? "salon" : "mostrador"
+}
+
+const ORDER_MODE_LABEL: Record<string, string> = {
+  "dine-in": "En el local",
+  takeaway: "Para retirar",
+  delivery: "Envío a domicilio",
+  business: "Empresas",
+}
+
+export function orderModeLabel(mode: string | undefined): string | null {
+  return mode ? ORDER_MODE_LABEL[mode] ?? mode : null
+}
+
+export function deliveryPlatformLabel(channel: string | undefined): string | null {
+  return DELIVERY_PLATFORMS.find((p) => p.id === channel)?.label ?? null
+}
