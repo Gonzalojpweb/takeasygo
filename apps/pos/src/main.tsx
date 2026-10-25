@@ -3,6 +3,10 @@ import ReactDOM from "react-dom/client"
 import { AuthProvider } from "./hooks/AuthContext"
 import App from "./App"
 import { ensureLatestBuild, registerAppUpdates } from "./services/app-update"
+import { bootUiZoom } from "./hooks/useUiZoom"
+
+// Zoom de la interfaz guardado en este dispositivo, antes del primer render.
+bootUiZoom()
 
 const root = document.getElementById("root")
 if (!root) throw new Error("Root element not found")

@@ -26,12 +26,13 @@ import { SalonSetup } from "./SalonSetup"
 import { ReservationsView } from "./ReservationsView"
 import { useReservations } from "../../hooks/useReservations"
 import { actOnReservation, markReservationsSeen, type PosReservation, type ReservationAction } from "../../services/reservations"
+import { isAppOrder, isExternalDeliveryOrder, DELIVERY_PLATFORMS } from "../../services/channels"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { prepareOrder, markReady, deliverOrder, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
+import { recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
 import { printPrecuenta } from "../../services/table"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
@@ -40,7 +41,7 @@ import { playOrderNotification } from "../../services/notification-sound"
 import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import {
-  UtensilsCrossed, Store, Package, Calendar, ClipboardList,
+  UtensilsCrossed, Store, Calendar, Smartphone, Bike, PackageCheck,
   Plus, Users, Receipt, Unlock, Printer, Wallet, Split, Percent, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
@@ -64,8 +65,8 @@ import {
 } from "../../services/fiscal"
 import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/mp-point"
 
-type CounterView = "salon" | "mostrador" | "entrantes" | "mis_pedidos" | "reservaciones"
-type Scene = "salon" | "mesa" | "mover" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "entrantes" | "mis_pedidos" | "reservaciones"
+type CounterView = "salon" | "mostrador" | "entrantes" | "delivery" | "reservaciones"
+type Scene = "salon" | "mesa" | "mover" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "mostrador_entregas" | "entrantes" | "delivery" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
 type GatewayScene = "queue" | "validation" | "transform"
 
@@ -75,11 +76,16 @@ interface ViewDef {
   icon: ComponentType<{ size?: number; className?: string }>
 }
 
+// Vistas del Counter (obs. 24/10):
+//   · Pedidos App       = pedidos de la App TakeasyGO (SaaS online): aceptar y seguir.
+//   · Delivery externo  = apps de delivery integradas (PedidosYa, Rappi…): canal propio.
+//   · «Mis Pedidos» se eliminó: las rondas de mesa viven en el contexto Mesa y los
+//     pedidos de Mostrador para entregar, en Mostrador → «Para entregar».
 const COUNTER_VIEWS: ViewDef[] = [
   { id: "salon", label: "Salón", icon: UtensilsCrossed },
   { id: "mostrador", label: "Mostrador", icon: Store },
-  { id: "entrantes", label: "Pedidos Entrantes", icon: Package },
-  { id: "mis_pedidos", label: "Mis Pedidos", icon: ClipboardList },
+  { id: "entrantes", label: "Pedidos App", icon: Smartphone },
+  { id: "delivery", label: "Delivery externo", icon: Bike },
   { id: "reservaciones", label: "Reservaciones", icon: Calendar },
 ]
 
@@ -233,7 +239,7 @@ export function CounterDashboard() {
       ? db.orders
           .where("tenantId")
           .equals(tenantId)
-          .and((o) => o.source === "external" && !o.integratedAt && o.status !== "cancelled" && o.status !== "delivered")
+          .and((o) => o.source === "external" && isAppOrder(o) && !o.integratedAt && o.status !== "cancelled" && o.status !== "delivered")
           .toArray()
       : []),
     [tenantId]
@@ -248,6 +254,7 @@ export function CounterDashboard() {
           .equals(tenantId)
           .and((o) =>
             o.source === "external" &&
+            isAppOrder(o) &&
             !!o.integratedAt &&
             o.status !== "delivered" &&
             o.status !== "cancelled" &&
@@ -258,7 +265,8 @@ export function CounterDashboard() {
     [tenantId]
   ) ?? []
 
-  // ── Mis Pedidos: pedidos creados en el POS (source: "pos") ─────────
+  // ── Pedidos del POS abiertos (source: "pos"). Los de Mostrador (sin
+  //    mesa) que se mandaron a cocina se entregan desde «Para entregar». ──
   const posOrdersLive = useLiveQuery(
     () => (tenantId
       ? db.orders
@@ -274,6 +282,21 @@ export function CounterDashboard() {
     [tenantId]
   )
   const posOrders = useMemo(() => posOrdersLive ?? [], [posOrdersLive])
+  const pickupOrders = useMemo(
+    () => posOrders.filter((o) => !o.tableId && o.status !== "pending").sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
+    [posOrders]
+  )
+
+  // ── Delivery externo: pedidos de apps de delivery integradas ──────────
+  const deliveryOrdersLive = useLiveQuery(
+    () => (tenantId
+      ? db.orders.where("tenantId").equals(tenantId)
+          .and((o) => isExternalDeliveryOrder(o) && o.status !== "delivered" && o.status !== "cancelled")
+          .toArray()
+      : []),
+    [tenantId]
+  )
+  const deliveryOrders = useMemo(() => deliveryOrdersLive ?? [], [deliveryOrdersLive])
 
   // ── Aviso de pedidos nuevos (sonido único: services/notification-sound) ──
   // Con refs y no con estado: el aviso es un efecto externo, no algo que se
@@ -474,49 +497,19 @@ export function CounterDashboard() {
   }, [tenantId, state.jwt?.accessToken])
 
   // ============================================================================
-  // POS ORDER HANDLERS (Mis Pedidos kanban)
+  // Mostrador → «Para entregar»: un solo paso. La caja entrega lo que se
+  // cobró y salió de cocina; no marca estados de cocina (obs. 24/10).
   // ============================================================================
 
-  const handleConfirmPosOrder = useCallback(async (orderId: string) => {
+  const handleHandOver = useCallback(async (orderId: string) => {
     if (!tenantId) return
     try {
-      const { confirmOrder } = await import("../../services/order")
-      await confirmOrder(tenantId, orderId)
-      showToast("Pedido confirmado", "success")
-    } catch {
-      showToast("Error al confirmar pedido", "error")
-    }
-  }, [tenantId])
-
-  const handlePreparePosOrder = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await prepareOrder(tenantId, orderId, state.jwt?.accessToken)
-      showToast("Pedido en preparación", "success")
-    } catch {
-      showToast("Error al iniciar preparación", "error")
-    }
-  }, [tenantId, state.jwt?.accessToken])
-
-  const handleMarkReadyPosOrder = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await markReady(tenantId, orderId, state.jwt?.accessToken)
-      showToast("Pedido listo", "success")
-    } catch {
-      showToast("Error al marcar listo", "error")
-    }
-  }, [tenantId, state.jwt?.accessToken])
-
-  const handleDeliverPosOrder = useCallback(async (orderId: string) => {
-    if (!tenantId) return
-    try {
-      await deliverOrder(tenantId, orderId, state.jwt?.accessToken)
+      await settleToDelivered(tenantId, orderId, state.jwt?.accessToken)
       showToast("Pedido entregado", "success")
-    } catch {
-      showToast("Error al entregar", "error")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo marcar como entregado"), "error")
     }
-  }, [tenantId, state.jwt?.accessToken])
+  }, [tenantId, state.jwt?.accessToken, showToast])
 
   // ============================================================================
   // CART + TABLE HANDLERS (existing)
@@ -652,7 +645,7 @@ export function CounterDashboard() {
       salon: "salon",
       mostrador: "mostrador_rapido",
       entrantes: "entrantes",
-      mis_pedidos: "mis_pedidos",
+      delivery: "delivery",
       reservaciones: "reservaciones",
     }
     setScene(defaults[viewId] ?? "salon")
@@ -661,8 +654,13 @@ export function CounterDashboard() {
   // Fase A (2026-10): las vistas del Counter viven en el header (una sola
   // franja arriba), no en un renglón propio que le roba alto al workspace.
   const counterViews = useMemo(
-    () => COUNTER_VIEWS.map((v) => (v.id === "reservaciones" ? { ...v, badge: unseenReservations } : v)),
-    [unseenReservations]
+    () => COUNTER_VIEWS.map((v) =>
+      v.id === "reservaciones" ? { ...v, badge: unseenReservations }
+      : v.id === "mostrador" ? { ...v, badge: pickupOrders.length }
+      : v.id === "delivery" ? { ...v, badge: deliveryOrders.length }
+      : v
+    ),
+    [unseenReservations, pickupOrders.length, deliveryOrders.length]
   )
   useEffect(() => {
     setHeaderCenter(<WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />)
@@ -1011,7 +1009,7 @@ export function CounterDashboard() {
   //    suma cierre contra SU total).
   // 3. Deja un movimiento de caja por parte (cualquier método).
   // 4. Cierra: mesa / venta inmediata → `delivered` por el grafo legal; el
-  //    mostrador enviado a cocina queda en Mis Pedidos.
+  //    mostrador enviado a cocina queda en Mostrador → «Para entregar».
   const handlePay = useCallback(async (parts: CheckoutPart[]) => {
     if (!tenantId || paying) return
     const keepForKitchen = view === "mostrador" && sendToKitchen
@@ -1190,6 +1188,7 @@ export function CounterDashboard() {
       salon: "salon",
       mostrador: "mostrador_rapido",
       entrantes: "entrantes",
+      delivery: "delivery",
       reservaciones: "reservaciones",
     }
     setScene(defaults[view] ?? "salon")
@@ -1360,6 +1359,30 @@ export function CounterDashboard() {
         break
       }
 
+      case "mostrador_entregas":
+        setContextPanel({
+          title: "Para entregar",
+          subtitle: pickupOrders.length === 0 ? "Sin pedidos pendientes" : `${pickupOrders.length} ${pickupOrders.length === 1 ? "pedido" : "pedidos"} de Mostrador`,
+          body: (
+            <div className="mesa-panel">
+              <p className="text-sm">Ventas de Mostrador ya cobradas y enviadas a cocina. Cuando el cliente retira, tocá <strong>Entregado</strong>.</p>
+            </div>
+          ),
+        })
+        setActionBar({
+          left: (
+            <button className="btn btn-ghost" onClick={() => setScene("mostrador_rapido")}>
+              ← Volver a vender
+            </button>
+          ),
+        })
+        break
+
+      case "delivery":
+        setContextPanel(null)
+        setActionBar(null)
+        break
+
       case "mover": {
         if (!selectedTable) {
           setScene("salon")
@@ -1441,7 +1464,11 @@ export function CounterDashboard() {
           ),
         })
         setActionBar({
-          left: isMostrador ? undefined : (
+          left: isMostrador ? (
+            <button className="btn btn-secondary" onClick={() => setScene("mostrador_entregas")}>
+              <PackageCheck size={18} aria-hidden /> Para entregar{pickupOrders.length > 0 ? ` (${pickupOrders.length})` : ""}
+            </button>
+          ) : (
             <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "salon" : "mesa")}>
               ← {cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`}
             </button>
@@ -1814,7 +1841,7 @@ export function CounterDashboard() {
             const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
             const arrivedCount = kanbanOrders.filter((o) => o.status === "arrived").length
             setContextPanel({
-              title: "Pedidos Entrantes",
+              title: "Pedidos App",
               subtitle: "Órdenes del ecosistema en operación",
               body: (
                 <div style={{ padding: "var(--sp-2)" }}>
@@ -1882,7 +1909,7 @@ export function CounterDashboard() {
               </div>
               {lastSale?.sentToKitchen && (
                 <div className="text-sm" style={{ marginTop: "var(--sp-2)" }}>
-                  Enviado a cocina — se entrega desde <strong>Mis Pedidos</strong>.
+                  Enviado a cocina — se entrega desde <strong>Mostrador → Para entregar</strong>.
                 </div>
               )}
               {customer && (
@@ -1907,7 +1934,7 @@ export function CounterDashboard() {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
 
   // ============================================================================
   // RENDER
@@ -2049,6 +2076,38 @@ export function CounterDashboard() {
             />
           )}
 
+          {scene === "mostrador_entregas" && (
+            <div className="channel-view">
+              {pickupOrders.length === 0 ? (
+                <div className="empty-state channel-empty">
+                  <PackageCheck size={40} aria-hidden />
+                  <span className="empty-state-text">Nada para entregar</span>
+                  <span className="text-sm text-muted">Las ventas de Mostrador enviadas a cocina aparecen acá hasta que se entregan.</span>
+                </div>
+              ) : (
+                <div className="pickup-list">
+                  {pickupOrders.map((order) => (
+                    <article key={order.id} className="pickup-card">
+                      <div className="pickup-head">
+                        <span className="pickup-code">#{order.id.slice(0, 6).toUpperCase()}</span>
+                        <span className="text-sm text-muted">
+                          {new Date(order.createdAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · hace {timeAgo(order.createdAt)}
+                        </span>
+                      </div>
+                      <div className="pickup-items">{order.items.map((i) => `${i.quantity}× ${i.name}`).join(" · ")}</div>
+                      <div className="pickup-foot">
+                        <span className="pickup-total">{formatCurrency(order.total)}</span>
+                        <button type="button" className="btn btn-primary" onClick={() => { void handleHandOver(order.id) }}>
+                          <PackageCheck size={18} aria-hidden /> Entregado
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {scene === "mostrador_rapido" && (
             <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
               <ProductSelector
@@ -2113,7 +2172,7 @@ export function CounterDashboard() {
                   {formatCurrency(lastSale?.total ?? 0)} — Mostrador
                 </div>
                 {lastSale?.sentToKitchen && (
-                  <div className="text-sm text-muted">Enviado a cocina — entregalo desde Mis Pedidos.</div>
+                  <div className="text-sm text-muted">Enviado a cocina — entregalo desde Mostrador → Para entregar.</div>
                 )}
                 <InvoiceResults invoices={lastSale?.invoices} />
               </div>
@@ -2186,11 +2245,11 @@ export function CounterDashboard() {
               <div className="workspace-header">
                 <div>
                   <div className="workspace-title">
-                    {gatewayScene === "queue" ? "Pedidos Externos" : gatewayScene === "validation" ? "Validar pedido" : "Transformar a local"}
+                    {gatewayScene === "queue" ? "Pedidos App" : gatewayScene === "validation" ? "Validar pedido" : "Transformar a local"}
                   </div>
                   <div className="workspace-subtitle">
                     {gatewayScene === "queue"
-                      ? "Pedidos del ecosistema TakeasyGO — Recibir → Validar → Transformar"
+                      ? "Pedidos de la App TakeasyGO — Recibir → Validar → Transformar"
                       : gatewayScene === "validation" && selectedOrder
                         ? `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`
                         : gatewayScene === "transform" && selectedOrder
@@ -2454,153 +2513,34 @@ export function CounterDashboard() {
       )}
 
       {/* ================================================ */}
-      {/* VIEW: MIS PEDIDS (POS-created orders kanban) */}
+      {/* VIEW: DELIVERY EXTERNO (apps de delivery integradas) */}
       {/* ================================================ */}
-      {view === "mis_pedidos" && (
-        <>
-          <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-            {posOrders.length === 0 ? (
-              <div className="empty-state">
-                <span className="empty-state-icon">📋</span>
-                <span className="empty-state-text">No hay pedidos activos</span>
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
-                {/* Columna: Pendientes */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{
-                    padding: "var(--sp-2)",
-                    background: "var(--surface-secondary)",
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Pendientes</span>
-                    <span style={{
-                      background: "var(--warning-bg, #fff3cd)",
-                      color: "var(--warning)",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                      fontSize: "var(--font-size-xs)"
-                    }}>
-                      {posOrders.filter((o) => o.status === "pending").length}
-                    </span>
+      {view === "delivery" && (
+        <div className="channel-view">
+          {deliveryOrders.length === 0 ? (
+            <div className="empty-state channel-empty">
+              <Bike size={40} aria-hidden />
+              <span className="empty-state-text">Delivery externo</span>
+              <span className="text-sm text-muted channel-empty-text">
+                Acá van a entrar los pedidos de las apps de delivery integradas ({DELIVERY_PLATFORMS.map((p) => p.label).join(", ")}),
+                separados de los pedidos de la App TakeasyGO. Todavía no hay ninguna integración conectada en este local.
+              </span>
+            </div>
+          ) : (
+            <div className="pickup-list">
+              {deliveryOrders.map((order) => (
+                <article key={order.id} className="pickup-card">
+                  <div className="pickup-head">
+                    <span className="pickup-code">{DELIVERY_PLATFORMS.find((p) => p.id === order.channel)?.label ?? "Delivery"} · #{order.id.slice(0, 6)}</span>
+                    <span className="text-sm text-muted">{new Date(order.createdAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {posOrders.filter((o) => o.status === "pending").map((order) => (
-                      <PosOrderCard
-                        key={order.id}
-                        order={order}
-                        onConfirm={handleConfirmPosOrder}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: Por preparar */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{
-                    padding: "var(--sp-2)",
-                    background: "var(--surface-secondary)",
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Por preparar</span>
-                    <span style={{
-                      background: "var(--info-bg, #e3f2fd)",
-                      color: "var(--info)",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                      fontSize: "var(--font-size-xs)"
-                    }}>
-                      {posOrders.filter((o) => o.status === "confirmed").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {posOrders.filter((o) => o.status === "confirmed").map((order) => (
-                      <PosOrderCard
-                        key={order.id}
-                        order={order}
-                        onPrepare={handlePreparePosOrder}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: Preparando */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{
-                    padding: "var(--sp-2)",
-                    background: "var(--surface-secondary)",
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Preparando</span>
-                    <span style={{
-                      background: "var(--warning-bg, #fff3cd)",
-                      color: "var(--warning)",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                      fontSize: "var(--font-size-xs)"
-                    }}>
-                      {posOrders.filter((o) => o.status === "preparing").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {posOrders.filter((o) => o.status === "preparing").map((order) => (
-                      <PosOrderCard
-                        key={order.id}
-                        order={order}
-                        onMarkReady={handleMarkReadyPosOrder}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {/* Columna: Listos */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                  <div style={{
-                    padding: "var(--sp-2)",
-                    background: "var(--surface-secondary)",
-                    borderRadius: "var(--radius)",
-                    fontWeight: 600,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}>
-                    <span>Listos</span>
-                    <span style={{
-                      background: "var(--success-bg, #e6f7e6)",
-                      color: "var(--success)",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                      fontSize: "var(--font-size-xs)"
-                    }}>
-                      {posOrders.filter((o) => o.status === "ready").length}
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                    {posOrders.filter((o) => o.status === "ready").map((order) => (
-                      <PosOrderCard
-                        key={order.id}
-                        order={order}
-                        onDeliver={handleDeliverPosOrder}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </>
+                  <div className="pickup-items">{order.items.map((i) => `${i.quantity}× ${i.name}`).join(" · ")}</div>
+                  <div className="pickup-foot"><span className="pickup-total">{formatCurrency(order.total)}</span></div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* ================================================ */}
@@ -2802,93 +2742,6 @@ function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, 
   )
 }
 
-// ============================================================================
-// PosOrderCard - Componente para pedidos creados en el POS (Mis Pedidos)
-// ============================================================================
-
-interface PosOrderCardProps {
-  order: Order
-  onConfirm?: (orderId: string) => void
-  onPrepare?: (orderId: string) => void
-  onMarkReady?: (orderId: string) => void
-  onDeliver?: (orderId: string) => void
-}
-
-function PosOrderCard({ order, onConfirm, onPrepare, onMarkReady, onDeliver }: PosOrderCardProps) {
-  const now = useNow()
-  const minutes = Math.floor((now - new Date(order.createdAt).getTime()) / 60000)
-  const isUrgent = minutes > 5
-
-  function getNextAction() {
-    switch (order.status) {
-      case "pending":
-        return { label: "Confirmar", action: onConfirm }
-      case "confirmed":
-        return { label: "Iniciar Preparación", action: onPrepare }
-      case "preparing":
-        return { label: "Marcar Listo", action: onMarkReady }
-      case "ready":
-        return { label: "Entregado", action: onDeliver }
-      default:
-        return { label: null, action: null }
-    }
-  }
-
-  const nextAction = getNextAction()
-
-  return (
-    <div className={`order-card ${isUrgent ? "urgent" : ""}`} style={{ cursor: "default" }}>
-      <div className="order-card-left">
-        <div className="order-card-header">
-          <div className="order-card-source pickup">
-            🍽️
-          </div>
-          <div>
-            <div className="order-card-title">
-              #{order.id.slice(0, 8)}
-            </div>
-            <div className="order-card-meta">
-              <span>Mesa {order.tableId ?? "—"}</span>
-              <span style={{
-                fontSize: "var(--font-size-xs)",
-                color: order.status === "pending" ? "var(--text-muted)" :
-                       order.status === "confirmed" ? "var(--info)" :
-                       order.status === "preparing" ? "var(--warning)" :
-                       order.status === "ready" ? "var(--success)" : "var(--text-muted)",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                {order.status === "pending" && "Pendiente"}
-                {order.status === "confirmed" && "Por preparar"}
-                {order.status === "preparing" && "Preparando"}
-                {order.status === "ready" && "Listo"}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="order-card-items">
-          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
-        </div>
-        {nextAction.action && (
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ marginTop: "var(--sp-2)" }}
-            onClick={() => nextAction.action?.(order.id)}
-          >
-            {nextAction.label}
-          </button>
-        )}
-      </div>
-      <div className="order-card-right">
-        <span className={`order-card-time ${isUrgent ? "urgent" : ""}`}>
-          {isUrgent ? `⚠ ${minutes} min` : timeAgo(order.createdAt)}
-        </span>
-        <span className="order-card-total">{formatCurrency(order.total)}</span>
-      </div>
-    </div>
-  )
-}
 
 /** Resultado de la factura en la pantalla de venta completada (Fase 5). */
 function InvoiceResults({ invoices }: { invoices?: FiscalDocumentSummary[] }) {

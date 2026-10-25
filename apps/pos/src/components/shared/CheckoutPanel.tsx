@@ -314,7 +314,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
             onChange={(e) => sendToKitchen.onChange(e.target.checked)}
           />
           <span>
-            Enviar a cocina <span className="text-muted text-sm">(imprime la comanda; se entrega desde Mis Pedidos)</span>
+            Enviar a cocina <span className="text-muted text-sm">(imprime la comanda; se entrega desde Mostrador → «Para entregar»)</span>
           </span>
         </label>
       )}

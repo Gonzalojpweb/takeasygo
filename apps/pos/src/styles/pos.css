@@ -2719,3 +2719,39 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
   .ctx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ctx-action { min-height: 76px; }
 }
+
+/* ========================================
+   ZOOM DE LA INTERFAZ (obs. 24/10) — responsive interno
+   La app se escala con `zoom` y su alto/ancho se compensan con --ui-zoom
+   (useUiZoom) para seguir ocupando exactamente la pantalla, sin scroll.
+   ======================================== */
+:root { --ui-zoom: 1; }
+.ros-app, .ros-app.sidebar-collapsed {
+  zoom: var(--ui-zoom);
+  height: calc(100vh / var(--ui-zoom));
+  width: calc(100vw / var(--ui-zoom));
+}
+@supports (height: 100dvh) {
+  .ros-app, .ros-app.sidebar-collapsed { height: calc(100dvh / var(--ui-zoom)); }
+}
+.header-zoom { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.header-zoom-btn, .header-zoom-value { display: flex; align-items: center; justify-content: center; min-height: 36px; border: none; background: var(--surface); color: var(--text-secondary); font: inherit; cursor: pointer; }
+.header-zoom-btn { width: 36px; }
+.header-zoom-btn:hover:not(:disabled), .header-zoom-value:hover { background: var(--surface-secondary); color: var(--text-primary); }
+.header-zoom-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.header-zoom-value { min-width: 48px; padding: 0 4px; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+@media (pointer: coarse) { .header-zoom-btn, .header-zoom-value { min-height: 44px; } .header-zoom-btn { width: 44px; } }
+@media (max-width: 768px) { .header-zoom-value { display: none; } }
+
+/* Para entregar (Mostrador) y Delivery externo */
+.channel-view { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--sp-4) var(--sp-6); }
+.channel-empty { flex: 1; gap: var(--sp-2); color: var(--text-muted); }
+.channel-empty-text { max-width: 520px; text-align: center; }
+.pickup-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-3); align-content: start; overflow-y: auto; min-height: 0; }
+.pickup-card { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.pickup-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); }
+.pickup-code { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+.pickup-items { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.pickup-foot { display: flex; justify-content: space-between; align-items: center; }
+.pickup-total { font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+.pickup-foot .btn { min-height: 48px; }

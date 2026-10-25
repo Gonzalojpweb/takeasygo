@@ -306,6 +306,12 @@ export interface Order {
   paymentMethod?: PaymentMethod
   /** Modo del pedido externo (dine-in | takeaway | delivery | business) — filtros de Entrantes. */
   orderMode?: string
+  /**
+   * Canal del pedido externo (obs. 24/10): ausente o "takeasygo" = App
+   * TakeasyGO; una plataforma de delivery integrada (pedidosya, rappi…) =
+   * Delivery externo. Ver apps/pos/src/services/channels.ts.
+   */
+  channel?: string
   /** Origen del pago: pos_charged = cobrado en POS, external_prepaid = pagado online */
   paymentSource?: 'pos_charged' | 'external_prepaid'
   /** Venta anulada con devolución (Fase 1 de caja). Ausente si no se anuló. */

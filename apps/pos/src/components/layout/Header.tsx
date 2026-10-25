@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
-import { ExternalLink, RefreshCw, VolumeX, AlertTriangle, MapPin, Cloud, CloudOff } from "lucide-react"
+import { ExternalLink, RefreshCw, VolumeX, AlertTriangle, MapPin, Cloud, CloudOff, ZoomIn, ZoomOut } from "lucide-react"
+import { useUiZoom } from "../../hooks/useUiZoom"
 import { getSocket } from "../../services/socket-client"
 import { useAuth } from "../../hooks/useAuth"
 import { requestSsoToken } from "../../services/sso"
@@ -28,6 +29,7 @@ interface HeaderProps {
 
 export function Header({ tenantName, locationName, userName, roleLabel, contextTitle, showSaasLink = true }: HeaderProps) {
   const { headerCenter } = useLayout()
+  const uiZoom = useUiZoom()
   const { state, logout } = useAuth()
   const [time, setTime] = useState(new Date())
   const [connected, setConnected] = useState(() => getSocket()?.connected ?? false)
@@ -156,6 +158,18 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             <span className="sr-only">{ssoLoading ? "Abriendo…" : "Ir al SaaS"}</span>
           </button>
         )}
+        {/* Zoom de la interfaz (obs. 24/10): achica o agranda todo el POS. */}
+        <div className="header-zoom" role="group" aria-label="Zoom de la interfaz">
+          <button type="button" className="header-zoom-btn" onClick={uiZoom.zoomOut} disabled={!uiZoom.canZoomOut} aria-label="Achicar la interfaz" title="Achicar">
+            <ZoomOut size={16} aria-hidden />
+          </button>
+          <button type="button" className="header-zoom-value" onClick={uiZoom.reset} title="Volver a 100 %" aria-label={`Zoom ${uiZoom.percent} %, volver a 100 %`}>
+            {uiZoom.percent}%
+          </button>
+          <button type="button" className="header-zoom-btn" onClick={uiZoom.zoomIn} disabled={!uiZoom.canZoomIn} aria-label="Agrandar la interfaz" title="Agrandar">
+            <ZoomIn size={16} aria-hidden />
+          </button>
+        </div>
         <button
           type="button"
           className="btn btn-ghost btn-sm"
