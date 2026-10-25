@@ -4,8 +4,10 @@ import { auth } from '@/lib/auth'
 import { canPayCommissions, canViewCommissions } from '@/lib/commission-access'
 import { Coins } from 'lucide-react'
 import CommissionsCenter from '@/components/admin/commissions/CommissionsCenter'
+import CommissionPayerSettings from '@/components/admin/commissions/CommissionPayerSettings'
 
-// Comisiones por transferencia (delivery): admin, manager y cajero (pagar: admin y manager).
+// Comisiones por transferencia y efectivo: admin, manager y cajero (pagar: admin y manager).
+// Quién paga la comisión (cliente o comercio): lo elige el admin.
 export default async function CommissionsPage({ params }: { params: Promise<{ tenant: string }> }) {
   const session = await auth()
   const role = session?.user?.role
@@ -20,9 +22,10 @@ export default async function CommissionsPage({ params }: { params: Promise<{ te
         </div>
         <div>
           <h1 className="text-2xl font-bold text-foreground">Comisiones</h1>
-          <p className="text-sm font-medium text-muted-foreground">Qué se le debe a TakeasyGO por pedidos de delivery pagados por transferencia, por qué y cómo pagarlo.</p>
+          <p className="text-sm font-medium text-muted-foreground">Qué se le debe a TakeasyGO por pedidos pagados por transferencia o efectivo, por qué y cómo pagarlo.</p>
         </div>
       </div>
+      <CommissionPayerSettings tenantSlug={tenantSlug} />
       <Suspense>
         <CommissionsCenter tenantSlug={tenantSlug} canPay={canPayCommissions(role)} />
       </Suspense>

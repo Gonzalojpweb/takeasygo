@@ -39,6 +39,7 @@
 // ============================================================================
 
 import mongoose, { type Types } from 'mongoose'
+import { MANUAL_COMMISSION_METHODS } from '@/lib/commission-rules'
 import Order from '@/models/Order'
 import CommissionSettlement from '@/models/CommissionSettlement'
 import WeeklyCommissionStatement from '@/models/WeeklyCommissionStatement'
@@ -100,14 +101,18 @@ export function weekBounds(key: string, tz: string = DEFAULT_TIMEZONE): { weekSt
   }
 }
 
-/** Filtro de pedidos que generan comisión a pagar por el restaurante. */
+/**
+ * Filtro de pedidos que generan comisión a pagar por el restaurante: medios
+ * MANUALES (el dinero entra al comercio). Desde 2026-10-25 incluye efectivo
+ * (lib/commission-rules). MercadoPago/Kripton se cobran solos (split).
+ */
 export function commissionableFilter(tenantId: Id, extra: Record<string, unknown> = {}) {
   return {
     tenantId: tidOf(tenantId),
     deletedAt: null,
     status: { $ne: 'cancelled' },
     'payment.status': 'approved',
-    'payment.method': 'transfer',
+    'payment.method': { $in: [...MANUAL_COMMISSION_METHODS] },
     'payment.platformFeeAmount': { $gt: 0 },
     ...extra,
   }

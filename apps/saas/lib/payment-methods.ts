@@ -93,7 +93,7 @@ export async function loadPaymentMethodContext(
   const [tenant, platformConfig] = await Promise.all([
     Tenant.findOne({ slug: tenantSlug })
       .select(
-        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts mpSplitGuard plan features cash timezone'
+        'transfer transferAccounts paymentSurcharges paymentMethodsVisibility mercadopago kripton mpOAuth mpAccounts mpSplitGuard plan features cash timezone commissionRules commissionPayer'
       )
       .lean() as unknown as ITenant | null,
     PlatformConfig.findById('platform')
@@ -243,7 +243,8 @@ export function buildPaymentMethodCatalog(
     cashConfig.enabled
 
   if (cashEnabled) {
-    // Cash no tiene recargo: el total final es exactamente el baseTotal.
+    // Efectivo: recargo solo si la matriz del superadmin le aplica comisión a
+    // este modo y el admin eligió recargarla al cliente (lib/commission-rules).
     const cashPricing = calculateFinalTotal(
       baseTotal,
       'cash',
@@ -258,8 +259,8 @@ export function buildPaymentMethodCatalog(
       label: 'Efectivo',
       description: 'Pago en efectivo al retirar',
       enabled: true,
-      surchargePercent: 0,
-      totalFees: 0,
+      surchargePercent: cashPricing.surchargePercent,
+      totalFees: getTotalFeesForMethod('cash', tenant, platformConfig || {}, undefined, mode),
       cashDiscountPercent: cashConfig.discountPercent,
       ...withTotal(cashPricing),
     })

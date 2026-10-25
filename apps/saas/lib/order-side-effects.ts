@@ -90,6 +90,17 @@ export async function registerCashSaleOnDelivery(args: {
   const { order, tenant } = args
 
   setImmediate(async () => {
+    // Comisión manual de efectivo (lib/commission-rules): suma al balance de
+    // comisiones del comercio al concretarse el cobro. Idempotente (flag en
+    // la orden); se revierte sola si después se cancela.
+    if ((order.payment?.platformFeeAmount ?? 0) > 0) {
+      try {
+        const { incrementCommissionBalance } = await import('@/lib/commission-balance')
+        await incrementCommissionBalance(order._id, tenant._id, order.payment!.platformFeeAmount)
+      } catch (err) {
+        console.error(`[order-side-effects] no se pudo sumar la comisión de efectivo de ${order.orderNumber}`, err)
+      }
+    }
     try {
       await confirmOrderPaymentCore(order, tenant)
     } catch (err) {

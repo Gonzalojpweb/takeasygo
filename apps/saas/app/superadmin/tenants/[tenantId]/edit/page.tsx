@@ -4,6 +4,7 @@ import User from '@/models/User'
 import { notFound } from 'next/navigation'
 import EditTenantForm from '@/components/superadmin/EditTenantForm'
 import MpSplitPanel from '@/components/superadmin/MpSplitPanel'
+import CommissionRulesPanel from '@/components/superadmin/CommissionRulesPanel'
 
 interface Props {
   params: Promise<{ tenantId: string }>
@@ -22,6 +23,7 @@ export default async function EditTenantPage({ params }: Props) {
     <div>
       <h1 className="text-foreground text-2xl font-bold mb-6">Editar Tenant</h1>
       <MpSplitPanel tenantId={tenantId} />
+      <CommissionRulesPanel tenantId={tenantId} />
       <EditTenantForm
         tenant={JSON.parse(JSON.stringify(tenant))}
         adminEmail={adminUser?.email ?? null}
