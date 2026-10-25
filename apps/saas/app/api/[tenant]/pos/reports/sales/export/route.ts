@@ -5,8 +5,7 @@ import { logAudit } from '@/lib/audit'
 import { posRoute } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { resolvePosRole } from '@/lib/pos-online/permissions'
-import { loadSalesMetrics } from '@/lib/metrics/sales'
-import { listSales, type SaleRow } from '@/lib/metrics/salesList'
+import { describeSalesFilters, loadSalesView, parseSalesFilters } from '@/lib/metrics/salesView'
 import { buildSalesPdf, buildSalesXlsx } from '@/lib/metrics/salesReportFile'
 
 // ============================================================================
@@ -26,27 +25,30 @@ export const GET = posRoute('cash.read', async (ctx) => {
   const format = p.get('format')
   if (format !== 'pdf' && format !== 'xlsx') throw PosError.validation('format debe ser pdf o xlsx')
 
-  let metrics
+  // 2026-10-25: el export respeta los MISMOS filtros que la vista (canal,
+  // estado, medio, facturación, modo, plataforma, franja horaria, búsqueda).
+  const filters = parseSalesFilters(p)
+  let view
   try {
-    metrics = await loadSalesMetrics(ctx.tenantId, ctx.locationId, { from: p.get('from') ?? undefined, to: p.get('to') ?? undefined })
+    view = await loadSalesView(ctx.tenantId, ctx.locationId, { from: p.get('from') ?? undefined, to: p.get('to') ?? undefined }, filters, { all: true })
   } catch (err) {
     throw PosError.validation(err instanceof Error ? err.message : 'Rango inválido')
   }
-
-  const rows: SaleRow[] = []
-  if (format === 'xlsx') {
-    for (let page = 0; rows.length < MAX_ROWS; page++) {
-      const res = await listSales(ctx.tenantId, ctx.locationId, { ...metrics.range, page, pageSize: 100 })
-      rows.push(...res.rows)
-      if (res.rows.length < 100) break
-    }
-  }
+  const metrics = { range: view.range, metrics: view.metrics }
+  const rows = format === 'xlsx' ? view.rows.slice(0, MAX_ROWS) : []
 
   const [tenant, location] = await Promise.all([
     Tenant.findById(ctx.tenantId).select('name').lean<{ name?: string }>(),
     Location.findOne({ _id: ctx.locationId, tenantId: ctx.tenantId }).select('name').lean<{ name?: string }>(),
   ])
-  const data = { tenantName: tenant?.name ?? '', locationName: location?.name ?? '', range: metrics.range, metrics: metrics.metrics, rows }
+  const data = {
+    tenantName: tenant?.name ?? '',
+    locationName: location?.name ?? '',
+    range: metrics.range,
+    metrics: metrics.metrics,
+    rows,
+    extra: { filtersLabel: describeSalesFilters(filters), invoicing: view.invoicing, cost: view.cost, products: view.products },
+  }
   const file = format === 'pdf' ? buildSalesPdf(data) : await buildSalesXlsx(data)
   const name = `ventas_${metrics.range.from}${metrics.range.to !== metrics.range.from ? `_${metrics.range.to}` : ''}.${format}`
 
@@ -55,7 +57,7 @@ export const GET = posRoute('cash.read', async (ctx) => {
     action: 'pos.report.export',
     entity: 'Report',
     entityId: name,
-    details: { format, range: metrics.range },
+    details: { format, range: metrics.range, filters },
     request: ctx.request,
     userId: ctx.user.id,
     userRole: ctx.user.role,

@@ -3345,3 +3345,30 @@ body.is-resizing-panel .ros-app { transition: none; }
   .root-notice { flex-wrap: wrap; }
   .root-dlg { padding: 22px 18px; }
 }
+
+/* ========================================
+   VENTAS — filtros en el workspace, facturación y rentabilidad (2026-10-25)
+   ======================================== */
+.sales .sales-toolbar + .sales-toolbar { margin-top: -4px; }
+.sales-chips--sub { background: var(--primary-action-light); }
+.sales-select { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--sp-2) 0 var(--sp-3); border: 1px solid var(--border); border-radius: 10px; background: var(--surface); font-size: var(--font-size-sm); }
+.sales-select span { color: var(--text-muted); font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.4px; }
+.sales-select select, .sales-range select { min-height: 34px; border: 0; background: transparent; font: inherit; font-weight: var(--font-weight-semibold); color: var(--text-primary); cursor: pointer; }
+.sales-range select { border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; background: var(--surface); }
+.sales-filters .sales-search { flex: 1 1 240px; }
+.sales-kpis small { font-size: var(--font-size-xs); color: var(--text-secondary); }
+.sales-row { grid-template-columns: 64px 140px minmax(140px, 1.2fr) minmax(0, 2fr) 120px 120px 120px; }
+@media (max-width: 1280px) { .sales-row { grid-template-columns: 56px 120px minmax(120px, 1fr) minmax(0, 1.4fr) 110px 110px; } .sales-row > :nth-child(5) { display: none; } }
+@media (max-width: 900px) { .sales-row { grid-template-columns: 52px 44px minmax(0, 1fr) 96px 100px; } .sales-row > :nth-child(4), .sales-row > :nth-child(5) { display: none; } }
+.sale-fiscal { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.sale-fiscal--invoiced { background: var(--success-light); color: var(--success); }
+.sale-fiscal--pending { background: var(--warning-light); color: #8A5A00; }
+.sale-fiscal--credited { background: var(--error-light); color: var(--error); }
+.sale-fiscal--none { background: var(--surface-secondary); color: var(--text-secondary); }
+.sale-billed { display: inline-block; padding: 0 6px; border-radius: 6px; background: var(--success-light); color: var(--success); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.sale-warn { display: flex; gap: 6px; align-items: flex-start; margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: 8px; background: var(--warning-light); color: #8A5A00; font-size: var(--font-size-sm); }
+.sale-warn svg { flex: none; margin-top: 2px; }
+.text-warning { color: #8A5A00; }
+.sales-prod-row { display: grid; grid-template-columns: minmax(140px, 2fr) 70px repeat(3, minmax(90px, 1fr)); gap: var(--sp-3); align-items: center; min-height: 40px; font-size: var(--font-size-sm); border-bottom: 1px solid var(--border); }
+.sales-prod-row--head { min-height: 32px; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+@media (max-width: 768px) { .sales-select { flex: 1 1 45%; } }

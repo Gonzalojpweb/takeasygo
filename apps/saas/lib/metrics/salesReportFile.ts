@@ -19,8 +19,17 @@ export interface SalesFileData {
   locationName: string
   range: SalesRange
   metrics: SalesMetrics
-  rows: SaleRow[]
+  rows: (SaleRow & { fiscal?: { state: string; label: string | null }; costCents?: number | null })[]
+  /** 2026-10-25: filtros aplicados, facturación y costo (inventario). */
+  extra?: {
+    filtersLabel: string
+    invoicing: Record<'invoiced' | 'notInvoiced' | 'pending', { count: number; amount: number }>
+    cost: { available: boolean; cmvCents: number; grossMarginCents: number; foodCostPct: number | null; coverage: { mappedPortions: number; totalPortions: number } }
+    products: { name: string; quantity: number; revenue: number; costCents: number | null; marginPct: number | null }[]
+  }
 }
+
+const FISCAL_LABEL: Record<string, string> = { invoiced: 'Facturada', credited: 'Con nota de crédito', pending: 'Factura pendiente', none: 'Sin factura' }
 
 const CHANNEL_LABEL: Record<SaleChannel, string> = { salon: 'Salón', mostrador: 'Mostrador', app: 'App TakeasyGO', delivery: 'Delivery externo' }
 const METHOD_LABEL: Record<string, string> = {
@@ -62,6 +71,11 @@ export function buildSalesPdf(data: SalesFileData): Buffer {
   doc.text(`Cierre de ventas — ${periodLabel(data.range)}`, 18, y)
   doc.setFontSize(10)
   y += 9
+  if (data.extra?.filtersLabel) {
+    doc.setFont('helvetica', 'italic')
+    doc.text(`Filtros: ${data.extra.filtersLabel}`, 18, y, { maxWidth: W - 36 })
+    y += 7
+  }
 
   section('Totales')
   line('Ventas', String(m.totals.sales))
@@ -72,6 +86,23 @@ export function buildSalesPdf(data: SalesFileData): Buffer {
   line('Descuentos', `-${pesos(m.totals.discounts)}`)
   line('Ventas anuladas', `${m.totals.voided.count} (${pesos(m.totals.voided.amount)})`)
   line('Platos quitados / merma', `${m.totals.itemVoids.count} (${pesos(m.totals.itemVoids.amount)} / ${pesos(m.totals.itemVoids.wasteAmount)})`)
+
+  if (data.extra) {
+    const inv = data.extra.invoicing
+    section('Facturación')
+    line(`Facturado (${inv.invoiced.count})`, pesos(inv.invoiced.amount))
+    line(`Sin facturar (${inv.notInvoiced.count})`, pesos(inv.notInvoiced.amount))
+    if (inv.pending.count) line(`Factura pendiente de ARCA (${inv.pending.count})`, pesos(inv.pending.amount))
+    const c = data.extra.cost
+    if (c.available) {
+      section('Costo de mercadería (inventario)')
+      line('CMV de lo vendido', pesos(c.cmvCents))
+      line('Margen bruto', pesos(c.grossMarginCents), true)
+      line('Food cost', c.foodCostPct === null ? '—' : `${c.foodCostPct.toLocaleString('es-AR')} %`)
+      const cov = c.coverage.totalPortions ? Math.round((c.coverage.mappedPortions / c.coverage.totalPortions) * 100) : 0
+      line('Porciones con receta', `${cov} %`)
+    }
+  }
 
   section('Por canal')
   for (const [id, c] of Object.entries(m.byChannel) as [SaleChannel, SalesMetrics['byChannel'][SaleChannel]][]) {
@@ -140,16 +171,37 @@ export async function buildSalesXlsx(data: SalesFileData): Promise<Buffer> {
   for (const x of m.byCategory) cat.addRow({ c: x.category, q: x.quantity, r: p(x.revenue) })
   money(cat, ['r']); header(cat)
 
+  if (data.extra) {
+    summary.addRows([
+      { k: 'Filtros', v: data.extra.filtersLabel || 'Sin filtros' },
+      { k: 'Facturado', v: p(data.extra.invoicing.invoiced.amount) },
+      { k: 'Sin facturar', v: p(data.extra.invoicing.notInvoiced.amount) },
+      { k: 'Factura pendiente (ARCA)', v: p(data.extra.invoicing.pending.amount) },
+      ...(data.extra.cost.available
+        ? [
+            { k: 'CMV (costo de mercadería)', v: p(data.extra.cost.cmvCents) },
+            { k: 'Margen bruto', v: p(data.extra.cost.grossMarginCents) },
+            { k: 'Food cost %', v: data.extra.cost.foodCostPct ?? '' },
+          ]
+        : []),
+    ])
+  }
+
   const prod = wb.addWorksheet('Productos')
-  prod.columns = [{ header: 'Producto', key: 'n', width: 30 }, { header: 'Unidades', key: 'q', width: 12 }, { header: 'Ingresos', key: 'r', width: 16 }]
-  for (const x of m.topProducts) prod.addRow({ n: x.name, q: x.quantity, r: p(x.revenue) })
-  money(prod, ['r']); header(prod)
+  prod.columns = [
+    { header: 'Producto', key: 'n', width: 30 }, { header: 'Unidades', key: 'q', width: 12 }, { header: 'Ingresos', key: 'r', width: 16 },
+    { header: 'Costo', key: 'c', width: 14 }, { header: 'Margen %', key: 'g', width: 11 },
+  ]
+  const productRows = data.extra?.products ?? m.topProducts.map((x) => ({ ...x, costCents: null, marginPct: null }))
+  for (const x of productRows) prod.addRow({ n: x.name, q: x.quantity, r: p(x.revenue), c: x.costCents === null ? '' : p(x.costCents), g: x.marginPct ?? '' })
+  money(prod, ['r', 'c']); header(prod)
 
   const sales = wb.addWorksheet('Ventas')
   sales.columns = [
     { header: 'Fecha', key: 'd', width: 18 }, { header: 'Canal', key: 'c', width: 16 }, { header: 'Venta', key: 'v', width: 20 },
     { header: 'Comensales', key: 'g', width: 11 }, { header: 'Productos', key: 'i', width: 50 }, { header: 'Pago', key: 'm', width: 22 },
     { header: 'Descuentos', key: 'x', width: 12 }, { header: 'Total', key: 't', width: 14 }, { header: 'Estado', key: 's', width: 12 },
+    { header: 'Facturación', key: 'f', width: 30 }, { header: 'Costo', key: 'k', width: 12 },
   ]
   for (const r of data.rows) {
     sales.addRow({
@@ -161,10 +213,12 @@ export async function buildSalesXlsx(data: SalesFileData): Promise<Buffer> {
       m: r.payments.length ? r.payments.map((x) => METHOD_LABEL[x.method] ?? x.method).join(' + ') : METHOD_LABEL[r.paymentMethod ?? ''] ?? r.paymentMethod ?? '',
       x: p(r.discounts),
       t: p(r.total),
-      s: r.voided ? 'Anulada' : 'OK',
+      s: r.voided ? 'Anulada' : 'Cobrada',
+      f: r.fiscal ? `${FISCAL_LABEL[r.fiscal.state] ?? r.fiscal.state}${r.fiscal.label ? ` · ${r.fiscal.label}` : ''}` : '',
+      k: typeof r.costCents === 'number' ? p(r.costCents) : '',
     })
   }
-  money(sales, ['x', 't']); header(sales)
+  money(sales, ['x', 't', 'k']); header(sales)
 
   return Buffer.from(await wb.xlsx.writeBuffer())
 }

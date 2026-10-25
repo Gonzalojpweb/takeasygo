@@ -54,18 +54,18 @@ export interface SalesListQuery extends Partial<SalesRange> {
 
 const MAX_PAGE_SIZE = 100
 
-function escapeRegex(s: string): string {
+export function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function nextDay(date: string): string {
+export function nextDay(date: string): string {
   const d = new Date(`${date}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + 1)
   return d.toISOString().slice(0, 10)
 }
 
 /** Filtro Mongo de «venta» (cobrada/facturada o anulada) — espejo de isBilledSale. */
-const SALE_FILTER = {
+export const SALE_FILTER = {
   $or: [
     { source: 'pos', 'posPayments.0': { $exists: true }, status: { $ne: 'cancelled' } },
     {
@@ -76,7 +76,7 @@ const SALE_FILTER = {
   ],
 }
 
-function channelFilter(channel: SaleChannel): Record<string, unknown> {
+export function channelFilter(channel: SaleChannel): Record<string, unknown> {
   const platforms = [...DELIVERY_PLATFORM_IDS]
   switch (channel) {
     case 'salon': return { source: 'pos', posTableId: { $nin: [null, ''] } }
@@ -86,7 +86,7 @@ function channelFilter(channel: SaleChannel): Record<string, unknown> {
   }
 }
 
-type RawOrder = {
+export type RawOrder = {
   _id: mongoose.Types.ObjectId
   posId?: string | null
   orderNumber?: string | null
@@ -156,38 +156,41 @@ export async function listSales(
       .lean<RawOrder[]>(),
   ])
 
-  const rows: SaleRow[] = docs.map((o) => {
-    const table = o.posTableId ? tableById.get(o.posTableId) : undefined
-    const items = (o.items ?? []).map((i) => ({
-      name: i.name,
-      quantity: i.quantity,
-      total: i.subtotal,
-      modifiers: (i.customizations ?? []).flatMap((c) => (c.selectedOptions ?? []).map((s) => s.name)),
-      notes: i.notes ?? null,
-      course: i.course ?? null,
-      discount: i.posDiscount && i.posDiscount.amountCents > 0
-        ? { kind: i.posDiscount.kind, value: i.posDiscount.value, amount: i.posDiscount.amountCents }
-        : null,
-    }))
-    return {
-      id: String(o._id),
-      posId: o.posId ?? null,
-      orderNumber: o.orderNumber ?? null,
-      createdAt: o.createdAt,
-      channel: saleChannelOf(o),
-      table: table ? { number: table.number, section: table.section ?? null } : null,
-      orderMode: o.orderMode ?? null,
-      platform: o.channel && DELIVERY_PLATFORM_IDS.has(o.channel) ? o.channel : null,
-      guests: o.guests ?? null,
-      items,
-      payments: (o.posPayments ?? []).map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
-      paymentMethod: o.payment?.method ?? null,
-      discounts: (o.discountAmount ?? 0) + items.reduce((s, i) => s + (i.discount?.amount ?? 0), 0),
-      total: o.total,
-      voided: o.voided ? { at: o.voided.at, reason: o.voided.reason } : null,
-      chargedInPos: o.source === 'pos' && Boolean(o.posPayments?.length),
-    }
-  })
+  const rows: SaleRow[] = docs.map((o) => toSaleRow(o, tableById))
 
   return { range, total, page, pageSize, rows }
+}
+
+/** Fila del listado de ventas (la usan el listado, la vista filtrada y el export). */
+export function toSaleRow(o: RawOrder, tableById: Map<string, { number: number; section?: string | null }>): SaleRow {
+  const table = o.posTableId ? tableById.get(o.posTableId) : undefined
+  const items = (o.items ?? []).map((i) => ({
+    name: i.name,
+    quantity: i.quantity,
+    total: i.subtotal,
+    modifiers: (i.customizations ?? []).flatMap((c) => (c.selectedOptions ?? []).map((s) => s.name)),
+    notes: i.notes ?? null,
+    course: i.course ?? null,
+    discount: i.posDiscount && i.posDiscount.amountCents > 0
+      ? { kind: i.posDiscount.kind, value: i.posDiscount.value, amount: i.posDiscount.amountCents }
+      : null,
+  }))
+  return {
+    id: String(o._id),
+    posId: o.posId ?? null,
+    orderNumber: o.orderNumber ?? null,
+    createdAt: o.createdAt,
+    channel: saleChannelOf(o),
+    table: table ? { number: table.number, section: table.section ?? null } : null,
+    orderMode: o.orderMode ?? null,
+    platform: o.channel && DELIVERY_PLATFORM_IDS.has(o.channel) ? o.channel : null,
+    guests: o.guests ?? null,
+    items,
+    payments: (o.posPayments ?? []).map((p) => ({ method: p.method, amount: p.amount, reference: p.reference ?? null })),
+    paymentMethod: o.payment?.method ?? null,
+    discounts: (o.discountAmount ?? 0) + items.reduce((s, i) => s + (i.discount?.amount ?? 0), 0),
+    total: o.total,
+    voided: o.voided ? { at: o.voided.at, reason: o.voided.reason } : null,
+    chargedInPos: o.source === 'pos' && Boolean(o.posPayments?.length),
+  }
 }

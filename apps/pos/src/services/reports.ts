@@ -101,8 +101,95 @@ export async function listSales(
   })
 }
 
-export async function downloadSalesReport(tenantId: string, format: "pdf" | "xlsx", range: { from: string; to: string }): Promise<void> {
-  await posApiDownload(tenantId, "/reports/sales/export", { format, from: range.from, to: range.to })
+export async function downloadSalesReport(
+  tenantId: string,
+  format: "pdf" | "xlsx",
+  range: { from: string; to: string },
+  filters?: Partial<SalesFilters>
+): Promise<void> {
+  await posApiDownload(tenantId, "/reports/sales/export", { format, from: range.from, to: range.to, ...filterQuery(filters ?? {}) })
+}
+
+// ── Vista de Ventas con filtros (2026-10-25) ────────────────────────────────
+// Un solo pedido al servidor trae KPIs, desgloses, facturación, costo
+// (inventario) y la página del listado, todo sobre el MISMO conjunto filtrado.
+
+export interface SalesFilters {
+  channel: SaleChannel | "all"
+  status: "all" | "billed" | "voided"
+  payment: string
+  invoice: "all" | "invoiced" | "not_invoiced" | "pending"
+  mode: "all" | "takeaway" | "delivery" | "dine-in" | "business"
+  platform: string
+  hourFrom: number | null
+  hourTo: number | null
+  q: string
+}
+
+export const DEFAULT_SALES_FILTERS: SalesFilters = {
+  channel: "all", status: "all", payment: "all", invoice: "all", mode: "all", platform: "all", hourFrom: null, hourTo: null, q: "",
+}
+
+export type FiscalState = "invoiced" | "credited" | "pending" | "none"
+
+export interface SaleViewRow extends SaleRow {
+  fiscal: { state: FiscalState; label: string | null }
+  costCents: number | null
+}
+
+export interface SalesView {
+  range: { from: string; to: string }
+  filters: SalesFilters
+  total: number
+  page: number
+  pageSize: number
+  revenueVisible: boolean
+  rows: SaleViewRow[]
+  metrics: SalesMetrics
+  invoicing: Record<"invoiced" | "notInvoiced" | "pending", { count: number; amount: number | null }>
+  byMode: { mode: string; sales: number; revenue: number | null }[]
+  byPlatform: { platform: string; sales: number; revenue: number | null }[]
+  cost: {
+    available: boolean
+    cmvCents: number | null
+    grossMarginCents: number | null
+    foodCostPct: number | null
+    coverage: { mappedPortions: number; totalPortions: number }
+    unmappedProducts: { name: string; portions: number }[]
+    missingCostSkus: number
+  }
+  products: { name: string; quantity: number; revenue: number | null; costCents: number | null; marginPct: number | null }[]
+}
+
+/** Solo los filtros activos viajan en la query (los vacíos = sin filtro). */
+export function filterQuery(f: Partial<SalesFilters>): Record<string, string | number> {
+  const out: Record<string, string | number> = {}
+  for (const key of ["channel", "status", "payment", "invoice", "mode", "platform"] as const) {
+    const v = f[key]
+    if (v && v !== "all") out[key] = v
+  }
+  if (f.hourFrom !== null && f.hourFrom !== undefined && f.hourTo !== null && f.hourTo !== undefined && f.hourFrom !== f.hourTo) {
+    out.hourFrom = f.hourFrom
+    out.hourTo = f.hourTo
+  }
+  if (f.q?.trim()) out.q = f.q.trim()
+  return out
+}
+
+/** Cantidad de filtros activos (sin contar período ni búsqueda). */
+export function activeFilterCount(f: SalesFilters): number {
+  return (["status", "payment", "invoice", "mode", "platform"] as const).filter((k) => f[k] !== "all").length + (f.hourFrom !== null ? 1 : 0)
+}
+
+export async function getSalesView(
+  tenantId: string,
+  range: { from: string; to: string },
+  filters: SalesFilters,
+  paging: { page: number; pageSize: number }
+): Promise<SalesView> {
+  return posApi<SalesView>(tenantId, "/reports/sales/view", {
+    query: { from: range.from, to: range.to, ...filterQuery(filters), page: paging.page, pageSize: paging.pageSize },
+  })
 }
 
 /** Hoy en la zona del dispositivo (YYYY-MM-DD). */
