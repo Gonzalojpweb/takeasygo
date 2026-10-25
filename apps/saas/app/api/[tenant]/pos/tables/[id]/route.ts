@@ -192,6 +192,21 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     throw PosError.conflict('La mesa cambió mientras se procesaba la petición', `posId=${posId}`)
   }
 
+  // Fase G: si se corrigen los comensales con la mesa ya comandada, la
+  // primera ronda abierta (la que los cuenta en las métricas) se actualiza.
+  if (typeof update.guests === 'number') {
+    const first = await Order.findOne({
+      tenantId: ctx.tenantId,
+      locationId: ctx.locationId,
+      posTableId: posId,
+      status: { $nin: ['delivered', 'cancelled'] },
+    })
+      .sort({ createdAt: 1 })
+      .select('_id')
+      .lean()
+    if (first) await Order.updateOne({ _id: first._id }, { $set: { guests: update.guests } })
+  }
+
   await logAudit({
     tenantId: ctx.tenantId,
     action: 'pos.table.update',

@@ -21,6 +21,8 @@ import { POST as tablePrecuenta } from '@/app/api/[tenant]/pos/tables/[id]/precu
 import Printer from '@/models/Printer'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import Order from '@/models/Order'
+import { POST as payOrder } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
+import { GET as salesReport } from '@/app/api/[tenant]/pos/reports/sales/route'
 
 /**
  * M4 — superficie POS: mesas.
@@ -585,5 +587,57 @@ describe('Fase E — precuenta al pedir la cuenta', () => {
     await createOrder(tableId)
     const res = await tablePrecuenta(req(`${TABLES_URL}/${tableId}/precuenta`, undefined, AUTH()), detailParams(tableId))
     expect(res.status).toBe(409)
+  })
+})
+
+
+describe('Fase G — métricas de ventas desde el servidor, por canal y con comensales', () => {
+  const manager = () => ({ authorization: `Bearer ${token('manager')}`, 'x-location-id': locationId })
+  const pay = (orderId: string, amount: number) =>
+    payOrder(req(`${ORDERS_URL}/${orderId}/payments`, { payments: [{ id: crypto.randomUUID(), method: 'cash', amount }] }, AUTH()), detailParams(orderId))
+  const report = (headers: Record<string, string>) => salesReport(req(`http://localhost:3000/api/${SLUG}/pos/reports/sales`, undefined, headers, 'GET'), listParams)
+
+  it('los comensales van a la primera ronda; la categoría se guarda; el reporte separa salón y mostrador', async () => {
+    const tableId = await createTable({ number: 4 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 3 }, AUTH()), detailParams(tableId))
+    const r1 = await createOrder(tableId)
+    const r2 = await createOrder(tableId)
+    const m1 = await createOrder()
+
+    const [o1, o2] = await Promise.all([Order.findOne({ posId: r1 }).lean(), Order.findOne({ posId: r2 }).lean()])
+    expect(o1!.guests).toBe(3)
+    expect(o2!.guests ?? null).toBeNull()
+    expect(o1!.items[0].categoryName).toBe('Platos')
+
+    // Corregir comensales con la mesa ya comandada actualiza la primera ronda.
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { guests: 5 }, AUTH()), detailParams(tableId))
+    expect((await Order.findOne({ posId: r1 }).lean())!.guests).toBe(5)
+
+    for (const id of [r1, r2, m1]) expect((await pay(id, 1500)).status).toBe(201)
+
+    const res = await report(manager())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.revenueVisible).toBe(true)
+    expect(body.metrics.totals).toMatchObject({ sales: 3, revenue: 4500, guests: 5, perGuest: 600 })
+    expect(body.metrics.byChannel.salon).toMatchObject({ sales: 2, revenue: 3000, guests: 5 })
+    expect(body.metrics.byChannel.mostrador).toMatchObject({ sales: 1, revenue: 1500 })
+    expect(body.metrics.byCategory[0]).toMatchObject({ category: 'Platos', quantity: 3 })
+  })
+
+  it('el cajero ve ventas, ticket y comensales pero no los ingresos', async () => {
+    const m1 = await createOrder()
+    await pay(m1, 1500)
+    const body = await (await report(AUTH())).json()
+    expect(body.revenueVisible).toBe(false)
+    expect(body.metrics.totals.sales).toBe(1)
+    expect(body.metrics.totals.revenue).toBeNull()
+    expect(body.metrics.byChannel.mostrador.revenue).toBeNull()
+    expect(body.metrics.byPayment[0].amount).toBeNull()
+  })
+
+  it('el mozo no accede a los reportes', async () => {
+    const waiter = { authorization: `Bearer ${token('waiter')}`, 'x-location-id': locationId }
+    expect((await report(waiter)).status).toBe(403)
   })
 })
