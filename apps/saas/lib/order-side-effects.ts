@@ -3,6 +3,7 @@ import { pushOrderToSyncLayer, confirmOrderPaymentCore, notifySyncLayerStatus } 
 import type { IOrder } from '@/models/Order'
 import type { ITenant } from '@/models/Tenant'
 import { runAfterResponse } from '@/lib/after-response'
+import Location from '@/models/Location'
 
 /**
  * Efectos post-creación/post-confirmación de una orden, en UNA sola función con
@@ -173,20 +174,54 @@ const POS_PROPAGATABLE_STATUSES = new Set([
  * flujo principal (el POS converge igual vía fetch de pendientes).
  */
 export function maybeNotifySyncLayerStatus(args: {
-  order: Pick<IOrder, '_id' | 'source' | 'status'>
+  order: Pick<IOrder, '_id' | 'source' | 'status'> & { locationId?: unknown }
   tenant: Pick<ITenant, '_id' | 'features'>
   status?: string
 }): void {
   const { order, tenant } = args
   const status = args.status ?? order.status
 
-  if (!tenant.features?.posEnabled) return
   if (order.source === 'pos') return
   if (!POS_PROPAGATABLE_STATUSES.has(status)) return
 
-  runAfterResponse('notifySyncLayerStatus', () =>
-    notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status)
-  )
+  if (tenant.features?.posEnabled) {
+    runAfterResponse('notifySyncLayerStatus', () =>
+      notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status)
+    )
+    return
+  }
+  // Sin el flag: igual si la sede del pedido tiene un POS en uso.
+  if (!order.locationId) return
+  runAfterResponse('notifySyncLayerStatus', async () => {
+    if (await locationHasActivePos(tenant._id, order.locationId)) {
+      await notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status)
+    }
+  })
+}
+
+/** Un POS se conectó a la sede en los últimos 30 días (Location.pos.lastSeenAt, lo escribe el Sync). */
+const POS_ACTIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000
+
+export async function locationHasActivePos(tenantId: unknown, locationId: unknown): Promise<boolean> {
+  if (!locationId) return false
+  try {
+    const loc = await Location.findOne({ _id: locationId, tenantId }).select('pos.lastSeenAt').lean<{ pos?: { lastSeenAt?: Date | null } }>()
+    const seen = loc?.pos?.lastSeenAt ? new Date(loc.pos.lastSeenAt).getTime() : 0
+    return seen > 0 && Date.now() - seen < POS_ACTIVE_WINDOW_MS
+  } catch {
+    return false
+  }
+}
+
+/**
+ * ¿Este pedido tiene que ir al POS? Flag «POS habilitado» del superadmin O un
+ * POS en uso en la sede (2026-10-25: en producción 5 de 6 comercios con
+ * pedidos tenían el flag apagado; un POS conectado sin el flag nunca recibía
+ * los pedidos de la App).
+ */
+export async function shouldBridgeToPos(tenant: Pick<ITenant, '_id' | 'features'>, locationId: unknown): Promise<boolean> {
+  if (tenant.features?.posEnabled) return true
+  return locationHasActivePos(tenant._id, locationId)
 }
 
 /**
@@ -207,7 +242,7 @@ export async function syncOrderAfterStatusSet(args: {
 }): Promise<void> {
   const { order, tenant, items, locationId } = args
 
-  if (tenant.features?.posEnabled && (order.status === 'confirmed' || order.status === 'awaiting_payment')) {
+  if ((order.status === 'confirmed' || order.status === 'awaiting_payment') && (await shouldBridgeToPos(tenant, locationId ?? order.locationId))) {
     // BUG 2026-10-25 («el pedido de la App impacta en el SaaS pero no en el
     // POS»): esta llamada quedaba suelta (sin await ni runAfterResponse) y
     // en Vercel la función se congela al responder → el pedido nunca llegaba

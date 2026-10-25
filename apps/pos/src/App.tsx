@@ -159,7 +159,10 @@ function App() {
         tenantId: state.tenantId!,
         source: orderSource,
         status: "pending",
-        externalStatus: "awaiting_payment",
+        // 2026-10-25: un pedido en efectivo ya nace CONFIRMADO en el SaaS (se
+        // cobra al entregar); mostrarlo «esperando pago» era incorrecto.
+        // Transferencia / MP esperan el pago hasta `order:confirmed`.
+        externalStatus: event.paymentMethod === "cash" ? "confirmed" : "awaiting_payment",
         paymentMethod: event.paymentMethod as Order["paymentMethod"],
         orderMode: event.orderMode,
         items: event.items as Order["items"],
@@ -192,6 +195,16 @@ function App() {
 
     const unsubOrderCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
       const event = data as { orderId: string; reason?: string }
+      // 2026-10-25: el «timeout offline» del Sync (10 min MP/efectivo, 24 h
+      // transferencia) es de cuando el POS tenía que aceptar el pedido. Hoy
+      // los pedidos de la App los gestiona el SaaS y nadie le avisa al Sync
+      // que siguen vivos: ese timeout los borraba de «Pedidos App» aunque en
+      // el SaaS estuvieran confirmados. Una cancelación real llega con otro
+      // motivo (o como estado «cancelled») y se aplica siempre.
+      if (event.reason === "offline_timeout") {
+        console.info(`[App] order:cancelled por offline_timeout ignorado (lo gestiona el SaaS): ${event.orderId}`)
+        return
+      }
       cancelExternalOrder(event.orderId, state.tenantId!, event.reason)
         .then(() => {
           console.log(`[App] order:cancelled persisted: ${event.orderId}`)
