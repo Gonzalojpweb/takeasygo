@@ -2946,3 +2946,15 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .sales-break-bar i { display: block; height: 100%; border-radius: 5px; background: var(--primary-action); }
 .sales-break-row .sale-money { text-align: right; }
 @media (max-width: 900px) { .sales-break-row { grid-template-columns: minmax(0, 1fr) 80px 100px; } .sales-break-bar { display: none; } }
+
+/* Fase J: faltantes y stock en el selector (sin sección nueva) */
+.psel-tile { position: relative; }
+.psel-tile.unavailable { opacity: 1; cursor: not-allowed; background: repeating-linear-gradient(135deg, var(--surface) 0 8px, var(--surface-secondary) 8px 16px); }
+.psel-tile.unavailable .psel-tile-name, .psel-tile.unavailable .psel-tile-price { color: var(--text-muted); text-decoration: line-through; }
+.psel-tile-status { position: absolute; top: 6px; right: 6px; padding: 0 6px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.psel-tile-status--manual { background: var(--error-light); color: var(--error); }
+.psel-tile-status--stock { background: var(--warning-light); color: #8A5A00; }
+.psel-tile-status--low { background: var(--warning-light); color: #8A5A00; }
+.psel-tile.pause-mode { cursor: pointer; border-style: dashed; }
+.psel-tile.pause-mode:hover { border-color: var(--error); }
+.psel-pause-toggle { min-height: 40px; }

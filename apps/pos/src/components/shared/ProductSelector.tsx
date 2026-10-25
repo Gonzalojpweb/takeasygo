@@ -29,6 +29,18 @@ interface ProductSelectorProps {
   onSelectProduct: (product: Product) => void
   /** ids de los más pedidos (usePopularProducts). Vacío ⇒ sin «Frecuentes». */
   popularIds?: string[]
+  /**
+   * Fase J: presente ⇒ modo «Pausar / reanudar» (caja, encargado, admin):
+   * tocar un artículo lo pausa o lo reanuda en vez de agregarlo.
+   */
+  onToggleAvailability?: (product: Product) => void
+}
+
+/** Debajo de este número de porciones el POS avisa «Quedan N». */
+const LOW_STOCK_PORTIONS = 5
+
+function unavailableLabel(p: Product): string {
+  return p.unavailableReason === "stock" ? "Sin inventario" : "Faltante"
 }
 
 function normalize(text: string): string {
@@ -62,7 +74,9 @@ export function ProductSelector({
   onSelectCategory,
   onSelectProduct,
   popularIds = [],
+  onToggleAvailability,
 }: ProductSelectorProps) {
+  const [pauseMode, setPauseMode] = useState(false)
   const [query, setQuery] = useState("")
   const [selectedSub, setSelectedSub] = useState<string | null>(null)
   const [popularActive, setPopularActive] = useState(false)
@@ -144,9 +158,11 @@ export function ProductSelector({
   }, [onSelectCategory])
 
   const add = useCallback((p: Product | undefined) => {
-    if (!p || !p.isAvailable) return
+    if (!p) return
+    if (pauseMode && onToggleAvailability) { onToggleAvailability(p); return }
+    if (!p.isAvailable) return
     onSelectProduct(p)
-  }, [onSelectProduct])
+  }, [onSelectProduct, onToggleAvailability, pauseMode])
 
   const goPage = useCallback((delta: number) => {
     const next = Math.min(pageCount - 1, Math.max(0, safePage + delta))
@@ -276,6 +292,17 @@ export function ProductSelector({
             )}
           </label>
           <span className="psel-count" aria-live="polite">{filtered.length} {filtered.length === 1 ? "producto" : "productos"}</span>
+          {onToggleAvailability && (
+            <button
+              type="button"
+              className={`btn ${pauseMode ? "btn-danger" : "btn-secondary"} psel-pause-toggle`}
+              aria-pressed={pauseMode}
+              onClick={() => setPauseMode((v) => !v)}
+              title="Pausar o reanudar artículos (faltantes)"
+            >
+              {pauseMode ? "Listo" : "Faltantes"}
+            </button>
+          )}
           <div className="psel-pager" role="group" aria-label="Páginas">
             <button type="button" className="btn btn-secondary psel-page-btn" onClick={() => goPage(-1)} disabled={safePage === 0} aria-label="Página anterior" title="Re Pág">
               <ChevronLeft size={20} aria-hidden />
@@ -306,16 +333,23 @@ export function ProductSelector({
                 key={product.id}
                 role="option"
                 aria-selected={marked}
-                className={`psel-tile${marked ? " marked" : ""}${product.isAvailable ? "" : " unavailable"}`}
-                disabled={!product.isAvailable}
+                className={`psel-tile${marked ? " marked" : ""}${product.isAvailable ? "" : " unavailable"}${pauseMode ? " pause-mode" : ""}`}
+                aria-disabled={!product.isAvailable && !pauseMode}
                 onClick={() => { setCursor(index); add(product) }}
-                aria-label={`${product.name}, ${formatCurrency(product.price)}${product.modifiers?.length ? ", con opciones" : ""}`}
+                aria-label={`${product.name}, ${formatCurrency(product.price)}${product.isAvailable ? "" : `, ${unavailableLabel(product)}`}${product.modifiers?.length ? ", con opciones" : ""}`}
               >
                 <span className="psel-tile-name">{product.name}</span>
+                {!product.isAvailable && (
+                  <span className={`psel-tile-status psel-tile-status--${product.unavailableReason ?? "manual"}`}>{unavailableLabel(product)}</span>
+                )}
+                {product.isAvailable && typeof product.stockPortions === "number" && product.stockPortions <= LOW_STOCK_PORTIONS && (
+                  <span className="psel-tile-status psel-tile-status--low">Quedan {product.stockPortions}</span>
+                )}
                 <span className="psel-tile-foot">
                   <span className="psel-tile-price">{formatCurrency(product.price)}</span>
-                  {query && <span className="psel-tile-cat">{product.category}</span>}
-                  {!query && product.modifiers && product.modifiers.length > 0 && <span className="psel-tile-opts">opciones</span>}
+                  {pauseMode && <span className="psel-tile-cat">{product.isAvailable ? "Tocá para pausar" : "Tocá para reanudar"}</span>}
+                  {!pauseMode && query && <span className="psel-tile-cat">{product.category}</span>}
+                  {!pauseMode && !query && product.modifiers && product.modifiers.length > 0 && <span className="psel-tile-opts">opciones</span>}
                 </span>
               </button>
             )

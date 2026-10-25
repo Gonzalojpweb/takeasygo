@@ -72,6 +72,17 @@ export interface IMenuItem {
   likesCount: number
   imageUrl: string
   isAvailable: boolean
+  /**
+   * Fase J (2026-10): motivo de la pausa. «manual» = la pausó un rol (SaaS o
+   * POS); «stock» = el inventario no alcanza para una porción (pausa y
+   * reanudación automáticas). null = disponible.
+   */
+  pausedReason?: 'manual' | 'stock' | null
+  pausedAt?: Date | null
+  /** Usuario que la pausó (manual) o 'inventory' (automática). */
+  pausedBy?: string | null
+  /** Porciones que alcanzan con el stock actual (lo calcula el inventario). */
+  stockPortions?: number | null
   isTakeawayAvailable: boolean
   isBusinessAvailable: boolean
   tags: string[]
@@ -260,6 +271,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
     type: Boolean,
     default: true,
   },
+  pausedReason: { type: String, enum: ['manual', 'stock', null], default: null },
+  pausedAt: { type: Date, default: null },
+  pausedBy: { type: String, default: null },
+  stockPortions: { type: Number, default: null },
   isTakeawayAvailable: {
     type: Boolean,
     default: true,

@@ -5,6 +5,7 @@ import { calculateItemTotal, allocatePayments, type CheckoutPart, type Allocated
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
+import { setItemAvailability } from "../../services/menu"
 import { usePayments } from "../../hooks/usePayments"
 import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
@@ -774,6 +775,17 @@ export function CounterDashboard() {
       setReservationBusyId(null)
     }
   }, [tenantId, reservationBusyId, refreshReservations, showToast])
+
+  // ── Fase J: pausar / reanudar artículos (faltantes) desde el selector ─────
+  const handleToggleAvailability = useCallback(async (product: Product) => {
+    if (!tenantId) return
+    try {
+      await setItemAvailability(tenantId, product.id, !product.isAvailable)
+      showToast(product.isAvailable ? `«${product.name}» marcado como faltante` : `«${product.name}» disponible otra vez`, "success")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo cambiar la disponibilidad"), "error")
+    }
+  }, [tenantId, showToast])
 
   // ── Fase C: pedir la cuenta / reabrir la mesa ─────────────────────────────
   const handleBillRequest = useCallback(async (needsBill: boolean) => {
@@ -2009,6 +2021,7 @@ export function CounterDashboard() {
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
+                onToggleAvailability={handleToggleAvailability}
               />
             </div>
           )}
@@ -2117,6 +2130,7 @@ export function CounterDashboard() {
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
+                onToggleAvailability={handleToggleAvailability}
               />
             </div>
           )}
