@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react"
 import { ChevronLeft, ChevronRight, Search, UtensilsCrossed, Store, Smartphone, Bike, FileText, FileSpreadsheet } from "lucide-react"
 import { useLayout } from "../layout/LayoutContext"
+import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { useAuth } from "../../hooks/useAuth"
 import { formatCurrency, formatTime } from "../../utils/format"
 import { VOID_REASONS, VOID_REASON_LABELS, type VoidReason } from "@takeasygo/business/browser"
@@ -87,6 +88,8 @@ export function SalesDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [voiding, setVoiding] = useState(false)
+  // Esc: cancela la anulación en curso, o cierra el detalle de la venta.
+  useEscapeBack(voiding ? () => setVoiding(false) : selectedId ? () => setSelectedId(null) : null)
   const [voidReason, setVoidReason] = useState<VoidReason | null>(null)
   const [voidBusy, setVoidBusy] = useState(false)
   const [downloading, setDownloading] = useState<"pdf" | "xlsx" | null>(null)

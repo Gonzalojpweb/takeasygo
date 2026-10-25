@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { RotateCcw, Printer, FileMinus, Download } from "lucide-react"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
+import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { formatCurrency, formatTime } from "../../utils/format"
 import { isPosApiError } from "../../services/pos-api"
 import { localToday, shiftDate } from "../../services/reports"
@@ -59,6 +60,8 @@ export function FiscalDashboard() {
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   const range = useMemo(() => rangeFor(preset), [preset])
+  // Esc: cierra el comprobante abierto (el centro de ayuda maneja su propio Esc).
+  useEscapeBack(selectedId ? () => setSelectedId(null) : null)
 
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })

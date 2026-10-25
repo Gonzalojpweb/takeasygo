@@ -5,6 +5,7 @@ import { calculateItemTotal, allocatePayments, type CheckoutPart, type Allocated
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
+import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { setItemAvailability } from "../../services/menu"
 import { usePayments } from "../../hooks/usePayments"
 import { useOrders } from "../../hooks/useOrders"
@@ -663,6 +664,36 @@ export function CounterDashboard() {
     ),
     [unseenReservations, pickupOrders.length, deliveryOrders.length]
   )
+  // ── Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible ────────
+  const escapeBack = (() => {
+    switch (scene) {
+      case "mesa":
+        return selectedTable ? () => { setSelectedTableId(null); setScene("salon") } : null
+      case "mover":
+        return moveBusy ? null : () => setScene("mesa")
+      case "productos":
+        return view === "salon" ? () => setScene(cart.length > 0 ? "salon" : "mesa") : null
+      case "configurar":
+        return () => { setConfigProduct(null); setScene(view === "mostrador" ? "mostrador_rapido" : "productos") }
+      case "revision":
+        return () => setScene(view === "mostrador" ? "mostrador_rapido" : "productos")
+      case "cobro":
+        return paying ? null : () => setScene(cart.length > 0 ? "revision" : view === "mostrador" ? "mostrador_rapido" : "productos")
+      case "mostrador_entregas":
+        return () => setScene("mostrador_rapido")
+      case "setup":
+        return () => setScene("salon")
+      case "entrantes":
+        if (entrantesSubView === "kanban") return selectedKanbanOrderId ? () => setSelectedKanbanOrderId(null) : null
+        if (gatewayScene === "validation") return handleGatewayBack
+        if (gatewayScene === "transform") return transformResult ? handleGatewayBack : () => setGatewayScene("validation")
+        return null
+      default:
+        return null
+    }
+  })()
+  useEscapeBack(escapeBack)
+
   // Obs. UX 25/10: el header superior lleva solo las vistas (opciones del
   // sistema); sectores, estados y configurar van en el encabezado del
   // workspace del salón (SalonHeaderBar, arriba del mapa).

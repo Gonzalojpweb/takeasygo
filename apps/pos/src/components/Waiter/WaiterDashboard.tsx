@@ -8,6 +8,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
 import { useOrders } from "../../hooks/useOrders"
 import { useMenu } from "../../hooks/useMenu"
+import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
@@ -373,6 +374,14 @@ export function WaiterDashboard() {
   }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
+  // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.
+  useEscapeBack(
+    scene === "mesa" || scene === "cocina" ? backToTables
+    : scene === "pedido" ? (sending ? null : () => setScene("mesa"))
+    : scene === "configurar" ? () => { setConfigProduct(null); setScene("pedido") }
+    : null
+  )
+
   // Obs. UX 25/10: el header superior es del sistema; sectores, estados y
   // Cocina van en el encabezado del workspace (arriba del mapa).
   useEffect(() => { setHeaderCenter(null) }, [setHeaderCenter])
