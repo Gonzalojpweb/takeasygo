@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge } from "lucide-react"
+import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText } from "lucide-react"
 
 // ============================================================================
 // Contextos operativos del ROS — definición única
@@ -17,7 +17,7 @@ import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge } from "lucide-r
 // Manager/Admin; el mozo solo opera el Salón (Roles Matrix).
 // ============================================================================
 
-export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen"
+export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen" | "facturacion"
 
 export interface RosContext {
   id: ContextId
@@ -84,6 +84,17 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: BarChart3,
     roles: ["admin", "manager"],
     empty: { title: "Sin venta seleccionada", hint: "Elegí una venta para ver su detalle." },
+  },
+  {
+    // Fase L: factura electrónica operada desde el POS (comprobantes,
+    // reintento, reimpresión, nota de crédito, Libro IVA) + centro de ayuda.
+    // La configuración (CUIT, certificado) sigue en el panel de admin.
+    id: "facturacion",
+    label: "Facturación",
+    title: "Factura electrónica",
+    icon: FileText,
+    roles: ALL_HUB_ROLES,
+    empty: { title: "Sin comprobante seleccionado", hint: "Elegí un comprobante para reintentarlo, reimprimirlo o emitir la nota de crédito." },
   },
 ]
 

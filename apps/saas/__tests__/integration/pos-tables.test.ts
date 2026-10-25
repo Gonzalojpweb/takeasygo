@@ -625,7 +625,7 @@ describe('Fase G — métricas de ventas desde el servidor, por canal y con come
     expect(body.metrics.byChannel.salon).toMatchObject({ sales: 2, revenue: 3000, guests: 5 })
     expect(body.metrics.byChannel.mostrador).toMatchObject({ sales: 1, revenue: 1500 })
     expect(body.metrics.byCategory[0]).toMatchObject({ category: 'Platos', quantity: 3 })
-  })
+  }, 30_000) // muchas requests en serie: con la suite completa en paralelo supera los 5 s por defecto
 
   it('el cajero ve ventas, ticket y comensales pero no los ingresos', async () => {
     const m1 = await createOrder()
@@ -672,7 +672,7 @@ describe('Fase I — listado de ventas y reportes descargables', () => {
 
     const byTable = await (await list('?q=12', manager())).json()
     expect(byTable.total).toBe(1)
-  })
+  }, 30_000) // muchas requests en serie: con la suite completa en paralelo supera los 5 s por defecto
 
   it('el cajero recibe el listado sin montos', async () => {
     const id = await createOrder()

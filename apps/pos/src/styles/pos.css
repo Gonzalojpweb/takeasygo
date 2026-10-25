@@ -2958,3 +2958,34 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .psel-tile.pause-mode { cursor: pointer; border-style: dashed; }
 .psel-tile.pause-mode:hover { border-color: var(--error); }
 .psel-pause-toggle { min-height: 40px; }
+
+/* Fase L: Facturación y centro de ayuda fiscal */
+.fiscal-row { grid-template-columns: 64px minmax(160px, 1.3fr) minmax(120px, 1fr) 120px 110px; }
+.fiscal-status { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.fiscal-status--authorized { background: var(--success-light); color: var(--success); }
+.fiscal-status--pending, .fiscal-status--retrying { background: var(--warning-light); color: #8A5A00; }
+.fiscal-status--rejected { background: var(--error-light); color: var(--error); }
+.fiscal-libro { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fiscal-libro input[type="month"] { min-height: 36px; padding: 0 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-primary); }
+.fiscal-actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.fhelp { width: min(920px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; padding: 0; }
+.fhelp-head { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.fhelp-head h2 { flex: 1; margin: 0; font-size: 17px; }
+.fhelp-body { display: grid; grid-template-columns: 260px 1fr; min-height: 0; flex: 1; }
+.fhelp-topics { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-right: 1px solid var(--border); overflow-y: auto; }
+.fhelp-topic { text-align: left; padding: 10px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; min-height: 44px; }
+.fhelp-topic:hover { background: var(--surface-secondary); }
+.fhelp-topic.active { background: var(--primary-light, var(--surface-secondary)); color: var(--text-primary); font-weight: 600; }
+.fhelp-content { padding: 18px 22px; overflow-y: auto; line-height: 1.55; font-size: 15px; }
+.fhelp-content h3 { margin-top: 0; }
+.fhelp-content ul { padding-left: 20px; }
+.fhelp-content li { margin-bottom: 6px; }
+.fhelp-glossary dt { font-weight: 700; margin-top: 10px; }
+.fhelp-glossary dd { margin: 2px 0 0; color: var(--text-secondary); }
+@media (max-width: 720px) {
+  .fhelp-body { grid-template-columns: 1fr; }
+  .fhelp-topics { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  .fhelp-topic { white-space: nowrap; }
+  .fiscal-row { grid-template-columns: 56px 1fr 100px; }
+  .fiscal-row > :nth-child(3), .fiscal-row > :nth-child(4) { display: none; }
+}

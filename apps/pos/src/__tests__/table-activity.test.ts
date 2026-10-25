@@ -75,3 +75,12 @@ describe("contextsForRole (Operational Roles Matrix)", () => {
     expect(contextsForRole("superhacker").map((c) => c.id)).not.toContain("ventas")
   })
 })
+
+describe("Fase L — contexto Facturación", () => {
+  it("caja, encargado y admin facturan desde el POS; el mozo no", () => {
+    for (const role of ["cashier", "manager", "admin"]) {
+      expect(contextsForRole(role).map((c) => c.id)).toContain("facturacion")
+    }
+    expect(contextsForRole("waiter").map((c) => c.id)).not.toContain("facturacion")
+  })
+})

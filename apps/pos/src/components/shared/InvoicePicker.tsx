@@ -1,5 +1,6 @@
 import type { FiscalConfig, InvoiceChoice } from "../../services/fiscal"
 import { isInvoiceChoiceValid } from "../../services/fiscal"
+import { FiscalHelpButton } from "../Fiscal/FiscalHelpCenter"
 
 /**
  * Factura en el cobro (Fase 5 de caja). Un renglón con la elección y, solo
@@ -39,6 +40,8 @@ export function InvoicePicker({
           </button>
         ))}
         {config.environment === "homologation" && <span className="invoice-test">Pruebas</span>}
+        {/* Fase L: ¿A, B o C? ¿DNI? — ayuda a mano en el cobro */}
+        <FiscalHelpButton topic={value.type === "company" ? "cuit" : "abc"} label="?" />
       </div>
 
       {value.type === "company" && (
