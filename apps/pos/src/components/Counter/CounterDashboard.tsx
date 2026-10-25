@@ -663,20 +663,13 @@ export function CounterDashboard() {
     ),
     [unseenReservations, pickupOrders.length, deliveryOrders.length]
   )
-  // Obs. UX 25/10: en la vista Salón el mismo header suma los sectores
-  // (cada uno a todo el workspace) y los estados como íconos con contador.
+  // Obs. UX 25/10: el header superior lleva solo las vistas (opciones del
+  // sistema); sectores, estados y configurar van en el encabezado del
+  // workspace del salón (SalonHeaderBar, arriba del mapa).
   const salonView = useSalonView(tables)
-  const showSalonBar = view === "salon" && (scene === "salon" || scene === "mesa" || scene === "mover") && tables.length > 0
   useEffect(() => {
-    setHeaderCenter(
-      <div className="header-views-row">
-        <WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />
-        {showSalonBar && (
-          <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} />
-        )}
-      </div>
-    )
-  }, [setHeaderCenter, view, handleViewChange, counterViews, showSalonBar, salonView, scene])
+    setHeaderCenter(<WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />)
+  }, [setHeaderCenter, view, handleViewChange, counterViews])
 
   // Abrir Reservaciones marca vistas las nuevas (también para el panel del SaaS).
   useEffect(() => {
@@ -2004,6 +1997,7 @@ export function CounterDashboard() {
                   </div>
                 ) : (
                   <>
+                    <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} />
                     <SalonMap
                       view={salonView}
                       variant="counter"

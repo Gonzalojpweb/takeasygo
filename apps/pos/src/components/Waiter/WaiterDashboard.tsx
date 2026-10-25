@@ -373,32 +373,9 @@ export function WaiterDashboard() {
   }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
-  // Obs. UX 25/10: un solo header. En el salón: sectores + estados (íconos)
-  // + Cocina. En Cocina: volver a las mesas. Nada de títulos repetidos.
-  useEffect(() => {
-    if (scene === "mesas" || scene === "mesa") {
-      setHeaderCenter(
-        <SalonHeaderBar
-          view={salonView}
-          extra={
-            <button type="button" className="salon-status-btn salon-kitchen-btn" onClick={() => setScene("cocina")} title="Estado de cocina" aria-label={readyCount > 0 ? `Cocina, ${readyCount} listos` : "Cocina"}>
-              <ChefHat size={18} aria-hidden />
-              {readyCount > 0 && <span className="salon-status-count salon-ready-count">{readyCount}</span>}
-            </button>
-          }
-        />
-      )
-    } else if (scene === "cocina") {
-      setHeaderCenter(
-        <div className="salon-bar">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={backToTables}>← Mesas</button>
-        </div>
-      )
-    } else {
-      setHeaderCenter(null)
-    }
-  }, [scene, salonView, readyCount, backToTables, setHeaderCenter])
-  useEffect(() => () => setHeaderCenter(null), [setHeaderCenter])
+  // Obs. UX 25/10: el header superior es del sistema; sectores, estados y
+  // Cocina van en el encabezado del workspace (arriba del mapa).
+  useEffect(() => { setHeaderCenter(null) }, [setHeaderCenter])
 
   const kitchenRounds = useMemo(
     () =>
@@ -417,6 +394,17 @@ export function WaiterDashboard() {
       {(scene === "mesas" || scene === "mesa") && (
         <>
           <div className="salon-content">
+            {tables.length > 0 && (
+              <SalonHeaderBar
+                view={salonView}
+                extra={
+                  <button type="button" className="salon-status-btn salon-kitchen-btn" onClick={() => setScene("cocina")} title="Estado de cocina" aria-label={readyCount > 0 ? `Cocina, ${readyCount} listos` : "Cocina"}>
+                    <ChefHat size={18} aria-hidden />
+                    {readyCount > 0 && <span className="salon-status-count salon-ready-count">{readyCount}</span>}
+                  </button>
+                }
+              />
+            )}
             <WaiterSectorGrid
               view={salonView}
               tables={tables}
@@ -457,7 +445,8 @@ export function WaiterDashboard() {
       {scene === "cocina" && (
         <div className="workspace-scene">
           <div className="workspace-header">
-            <div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={backToTables}>← Mesas</button>
+            <div style={{ flex: 1 }}>
               <div className="workspace-title">Estado de cocina</div>
               <div className="workspace-subtitle">
                 {readyCount > 0 ? `${readyCount} listos para servir` : "Nada listo todavía"} · {kitchenRounds.length} rondas abiertas

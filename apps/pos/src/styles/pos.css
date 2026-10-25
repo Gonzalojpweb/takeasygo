@@ -3059,10 +3059,36 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 /* Relieve: sin la línea superior sólida de los sectores (pedido 25/10). */
 .salon-map-container .sector::before { content: none; display: none; }
 @media (max-width: 768px) {
-  /* En el celular el header muestra la barra del salón (sectores + estados). */
-  .header-center:has(.salon-bar) { display: flex; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
-  .header:has(.salon-bar) .brand-text { display: none; }
-  .header-views-row .workspace-views { display: none; }
   .salon-bar { border-left: none; padding-left: 0; gap: 2px; }
   .salon-status-btn { min-width: 40px; padding: 0 6px; }
+}
+
+/* ========================================
+   ENCABEZADO DEL WORKSPACE DEL SALÓN (obs. UX 25/10, ajuste)
+   Sectores + estados + configurar salen del header superior (queda para lo
+   global) y van arriba del mapa, con la misma tarjeta que el encabezado de
+   la mesa (.tdetail-head).
+   ======================================== */
+.salon-workbar {
+  flex-shrink: 0;
+  height: auto; min-height: 56px;
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: var(--text-primary);
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+}
+.header-center > .salon-workbar, .salon-workbar { border-left: 1px solid var(--border); }
+.salon-workbar .salon-sectors { height: 48px; flex: 1 1 auto; }
+.salon-workbar .salon-status { margin-left: auto; }
+.salon-workbar .salon-status-btn:hover { background: var(--surface-secondary); }
+.salon-workbar .salon-status-btn.active { background: var(--primary-action-light); border-color: var(--primary-action); color: var(--primary-action); }
+.salon-workbar .salon-status-btn { color: var(--text-primary); }
+@media (max-width: 768px) {
+  .salon-workbar { padding: var(--sp-1) var(--sp-2); margin-bottom: var(--sp-2); }
+  .salon-workbar .salon-sectors { flex-basis: 100%; height: 44px; }
+  .salon-workbar .salon-status { margin-left: 0; overflow-x: auto; scrollbar-width: none; }
 }

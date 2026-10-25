@@ -9,14 +9,16 @@ import type { TableActivity } from "../../hooks/useTableActivity"
 // Mapa del salón — Counter y Mozo (mismo componente, Operational Workspace §12)
 // ============================================================================
 // Obs. UX 25/10:
-//   · Un solo header: los SECTORES (Salón principal, Terraza, Vereda… los que
-//     estén configurados) y los ESTADOS (Libre, Ocupada, Atención, Reservada)
-//     viven en el header como pestañas e íconos con contador, sin renglones
-//     propios en el workspace ni textos que roben espacio.
+//   · Los SECTORES (Salón principal, Terraza, Vereda… los que estén
+//     configurados), los ESTADOS (Libre, Ocupada, Atención, Reservada) y el
+//     engranaje viven en el ENCABEZADO DEL WORKSPACE (misma franja que el
+//     encabezado de la mesa: número, sector, comensales, rondas), como
+//     pestañas e íconos con contador. El header superior queda para las
+//     opciones globales del sistema.
 //   · Cada sector es una VISTA que ocupa el 100 % del workspace, con la misma
 //     información (estado, tiempo, monto). Ya no se apilan todos juntos.
 // El estado (sector + filtro) lo tiene useSalonView() en la vista dueña, que
-// pone <SalonHeaderBar> en el header y <SalonMap> en el workspace.
+// pone <SalonHeaderBar> arriba de <SalonMap>, los dos en el workspace.
 // ============================================================================
 
 type Filter = "all" | TableStatus
@@ -73,7 +75,7 @@ interface SalonHeaderBarProps {
   extra?: ReactNode
 }
 
-/** Sectores (pestañas) + estados (íconos con contador) para el header. */
+/** Encabezado del workspace del salón: sectores + estados + configurar. */
 export function SalonHeaderBar({ view, onConfigure, extra }: SalonHeaderBarProps) {
   const { sectors, sector, setSector, filter, setFilter, sectorTables } = view
   const counts = useMemo(() => {
@@ -83,7 +85,7 @@ export function SalonHeaderBar({ view, onConfigure, extra }: SalonHeaderBarProps
   }, [sectorTables])
 
   return (
-    <div className="salon-bar">
+    <header className="salon-bar salon-workbar">
       {sectors.length > 1 && (
         <nav className="salon-sectors" aria-label="Sectores del salón">
           {sectors.map((s) => (
@@ -125,7 +127,7 @@ export function SalonHeaderBar({ view, onConfigure, extra }: SalonHeaderBarProps
         </button>
       )}
       {extra}
-    </div>
+    </header>
   )
 }
 
