@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
+import { useState, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useAuth } from "./hooks/useAuth"
 import { db } from "./db/dexie"
@@ -16,6 +16,7 @@ import { ContextPanel } from "./components/layout/ContextPanel"
 import { UpdateBanner } from "./components/layout/UpdateBanner"
 import { applyAppUpdate, isAppUpdateReady, subscribeAppUpdate } from "./services/app-update"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
+import { PanelResizer, useContextPanelWidth } from "./components/layout/PanelResizer"
 import { contextsForRole, findContext, roleLabel, type ContextId } from "./components/layout/contexts"
 import type { SessionProfile } from "./services/auth-api"
 import {
@@ -329,6 +330,8 @@ function AppShell({
   logout: () => void
 }) {
   const { sidebarCollapsed } = useLayout()
+  // Obs. UX 25/10: ancho del panel de detalle regulable (como VS Code).
+  const panelWidth = useContextPanelWidth()
   const role = profile?.role ?? tokenRole
   const contexts = useMemo(() => contextsForRole(role), [role])
 
@@ -351,7 +354,10 @@ function AppShell({
   ) ?? 0
 
   return (
-    <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
+    <div
+      className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
+      style={panelWidth.width !== null ? ({ "--context-panel-width": `${panelWidth.width}px` } as CSSProperties) : undefined}
+    >
       <Header
         tenantName={profile?.tenantName ?? ""}
         locationName={profile?.locationName}
@@ -379,7 +385,10 @@ function AppShell({
         {current.id === "facturacion" && <FiscalDashboard />}
       </main>
 
-      <ContextPanel empty={current.empty} />
+      <ContextPanel
+        empty={current.empty}
+        resizer={<PanelResizer width={panelWidth.width} onChange={panelWidth.setWidth} />}
+      />
       {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
       <ManagerApprovalDialog />
       {/* Cobro en el posnet MercadoPago Point (Fase 6). */}

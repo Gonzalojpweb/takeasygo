@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest"
 import type { Order } from "@takeasygo/types"
 import { summarizeTableActivity, formatElapsed } from "../hooks/useTableActivity"
 import { contextsForRole } from "../components/layout/contexts"
+import { clampPanelWidth, PANEL_MIN } from "../components/layout/PanelResizer"
 
 /**
  * ROS — la Mesa muestra "nombre, estado, tiempo o monto" (Counter v2 §4).
@@ -82,5 +83,16 @@ describe("Fase L — contexto Facturación", () => {
       expect(contextsForRole(role).map((c) => c.id)).toContain("facturacion")
     }
     expect(contextsForRole("waiter").map((c) => c.id)).not.toContain("facturacion")
+  })
+})
+
+describe("Panel de detalle con ancho regulable (obs. UX 25/10)", () => {
+  it("el ancho queda entre el mínimo y el máximo disponible", () => {
+    expect(clampPanelWidth(100)).toBe(PANEL_MIN)
+    expect(clampPanelWidth(500, 600)).toBe(500)
+    expect(clampPanelWidth(900, 600)).toBe(600)
+    expect(clampPanelWidth(412.6, 600)).toBe(413)
+    // Pantalla chica: el máximo nunca baja del mínimo.
+    expect(clampPanelWidth(400, 200)).toBe(PANEL_MIN)
   })
 })

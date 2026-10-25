@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import { Inbox, ChevronUp } from "lucide-react"
 import { useLayout, type ActionBarContent } from "./LayoutContext"
 
@@ -18,6 +19,8 @@ import { useLayout, type ActionBarContent } from "./LayoutContext"
 
 interface ContextPanelProps {
   empty: { title: string; hint: string }
+  /** Borde arrastrable para regular el ancho (PanelResizer). */
+  resizer?: ReactNode
 }
 
 function ContextDock({ actions }: { actions: ActionBarContent }) {
@@ -30,13 +33,14 @@ function ContextDock({ actions }: { actions: ActionBarContent }) {
   )
 }
 
-export function ContextPanel({ empty }: ContextPanelProps) {
+export function ContextPanel({ empty, resizer }: ContextPanelProps) {
   const { contextPanel, actionBar, panelOpen, setPanelOpen } = useLayout()
   const hasDock = Boolean(actionBar && (actionBar.left || actionBar.center || actionBar.right))
 
   if (!contextPanel) {
     return (
       <aside className={`context-panel context-panel--empty${hasDock ? " has-dock" : ""}`} aria-label="Contexto activo">
+        {resizer}
         <div className="context-panel-empty-state">
           <span className="context-panel-empty-icon" aria-hidden>
             <Inbox size={32} />
@@ -54,6 +58,7 @@ export function ContextPanel({ empty }: ContextPanelProps) {
       className={`context-panel${panelOpen ? " is-open" : ""}${hasDock ? " has-dock" : ""}`}
       aria-label={`Contexto activo: ${contextPanel.title}`}
     >
+      {resizer}
       {/* En celular el encabezado es el asa de la hoja inferior: siempre
           visible (la entidad no desaparece) y despliega el detalle. En
           desktop el botón es inerte visualmente (CSS) y el panel está abierto. */}

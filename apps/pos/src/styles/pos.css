@@ -3092,3 +3092,49 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
   .salon-workbar .salon-sectors { flex-basis: 100%; height: 44px; }
   .salon-workbar .salon-status { margin-left: 0; overflow-x: auto; scrollbar-width: none; }
 }
+
+/* ========================================
+   CONTEXT PANEL COMPACTO + ANCHO REGULABLE (obs. UX 25/10)
+   Acciones de la mesa más chicas: ícono a la izquierda, texto a la derecha,
+   una fila (>= 44px, sigue siendo cómodo al tacto). Con el panel más ancho
+   entran más columnas solas.
+   ======================================== */
+.ctx-actions { gap: var(--sp-3); }
+.ctx-group-title { margin-bottom: 6px; font-size: 11px; }
+.ctx-grid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 6px; }
+.ctx-action {
+  flex-direction: row; align-items: center; gap: var(--sp-2);
+  min-height: 44px; padding: 6px var(--sp-2);
+  border-radius: 10px;
+}
+.ctx-action-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; }
+.ctx-action-text { display: flex; flex-direction: column; min-width: 0; }
+.ctx-action-label { font-size: 13px; }
+.ctx-action-hint { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context-panel-header { padding: var(--sp-3); }
+.context-panel-title { font-size: var(--font-size-base); }
+.ctx-dock { gap: 6px; padding: var(--sp-2) var(--sp-3); }
+.ctx-dock-secondary { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+.ctx-dock-secondary > .btn, .ctx-dock-secondary > button { min-height: 40px; font-size: 13px; padding: 0 var(--sp-2); }
+.ctx-dock-primary > .btn, .ctx-dock-primary > button { min-height: 46px; font-size: var(--font-size-base); }
+.ctx-dock-total .action-bar-total-value { font-size: var(--font-size-lg); }
+
+/* Borde arrastrable (desktop / tablet) */
+.context-panel { position: relative; }
+.panel-resizer {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 8px; z-index: 5;
+  cursor: col-resize; touch-action: none; background: transparent;
+}
+.panel-resizer::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 3px;
+  background: transparent; transition: background var(--transition-fast);
+}
+.panel-resizer:hover::after, .panel-resizer.is-active::after, .panel-resizer:focus-visible::after { background: var(--primary-action); }
+.panel-resizer:focus-visible { outline: none; }
+body.is-resizing-panel { cursor: col-resize; user-select: none; }
+body.is-resizing-panel .ros-app { transition: none; }
+@media (max-width: 768px) {
+  .panel-resizer { display: none; }
+  .ctx-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ctx-action { min-height: 48px; }
+}
