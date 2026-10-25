@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { LayoutGrid, Utensils, Bike, Banknote, BarChart3 } from "lucide-react"
+import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge } from "lucide-react"
 
 // ============================================================================
 // Contextos operativos del ROS — definición única
@@ -17,7 +17,7 @@ import { LayoutGrid, Utensils, Bike, Banknote, BarChart3 } from "lucide-react"
 // Manager/Admin; el mozo solo opera el Salón (Roles Matrix).
 // ============================================================================
 
-export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas"
+export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen"
 
 export interface RosContext {
   id: ContextId
@@ -42,6 +42,16 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: LayoutGrid,
     roles: ALL_HUB_ROLES,
     empty: { title: "Sin mesa seleccionada", hint: "Tocá una mesa del salón o empezá una venta de mostrador." },
+  },
+  {
+    // Fase H: dashboard del día (KPIs por canal, comensales, tendencias).
+    // El cajero lo ve sin ingresos (el server los oculta).
+    id: "resumen",
+    label: "Resumen",
+    title: "Resumen del día",
+    icon: Gauge,
+    roles: ALL_HUB_ROLES,
+    empty: { title: "Ahora en el local", hint: "Mesas, comensales y pedidos en tiempo real." },
   },
   {
     id: "waiter",

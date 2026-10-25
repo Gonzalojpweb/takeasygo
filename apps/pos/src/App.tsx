@@ -7,6 +7,7 @@ import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
 import { SalesDashboard } from "./components/Sales/SalesDashboard"
+import { SummaryDashboard } from "./components/Summary/SummaryDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
@@ -374,6 +375,7 @@ function AppShell({
         {current.id === "flota" && <FlotaWidget />}
         {current.id === "caja" && <CashDashboard role={role} />}
         {current.id === "ventas" && <SalesDashboard />}
+        {current.id === "resumen" && <SummaryDashboard />}
       </main>
 
       <ContextPanel empty={current.empty} />

@@ -263,3 +263,26 @@ export async function loadSalesMetrics(
 
   return { range: r, timezone, metrics: computeSalesMetrics(orders, { timezone, categoryByItem }) }
 }
+
+/**
+ * Suma las métricas de varias sedes (dashboard del SaaS, «Hoy por canal»).
+ * Solo totales y canales; los tickets se recalculan sobre la suma.
+ */
+export function mergeChannelTotals(list: SalesMetrics[]): Pick<SalesMetrics, 'byChannel'> & { totals: ChannelMetrics & { perGuest: number } } {
+  const byChannel = Object.fromEntries(SALE_CHANNELS.map((c) => [c, emptyChannel()])) as Record<SaleChannel, ChannelMetrics>
+  for (const m of list) {
+    for (const c of SALE_CHANNELS) {
+      byChannel[c].sales += m.byChannel[c].sales
+      byChannel[c].revenue += m.byChannel[c].revenue
+      byChannel[c].guests += m.byChannel[c].guests
+    }
+  }
+  for (const c of SALE_CHANNELS) byChannel[c].avgTicket = byChannel[c].sales ? Math.round(byChannel[c].revenue / byChannel[c].sales) : 0
+  const sales = SALE_CHANNELS.reduce((s, c) => s + byChannel[c].sales, 0)
+  const revenue = SALE_CHANNELS.reduce((s, c) => s + byChannel[c].revenue, 0)
+  const guests = byChannel.salon.guests
+  return {
+    byChannel,
+    totals: { sales, revenue, avgTicket: sales ? Math.round(revenue / sales) : 0, guests, perGuest: guests ? Math.round(byChannel.salon.revenue / guests) : 0 },
+  }
+}

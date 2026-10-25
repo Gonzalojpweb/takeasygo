@@ -70,3 +70,14 @@ describe('computeSalesMetrics', () => {
     expect(m.byHour[20]).toMatchObject({ sales: 5, revenue: 24000 })
   })
 })
+
+import { mergeChannelTotals } from '@/lib/metrics/sales'
+
+describe('mergeChannelTotals (varias sedes)', () => {
+  it('suma canales y recalcula tickets sobre el total', () => {
+    const a = computeSalesMetrics(ORDERS)
+    const merged = mergeChannelTotals([a, a])
+    expect(merged.byChannel.salon).toMatchObject({ sales: 4, revenue: 24000, avgTicket: 6000, guests: 8 })
+    expect(merged.totals).toMatchObject({ sales: 10, revenue: 48000, avgTicket: 4800, guests: 8, perGuest: 3000 })
+  })
+})

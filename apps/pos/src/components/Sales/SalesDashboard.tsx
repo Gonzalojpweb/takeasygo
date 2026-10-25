@@ -1,146 +1,132 @@
 import { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef } from "react"
-import { useLiveQuery } from "dexie-react-hooks"
-import type { Order, Table } from "@takeasygo/types"
-import { ChevronLeft, ChevronRight, Search, UtensilsCrossed, Store, Smartphone, Bike } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search, UtensilsCrossed, Store, Smartphone, Bike, FileText, FileSpreadsheet } from "lucide-react"
 import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
-import { db } from "../../db/dexie"
 import { formatCurrency, formatTime } from "../../utils/format"
 import { VOID_REASONS, VOID_REASON_LABELS, type VoidReason } from "@takeasygo/business/browser"
 import { voidOrder } from "../../services/order"
 import { isPosApiError } from "../../services/pos-api"
 import { formatPaymentMethod } from "../../services/payment"
+import { SALE_CHANNEL_LABEL, deliveryPlatformLabel, orderModeLabel } from "../../services/channels"
 import {
-  SALE_CHANNEL_LABEL,
-  deliveryPlatformLabel,
-  orderModeLabel,
-  saleChannelOf,
+  downloadSalesReport,
+  getSalesReport,
+  listSales,
+  localToday,
+  shiftDate,
   type SaleChannel,
-} from "../../services/channels"
+  type SaleRow,
+  type SalesList,
+  type SalesReport,
+} from "../../services/reports"
 
 // ============================================================================
-// Contexto Ventas (observación UI/UX 24/10)
+// Contexto Ventas (obs. 24/10 + Fase I)
 // ============================================================================
-// Antes: cada venta era una tarjeta a todo el ancho titulada «Mesa <uuid>»
-// (el id interno de la mesa, también en ventas de Mostrador o de la App), sin
-// paginar, y el panel de detalle se desbordaba con scroll horizontal.
-// Ahora:
-//   · Lista densa (una fila por venta) PAGINADA al alto real del workspace:
-//     hora · canal · quién (Mesa 4 / Mostrador #A1B2C3 / App · Para retirar)
-//     · productos · pago · total.
-//   · Canal claro con ícono y color: Salón, Mostrador, App, Delivery externo.
-//   · Filtros compactos (período, canal con conteo, búsqueda).
-//   · Detalle completo en el Context Panel: canal, mesa y sector o modo de la
-//     App, fecha y hora, productos con opciones, nota, curso y descuento,
-//     subtotal, descuentos, total, pagos por método y anulación. Sin desborde.
+// Todo sale del SERVIDOR (antes: caché de 200 órdenes del dispositivo, con
+// semana y mes incompletos): mismos números en todos los equipos.
+//   · Período: Hoy · Ayer · 7 días · Mes · Rango (fechas a elección).
+//   · Canal siempre separado: Salón · Mostrador · App TakeasyGO · Delivery.
+//   · Pestañas: Ventas (lista paginada al alto real) · Métodos de pago ·
+//     Categorías · Productos.
+//   · Descargas: «Cierre» en PDF y Excel (encargado y admin).
+//   · Detalle completo en el Context Panel; anular venta con PIN.
+// El cajero ve cantidades sin montos (el server los manda en null).
 // ============================================================================
 
-type Period = "today" | "week" | "month"
+type Preset = "today" | "yesterday" | "week" | "month" | "custom"
+type Tab = "ventas" | "pagos" | "categorias" | "productos"
 type ChannelFilter = "all" | SaleChannel
 
-const PERIOD_LABEL: Record<Period, string> = { today: "Hoy", week: "Esta semana", month: "Este mes" }
 const CHANNEL_ICON: Record<SaleChannel, typeof Store> = { salon: UtensilsCrossed, mostrador: Store, app: Smartphone, delivery: Bike }
 const COURSE_LABEL: Record<string, string> = { entrada: "Entrada", principal: "Principal", postre: "Postre" }
 const ROW_H = 56
 
+function rangeFor(preset: Preset, custom: { from: string; to: string }): { from: string; to: string } {
+  const today = localToday()
+  switch (preset) {
+    case "yesterday": { const y = shiftDate(today, -1); return { from: y, to: y } }
+    case "week": return { from: shiftDate(today, -6), to: today }
+    case "month": return { from: `${today.slice(0, 8)}01`, to: today }
+    case "custom": return custom.from <= custom.to ? custom : { from: custom.to, to: custom.from }
+    default: return { from: today, to: today }
+  }
+}
+
 function shortCode(id: string): string {
-  return id.replace(/-/g, "").slice(0, 6).toUpperCase()
+  return id.replace(/-/g, "").slice(-6).toUpperCase()
 }
 
-/** Quién / dónde: lo que el operador reconoce de un vistazo. */
-function saleTitle(order: Order, channel: SaleChannel, tables: Map<string, Table>): string {
-  if (channel === "salon") {
-    const table = order.tableId ? tables.get(order.tableId) : undefined
-    return table ? `Mesa ${table.number}` : "Mesa (eliminada)"
-  }
-  if (channel === "mostrador") return `Mostrador #${shortCode(order.id)}`
-  if (channel === "delivery") return `${deliveryPlatformLabel(order.channel) ?? "Delivery"} #${shortCode(order.externalOrderId ?? order.id)}`
-  return `App #${shortCode(order.externalOrderId ?? order.id)}`
+function saleTitle(r: SaleRow): string {
+  if (r.channel === "salon") return r.table ? `Mesa ${r.table.number}` : "Mesa (eliminada)"
+  if (r.channel === "mostrador") return `Mostrador #${shortCode(r.posId ?? r.id)}`
+  if (r.channel === "delivery") return `${deliveryPlatformLabel(r.platform ?? undefined) ?? "Delivery"} #${r.orderNumber ?? shortCode(r.id)}`
+  return `App #${r.orderNumber ?? shortCode(r.id)}`
 }
 
-function paymentSummary(order: Order): string {
-  if (order.payments?.length) {
-    return [...new Set(order.payments.map((p) => formatPaymentMethod(p.method).name))].join(" + ")
-  }
-  if (order.paymentMethod) return formatPaymentMethod(order.paymentMethod).name
-  return "—"
+function paymentSummary(r: SaleRow): string {
+  if (r.payments.length) return [...new Set(r.payments.map((p) => formatPaymentMethod(p.method as never).name))].join(" + ")
+  return r.paymentMethod ? formatPaymentMethod(r.paymentMethod as never).name : "—"
 }
+
+const money = (v: number | null | undefined) => (v === null || v === undefined ? "—" : formatCurrency(v))
 
 export function SalesDashboard() {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
-  const [period, setPeriod] = useState<Period>("today")
-  const [channelFilter, setChannelFilter] = useState<ChannelFilter>("all")
+  const [preset, setPreset] = useState<Preset>("today")
+  const [custom, setCustom] = useState(() => ({ from: shiftDate(localToday(), -6), to: localToday() }))
+  const [channel, setChannel] = useState<ChannelFilter>("all")
+  const [tab, setTab] = useState<Tab>("ventas")
   const [query, setQuery] = useState("")
+  const [debounced, setDebounced] = useState("")
   const [page, setPage] = useState(0)
-  const [selectedOrder, setSelectedOrder] = useState<string | null>(null)
-  // Anular venta (Fase 1 de caja): motivo en el mismo panel, sin pantalla nueva.
+  const [rowsPerPage, setRowsPerPage] = useState(8)
+  const [list, setList] = useState<SalesList | null>(null)
+  const [report, setReport] = useState<SalesReport | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [voiding, setVoiding] = useState(false)
   const [voidReason, setVoidReason] = useState<VoidReason | null>(null)
   const [voidBusy, setVoidBusy] = useState(false)
+  const [downloading, setDownloading] = useState<"pdf" | "xlsx" | null>(null)
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null)
-  const [rowsPerPage, setRowsPerPage] = useState(8)
   const listRef = useRef<HTMLDivElement>(null)
   const { setContextPanel, setActionBar } = useLayout()
+  const range = useMemo(() => rangeFor(preset, custom), [preset, custom])
 
-  const orders = useLiveQuery(
-    () => (tenantId ? db.orders.where("tenantId").equals(tenantId).toArray() : []),
-    [tenantId]
-  )
-  const tablesLive = useLiveQuery(
-    () => (tenantId ? db.diningTable.where("tenantId").equals(tenantId).toArray() : []),
-    [tenantId]
-  )
-  const tables = useMemo(() => new Map((tablesLive ?? []).map((t) => [t.id, t])), [tablesLive])
-  const loading = orders === undefined
+  useEffect(() => {
+    const id = setTimeout(() => { setDebounced(query.trim()); setPage(0) }, 300)
+    return () => clearTimeout(id)
+  }, [query])
 
-  // Ventas = pedidos entregados (los externos, una vez integrados por la caja).
-  const completedOrders = useMemo(
-    () => (orders ?? [])
-      .filter((o) => o.status === "delivered" && !(o.source === "external" && !o.integratedAt))
-      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
-    [orders]
-  )
+  const flash = useCallback((kind: "success" | "error", text: string) => {
+    setNotice({ kind, text })
+    setTimeout(() => setNotice(null), 4000)
+  }, [])
 
-  const [now] = useState(() => new Date())
-  const inPeriod = useMemo(() => {
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const weekStart = new Date(todayStart)
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const start = period === "today" ? todayStart : period === "week" ? weekStart : monthStart
-    return completedOrders.filter((o) => new Date(o.createdAt) >= start)
-  }, [completedOrders, period, now])
-
-  const channelCounts = useMemo(() => {
-    const counts: Record<ChannelFilter, number> = { all: inPeriod.length, salon: 0, mostrador: 0, app: 0, delivery: 0 }
-    for (const o of inPeriod) counts[saleChannelOf(o)]++
-    return counts
-  }, [inPeriod])
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    return inPeriod.filter((o) => {
-      const channel = saleChannelOf(o)
-      if (channelFilter !== "all" && channel !== channelFilter) return false
-      if (!q) return true
-      const hay = `${saleTitle(o, channel, tables)} ${o.items.map((i) => i.name).join(" ")}`.toLowerCase()
-      return hay.includes(q)
-    })
-  }, [inPeriod, channelFilter, query, tables])
-
-  const metrics = useMemo(() => {
-    const valid = filtered.filter((o) => !o.voided)
-    const revenue = valid.reduce((s, o) => s + o.total, 0)
-    return {
-      count: valid.length,
-      revenue,
-      avg: valid.length > 0 ? Math.round(revenue / valid.length) : 0,
-      voided: filtered.length - valid.length,
+  const load = useCallback(async () => {
+    if (!tenantId) return
+    setLoading(true)
+    try {
+      const [l, r] = await Promise.all([
+        listSales(tenantId, { ...range, channel, q: debounced, page, pageSize: rowsPerPage }),
+        getSalesReport(tenantId, range),
+      ])
+      setList(l)
+      setReport(r)
+    } catch (err) {
+      flash("error", err instanceof Error ? err.message : "No se pudieron cargar las ventas")
+    } finally {
+      setLoading(false)
     }
-  }, [filtered])
+  }, [tenantId, range, channel, debounced, page, rowsPerPage, flash])
 
-  // ── Paginado al alto real (nunca scroll) ────────────────────────────────
+  useEffect(() => {
+    const id = setTimeout(() => { void load() }, 0)
+    return () => clearTimeout(id)
+  }, [load])
+
   useLayoutEffect(() => {
     const el = listRef.current
     if (!el) return
@@ -149,26 +135,26 @@ export function SalesDashboard() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [loading])
-  const pageCount = Math.max(1, Math.ceil(filtered.length / rowsPerPage))
-  const safePage = Math.min(page, pageCount - 1)
-  const pageRows = filtered.slice(safePage * rowsPerPage, safePage * rowsPerPage + rowsPerPage)
+  }, [tab])
 
-  const resetPaging = () => { setPage(0); setSelectedOrder(null) }
+  const resetPaging = () => { setPage(0); setSelectedId(null) }
+  const selected = list?.rows.find((r) => r.id === selectedId) ?? null
+  const m = report?.metrics
+  const showMoney = list?.revenueVisible ?? report?.revenueVisible ?? false
+  const pageCount = list ? Math.max(1, Math.ceil(list.total / list.pageSize)) : 1
+  // Ventas es de encargado/admin y el server exige ese rol para exportar:
+  // si el server muestra montos, se puede descargar.
+  const canExport = showMoney
 
-  const flash = useCallback((kind: "success" | "error", text: string) => {
-    setNotice({ kind, text })
-    setTimeout(() => setNotice(null), 4000)
-  }, [])
-
-  const handleVoid = useCallback(async (orderId: string) => {
-    if (!tenantId || !voidReason) return
+  const handleVoid = useCallback(async (row: SaleRow) => {
+    if (!tenantId || !voidReason || !row.posId) return
     setVoidBusy(true)
     try {
-      await voidOrder(tenantId, orderId, voidReason)
+      await voidOrder(tenantId, row.posId, voidReason)
       flash("success", "Venta anulada. La devolución quedó registrada en la caja.")
       setVoiding(false)
       setVoidReason(null)
+      void load()
     } catch (err) {
       if (!(isPosApiError(err) && err.code === "approval_cancelled")) {
         flash("error", err instanceof Error ? err.message : "No se pudo anular la venta")
@@ -176,113 +162,131 @@ export function SalesDashboard() {
     } finally {
       setVoidBusy(false)
     }
-  }, [tenantId, voidReason, flash])
+  }, [tenantId, voidReason, flash, load])
 
-  // ── Context Panel: resumen o detalle de la venta ─────────────────────────
-  useEffect(() => {
-    if (loading) {
-      setContextPanel({ title: "Ventas", subtitle: "Cargando...", body: <div className="loading-state"><span className="spinner" /></div> })
-      setActionBar(null)
-      return
+  const handleDownload = useCallback(async (format: "pdf" | "xlsx") => {
+    if (!tenantId) return
+    setDownloading(format)
+    try {
+      await downloadSalesReport(tenantId, format, range)
+    } catch (err) {
+      flash("error", err instanceof Error ? err.message : "No se pudo descargar el reporte")
+    } finally {
+      setDownloading(null)
     }
-    const order = selectedOrder ? (orders ?? []).find((o) => o.id === selectedOrder) : undefined
-    if (!order) {
+  }, [tenantId, range, flash])
+
+  // ── Context Panel: resumen del período o detalle de la venta ─────────────
+  useEffect(() => {
+    if (!selected) {
       setContextPanel({
-        title: "Resumen",
-        subtitle: `${PERIOD_LABEL[period]} · ${channelFilter === "all" ? "Todos los canales" : SALE_CHANNEL_LABEL[channelFilter]}`,
-        body: (
+        title: "Resumen del período",
+        subtitle: range.from === range.to ? range.from.split("-").reverse().join("/") : `${range.from.split("-").reverse().join("/")} al ${range.to.split("-").reverse().join("/")}`,
+        body: m ? (
           <div className="sale-detail">
             <div className="sale-kpis">
-              <div><span>Ventas</span><strong>{metrics.count}</strong></div>
-              <div><span>Ingresos</span><strong className="text-success">{formatCurrency(metrics.revenue)}</strong></div>
-              <div><span>Ticket promedio</span><strong>{formatCurrency(metrics.avg)}</strong></div>
-              {metrics.voided > 0 && <div><span>Anuladas</span><strong className="text-error">{metrics.voided}</strong></div>}
+              <div><span>Ventas</span><strong>{m.totals.sales}</strong></div>
+              {showMoney && <div><span>Ingresos</span><strong className="text-success">{money(m.totals.revenue)}</strong></div>}
+              <div><span>Ticket promedio</span><strong>{money(m.totals.avgTicket)}</strong></div>
+              <div><span>Comensales</span><strong>{m.totals.guests}</strong></div>
+              {showMoney && <div><span>Por comensal</span><strong>{money(m.totals.perGuest)}</strong></div>}
+              {m.totals.voided.count > 0 && <div><span>Anuladas</span><strong className="text-error">{m.totals.voided.count}</strong></div>}
             </div>
             <div className="sale-section-title">Por canal</div>
             {(["salon", "mostrador", "app", "delivery"] as SaleChannel[]).map((c) => {
               const Icon = CHANNEL_ICON[c]
-              const list = inPeriod.filter((o) => saleChannelOf(o) === c && !o.voided)
+              const v = m.byChannel[c]
               return (
                 <div key={c} className="sale-channel-row">
                   <span className={`sale-channel sale-channel--${c}`}><Icon size={14} aria-hidden /> {SALE_CHANNEL_LABEL[c]}</span>
-                  <span className="text-muted">{list.length}</span>
-                  <span className="sale-money">{formatCurrency(list.reduce((s, o) => s + o.total, 0))}</span>
+                  <span className="text-muted">{v.sales}</span>
+                  <span className="sale-money">{showMoney ? money(v.revenue) : `ticket ${money(v.avgTicket)}`}</span>
                 </div>
               )
             })}
-            <p className="text-sm text-muted" style={{ marginTop: "var(--sp-3)" }}>Tocá una venta para ver su detalle.</p>
+            {showMoney && m.totals.discounts ? <p className="text-sm">Descuentos del período: <strong>{money(m.totals.discounts)}</strong></p> : null}
+            <p className="text-sm text-muted">Tocá una venta para ver su detalle.</p>
           </div>
-        ),
+        ) : <div className="loading-state"><span className="spinner" /></div>,
       })
-      setActionBar(null)
+      setActionBar(canExport ? {
+        right: (
+          <>
+            <button className="btn btn-secondary" disabled={downloading !== null} onClick={() => { void handleDownload("pdf") }}>
+              <FileText size={16} aria-hidden /> {downloading === "pdf" ? "Generando…" : "Cierre PDF"}
+            </button>
+            <button className="btn btn-secondary" disabled={downloading !== null} onClick={() => { void handleDownload("xlsx") }}>
+              <FileSpreadsheet size={16} aria-hidden /> {downloading === "xlsx" ? "Generando…" : "Excel"}
+            </button>
+          </>
+        ),
+      } : null)
       return
     }
 
-    const channel = saleChannelOf(order)
-    const Icon = CHANNEL_ICON[channel]
-    const table = order.tableId ? tables.get(order.tableId) : undefined
-    const discounts = order.items.reduce((s, i) => s + (i.discount?.amount ?? 0), 0)
-    const created = new Date(order.createdAt)
+    const Icon = CHANNEL_ICON[selected.channel]
+    const created = new Date(selected.createdAt)
     setContextPanel({
-      title: saleTitle(order, channel, tables),
-      subtitle: `${created.toLocaleDateString("es-AR")} · ${formatTime(created)} · ${formatCurrency(order.total)}`,
+      title: saleTitle(selected),
+      subtitle: `${created.toLocaleDateString("es-AR")} · ${formatTime(created)}${showMoney ? ` · ${money(selected.total)}` : ""}`,
       body: (
         <div className="sale-detail">
           <div className="sale-tags">
-            <span className={`sale-channel sale-channel--${channel}`}><Icon size={14} aria-hidden /> {SALE_CHANNEL_LABEL[channel]}</span>
-            {order.voided && <span className="sale-voided">Anulada</span>}
+            <span className={`sale-channel sale-channel--${selected.channel}`}><Icon size={14} aria-hidden /> {SALE_CHANNEL_LABEL[selected.channel]}</span>
+            {selected.voided && <span className="sale-voided">Anulada</span>}
           </div>
           <dl className="sale-facts">
-            {channel === "salon" && <div><dt>Mesa</dt><dd>{table ? `${table.number}${table.section ? ` · ${table.section}` : ""}` : "Mesa eliminada"}</dd></div>}
-            {(channel === "app" || channel === "delivery") && orderModeLabel(order.orderMode) && <div><dt>Modo</dt><dd>{orderModeLabel(order.orderMode)}</dd></div>}
-            {channel === "delivery" && <div><dt>Plataforma</dt><dd>{deliveryPlatformLabel(order.channel) ?? "—"}</dd></div>}
-            <div><dt>Código</dt><dd>#{shortCode(order.externalOrderId ?? order.id)}</dd></div>
+            {selected.channel === "salon" && <div><dt>Mesa</dt><dd>{selected.table ? `${selected.table.number}${selected.table.section ? ` · ${selected.table.section}` : ""}` : "Mesa eliminada"}</dd></div>}
+            {selected.channel === "salon" && <div><dt>Comensales</dt><dd>{selected.guests ?? "—"}</dd></div>}
+            {(selected.channel === "app" || selected.channel === "delivery") && orderModeLabel(selected.orderMode ?? undefined) && <div><dt>Modo</dt><dd>{orderModeLabel(selected.orderMode ?? undefined)}</dd></div>}
+            {selected.channel === "delivery" && <div><dt>Plataforma</dt><dd>{deliveryPlatformLabel(selected.platform ?? undefined) ?? "—"}</dd></div>}
+            <div><dt>Código</dt><dd>#{selected.orderNumber ?? shortCode(selected.posId ?? selected.id)}</dd></div>
             <div><dt>Fecha</dt><dd>{created.toLocaleDateString("es-AR")} {formatTime(created)}</dd></div>
-            <div><dt>Productos</dt><dd>{order.items.reduce((s, i) => s + i.quantity, 0)}</dd></div>
           </dl>
 
           <div className="sale-section-title">Detalle</div>
           <ul className="sale-lines">
-            {order.items.map((item, i) => (
-              <li key={item.lineId ?? i}>
+            {selected.items.map((item, i) => (
+              <li key={i}>
                 <span className="sale-qty">{item.quantity}×</span>
                 <div className="sale-line-main">
                   <span className="sale-line-name">
-                    {item.course && <span className="order-item-course">{COURSE_LABEL[item.course]}</span>}
+                    {item.course && <span className="order-item-course">{COURSE_LABEL[item.course] ?? item.course}</span>}
                     {item.name}
                   </span>
-                  {item.modifiers?.length ? <span className="sale-line-sub">{item.modifiers.map((m) => m.name).join(" · ")}</span> : null}
+                  {item.modifiers.length > 0 && <span className="sale-line-sub">{item.modifiers.join(" · ")}</span>}
                   {item.notes && <span className="sale-line-note">{item.notes}</span>}
-                  {item.discount && <span className="sale-line-disc">Descuento {item.discount.kind === "percent" ? `${item.discount.value}% ` : ""}−{formatCurrency(item.discount.amount)}</span>}
+                  {item.discount && <span className="sale-line-disc">Descuento {item.discount.kind === "percent" ? `${item.discount.value}% ` : ""}{showMoney ? `−${money(item.discount.amount)}` : ""}</span>}
                 </div>
-                <span className="sale-money">{formatCurrency(item.total)}</span>
+                {showMoney && <span className="sale-money">{money(item.total)}</span>}
               </li>
             ))}
           </ul>
 
-          <div className="sale-totals">
-            {discounts > 0 && <div><span>Subtotal</span><span>{formatCurrency(order.total + discounts)}</span></div>}
-            {discounts > 0 && <div><span>Descuentos</span><span className="text-success">−{formatCurrency(discounts)}</span></div>}
-            <div className="sale-grand"><span>Total</span><span>{formatCurrency(order.total)}</span></div>
-          </div>
+          {showMoney && (
+            <div className="sale-totals">
+              {selected.discounts ? <div><span>Descuentos</span><span className="text-success">−{money(selected.discounts)}</span></div> : null}
+              <div className="sale-grand"><span>Total</span><span>{money(selected.total)}</span></div>
+            </div>
+          )}
 
           <div className="sale-section-title">Pago</div>
-          {order.payments?.length ? (
+          {selected.payments.length ? (
             <ul className="sale-payments">
-              {order.payments.map((p, i) => (
+              {selected.payments.map((p, i) => (
                 <li key={i}>
-                  <span>{formatPaymentMethod(p.method).icon} {formatPaymentMethod(p.method).name}{p.reference ? <span className="sale-line-sub"> · {p.reference}</span> : null}</span>
-                  <span className="sale-money">{formatCurrency(p.amount)}</span>
+                  <span>{formatPaymentMethod(p.method as never).icon} {formatPaymentMethod(p.method as never).name}{p.reference ? <span className="sale-line-sub"> · {p.reference}</span> : null}</span>
+                  {showMoney && <span className="sale-money">{money(p.amount)}</span>}
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm">{order.paymentMethod ? `${formatPaymentMethod(order.paymentMethod).name} (pagado en la App)` : "Sin detalle de pago"}</p>
+            <p className="text-sm">{selected.paymentMethod ? `${formatPaymentMethod(selected.paymentMethod as never).name} (pagado en la App)` : "Sin detalle de pago"}</p>
           )}
 
-          {order.voided && (
+          {selected.voided && (
             <div className="sale-void-info">
-              Anulada el {new Date(order.voided.at).toLocaleString("es-AR")} — {VOID_REASON_LABELS[order.voided.reason as VoidReason] ?? order.voided.reason}
+              Anulada el {new Date(selected.voided.at).toLocaleString("es-AR")} — {VOID_REASON_LABELS[selected.voided.reason as VoidReason] ?? selected.voided.reason}
             </div>
           )}
 
@@ -296,118 +300,157 @@ export function SalesDashboard() {
                   </button>
                 ))}
               </div>
-              <p className="cash-help">Se devuelve {formatCurrency(order.total)} y queda en el cierre de caja. Un cajero necesita el PIN del encargado.</p>
+              <p className="cash-help">Se devuelve el total y queda en el cierre de caja. Un cajero necesita el PIN del encargado.</p>
             </div>
           )}
         </div>
       ),
     })
     // Solo ventas cobradas en el POS se anulan acá (las online se gestionan en el SaaS).
-    const canVoid = order.paymentSource === "pos_charged" && !order.voided
+    const canVoid = selected.chargedInPos && !selected.voided && Boolean(selected.posId)
     setActionBar({
       left: (
-        <button className="btn btn-ghost" onClick={() => (voiding ? setVoiding(false) : setSelectedOrder(null))}>
+        <button className="btn btn-ghost" onClick={() => (voiding ? setVoiding(false) : setSelectedId(null))}>
           {voiding ? "Cancelar" : "← Volver al resumen"}
         </button>
       ),
       right: canVoid ? (
         voiding ? (
-          <button className="btn btn-danger" disabled={!voidReason || voidBusy} onClick={() => handleVoid(order.id)}>Anular y devolver</button>
+          <button className="btn btn-danger" disabled={!voidReason || voidBusy} onClick={() => { void handleVoid(selected) }}>Anular y devolver</button>
         ) : (
           <button className="btn btn-secondary" onClick={() => setVoiding(true)}>Anular venta</button>
         )
       ) : undefined,
     })
-  }, [loading, selectedOrder, period, channelFilter, metrics, inPeriod, orders, tables, voiding, voidReason, voidBusy, handleVoid, setContextPanel, setActionBar])
+  }, [selected, m, range, showMoney, voiding, voidReason, voidBusy, canExport, downloading, handleVoid, handleDownload, setContextPanel, setActionBar])
+
+  const breakdown = useMemo(() => {
+    if (!m) return []
+    if (tab === "pagos") return m.byPayment.map((p) => ({ key: p.method, label: formatPaymentMethod(p.method as never).name, qty: `${p.count} cobros`, amount: p.amount }))
+    if (tab === "categorias") return m.byCategory.map((c) => ({ key: c.category, label: c.category, qty: `${c.quantity} u.`, amount: c.revenue }))
+    if (tab === "productos") return m.topProducts.map((p) => ({ key: p.name, label: p.name, qty: `${p.quantity} u.`, amount: p.revenue }))
+    return []
+  }, [m, tab])
+  const breakdownMax = Math.max(1, ...breakdown.map((b) => (showMoney ? b.amount ?? 0 : Number.parseInt(b.qty, 10) || 0)))
 
   return (
     <div className="workspace sales">
       <div className="sales-toolbar">
         <div className="sales-chips" role="group" aria-label="Período">
-          {(["today", "week", "month"] as Period[]).map((p) => (
-            <button key={p} type="button" className={`sales-chip${period === p ? " active" : ""}`} aria-pressed={period === p}
-              onClick={() => { setPeriod(p); resetPaging() }}>
-              {p === "today" ? "Hoy" : p === "week" ? "Semana" : "Mes"}
+          {([["today", "Hoy"], ["yesterday", "Ayer"], ["week", "7 días"], ["month", "Mes"], ["custom", "Rango"]] as [Preset, string][]).map(([p, label]) => (
+            <button key={p} type="button" className={`sales-chip${preset === p ? " active" : ""}`} aria-pressed={preset === p} onClick={() => { setPreset(p); resetPaging() }}>
+              {label}
             </button>
           ))}
         </div>
+        {preset === "custom" && (
+          <div className="sales-range">
+            <input type="date" value={custom.from} max={localToday()} aria-label="Desde" onChange={(e) => { setCustom((c) => ({ ...c, from: e.target.value })); resetPaging() }} />
+            <span>al</span>
+            <input type="date" value={custom.to} max={localToday()} aria-label="Hasta" onChange={(e) => { setCustom((c) => ({ ...c, to: e.target.value })); resetPaging() }} />
+          </div>
+        )}
         <div className="sales-chips" role="group" aria-label="Canal">
           {(["all", "salon", "mostrador", "app", "delivery"] as ChannelFilter[]).map((c) => (
-            <button key={c} type="button" className={`sales-chip${channelFilter === c ? " active" : ""}`} aria-pressed={channelFilter === c}
-              onClick={() => { setChannelFilter(c); resetPaging() }}>
-              {c === "all" ? "Todos" : SALE_CHANNEL_LABEL[c]} <span className="sales-chip-count">{channelCounts[c]}</span>
+            <button key={c} type="button" className={`sales-chip${channel === c ? " active" : ""}`} aria-pressed={channel === c} onClick={() => { setChannel(c); resetPaging() }}>
+              {c === "all" ? "Todos" : SALE_CHANNEL_LABEL[c]}
+              <span className="sales-chip-count">{m ? (c === "all" ? m.totals.sales : m.byChannel[c].sales) : ""}</span>
             </button>
           ))}
         </div>
-        <label className="sales-search">
-          <Search size={16} aria-hidden />
-          <input type="search" value={query} placeholder="Mesa, código o producto…" aria-label="Buscar venta"
-            onChange={(e) => { setQuery(e.target.value); setPage(0) }} />
-        </label>
       </div>
 
       <div className="sales-kpis" role="status">
-        <div><span>Ventas</span><strong>{metrics.count}</strong></div>
-        <div><span>Ingresos</span><strong>{formatCurrency(metrics.revenue)}</strong></div>
-        <div><span>Ticket promedio</span><strong>{formatCurrency(metrics.avg)}</strong></div>
-        {metrics.voided > 0 && <div><span>Anuladas</span><strong className="text-error">{metrics.voided}</strong></div>}
+        <div><span>Ventas</span><strong>{m?.totals.sales ?? "—"}</strong></div>
+        {showMoney && <div><span>Ingresos</span><strong>{money(m?.totals.revenue)}</strong></div>}
+        <div><span>Ticket promedio</span><strong>{money(m?.totals.avgTicket)}</strong></div>
+        <div><span>Comensales</span><strong>{m?.totals.guests ?? "—"}</strong></div>
+        {showMoney && <div><span>Ticket por comensal</span><strong>{money(m?.totals.perGuest)}</strong></div>}
       </div>
 
-      <div className="sales-table" role="table" aria-label="Ventas">
-        <div className="sales-row sales-row--head" role="row">
-          <span role="columnheader">Hora</span>
-          <span role="columnheader">Canal</span>
-          <span role="columnheader">Venta</span>
-          <span role="columnheader">Productos</span>
-          <span role="columnheader">Pago</span>
-          <span role="columnheader" className="sales-right">Total</span>
+      <div className="sales-tabs" role="tablist" aria-label="Vista">
+        {([["ventas", "Ventas"], ["pagos", "Métodos de pago"], ["categorias", "Categorías"], ["productos", "Productos"]] as [Tab, string][]).map(([t, label]) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={`sales-tab${tab === t ? " active" : ""}`} onClick={() => setTab(t)}>{label}</button>
+        ))}
+        {tab === "ventas" && (
+          <label className="sales-search">
+            <Search size={16} aria-hidden />
+            <input type="search" value={query} placeholder="Mesa, código o producto…" aria-label="Buscar venta" onChange={(e) => setQuery(e.target.value)} />
+          </label>
+        )}
+      </div>
+
+      {tab === "ventas" ? (
+        <div className="sales-table" role="table" aria-label="Ventas" aria-busy={loading}>
+          <div className="sales-row sales-row--head" role="row">
+            <span role="columnheader">Hora</span>
+            <span role="columnheader">Canal</span>
+            <span role="columnheader">Venta</span>
+            <span role="columnheader">Productos</span>
+            <span role="columnheader">Pago</span>
+            <span role="columnheader" className="sales-right">{showMoney ? "Total" : "Productos"}</span>
+          </div>
+          <div className="sales-rows" ref={listRef}>
+            {!list && loading && <div className="loading-state"><span className="spinner" /> Cargando…</div>}
+            {list && list.rows.length === 0 && (
+              <div className="empty-state"><span className="empty-state-text">Sin ventas en este período{channel !== "all" ? ` en ${SALE_CHANNEL_LABEL[channel]}` : ""}</span></div>
+            )}
+            {list?.rows.map((r) => {
+              const Icon = CHANNEL_ICON[r.channel]
+              const isSel = selectedId === r.id
+              const d = new Date(r.createdAt)
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  role="row"
+                  aria-selected={isSel}
+                  className={`sales-row${isSel ? " selected" : ""}${r.voided ? " voided" : ""}`}
+                  onClick={() => { setSelectedId(isSel ? null : r.id); setVoiding(false); setVoidReason(null) }}
+                >
+                  <span role="cell" className="sales-time">{range.from === range.to ? formatTime(d) : `${d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })} ${formatTime(d)}`}</span>
+                  <span role="cell"><span className={`sale-channel sale-channel--${r.channel}`}><Icon size={13} aria-hidden /> {SALE_CHANNEL_LABEL[r.channel]}</span></span>
+                  <span role="cell" className="sales-title">
+                    {saleTitle(r)}
+                    {r.channel === "salon" && r.guests ? <span className="sale-line-sub"> · {r.guests} com.</span> : null}
+                    {r.channel === "app" && orderModeLabel(r.orderMode ?? undefined) && <span className="sale-line-sub"> · {orderModeLabel(r.orderMode ?? undefined)}</span>}
+                  </span>
+                  <span role="cell" className="sales-items">{r.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</span>
+                  <span role="cell" className="sales-pay">{paymentSummary(r)}</span>
+                  <span role="cell" className="sales-right sale-money">
+                    {r.voided && <span className="sale-voided">Anulada</span>} {showMoney ? money(r.total) : `${r.items.reduce((s, i) => s + i.quantity, 0)} u.`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="sales-pager">
+            <span className="text-sm text-muted">{list?.total ?? 0} ventas</span>
+            <button type="button" className="btn btn-secondary psel-page-btn" disabled={page === 0 || loading} onClick={() => setPage(page - 1)} aria-label="Página anterior">
+              <ChevronLeft size={18} aria-hidden />
+            </button>
+            <span className="psel-page">{page + 1} / {pageCount}</span>
+            <button type="button" className="btn btn-secondary psel-page-btn" disabled={page >= pageCount - 1 || loading} onClick={() => setPage(page + 1)} aria-label="Página siguiente">
+              <ChevronRight size={18} aria-hidden />
+            </button>
+          </div>
         </div>
-        <div className="sales-rows" ref={listRef}>
-          {loading && <div className="loading-state"><span className="spinner" /> Cargando...</div>}
-          {!loading && filtered.length === 0 && (
-            <div className="empty-state">
-              <span className="empty-state-text">Sin ventas {PERIOD_LABEL[period].toLowerCase()}{channelFilter !== "all" ? ` en ${SALE_CHANNEL_LABEL[channelFilter]}` : ""}</span>
-            </div>
-          )}
-          {pageRows.map((order) => {
-            const channel = saleChannelOf(order)
-            const Icon = CHANNEL_ICON[channel]
-            const selected = selectedOrder === order.id
+      ) : (
+        <div className="sales-breakdown" role="tabpanel">
+          {breakdown.length === 0 && <div className="empty-state"><span className="empty-state-text">Sin datos en este período</span></div>}
+          {breakdown.map((b) => {
+            const v = showMoney ? b.amount ?? 0 : Number.parseInt(b.qty, 10) || 0
             return (
-              <button
-                key={order.id}
-                type="button"
-                role="row"
-                className={`sales-row${selected ? " selected" : ""}${order.voided ? " voided" : ""}`}
-                aria-selected={selected}
-                onClick={() => { setSelectedOrder(selected ? null : order.id); setVoiding(false); setVoidReason(null) }}
-              >
-                <span role="cell" className="sales-time">{formatTime(new Date(order.createdAt))}</span>
-                <span role="cell"><span className={`sale-channel sale-channel--${channel}`}><Icon size={13} aria-hidden /> {SALE_CHANNEL_LABEL[channel]}</span></span>
-                <span role="cell" className="sales-title">
-                  {saleTitle(order, channel, tables)}
-                  {channel === "app" && orderModeLabel(order.orderMode) && <span className="sale-line-sub"> · {orderModeLabel(order.orderMode)}</span>}
-                </span>
-                <span role="cell" className="sales-items">{order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}</span>
-                <span role="cell" className="sales-pay">{paymentSummary(order)}</span>
-                <span role="cell" className="sales-right sale-money">
-                  {order.voided && <span className="sale-voided">Anulada</span>} {formatCurrency(order.total)}
-                </span>
-              </button>
+              <div key={b.key} className="sales-break-row">
+                <span className="sales-break-label">{b.label}</span>
+                <span className="sales-break-bar" aria-hidden><i style={{ width: `${(v / breakdownMax) * 100}%` }} /></span>
+                <span className="text-muted">{b.qty}</span>
+                {showMoney && <span className="sale-money">{money(b.amount)}</span>}
+              </div>
             )
           })}
         </div>
-        <div className="sales-pager">
-          <span className="text-sm text-muted">{filtered.length} ventas</span>
-          <button type="button" className="btn btn-secondary psel-page-btn" disabled={safePage === 0} onClick={() => setPage(safePage - 1)} aria-label="Página anterior">
-            <ChevronLeft size={18} aria-hidden />
-          </button>
-          <span className="psel-page">{safePage + 1} / {pageCount}</span>
-          <button type="button" className="btn btn-secondary psel-page-btn" disabled={safePage >= pageCount - 1} onClick={() => setPage(safePage + 1)} aria-label="Página siguiente">
-            <ChevronRight size={18} aria-hidden />
-          </button>
-        </div>
-      </div>
+      )}
 
       {notice && (
         <div className="toast-container">
