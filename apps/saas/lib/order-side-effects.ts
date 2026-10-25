@@ -55,7 +55,9 @@ export async function notifyCashOrderCreated(args: {
 }): Promise<void> {
   const { order, tenant, tenantSlug, customerName } = args
 
-  setImmediate(async () => {
+  // runAfterResponse (no setImmediate): en Vercel una promesa suelta se corta
+  // al responder (ver lib/after-response).
+  runAfterResponse('notifyCashOrderCreated', async () => {
     try {
       await sendAdminPushNotification(
         tenant._id.toString(),
@@ -89,7 +91,9 @@ export async function registerCashSaleOnDelivery(args: {
 }): Promise<void> {
   const { order, tenant } = args
 
-  setImmediate(async () => {
+  // runAfterResponse (no setImmediate): la venta tiene que llegar a la caja
+  // del POS aunque la función ya haya respondido (Vercel corta lo suelto).
+  runAfterResponse('registerCashSaleOnDelivery', async () => {
     // Comisión manual de efectivo (lib/commission-rules): suma al balance de
     // comisiones del comercio al concretarse el cobro. Idempotente (flag en
     // la orden); se revierte sola si después se cancela.
@@ -131,7 +135,9 @@ export async function applyStatusTransitionSideEffects(args: {
 }): Promise<void> {
   const { order, tenant } = args
 
-  notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), order.status)
+  runAfterResponse('notifySyncLayerStatus', () =>
+    notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), order.status)
+  )
 
   if (order.status === 'confirmed') {
     const { onOrderConfirmed } = await import('@/lib/printing')
@@ -178,8 +184,8 @@ export function maybeNotifySyncLayerStatus(args: {
   if (order.source === 'pos') return
   if (!POS_PROPAGATABLE_STATUSES.has(status)) return
 
-  notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status).catch((err) =>
-    console.error('[side-effects] SyncLayer notify error (non-blocking):', err)
+  runAfterResponse('notifySyncLayerStatus', () =>
+    notifySyncLayerStatus(tenant._id.toString(), order._id.toString(), status)
   )
 }
 
@@ -202,7 +208,13 @@ export async function syncOrderAfterStatusSet(args: {
   const { order, tenant, items, locationId } = args
 
   if (tenant.features?.posEnabled && (order.status === 'confirmed' || order.status === 'awaiting_payment')) {
-    pushOrderToSyncLayer({
+    // BUG 2026-10-25 («el pedido de la App impacta en el SaaS pero no en el
+    // POS»): esta llamada quedaba suelta (sin await ni runAfterResponse) y
+    // en Vercel la función se congela al responder → el pedido nunca llegaba
+    // al Sync ni, por lo tanto, al POS. runAfterResponse la mantiene viva sin
+    // demorar el checkout; pushOrderToSyncLayer reintenta (idempotente: el
+    // Sync deduplica por externalOrderId).
+    const payload = {
       tenantId: tenant._id.toString(),
       externalOrderId: order._id.toString(),
       locationId: locationId ?? undefined,
@@ -219,7 +231,8 @@ export async function syncOrderAfterStatusSet(args: {
       notes: order.notes || undefined,
       paymentMethod: order.payment?.method ?? 'mercadopago',
       orderMode: order.orderMode,
-    })
+    }
+    runAfterResponse('pushOrderToSyncLayer', () => pushOrderToSyncLayer(payload))
   }
 
   if (order.status === 'confirmed') {

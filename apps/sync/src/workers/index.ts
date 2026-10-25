@@ -6,6 +6,8 @@ import { QUEUE_ORDER_CREATED } from "../queues/order-queue"
 import { CashSaleEventModel } from "@takeasygo/db"
 import { config } from "../config"
 import { registerComplianceWorker } from "./compliance-worker"
+import { emitToRooms, orderBroadcastRooms } from "../socket/rooms"
+import { locationOfOrder } from "../services/order-location"
 
 async function getSaaSslug(tenantId: string): Promise<string | null> {
   try {
@@ -34,7 +36,8 @@ export function registerWorkers(redisUrl: string, io: SocketServer): WorkerSet {
 
       switch (job.name) {
         case QUEUE_ORDER_CREATED: {
-          io.to(`tenant:${tenantId}`).emit("order:cancelled", {
+          // También a la sala de la sede: los POS multisede no están en la genérica.
+          emitToRooms(io, orderBroadcastRooms(tenantId, await locationOfOrder(tenantId, orderId)), "order:cancelled", {
             orderId,
             reason: "offline_timeout",
             eventId,
@@ -72,8 +75,9 @@ export function registerWorkers(redisUrl: string, io: SocketServer): WorkerSet {
         return { status: "already_delivered" }
       }
 
-      // Reintentar emit al POS — incluir eventId para ACK
-      io.to(`tenant:${tenantId}`).emit("cash_sale", {
+      // Reintentar emit al POS — incluir eventId para ACK. Sala genérica +
+      // sala de la sede (POS multisede).
+      emitToRooms(io, orderBroadcastRooms(tenantId, await locationOfOrder(tenantId, event.orderId)), "cash_sale", {
         eventId: event._id.toString(),
         orderId: event.orderId,
         tenantId: event.tenantId,

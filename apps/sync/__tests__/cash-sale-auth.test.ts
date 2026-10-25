@@ -138,6 +138,28 @@ describe("POST / — crear evento (SaaS → Sync)", () => {
     expect(emitted).toEqual([{ room: `tenant:${TENANT_OK}`, event: "cash_sale" }])
   })
 
+  // 2026-10-25: los POS multisede solo están en la sala de su sede.
+  it("con locationId emite también a la sala de la sede (POS multisede)", async () => {
+    const res = await post("/", { ...validBody, locationId: "loc_1" }, { "x-internal-secret": TEST_SECRET })
+    expect(res.status).toBe(200)
+    expect(emitted).toEqual([
+      { room: `tenant:${TENANT_OK}`, event: "cash_sale" },
+      { room: `tenant:${TENANT_OK}:location:loc_1`, event: "cash_sale" },
+    ])
+  })
+
+  it("el payload que arma el SaaS (amount + orderMode) pasa la validación", async () => {
+    const saasBody = { orderId: "ord_saas_1", tenantId: TENANT_OK, amount: 1250000, orderMode: "delivery", paymentMethod: "mercadopago", locationId: "loc_2", items: [], channel: "online" }
+    const res = await post("/", saasBody, { "x-internal-secret": TEST_SECRET })
+    expect(res.status).toBe(200)
+  })
+
+  it("el payload viejo del SaaS (total, sin orderMode) era rechazado — por eso no llegaban las ventas", async () => {
+    const legacy = { orderId: "ord_old", tenantId: TENANT_OK, total: 1250000, paymentMethod: "mercadopago", items: [], channel: "online" }
+    const res = await post("/", legacy, { "x-internal-secret": TEST_SECRET })
+    expect(res.status).toBe(400)
+  })
+
   it("acepta Authorization: Bearer <secret> (estilo helpers internos)", async () => {
     const res = await post("/", validBody, {
       authorization: `Bearer ${TEST_SECRET}`,

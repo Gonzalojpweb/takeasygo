@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { resolveSocketRooms, orderBroadcastRooms } from "../src/socket/rooms"
+import { resolveSocketRooms, orderBroadcastRooms, emitToRooms } from "../src/socket/rooms"
 
 /**
  * Aislamiento de sockets por sede (Oleada 1).
@@ -65,5 +65,21 @@ describe("orderBroadcastRooms — salas de emisión de eventos", () => {
 
   it("sin locationId: emite solo a la genérica", () => {
     expect(orderBroadcastRooms("T1", null)).toEqual(["tenant:T1"])
+  })
+})
+
+describe("emitToRooms — un evento por sala (2026-10-25)", () => {
+  it("emite a la genérica y a la de la sede, sin duplicar", () => {
+    const calls: Array<[string, string]> = []
+    const io = { to: (room: string) => ({ emit: (event: string) => { calls.push([room, event]) } }) }
+    emitToRooms(io, orderBroadcastRooms("T1", "L1"), "cash_sale", {})
+    expect(calls).toEqual([["tenant:T1", "cash_sale"], ["tenant:T1:location:L1", "cash_sale"]])
+  })
+  it("un POS multisede (solo sala de sede) recibe los eventos de su sede y no los de otra", () => {
+    const rooms = new Set(resolveSocketRooms({ tenantId: "T1", deviceType: "hub", locationId: "L1" }))
+    expect(orderBroadcastRooms("T1", "L1").some((r) => rooms.has(r))).toBe(true)
+    expect(orderBroadcastRooms("T1", "L2").some((r) => rooms.has(r))).toBe(false)
+    // Sin sede en el evento solo llegaba a la genérica: el POS multisede no lo veía.
+    expect(orderBroadcastRooms("T1", null).some((r) => rooms.has(r))).toBe(false)
   })
 })
