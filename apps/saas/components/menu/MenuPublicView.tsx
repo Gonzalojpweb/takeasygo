@@ -730,6 +730,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     selectedVariant?: SelectedVariant
     customizations?: CartItem['customizations']
     customizationSummary?: string
+    /** Precio de los agregados elegidos (centavos); se cobra si la promo lo indica. */
+    extraPrice?: number
   }): boolean {
     if (!promoSlotSelection) return false
     const slotIdx = promoSlotSelection.currentSlotIndex
@@ -787,6 +789,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .flatMap(s => s.units)
       .map(u => (u.customizationSummary ? `${u.itemName} · ${u.customizationSummary}` : u.itemName))
       .join(' · ')
+    // Agregados con precio (por combo): se suman al precio de la promo salvo
+    // que el comercio los incluya sin costo (chargeCustomizationExtras false).
+    const chargeExtras = promo.chargeCustomizationExtras !== false
+    const comboExtras = chargeExtras
+      ? promo.slots.reduce((sum: number, _slot: any, idx: number) =>
+          sum + (slotStates[idx]?.selectedItems ?? []).reduce((s: number, u: any) => s + (u.extraPrice || 0), 0), 0)
+      : 0
     const bundleKey = JSON.stringify(bundle)
     setCart(prev => {
       const existing = prev.find(i =>
@@ -803,8 +812,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         _promotionShortDescription: promo.shortDescription || '',
         name: promo.title,
         basePrice: promo.price,
-        extraPrice: 0,
-        price: promo.price,
+        extraPrice: comboExtras,
+        price: promo.price + comboExtras,
         quantity: 1,
         customizations: [],
         customizationSummary: summary,
@@ -864,6 +873,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         selectedVariant: cartItem.selectedVariant,
         customizations: cartItem.customizations?.length ? cartItem.customizations : undefined,
         customizationSummary: cartItem.customizationSummary || '',
+        // Mitad y mitad tiene su propia regla de precio: no se suma como agregado.
+        extraPrice: (cartItem as any)._isHalf ? 0 : Math.max(0, Math.round(cartItem.extraPrice || 0)),
       })
       setCustomizingItem(null)
       if (!accepted) {
