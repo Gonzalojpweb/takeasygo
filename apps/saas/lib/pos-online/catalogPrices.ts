@@ -158,16 +158,6 @@ export function assertItemMatchesCatalog(
       `productId=${item.productId}`
     )
   }
-  // Fase J: un artículo pausado (por un rol o por falta de stock) no se vende,
-  // aunque el POS tenga la carta desactualizada (se sincroniza cada ~35 s).
-  if (!product.isAvailable) {
-    throw PosError.conflict(
-      product.unavailableReason === 'stock'
-        ? `«${item.name}» no tiene inventario (sin stock)`
-        : `«${item.name}» está faltante (pausado)`,
-      `productId=${item.productId}`
-    )
-  }
 
   const hasHalfLabel = (item.modifiers ?? []).some((m) => isHalfLabel(m.name))
   if (hasHalfLabel) {

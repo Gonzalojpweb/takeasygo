@@ -1,46 +1,24 @@
-import type { ReactNode } from "react"
 import { Inbox, ChevronUp } from "lucide-react"
-import { useLayout, type ActionBarContent } from "./LayoutContext"
+import { useLayout } from "./LayoutContext"
 
 // ============================================================================
-// Context Panel — el detalle del contexto activo (columna derecha)
+// Context Panel — "¿Sobre qué estoy trabajando?" (W0S §5)
 // ============================================================================
-// Obs. UX 25/10: el footer (Action Bar) dejaba de existir. Le robaba alto al
-// workspace, a la navegación y al detalle, y separaba las acciones de la
-// entidad a la que pertenecen (el consumo de la mesa abajo de la navegación
-// «no tiene sentido»). Ahora las acciones del contexto viven ACÁ, ancladas al
-// pie del panel: total arriba, secundarias en grilla, principal a lo ancho.
-// Las vistas siguen llamando setActionBar({ left, center, right }): el panel
-// es quien las muestra.
-//   left   → total / dato clave (p. ej. «Consumo $ 12.300»)
-//   center → acciones secundarias (comensales, pedir cuenta, encargado…)
-//   right  → acción principal (Tomar pedido, Cobrar, Abrir caja…)
+// Nunca desaparece. Sin entidad activa muestra el estado vacío DEL CONTEXTO
+// actual (lo define components/layout/contexts.ts): antes decía "Seleccioná
+// una mesa" también en Caja, Ventas y Flota.
 // ============================================================================
 
 interface ContextPanelProps {
   empty: { title: string; hint: string }
-  /** Borde arrastrable para regular el ancho (PanelResizer). */
-  resizer?: ReactNode
 }
 
-function ContextDock({ actions }: { actions: ActionBarContent }) {
-  return (
-    <div className="ctx-dock" role="group" aria-label="Acciones">
-      {actions.left && <div className="ctx-dock-total">{actions.left}</div>}
-      {actions.center && <div className="ctx-dock-secondary">{actions.center}</div>}
-      {actions.right && <div className="ctx-dock-primary">{actions.right}</div>}
-    </div>
-  )
-}
-
-export function ContextPanel({ empty, resizer }: ContextPanelProps) {
-  const { contextPanel, actionBar, panelOpen, setPanelOpen } = useLayout()
-  const hasDock = Boolean(actionBar && (actionBar.left || actionBar.center || actionBar.right))
+export function ContextPanel({ empty }: ContextPanelProps) {
+  const { contextPanel, panelOpen, setPanelOpen } = useLayout()
 
   if (!contextPanel) {
     return (
-      <aside className={`context-panel context-panel--empty${hasDock ? " has-dock" : ""}`} aria-label="Contexto activo">
-        {resizer}
+      <aside className="context-panel context-panel--empty" aria-label="Contexto activo">
         <div className="context-panel-empty-state">
           <span className="context-panel-empty-icon" aria-hidden>
             <Inbox size={32} />
@@ -48,17 +26,15 @@ export function ContextPanel({ empty, resizer }: ContextPanelProps) {
           <span className="context-panel-empty-text">{empty.title}</span>
           <span className="context-panel-empty-hint">{empty.hint}</span>
         </div>
-        {hasDock && <ContextDock actions={actionBar!} />}
       </aside>
     )
   }
 
   return (
     <aside
-      className={`context-panel${panelOpen ? " is-open" : ""}${hasDock ? " has-dock" : ""}`}
+      className={`context-panel${panelOpen ? " is-open" : ""}`}
       aria-label={`Contexto activo: ${contextPanel.title}`}
     >
-      {resizer}
       {/* En celular el encabezado es el asa de la hoja inferior: siempre
           visible (la entidad no desaparece) y despliega el detalle. En
           desktop el botón es inerte visualmente (CSS) y el panel está abierto. */}
@@ -80,7 +56,6 @@ export function ContextPanel({ empty, resizer }: ContextPanelProps) {
       {contextPanel.footer && (
         <div className="context-panel-footer">{contextPanel.footer}</div>
       )}
-      {hasDock && <ContextDock actions={actionBar!} />}
     </aside>
   )
 }

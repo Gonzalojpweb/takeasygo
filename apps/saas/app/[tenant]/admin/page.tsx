@@ -12,7 +12,6 @@ import Link from 'next/link'
 
 // Widgets del dashboard: reciben el /summary prefetcheado y siguen al selector de sede
 import DashboardWidgets from '@/components/admin/dashboard/DashboardWidgets'
-import TodayByChannel from '@/components/admin/dashboard/TodayByChannel'
 
 function PlanBanner({ plan, trialOrderCount, tenantSlug }: { plan: Plan; trialOrderCount?: number; tenantSlug: string }) {
   if (plan === 'full' || plan === 'anfitrion') return null
@@ -79,12 +78,11 @@ export default async function AdminDashboard() {
   // Minimal query: only plan, logo, and userName needed for layout
   await connectDB()
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .select('plan branding.logoUrl onboarding features.posEnabled')
+    .select('plan branding.logoUrl onboarding')
     .lean<{
       _id: Types.ObjectId
       plan: Plan
       branding: { logoUrl: string }
-      features?: { posEnabled?: boolean }
       onboarding?: { status?: 'none' | 'draft' | 'pending_review' | 'approved' | 'rejected' } | null
     }>()
   if (!tenant) notFound()
@@ -148,13 +146,6 @@ export default async function AdminDashboard() {
         </div>
         <div className="absolute right-0 top-0 h-full w-1/2 bg-gradient-to-l from-primary/10 to-transparent pointer-events-none" />
       </div>
-
-      {/* Hoy por canal: App (SaaS) separada de Salón y Mostrador (POS). */}
-      <TodayByChannel
-        tenantId={String(tenant._id)}
-        posEnabled={Boolean(tenant.features?.posEnabled)}
-        showRevenue={role === 'admin' || role === 'manager' || role === 'superadmin'}
-      />
 
       <DashboardWidgets tenantSlug={tenantSlug!} userName={userName} initialSummary={summary}>
         {/* Quick Actions */}

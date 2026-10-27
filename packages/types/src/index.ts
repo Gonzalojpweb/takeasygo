@@ -169,14 +169,6 @@ export interface Product {
   /** id de la subcategoría (MenuCategory con parentId), si el ítem vive en una. */
   subcategoryId?: string
   isAvailable: boolean
-  /**
-   * Fase J (2026-10): por qué no está disponible. «manual» = lo pausó un rol
-   * (o la categoría está pausada); «stock» = el inventario no alcanza para
-   * una porción. El POS lo muestra como «Faltante» / «Sin inventario».
-   */
-  unavailableReason?: "manual" | "stock"
-  /** Porciones que alcanzan con el stock actual (inventario). Ausente = sin dato. */
-  stockPortions?: number
   modifiers?: ProductModifier[]
   disabledVariantNames?: string[]
   disabledGroupIds?: string[]

@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { requireAuth } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { translateToEnglish } from '@/lib/translate'
@@ -167,21 +167,7 @@ export async function PUT(
       }
       item.takeawayPrice = takeawayPrice
     }
-    if (isAvailable !== undefined) {
-      // Fase J: pausa manual desde el panel (motivo + quién). Reanudar limpia
-      // también una pausa automática por stock.
-      const wasAvailable = item.isAvailable !== false
-      item.isAvailable = isAvailable
-      if (isAvailable === false && wasAvailable) {
-        item.pausedReason = 'manual'
-        item.pausedAt = new Date()
-        item.pausedBy = (await getSessionUser(request))?.id ?? null
-      } else if (isAvailable === true) {
-        item.pausedReason = null
-        item.pausedAt = null
-        item.pausedBy = null
-      }
-    }
+    if (isAvailable !== undefined) item.isAvailable = isAvailable
     if (isTakeawayAvailable !== undefined) item.isTakeawayAvailable = isTakeawayAvailable
     if (isBusinessAvailable !== undefined) item.isBusinessAvailable = isBusinessAvailable
     if (businessPrice !== undefined) item.businessPrice = businessPrice === '' ? null : businessPrice

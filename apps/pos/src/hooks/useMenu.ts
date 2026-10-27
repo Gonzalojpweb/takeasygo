@@ -55,10 +55,10 @@ export function useMenu() {
   const products = useMemo(() => (cached?.products ?? []) as Product[], [cached])
   const categories = useMemo(() => (cached?.categories ?? []) as MenuCategory[], [cached])
 
-  // Fase J (decisión 24/10): un artículo pausado u oculto NO desaparece del
-  // POS: se muestra como «Faltante» / «Sin inventario» en el mismo selector
-  // (no se puede agregar). Así el mozo y la caja saben que no hay.
-  const availableProducts = products
+  const availableProducts = useMemo(
+    () => products.filter((p) => p.isAvailable),
+    [products]
+  )
 
   const visibleCategories = useMemo(
     () => categories.filter((c) => c.isVisible).sort((a, b) => a.sortOrder - b.sortOrder),

@@ -25,76 +25,23 @@ export interface PosLocation {
   acceptsOrders: boolean
 }
 
-// ============================================================================
-// Errores de login tipados (root del POS, obs. UX 25/10)
-// ============================================================================
-// La pantalla de acceso nunca muestra el texto crudo del servidor: cada falla
-// tiene un tipo, y el root le pone título, explicación y acción propios.
-//   network      → sin red / servidor inalcanzable (se reintenta solo)
-//   credentials  → 401: PIN / email / contraseña incorrectos
-//   locked       → 429 account_locked: bloqueo temporal (retryAfter en s)
-//   rate_limited → 429 por IP: demasiados intentos desde este equipo
-//   role         → 403 ROLE_NOT_ALLOWED: el usuario no tiene rol de POS
-//   location     → 400 INVALID_LOCATION: la sede ya no existe / no es suya
-//   server       → 5xx
-//   unknown      → cualquier otra cosa
-export type LoginErrorKind = "network" | "credentials" | "locked" | "rate_limited" | "role" | "location" | "server" | "unknown"
-
-export class LoginError extends Error {
-  readonly kind: LoginErrorKind
-  readonly status: number
-  /** Segundos hasta poder reintentar (bloqueos). */
-  readonly retryAfter: number | null
-  constructor(kind: LoginErrorKind, status: number, retryAfter: number | null = null, serverMessage?: string) {
-    super(serverMessage || `Login failed: ${kind}`)
-    this.name = "LoginError"
-    this.kind = kind
-    this.status = status
-    this.retryAfter = retryAfter
-  }
-}
-
-/** Traduce la respuesta del Sync a un tipo de error (pura, testeable). */
-export function loginErrorFrom(
-  status: number,
-  body: { code?: string; retryAfter?: number; error?: string } | null,
-  retryAfterHeader?: string | null
-): LoginError {
-  const code = body?.code
-  const retry = Number(body?.retryAfter ?? retryAfterHeader)
-  const retryAfter = Number.isFinite(retry) && retry > 0 ? Math.ceil(retry) : null
-  if (status === 401) return new LoginError("credentials", status, null, body?.error)
-  if (status === 429) return new LoginError(code === "account_locked" ? "locked" : "rate_limited", status, retryAfter, body?.error)
-  if (status === 403) return new LoginError(code === "ROLE_NOT_ALLOWED" ? "role" : "unknown", status, null, body?.error)
-  if (status === 400 && code === "INVALID_LOCATION") return new LoginError("location", status, null, body?.error)
-  if (status >= 500) return new LoginError("server", status, null, body?.error)
-  return new LoginError("unknown", status, null, body?.error)
-}
-
-async function postLogin(payload: Record<string, unknown>): Promise<LoginResponse> {
-  let res: Response
-  try {
-    res = await fetch(`${SYNC_URL}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-  } catch {
-    throw new LoginError("network", 0)
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw loginErrorFrom(res.status, body, res.headers.get("Retry-After"))
-  }
-  return res.json()
-}
-
 export async function loginWithPin(
   employeePin: string,
   tenantId: string,
   locationId?: string
 ): Promise<LoginResponse> {
-  return postLogin({ mode: "pin", employeePin, tenantId, locationId })
+  const res = await fetch(`${SYNC_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "pin", employeePin, tenantId, locationId }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Network error" }))
+    throw new Error(err.error ?? `Login failed (${res.status})`)
+  }
+
+  return res.json()
 }
 
 export async function loginWithEmail(
@@ -102,7 +49,18 @@ export async function loginWithEmail(
   password: string,
   locationId?: string
 ): Promise<LoginResponse> {
-  return postLogin({ mode: "email", email, password, locationId })
+  const res = await fetch(`${SYNC_URL}/api/v1/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode: "email", email, password, locationId }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: "Network error" }))
+    throw new Error(err.error ?? `Login failed (${res.status})`)
+  }
+
+  return res.json()
 }
 
 // Fetches the tenant's active locations for the sede picker (multi-sede POS).

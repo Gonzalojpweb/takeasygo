@@ -35,7 +35,6 @@ import {
   type BeliefState,
 } from '@takeasygo/business/inventory'
 import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
-import { syncDishAvailabilitySafe } from './availability'
 
 const MAX_REBUILD_ATTEMPTS = 5
 
@@ -129,18 +128,6 @@ export async function appendEvents(events: NewLedgerEvent[]): Promise<AppendResu
   }
   for (const { key, from } of pending.values()) {
     await rebuildAggregate(key, from)
-  }
-
-  // Fase J: inventario → carta. Con el stock nuevo, los platos que usan estos
-  // insumos se pausan o reanudan solos (y guardan sus porciones). Nunca lanza.
-  const skusByTenant = new Map<string, Set<string>>()
-  for (const { key } of pending.values()) {
-    const set = skusByTenant.get(key.tenantId) ?? new Set<string>()
-    set.add(key.skuId)
-    skusByTenant.set(key.tenantId, set)
-  }
-  for (const [tenantId, skus] of skusByTenant) {
-    await syncDishAvailabilitySafe(tenantId, [...skus])
   }
 
   return { inserted: insertedIds.length, duplicates, insertedIds }

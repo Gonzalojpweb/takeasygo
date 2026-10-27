@@ -2,13 +2,12 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
-import { ChefHat, Users, BellRing, ReceiptText } from "lucide-react"
+import { ChefHat } from "lucide-react"
 import { db } from "../../db/dexie"
 import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
 import { useOrders } from "../../hooks/useOrders"
 import { useMenu } from "../../hooks/useMenu"
-import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { useTableActivity, formatElapsed } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
@@ -23,7 +22,6 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
-import { SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { WaiterContextPanel } from "./WaiterContextPanel"
 import { formatCurrency } from "../../utils/format"
 
@@ -78,7 +76,7 @@ export function WaiterDashboard() {
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
-  const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
+  const { setContextPanel, setActionBar } = useLayout()
   const popularIds = usePopularProducts(tenantId)
   // Obs. 24/10: el mozo ve las reservas sobre las mesas (la caja las opera).
   const { byTable: reservationsByTable } = useReservations(tenantId)
@@ -104,7 +102,6 @@ export function WaiterDashboard() {
     [activeOrders, selectedTableId]
   )
   const readyCount = useMemo(() => activeOrders.filter((o) => o.status === "ready").length, [activeOrders])
-  const salonView = useSalonView(tables)
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
   const cartUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart])
 
@@ -277,7 +274,11 @@ export function WaiterDashboard() {
       case "mesas":
       case "cocina":
         setContextPanel(null)
-        setActionBar(null)
+        setActionBar(
+          scene === "cocina"
+            ? { center: <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button> }
+            : null
+        )
         break
 
       case "mesa": {
@@ -310,16 +311,17 @@ export function WaiterDashboard() {
           ),
           center: (
             <>
+              <button className="btn btn-ghost" onClick={backToTables}>← Mesas</button>
               {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })} title="Comensales" aria-label={`Comensales: ${selectedTable.guests ?? "sin cargar"}`}>
-                  <Users size={18} aria-hidden /> {selectedTable.guests ?? "—"}
+                <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })}>
+                  👥 {selectedTable.guests ?? "Comensales"}
                 </button>
               )}
               {tableOrders.length > 0 && !selectedTable.needsBill && (
-                <button className="btn btn-secondary" onClick={handleRequestBill}><ReceiptText size={18} aria-hidden /> Cuenta</button>
+                <button className="btn btn-secondary" onClick={handleRequestBill}>Pedir cuenta</button>
               )}
               {selectedTable.status === "occupied" && (
-                <button className="btn btn-secondary" onClick={handleCallManager} title="Llamar al encargado"><BellRing size={18} aria-hidden /> Encargado</button>
+                <button className="btn btn-secondary" onClick={handleCallManager}>Llamar encargado</button>
               )}
             </>
           ),
@@ -359,6 +361,11 @@ export function WaiterDashboard() {
               <span className="action-bar-total-value">{formatCurrency(cartTotal)}</span>
             </div>
           ),
+          center: (
+            <button className="btn btn-ghost" onClick={() => setScene("mesa")} disabled={sending}>
+              ← Mesa {selectedTable?.number ?? ""}
+            </button>
+          ),
           right: (
             <button className="btn btn-primary btn-lg" onClick={handleSendToKitchen} disabled={cart.length === 0 || sending}>
               {sending ? "Enviando…" : `Enviar a cocina${cartUnits > 0 ? ` (${cartUnits})` : ""}`}
@@ -374,18 +381,6 @@ export function WaiterDashboard() {
   }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
-  // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.
-  useEscapeBack(
-    scene === "mesa" || scene === "cocina" ? backToTables
-    : scene === "pedido" ? (sending ? null : () => setScene("mesa"))
-    : scene === "configurar" ? () => { setConfigProduct(null); setScene("pedido") }
-    : null
-  )
-
-  // Obs. UX 25/10: el header superior es del sistema; sectores, estados y
-  // Cocina van en el encabezado del workspace (arriba del mapa).
-  useEffect(() => { setHeaderCenter(null) }, [setHeaderCenter])
-
   const kitchenRounds = useMemo(
     () =>
       [...activeOrders]
@@ -402,20 +397,20 @@ export function WaiterDashboard() {
     <>
       {(scene === "mesas" || scene === "mesa") && (
         <>
+          <div className="workspace-header">
+            <div>
+              <div className="workspace-title">Mesas</div>
+              <div className="workspace-subtitle">Elegí una mesa para tomar el pedido</div>
+            </div>
+            <div className="workspace-actions">
+              <button className="btn btn-secondary" onClick={() => setScene("cocina")}>
+                <ChefHat size={18} aria-hidden /> Cocina
+                {readyCount > 0 && <span className="nav-item-badge" aria-label={`${readyCount} listos`}>{readyCount}</span>}
+              </button>
+            </div>
+          </div>
           <div className="salon-content">
-            {tables.length > 0 && (
-              <SalonHeaderBar
-                view={salonView}
-                extra={
-                  <button type="button" className="salon-status-btn salon-kitchen-btn" onClick={() => setScene("cocina")} title="Estado de cocina" aria-label={readyCount > 0 ? `Cocina, ${readyCount} listos` : "Cocina"}>
-                    <ChefHat size={18} aria-hidden />
-                    {readyCount > 0 && <span className="salon-status-count salon-ready-count">{readyCount}</span>}
-                  </button>
-                }
-              />
-            )}
             <WaiterSectorGrid
-              view={salonView}
               tables={tables}
               activity={tableActivity}
               selectedTableId={selectedTableId}
@@ -435,7 +430,6 @@ export function WaiterDashboard() {
             onSelectCategory={setSelectedCategory}
             onSelectProduct={handleAddProduct}
             popularIds={popularIds}
-            back={{ label: `Mesa ${selectedTable?.number ?? ""}`, onClick: () => setScene("mesa"), disabled: sending }}
           />
         </div>
       )}
@@ -454,8 +448,7 @@ export function WaiterDashboard() {
       {scene === "cocina" && (
         <div className="workspace-scene">
           <div className="workspace-header">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={backToTables}>← Mesas</button>
-            <div style={{ flex: 1 }}>
+            <div>
               <div className="workspace-title">Estado de cocina</div>
               <div className="workspace-subtitle">
                 {readyCount > 0 ? `${readyCount} listos para servir` : "Nada listo todavía"} · {kitchenRounds.length} rondas abiertas

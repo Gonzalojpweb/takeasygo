@@ -398,29 +398,9 @@ export interface ITenant extends Document {
     triggerItems: string[]
     suggestedItems: string[]
   }[]
-  /**
-   * Balance acumulado de comisiones MANUALES pendientes de cobro (centavos).
-   * El campo se llama `transfer` por historia: desde 2026-10-25 suma también
-   * las de efectivo (lib/commission-rules). Lo descuentan los mismos flujos
-   * de pago de comisiones.
-   */
+  /** Balance acumulado de comisiones pendientes de cobro (en centavos) */
   commissionBalance: {
     transfer: number
-  }
-  /**
-   * Matriz de comisiones manuales (SUPERADMIN, 2026-10-25): qué combinaciones
-   * medio × modo pagan comisión. enabled !== true ⇒ regla histórica
-   * (transferencia + delivery). Ver lib/commission-rules.
-   */
-  commissionRules?: {
-    enabled: boolean
-    cash: { modes: string[]; percent: number | null }
-    transfer: { modes: string[] }
-  }
-  /** Quién paga la comisión manual, por medio (ADMIN): cliente (recargo) o comercio (absorbe). */
-  commissionPayer?: {
-    cash: 'customer' | 'merchant'
-    transfer: 'customer' | 'merchant'
   }
   /** Umbral de notificación de comisiones (en pesos). null = usar global */
   commissionThreshold?: number | null
@@ -924,21 +904,6 @@ const TenantSchema = new Schema<ITenant>(
     // ── Balance de comisiones pendientes ──────────────────────────────────
     commissionBalance: {
       transfer: { type: Number, default: 0 },
-    },
-    // ── Comisiones manuales: matriz (superadmin) + quién paga (admin) ──────
-    commissionRules: {
-      enabled: { type: Boolean, default: false },
-      cash: {
-        modes: { type: [{ type: String, enum: ['delivery', 'takeaway', 'dine-in', 'business'] }], default: [] },
-        percent: { type: Number, default: null, min: 0, max: 100 },
-      },
-      transfer: {
-        modes: { type: [{ type: String, enum: ['delivery', 'takeaway', 'dine-in', 'business'] }], default: [] },
-      },
-    },
-    commissionPayer: {
-      cash: { type: String, enum: ['customer', 'merchant'], default: 'customer' },
-      transfer: { type: String, enum: ['customer', 'merchant'], default: 'customer' },
     },
     commissionThreshold: { type: Number, default: null, min: 0 },
   },

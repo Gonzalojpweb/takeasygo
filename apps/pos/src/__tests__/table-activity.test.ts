@@ -2,8 +2,6 @@ import { describe, it, expect } from "vitest"
 import type { Order } from "@takeasygo/types"
 import { summarizeTableActivity, formatElapsed } from "../hooks/useTableActivity"
 import { contextsForRole } from "../components/layout/contexts"
-import { clampPanelWidth, PANEL_MIN } from "../components/layout/PanelResizer"
-import { hasOpenDialog, isTypingBlocker } from "../hooks/useEscapeBack"
 
 /**
  * ROS — la Mesa muestra "nombre, estado, tiempo o monto" (Counter v2 §4).
@@ -75,45 +73,5 @@ describe("contextsForRole (Operational Roles Matrix)", () => {
   it("rol desconocido cae al mínimo (cajero), nunca a todo", () => {
     expect(contextsForRole(undefined).map((c) => c.id)).not.toContain("ventas")
     expect(contextsForRole("superhacker").map((c) => c.id)).not.toContain("ventas")
-  })
-})
-
-describe("Fase L — contexto Facturación", () => {
-  it("caja, encargado y admin facturan desde el POS; el mozo no", () => {
-    for (const role of ["cashier", "manager", "admin"]) {
-      expect(contextsForRole(role).map((c) => c.id)).toContain("facturacion")
-    }
-    expect(contextsForRole("waiter").map((c) => c.id)).not.toContain("facturacion")
-  })
-})
-
-describe("Panel de detalle con ancho regulable (obs. UX 25/10)", () => {
-  it("el ancho queda entre el mínimo y el máximo disponible", () => {
-    expect(clampPanelWidth(100)).toBe(PANEL_MIN)
-    expect(clampPanelWidth(500, 600)).toBe(500)
-    expect(clampPanelWidth(900, 600)).toBe(600)
-    expect(clampPanelWidth(412.6, 600)).toBe(413)
-    // Pantalla chica: el máximo nunca baja del mínimo.
-    expect(clampPanelWidth(400, 200)).toBe(PANEL_MIN)
-  })
-})
-
-describe("Esc = volver: protecciones (obs. UX 25/10)", () => {
-  // Tests en node (sin DOM): elementos simulados con lo que mira la función.
-  const el = (tagName: string, extra: Record<string, unknown> = {}) => ({ tagName, isContentEditable: false, ...extra }) as unknown as Element
-  it("no navega si se está escribiendo; un input vacío o un botón no bloquean", () => {
-    expect(isTypingBlocker(el("INPUT", { type: "text", value: "mila" }))).toBe(true)
-    expect(isTypingBlocker(el("INPUT", { type: "text", value: "" }))).toBe(false)
-    expect(isTypingBlocker(el("TEXTAREA"))).toBe(true)
-    expect(isTypingBlocker(el("SELECT"))).toBe(true)
-    expect(isTypingBlocker(el("INPUT", { type: "checkbox", value: "on" }))).toBe(false)
-    expect(isTypingBlocker(el("DIV", { isContentEditable: true }))).toBe(true)
-    expect(isTypingBlocker(el("BUTTON"))).toBe(false)
-    expect(isTypingBlocker(null)).toBe(false)
-  })
-  it("con un diálogo abierto (PIN, comensales, buscar cliente) el Esc es del diálogo", () => {
-    const root = (found: boolean) => ({ querySelector: (sel: string) => (found && sel.includes('role="dialog"') ? {} : null) }) as unknown as ParentNode
-    expect(hasOpenDialog(root(false))).toBe(false)
-    expect(hasOpenDialog(root(true))).toBe(true)
   })
 })

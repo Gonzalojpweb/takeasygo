@@ -70,14 +70,12 @@ export async function GET(request: NextRequest) {
 
       let total = 0
       let transfer = 0
-      let cash = 0
       let mercadopago = 0
       let kripton = 0
 
       for (const a of agg) {
         total += a.total
         if (a._id === 'transfer') transfer = a.total
-        if (a._id === 'cash') cash = a.total
         if (a._id === 'mercadopago') mercadopago = a.total
         if (a._id === 'kripton') kripton = a.total
       }
@@ -94,7 +92,6 @@ export async function GET(request: NextRequest) {
         settled: toPesos(settled),
         breakdown: {
           transfer: toPesos(transfer),
-          cash: toPesos(cash),
           mercadopago: toPesos(mercadopago),
           kripton: toPesos(kripton),
         },
@@ -167,15 +164,14 @@ export async function POST(request: NextRequest) {
     for (const id of s.orderIds) settledOrderIds.add(id)
   }
 
-  // Solo medios manuales con comisión (transferencia y efectivo): las de
-  // MercadoPago se cobran solas en cada pago; sumarlas acá inflaba lo
-  // "cobrado" (bug corregido).
+  // Solo transferencias con comisión: las de MercadoPago se cobran solas en
+  // cada pago; sumarlas acá inflaba lo "cobrado" (bug corregido).
   const orders = await Order.find({
     tenantId,
     deletedAt: null,
     status: { $ne: 'cancelled' },
     'payment.status': 'approved',
-    'payment.method': { $in: ['transfer', 'cash'] },
+    'payment.method': 'transfer',
     'payment.platformFeeAmount': { $gt: 0 },
     createdAt: { $gte: fromDate, $lte: toDate },
     _id: { $nin: Array.from(settledOrderIds) },

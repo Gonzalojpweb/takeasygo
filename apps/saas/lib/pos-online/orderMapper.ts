@@ -86,8 +86,6 @@ export interface SaasOrderDraft {
   discountAmount: number
   menuVersion: number
   posTableId: string | null
-  /** Comensales (Fase G): la ruta los copia de la mesa a su primera ronda. */
-  guests?: number
   notes: string
   customer: { name: string; phone: string; email: string }
   payment: {

@@ -303,10 +303,7 @@ describe('bundle (_bundle) — 1 línea de carrito = 1 combo', () => {
     expect(order!.items.reduce((s, i) => s + i.subtotal, 0)).toBe(PRICE * 2)
   })
 
-  // 2026-10-26: por defecto los agregados con precio se cobran aparte. Con la
-  // promo configurada como «agregados incluidos» se mantiene el precio fijo.
-  it('agregados incluidos (chargeCustomizationExtras false): la customización con extraPrice NO suma', async () => {
-    await Promotion.updateOne({ _id: promo._id }, { $set: { chargeCustomizationExtras: false } })
+  it('congelamiento de precio: customización con extraPrice NO suma dentro de la promo', async () => {
     const res = await post([
       bundleLine([
         unit(itemA, 'Cachapa L', {
@@ -328,43 +325,6 @@ describe('bundle (_bundle) — 1 línea de carrito = 1 combo', () => {
     expect(customized!.extraPrice).toBe(0)
     expect(customized!.subtotal).toBe(HALF)
     expect(order!.items.reduce((s, i) => s + i.subtotal, 0)).toBe(PRICE)
-  })
-
-  it('agregados cobrados (por defecto): el extra queso suma al precio de la promo', async () => {
-    const res = await post([
-      bundleLine([
-        unit(itemA, 'Cachapa L', {
-          customizations: [{ groupName: 'Queso', selectedOptions: [{ name: 'Extra queso' }] }],
-        }),
-        unit(itemB, 'Cachapa M'),
-      ]),
-    ])
-    expect(res.ok).toBe(true)
-    const order = await Order.findOne({ tenantId: tenant._id }).lean()
-    expect(order!.total).toBe(PRICE + 500_000)
-    const customized = order!.items.find((i) => i.customizations.length > 0)!
-    expect(customized.extraPrice).toBe(500_000)
-    expect(customized.subtotal).toBe(HALF + 500_000)
-  })
-
-  it('dos promos iguales: la selección de UN combo con cantidad 2 se cobra dos veces (bug 26/10)', async () => {
-    const res = await post([bundleLine([unit(itemA, 'Cachapa L'), unit(itemB, 'Cachapa M')], 2)])
-    expect(res.ok).toBe(true)
-    const order = await Order.findOne({ tenantId: tenant._id }).lean()
-    expect(order!.total).toBe(PRICE * 2)
-    expect(order!.items).toHaveLength(4) // la cocina recibe las 4 unidades
-  })
-
-  it('dos promos iguales con agregado: el extra se cobra en cada combo', async () => {
-    const res = await post([
-      bundleLine([
-        unit(itemA, 'Cachapa L', { customizations: [{ groupName: 'Queso', selectedOptions: [{ name: 'Extra queso' }] }] }),
-        unit(itemB, 'Cachapa M'),
-      ], 2),
-    ])
-    expect(res.ok).toBe(true)
-    const order = await Order.findOne({ tenantId: tenant._id }).lean()
-    expect(order!.total).toBe((PRICE + 500_000) * 2)
   })
 
   it('bundle incompleto → 400', async () => {

@@ -1,24 +1,20 @@
-import { useState, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react"
+import { useState, useEffect, useMemo, useSyncExternalStore } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useAuth } from "./hooks/useAuth"
 import { db } from "./db/dexie"
-import { AccessScreen } from "./components/Root/AccessScreen"
-import { BootScreen } from "./components/Root/BootScreen"
-import { SessionExpiredOverlay } from "./components/Root/SessionExpiredOverlay"
+import { LoginScreen } from "./components/LoginScreen"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
 import { SalesDashboard } from "./components/Sales/SalesDashboard"
-import { SummaryDashboard } from "./components/Summary/SummaryDashboard"
-import { FiscalDashboard } from "./components/Fiscal/FiscalDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
+import { ActionBar } from "./components/layout/ActionBar"
 import { UpdateBanner } from "./components/layout/UpdateBanner"
 import { applyAppUpdate, isAppUpdateReady, subscribeAppUpdate } from "./services/app-update"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
-import { PanelResizer, useContextPanelWidth } from "./components/layout/PanelResizer"
 import { contextsForRole, findContext, roleLabel, type ContextId } from "./components/layout/contexts"
 import type { SessionProfile } from "./services/auth-api"
 import {
@@ -159,10 +155,7 @@ function App() {
         tenantId: state.tenantId!,
         source: orderSource,
         status: "pending",
-        // 2026-10-25: un pedido en efectivo ya nace CONFIRMADO en el SaaS (se
-        // cobra al entregar); mostrarlo «esperando pago» era incorrecto.
-        // Transferencia / MP esperan el pago hasta `order:confirmed`.
-        externalStatus: event.paymentMethod === "cash" ? "confirmed" : "awaiting_payment",
+        externalStatus: "awaiting_payment",
         paymentMethod: event.paymentMethod as Order["paymentMethod"],
         orderMode: event.orderMode,
         items: event.items as Order["items"],
@@ -195,16 +188,6 @@ function App() {
 
     const unsubOrderCancelled = onSocketEvent("order:cancelled", (data: unknown) => {
       const event = data as { orderId: string; reason?: string }
-      // 2026-10-25: el «timeout offline» del Sync (10 min MP/efectivo, 24 h
-      // transferencia) es de cuando el POS tenía que aceptar el pedido. Hoy
-      // los pedidos de la App los gestiona el SaaS y nadie le avisa al Sync
-      // que siguen vivos: ese timeout los borraba de «Pedidos App» aunque en
-      // el SaaS estuvieran confirmados. Una cancelación real llega con otro
-      // motivo (o como estado «cancelled») y se aplica siempre.
-      if (event.reason === "offline_timeout") {
-        console.info(`[App] order:cancelled por offline_timeout ignorado (lo gestiona el SaaS): ${event.orderId}`)
-        return
-      }
       cancelExternalOrder(event.orderId, state.tenantId!, event.reason)
         .then(() => {
           console.log(`[App] order:cancelled persisted: ${event.orderId}`)
@@ -275,43 +258,45 @@ function App() {
     }
   }, [state.status, state.tenantId, state.jwt])
 
-  // ── Root del POS (obs. UX 25/10 — pos-root-interface.html) ──────────────
-  // R0 arranque mientras se restaura la sesión.
-  if (state.status === "loading" && state.phase !== "login") {
-    return <BootScreen />
-  }
-
-  // R1/R2/R3 acceso. Sigue montado mientras valida (phase "login"): no se
-  // pierde lo tipeado ni el paso (local elegido) si el login final falla.
-  if (state.status === "login" || state.status === "error" || state.status === "loading") {
+  if (state.status === "login" || state.status === "error") {
     return (
-      <AccessScreen
+      <LoginScreen
         onLogin={login}
-        errorInfo={state.status === "error" ? state.errorInfo : undefined}
-        busy={state.status === "loading"}
+        error={state.status === "error" ? state.error : undefined}
+        loading={false}
       />
     )
   }
 
-  // Shell. Con la sesión vencida (R6) el shell NO se desmonta: queda inerte
-  // bajo el overlay y, al reingresar, todo sigue exactamente donde estaba.
-  const expired = state.status === "expired"
+  if (state.status === "loading") {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "var(--surface-secondary)",
+        fontFamily: "var(--font-family)",
+      }}>
+        <div className="loading-state">
+          <span className="spinner" />
+          Cargando...
+        </div>
+      </div>
+    )
+  }
+
   return (
     <LayoutProvider>
-      <div className="root-shell-wrap" inert={expired || undefined} aria-hidden={expired || undefined}>
-        <AppShell
-          tenantId={state.tenantId}
-          profile={state.jwt?.profile}
-          tokenRole={decodeRole(state.jwt?.accessToken)}
-          activeContext={activeContext}
-          setActiveContext={setActiveContext}
-          logout={logout}
-        />
-      </div>
-      {expired && (
-        <SessionExpiredOverlay state={state} where={findContext(activeContext).title} onLogin={login} onLogout={() => { void logout() }} />
-      )}
-      {updateReady && !expired && <UpdateBanner />}
+      <AppShell
+        tenantId={state.tenantId}
+        profile={state.jwt?.profile}
+        tokenRole={decodeRole(state.jwt?.accessToken)}
+        activeContext={activeContext}
+        setActiveContext={setActiveContext}
+        logout={logout}
+      />
+      {updateReady && <UpdateBanner />}
     </LayoutProvider>
   )
 }
@@ -343,8 +328,6 @@ function AppShell({
   logout: () => void
 }) {
   const { sidebarCollapsed } = useLayout()
-  // Obs. UX 25/10: ancho del panel de detalle regulable (como VS Code).
-  const panelWidth = useContextPanelWidth()
   const role = profile?.role ?? tokenRole
   const contexts = useMemo(() => contextsForRole(role), [role])
 
@@ -367,10 +350,7 @@ function AppShell({
   ) ?? 0
 
   return (
-    <div
-      className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
-      style={panelWidth.width !== null ? ({ "--context-panel-width": `${panelWidth.width}px` } as CSSProperties) : undefined}
-    >
+    <div className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       <Header
         tenantName={profile?.tenantName ?? ""}
         locationName={profile?.locationName}
@@ -381,8 +361,6 @@ function AppShell({
       />
 
       <Navigation
-        tenantName={profile?.tenantName ?? ""}
-        locationName={profile?.locationName}
         items={contexts}
         activeId={current.id}
         badges={{ counter: pendingIncoming }}
@@ -396,14 +374,10 @@ function AppShell({
         {current.id === "flota" && <FlotaWidget />}
         {current.id === "caja" && <CashDashboard role={role} />}
         {current.id === "ventas" && <SalesDashboard />}
-        {current.id === "resumen" && <SummaryDashboard />}
-        {current.id === "facturacion" && <FiscalDashboard />}
       </main>
 
-      <ContextPanel
-        empty={current.empty}
-        resizer={<PanelResizer width={panelWidth.width} onChange={panelWidth.setWidth} />}
-      />
+      <ContextPanel empty={current.empty} />
+      <ActionBar />
       {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
       <ManagerApprovalDialog />
       {/* Cobro en el posnet MercadoPago Point (Fase 6). */}

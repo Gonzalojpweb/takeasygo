@@ -474,8 +474,6 @@ export default function CustomizationSheet({
       type: 'menuItem',
       originalPrice: item.originalPrice,
       takeawayOriginalPrice: item.takeawayOriginalPrice,
-      // Promos: mitad y mitad no suma sus precios como «agregados».
-      _isHalf: isHalfMode,
     }
     onConfirm(cartItem)
   }
