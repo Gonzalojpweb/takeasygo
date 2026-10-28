@@ -19,6 +19,8 @@ import LocationBar from '@/components/menu/LocationBar'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
+import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 
 interface Props {
   tenant: any
@@ -177,15 +179,6 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       const diff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
       return diff !== 0 ? diff : String(a._id).localeCompare(String(b._id))
     })
-
-  const featuredItems = categories
-    .flatMap((c: any) => [
-      ...(c.items ?? []).map((i) => ({ ...i, _catGroups: c.customizationGroups ?? [] })),
-      ...(c.subcategories ?? []).flatMap((s: any) =>
-        (s.items ?? []).map((i) => ({ ...i, _catGroups: c.customizationGroups ?? [] }))
-      ),
-    ])
-    .filter((i: any) => i.isFeatured)
 
   // ── Modal de detalle de plato (solo lectura, dine-in no se compra) ──
   // Mergea los grupos de personalización igual que el menú takeaway:
@@ -896,55 +889,15 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
         })}
       </main>
 
-      {/* ── Platos Destacados ──────────────────────────────── */}
-      {featuredItems.length > 0 && (
-        <section className="py-16 px-4" style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold mb-3" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
-                {t.featuredTitle}
-              </h3>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
-                <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor }} />
-                <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
-              </div>
-              <p className="text-sm max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
-                {t.featuredSubtitle}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredItems.slice(0, 8).map((item: any) => (
-                <button key={item._id} onClick={() => openDishInfo(item)} className="rounded-xl overflow-hidden aspect-square relative group">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
-                      style={{ backgroundColor: branding.primaryColor + '20', border: `1px solid ${branding.primaryColor}30` }}>
-                      <p className="text-xs font-bold text-center leading-tight" style={{ color: branding.primaryColor }}>
-                        {tn(item, 'name', locale)}
-                      </p>
-                      <p className="text-xs font-bold" style={{ color: branding.primaryColor }}>
-                        ${(() => {
-                          const hasVariants = (item.variants ?? []).length > 0
-                          if (hasVariants) {
-                            const prices = item.variants.map((v: any) => v.price)
-                            return toPesos(Math.min(...prices)).toLocaleString('es-AR')
-                          }
-                          return toPesos(item.price).toLocaleString('es-AR')
-                        })()}
-                      </p>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <p className="text-white text-xs font-bold text-left">{tn(item, 'name', locale)}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+      {/* ── End of Menu: Club + TGO Network ── */}
+      <EndOfMenuSection
+        tenantSlug={tenant.slug}
+        tenantName={tenant.name}
+        primaryColor={branding.primaryColor}
+        bgDark={dark ? '#020617' : '#1e293b'}
+        clubMembership={clubMembership}
+        showClub={true}
+      />
 
       {/* Best Sellers */}
       {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -1045,47 +998,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           </div>
         </div>
 
-        {/* ── Club membership badge ── */}
-        {clubMembership.isMember && (
-          <div className="border-t px-4 py-3 max-w-4xl mx-auto"
-            style={{ borderColor: branding.primaryColor + '20' }}>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <Link
-                href={`/${tenant.slug}/club/lookup`}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ backgroundColor: branding.primaryColor, color: '#FFFFFF' }}
-              >
-                <Award size={16} />
-                Socio del Club — {clubMembership.name}
-              </Link>
-              <Link
-                href={`/${tenant.slug}/club/invitar`}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ backgroundColor: branding.primaryColor, color: '#FFFFFF' }}
-              >
-                <UserPlus size={16} />
-                Invitá y ganá
-              </Link>
-              {clubMembership.walletEnabled && (
-                <Link
-                  href={`/${tenant.slug}/club/lookup`}
-                  className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
-                  style={{ color: '#94a3b8' }}
-                >
-                  <Wallet size={14} />
-                  Añadir a billetera digital
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
-
         <div className="border-t px-4 py-4 max-w-4xl mx-auto flex items-center justify-between"
           style={{ borderColor: branding.primaryColor + '20' }}>
           <p className="text-xs" style={{ color: '#475569' }}>
             © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setActiveLegal('terminos')}
@@ -1102,6 +1020,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             >
               {t.privacy}
             </button>
+            <PoweredByTakeasy variant="dark" label="network" tenantSlug={tenant.slug} />
             <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
               <Settings size={14} style={{ color: '#94a3b8' }} />
             </Link>

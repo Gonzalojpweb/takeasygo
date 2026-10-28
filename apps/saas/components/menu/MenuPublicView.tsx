@@ -42,6 +42,7 @@ import {
   resolveMaxRewardsPerOrder,
 } from '@/lib/cart-items'
 import { motion } from 'framer-motion'
+import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
@@ -1294,6 +1295,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         />
       )}
 
+      {/* ── Order Lookup (top) ── */}
+      <div className="max-w-2xl mx-auto px-4 pt-4">
+        <OrderLookupByPhone tenantSlug={tenant.slug} />
+      </div>
+
       {/* ── Main menu content ── */}
       <main className="max-w-2xl mx-auto px-4 pt-6"
         style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}>
@@ -1861,51 +1867,15 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         })}
       </main>
 
-      {/* ── Platos Destacados — photo grid ── */}
-      {featuredItems.length > 0 && (
-        <section className="py-16 px-4" style={{ backgroundColor: '#1e293b' }}>
-          <div className="max-w-2xl mx-auto">
-            <div className="text-center mb-10">
-              <h3 className="text-3xl font-bold mb-3" style={{ color: primary, fontFamily: 'var(--font-heading)' }}>
-                {t.featuredTitle}
-              </h3>
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="h-px w-12" style={{ backgroundColor: primary + '50' }} />
-                <div className="w-1 h-1 rounded-full" style={{ backgroundColor: primary }} />
-                <div className="h-px w-12" style={{ backgroundColor: primary + '50' }} />
-              </div>
-              <p className="text-sm max-w-sm mx-auto" style={{ color: '#94a3b8' }}>
-                {t.featuredSubtitle}
-              </p>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredItems.slice(0, 8).map((item: any) => (
-                <div key={item._id} className="rounded-xl overflow-hidden aspect-square relative group">
-                  {item.imageUrl ? (
-                    <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} fill sizes="(max-width: 768px) 50vw, 25vw" className="object-cover transition-transform group-hover:scale-105 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3"
-                      style={{ backgroundColor: primary + '20', border: `1px solid ${primary}30` }}>
-                      <p className="text-sm font-bold text-center leading-tight" style={{ color: primary }}>
-                        {tn(item, 'name', locale)}
-                      </p>
-                      <p className="text-sm font-bold" style={{ color: primary }}>
-                        ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                    <p className="text-white text-sm font-bold text-left">{tn(item, 'name', locale)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Order Lookup ── */}
-      <OrderLookupByPhone tenantSlug={tenant.slug} />
+      {/* ── End of Menu: Club + TGO Network ── */}
+      <EndOfMenuSection
+        tenantSlug={tenant.slug}
+        tenantName={tenant.name}
+        primaryColor={primary}
+        bgDark="#1e293b"
+        clubMembership={clubMembership}
+        showClub={mounted && !isAdminCorp}
+      />
 
       {/* ── Footer ── */}
       <footer style={{ backgroundColor: '#1e293b' }}>
@@ -1985,40 +1955,6 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             )}
           </div>
         </div>
-
-        {/* ── Club membership badge (hidden for company admin in business mode) ── */}
-        {mounted && clubMembership.isMember && !isAdminCorp && (
-          <SectionContainer variant="club" primaryColor={primary} sectionContainerColor={branding.sectionContainerColor}>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <Link
-                href={`/${tenant.slug}/club/lookup`}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ backgroundColor: primary, color: '#FFFFFF' }}
-              >
-                <Award size={16} />
-                Socio del Club — {clubMembership.name}
-              </Link>
-              <Link
-                href={`/${tenant.slug}/club/invitar`}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
-                style={{ backgroundColor: primary, color: '#FFFFFF' }}
-              >
-                <UserPlus size={16} />
-                Invitá y ganá
-              </Link>
-              {clubMembership.walletEnabled && (
-                <Link
-                  href={`/${tenant.slug}/club/lookup`}
-                  className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
-                  style={{ color: '#94a3b8' }}
-                >
-                  <Wallet size={14} />
-                  Añadir a billetera digital
-                </Link>
-              )}
-            </div>
-          </SectionContainer>
-        )}
 
         <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"
           style={{ borderColor: primary + '20' }}>
