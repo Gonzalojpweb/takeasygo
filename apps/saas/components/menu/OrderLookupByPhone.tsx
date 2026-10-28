@@ -87,12 +87,12 @@ export default function OrderLookupByPhone({ tenantSlug }: { tenantSlug: string 
   }
 
   return (
-    <div className="border-t" style={{ backgroundColor: '#1e293b', borderColor: '#ffffff15' }}>
+    <div className="border-t" style={{ borderColor: '#ffffff15' }}>
       <div className="max-w-2xl mx-auto px-4 py-6">
         {viewState === 'collapsed' && (
           <button
             onClick={handleToggle}
-            className="group relative mx-auto flex w-full items-center justify-center rounded-full px-5 py-3 shadow-[inset_0_-8px_10px_#8fdfff1f] transition-shadow duration-500 ease-out hover:shadow-[inset_0_-5px_10px_#8fdfff3f] cursor-pointer"
+            className="group relative mx-auto flex w-full items-center justify-center rounded-full px-5 py-3 cursor-pointer"
           >
             <span
               className={cn(
