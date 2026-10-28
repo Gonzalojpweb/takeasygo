@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus } from 'lucide-react'
+import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { isAvailableNow } from '@/lib/availability'
@@ -1049,14 +1049,22 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
         {clubMembership.isMember && (
           <div className="border-t px-4 py-3 max-w-4xl mx-auto"
             style={{ borderColor: branding.primaryColor + '20' }}>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <Link
                 href={`/${tenant.slug}/club/lookup`}
-                className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80"
-                style={{ color: branding.primaryColor }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: branding.primaryColor, color: '#FFFFFF' }}
               >
                 <Award size={16} />
                 Socio del Club — {clubMembership.name}
+              </Link>
+              <Link
+                href={`/${tenant.slug}/club/invitar`}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: branding.primaryColor, color: '#FFFFFF' }}
+              >
+                <UserPlus size={16} />
+                Invitá y ganá
               </Link>
               {clubMembership.walletEnabled && (
                 <Link

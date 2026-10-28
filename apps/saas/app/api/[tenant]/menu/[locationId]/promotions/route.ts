@@ -196,11 +196,6 @@ export async function GET(
     })
 
     const filteredPromotions = promotionsWithSlots.filter((p: any) => {
-      const vis = p.visibility || 'both'
-      if (vis === 'both') return true
-      if (vis === mode) return true
-      return false
-    }).filter((p: any) => {
       return isPromoActiveToday(p.activeDays)
     }).filter((p: any) => {
       return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now)

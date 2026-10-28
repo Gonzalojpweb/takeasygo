@@ -1989,21 +1989,21 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         {/* ── Club membership badge (hidden for company admin in business mode) ── */}
         {mounted && clubMembership.isMember && !isAdminCorp && (
           <SectionContainer variant="club" primaryColor={primary} sectionContainerColor={branding.sectionContainerColor}>
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <Link
                 href={`/${tenant.slug}/club/lookup`}
-                className="flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-80"
-                style={{ color: primary }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: primary, color: '#FFFFFF' }}
               >
                 <Award size={16} />
                 Socio del Club — {clubMembership.name}
               </Link>
               <Link
                 href={`/${tenant.slug}/club/invitar`}
-                className="flex items-center gap-1.5 text-xs font-semibold transition-opacity hover:opacity-80"
-                style={{ color: primary }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ backgroundColor: primary, color: '#FFFFFF' }}
               >
-                <UserPlus size={14} />
+                <UserPlus size={16} />
                 Invitá y ganá
               </Link>
               {clubMembership.walletEnabled && (
