@@ -36,43 +36,27 @@ interface SyncOrderPayload {
   orderMode?: string
 }
 
-const PUSH_TIMEOUT_MS = 8000
-const PUSH_RETRY_DELAYS_MS = [1000, 3000]
+export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<void> {
+  if (envMissing("pushOrderToSyncLayer")) return
 
-/**
- * Alta del pedido online en el Sync (→ `order:created` a los POS de la sede).
- * Reintenta ante red caída / timeout / 5xx: es idempotente porque el Sync
- * deduplica por `externalOrderId`. Un 4xx no se reintenta (payload inválido).
- * Devuelve true si el Sync lo aceptó. Nunca lanza.
- */
-export async function pushOrderToSyncLayer(payload: SyncOrderPayload): Promise<boolean> {
-  if (envMissing("pushOrderToSyncLayer")) return false
+  try {
+    const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": SYNC_LAYER_SECRET,
+      },
+      body: JSON.stringify(payload),
+    })
 
-  for (let attempt = 0; attempt <= PUSH_RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      const res = await fetch(`${SYNC_LAYER_URL}/api/v1/internal/orders`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-Secret": SYNC_LAYER_SECRET,
-        },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(PUSH_TIMEOUT_MS),
-      })
-
-      if (res.ok) return true
+    if (!res.ok) {
       const text = await res.text().catch(() => "unknown")
-      console.error(`[sync-layer] push POST ${target}/api/v1/internal/orders -> ${res.status}: ${text} (pedido ${payload.externalOrderId}, intento ${attempt + 1})`)
-      if (res.status < 500) return false
-    } catch (err) {
-      console.error(`[sync-layer] push error -> ${target}/api/v1/internal/orders (pedido ${payload.externalOrderId}, intento ${attempt + 1}):`, err)
+      console.error(`[sync-layer] push POST ${target}/api/v1/internal/orders -> ${res.status}: ${text}`)
+      return
     }
-    const delay = PUSH_RETRY_DELAYS_MS[attempt]
-    if (delay === undefined) break
-    await new Promise((r) => setTimeout(r, delay))
+  } catch (err) {
+    console.error(`[sync-layer] push error -> ${target}/api/v1/internal/orders:`, err)
   }
-  console.error(`[sync-layer] push ABORTED: el pedido ${payload.externalOrderId} no llegó al Sync (el POS lo recupera recién si se reintenta). target=${target} secret=${secretState}`)
-  return false
 }
 
 export async function confirmOrderInSyncLayer(
@@ -122,47 +106,13 @@ export async function confirmOrderInSyncLayer(
   return false
 }
 
-/**
- * Contrato con `POST /api/v1/cash-sale` del Sync (apps/sync/src/routes/
- * cash-sale.ts). BUG 2026-10-25: el SaaS mandaba `total` y no `orderMode`,
- * pero el Sync exige `amount` y `orderMode` → 400 «Invalid payload» en TODAS
- * las ventas cobradas de la App: ninguna llegaba a la caja del POS.
- * `locationId` permite al Sync avisar a los POS multisede (sala de la sede).
- */
 interface CashSalePayload {
   orderId: string
   tenantId: string
-  /** @storedAs cents */
-  amount: number
-  orderMode: "takeaway" | "delivery" | "dine-in" | "business"
-  paymentMethod: "cash" | "mercadopago" | "posnet_debit" | "posnet_credit" | "kripton" | "transfer"
-  locationId?: string
+  total: number
   items: { name: string; quantity: number; unitPrice: number; total: number }[]
+  paymentMethod: string
   channel: string
-}
-
-const CASH_SALE_METHODS = new Set(["cash", "mercadopago", "posnet_debit", "posnet_credit", "kripton", "transfer"])
-const CASH_SALE_MODES = new Set(["takeaway", "delivery", "dine-in", "business"])
-
-/** Arma el payload que el Sync acepta (pura, testeable). */
-export function buildCashSalePayload(order: ConfirmableOrder, tenantId: string): CashSalePayload {
-  const method = order.payment?.method ?? "mercadopago"
-  const mode = order.orderMode ?? "takeaway"
-  return {
-    orderId: order._id.toString(),
-    tenantId,
-    amount: order.total,
-    orderMode: (CASH_SALE_MODES.has(mode) ? mode : "takeaway") as CashSalePayload["orderMode"],
-    paymentMethod: (CASH_SALE_METHODS.has(method) ? method : "mercadopago") as CashSalePayload["paymentMethod"],
-    ...(order.locationId ? { locationId: order.locationId.toString() } : {}),
-    items: order.items.map((item) => ({
-      name: item.name,
-      quantity: item.quantity,
-      unitPrice: item.price,
-      total: item.subtotal,
-    })),
-    channel: "online",
-  }
 }
 
 export async function notifyCashSale(payload: CashSalePayload): Promise<void> {
@@ -214,8 +164,6 @@ interface ConfirmableOrder {
   }>
   payment?: { method?: string }
   customer?: { phoneHash?: string }
-  orderMode?: string
-  locationId?: mongoose.Types.ObjectId | string | null
 }
 
 interface ConfirmableTenant {
@@ -261,7 +209,19 @@ export async function confirmOrderPaymentCore(
   const tenantId = tenant._id.toString()
 
   // 1. Notify cash sale (deduplicates via unique index)
-  await notifyCashSale(buildCashSalePayload(order, tenantId))
+  await notifyCashSale({
+    orderId,
+    tenantId,
+    total: order.total,
+    items: order.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      total: item.subtotal,
+    })),
+    paymentMethod: order.payment?.method ?? 'mercadopago',
+    channel: 'online',
+  })
 
   // 2. CIS order_completed event (fire-and-forget)
   if (order.customer?.phoneHash) {

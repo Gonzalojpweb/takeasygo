@@ -607,7 +607,7 @@ function PaymentConfirmation(props: {
       </div>
 
       {/* Surcharge info */}
-      {(selectedPaymentMethod === 'mercadopago' || selectedPaymentMethod === 'kripton') && activeSurchargePercent > 0 && (
+      {selectedPaymentMethod !== 'transfer' && activeSurchargePercent > 0 && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
           <span className="text-lg">💡</span>
           <div className="text-xs text-amber-800">
@@ -752,7 +752,7 @@ function PaymentConfirmation(props: {
             <span>${toPesos(deliveryQuote.cost).toLocaleString('es-AR')}</span>
           </div>
         )}
-        {(selectedPaymentMethod === 'transfer' || selectedPaymentMethod === 'cash') && activeSurchargePercent > 0 ? (
+        {selectedPaymentMethod === 'transfer' && activeSurchargePercent > 0 ? (
           <>
             <div className="flex justify-between text-sm text-zinc-500 pt-2 border-t border-zinc-200">
               <span>Precio de carta</span>

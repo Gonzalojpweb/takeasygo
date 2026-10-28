@@ -75,12 +75,6 @@ export interface IPromotion {
   slots: IPromotionSlot[]
   /** Default true — aplica como default a todos los slots */
   allowCustomization?: boolean
-  /**
-   * 2026-10-26: los agregados con precio elegidos al personalizar un ítem de
-   * la promo se cobran aparte (extra sobre el precio del combo). false = la
-   * promo los incluye sin costo. Ausente = true.
-   */
-  chargeCustomizationExtras?: boolean
   /** A nivel promo, se fusiona con el de cada slot */
   overrideCustomizationGroups?: ICustomizationGroup[]
   createdAt: Date
@@ -239,10 +233,6 @@ const PromotionSchema = new Schema<IPromotion>(
       default: [],
     },
     allowCustomization: {
-      type: Boolean,
-      default: true,
-    },
-    chargeCustomizationExtras: {
       type: Boolean,
       default: true,
     },

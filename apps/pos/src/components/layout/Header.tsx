@@ -140,12 +140,9 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
         </div>
       </div>
 
-      {/* Centro: las vistas / filtros del contexto. Obs. UX 25/10: el título
-          del contexto ya no se muestra (la navegación dice dónde estás y
-          ocupaba lugar); queda solo para lectores de pantalla. */}
+      {/* Centro: las vistas del contexto (si el contexto las tiene) o su nombre. */}
       <div className="header-center">
-        <h1 className="sr-only">{contextTitle}</h1>
-        {headerCenter}
+        {headerCenter ?? <h1 className="header-context-title">{contextTitle}</h1>}
       </div>
 
       <div className="header-right">

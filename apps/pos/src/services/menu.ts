@@ -55,13 +55,3 @@ export async function syncMenu(tenantId: string, jwt?: string): Promise<boolean>
   })
   return true
 }
-
-/**
- * Fase J: pausar / reanudar un artículo desde el POS (caja, encargado,
- * admin). El server guarda el motivo «manual»; después se refresca la carta
- * local para que todos los equipos lo vean como «Faltante».
- */
-export async function setItemAvailability(tenantId: string, itemId: string, available: boolean): Promise<void> {
-  await posApi(tenantId, `/menu/items/${encodeURIComponent(itemId)}`, { method: "PATCH", body: { available } })
-  await syncMenu(tenantId)
-}

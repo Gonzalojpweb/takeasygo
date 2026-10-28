@@ -1,5 +1,3 @@
-import { resolveManualCommission, type ManualCommissionMethod, type TenantCommissionInput } from '@/lib/commission-rules'
-
 export interface PricingResult {
   baseTotal: number
   surchargePercent: number
@@ -7,7 +5,7 @@ export interface PricingResult {
   finalTotal: number
   platformFeeAmount: number
   /**
-   * Efectivo / transferencia: parte de la comisión de plataforma que se le
+   * Transferencia (delivery): parte de la comisión de plataforma que se le
    * RECARGÓ al cliente (porcentaje de plataforma × subtotal sin envío).
    * 0 = la comisión no se recargó y la absorbe el comercio. @storedAs cents
    */
@@ -18,7 +16,7 @@ export interface PricingResult {
 
 export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer' | 'cash'
 
-interface TenantFees extends TenantCommissionInput {
+interface TenantFees {
   paymentSurcharges?: {
     mercadopago?: { feePercent: number }
     kripton?: { feePercent: number }
@@ -34,7 +32,6 @@ interface PlatformFees {
   platformFees?: {
     takeasygoCommissionPercent: number
     takeasygoTransferCommissionPercent?: number
-    takeasygoCashCommissionPercent?: number
   }
 }
 
@@ -52,9 +49,15 @@ function getPlatformFeePercent(
 ): number {
   if (overridePlatformFeePercent != null) return overridePlatformFeePercent
 
-  // Efectivo / transferencia: matriz del superadmin (lib/commission-rules).
-  if (paymentMethod === 'cash' || paymentMethod === 'transfer') {
-    return resolveManualCommission(paymentMethod, orderMode, tenant, platformConfig).percent
+  if (paymentMethod === 'cash') return 0
+
+  if (paymentMethod === 'transfer') {
+    // La comisión de plataforma por transferencia solo aplica a pedidos de delivery.
+    // Si orderMode no llega (bug de caller), el sistema falla al lado seguro: no cobra.
+    if (orderMode !== 'delivery') return 0
+    return tenant.transfer?.commissionPercent != null
+      ? tenant.transfer.commissionPercent!
+      : (platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
   }
 
   return (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
@@ -69,11 +72,12 @@ export function getTotalFeesForMethod(
   overridePlatformFeePercent?: number,
   orderMode?: string
 ): number {
-  // Efectivo / transferencia: fracción RECARGADA al cliente (si la absorbe
-  // el comercio, el cliente no ve recargo de plataforma).
-  if (paymentMethod === 'cash' || paymentMethod === 'transfer') {
-    const c = resolveManualCommission(paymentMethod, orderMode, tenant, platformConfig, overridePlatformFeePercent)
-    return c.payer === 'customer' ? c.percent / 100 : 0
+  if (paymentMethod === 'cash') return 0
+
+  if (paymentMethod === 'transfer') {
+    if (orderMode !== 'delivery') return 0
+    const platformFeePercent = getPlatformFeePercent(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
+    return platformFeePercent / 100
   }
 
   const tenantFeePercent = tenant.paymentSurcharges?.[paymentMethod]?.feePercent ?? 0
@@ -95,41 +99,49 @@ export function calculateFinalTotal(
   /** Delivery cost in cents. For transfer, the surcharge is calculated on (baseTotal - deliveryCost) — delivery is a passthrough and excluded from the commission base. */
   deliveryCost?: number
 ): PricingResult {
-  // ── Efectivo / Transferencia: comisión MANUAL (lib/commission-rules) ──
-  // Qué combinaciones medio × modo pagan comisión y con qué % lo decide el
-  // superadmin; si se recarga al cliente o la absorbe el comercio, el admin.
-  // Sin matriz activada rige la regla histórica (2026-10-22): transferencia +
-  // delivery, recargada SIEMPRE al cliente — mismo resultado que antes.
-  //  - comisión de plataforma: ceil(subtotal × % / 100); el cliente paga
-  //    EXACTAMENTE ese monto si le corresponde (platformFeeCustomerAmount).
-  //  - recargo propio del comercio por transferencia (paymentSurcharges.
-  //    transfer.feePercent): queda en el negocio; como antes, solo delivery.
+  // ── Transferencia (solo delivery) ──
+  // REGLA (decisión de negocio, 2026-10-22): la comisión de TakeasyGO la paga
+  // SIEMPRE el cliente, como cargo por usar la app. El restaurante nunca la
+  // absorbe. El cliente paga:
+  //  - la comisión de plataforma: % del comercio (tenant.transfer.commissionPercent)
+  //    o, si no tiene uno (> 0), el % por defecto de la plataforma, y
+  //  - el recargo propio opcional del comercio (tenant.paymentSurcharges.transfer.feePercent),
+  //    que queda en el negocio.
+  // A TakeasyGO le corresponde solo la comisión, y el cliente paga EXACTAMENTE
+  // ese monto (mismo redondeo): platformFeeCustomerAmount === platformFeeAmount.
   // Base: subtotal sin envío (el delivery es passthrough al repartidor).
-  if (paymentMethod === 'transfer' || paymentMethod === 'cash') {
-    const commission = resolveManualCommission(paymentMethod as ManualCommissionMethod, orderMode, tenant, platformConfig, overridePlatformFeePercent)
-    const merchantFeePercent = paymentMethod === 'transfer' && orderMode === 'delivery'
-      ? (tenant.paymentSurcharges?.transfer?.feePercent ?? 0)
-      : 0
+  // Antes, con % del comercio en 0, la comisión se cobraba igual pero no se le
+  // recargaba al cliente: la pagaba el restaurante (bug corregido).
+  if (paymentMethod === 'transfer') {
+    if (orderMode !== 'delivery') {
+      return { baseTotal, surchargePercent: 0, surchargeAmount: 0, finalTotal: baseTotal, platformFeeAmount: 0, platformFeeCustomerAmount: 0, merchantSurchargeAmount: 0 }
+    }
 
-    const subtotal = Math.max(0, baseTotal - (deliveryCost ?? 0))
-    const platformFeeAmount = commission.percent > 0 ? Math.ceil(subtotal * commission.percent / 100) : 0
-    const platformFeeCustomerAmount = commission.payer === 'customer' ? platformFeeAmount : 0
+    const merchantFeePercent = tenant.paymentSurcharges?.transfer?.feePercent ?? 0
+    const tenantPercent = tenant.transfer?.commissionPercent ?? 0
+    const platformPercent = tenantPercent > 0
+      ? tenantPercent
+      : (overridePlatformFeePercent ?? platformConfig.platformFees?.takeasygoTransferCommissionPercent ?? 0)
+
+    const subtotal = baseTotal - (deliveryCost ?? 0)
+    const platformFeeAmount = Math.ceil(subtotal * platformPercent / 100)
     const merchantSurchargeAmount = Math.round(subtotal * merchantFeePercent / 100)
-    const surchargeAmount = platformFeeCustomerAmount + merchantSurchargeAmount
-    const surchargePercent = merchantFeePercent + (commission.payer === 'customer' ? commission.percent : 0)
+    const surchargeAmount = platformFeeAmount + merchantSurchargeAmount
+    const surchargePercent = merchantFeePercent + platformPercent
+    const finalTotal = baseTotal + surchargeAmount
 
     return {
       baseTotal,
       surchargePercent,
       surchargeAmount,
-      finalTotal: baseTotal + surchargeAmount,
+      finalTotal,
       platformFeeAmount,
-      platformFeeCustomerAmount,
+      platformFeeCustomerAmount: platformFeeAmount,
       merchantSurchargeAmount,
     }
   }
 
-  // ── MP / Kripton: lógica original (split automático, sin cambios) ──
+  // ── MP / Kripton / Efectivo: lógica original ──
   const totalFees = getTotalFeesForMethod(paymentMethod, tenant, platformConfig, overridePlatformFeePercent, orderMode)
   if (totalFees === 0) {
     return {

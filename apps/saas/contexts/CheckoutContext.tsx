@@ -811,24 +811,17 @@ export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Pro
   const activeTotalFees = state.selectedPaymentMethod
     ? (state.paymentTotalFees[state.selectedPaymentMethod] ?? 0)
     : 0
-  // Transferencia / efectivo: mismo cálculo que el server (lib/pricing.ts) —
-  // recargo solo sobre el subtotal sin delivery. Transferencia: comisión +
-  // recargo propio del comercio. Efectivo: comisión solo si la matriz del
-  // superadmin la aplica y el comercio eligió recargarla (lib/commission-rules).
+  // Transferencia: mismo cálculo que el server (lib/pricing.ts) — recargo solo
+  // sobre el subtotal sin delivery, con la comisión del tenant + recargo propio del comercio.
   const transferSurchargePercent = state.paymentSurcharges['transfer'] ?? 0
-  const cashSurchargePercent = state.paymentSurcharges['cash'] ?? 0
   const activeSurchargePercent = state.selectedPaymentMethod === 'transfer'
     ? transferSurchargePercent
-    : state.selectedPaymentMethod === 'cash'
-      ? cashSurchargePercent
-      : (activeTotalFees > 0
-        ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
-        : 0)
+    : (activeTotalFees > 0
+      ? Math.round((1 / (1 - activeTotalFees) - 1) * 10000) / 100
+      : 0)
   const total = state.selectedPaymentMethod === 'transfer'
     ? baseTotal + Math.round(Math.max(0, baseTotal - deliveryCost) * (transferSurchargePercent / 100))
-    : state.selectedPaymentMethod === 'cash'
-      ? baseTotal + Math.ceil(Math.max(0, baseTotal - deliveryCost) * (cashSurchargePercent / 100))
-      : (activeTotalFees > 0 ? Math.ceil(baseTotal / (1 - activeTotalFees)) : baseTotal)
+    : (activeTotalFees > 0 ? Math.ceil(baseTotal / (1 - activeTotalFees)) : baseTotal)
 
   const increaseQty = useCallback((cartItemId: string) => {
     dispatch({ type: 'SET_CART', cart: stateRef.current.cart.map(i =>

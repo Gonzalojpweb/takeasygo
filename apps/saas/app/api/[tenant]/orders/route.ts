@@ -1029,17 +1029,8 @@ export async function POST(
             }
             seenBundleSlots.add(entry.slotName)
           }
-          // La selección puede venir como UN combo (el carrito sube la
-          // cantidad de una línea idéntica: «2 promos iguales») o con las
-          // unidades de todos los combos. Bug 26/10: con cantidad 2 y la
-          // selección de 1 combo se rechazaba («solo deja agregar 1»).
-          const perCombo = promotion.slots.every((s: any) => {
-            const entry = clientAny._bundle.find((e: any) => e.slotName === s.name)
-            return (entry?.units?.length ?? 0) === (s.requiredQuantity ?? 1)
-          })
-          const repeat = perCombo ? quantity : 1
           for (const s of promotion.slots) {
-            const expected = (s.requiredQuantity ?? 1) * (perCombo ? 1 : quantity)
+            const expected = (s.requiredQuantity ?? 1) * quantity
             const entry = clientAny._bundle.find((e: any) => e.slotName === s.name)
             const received = entry?.units?.length ?? 0
             if (received !== expected) {
@@ -1050,12 +1041,9 @@ export async function POST(
             }
           }
 
-          const comboUnits: any[] = clientAny._bundle.flatMap((entry: any) =>
+          const allUnits: any[] = clientAny._bundle.flatMap((entry: any) =>
             (entry.units ?? []).map((u: any) => ({ ...u, _slotName: entry.slotName }))
           )
-          const allUnits: any[] = Array.from({ length: repeat }, () => comboUnits).flat()
-          // Agregados con precio: se cobran aparte salvo que la promo los incluya.
-          const chargeExtras = (promotion as any).chargeCustomizationExtras !== false
           const totalUnits = allUnits.length
           const totalBundle = quantity * promotion.price
           const baseUnit = Math.floor(totalBundle / totalUnits)
@@ -1083,7 +1071,6 @@ export async function POST(
             // pero NO alteran el precio — dentro de la promo el precio final
             // es promotion.price por bundle.
             const resolvedUnitCustomizations: any[] = []
-            let unitExtra = 0
             if (ctx.slotMode === 'full' && Array.isArray(unit.customizations) && unit.customizations.length > 0) {
               let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
               try {
@@ -1097,8 +1084,6 @@ export async function POST(
                 try {
                   const result = resolveCustomizations(unit.customizations, ctx.validationGroups)
                   resolvedUnitCustomizations.push(...result.resolved)
-                  // Precio del agregado según la carta (nunca el que manda el cliente).
-                  if (chargeExtras) unitExtra = Math.round(result.extraPrice)
                 } catch (err: any) {
                   if (err.name === 'ValidationError') {
                     return NextResponse.json({ error: err.message }, { status: 400 })
@@ -1143,10 +1128,10 @@ export async function POST(
               description: (promotion as any).description || (promotion as any).shortDescription || '',
               shortDescription: (promotion as any).shortDescription || '',
               basePrice: unitPrice,
-              extraPrice: unitExtra,
-              price: unitPrice + unitExtra,
+              extraPrice: 0,
+              price: unitPrice,
               quantity: 1,
-              subtotal: unitPrice + unitExtra,
+              subtotal: unitPrice,
               customizations: resolvedUnitCustomizations,
               selectedVariant: resolvedUnitVariant,
               printRole: 'kitchen',

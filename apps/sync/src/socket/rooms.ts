@@ -37,17 +37,3 @@ export function orderBroadcastRooms(tenantId: string, locationId?: string | null
   if (locationId) rooms.push(`tenant:${tenantId}:location:${locationId}`)
   return rooms
 }
-
-/**
- * Emite un evento a cada sala (una llamada `to(room)` por sala, mismo patrón
- * que routes/internal.ts). Ningún socket está en la genérica y en la de sede
- * a la vez (resolveSocketRooms), así que no hay entregas duplicadas.
- */
-export function emitToRooms(
-  io: { to(room: string): { emit(event: string, payload: unknown): unknown } },
-  rooms: readonly string[],
-  event: string,
-  payload: unknown
-): void {
-  for (const room of rooms) io.to(room).emit(event, payload)
-}

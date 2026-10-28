@@ -1,12 +1,11 @@
 import type { Table } from "@takeasygo/types"
-import { SalonMap, type SalonView } from "../shared/SalonMap"
+import { SalonMap } from "../shared/SalonMap"
 import type { TableActivity } from "../../hooks/useTableActivity"
 
 // El Salón del mozo usa el MISMO mapa que el Counter (SalonMap): el rol cambia
 // la experiencia, nunca la arquitectura (Operational Workspace Model §12).
 
 interface WaiterSectorGridProps {
-  view: SalonView
   tables: Table[]
   activity: Map<string, TableActivity>
   selectedTableId?: string | null
@@ -15,7 +14,7 @@ interface WaiterSectorGridProps {
   reservations?: Map<string, { time: string; name: string; partySize: number }>
 }
 
-export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSelectTable, reservations }: WaiterSectorGridProps) {
+export function WaiterSectorGrid({ tables, activity, selectedTableId, onSelectTable, reservations }: WaiterSectorGridProps) {
   if (tables.length === 0) {
     return (
       <div className="empty-state">
@@ -26,7 +25,7 @@ export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSe
   }
   return (
     <SalonMap
-      view={view}
+      tables={tables}
       variant="waiter"
       activity={activity}
       selectedTableId={selectedTableId}

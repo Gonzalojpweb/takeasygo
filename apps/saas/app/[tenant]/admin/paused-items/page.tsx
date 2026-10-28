@@ -37,8 +37,6 @@ export default async function PausedItemsPage() {
     locationName: string
     price: number
     isAvailable: boolean
-    /** Fase J: «manual» (lo pausó un rol) o «stock» (sin inventario, automático). */
-    reason: 'manual' | 'stock'
   }
 
   interface PausedCategoryData {
@@ -85,7 +83,6 @@ export default async function PausedItemsPage() {
             locationName: locName,
             price: item.price ?? 0,
             isAvailable: false,
-            reason: item.pausedReason === 'stock' ? 'stock' : 'manual',
           })
         }
       }
@@ -103,7 +100,6 @@ export default async function PausedItemsPage() {
               locationName: locName,
               price: item.price ?? 0,
               isAvailable: false,
-              reason: item.pausedReason === 'stock' ? 'stock' : 'manual',
             })
           }
         }

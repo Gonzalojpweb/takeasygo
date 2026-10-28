@@ -378,16 +378,6 @@ export interface IOrder extends Document {
    * 2026-10). Append-only: base de «anulaciones por operador» y de la merma.
    */
   itemVoids?: IOrderItemVoid[]
-  /**
-   * Comensales de la venta (Fase G, KPI obligatorio del POS). Se copia de la
-   * mesa a su PRIMERA ronda (las siguientes no lo repiten: no cuenta doble).
-   */
-  guests?: number | null
-  /**
-   * Canal de origen de un pedido externo: ausente/"takeasygo" = App
-   * TakeasyGO; plataforma de delivery (pedidosya, rappi…) = Delivery externo.
-   */
-  channel?: string | null
   // ── Delivery Confirmation (atestación mutua) ───────────────────────────────
   deliveryConfirmation?: {
     customerCode: {
@@ -903,8 +893,6 @@ const OrderSchema = new Schema(
     // Array acotado (≤ 10 partes, lo valida la ruta): embebido y no colección
     // aparte porque se lee y escribe siempre junto con la orden.
     posPayments: { type: [PosPaymentSchema], default: undefined },
-    guests: { type: Number, default: undefined, min: 1, max: 99 },
-    channel: { type: String, default: undefined, maxlength: 40 },
     // Acotado por los ítems de la orden; se lee siempre con ella.
     itemVoids: {
       type: [

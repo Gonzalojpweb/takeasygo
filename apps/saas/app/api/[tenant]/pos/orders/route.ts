@@ -103,7 +103,7 @@ async function assertTableExists(
   posTableId: string,
   tenantId: string,
   locationId: string
-): Promise<{ needsBill: boolean; guests: number | null }> {
+): Promise<{ needsBill: boolean }> {
   // `tableId` es el `posId` de la mesa: un UUID que genera el POS, NO un
   // ObjectId. Se exige string acotado para que no llegue un operador de
   // query ($ne, objeto, etc.) al filtro.
@@ -111,12 +111,12 @@ async function assertTableExists(
     throw PosError.validation('tableId inválido')
   }
   const table = await Table.findOne({ tenantId, locationId, posId: posTableId })
-    .select('_id needsBill guests')
+    .select('_id needsBill')
     .lean()
   if (!table) {
     throw PosError.notFound('Mesa no encontrada en esta sede')
   }
-  return { needsBill: Boolean(table.needsBill), guests: table.guests ?? null }
+  return { needsBill: Boolean(table.needsBill) }
 }
 
 function findExisting(tenantId: string, posId: string): Promise<PosOrderDoc | null> {
@@ -197,19 +197,6 @@ export const POST = posRoute('orders.write', async (ctx) => {
   // un reintento idéntico de una orden ya aceptada siga devolviendo 200 aunque
   // la carta haya cambiado entre medio. Toda orden NUEVA cierra contra carta.
   await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
-  // Fase G: comensales de la mesa en su PRIMERA ronda abierta (KPI del POS).
-  // Si otra ronda abierta de la mesa ya los tiene, esta no los repite.
-  if (draft.posTableId && table?.guests) {
-    const counted = await Order.exists({
-      tenantId: ctx.tenantId,
-      locationId: ctx.locationId,
-      posTableId: draft.posTableId,
-      status: { $nin: ['delivered', 'cancelled'] },
-      guests: { $gt: 0 },
-    })
-    if (!counted) draft.guests = table.guests
-  }
-
   // Cocina o barra por ítem (sin esto la comanda no llegaba a las estaciones).
   withPrintRoles(draft.items, await printRolesForLocation(ctx.tenantId, ctx.locationId))
 

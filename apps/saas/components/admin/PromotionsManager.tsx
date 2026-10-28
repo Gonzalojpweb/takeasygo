@@ -147,7 +147,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     locationId: string | null
     slots: Slot[]
     allowCustomization: boolean
-    chargeCustomizationExtras: boolean
     overrideCustomizationGroups: OverrideGroup[]
     customStyles: {
       backgroundColor: string
@@ -182,7 +181,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     locationId: locations[0]?._id || '',
     slots: [] as Slot[],
     allowCustomization: true,
-    chargeCustomizationExtras: true,
     overrideCustomizationGroups: [] as OverrideGroup[],
     customStyles: {
       backgroundColor: '#1a1a1a',
@@ -479,7 +477,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       locationId: selectedLocation,
       slots: [],
       allowCustomization: true,
-      chargeCustomizationExtras: true,
       overrideCustomizationGroups: [],
       customStyles: {
         backgroundColor: '#1a1a1a',
@@ -521,7 +518,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       locationId: promotion.locationId ?? locations[0]?._id ?? '',
       slots: (promotion as any).slots || [],
       allowCustomization: promotion.allowCustomization ?? true,
-      chargeCustomizationExtras: (promotion as any).chargeCustomizationExtras ?? true,
       overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
       customStyles: {
         backgroundColor: promotion.customStyles?.backgroundColor || '#1a1a1a',
@@ -1015,35 +1011,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                           className={cn(
                             'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
                             form.allowCustomization && 'translate-x-4'
-                          )}
-                        />
-                      </button>
-                    </div>
-
-                    {/* 2026-10-26: agregados con precio dentro de la promo */}
-                    <div className="flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/10 mb-4">
-                      <div className="flex-1 min-w-0">
-                        <Label className="text-xs font-bold text-foreground">Cobrar los agregados con precio</Label>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {form.chargeCustomizationExtras
-                            ? 'Si el cliente elige un agregado con precio (ej.: extra queso), se suma al precio de la promo.'
-                            : 'Los agregados quedan incluidos en la promo: el cliente los elige sin costo extra.'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={form.chargeCustomizationExtras}
-                        onClick={() => setForm({ ...form, chargeCustomizationExtras: !form.chargeCustomizationExtras })}
-                        className={cn(
-                          'relative w-10 h-6 rounded-full transition-colors flex-shrink-0 ml-3',
-                          form.chargeCustomizationExtras ? 'bg-primary' : 'bg-muted-foreground/30'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform',
-                            form.chargeCustomizationExtras && 'translate-x-4'
                           )}
                         />
                       </button>

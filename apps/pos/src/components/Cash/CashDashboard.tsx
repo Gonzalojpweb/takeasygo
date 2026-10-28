@@ -7,7 +7,6 @@ import {
 } from "@takeasygo/business/browser"
 import type { CashChannel, CashExpenseCategory, CashMovement, CashRegister, ZReport } from "@takeasygo/types"
 import { useLayout } from "../layout/LayoutContext"
-import { useEscapeBack } from "../../hooks/useEscapeBack"
 import { useCash } from "../../hooks/useCash"
 import { useAuth } from "../../hooks/useAuth"
 import { formatCurrency, timeAgo, parsePesosInput } from "../../utils/format"
@@ -123,15 +122,6 @@ export function CashDashboard({ role }: { role?: string }) {
     setConfirmClose(false)
     setScene(next)
   }, [])
-
-  // Esc = «Volver» en las pantallas de consulta (Reporte X, pendientes,
-  // reporte Z ya cerrado). Abrir caja, gasto/retiro y arqueo NO: Esc no
-  // descarta montos contados a mano.
-  useEscapeBack(
-    scene === "x-report" || scene === "pending" ? () => go("resumen")
-    : scene === "z-report" ? () => go(activeRegister ? "resumen" : "historial")
-    : null
-  )
 
   // ── Totales del turno ─────────────────────────────────────────────
   const totals = useMemo(() => {
