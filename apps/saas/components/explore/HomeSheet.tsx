@@ -14,7 +14,7 @@ import { motion, useMotionValue, animate } from 'framer-motion'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
-import { Clock, ArrowUp } from 'lucide-react'
+import { Clock, ArrowUp, Check } from 'lucide-react'
 
 interface Props {
   userLat: number
@@ -66,6 +66,7 @@ function SheetItem({
         ring={r.icoRing ?? 'none'}
         hasCrown={r.hasCrown ?? false}
         isNew={r.isNew ?? false}
+        fullyOperational={isNetwork && (r.isFullOperational ?? false)}
         size="md"
       />
       <div className="flex-1 min-w-0">
@@ -85,6 +86,19 @@ function SheetItem({
               ? (r.isOperational === false ? 'Catálogo' : 'En Red')
               : 'Directorio'}
           </span>
+          {isNetwork && r.isFullOperational && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-[1px] rounded-full border"
+              style={{
+                color: '#16A34A',
+                backgroundColor: 'rgba(34,197,94,0.12)',
+                borderColor: 'rgba(34,197,94,0.35)',
+              }}
+            >
+              <Check size={9} strokeWidth={3} />
+              Listo para pedidos
+            </span>
+          )}
         </div>
         <p
           className="text-sm font-bold truncate mt-0.5"

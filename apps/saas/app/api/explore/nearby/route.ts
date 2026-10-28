@@ -10,6 +10,7 @@ import { checkIsOpenNow } from '@/lib/service-hours'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { rateLimit } from '@/lib/rateLimit'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
+import { isFullyOperational } from '@/lib/mercadopago'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
@@ -72,6 +73,8 @@ export interface NearbyRestaurant {
   icoRing?: 'none' | 'thin' | 'marked' | 'gold'
   hasCrown?: boolean
   hasWinkOffer?: boolean
+  // 100% operativo: MP activo + split OAuth vigente (solo type = 'network')
+  isFullOperational?: boolean
 }
 
 function getIcoRing(icoScore: number | null | undefined): 'none' | 'thin' | 'marked' | 'gold' {
@@ -125,6 +128,7 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
     icoRing: r.icoRing,
     hasCrown: r.hasCrown,
     hasWinkOffer: r.hasWinkOffer,
+    isFullOperational: r.isFullOperational,
   }
 }
 
@@ -305,6 +309,28 @@ export async function GET(request: NextRequest) {
     // Merge and deduplicate — gate centralizado: única decisión de visibilidad
     const mergedNetworkRaw = [...networkRaw, ...alwaysVisibleRaw]
       .filter(loc => isTenantPubliclyOperational(loc.tenant))
+
+    // ── Estado de cobro: MP activo + split OAuth vigente (100% operativo) ────
+    // Los tokens cifrados se leen server-side solo para derivar el boolean;
+    // jamás salen en la respuesta.
+    const payMap = new Map<string, boolean>()
+    {
+      const payTenantIds = mergedNetworkRaw
+        .map((loc: { tenant?: { _id?: mongoose.Types.ObjectId } }) => loc.tenant?._id)
+        .filter((id): id is mongoose.Types.ObjectId => !!id)
+      if (payTenantIds.length > 0) {
+        try {
+          const payDocs = await Tenant.find({ _id: { $in: payTenantIds } })
+            .select('mercadopago mpOAuth mpAccounts')
+            .lean()
+          for (const doc of payDocs) {
+            payMap.set(doc._id.toString(), isFullyOperational(doc))
+          }
+        } catch (e) {
+          console.error('[explore/nearby] mp status query failed:', e)
+        }
+      }
+    }
 
     // ── Ratings: aggregate average per tenant ────────────────────────────────
     const tenantIdsForRatings = mergedNetworkRaw.map((loc: any) => loc.tenant?._id).filter(Boolean)
@@ -513,6 +539,7 @@ export async function GET(request: NextRequest) {
         icoRing,
         hasCrown,
         hasWinkOffer,
+        isFullOperational: tenantIdStr ? (payMap.get(tenantIdStr) ?? false) : false,
       }
     })
 

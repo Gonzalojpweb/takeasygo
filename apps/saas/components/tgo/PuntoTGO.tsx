@@ -32,6 +32,8 @@ export interface PuntoTGOProps {
   hasCrown?: boolean
   isNew?: boolean
   inverted?: boolean     // white pin + orange face (for orange/brand backgrounds)
+  /** Halo verde pulsante + check: MP activo + split OAuth vigente (100% operativo). */
+  fullyOperational?: boolean
   size?: PuntoTGOSize
   animate?: boolean
   onClick?: () => void
@@ -208,6 +210,7 @@ function PinSVG({
   hasCrown = false,
   isNew = false,
   inverted = false,
+  fullyOperational = false,
   width,
   height,
 }: {
@@ -216,6 +219,7 @@ function PinSVG({
   hasCrown?: boolean
   isNew?: boolean
   inverted?: boolean
+  fullyOperational?: boolean
   width: number
   height: number
 }) {
@@ -252,6 +256,25 @@ function PinSVG({
           <stop offset="100%" stopColor="#CA8A04" />
         </linearGradient>
       </defs>
+
+      {/* Halo «100% operativo» (MP + split) — detrás del cuerpo del pin */}
+      {fullyOperational && (
+        <ellipse
+          cx="20"
+          cy="26"
+          rx="23.5"
+          ry="27.5"
+          fill="rgba(34,197,94,0.15)"
+          stroke="#22C55E"
+          strokeWidth="2.5"
+          style={{
+            filter: 'drop-shadow(0 0 5px rgba(34,197,94,0.65))',
+            transformBox: 'fill-box',
+            transformOrigin: 'center',
+            animation: 'punto-tgo-halo 2.2s ease-in-out infinite',
+          }}
+        />
+      )}
 
       {/* Base Ring (Eje 2: ICO Scale) */}
       <ICOBaseRing ring={ring} />
@@ -312,6 +335,21 @@ function PinSVG({
           </text>
         </g>
       )}
+
+      {/* Check «listo para pedidos» — esquina inferior derecha */}
+      {fullyOperational && (
+        <g style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))' }}>
+          <circle cx="34.5" cy="44.5" r="5.4" fill="#22C55E" stroke="#FFFFFF" strokeWidth="1.3" />
+          <path
+            d="M31.9 44.7 L33.8 46.5 L37.1 42.8"
+            stroke="#FFFFFF"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        </g>
+      )}
     </svg>
   )
 }
@@ -324,6 +362,7 @@ export default function PuntoTGO({
   hasCrown = false,
   isNew = false,
   inverted = false,
+  fullyOperational = false,
   size = 'md',
   animate = true,
   onClick,
@@ -354,6 +393,7 @@ export default function PuntoTGO({
       hasCrown={hasCrown}
       isNew={isNew}
       inverted={inverted}
+      fullyOperational={fullyOperational}
       width={dimensions.width}
       height={dimensions.height}
     />
@@ -398,6 +438,10 @@ function injectStyles() {
     @keyframes punto-tgo-breathe {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.04); }
+    }
+    @keyframes punto-tgo-halo {
+      0%, 100% { opacity: 0.6; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.06); }
     }
   `
   document.head.appendChild(style)

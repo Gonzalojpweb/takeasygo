@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { RestaurantCardData } from '@/types/restaurant-card'
 import 'leaflet/dist/leaflet.css'
-import { ShoppingBag, Phone, Heart, Star } from 'lucide-react'
+import { ShoppingBag, Phone, Heart, Star, Check } from 'lucide-react'
 import Link from 'next/link'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Supercluster from 'supercluster'
@@ -36,12 +36,14 @@ function renderPuntoTGOToHTML({
   ring = 'none',
   hasCrown = false,
   isNew = false,
+  fullyOperational = false,
   size = 40,
 }: {
   expression?: 'happy' | 'sleepy' | 'wink'
   ring?: 'none' | 'thin' | 'marked' | 'gold'
   hasCrown?: boolean
   isNew?: boolean
+  fullyOperational?: boolean
   size?: number
 }) {
   const height = Math.round(size * 1.3)
@@ -100,6 +102,24 @@ function renderPuntoTGOToHTML({
     `
   }
 
+  let haloSvg = ''
+  if (fullyOperational) {
+    haloSvg = `
+      <ellipse cx="20" cy="26" rx="23.5" ry="27.5" fill="rgba(34,197,94,0.15)" stroke="#22C55E" stroke-width="2.5"
+        style="filter:drop-shadow(0 0 5px rgba(34,197,94,0.65)); transform-box:fill-box; transform-origin:center; animation:punto-tgo-halo 2.2s ease-in-out infinite;"/>
+    `
+  }
+
+  let checkSvg = ''
+  if (fullyOperational) {
+    checkSvg = `
+      <g style="filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35));">
+        <circle cx="34.5" cy="44.5" r="5.4" fill="#22C55E" stroke="#FFFFFF" stroke-width="1.3"/>
+        <path d="M31.9 44.7 L33.8 46.5 L37.1 42.8" stroke="#FFFFFF" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      </g>
+    `
+  }
+
   const breatheStyle = !isSleepy ? 'animation: punto-tgo-breathe 2.5s ease-in-out infinite;' : ''
 
   return `
@@ -123,6 +143,7 @@ function renderPuntoTGOToHTML({
           </linearGradient>
         </defs>
 
+        ${haloSvg}
         ${ringSvg}
 
         <path d="M20 52C20 52 40 36 40 22C40 10 31 0 20 0C9 0 0 10 0 22C0 36 20 52 20 52Z" fill="${pinFill}"/>
@@ -132,6 +153,7 @@ function renderPuntoTGOToHTML({
         ${faceSvg}
         ${crownSvg}
         ${newBadgeSvg}
+        ${checkSvg}
       </svg>
     </div>`
 }
@@ -213,6 +235,21 @@ function HoverCard({ r, pos, containerW, containerH }: {
             {r.address}
           </p>
 
+          {/* 100% operativo: MP + split */}
+          {r.isFullOperational && (
+            <span
+              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full border text-[10px] font-bold"
+              style={{
+                color: '#16A34A',
+                backgroundColor: 'rgba(34,197,94,0.12)',
+                borderColor: 'rgba(34,197,94,0.35)',
+              }}
+            >
+              <Check size={11} strokeWidth={3} />
+              Listo para pedidos
+            </span>
+          )}
+
           {/* Chips: rating · distance · mode */}
           <div className="flex items-center gap-2 mt-2.5">
             {r.averageRating != null && (
@@ -286,6 +323,21 @@ function BottomSheet({ r, onClose, onNavigate }: {
             <p className="text-sm truncate mt-0.5" style={{ color: 'var(--tgo-text-muted)' }}>
               {r.address}
             </p>
+
+            {/* 100% operativo: MP + split */}
+            {r.isFullOperational && (
+              <span
+                className="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full border text-xs font-bold"
+                style={{
+                  color: '#16A34A',
+                  backgroundColor: 'rgba(34,197,94,0.12)',
+                  borderColor: 'rgba(34,197,94,0.35)',
+                }}
+              >
+                <Check size={13} strokeWidth={3} />
+                Listo para pedidos
+              </span>
+            )}
 
             {/* Chips: rating · distance · mode */}
             <div className="flex items-center gap-2 mt-2.5">
@@ -504,6 +556,7 @@ export default function ExploreMap({ userLat, userLng, restaurants, onSelect, me
           ring: isNetwork ? (r.icoRing ?? 'none') : 'none',
           hasCrown: isNetwork ? (r.hasCrown ?? false) : false,
           isNew: isNetwork ? (r.isNew ?? false) : false,
+          fullyOperational: isNetwork && (r.isFullOperational ?? false),
           size: isNetwork ? 40 : 32,
         })
 

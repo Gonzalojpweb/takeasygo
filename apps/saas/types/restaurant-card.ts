@@ -59,4 +59,6 @@ export interface RestaurantCardData {
   icoRing?: 'none' | 'thin' | 'marked' | 'gold'
   hasCrown?: boolean
   hasWinkOffer?: boolean
+  /** 100% operativo: cuenta MP activa + split OAuth vigente (cobra con marketplace_fee). */
+  isFullOperational?: boolean
 }

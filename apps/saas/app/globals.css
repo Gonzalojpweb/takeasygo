@@ -938,3 +938,15 @@ main div:has(> .is-admin-orders-page) {
 .animate-teo-float {
   animation: teo-float 3s ease-in-out infinite;
 }
+
+/* ── PuntoTGO halo «100% operativo» (MP + split) ─────────────────────── */
+@keyframes punto-tgo-halo {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}

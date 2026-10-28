@@ -80,6 +80,17 @@ export function isOAuthValid(account: ResolvedMpAccount): boolean {
 }
 
 /**
+ * ¿El tenant está 100% operativo para cobrar online? (mapa TGO)
+ * = cuenta MP activa con token + split OAuth vigente.
+ * Misma lógica que el checkout usa para enviar marketplace_fee:
+ * si esto da false, el pin no debe mostrar «listo para pedidos».
+ */
+export function isFullyOperational(tenant: unknown): boolean {
+  const account = getActiveMpAccount(tenant)
+  return !!account && isOAuthValid(account)
+}
+
+/**
  * Resolves the MP account for a specific location.
  *
  * Comportamiento según flag `mp.perLocation` y `tenant.mpMode`:
