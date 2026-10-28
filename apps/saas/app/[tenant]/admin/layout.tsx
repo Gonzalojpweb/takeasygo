@@ -16,6 +16,7 @@ import { ComplianceBlockModal } from '@/components/admin/compliance/ComplianceBl
 import NudgeFeed from '@/components/admin/nudges/NudgeFeed'
 import MobileNav from '@/components/MobileNav'
 import PosReturnBarWrapper from '@/components/PosReturnBarWrapper'
+import TeoAssistant from '@/components/admin/TeoAssistant'
 import AdminLocationProviderWrapper from './AdminLocationProviderWrapper'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -253,6 +254,7 @@ export default async function AdminLayout({
         <Toaster />
         <SystemAnnouncementBanner tenantSlug={tenant} />
         <ComplianceBlockModal tenantSlug={tenant} />
+        <TeoAssistant />
       </div>
     </AdminLocationProviderWrapper>
   )
