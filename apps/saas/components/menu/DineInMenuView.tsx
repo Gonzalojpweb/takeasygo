@@ -677,6 +677,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                   style={{ cursor: 'pointer' }}
                                 >
                                   <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                                  {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
+                                    <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                      style={{ backgroundColor: branding.primaryColor }}>
+                                      <Plus size={12} className="text-white" />
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div
@@ -691,13 +697,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                     {tn(item, 'name', locale)}
                                   </p>
                                   <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                                    ${(() => {
+                                    {(() => {
                                       const hasVariants = (item.variants ?? []).length > 0
                                       if (hasVariants) {
                                         const prices = item.variants.map((v: any) => v.price)
-                                        return toPesos(Math.min(...prices)).toLocaleString('es-AR')
+                                        const minP = Math.min(...prices)
+                                        const maxP = Math.max(...prices)
+                                        return minP !== maxP
+                                          ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
+                                          : `$${toPesos(minP).toLocaleString('es-AR')}`
                                       }
-                                      return toPesos(item.price).toLocaleString('es-AR')
+                                      return `$${toPesos(item.price).toLocaleString('es-AR')}`
                                     })()}
                                   </p>
                                 </div>
@@ -752,6 +762,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                     style={{ cursor: 'pointer' }}
                                   >
                                     <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                                    {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
+                                      <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                        style={{ backgroundColor: branding.primaryColor }}>
+                                        <Plus size={12} className="text-white" />
+                                      </div>
+                                    )}
                                   </div>
                                 ) : (
                                   <div
@@ -766,13 +782,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                                       {tn(item, 'name', locale)}
                                     </p>
                                     <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                                      ${(() => {
+                                      {(() => {
                                         const hasVariants = (item.variants ?? []).length > 0
                                         if (hasVariants) {
                                           const prices = item.variants.map((v: any) => v.price)
-                                          return toPesos(Math.min(...prices)).toLocaleString('es-AR')
+                                          const minP = Math.min(...prices)
+                                          const maxP = Math.max(...prices)
+                                          return minP !== maxP
+                                            ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
+                                            : `$${toPesos(minP).toLocaleString('es-AR')}`
                                         }
-                                        return toPesos(item.price).toLocaleString('es-AR')
+                                        return `$${toPesos(item.price).toLocaleString('es-AR')}`
                                       })()}
                                     </p>
                                   </div>
@@ -817,6 +837,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                             style={{ cursor: 'pointer' }}
                           >
                             <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
+                            {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
+                              <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: branding.primaryColor }}>
+                                <Plus size={12} className="text-white" />
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <div
@@ -831,13 +857,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                               {tn(item, 'name', locale)}
                             </p>
                             <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                              ${(() => {
+                              {(() => {
                                 const hasVariants = (item.variants ?? []).length > 0
                                 if (hasVariants) {
                                   const prices = item.variants.map((v: any) => v.price)
-                                  return toPesos(Math.min(...prices)).toLocaleString('es-AR')
+                                  const minP = Math.min(...prices)
+                                  const maxP = Math.max(...prices)
+                                  return minP !== maxP
+                                    ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
+                                    : `$${toPesos(minP).toLocaleString('es-AR')}`
                                 }
-                                return toPesos(item.price).toLocaleString('es-AR')
+                                return `$${toPesos(item.price).toLocaleString('es-AR')}`
                               })()}
                             </p>
                           </div>
