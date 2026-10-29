@@ -1,6 +1,14 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export type PrinterRole = 'kitchen' | 'bar' | 'cashier'
+
+/**
+ * Documentos que puede imprimir una impresora. Copia de PRINTER_DOCUMENTS
+ * (packages/business/src/printing.ts) para que el modelo no dependa del
+ * barrel de business; el test shared-surfaces verifica que coincidan.
+ */
+export const PRINTER_DOCUMENT_VALUES = ['comanda', 'ticket', 'precuenta', 'factura', 'nota_credito', 'reporte_caja'] as const
+export type PrinterDocument = (typeof PRINTER_DOCUMENT_VALUES)[number]
 export type PrinterStatus = 'ok' | 'error' | 'offline' | 'unknown'
 export type PrinterConnectionType = 'tcp' | 'usb'
 
@@ -13,6 +21,11 @@ export interface IPrinter extends Document {
   ip: string
   port: number
   roles: PrinterRole[]
+  /**
+   * Qué documentos imprime (business/printing). Vacío = los de su rol
+   * (compatibilidad con impresoras anteriores a la Fase 1, 29/10).
+   */
+  documents: PrinterDocument[]
   paperWidth: 58 | 80
   isActive: boolean
   lastStatus: PrinterStatus
@@ -84,6 +97,11 @@ const PrinterSchema = new Schema<IPrinter>(
       type: [String],
       enum: ['kitchen', 'bar', 'cashier'],
       default: ['kitchen'],
+    },
+    documents: {
+      type: [String],
+      enum: PRINTER_DOCUMENT_VALUES,
+      default: [],
     },
     paperWidth: {
       type: Number,

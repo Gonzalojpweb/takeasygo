@@ -11,6 +11,7 @@ import { FlotaWidget } from "./components/Flota/FlotaWidget"
 import { SalesDashboard } from "./components/Sales/SalesDashboard"
 import { SummaryDashboard } from "./components/Summary/SummaryDashboard"
 import { FiscalDashboard } from "./components/Fiscal/FiscalDashboard"
+import { ConfigDashboard } from "./components/Config/ConfigDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
@@ -398,6 +399,7 @@ function AppShell({
         {current.id === "ventas" && <SalesDashboard />}
         {current.id === "resumen" && <SummaryDashboard />}
         {current.id === "facturacion" && <FiscalDashboard />}
+        {current.id === "config" && <ConfigDashboard role={role} />}
       </main>
 
       <ContextPanel

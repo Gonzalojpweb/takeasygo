@@ -3411,3 +3411,81 @@ body.is-resizing-panel .ros-app { transition: none; }
 @media (max-width: 768px) {
   .nav-brand { display: none; }
 }
+
+/* ── Configuración del POS (Fase 1, 29/10/2026) ───────────────────────────── */
+.workspace.config { overflow: hidden; }
+.config-shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 0; flex: 1; }
+.config-nav { display: flex; flex-direction: column; gap: var(--sp-1); padding: var(--sp-4) var(--sp-3); background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+.config-nav-item { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border: 0; border-radius: 12px; background: none; color: var(--text-secondary); text-align: left; cursor: pointer; min-height: 52px; }
+.config-nav-item span { display: flex; flex-direction: column; min-width: 0; }
+.config-nav-item b { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.config-nav-item small { font-size: var(--font-size-xs); color: var(--text-muted); }
+.config-nav-item:hover { background: var(--surface-secondary); }
+.config-nav-item.active { background: var(--primary-action-light); color: var(--primary-action); }
+.config-nav-item.active b { color: var(--primary-action); }
+.config-nav-item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.config-nav-soon { margin-top: auto; padding: var(--sp-3); font-size: var(--font-size-xs); color: var(--text-muted); }
+.config-body { overflow-y: auto; padding: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.config-notice { padding: var(--sp-3) var(--sp-4); border-radius: 12px; font-size: var(--font-size-sm); }
+.config-notice.success { background: var(--success-light); color: var(--success); }
+.config-notice.error { background: var(--error-light); color: var(--error); }
+.config-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
+.config-section-head h2 { margin: 0; font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.config-section-head h3 { margin: 0; font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.config-section-head p { margin: 2px 0 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
+.config-section-head select { max-width: 260px; }
+.config-printers, .config-fiscal { display: flex; flex-direction: column; gap: var(--sp-4); }
+.config-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.config-printer { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; text-align: left; cursor: pointer; min-height: 60px; }
+.config-printer:hover { border-color: var(--primary-action); }
+.config-printer.selected { border-color: var(--primary-action); box-shadow: 0 0 0 2px var(--primary-action-light); }
+.config-printer.inactive { opacity: .6; }
+.config-printer-main { display: flex; flex-direction: column; min-width: 0; }
+.config-printer-main b { font-size: var(--font-size-base); color: var(--text-primary); }
+.config-printer-main small { font-size: var(--font-size-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.config-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); }
+.config-dot.ok { background: var(--success); }
+.config-dot.error { background: var(--error); }
+.config-dot.offline { background: var(--warning); }
+.config-chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.config-chip { font-size: var(--font-size-xs); padding: 2px 8px; border-radius: 999px; background: var(--surface-secondary); color: var(--text-secondary); white-space: nowrap; }
+.config-chip.fiscal { background: var(--brand-orange-surface); color: var(--brand-orange-text); }
+.config-preview { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ticket-paper { max-width: 100%; overflow-x: auto; background: #fffef9; color: #1b1b1f; border: 1px solid var(--border); border-radius: 6px; padding: var(--sp-4) 2ch; font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: 12px; line-height: 1.45; box-shadow: 0 1px 0 var(--border), 0 8px 18px rgba(0,0,0,.06); }
+.ticket-line { white-space: pre; }
+.ticket-line.bold { font-weight: 700; }
+.ticket-line.center { text-align: center; }
+.ticket-line.large { font-size: 18px; font-weight: 700; }
+.config-form { display: flex; flex-direction: column; gap: var(--sp-3); }
+.config-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; border: 0; padding: 0; margin: 0; }
+.config-field > span, .config-field legend { font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.config-field textarea { resize: vertical; font-family: inherit; }
+.config-row { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: var(--sp-2); }
+.config-docs { gap: 2px; }
+.config-check { display: flex; align-items: center; gap: var(--sp-2); min-height: 40px; font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; }
+.config-check input { width: 18px; height: 18px; accent-color: var(--primary-action); }
+.config-tag { font-style: normal; font-size: var(--font-size-xs); color: var(--brand-orange-text); background: var(--brand-orange-surface); padding: 1px 6px; border-radius: 999px; }
+.config-status { font-size: var(--font-size-xs); color: var(--text-secondary); margin: 0; }
+.config-status.error, .config-status.offline { color: var(--error); }
+.config-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-2); margin: 0; }
+.config-facts > div { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-3) var(--sp-4); }
+.config-facts dt { font-size: var(--font-size-xs); color: var(--text-secondary); }
+.config-facts dd { margin: 2px 0 0; font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.config-modes { display: flex; flex-direction: column; gap: var(--sp-2); border: 0; padding: 0; margin: 0; }
+.config-modes legend { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-primary); margin-bottom: var(--sp-2); }
+.config-mode { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); cursor: pointer; }
+.config-mode.active { border-color: var(--primary-action); background: var(--primary-action-light); }
+.config-mode input { margin-top: 3px; accent-color: var(--primary-action); }
+.config-mode span { display: flex; flex-direction: column; }
+.config-mode b { font-size: var(--font-size-base); color: var(--text-primary); }
+.config-mode small { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.config-modes:disabled .config-mode { cursor: default; opacity: .8; }
+@media (max-width: 900px) {
+  .config-shell { grid-template-columns: 1fr; }
+  .config-nav { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: var(--sp-2); }
+  .config-nav-item { flex: 0 0 auto; }
+  .config-nav-soon { display: none; }
+  .config-body { padding: var(--sp-4); }
+  .config-printer { grid-template-columns: auto minmax(0, 1fr); }
+  .config-chips { grid-column: 1 / -1; justify-content: flex-start; }
+}

@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { rolesForDocuments, validatePrinterDocuments } from '@takeasygo/business'
 import { printerLimitError } from '@/lib/printers/limits'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
@@ -71,6 +72,15 @@ export async function POST(
     const body = await request.json()
     const { locationId, name, connectionType, ip, port, roles, paperWidth } = body
 
+    // Fase 1 (29/10): documentos por impresora. Sin POS, solo comandas y
+    // tickets no fiscales.
+    let documents: string[] = []
+    if (body.documents !== undefined) {
+      const v = validatePrinterDocuments(body.documents, Boolean(tenant.features?.posEnabled))
+      if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+      documents = v.documents
+    }
+
     if (!locationId || !name || !ip) {
       return NextResponse.json({ error: 'locationId, name e ip son obligatorios' }, { status: 400 })
     }
@@ -98,7 +108,8 @@ export async function POST(
       connectionType: connectionType ?? 'tcp',
       ip,
       port: port ?? 9100,
-      roles: roles ?? ['kitchen'],
+      roles: documents.length ? rolesForDocuments(documents as never, roles ?? []) : roles ?? ['kitchen'],
+      documents,
       paperWidth: paperWidth ?? 80,
     })
 

@@ -5,7 +5,7 @@ import Printer from '@/models/Printer'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 import PrintersManager from '@/components/admin/PrintersManager'
-import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
+import { type Plan, canAccess, PLAN_LABELS, PRINTER_LIMIT } from '@/lib/plans'
 import { AlertTriangle } from 'lucide-react'
 import { getPageScope } from '@/lib/page-scope'
 
@@ -41,7 +41,8 @@ export default async function PrintersPage() {
     )
   }
 
-  const isTryPlan = plan === 'try'
+  const printerLimit = PRINTER_LIMIT[plan] ?? PRINTER_LIMIT.try
+  const posEnabled = Boolean(tenant.features?.posEnabled)
 
   // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
   // recibe datos de sus sedes.
@@ -58,15 +59,15 @@ export default async function PrintersPage() {
         </p>
       </div>
 
-      {isTryPlan && (
-        <div className="flex items-start gap-3 px-5 py-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-600">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <span className="font-bold">Plan {PLAN_LABELS.try}:</span> podés configurar hasta 1 impresora.
-            Actualizá a <span className="font-bold">{PLAN_LABELS.buy}</span> para agregar múltiples impresoras por sede.
-          </div>
+      <div className="flex items-start gap-3 px-5 py-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 text-amber-600">
+        <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <span className="font-bold">Plan {PLAN_LABELS[plan]}:</span> hasta {printerLimit} impresoras activas por sede.
+          {posEnabled
+            ? ' Con POS, qué imprime cada una (comandas, precuenta, facturas, reportes de caja) se configura en el POS › Configuración › Impresoras.'
+            : ' Desde el panel web se imprimen comandas y tickets no fiscales.'}
         </div>
-      )}
+      </div>
 
       <PrintersManager
         tenantSlug={tenantSlug ?? ''}
@@ -84,6 +85,8 @@ export default async function PrintersPage() {
           },
         }))}
         plan={plan}
+        printerLimit={printerLimit}
+        posEnabled={posEnabled}
       />
     </div>
   )

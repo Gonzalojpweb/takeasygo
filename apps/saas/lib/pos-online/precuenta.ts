@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-import Printer from '@/models/Printer'
+import { printerForDocument } from '@/lib/printers/select'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
@@ -96,9 +96,7 @@ export async function enqueuePrecuenta(input: {
   const tenantId = new mongoose.Types.ObjectId(input.tenantId)
   const locationId = new mongoose.Types.ObjectId(input.locationId)
 
-  const printer = await Printer.findOne({ tenantId, locationId, isActive: true, roles: 'cashier' })
-    .sort({ name: 1 })
-    .lean<{ name: string; connectionType: 'tcp' | 'usb'; ip: string; port: number; paperWidth: number }>()
+  const printer = await printerForDocument(tenantId, locationId, 'precuenta')
   if (!printer) return { ok: false, reason: 'no_printer' }
 
   const [tenant, location] = await Promise.all([

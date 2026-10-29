@@ -17,6 +17,20 @@ export {
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
 export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
+export {
+  PRINTER_DOCUMENTS,
+  PRINTER_DOCUMENT_LABELS,
+  FISCAL_DOCUMENTS,
+  SAAS_PRINTER_DOCUMENTS,
+  PAPER_COLUMNS,
+  isPrinterDocument,
+  effectiveDocuments,
+  allowedPrinterDocuments,
+  validatePrinterDocuments,
+  styleRoleFor,
+  rolesForDocuments,
+  type PrinterDocument,
+} from "./printing"
 // sync-events and jwt removed from barrel — they use node:crypto and must NOT
 // be bundled for client. Import directly:
 //   import { ... } from '@takeasygo/business/sync-events'

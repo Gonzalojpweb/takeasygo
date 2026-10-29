@@ -1,6 +1,6 @@
 import iconv from 'iconv-lite'
+import { printerForDocument } from '@/lib/printers/select'
 import mongoose from 'mongoose'
-import Printer from '@/models/Printer'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import FiscalProfile from '@/models/FiscalProfile'
 import type { IFiscalDocument } from '@/models/FiscalDocument'
@@ -134,9 +134,7 @@ export async function enqueueFiscalTicket(
   const tenantId = new mongoose.Types.ObjectId(String(doc.tenantId))
   const locationId = new mongoose.Types.ObjectId(String(doc.locationId))
   const [printer, profile] = await Promise.all([
-    Printer.findOne({ tenantId, locationId, isActive: true, roles: 'cashier' })
-      .sort({ name: 1 })
-      .lean<{ name: string; connectionType: 'tcp' | 'usb'; ip: string; port: number; paperWidth: number }>(),
+    printerForDocument(tenantId, locationId, doc.kind === 'credit_note' ? 'nota_credito' : 'factura'),
     FiscalProfile.findOne({ tenantId })
       .select('legalName cuit fiscalAddress grossIncomeNumber activityStartDate ivaCondition')
       .lean<IssuerForTicket>(),

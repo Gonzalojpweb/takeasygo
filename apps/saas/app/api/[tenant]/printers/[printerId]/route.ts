@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { rolesForDocuments, validatePrinterDocuments } from '@takeasygo/business'
 import { printerLimitError } from '@/lib/printers/limits'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
@@ -33,13 +34,23 @@ export async function PATCH(
 
     const updateData: any = { name, connectionType, ip, port, roles, paperWidth, isActive };
     if (body.printSettings) updateData.printSettings = body.printSettings;
+    if (body.documents !== undefined) {
+      const v = validatePrinterDocuments(body.documents, Boolean(tenant.features?.posEnabled))
+      if (!v.ok) return NextResponse.json({ error: v.error }, { status: 400 })
+      updateData.documents = v.documents
+    }
 
     // Sede de la impresora: un usuario con sedes asignadas no edita
     // impresoras de otra sede (404 sin filtrar existencia).
-    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId isActive').lean<{ locationId: unknown; isActive: boolean }>()
+    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId isActive roles').lean<{ locationId: unknown; isActive: boolean; roles?: string[] }>()
     if (!existing) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })
     const sedeError = await guardRequestLocation(request, existing.locationId, 'Impresora no encontrada')
     if (sedeError) return sedeError
+
+    // Los roles (agente de impresión) siguen a los documentos; se conserva barra.
+    if (updateData.documents) {
+      updateData.roles = rolesForDocuments(updateData.documents, Array.isArray(roles) ? roles : existing.roles ?? [])
+    }
 
     // Reactivar cuenta contra el límite del plan.
     if (isActive === true && !existing.isActive) {

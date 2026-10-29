@@ -3109,6 +3109,454 @@
     "x-pos-capability": "cash.read"
    }
   },
+  "/api/{tenant}/pos/config/fiscal": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_fiscal",
+    "summary": "condición de IVA, letras, punto de venta, ambiente y modo. Sin secretos (certificado, CUIT completo y claves quedan en el panel web, solo…",
+    "description": "/api/[tenant]/pos/config/fiscal — Configuración › Comprobantes del POS\nGET (admin y encargado): cómo factura la sede — condición de IVA, letras,\n  punto de venta, ambiente y modo. Sin secretos (certificado, CUIT\n  completo y claves quedan en el panel web, solo para el dueño).\nPATCH { invoicingMode: 'ask' | 'always' | 'off' } (solo admin): qué hace\n  el cobro — preguntar, facturar siempre o no facturar desde el POS.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/fiscal/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   },
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_config_fiscal",
+    "summary": "preguntar, facturar siempre o no facturar desde el POS.",
+    "description": "/api/[tenant]/pos/config/fiscal — Configuración › Comprobantes del POS\nGET (admin y encargado): cómo factura la sede — condición de IVA, letras,\n  punto de venta, ambiente y modo. Sin secretos (certificado, CUIT\n  completo y claves quedan en el panel web, solo para el dueño).\nPATCH { invoicingMode: 'ask' | 'always' | 'off' } (solo admin): qué hace\n  el cobro — preguntar, facturar siempre o no facturar desde el POS.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/fiscal/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.fiscal",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/config/printers": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_printers",
+    "summary": "impresoras de la sede + tope del plan",
+    "description": "GET  /api/[tenant]/pos/config/printers — impresoras de la sede + tope del plan\nPOST /api/[tenant]/pos/config/printers — alta desde el POS (Configuración)\nAdmin y encargado (config.manage). Mismo modelo Printer que el panel web:\nlo que se configura acá lo ve el SaaS y viceversa. El tope por sede sale\ndel plan (PRINTER_LIMIT); el POS imprime todos los documentos.\n\nEl POS imprime todos los documentos; el tope de impresoras sale del plan.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/printers/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_config_printers",
+    "summary": "alta desde el POS (Configuración)",
+    "description": "GET  /api/[tenant]/pos/config/printers — impresoras de la sede + tope del plan\nPOST /api/[tenant]/pos/config/printers — alta desde el POS (Configuración)\nAdmin y encargado (config.manage). Mismo modelo Printer que el panel web:\nlo que se configura acá lo ve el SaaS y viceversa. El tope por sede sale\ndel plan (PRINTER_LIMIT); el POS imprime todos los documentos.\n\nEl POS imprime todos los documentos; el tope de impresoras sale del plan.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/printers/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/config/printers/preview": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_printers_preview",
+    "summary": "[&header=…&footer=…] — vista previa de un documento con datos de ejemplo Usa los mismos renderers que la impresión real (precuenta, Z,…",
+    "description": "GET /api/[tenant]/pos/config/printers/preview?doc=precuenta&width=80\n    [&header=…&footer=…] — vista previa de un documento con datos de ejemplo\nUsa los mismos renderers que la impresión real (precuenta, Z, factura con\nsus columnas de 32 o 48). No imprime nada.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/printers/preview/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   }
+  },
+  "/api/{tenant}/pos/config/printers/{id}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_config_printers_id",
+    "summary": "editar una impresora de la sede",
+    "description": "PATCH /api/[tenant]/pos/config/printers/[id] — editar una impresora de la sede\n{ name?, ip?, port?, connectionType?, paperWidth?, isActive?, documents?,\n  printSettings? } · admin y encargado. Reactivar respeta el tope del plan.\nLas impresoras no se borran desde el POS: se desactivan.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/printers/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/fiscal": {
    "get": {
     "tags": [

@@ -71,6 +71,15 @@ describe('mapeo de roles SaaS → POS', () => {
   })
 })
 
+describe('impresoras', () => {
+  it('el modelo Printer acepta exactamente los documentos de business/printing', async () => {
+    const { PRINTER_DOCUMENTS } = await import('@takeasygo/business')
+    const src = readFileSync(join(SAAS, 'models', 'Printer.ts'), 'utf8')
+    const values = [...(/PRINTER_DOCUMENT_VALUES = \[([^\]]*)\]/.exec(src)?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map((m) => m[1])
+    expect(values).toEqual([...PRINTER_DOCUMENTS])
+  })
+})
+
 describe('planes', () => {
   it('delivery está en Trial, Crecimiento y Premium', () => {
     expect(canAccess('buy', 'delivery')).toBe(true)

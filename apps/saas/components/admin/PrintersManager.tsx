@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { effectiveDocuments, PRINTER_DOCUMENT_LABELS } from '@takeasygo/business/browser'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
@@ -26,6 +27,8 @@ interface PrinterData {
   ip: string
   port: number
   roles: PrinterRole[]
+  /** Fase 1: documentos declarados (vacío = los de su rol). */
+  documents?: string[]
   paperWidth: 58 | 80
   isActive: boolean
   lastStatus: PrinterStatus
@@ -63,6 +66,10 @@ interface Props {
   printers: PrinterData[]
   locations: Location[]
   plan?: string
+  /** Impresoras activas por sede según el plan (PRINTER_LIMIT). */
+  printerLimit?: number
+  /** Con POS, los documentos se configuran en el POS. */
+  posEnabled?: boolean
 }
 
 const ROLE_LABELS: Record<PrinterRole, string> = {
@@ -129,7 +136,7 @@ const EMPTY_FORM = {
   } as Record<PrinterRole, RolePrintSettings>,
 }
 
-export default function PrintersManager({ tenantSlug, printers: initial, locations, plan }: Props) {
+export default function PrintersManager({ tenantSlug, printers: initial, locations, printerLimit = 2, posEnabled = false }: Props) {
   const [printers, setPrinters] = useState<PrinterData[]>(initial)
   const [selectedLocation, setSelectedLocation] = useState<string>(locations[0]?._id ?? '')
   const [agentStatuses, setAgentStatuses] = useState<Record<string, AgentStatus>>(() =>
@@ -243,6 +250,12 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
     }))
   }
 
+  // Tope del plan por sede: se puede agregar mientras alguna sede tenga lugar
+  // (el servidor valida la sede elegida).
+  const allSedesFull = locations.length > 0 && locations.every(
+    (loc) => printers.filter((p) => p.locationId === loc._id && p.isActive).length >= printerLimit
+  )
+
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (form.roles.length === 0) {
@@ -257,7 +270,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error)
         toast.success('Impresora actualizada')
       } else {
         const res = await fetch(`/api/${tenantSlug}/printers`, {
@@ -265,14 +278,14 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),
         })
-        if (!res.ok) throw new Error()
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error)
         toast.success('Impresora agregada')
       }
       setShowForm(false)
       setEditingId(null)
       await fetchPrinters()
-    } catch {
-      toast.error('Error al guardar la impresora')
+    } catch (err) {
+      toast.error(err instanceof Error && err.message ? err.message : 'Error al guardar la impresora')
     } finally {
       setLoading(false)
     }
@@ -347,8 +360,8 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
             size="sm"
             className="bg-primary text-white font-bold text-xs gap-2 rounded-xl shadow-lg shadow-primary/20"
             onClick={openNew}
-            disabled={plan === 'try' && printers.length >= 1}
-            title={plan === 'try' && printers.length >= 1 ? 'El plan Inicial permite 1 impresora. Actualizá a Crecimiento.' : undefined}
+            disabled={allSedesFull}
+            title={allSedesFull ? `Tu plan permite hasta ${printerLimit} impresoras activas por sede.` : undefined}
           >
             <Plus size={14} /> Nueva Manual
           </Button>
@@ -551,7 +564,7 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
           <Button
             className="mt-6 gap-2 rounded-xl bg-primary text-white font-bold shadow-lg shadow-primary/20"
             onClick={openNew}
-            disabled={plan === 'try' && printers.length >= 1}
+            disabled={allSedesFull}
           >
             <Plus size={16} /> Agregar impresora
           </Button>
@@ -594,6 +607,11 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
 
                   {/* Roles + Modo */}
                   <div className="space-y-1.5">
+                    {posEnabled && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Imprime: {effectiveDocuments(printer).map((d) => PRINTER_DOCUMENT_LABELS[d].split(' (')[0]).join(', ')}
+                      </p>
+                    )}
                     <div className="flex gap-1.5 flex-wrap">
                       {printer.roles.map(role => (
                         <span

@@ -14,6 +14,20 @@ export {
 export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "./role-mapping"
 export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
 export {
+  PRINTER_DOCUMENTS,
+  PRINTER_DOCUMENT_LABELS,
+  FISCAL_DOCUMENTS,
+  SAAS_PRINTER_DOCUMENTS,
+  PAPER_COLUMNS,
+  isPrinterDocument,
+  effectiveDocuments,
+  allowedPrinterDocuments,
+  validatePrinterDocuments,
+  styleRoleFor,
+  rolesForDocuments,
+  type PrinterDocument,
+} from "./printing"
+export {
   TABLE_TRANSITIONS,
   ORDER_TRANSITIONS,
   ORDER_ITEM_EDITABLE_STATUSES,

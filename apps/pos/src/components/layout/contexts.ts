@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText } from "lucide-react"
+import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText, Settings } from "lucide-react"
 
 // ============================================================================
 // Contextos operativos del ROS — definición única
@@ -17,7 +17,7 @@ import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText } from
 // Manager/Admin; el mozo solo opera el Salón (Roles Matrix).
 // ============================================================================
 
-export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen" | "facturacion"
+export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen" | "facturacion" | "config"
 
 export interface RosContext {
   id: ContextId
@@ -95,6 +95,16 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: FileText,
     roles: ALL_HUB_ROLES,
     empty: { title: "Sin comprobante seleccionado", hint: "Elegí un comprobante para reintentarlo, reimprimirlo o emitir la nota de crédito." },
+  },
+  {
+    // Fase 1 (29/10): configuración del POS — impresoras, comprobantes y,
+    // en las fases siguientes, cajas, turnos, deliverys y dispositivos.
+    id: "config",
+    label: "Configuración",
+    title: "Configuración",
+    icon: Settings,
+    roles: ["admin", "manager"],
+    empty: { title: "Configuración", hint: "Elegí una sección y un elemento para editarlo." },
   },
 ]
 
