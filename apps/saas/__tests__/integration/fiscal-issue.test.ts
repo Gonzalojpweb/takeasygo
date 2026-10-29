@@ -317,6 +317,9 @@ describe('anular una venta facturada', () => {
       creditNotes: 1,
       creditedCents: 1_210_000,
       pending: 0,
+      // IVA del turno por alícuota (caja 29/10): la NC por el total anula la
+      // factura, así que no queda neto ni IVA en ninguna alícuota.
+      iva: [],
     })
     expect(await CashRegister.countDocuments({ tenantId, status: 'closed' })).toBe(1)
   })

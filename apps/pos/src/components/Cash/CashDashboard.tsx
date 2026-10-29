@@ -17,6 +17,7 @@ import type { PendingMovementRecord } from "../../db/dexie"
 import { isPosApiError } from "../../services/pos-api"
 import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
 import { getCashSummary, type CashSummary } from "../../services/cash"
+import { localToday, shiftDate } from "../../services/reports"
 
 // ============================================================================
 // Caja — Fase 1 de caja profesional (2026-10)
@@ -64,18 +65,6 @@ const CHANNEL_OPTIONS: { id: CashChannel | null; label: string }[] = [
 
 function billLabel(cents: number): string {
   return `$${(cents / 100).toLocaleString("es-AR")}`
-}
-
-/** YYYY-MM-DD del día local del equipo (la sede filtra en su zona en el server). */
-function localToday(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
-
-function shiftDate(date: string, days: number): string {
-  const d = new Date(`${date}T12:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
 }
 
 function errorText(err: unknown, fallback: string): string | null {
