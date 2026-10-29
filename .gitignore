@@ -106,7 +106,10 @@ apps/sync/.env.local
 .env.local
 
 /POS
-/docs
+# docs/ es local, salvo la base de conocimiento del asistente TEO (va al repo:
+# la empaqueta apps/saas/scripts/build-assistant-kb.mjs).
+/docs/*
+!/docs/asistente/
 /ADMIN
 
 
@@ -139,3 +142,6 @@ backups/
 # Archivos locales: diagnósticos con datos de comercios y capturas de referencia
 apps/saas/scripts/kekelarry-*.ts
 /inventoryUI.png
+
+# Resultados de las baterías del asistente (pnpm assistant:eval)
+apps/saas/.assistant-eval/
