@@ -3504,3 +3504,9 @@ body.is-resizing-panel .ros-app { transition: none; }
 .config-shift-row { display: grid; grid-template-columns: minmax(0, 1.4fr) 110px 110px auto auto; gap: var(--sp-2); align-items: center; }
 .config-shift-row .config-check { min-height: 44px; }
 @media (max-width: 700px) { .config-shift-row { grid-template-columns: 1fr 1fr; } }
+
+/* ── Usuario y Equipo (Fase 3, 29/10/2026) ─────────────────────────────────── */
+.pin-reveal { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-4) var(--sp-5); border-radius: 14px; border: 2px solid var(--primary-action); background: var(--primary-action-light); }
+.pin-reveal-label { font-size: var(--font-size-sm); color: var(--primary-action); font-weight: var(--font-weight-semibold); }
+.pin-reveal-value { font-size: 36px; letter-spacing: .15em; font-variant-numeric: tabular-nums; color: var(--text-primary); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
+.pin-reveal p { margin: 0; font-size: var(--font-size-sm); color: var(--text-secondary); }

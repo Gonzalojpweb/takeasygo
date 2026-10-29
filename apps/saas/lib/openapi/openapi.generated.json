@@ -4240,6 +4240,154 @@
     "x-pos-capability": "orders.pay"
    }
   },
+  "/api/{tenant}/pos/me": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_me",
+    "summary": "«Mi perfil» en el POS (Fase 3), cualquier rol",
+    "description": "GET /api/[tenant]/pos/me — «Mi perfil» en el POS (Fase 3), cualquier rol\nNombre, rol, sede, cuándo se generó el PIN y mis cierres de los últimos 30\ndías (turno y fecha; sin montos: el cierre es ciego para el cajero).\n\nFuente: `apps/saas/app/api/[tenant]/pos/me/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "catalog.read"
+   }
+  },
+  "/api/{tenant}/pos/me/pin": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_me_pin",
+    "summary": "cambiar MI PIN (Fase 3)",
+    "description": "POST /api/[tenant]/pos/me/pin { currentPin? } — cambiar MI PIN (Fase 3)\nSi ya tengo PIN, tengo que ingresar el actual (5 intentos cada 15 min).\nSi no tengo (entré con email), se genera directo. El PIN nuevo lo genera\nel server y sale UNA vez; el anterior deja de servir.\n\nFuente: `apps/saas/app/api/[tenant]/pos/me/pin/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "catalog.read",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/menu": {
    "get": {
     "tags": [
@@ -6902,6 +7050,326 @@
      }
     ],
     "x-pos-capability": "tables.service",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/team": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_team",
+    "summary": "equipo de la sede (admin y encargado)",
+    "description": "GET  /api/[tenant]/pos/team — equipo de la sede (admin y encargado)\nPOST /api/[tenant]/pos/team { name, role: 'waiter'|'cashier'|'manager' }\n     — alta con PIN (el PIN se devuelve UNA vez, no se guarda en claro)\nEl encargado da de alta mozos y cajeros; el admin también encargados.\nLa persona queda asignada a esta sede.\n\nFuente: `apps/saas/app/api/[tenant]/pos/team/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_team",
+    "summary": "— alta con PIN (el PIN se devuelve UNA vez, no se guarda en claro) El encargado da de alta mozos y cajeros",
+    "description": "GET  /api/[tenant]/pos/team — equipo de la sede (admin y encargado)\nPOST /api/[tenant]/pos/team { name, role: 'waiter'|'cashier'|'manager' }\n     — alta con PIN (el PIN se devuelve UNA vez, no se guarda en claro)\nEl encargado da de alta mozos y cajeros; el admin también encargados.\nLa persona queda asignada a esta sede.\n\nFuente: `apps/saas/app/api/[tenant]/pos/team/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/team/{id}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_team_id",
+    "summary": "editar o desactivar a alguien del equipo de la sede. Mismas reglas que el alta: el encargado solo sobre cajeros y mozos; nadie sobre sí…",
+    "description": "PATCH /api/[tenant]/pos/team/[id] { name?, isActive? } — editar o\ndesactivar a alguien del equipo de la sede. Mismas reglas que el alta:\nel encargado solo sobre cajeros y mozos; nadie sobre sí mismo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/team/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/team/{id}/pin": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_team_id_pin",
+    "summary": "PIN nuevo para alguien del equipo (lo olvidó o lo compartió). Lo genera el server y sale UNA vez; el PIN anterior deja de servir en el acto.",
+    "description": "POST /api/[tenant]/pos/team/[id]/pin — PIN nuevo para alguien del equipo\n(lo olvidó o lo compartió). Lo genera el server y sale UNA vez; el PIN\nanterior deja de servir en el acto.\n\nFuente: `apps/saas/app/api/[tenant]/pos/team/[id]/pin/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
     "requestBody": {
      "required": true,
      "content": {

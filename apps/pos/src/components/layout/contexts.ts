@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText, Settings } from "lucide-react"
+import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText, Settings, UserRound } from "lucide-react"
 
 // ============================================================================
 // Contextos operativos del ROS — definición única
@@ -17,7 +17,7 @@ import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText, Setti
 // Manager/Admin; el mozo solo opera el Salón (Roles Matrix).
 // ============================================================================
 
-export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen" | "facturacion" | "config"
+export type ContextId = "counter" | "waiter" | "flota" | "caja" | "ventas" | "resumen" | "facturacion" | "config" | "usuario"
 
 export interface RosContext {
   id: ContextId
@@ -105,6 +105,15 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: Settings,
     roles: ["admin", "manager"],
     empty: { title: "Configuración", hint: "Elegí una sección y un elemento para editarlo." },
+  },
+  {
+    // Fase 3 (29/10): mi perfil (todos) y equipo de la sede (admin y encargado).
+    id: "usuario",
+    label: "Usuario",
+    title: "Usuario",
+    icon: UserRound,
+    roles: KNOWN_ROLES,
+    empty: { title: "Usuario", hint: "Tu perfil y, si sos encargado, el equipo de la sede." },
   },
 ]
 

@@ -68,8 +68,15 @@ describe("contextsForRole (Operational Roles Matrix)", () => {
     expect(contextsForRole("admin").map((c) => c.id)).toContain("ventas")
   })
 
-  it("el mozo solo ve el Salón (celular)", () => {
-    expect(contextsForRole("waiter").map((c) => c.id)).toEqual(["waiter"])
+  it("el mozo ve el Salón y su perfil (celular); nada de caja, ventas ni configuración", () => {
+    // Fase 3 (29/10): «Usuario» es personal (mi PIN, mis datos), no una de
+    // las funciones compartidas de admin/encargado/caja (business/surfaces).
+    expect(contextsForRole("waiter").map((c) => c.id)).toEqual(["waiter", "usuario"])
+  })
+
+  it("Configuración es de admin y encargado", () => {
+    expect(contextsForRole("manager").map((c) => c.id)).toContain("config")
+    expect(contextsForRole("cashier").map((c) => c.id)).not.toContain("config")
   })
 
   it("rol desconocido cae al mínimo (cajero), nunca a todo", () => {
