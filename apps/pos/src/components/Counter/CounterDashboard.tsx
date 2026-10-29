@@ -5,6 +5,8 @@ import { calculateItemTotal, allocatePayments, type CheckoutPart, type Allocated
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
+import { useEscapeBack } from "../../hooks/useEscapeBack"
+import { setItemAvailability } from "../../services/menu"
 import { usePayments } from "../../hooks/usePayments"
 import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
@@ -15,7 +17,7 @@ import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
-import { SalonMap } from "../shared/SalonMap"
+import { SalonMap, SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { TableDetail } from "./TableDetail"
 import { ContextActionPanel, type ContextActionGroup } from "../shared/ContextActionPanel"
 import { useTableActivity } from "../../hooks/useTableActivity"
@@ -662,6 +664,40 @@ export function CounterDashboard() {
     ),
     [unseenReservations, pickupOrders.length, deliveryOrders.length]
   )
+  // ── Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible ────────
+  const escapeBack = (() => {
+    switch (scene) {
+      case "mesa":
+        return selectedTable ? () => { setSelectedTableId(null); setScene("salon") } : null
+      case "mover":
+        return moveBusy ? null : () => setScene("mesa")
+      case "productos":
+        return view === "salon" ? () => setScene(cart.length > 0 ? "salon" : "mesa") : null
+      case "configurar":
+        return () => { setConfigProduct(null); setScene(view === "mostrador" ? "mostrador_rapido" : "productos") }
+      case "revision":
+        return () => setScene(view === "mostrador" ? "mostrador_rapido" : "productos")
+      case "cobro":
+        return paying ? null : () => setScene(cart.length > 0 ? "revision" : view === "mostrador" ? "mostrador_rapido" : "productos")
+      case "mostrador_entregas":
+        return () => setScene("mostrador_rapido")
+      case "setup":
+        return () => setScene("salon")
+      case "entrantes":
+        if (entrantesSubView === "kanban") return selectedKanbanOrderId ? () => setSelectedKanbanOrderId(null) : null
+        if (gatewayScene === "validation") return handleGatewayBack
+        if (gatewayScene === "transform") return transformResult ? handleGatewayBack : () => setGatewayScene("validation")
+        return null
+      default:
+        return null
+    }
+  })()
+  useEscapeBack(escapeBack)
+
+  // Obs. UX 25/10: el header superior lleva solo las vistas (opciones del
+  // sistema); sectores, estados y configurar van en el encabezado del
+  // workspace del salón (SalonHeaderBar, arriba del mapa).
+  const salonView = useSalonView(tables)
   useEffect(() => {
     setHeaderCenter(<WorkspaceViewBar views={counterViews} activeView={view} onChange={handleViewChange} />)
   }, [setHeaderCenter, view, handleViewChange, counterViews])
@@ -774,6 +810,17 @@ export function CounterDashboard() {
       setReservationBusyId(null)
     }
   }, [tenantId, reservationBusyId, refreshReservations, showToast])
+
+  // ── Fase J: pausar / reanudar artículos (faltantes) desde el selector ─────
+  const handleToggleAvailability = useCallback(async (product: Product) => {
+    if (!tenantId) return
+    try {
+      await setItemAvailability(tenantId, product.id, !product.isAvailable)
+      showToast(product.isAvailable ? `«${product.name}» marcado como faltante` : `«${product.name}» disponible otra vez`, "success")
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo cambiar la disponibilidad"), "error")
+    }
+  }, [tenantId, showToast])
 
   // ── Fase C: pedir la cuenta / reabrir la mesa ─────────────────────────────
   const handleBillRequest = useCallback(async (needsBill: boolean) => {
@@ -1468,11 +1515,7 @@ export function CounterDashboard() {
             <button className="btn btn-secondary" onClick={() => setScene("mostrador_entregas")}>
               <PackageCheck size={18} aria-hidden /> Para entregar{pickupOrders.length > 0 ? ` (${pickupOrders.length})` : ""}
             </button>
-          ) : (
-            <button className="btn btn-ghost" onClick={() => setScene(cart.length > 0 ? "salon" : "mesa")}>
-              ← {cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`}
-            </button>
-          ),
+          ) : undefined,
           right: (
             <>
               {customer ? (
@@ -1985,14 +2028,14 @@ export function CounterDashboard() {
                   </div>
                 ) : (
                   <>
+                    <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} />
                     <SalonMap
-                      tables={tables}
+                      view={salonView}
                       variant="counter"
                       activity={tableActivity}
                       selectedTableId={selectedTableId}
                       onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
                       reservations={reservationsByTable}
-                      onConfigure={scene === "mover" ? undefined : () => setScene("setup")}
                     />
                   </>
                 )}
@@ -2009,6 +2052,11 @@ export function CounterDashboard() {
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
+                onToggleAvailability={handleToggleAvailability}
+                back={{
+                  label: cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`,
+                  onClick: () => setScene(cart.length > 0 ? "salon" : "mesa"),
+                }}
               />
             </div>
           )}
@@ -2117,6 +2165,7 @@ export function CounterDashboard() {
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
+                onToggleAvailability={handleToggleAvailability}
               />
             </div>
           )}

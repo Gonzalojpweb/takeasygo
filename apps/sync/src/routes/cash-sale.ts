@@ -29,6 +29,8 @@ import { enqueueCashSaleDelivery, type CashSaleJobData } from "../queues/cash-sa
 // ============================================================================
 
 import { authMiddleware } from "../auth/middleware"
+import { emitToRooms, orderBroadcastRooms } from "../socket/rooms"
+import { locationOfOrder } from "../services/order-location"
 
 const cashSaleSchema = z.object({
   orderId: z.string().min(1),
@@ -37,6 +39,8 @@ const cashSaleSchema = z.object({
   paymentMethod: z.enum(["cash", "mercadopago", "posnet_debit", "posnet_credit", "kripton", "transfer"]),
   orderMode: z.enum(["takeaway", "delivery", "dine-in", "business"]),
   timestamp: z.string().datetime().optional(),
+  /** Sede del pedido (2026-10-25): los POS multisede solo escuchan su sala. */
+  locationId: z.string().min(1).optional(),
 })
 
 function providedInternalSecret(req: Request): string {
@@ -98,7 +102,7 @@ export function cashSaleRouter(
         })
       }
 
-      const { orderId, tenantId, amount, paymentMethod, orderMode, timestamp } = parsed.data
+      const { orderId, tenantId, amount, paymentMethod, orderMode, timestamp, locationId } = parsed.data
 
       // ── 1. Persistir en outbox (previene duplicados via unique index) ──
       let event
@@ -140,7 +144,10 @@ export function cashSaleRouter(
         source: "sync_layer" as const,
       }
 
-      io.to(`tenant:${tenantId}`).emit("cash_sale", payload)
+      // Sala genérica (POS de una sede) + sala de la sede (POS multisede).
+      // Antes solo la genérica: un POS multisede nunca registraba la venta.
+      const saleLocation = locationId ?? (await locationOfOrder(tenantId, orderId))
+      emitToRooms(io, orderBroadcastRooms(tenantId, saleLocation), "cash_sale", payload)
 
       // ── 3. Encolar reintento via BullMQ (fallback si POS offline) ──
       // El worker verificará si el evento ya fue delivered antes de re-emitir.

@@ -21,6 +21,10 @@ import { POST as tablePrecuenta } from '@/app/api/[tenant]/pos/tables/[id]/precu
 import Printer from '@/models/Printer'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import Order from '@/models/Order'
+import { POST as payOrder } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
+import { GET as salesReport } from '@/app/api/[tenant]/pos/reports/sales/route'
+import { GET as salesList } from '@/app/api/[tenant]/pos/reports/sales/list/route'
+import { GET as salesExport } from '@/app/api/[tenant]/pos/reports/sales/export/route'
 
 /**
  * M4 — superficie POS: mesas.
@@ -585,5 +589,115 @@ describe('Fase E — precuenta al pedir la cuenta', () => {
     await createOrder(tableId)
     const res = await tablePrecuenta(req(`${TABLES_URL}/${tableId}/precuenta`, undefined, AUTH()), detailParams(tableId))
     expect(res.status).toBe(409)
+  })
+})
+
+
+describe('Fase G — métricas de ventas desde el servidor, por canal y con comensales', () => {
+  const manager = () => ({ authorization: `Bearer ${token('manager')}`, 'x-location-id': locationId })
+  const pay = (orderId: string, amount: number) =>
+    payOrder(req(`${ORDERS_URL}/${orderId}/payments`, { payments: [{ id: crypto.randomUUID(), method: 'cash', amount }] }, AUTH()), detailParams(orderId))
+  const report = (headers: Record<string, string>) => salesReport(req(`http://localhost:3000/api/${SLUG}/pos/reports/sales`, undefined, headers, 'GET'), listParams)
+
+  it('los comensales van a la primera ronda; la categoría se guarda; el reporte separa salón y mostrador', async () => {
+    const tableId = await createTable({ number: 4 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 3 }, AUTH()), detailParams(tableId))
+    const r1 = await createOrder(tableId)
+    const r2 = await createOrder(tableId)
+    const m1 = await createOrder()
+
+    const [o1, o2] = await Promise.all([Order.findOne({ posId: r1 }).lean(), Order.findOne({ posId: r2 }).lean()])
+    expect(o1!.guests).toBe(3)
+    expect(o2!.guests ?? null).toBeNull()
+    expect(o1!.items[0].categoryName).toBe('Platos')
+
+    // Corregir comensales con la mesa ya comandada actualiza la primera ronda.
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { guests: 5 }, AUTH()), detailParams(tableId))
+    expect((await Order.findOne({ posId: r1 }).lean())!.guests).toBe(5)
+
+    for (const id of [r1, r2, m1]) expect((await pay(id, 1500)).status).toBe(201)
+
+    const res = await report(manager())
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.revenueVisible).toBe(true)
+    expect(body.metrics.totals).toMatchObject({ sales: 3, revenue: 4500, guests: 5, perGuest: 600 })
+    expect(body.metrics.byChannel.salon).toMatchObject({ sales: 2, revenue: 3000, guests: 5 })
+    expect(body.metrics.byChannel.mostrador).toMatchObject({ sales: 1, revenue: 1500 })
+    expect(body.metrics.byCategory[0]).toMatchObject({ category: 'Platos', quantity: 3 })
+  }, 30_000) // muchas requests en serie: con la suite completa en paralelo supera los 5 s por defecto
+
+  it('el cajero ve ventas, ticket y comensales pero no los ingresos', async () => {
+    const m1 = await createOrder()
+    await pay(m1, 1500)
+    const body = await (await report(AUTH())).json()
+    expect(body.revenueVisible).toBe(false)
+    expect(body.metrics.totals.sales).toBe(1)
+    expect(body.metrics.totals.revenue).toBeNull()
+    expect(body.metrics.byChannel.mostrador.revenue).toBeNull()
+    expect(body.metrics.byPayment[0].amount).toBeNull()
+  })
+
+  it('el mozo no accede a los reportes', async () => {
+    const waiter = { authorization: `Bearer ${token('waiter')}`, 'x-location-id': locationId }
+    expect((await report(waiter)).status).toBe(403)
+  })
+})
+
+
+describe('Fase I — listado de ventas y reportes descargables', () => {
+  const manager = () => ({ authorization: `Bearer ${token('manager')}`, 'x-location-id': locationId })
+  const pay = (orderId: string) =>
+    payOrder(req(`${ORDERS_URL}/${orderId}/payments`, { payments: [{ id: crypto.randomUUID(), method: 'cash', amount: 1500 }] }, AUTH()), detailParams(orderId))
+  const list = (qs: string, headers: Record<string, string>) =>
+    salesList(req(`http://localhost:3000/api/${SLUG}/pos/reports/sales/list${qs}`, undefined, headers, 'GET'), listParams)
+
+  it('lista desde el servidor con canal, número de mesa real, filtro y búsqueda', async () => {
+    const tableId = await createTable({ number: 12 })
+    await tablePatch(req(`${TABLES_URL}/${tableId}`, { status: 'occupied', guests: 2 }, AUTH()), detailParams(tableId))
+    const salon = await createOrder(tableId)
+    const mostrador = await createOrder()
+    await createOrder() // sin cobrar: no es venta
+    await pay(salon)
+    await pay(mostrador)
+
+    const all = await (await list('', manager())).json()
+    expect(all.total).toBe(2)
+    const row = all.rows.find((r: { channel: string }) => r.channel === 'salon')
+    expect(row).toMatchObject({ table: { number: 12 }, guests: 2, total: 1500, chargedInPos: true })
+    expect(row.payments[0]).toMatchObject({ method: 'cash', amount: 1500 })
+
+    const onlyCounter = await (await list('?channel=mostrador', manager())).json()
+    expect(onlyCounter.rows.map((r: { channel: string }) => r.channel)).toEqual(['mostrador'])
+
+    const byTable = await (await list('?q=12', manager())).json()
+    expect(byTable.total).toBe(1)
+  }, 30_000) // muchas requests en serie: con la suite completa en paralelo supera los 5 s por defecto
+
+  it('el cajero recibe el listado sin montos', async () => {
+    const id = await createOrder()
+    await pay(id)
+    const body = await (await list('', AUTH())).json()
+    expect(body.revenueVisible).toBe(false)
+    expect(body.rows[0].total).toBeNull()
+    expect(body.rows[0].payments[0].amount).toBeNull()
+  })
+
+  it('exporta PDF y Excel (encargado); el cajero no puede', async () => {
+    const id = await createOrder()
+    await pay(id)
+    const exp = (format: string, headers: Record<string, string>) =>
+      salesExport(req(`http://localhost:3000/api/${SLUG}/pos/reports/sales/export?format=${format}`, undefined, headers, 'GET'), listParams)
+
+    const pdf = await exp('pdf', manager())
+    expect(pdf.status).toBe(200)
+    expect(pdf.headers.get('content-type')).toBe('application/pdf')
+    expect(Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString()).toBe('%PDF')
+
+    const xlsx = await exp('xlsx', manager())
+    expect(xlsx.status).toBe(200)
+    expect(Buffer.from(await xlsx.arrayBuffer()).subarray(0, 2).toString()).toBe('PK')
+
+    expect((await exp('pdf', AUTH())).status).toBe(403)
   })
 })

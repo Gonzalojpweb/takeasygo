@@ -13,6 +13,8 @@ interface PausedItemData {
   categoryName: string
   categoryId: string
   subcategoryName: string | null
+  /** Fase J: manual (lo pausó un rol) o stock (sin inventario, automático). */
+  reason?: 'manual' | 'stock'
   locationId: string
   locationName: string
   price: number
@@ -233,7 +235,15 @@ export default function PausedMenuItems({
                       <div className="flex items-center gap-3">
                         <EyeOff size={18} className="text-orange-400 flex-shrink-0" />
                         <div>
-                          <p className="text-white font-medium">{item.name}</p>
+                          <p className="text-white font-medium">
+                            {item.name}
+                            <span
+                              className={`ml-2 align-middle rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${item.reason === 'stock' ? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}
+                              title={item.reason === 'stock' ? 'Pausado automáticamente: el inventario no alcanza para una porción. Se reanuda solo al reponer.' : 'Pausado por un usuario (panel o POS)'}
+                            >
+                              {item.reason === 'stock' ? 'Sin inventario' : 'Faltante'}
+                            </span>
+                          </p>
                           <div className="flex items-center gap-3 text-zinc-500 text-xs mt-0.5">
                             <span className="flex items-center gap-1">
                               <MapPin size={11} />

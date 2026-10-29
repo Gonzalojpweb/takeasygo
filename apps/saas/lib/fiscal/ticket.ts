@@ -127,8 +127,10 @@ export function buildFiscalTicketBuffer(doc: IFiscalDocument, issuer: IssuerForT
 }
 
 /** Encola el ticket del comprobante en la impresora de caja de la sede. */
-export async function enqueueFiscalTicket(doc: IFiscalDocument): Promise<{ ok: boolean; printerName?: string }> {
-  if (doc.status !== 'authorized') return { ok: false }
+export async function enqueueFiscalTicket(
+  doc: IFiscalDocument
+): Promise<{ ok: boolean; printerName?: string; reason?: 'not_authorized' | 'no_printer' | 'no_profile' }> {
+  if (doc.status !== 'authorized') return { ok: false, reason: 'not_authorized' }
   const tenantId = new mongoose.Types.ObjectId(String(doc.tenantId))
   const locationId = new mongoose.Types.ObjectId(String(doc.locationId))
   const [printer, profile] = await Promise.all([
@@ -139,7 +141,8 @@ export async function enqueueFiscalTicket(doc: IFiscalDocument): Promise<{ ok: b
       .select('legalName cuit fiscalAddress grossIncomeNumber activityStartDate ivaCondition')
       .lean<IssuerForTicket>(),
   ])
-  if (!printer || !profile?.ivaCondition) return { ok: false }
+  if (!printer) return { ok: false, reason: 'no_printer' }
+  if (!profile?.ivaCondition) return { ok: false, reason: 'no_profile' }
   const wide = printer.paperWidth === 80
   await PreClosePrintJob.create({
     tenantId,

@@ -55,6 +55,9 @@ export interface RawMenuItem {
   price: number
   halfPrice?: number
   isAvailable?: boolean
+  /** Fase J: motivo de la pausa (manual / stock) y porciones con stock. */
+  pausedReason?: 'manual' | 'stock' | null
+  stockPortions?: number | null
   imageUrl?: string
   customizationGroups?: RawCustomizationGroup[]
   disabledGroupIds?: string[]
@@ -136,7 +139,9 @@ function flattenItem(
   inheritedGroups: RawCustomizationGroup[],
   tenantId: string,
   categoryName: string,
-  subcategoryId?: string
+  subcategoryId?: string,
+  /** Fase J: categoría pausada ⇒ todos sus ítems quedan faltantes. */
+  categoryAvailable = true
 ): Product {
   const disabledGroups = item.disabledGroupIds ?? []
   const disabledOptions = item.disabledOptionIds ?? []
@@ -205,9 +210,13 @@ function flattenItem(
     description: item.description ?? '',
     price: item.price,
     category: categoryName,
-    isAvailable: item.isAvailable ?? true,
+    isAvailable: (item.isAvailable ?? true) && categoryAvailable,
     modifiers,
   }
+  if (!product.isAvailable) {
+    product.unavailableReason = item.isAvailable === false && item.pausedReason === 'stock' ? 'stock' : 'manual'
+  }
+  if (typeof item.stockPortions === 'number') product.stockPortions = item.stockPortions
   if (subcategoryId) product.subcategoryId = subcategoryId
   if (item.halfPrice !== undefined && item.halfPrice !== null) {
     product.halfPrice = item.halfPrice
@@ -233,8 +242,9 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
     // Los grupos de customización de la categoría se heredan a cada item.
     const inheritedGroups = cat.customizationGroups ?? []
 
+    const categoryAvailable = cat.isAvailable ?? true
     for (const item of cat.items ?? []) {
-      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name))
+      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable))
     }
 
     // D13 — subcategorías: cada una es una MenuCategory con `parentId`. Sus
@@ -252,7 +262,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
       })
       const subGroups = [...inheritedGroups, ...(sub.customizationGroups ?? [])]
       for (const item of sub.items ?? []) {
-        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId))
+        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable))
       }
     }
   }

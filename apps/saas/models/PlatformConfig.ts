@@ -25,6 +25,8 @@ export interface IPlatformConfig {
   platformFees: {
     takeasygoCommissionPercent: number         // % que cobra TakeasyGO (default: 1)
     takeasygoTransferCommissionPercent: number // % por transferencia (default: 0)
+    /** % por efectivo cuando la matriz del tenant lo habilita y no tiene % propio (default: 0) */
+    takeasygoCashCommissionPercent: number
   }
   /** Configuración de estilos estándar para promoción QR de takeaway */
   qrPromoStyles: {
@@ -79,6 +81,7 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     platformFees: {
       takeasygoCommissionPercent:         { type: Number, default: 1, min: 0, max: 100 },
       takeasygoTransferCommissionPercent: { type: Number, default: 0, min: 0, max: 100 },
+      takeasygoCashCommissionPercent:     { type: Number, default: 0, min: 0, max: 100 },
     },
     /** Configuración de estilos estándar para promoción QR de takeaway */
     qrPromoStyles: {

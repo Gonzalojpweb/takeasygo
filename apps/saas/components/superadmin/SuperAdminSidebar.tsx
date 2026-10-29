@@ -32,6 +32,7 @@ import {
   Link2,
   Contact,
   Layers,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -141,6 +142,7 @@ export default function SuperAdminSidebar() {
       section: 'Developer',
       items: [
         { href: '/superadmin/developer', label: 'Documentación', icon: BookOpen },
+        { href: '/superadmin/pos-root', label: 'POS Root · Diseño', icon: FileText },
       ],
     },
     {

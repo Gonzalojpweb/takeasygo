@@ -60,9 +60,11 @@ export function ContextActionPanel({ groups }: { groups: ContextActionGroup[] })
                   onClick={a.onClick}
                   disabled={a.disabled}
                 >
-                  <span className="ctx-action-icon"><Icon size={20} aria-hidden /></span>
-                  <span className="ctx-action-label">{a.label}</span>
-                  {a.hint && <span className="ctx-action-hint">{a.hint}</span>}
+                  <span className="ctx-action-icon"><Icon size={16} aria-hidden /></span>
+                  <span className="ctx-action-text">
+                    <span className="ctx-action-label">{a.label}</span>
+                    {a.hint && <span className="ctx-action-hint">{a.hint}</span>}
+                  </span>
                 </button>
               )
             })}

@@ -37,7 +37,23 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Build en Vercel (2026-10-25): el worker de webpack moría por memoria
+  // (SIGKILL) al crecer la app. Esto baja el pico de memoria del build SIN
+  // saltear ninguna validación (TypeScript y lint siguen corriendo):
+  //   · webpackMemoryOptimizations: menos memoria en la compilación.
+  //   · memoryBasedWorkersCount + cpus: menos workers en paralelo según la
+  //     memoria disponible (más lento, pero no se queda sin RAM).
+  experimental: {
+    webpackMemoryOptimizations: true,
+    memoryBasedWorkersCount: true,
+    cpus: 2,
+  },
   serverExternalPackages: ['mongoose', 'agent-base', 'undici'],
+  // La página /superadmin/pos-root lee este HTML en tiempo de ejecución:
+  // sin declararlo, Vercel no lo copia al deploy (output file tracing).
+  outputFileTracingIncludes: {
+    '/superadmin/pos-root': ['./docs/pos-root-interface.html'],
+  },
   transpilePackages: ['@takeasygo/types'],
   async rewrites() {
     return [

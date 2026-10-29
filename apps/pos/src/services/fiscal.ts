@@ -1,4 +1,4 @@
-import { posApi } from "./pos-api"
+import { posApi, posApiDownload } from "./pos-api"
 
 // ============================================================================
 // Factura electrónica desde el POS (Fase 5 de caja, 2026-10)
@@ -90,4 +90,55 @@ export async function invoiceOrder(
     }
   )
   return document
+}
+
+// ============================================================================
+// Factura electrónica operada desde el POS (Fase L, 2026-10)
+// ============================================================================
+
+export interface PosFiscalDocument extends FiscalDocumentSummary {
+  pointOfSale: number
+  number: number | null
+  caeExpiresAt: string | null
+  authMode: "cae" | "caea"
+  environment: "homologation" | "production"
+  issuedAt: string
+  orderId: string
+  orderPosId: string | null
+  orderNumber: string | null
+  receiver: { name: string; docType: number; docNumber: string; condition: string }
+  qrUrl: string | null
+  hasCreditNote: boolean
+}
+
+export interface PosFiscalDocuments {
+  range: { from: string; to: string }
+  environment: "homologation" | "production"
+  counts: { authorized: number; pending: number; rejected: number }
+  totals: { invoicedCents: number; creditedCents: number; netCents: number }
+  documents: PosFiscalDocument[]
+}
+
+export async function listFiscalDocuments(tenantId: string, range: { from: string; to: string }): Promise<PosFiscalDocuments> {
+  return posApi<PosFiscalDocuments>(tenantId, "/fiscal/documents", { query: range })
+}
+
+export async function retryFiscalDocument(tenantId: string, id: string): Promise<FiscalDocumentSummary> {
+  const { document } = await posApi<{ document: FiscalDocumentSummary }>(tenantId, `/fiscal/documents/${encodeURIComponent(id)}/retry`, { method: "POST" })
+  return document
+}
+
+export async function reprintFiscalDocument(tenantId: string, id: string): Promise<string> {
+  const { printerName } = await posApi<{ printerName: string }>(tenantId, `/fiscal/documents/${encodeURIComponent(id)}/reprint`, { method: "POST" })
+  return printerName
+}
+
+/** Nota de crédito de una factura autorizada (el cajero: PIN de encargado). */
+export async function creditNoteFor(tenantId: string, id: string): Promise<FiscalDocumentSummary> {
+  const { document } = await posApi<{ document: FiscalDocumentSummary }>(tenantId, `/fiscal/documents/${encodeURIComponent(id)}/credit-note`, { method: "POST" })
+  return document
+}
+
+export async function downloadLibroIva(tenantId: string, month: string, format: "csv" | "lid-cbte" | "lid-alicuotas"): Promise<void> {
+  await posApiDownload(tenantId, "/fiscal/libro-iva", { month, format })
 }

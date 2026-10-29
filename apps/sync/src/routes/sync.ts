@@ -1,5 +1,7 @@
 import mongoose from "mongoose"
 import { Router } from "express"
+import { emitToRooms, orderBroadcastRooms } from "../socket/rooms"
+import { locationOfOrder } from "../services/order-location"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { getPendingOrders, updateOrderStatus } from "../services/order-translator"
@@ -76,7 +78,8 @@ export function syncRouter(
               newStatus
             )
             if (updated) {
-              io.to(`tenant:${auth.tenantId}`).emit("order:status_updated", {
+              // Sala genérica + sala de la sede (POS multisede).
+              emitToRooms(io, orderBroadcastRooms(auth.tenantId, await locationOfOrder(auth.tenantId, event.payload.orderId)), "order:status_updated", {
                 orderId: event.payload.orderId,
                 tenantId: auth.tenantId,
                 externalStatus: newStatus,

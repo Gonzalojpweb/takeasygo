@@ -231,3 +231,45 @@ async function posApiOnce<T>(
 
   throw new PosApiError(message, code, res.status, detail)
 }
+
+/**
+ * Descarga autenticada de un archivo de `/api/{tenantId}/pos{path}` (Fase I:
+ * reportes PDF / Excel). Mismas cabeceras que posApi (token y sede); dispara
+ * la descarga en el navegador con el nombre que manda el server.
+ */
+export async function posApiDownload(
+  tenantId: string,
+  path: string,
+  query: Record<string, string | undefined> = {}
+): Promise<void> {
+  const base = saasUrl()
+  if (!base) throw new PosApiError("Falta VITE_SAAS_URL", "internal", 500)
+  const url = new URL(`${base}/api/${encodeURIComponent(tenantId)}/pos${path}`)
+  for (const [key, value] of Object.entries(query)) if (value !== undefined) url.searchParams.set(key, value)
+  const headers: Record<string, string> = { Authorization: `Bearer ${readAccessToken()}` }
+  try {
+    const config = await db.tenantConfig.get(tenantId)
+    if (config?.locationId) headers["X-Location-Id"] = config.locationId
+  } catch {
+    // Sin Dexie: el server aplica la regla de single-sede.
+  }
+  const res = await fetch(url.toString(), { headers })
+  if (!res.ok) {
+    let message = `No se pudo descargar (${res.status})`
+    try {
+      const payload = (await res.json()) as { error?: { message?: string; code?: string } }
+      if (payload.error?.message) message = payload.error.message
+    } catch { /* sin cuerpo JSON */ }
+    if (res.status === 401) window.dispatchEvent(new CustomEvent("auth:expired"))
+    throw new PosApiError(message, "internal", res.status)
+  }
+  const blob = await res.blob()
+  const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? "reporte"
+  const link = document.createElement("a")
+  link.href = URL.createObjectURL(blob)
+  link.download = name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000)
+}
