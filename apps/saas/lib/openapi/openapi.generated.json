@@ -1,0 +1,6325 @@
+{
+ "openapi": "3.1.0",
+ "info": {
+  "title": "TakeasyGO API",
+  "version": "1.0.0",
+  "description": "API del POS online (SaaS, Vercel), del asistente TEO y de la capa de sincronización (Sync, EC2).\n\n**Reglas de oro**\n- Montos SIEMPRE en centavos enteros (1 peso = 100).\n- Aislamiento multi-tenant: el comercio sale del token, nunca del body; toda consulta filtra por tenantId primero.\n- Cierre ciego: el cajero no recibe esperados ni diferencias de caja.\n\nGenerado desde el código con `apps/saas/scripts/build-openapi.mjs`. No editar a mano."
+ },
+ "servers": [
+  {
+   "url": "https://www.takeasygo.com",
+   "description": "SaaS (rutas /api/{tenant}/…)"
+  },
+  {
+   "url": "https://sync.takeasygo.com",
+   "description": "Sync EC2 (rutas /api/v1/…)"
+  }
+ ],
+ "tags": [
+  {
+   "name": "POS online (SaaS)",
+   "description": "Operación del POS contra el SaaS: órdenes, mesas, caja, facturación, reportes. JWT RS256 del POS + capability por rol."
+  },
+  {
+   "name": "Asistente TEO",
+   "description": "Asistente de soporte del panel (sesión NextAuth). Rol, negocio y módulos los fija el servidor."
+  },
+  {
+   "name": "Sync (EC2)",
+   "description": "Login del POS, tiempo real, replay offline, emparejamiento, clientes."
+  },
+  {
+   "name": "Sync (EC2) · interno",
+   "description": "Server-to-server SaaS → Sync. Secreto interno; nunca desde el navegador."
+  }
+ ],
+ "paths": {
+  "/api/v1/auth/login": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_auth_login",
+    "summary": "Login del POS (modo email+contraseña o PIN de empleado): emite el JWT RS256",
+    "description": "loginRateLimiter va primero: corta por IP (req.ip, real gracias a trust\nproxy) antes de validate() y antes de consultar la base.\n\nFuente: `apps/sync/src/routes/auth.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/logout": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_auth_logout",
+    "summary": "Cierra la sesión: revoca el token (denylist por jti)",
+    "description": "Fuente: `apps/sync/src/routes/auth.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/refresh": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_auth_refresh",
+    "summary": "Renueva el JWT vigente (rota el jti; tope absoluto desde el login original)",
+    "description": "de authMiddleware): el token que llega YA está verificado (firma, exp, jti\ny denylist).\nSecurity by design:\n· Re-valida contra la base: usuario activo del MISMO tenant, rol con\nacceso al POS y sede todavía activa. Un usuario dado de baja o una sede\ncerrada no se pueden \"estirar\" con refresh.\n· Tope absoluto: authTime (login original) + HUB_SESSION_MAX_AGE_MS. Un\ntoken robado no se refresca para siempre. Tokens viejos sin authTime\ncuentan desde su iat.\n· Rotación: el jti viejo se veta acá (Redis local) por su vida restante.\nEl POS además lo revoca en el SaaS (Upstash) — ver services/auth-api.\n· Rate limit 10/min por sub.\n\nFuente: `apps/sync/src/routes/auth.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/auth/sso-token": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_auth_sso_token",
+    "summary": "Token de un solo uso (60 s) para abrir el SaaS desde la terminal de caja sin volver a loguearse",
+    "description": "Fuente: `apps/sync/src/routes/sso.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/cash-sale": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_cash_sale",
+    "summary": "Recibe una venta confirmada de TakeasyGO y la persiste en el outbox",
+    "description": "POST /api/v1/cash-sale\nRecibe una venta confirmada de TakeasyGO y la persiste en el outbox.\nIntenta emit al POS inmediatamente. Si falla, BullMQ reintenta.\nEl POS procesa con idempotencia — si el evento llega duplicado,\nlo descarta automáticamente.\nEl unique index en (orderId, tenantId) previene que un POST duplicado\ndel SaaS cree dos eventos. El 2do insert falla con duplicate key error\ny se retorna 409 Conflict.\n\nCash Sale — Outbox Pattern para ventas TakeasyGO → Caja\nFlujo:\n1. SaaS confirma pago → POST /api/v1/cash-sale (internal auth)\n2. Sync Layer persiste el evento en MongoDB (outbox)\n3. Intenta emit al POS vía WebSocket\n4. Si el emit falla (POS offline), BullMQ reintenta con backoff exponencial\n5. Máximo 10 reintentos. Si se agotan → status: \"failed\"\n6. POS confirma recepción → PATCH /:eventId/deliver → status: \"delivered\"\n7. Eventos failed son visibles vía GET /?status=failed (JWT auth)\n8. Manager puede reintentar vía POST /:eventId/retry\n\nAuth:\n- POST / (crear): secreto interno server-to-server — acepta X-Internal-Secret\n  (como lo envía notifyCashSale del SaaS) o Authorization: Bearer <secret>\n  (estilo de los helpers internos). Antes solo Bearer → 401 garantizado.\n- PATCH /:id/deliver: secreto interno (server-to-server) O Bearer JWT del POS\n  con check de tenant — el POS envía su JWT de usuario, no el secreto.\n- GET /, POST /:id/retry: JWT auth (POS o SaaS admin)\nFail-closed: sin secreto configurado, el auth interno nunca matchea.\n\nFuente: `apps/sync/src/routes/cash-sale.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_cash_sale",
+    "summary": "Lista eventos de cash sale por status",
+    "description": "GET /api/v1/cash-sale?status=failed\nLista eventos de cash sale por status. Usado por el POS para mostrar\neventos fallidos al manager en la escena \"Pendientes\".\nAuth: JWT via authMiddleware.\n\nCash Sale — Outbox Pattern para ventas TakeasyGO → Caja\nFlujo:\n1. SaaS confirma pago → POST /api/v1/cash-sale (internal auth)\n2. Sync Layer persiste el evento en MongoDB (outbox)\n3. Intenta emit al POS vía WebSocket\n4. Si el emit falla (POS offline), BullMQ reintenta con backoff exponencial\n5. Máximo 10 reintentos. Si se agotan → status: \"failed\"\n6. POS confirma recepción → PATCH /:eventId/deliver → status: \"delivered\"\n7. Eventos failed son visibles vía GET /?status=failed (JWT auth)\n8. Manager puede reintentar vía POST /:eventId/retry\n\nAuth:\n- POST / (crear): secreto interno server-to-server — acepta X-Internal-Secret\n  (como lo envía notifyCashSale del SaaS) o Authorization: Bearer <secret>\n  (estilo de los helpers internos). Antes solo Bearer → 401 garantizado.\n- PATCH /:id/deliver: secreto interno (server-to-server) O Bearer JWT del POS\n  con check de tenant — el POS envía su JWT de usuario, no el secreto.\n- GET /, POST /:id/retry: JWT auth (POS o SaaS admin)\nFail-closed: sin secreto configurado, el auth interno nunca matchea.\n\nFuente: `apps/sync/src/routes/cash-sale.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/cash-sale/{eventId}/deliver": {
+   "patch": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "patch_api_v1_cash_sale_eventId_deliver",
+    "summary": "Marcado como delivered cuando el POS confirma recepción (ACK)",
+    "description": "PATCH /api/v1/cash-sale/:eventId/deliver\nMarcado como delivered cuando el POS confirma recepción (ACK).\nAuth: secreto interno (server-to-server) o Bearer JWT del POS — el POS\nsolo puede ACK eventos de su propio tenant.\n\nCash Sale — Outbox Pattern para ventas TakeasyGO → Caja\nFlujo:\n1. SaaS confirma pago → POST /api/v1/cash-sale (internal auth)\n2. Sync Layer persiste el evento en MongoDB (outbox)\n3. Intenta emit al POS vía WebSocket\n4. Si el emit falla (POS offline), BullMQ reintenta con backoff exponencial\n5. Máximo 10 reintentos. Si se agotan → status: \"failed\"\n6. POS confirma recepción → PATCH /:eventId/deliver → status: \"delivered\"\n7. Eventos failed son visibles vía GET /?status=failed (JWT auth)\n8. Manager puede reintentar vía POST /:eventId/retry\n\nAuth:\n- POST / (crear): secreto interno server-to-server — acepta X-Internal-Secret\n  (como lo envía notifyCashSale del SaaS) o Authorization: Bearer <secret>\n  (estilo de los helpers internos). Antes solo Bearer → 401 garantizado.\n- PATCH /:id/deliver: secreto interno (server-to-server) O Bearer JWT del POS\n  con check de tenant — el POS envía su JWT de usuario, no el secreto.\n- GET /, POST /:id/retry: JWT auth (POS o SaaS admin)\nFail-closed: sin secreto configurado, el auth interno nunca matchea.\n\nFuente: `apps/sync/src/routes/cash-sale.ts`",
+    "parameters": [
+     {
+      "name": "eventId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     },
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/cash-sale/{eventId}/retry": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_cash_sale_eventId_retry",
+    "summary": "Re-intenta un evento fallido",
+    "description": "POST /api/v1/cash-sale/:eventId/retry\nRe-intenta un evento fallido. Resetea status a \"pending\" y re-encola.\nUsado por el manager cuando ve eventos fallidos en el POS.\nAuth: JWT via authMiddleware.\n\nCash Sale — Outbox Pattern para ventas TakeasyGO → Caja\nFlujo:\n1. SaaS confirma pago → POST /api/v1/cash-sale (internal auth)\n2. Sync Layer persiste el evento en MongoDB (outbox)\n3. Intenta emit al POS vía WebSocket\n4. Si el emit falla (POS offline), BullMQ reintenta con backoff exponencial\n5. Máximo 10 reintentos. Si se agotan → status: \"failed\"\n6. POS confirma recepción → PATCH /:eventId/deliver → status: \"delivered\"\n7. Eventos failed son visibles vía GET /?status=failed (JWT auth)\n8. Manager puede reintentar vía POST /:eventId/retry\n\nAuth:\n- POST / (crear): secreto interno server-to-server — acepta X-Internal-Secret\n  (como lo envía notifyCashSale del SaaS) o Authorization: Bearer <secret>\n  (estilo de los helpers internos). Antes solo Bearer → 401 garantizado.\n- PATCH /:id/deliver: secreto interno (server-to-server) O Bearer JWT del POS\n  con check de tenant — el POS envía su JWT de usuario, no el secreto.\n- GET /, POST /:id/retry: JWT auth (POS o SaaS admin)\nFail-closed: sin secreto configurado, el auth interno nunca matchea.\n\nFuente: `apps/sync/src/routes/cash-sale.ts`",
+    "parameters": [
+     {
+      "name": "eventId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/customers": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_customers",
+    "summary": "Crear un nuevo cliente desde el POS",
+    "description": "Crear un nuevo cliente desde el POS.\n\n/api/v1/customers — Búsqueda y perfil de clientes para el ROS\nEl ROS busca clientes al crear órdenes. El Sync Layer:\n1. Busca por phoneHash o nameSearchToken en MongoDB (sin descifrar)\n2. Descifra solo los resultados filtrados vía /internal/decrypt del SaaS\n3. Aplica feature gate según el plan del tenant\n\n── Types ────────────────────────────────────────────────────────────────────\n\nFuente: `apps/sync/src/routes/customers.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/customers/search": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_customers_search",
+    "summary": "Búsqueda de clientes para el ROS",
+    "description": "Búsqueda de clientes para el ROS.\nQuery params: ?q=<nombre o teléfono> | ?phone=<teléfono exacto>\n\n/api/v1/customers — Búsqueda y perfil de clientes para el ROS\nEl ROS busca clientes al crear órdenes. El Sync Layer:\n1. Busca por phoneHash o nameSearchToken en MongoDB (sin descifrar)\n2. Descifra solo los resultados filtrados vía /internal/decrypt del SaaS\n3. Aplica feature gate según el plan del tenant\n\n── Types ────────────────────────────────────────────────────────────────────\n\nFuente: `apps/sync/src/routes/customers.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/customers/{customerId}": {
+   "put": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "put_api_v1_customers_customerId",
+    "summary": "Actualizar un cliente existente desde el POS",
+    "description": "Actualizar un cliente existente desde el POS.\n\n/api/v1/customers — Búsqueda y perfil de clientes para el ROS\nEl ROS busca clientes al crear órdenes. El Sync Layer:\n1. Busca por phoneHash o nameSearchToken en MongoDB (sin descifrar)\n2. Descifra solo los resultados filtrados vía /internal/decrypt del SaaS\n3. Aplica feature gate según el plan del tenant\n\n── Types ────────────────────────────────────────────────────────────────────\n\nFuente: `apps/sync/src/routes/customers.ts`",
+    "parameters": [
+     {
+      "name": "customerId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/customers/{customerId}/orders": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_customers_customerId_orders",
+    "summary": "Historial de órdenes de un cliente (solo premium)",
+    "description": "Historial de órdenes de un cliente (solo premium).\n\n/api/v1/customers — Búsqueda y perfil de clientes para el ROS\nEl ROS busca clientes al crear órdenes. El Sync Layer:\n1. Busca por phoneHash o nameSearchToken en MongoDB (sin descifrar)\n2. Descifra solo los resultados filtrados vía /internal/decrypt del SaaS\n3. Aplica feature gate según el plan del tenant\n\n── Types ────────────────────────────────────────────────────────────────────\n\nFuente: `apps/sync/src/routes/customers.ts`",
+    "parameters": [
+     {
+      "name": "customerId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/delivery/assign": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_delivery_assign",
+    "summary": "Asigna un repartidor a un pedido",
+    "description": "POST /delivery/assign — assign a delivery person to an order\n\nFuente: `apps/sync/src/routes/delivery.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/delivery/orders": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_delivery_orders",
+    "summary": "Pedidos de delivery para asignar",
+    "description": "GET /delivery/orders — ready, unassigned delivery orders\n\nFuente: `apps/sync/src/routes/delivery.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/delivery/persons": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_delivery_persons",
+    "summary": "Repartidores del comercio",
+    "description": "GET /delivery/persons — active delivery persons + current assignment\n\nFuente: `apps/sync/src/routes/delivery.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/health": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_health",
+    "summary": "Salud del servicio (sin autenticación)",
+    "description": "Fuente: `apps/sync/src/routes/health.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": []
+   }
+  },
+  "/api/v1/internal/orders": {
+   "post": {
+    "tags": [
+     "Sync (EC2) · interno"
+    ],
+    "operationId": "post_api_v1_internal_orders",
+    "summary": "SaaS → Sync: pedido nuevo de la App/web para emitir al POS de la sede",
+    "description": "Fuente: `apps/sync/src/routes/internal.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "get": {
+    "tags": [
+     "Sync (EC2) · interno"
+    ],
+    "operationId": "get_api_v1_internal_orders",
+    "summary": "SaaS → Sync: pedidos sincronizados (diagnóstico)",
+    "description": "Fuente: `apps/sync/src/routes/internal.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     }
+    ]
+   }
+  },
+  "/api/v1/internal/orders/{orderId}/confirm": {
+   "patch": {
+    "tags": [
+     "Sync (EC2) · interno"
+    ],
+    "operationId": "patch_api_v1_internal_orders_orderId_confirm",
+    "summary": "SaaS → Sync: confirmación del pedido para reflejarla en el POS",
+    "description": "Fuente: `apps/sync/src/routes/internal.ts`",
+    "parameters": [
+     {
+      "name": "orderId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/internal/orders/{orderId}/status": {
+   "post": {
+    "tags": [
+     "Sync (EC2) · interno"
+    ],
+    "operationId": "post_api_v1_internal_orders_orderId_status",
+    "summary": "SaaS → Sync: cambio de estado del pedido para reflejarlo en el POS",
+    "description": "POST /orders/:orderId/status — POS reports status change, SyncLayer forwards to SaaS\nskipForward: when true (SaaS-initiated), update DB + emit socket but skip forward queue\n\nFuente: `apps/sync/src/routes/internal.ts`",
+    "parameters": [
+     {
+      "name": "orderId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "InternalSecret": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/locations": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_locations",
+    "summary": "Sedes del comercio del token",
+    "description": "Locations Router — serves the tenant's active locations to the POS\nUsed by the LoginScreen sede picker (multi-sede POS).\nRequires JWT auth (mounted after authMiddleware).\n\nFuente: `apps/sync/src/routes/locations.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/menu/snapshot": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_menu_snapshot",
+    "summary": "Snapshot del menú para trabajar offline",
+    "description": "Menu Router — serves flattened menu snapshot for POS\nQueries the `menus` collection (same as SaaS) and flattens the nested\nstructure into Product[] + MenuCategory[] arrays that the POS expects.\n\nEl APLOANADO vive en @takeasygo/business/menu-flatten: es la misma regla\nque usa apps/saas para GET /api/[tenant]/pos/menu. Duplicarla acá haría que\nel POS y el SaaS vieran menús distintos para el mismo catálogo.\n\nFuente: `apps/sync/src/routes/menu.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/orders": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_orders",
+    "summary": "Pedidos del comercio/sede del token",
+    "description": "GET /orders — list orders with optional filters (status, orderMode)\n\nMapa de status → siguiente status esperado (para dispatch de compliance)\n\nFuente: `apps/sync/src/routes/orders.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_orders",
+    "summary": "Crea un pedido desde el POS (validado con zod)",
+    "description": "Mapa de status → siguiente status esperado (para dispatch de compliance)\n\nFuente: `apps/sync/src/routes/orders.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/orders/pending": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_orders_pending",
+    "summary": "Pedidos pendientes para el POS (incluye entregados de las últimas 24 h para reconciliar lo que pasó offline)",
+    "description": "GET /orders/pending — fetch active orders for reconnect recovery (JWT auth)\nIncludes delivered (last 24h) so POS can reconcile status changes that\nhappened while offline (e.g., delivery driver marked delivered in SaaS).\n\nMapa de status → siguiente status esperado (para dispatch de compliance)\n\nFuente: `apps/sync/src/routes/orders.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/orders/{orderId}/confirm": {
+   "patch": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "patch_api_v1_orders_orderId_confirm",
+    "summary": "El POS confirma (acepta) un pedido de la App",
+    "description": "Mapa de status → siguiente status esperado (para dispatch de compliance)\n\nFuente: `apps/sync/src/routes/orders.ts`",
+    "parameters": [
+     {
+      "name": "orderId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/orders/{orderId}/status": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_orders_orderId_status",
+    "summary": "Cambio de estado de un pedido desde el POS (se reenvía al SaaS)",
+    "description": "POST /orders/:orderId/status — POS reports status change, forwards to SaaS\n\nMapa de status → siguiente status esperado (para dispatch de compliance)\n\nFuente: `apps/sync/src/routes/orders.ts`",
+    "parameters": [
+     {
+      "name": "orderId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/pairing/approve": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_pairing_approve",
+    "summary": "Emparejamiento: el principal aprueba al secundario",
+    "description": "Fuente: `apps/sync/src/routes/pairing.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/pairing/hub-publish": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_pairing_hub_publish",
+    "summary": "Emparejamiento: el equipo principal publica el código",
+    "description": "Fuente: `apps/sync/src/routes/pairing.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/pairing/spoke-claim": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_pairing_spoke_claim",
+    "summary": "Emparejamiento: un equipo secundario reclama el código",
+    "description": "Fuente: `apps/sync/src/routes/pairing.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sync/conflicts": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_sync_conflicts",
+    "summary": "Conflictos de sincronización pendientes",
+    "description": "Fuente: `apps/sync/src/routes/sync.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/sync/conflicts/{eventId}/resolve": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_sync_conflicts_eventId_resolve",
+    "summary": "Resuelve un conflicto de sincronización",
+    "description": "Fuente: `apps/sync/src/routes/sync.ts`",
+    "parameters": [
+     {
+      "name": "eventId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/sync/replay": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_sync_replay",
+    "summary": "Reenvía en orden los eventos que el POS generó offline (idempotente)",
+    "description": "Fuente: `apps/sync/src/routes/sync.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/z-report": {
+   "post": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "post_api_v1_z_report",
+    "summary": "Sube un Z Report completo al Sync Layer para la vista compartible",
+    "description": "POST /api/v1/z-report\nSube un Z Report completo al Sync Layer para la vista compartible.\nEl POS llama a este endpoint después de cerrar la caja.\nIdempotencia: si el registerId ya existe, actualiza (upsert).\n\nZ Report Upload — POS → Sync Layer\nDespués de cerrar la caja, el POS sube el ZReport completo al Sync Layer\njunto con el shareToken. El Sync Layer lo almacena para servirlo vía\nla ruta pública /z-report/:shareToken.\n\nAuth: JWT del POS (authMiddleware + tenantMiddleware ya están montados).\n\nFuente: `apps/sync/src/routes/z-report-upload.ts`",
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SyncBearer": []
+     }
+    ],
+    "requestBody": {
+     "required": false,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/z-report/{shareToken}": {
+   "get": {
+    "tags": [
+     "Sync (EC2)"
+    ],
+    "operationId": "get_api_v1_z_report_shareToken",
+    "summary": "Retorna el HTML del Z Report renderizado con branding del tenant",
+    "description": "GET /api/v1/z-report/:shareToken\nRetorna el HTML del Z Report renderizado con branding del tenant.\nNo requiere JWT — el token de share ES la autenticación.\nExpira después de 30 días.\n\nZ Report Shareable — Vista web del cierre de caja\nConsenso v1 §4 — El Z Report se puede compartir por link.\nAuth: token de alta entropía en la URL (no JWT).\nExpiración: 30 días desde la generación.\nTenant branding: logo + nombre del tenant.\n\nSeguridad: el token es un UUID v4 (128 bits de entropía).\nLa ruta se excluye de logging verboso de requests (ver nota en index.ts).\n\nFuente: `apps/sync/src/routes/z-report-view.ts`",
+    "parameters": [
+     {
+      "name": "shareToken",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": []
+   }
+  },
+  "/api/{tenant}/assistant/chat": {
+   "get": {
+    "tags": [
+     "Asistente TEO"
+    ],
+    "operationId": "get_api_tenant_assistant_chat",
+    "summary": "TEO, asistente de soporte (v1, solo lectura)",
+    "description": "/api/[tenant]/assistant/chat — TEO, asistente de soporte (v1, solo lectura)\nGET  → estado del asistente (disponible / próximamente) y canal de soporte.\nPOST { conversationId, message } → { reply, logId, filter, suggestSupport }\nAuth: sesión del panel (requireAuth vía resolveAssistantContext). El rol,\nel negocio y los módulos los fija el servidor; el body solo trae el texto.\nSin streaming en v1: el filtro de salida corta antes de mostrar.\n\nFuente: `apps/saas/app/api/[tenant]/assistant/chat/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SessionCookie": []
+     }
+    ]
+   },
+   "post": {
+    "tags": [
+     "Asistente TEO"
+    ],
+    "operationId": "post_api_tenant_assistant_chat",
+    "summary": "TEO, asistente de soporte (v1, solo lectura)",
+    "description": "/api/[tenant]/assistant/chat — TEO, asistente de soporte (v1, solo lectura)\nGET  → estado del asistente (disponible / próximamente) y canal de soporte.\nPOST { conversationId, message } → { reply, logId, filter, suggestSupport }\nAuth: sesión del panel (requireAuth vía resolveAssistantContext). El rol,\nel negocio y los módulos los fija el servidor; el body solo trae el texto.\nSin streaming en v1: el filtro de salida corta antes de mostrar.\n\nFuente: `apps/saas/app/api/[tenant]/assistant/chat/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SessionCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/assistant/feedback": {
+   "post": {
+    "tags": [
+     "Asistente TEO"
+    ],
+    "operationId": "post_api_tenant_assistant_feedback",
+    "summary": "Pulgar arriba/abajo y «Contactar a soporte» sobre un intercambio PROPIO (mismo tenant y usuario)",
+    "description": "POST /api/[tenant]/assistant/feedback { logId, rating?: 1 | -1 | null, escalate?: true }\nPulgar arriba/abajo y «Contactar a soporte» sobre un intercambio PROPIO\n(mismo tenant y usuario). Las derivaciones las ve el superadmin en\n/superadmin/asistente.\n\nFuente: `apps/saas/app/api/[tenant]/assistant/feedback/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "SessionCookie": []
+     }
+    ],
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/cash/registers": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_cash_registers",
+    "summary": "cajas de la sede (abiertas/cerradas)",
+    "description": "GET  /api/[tenant]/pos/cash/registers — cajas de la sede (abiertas/cerradas)\nPOST /api/[tenant]/pos/cash/registers — abre caja (idempotente por posId)\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_cash_registers",
+    "summary": "abre caja (idempotente por posId)",
+    "description": "GET  /api/[tenant]/pos/cash/registers — cajas de la sede (abiertas/cerradas)\nPOST /api/[tenant]/pos/cash/registers — abre caja (idempotente por posId)\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/cash/registers/{id}": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_cash_registers_id",
+    "summary": "una caja con sus movimientos",
+    "description": "GET /api/[tenant]/pos/cash/registers/[id] — una caja con sus movimientos\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/cash/registers/{id}/close": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_cash_registers_id_close",
+    "summary": "cierra y genera el Z",
+    "description": "POST /api/[tenant]/pos/cash/registers/[id]/close — cierra y genera el Z\nConsenso v1 §3: el ZReport se genera UNA VEZ y es un snapshot inmutable.\nPDF, impresión y vista web leen exclusivamente de `register.zReport`.\n\nConsenso v1 §1: el arqueo esperado se RECALCULA desde los movimientos\nreales antes de cerrar. `expectedAmount` denormalizado sirve para la vista\nen vivo; el número que entra al Z es el de la fuente de verdad.\n\nCierre ciego (Fase 1, 2026-10): el cajero declara el conteo por billete\n(`closingCount: { bills: [{ value, count }], coins }`, centavos) sin ver el\nesperado. El total lo calcula el server; si además viene `finalAmount`\ntiene que coincidir. Sin `closingCount` se acepta `finalAmount` solo\n(compatibilidad con POS anteriores).\n\nValida el conteo por billete y devuelve el conteo con su total.\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/[id]/close/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/cash/registers/{id}/movements": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_cash_registers_id_movements",
+    "summary": "registra un movimiento",
+    "description": "POST /api/[tenant]/pos/cash/registers/[id]/movements — registra un movimiento\nReglas (Consenso v1), todas delegadas a @takeasygo/business o a la DB:\n  §1    el arqueo SOLO se mueve con efectivo → cashExpectedDelta()\n  §2.1  (registerId, relatedOrderId, type) es un índice único: el\n        reintento devuelve el existente, jamás duplica.\n\nFase 1 de caja (2026-10):\n  · gastos y retiros llevan `category` (flujo de fondos por categoría);\n    si el POS no manda concepto, se usa el nombre de la categoría.\n  · un retiro hecho por un cajero exige el PIN de un encargado\n    (lib/pos-online/approval.ts → header X-Manager-Pin).\n  · el cobro de la orden (POST /pos/orders/[id]/payments) ya registra la\n    venta en la caja (`source: 'payment'`). Cuando el POS manda después su\n    propio movimiento del mismo cobro, se devuelve el del server: mismo\n    hecho, aunque el concepto o el posId difieran.\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/[id]/movements/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/cash/registers/{id}/print": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_cash_registers_id_print",
+    "summary": "reimprimir el Z",
+    "description": "POST /api/[tenant]/pos/cash/registers/[id]/print — reimprimir el Z\nFase 2 de caja (2026-10). Al cerrar, el Z ya sale impreso solo; esto es la\nreimpresión desde el POS (sale marcada «REIMPRESIÓN»). Solo cajas cerradas.\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/registers/[id]/print/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/cash/summary": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_cash_summary",
+    "summary": "Caja en el POS (informe de caja X9 / Fase K): cierres de la sede en el rango (zona de la sede",
+    "description": "GET /api/[tenant]/pos/cash/summary?from=YYYY-MM-DD&to=YYYY-MM-DD\nCaja en el POS (informe de caja X9 / Fase K): cierres de la sede en el\nrango (zona de la sede; por defecto los últimos 30 días) con su link\npúblico del Z, y faltantes / sobrantes por cajero con alerta de faltantes\nrecurrentes. Cierre ciego: el cajero ve sus cierres y el link, NO los\nesperados ni las diferencias (solo encargado y admin).\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/summary/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/fiscal": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal",
+    "summary": "cómo factura este POS (Fase 5 de caja)",
+    "description": "GET /api/[tenant]/pos/fiscal — cómo factura este POS (Fase 5 de caja)\nLo mínimo para dibujar el selector de factura en el cobro. Sin secretos.\n  enabled: la facturación está activa y esta sede tiene punto de venta.\n  mode: 'ask' | 'always' | 'off'.\n  letterForFinalConsumer / letterForCompany: qué letra sale en cada caso.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/fiscal/documents": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_documents",
+    "summary": "Fase L: comprobantes electrónicos de la sede (hoy por defecto, zona de la sede) con su estado (autorizado con CAE/CAEA, pendiente,…",
+    "description": "GET /api/[tenant]/pos/fiscal/documents?from=YYYY-MM-DD&to=YYYY-MM-DD\nFase L: comprobantes electrónicos de la sede (hoy por defecto, zona de la\nsede) con su estado (autorizado con CAE/CAEA, pendiente, rechazado),\ntotales facturados / notas de crédito y si cada factura ya tiene nota de\ncrédito. Caja, encargado y admin (orders.pay).\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/fiscal/documents/{id}/credit-note": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_documents_id_credit_note",
+    "summary": "Fase L",
+    "description": "POST /api/[tenant]/pos/fiscal/documents/[id]/credit-note — Fase L\nEmite la nota de crédito de una factura autorizada (anula la factura ante\nARCA por el total). Idempotente: si ya existe, devuelve la misma. Es una\nanulación fiscal ⇒ el cajero necesita el PIN de un encargado; encargado y\nadmin directo. Si se autoriza, imprime el comprobante.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/[id]/credit-note/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/documents/{id}/reprint": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_documents_id_reprint",
+    "summary": "Fase L: vuelve a imprimir el ticket fiscal (con QR) de un comprobante autorizado en la impresora de caja.",
+    "description": "POST /api/[tenant]/pos/fiscal/documents/[id]/reprint — Fase L: vuelve a\nimprimir el ticket fiscal (con QR) de un comprobante autorizado en la\nimpresora de caja.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/[id]/reprint/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/documents/{id}/retry": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_documents_id_retry",
+    "summary": "Fase L: reintentar el CAE de un comprobante pendiente o rechazado (después de corregir el motivo). Si se autoriza, imprime el ticket…",
+    "description": "POST /api/[tenant]/pos/fiscal/documents/[id]/retry — Fase L: reintentar\nel CAE de un comprobante pendiente o rechazado (después de corregir el\nmotivo). Si se autoriza, imprime el ticket fiscal. Misma lógica que el panel.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/[id]/retry/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/libro-iva": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_libro_iva",
+    "summary": "Fase L (decisión 24/10): Libro IVA desde el POS, SOLO encargado y admin",
+    "description": "GET /api/[tenant]/pos/fiscal/libro-iva?month=YYYY-MM&format=\nFase L (decisión 24/10): Libro IVA desde el POS, SOLO encargado y admin.\n  · sin format → totales del mes (autorizados; notas de crédito restan).\n  · format=csv → Libro IVA Ventas.\n  · format=lid-cbte | lid-alicuotas → archivos del Libro IVA Digital de ARCA.\nEl Libro IVA es del CUIT (todas las sedes), igual que en el panel.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/libro-iva/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/menu": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_menu",
+    "summary": "snapshot aplanado para el POS",
+    "description": "GET /api/[tenant]/pos/menu — snapshot aplanado para el POS\nMismo contrato que `GET /api/v1/menu/snapshot` de apps/sync, pero servido\ndirecto por el SaaS: el POS sale del camino de datos de Sync Layer.\n\nEl aplanado NO está duplicado: vive en @takeasygo/business/menu-flatten y\napps/sync importa esa misma función. Una regla de negocio, dos lectores.\n\n`signature` (sha256 del contenido) es lo que el POS compara en M5 antes de\nreescribir Dexie; `version` es un número cómodo para el humano y para\n`Order.menuVersion`.\n\nFuente: `apps/saas/app/api/[tenant]/pos/menu/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "catalog.read"
+   }
+  },
+  "/api/{tenant}/pos/menu/items/{itemId}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_menu_items_itemId",
+    "summary": "pausar / reanudar desde el POS",
+    "description": "PATCH /api/[tenant]/pos/menu/items/[itemId] — pausar / reanudar desde el POS\nFase J (decisión 24/10): caja, encargado y admin pausan o reanudan un\nartículo con un toque; el mozo no (capacidad orders.pay). Body:\n{ available: boolean }. Pausa = motivo «manual» (nunca la levanta el\ninventario); reanudar limpia también una pausa automática por stock. El\nSaaS lo ve al instante (es el mismo menú) y el POS lo muestra como\n«Faltante». Auditado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/menu/items/[itemId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "itemId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_orders",
+    "summary": "lista (habilita el diff-then-put de M5)",
+    "description": "GET  /api/[tenant]/pos/orders — lista (habilita el diff-then-put de M5)\nPOST /api/[tenant]/pos/orders — crea con idempotencia por posId\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.read"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders",
+    "summary": "crea con idempotencia por posId",
+    "description": "GET  /api/[tenant]/pos/orders — lista (habilita el diff-then-put de M5)\nPOST /api/[tenant]/pos/orders — crea con idempotencia por posId\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_orders_id",
+    "summary": "una orden por su posId",
+    "description": "GET   /api/[tenant]/pos/orders/[id] — una orden por su posId\nPATCH /api/[tenant]/pos/orders/[id] — transición de estado, notas o el\n      celular del cliente (socio del club: suma puntos del club y, si lo\n      invitó un socio, cuenta para el programa de referidos)\n\nEstados que liberan la mesa (espejo de cancelOrder/deliverOrder del POS).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.read"
+   },
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_orders_id",
+    "summary": "transición de estado, notas o el celular del cliente (socio del club: suma puntos del club y, si lo invitó un socio, cuenta para el…",
+    "description": "GET   /api/[tenant]/pos/orders/[id] — una orden por su posId\nPATCH /api/[tenant]/pos/orders/[id] — transición de estado, notas o el\n      celular del cliente (socio del club: suma puntos del club y, si lo\n      invitó un socio, cuenta para el programa de referidos)\n\nEstados que liberan la mesa (espejo de cancelOrder/deliverOrder del POS).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/discounts": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_discounts",
+    "summary": "descuento (Fase D)",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nReglas y modelo: lib/pos-online/discounts.ts + discountService.ts.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_orders_id_discounts",
+    "summary": "quita el descuento de ese plato (o de toda la orden sin lineId).",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nReglas y modelo: lib/pos-online/discounts.ts + discountService.ts.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/invoice": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_invoice",
+    "summary": "factura una orden cobrada",
+    "description": "POST /api/[tenant]/pos/orders/[id]/invoice — factura una orden cobrada\nFase 5 de caja (2026-10). Body: { receiver?: { condition, docNumber, name } }\n  · Sin receptor = consumidor final.\n  · Idempotente: la misma orden devuelve la misma factura.\n  · Autorizada ⇒ el ticket con CAE y QR sale por la impresora de caja.\n  · ARCA caída ⇒ 202 con status 'retrying': la venta sigue; la factura se\n    reintenta sola (cron) y el panel la muestra pendiente.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/invoice/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/items": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_items",
+    "summary": "agrega un item a la orden",
+    "description": "POST /api/[tenant]/pos/orders/[id]/items — agrega un item a la orden\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/items/{productId}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_orders_id_items_productId",
+    "summary": "cambia la cantidad",
+    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "productId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_orders_id_items_productId",
+    "summary": "quita el producto",
+    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     },
+     {
+      "name": "productId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write"
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/payments": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_payments",
+    "summary": "registra el cobro de la orden",
+    "description": "POST /api/[tenant]/pos/orders/[id]/payments — registra el cobro de la orden\nBody: { payments: [{ id, method, amount, reference? }] }   (centavos)\n\nOrden de operación: tenant → auth → sede (posRoute) → body → reglas.\nReglas (lib/pos-online/paymentPolicy.ts):\n  · la suma de las partes == total recalculado por el server\n  · write-once: una orden se cobra UNA vez. Reintento idéntico ⇒ 200 con\n    la orden; un cobro distinto sobre una orden ya cobrada ⇒ 409.\n  · orden cancelada ⇒ 409; Kripton ⇒ 400 (no integrado en el POS).\n\nAcá queda la verdad del cobro EN LA ORDEN (lo que leen reportes, comisiones\ny el panel de pedidos del SaaS) y, desde la Fase 1 de caja (2026-10), la\nventa entra en la MISMA operación a la caja abierta de la sede\n(lib/pos-online/cashRecorder.ts, `source: 'payment'`). Sin caja abierta, el\nPOS la deja en su cola de pendientes como antes. `reason` (opcional) es el\nconcepto que se ve en la caja: \"Pedido M5\".\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/payments/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/void": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_void",
+    "summary": "anular una venta COBRADA",
+    "description": "POST /api/[tenant]/pos/orders/[id]/void — anular una venta COBRADA\nFase 1 de caja (2026-10). Antes un cajero podía cancelar una orden cobrada\nsin autorización y sin que la plata saliera de la caja: la forma más simple\nde llevarse efectivo sin rastro. Ahora:\n\n  · Solo órdenes cobradas (posPayments). Una orden sin cobrar se cancela\n    con PATCH status (y si ya está en cocina también pide encargado).\n  · Cajero ⇒ PIN de encargado (lib/pos-online/approval.ts). Encargado o\n    admin ⇒ aprobación implícita.\n  · Hace falta la caja abierta: cada parte del cobro genera su DEVOLUCIÓN\n    (type 'refund', source 'void') con la misma clave que la venta\n    (`posId` o `posId#i`). El efectivo baja el arqueo; el resto queda en\n    el Z por medio de pago (la devolución en el posnet/MP se hace en el\n    terminal).\n  · Vale para cualquier estado, también `delivered`: anular no es una\n    transición del flujo de servicio (ese grafo no se toca) sino un hecho\n    contable. La orden queda `cancelled` (también `payment.status`) y con\n    `voided` (write-once) para auditoría.\n  · Efectos: devuelve insumos (inventario), libera la mesa, revierte el\n    paso de referidos y, si la venta estaba facturada, emite la NOTA DE\n    CRÉDITO asociada (Fase 5). Si ARCA no responde, queda en reintento:\n    la anulación no se frena.\n\nBody: { reason: 'load_error' | 'customer_left' | 'complaint' | 'other', note? }\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/void/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/point": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_point",
+    "summary": "MercadoPago Point desde el POS (Fase 6)",
+    "description": "/api/[tenant]/pos/point — MercadoPago Point desde el POS (Fase 6)\n  GET  → { enabled }: la sede tiene un posnet Point configurado.\n  POST { orderId, amount } → manda el cobro al posnet; devuelve intentId.\n       El monto no puede superar lo que falta cobrar de la orden.\nEl estado se consulta en /pos/point/[intentId].\n\nFuente: `apps/saas/app/api/[tenant]/pos/point/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_point",
+    "summary": "MercadoPago Point desde el POS (Fase 6)",
+    "description": "/api/[tenant]/pos/point — MercadoPago Point desde el POS (Fase 6)\n  GET  → { enabled }: la sede tiene un posnet Point configurado.\n  POST { orderId, amount } → manda el cobro al posnet; devuelve intentId.\n       El monto no puede superar lo que falta cobrar de la orden.\nEl estado se consulta en /pos/point/[intentId].\n\nFuente: `apps/saas/app/api/[tenant]/pos/point/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/point/{intentId}": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_point_intentId",
+    "summary": "estado del cobro en el posnet",
+    "description": "GET    /api/[tenant]/pos/point/[intentId] — estado del cobro en el posnet\nDELETE /api/[tenant]/pos/point/[intentId] — cancelar el cobro\nFase 6. El intento se busca acotado a tenant + sede: el POS no puede\nconsultar ni cancelar cobros de otra sede. `approved` sale de verificar el\npago en MercadoPago por el monto guardado acá.\n\nFuente: `apps/saas/app/api/[tenant]/pos/point/[intentId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "intentId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_point_intentId",
+    "summary": "cancelar el cobro",
+    "description": "GET    /api/[tenant]/pos/point/[intentId] — estado del cobro en el posnet\nDELETE /api/[tenant]/pos/point/[intentId] — cancelar el cobro\nFase 6. El intento se busca acotado a tenant + sede: el POS no puede\nconsultar ni cancelar cobros de otra sede. `approved` sale de verificar el\npago en MercadoPago por el monto guardado acá.\n\nFuente: `apps/saas/app/api/[tenant]/pos/point/[intentId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "intentId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/reports/sales": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_reports_sales",
+    "summary": "Fase G: métricas de ventas de la sede del token desde el SERVIDOR (no la caché del dispositivo), separadas por canal (Salón · Mostrador ·…",
+    "description": "GET /api/[tenant]/pos/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD\nFase G: métricas de ventas de la sede del token desde el SERVIDOR (no la\ncaché del dispositivo), separadas por canal (Salón · Mostrador · App ·\nDelivery), con comensales, métodos de pago, categorías, horas y top.\nSin from/to = hoy (zona de la sede). Rango máximo: un año.\n\nRoles: caja, encargado, admin. El CAJERO ve ventas, ticket promedio y\ncomensales pero NO ingresos (decisión del 24/10): los montos llegan en null\ny `revenueVisible: false`.\n\nQuita los montos para roles sin acceso a ingresos (null = oculto).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reports/sales/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/reports/sales/export": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_reports_sales_export",
+    "summary": "Fase I: «Cierre de ventas» del día o del período en PDF y Excel, con los mismos números del Resumen y de Ventas",
+    "description": "GET /api/[tenant]/pos/reports/sales/export?format=pdf|xlsx&from&to\nFase I: «Cierre de ventas» del día o del período en PDF y Excel, con los\nmismos números del Resumen y de Ventas. Solo encargado y admin (incluye\ningresos). Auditado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/reports/sales/export/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/reports/sales/list": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_reports_sales_list",
+    "summary": "Fase I: listado de ventas de la sede desde el servidor, paginado, con el detalle de cada venta (canal, mesa, modo, plataforma, comensales,…",
+    "description": "GET /api/[tenant]/pos/reports/sales/list?from&to&channel&q&page&pageSize\nFase I: listado de ventas de la sede desde el servidor, paginado, con el\ndetalle de cada venta (canal, mesa, modo, plataforma, comensales, platos,\npagos, descuentos, anulación). Caja, encargado y admin; el cajero recibe\nlas ventas sin montos (decisión 24/10).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reports/sales/list/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/reports/sales/view": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_reports_sales_view",
+    "summary": "contexto Ventas del POS",
+    "description": "GET /api/[tenant]/pos/reports/sales/view — contexto Ventas del POS\n?from&to (días, zona de la sede) + filtros (lib/metrics/salesView):\nchannel, status, payment, invoice, mode, platform, hourFrom, hourTo, q,\npage, pageSize. Devuelve KPIs, desgloses, facturación, costo (inventario)\ny el listado, todo sobre el MISMO conjunto filtrado.\nCaja, encargado y admin (cash.read). El cajero ve cantidades, no dinero\nni costos (mismo criterio que /reports/sales).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reports/sales/view/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
+  "/api/{tenant}/pos/reservations": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_reservations",
+    "summary": "reservas de la sede",
+    "description": "GET /api/[tenant]/pos/reservations?date=YYYY-MM-DD — reservas de la sede\nObs. 24/10: el POS ve las reservas (por defecto, las de HOY en la zona de\nla sede), ordenadas por horario, con su sector y la mesa asignada. Además\ndevuelve `unseen`: reservas nuevas sin ver de hoy en adelante (badge).\nAntes de leer aplica el no-show automático (libera mesas reservadas).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reservations/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read"
+   }
+  },
+  "/api/{tenant}/pos/reservations/seen": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_reservations_seen",
+    "summary": "el POS abrió Reservaciones: las reservas nuevas de la sede quedan vistas (badge del POS y del SaaS).",
+    "description": "POST /api/[tenant]/pos/reservations/seen — el POS abrió Reservaciones:\nlas reservas nuevas de la sede quedan vistas (badge del POS y del SaaS).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reservations/seen/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/reservations/{id}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_reservations_id",
+    "summary": "operar una reserva desde el POS",
+    "description": "PATCH /api/[tenant]/pos/reservations/[id] — operar una reserva desde el POS\nObs. 24/10. Body: { action, tablePosId? }\n  · assign   (confirmada) → la mesa queda RESERVADA en el POS.\n  · unassign (confirmada) → suelta la mesa reservada.\n  · seat     (confirmada) → sentar: la mesa (la elegida o la asignada)\n                            pasa a ocupada con los comensales.\n  · no_show  (confirmada) → no vino: se libera la mesa reservada.\nConfirmar, cancelar o cobrar señas sigue en el panel del SaaS.\nSolo caja/encargado/admin (tables.manage). Misma regla que el panel:\nlib/reservations/tableLink.\n\nFuente: `apps/saas/app/api/[tenant]/pos/reservations/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/sectors": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_sectors",
+    "summary": "sectores del salón (obs. 24/10)",
+    "description": "GET /api/[tenant]/pos/sectors — sectores del salón (obs. 24/10)\nLos espacios de la sede definidos en el SaaS (Location.spaces). El POS los\nusa para ubicar cada mesa; no los crea ni los edita (fuente única).\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read"
+   }
+  },
+  "/api/{tenant}/pos/tables": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_tables",
+    "summary": "mesas de la sede (filtro por sección/estado)",
+    "description": "GET  /api/[tenant]/pos/tables — mesas de la sede (filtro por sección/estado)\nPOST /api/[tenant]/pos/tables — crea una mesa (openTable del POS)\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_tables",
+    "summary": "crea una mesa (openTable del POS)",
+    "description": "GET  /api/[tenant]/pos/tables — mesas de la sede (filtro por sección/estado)\nPOST /api/[tenant]/pos/tables — crea una mesa (openTable del POS)\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/tables/{id}": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_tables_id",
+    "summary": "una mesa por su posId",
+    "description": "GET   /api/[tenant]/pos/tables/[id] — una mesa por su posId\nPATCH /api/[tenant]/pos/tables/[id] — transición / mesero / pedido / factura\n\nEstados que solo se alcanzan cuando la orden ya terminó. Espejo exacto de\nfreeTable/closeTable en services/table.ts del POS.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read"
+   },
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_tables_id",
+    "summary": "transición / mesero / pedido / factura",
+    "description": "GET   /api/[tenant]/pos/tables/[id] — una mesa por su posId\nPATCH /api/[tenant]/pos/tables/[id] — transición / mesero / pedido / factura\n\nEstados que solo se alcanzan cuando la orden ya terminó. Espejo exacto de\nfreeTable/closeTable en services/table.ts del POS.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.service",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/tables/{id}/discount": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_tables_id_discount",
+    "summary": "descuento a TODA la cuenta de la mesa (Fase D). { kind, value, reason, note? }",
+    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nUn solo PIN de encargado autoriza el descuento completo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_tables_id_discount",
+    "summary": "quita los descuentos de todas las rondas sin cobrar de la mesa.",
+    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nUn solo PIN de encargado autoriza el descuento completo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/tables/{id}/move": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_tables_id_move",
+    "summary": "cambiar de mesa o unir mesas",
+    "description": "POST /api/[tenant]/pos/tables/[id]/move — cambiar de mesa o unir mesas\nFase C (2026-10). Body: { toTableId, join?: boolean }\n  · destino LIBRE   → CAMBIO: la cuenta entera (rondas, comensales, mozo,\n    cuenta pedida) pasa a la mesa destino; el origen queda libre.\n  · destino OCUPADO → UNIR: exige `join: true` (el POS lo confirma con el\n    operador). Las rondas del origen pasan al destino, los comensales se\n    suman y la cuenta pedida se reabre (cambió el total).\n  · destino reservado / cerrado / llamando → 409.\nSolo caja/encargado/admin (tables.manage): el mozo no reubica cuentas.\n\nOrden de escritura: destino (con concurrencia optimista) → rondas →\norigen. Si algo falla en el medio, las rondas siguen apuntando a una mesa\nexistente y el operador reintenta; nunca se pierde una cuenta.\n\nRondas que todavía viven en la mesa (no cerradas ni anuladas).\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/move/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/tables/{id}/precuenta": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_tables_id_precuenta",
+    "summary": "imprime la precuenta (Fase E)",
+    "description": "POST /api/[tenant]/pos/tables/[id]/precuenta — imprime la precuenta (Fase E)\nRondas sin cobrar de la mesa → impresora de caja (lib/pos-online/precuenta).\n`tables.service`: la pide quien pide la cuenta (mozo o caja). Se puede\nreimprimir (no cambia nada en la orden). 409 si no hay impresora de caja\no nada para cobrar: el POS lo avisa sin frenar el «pedir cuenta».\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/precuenta/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.service",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "components": {
+  "securitySchemes": {
+   "PosBearer": {
+    "type": "http",
+    "scheme": "bearer",
+    "bearerFormat": "JWT RS256",
+    "description": "Token del POS emitido por el Sync (POST /api/v1/auth/login). El SaaS lo valida con POS_JWT_PUBLIC_KEY."
+   },
+   "SyncBearer": {
+    "type": "http",
+    "scheme": "bearer",
+    "bearerFormat": "JWT RS256",
+    "description": "Mismo token del POS, validado por el Sync."
+   },
+   "InternalSecret": {
+    "type": "apiKey",
+    "in": "header",
+    "name": "X-Internal-Secret",
+    "description": "Secreto server-to-server (SYNC_LAYER_SECRET del SaaS = INTERNAL_API_SECRET del Sync)."
+   },
+   "SessionCookie": {
+    "type": "apiKey",
+    "in": "cookie",
+    "name": "__Secure-authjs.session-token",
+    "description": "Sesión NextAuth del panel admin."
+   }
+  },
+  "schemas": {
+   "PosError": {
+    "type": "object",
+    "required": [
+     "error"
+    ],
+    "properties": {
+     "error": {
+      "oneOf": [
+       {
+        "type": "object",
+        "required": [
+         "code",
+         "message"
+        ],
+        "properties": {
+         "code": {
+          "type": "string",
+          "description": "Código estable (validation, unauthorized, forbidden, not_found, conflict, …)"
+         },
+         "message": {
+          "type": "string"
+         },
+         "detail": {
+          "type": "string"
+         }
+        }
+       },
+       {
+        "type": "string",
+        "description": "Rutas del Sync y del asistente: mensaje simple."
+       }
+      ]
+     }
+    }
+   },
+   "MoneyCents": {
+    "type": "integer",
+    "minimum": 0,
+    "description": "Monto en centavos."
+   }
+  }
+ }
+}

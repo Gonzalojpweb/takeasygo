@@ -254,7 +254,7 @@ export default async function AdminLayout({
         <Toaster />
         <SystemAnnouncementBanner tenantSlug={tenant} />
         <ComplianceBlockModal tenantSlug={tenant} />
-        <TeoAssistant />
+        <TeoAssistant tenantSlug={tenant} />
       </div>
     </AdminLocationProviderWrapper>
   )

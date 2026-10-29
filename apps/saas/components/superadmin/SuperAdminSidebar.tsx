@@ -26,6 +26,8 @@ import {
   ShoppingBag,
   QrCode,
   BookOpen,
+  Bot,
+  Braces,
   Printer,
   Smartphone,
   DollarSign,
@@ -143,6 +145,8 @@ export default function SuperAdminSidebar() {
       items: [
         { href: '/superadmin/developer', label: 'Documentación', icon: BookOpen },
         { href: '/superadmin/pos-root', label: 'POS Root · Diseño', icon: FileText },
+        { href: '/superadmin/api-docs', label: 'API (Swagger)', icon: Braces },
+        { href: '/superadmin/asistente', label: 'Asistente TEO', icon: Bot },
       ],
     },
     {

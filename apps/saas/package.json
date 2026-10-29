@@ -9,9 +9,13 @@
     "lint": "eslint .",
     "typecheck": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --noEmit",
     "test": "vitest run",
-    "clean": "rimraf .next out"
+    "clean": "rimraf .next out",
+    "assistant:kb": "node scripts/build-assistant-kb.mjs",
+    "assistant:eval": "vitest run --config vitest.eval.config.mts",
+    "openapi": "node scripts/build-openapi.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -64,6 +68,7 @@
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",
     "supercluster": "^8.0.1",
+    "swagger-ui-dist": "5.17.14",
     "tailwind-merge": "^3.5.0",
     "web-push": "^3.6.7",
     "zod": "^4.3.6"
