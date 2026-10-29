@@ -137,6 +137,11 @@ export interface ILocation extends Document {
     blockedDates: string[]
     order: number
   }>
+  /**
+   * Turnos de caja de la sede (Fase 2, 29/10): los define el admin.
+   * Un turno = una caja por día (business/shifts).
+   */
+  cashShifts?: Array<{ id: string; name: string; start: string; end: string; active: boolean }>
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
@@ -379,6 +384,17 @@ settings: {
         enabled: { type: Boolean, default: true },
         blockedDates: { type: [String], default: [] },
         order: { type: Number, default: 0 },
+      }],
+      default: [],
+    },
+    cashShifts: {
+      type: [{
+        _id: false,
+        id: { type: String, required: true },
+        name: { type: String, required: true, trim: true, maxlength: 30 },
+        start: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+        end: { type: String, required: true, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+        active: { type: Boolean, default: true },
       }],
       default: [],
     },

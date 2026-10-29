@@ -31,6 +31,16 @@ export {
   rolesForDocuments,
   type PrinterDocument,
 } from "./printing"
+export {
+  MAX_CASH_SHIFTS,
+  hhmmToMinutes,
+  shiftCovers,
+  validateShifts,
+  shiftForMinutes,
+  shiftDateFor,
+  shiftLabel,
+  type CashShift,
+} from "./shifts"
 // sync-events and jwt removed from barrel — they use node:crypto and must NOT
 // be bundled for client. Import directly:
 //   import { ... } from '@takeasygo/business/sync-events'

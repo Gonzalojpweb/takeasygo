@@ -76,6 +76,7 @@ export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; b
     { text: ctx.locationName.toUpperCase(), bold: true, center: true, large: true },
     { text: 'CIERRE DE CAJA (Z)', bold: true, center: true },
   ]
+  if (z.shiftName) out.push({ text: `Turno ${z.shiftName}${z.shiftDate ? ` · ${z.shiftDate.split('-').reverse().join('/')}` : ''}`, center: true })
   if (ctx.reprint) out.push({ text: '*** REIMPRESION ***', center: true })
   out.push(
     rule('='),

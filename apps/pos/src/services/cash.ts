@@ -64,7 +64,9 @@ export async function openRegister(
   tenantId: string,
   initialAmount: number,
   openedBy: string,
-  defaultForChannel: CashChannel | null = null
+  defaultForChannel: CashChannel | null = null,
+  /** Turno elegido (Fase 2); sin él, el server toma el de la hora de la sede. */
+  shiftId: string | null = null
 ): Promise<CashRegister> {
   return runMutation(async () => {
     const { register } = await postRegister(
@@ -75,6 +77,7 @@ export async function openRegister(
         initialAmount,
         openedBy,
         defaultForChannel,
+        ...(shiftId ? { shiftId } : {}),
       }
     )
 
@@ -126,6 +129,8 @@ export interface CashCloseRow {
   closedAt: string
   openedBy: string
   closedBy: string | null
+  shiftName: string | null
+  shiftDate: string | null
   /** null para el cajero (cierre ciego). */
   salesTotal: number | null
   finalAmount: number | null
@@ -144,6 +149,27 @@ export interface CashSummary {
   } | null
   /** Cajeros con faltantes recurrentes en el período. */
   alerts: { name: string; shortCloses: number; shortTotal: number }[]
+}
+
+// ── Turnos de la jornada (Fase 2) ──────────────────────────────────────────
+
+export interface ShiftStatus {
+  id: string
+  name: string
+  start: string
+  end: string
+  status: "open" | "closed" | "free"
+  register: { posId: string; openedBy: string; openedAt: string; closedBy: string | null; closedAt: string | null } | null
+}
+
+export interface ShiftsToday {
+  date: string
+  currentShiftId: string | null
+  shifts: ShiftStatus[]
+}
+
+export function getShiftsToday(tenantId: string): Promise<ShiftsToday> {
+  return posApi<ShiftsToday>(tenantId, "/cash/shifts")
 }
 
 export async function getCashSummary(tenantId: string, range: { from: string; to: string }): Promise<CashSummary> {

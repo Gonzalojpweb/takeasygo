@@ -104,6 +104,11 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
   }
 
   const zReport = generateZReport({ register: closedRegister, movements, closedBy })
+  // Fase 2: el Z dice de qué turno es.
+  if (register.shiftId) {
+    zReport.shiftName = register.shiftName ?? null
+    zReport.shiftDate = register.shiftDate ?? null
+  }
   // Fase 5: comprobantes electrónicos emitidos durante el turno, en la sede.
   zReport.fiscal = await fiscalSummaryForShift({
     tenantId: ctx.tenantId,

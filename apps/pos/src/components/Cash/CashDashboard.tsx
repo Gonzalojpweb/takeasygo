@@ -16,7 +16,7 @@ import type { FailedCashSaleEvent } from "../../services/sync-api"
 import type { PendingMovementRecord } from "../../db/dexie"
 import { isPosApiError } from "../../services/pos-api"
 import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
-import { getCashSummary, type CashSummary } from "../../services/cash"
+import { getCashSummary, getShiftsToday, type CashSummary, type ShiftsToday } from "../../services/cash"
 import { localToday, shiftDate } from "../../services/reports"
 
 // ============================================================================
@@ -100,7 +100,13 @@ export function CashDashboard({ role }: { role?: string }) {
   // Link público del Z abierto (lo arma el server: el POS no sabe el slug).
   const [zShareUrl, setZShareUrl] = useState<string | null>(null)
   // Cierres por rango + faltantes por cajero (informe X9 / Fase K).
-  const [histDays, setHistDays] = useState<1 | 7 | 30 | 90>(30)
+  const [histDays, setHistDays] = useState<1 | 7 | 30 | 90 | "custom">(30)
+  // Fase 2: rango libre de fechas en Cierres.
+  const [customFrom, setCustomFrom] = useState(() => shiftDate(localToday(), -6))
+  const [customTo, setCustomTo] = useState(() => localToday())
+  // Fase 2: turnos de la jornada (abrir caja y estado general de la sede).
+  const [shiftsToday, setShiftsToday] = useState<ShiftsToday | null>(null)
+  const [selectedShift, setSelectedShift] = useState<string | null>(null)
   const [summary, setSummary] = useState<CashSummary | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
 
@@ -173,7 +179,7 @@ export function CashDashboard({ role }: { role?: string }) {
     if (amount === null) return showError("Ingresá el efectivo con el que abrís la caja")
     setBusy(true)
     try {
-      await openRegister(amount, "Operador", defaultChannel)
+      await openRegister(amount, "Operador", defaultChannel, shiftsToday?.shifts.length ? selectedShift : null)
       showSuccess("Caja abierta")
       setInitialAmount("")
       setDefaultChannel(null)
@@ -183,7 +189,7 @@ export function CashDashboard({ role }: { role?: string }) {
     } finally {
       setBusy(false)
     }
-  }, [initialAmount, defaultChannel, openRegister, showError, showSuccess, go])
+  }, [initialAmount, defaultChannel, shiftsToday, selectedShift, openRegister, showError, showSuccess, go])
 
   const handleAddMovement = useCallback(async () => {
     if (!activeRegister) return
@@ -268,15 +274,31 @@ export function CashDashboard({ role }: { role?: string }) {
   useEffect(() => {
     if (scene !== "historial" || !tenantIdForSummary) return
     let alive = true
-    const to = localToday()
-    const from = histDays === 1 ? to : shiftDate(to, -(histDays - 1))
+    const to = histDays === "custom" ? customTo : localToday()
+    const from = histDays === "custom" ? customFrom : histDays === 1 ? to : shiftDate(to, -(histDays - 1))
+    if (from > to) return
     setSummaryLoading(true)
     getCashSummary(tenantIdForSummary, { from, to })
       .then((s) => { if (alive) setSummary(s) })
       .catch((err) => { if (alive) showError(errorText(err, "No se pudieron cargar los cierres")) })
       .finally(() => { if (alive) setSummaryLoading(false) })
     return () => { alive = false }
-  }, [scene, histDays, tenantIdForSummary, showError])
+  }, [scene, histDays, customFrom, customTo, tenantIdForSummary, showError])
+
+  // Turnos de la jornada: al abrir caja, en Cierres y en el resumen.
+  useEffect(() => {
+    if (!tenantIdForSummary || !["abrir", "historial", "resumen"].includes(scene)) return
+    let alive = true
+    getShiftsToday(tenantIdForSummary)
+      .then((t) => {
+        if (!alive) return
+        setShiftsToday(t)
+        const free = t.shifts.filter((x) => x.status === "free")
+        setSelectedShift((cur) => (cur && free.some((x) => x.id === cur) ? cur : free.find((x) => x.id === t.currentShiftId)?.id ?? free[0]?.id ?? null))
+      })
+      .catch(() => { if (alive) setShiftsToday(null) })
+    return () => { alive = false }
+  }, [scene, tenantIdForSummary, activeRegister?.id])
 
   /** Compartir el link del Z (WhatsApp / mail del celular) o copiarlo. */
   const shareZ = useCallback(async (url: string) => {
@@ -312,6 +334,25 @@ export function CashDashboard({ role }: { role?: string }) {
     }
   }, [selectedRegisterId, printZ, showSuccess, showError])
 
+  const selectedShiftName = shiftsToday?.shifts.find((x) => x.id === selectedShift)?.name ?? null
+
+  // Estado general de la sede: cada turno de la jornada y su caja (Fase 2).
+  const shiftsPanel = useMemo(() => shiftsToday && shiftsToday.shifts.length > 0 ? (
+    <>
+      <div className="sale-section-title">Turnos de hoy</div>
+      <ul className="cash-shifts">
+        {shiftsToday.shifts.map((t) => (
+          <li key={t.id} className={`cash-shift ${t.status}`}>
+            <span><b>{t.name}</b> <small>{t.start}–{t.end}</small></span>
+            <span className="cash-shift-state">
+              {t.status === "free" ? "Sin abrir" : t.status === "open" ? `Abierta · ${t.register?.openedBy ?? ""}` : `Cerrada · ${t.register?.closedBy ?? ""}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  ) : null, [shiftsToday])
+
   // ── Panel lateral + barra de acciones (una acción principal) ──────
   useEffect(() => {
     const effective = (scene === "x-report" && (!activeRegister || !seesExpected)) ? "resumen" : scene
@@ -328,13 +369,18 @@ export function CashDashboard({ role }: { role?: string }) {
           setContextPanel({
             title: "Caja cerrada",
             subtitle: "No hay un turno abierto",
-            body: <p className="cash-help">Abrí la caja con el efectivo del cajón para empezar a cobrar.</p>,
+            body: (
+              <div className="sale-detail">
+                <p className="cash-help">Abrí la caja con el efectivo del cajón para empezar a cobrar.</p>
+                {shiftsPanel}
+              </div>
+            ),
           })
           setActionBar({ right: <button className="btn btn-primary" onClick={() => go("abrir")}>Abrir caja</button> })
           break
         }
         setContextPanel({
-          title: "Caja abierta",
+          title: activeRegister.shiftName ? `Caja · turno ${activeRegister.shiftName}` : "Caja abierta",
           subtitle: `Desde ${timeAgo(activeRegister.openedAt)}`,
           body: (
             <dl className="cash-stats">
@@ -366,7 +412,7 @@ export function CashDashboard({ role }: { role?: string }) {
       case "abrir":
         setContextPanel({
           title: "Abrir caja",
-          subtitle: "Inicio de turno",
+          subtitle: shiftsToday?.shifts.length ? (selectedShiftName ? `Turno ${selectedShiftName}` : "Elegí el turno") : "Inicio de turno",
           body: <p className="cash-help">Contá el efectivo del cajón e ingresalo. Es el fondo con el que arranca el turno.</p>,
         })
         setActionBar({
@@ -451,6 +497,7 @@ export function CashDashboard({ role }: { role?: string }) {
           subtitle: summary ? `${summary.closes.length} en el período` : "Cargando…",
           body: (
             <div className="sale-detail">
+              {shiftsPanel}
               {summary?.alerts.length ? (
                 <div className="sale-warn" role="alert">
                   Faltantes recurrentes: {summary.alerts.map((a) => `${a.name} (${a.shortCloses} cierres, −${formatCurrency(a.shortTotal)})`).join(" · ")}. Revisá el conteo y el manejo de la caja con esa persona.
@@ -502,7 +549,7 @@ export function CashDashboard({ role }: { role?: string }) {
         })
         break
     }
-  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, zShareUrl, summary, shareZ, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
+  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, zShareUrl, summary, shareZ, shiftsPanel, shiftsToday, selectedShiftName, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
 
   const pendingCount = pendingMovements.length + failedEvents.length
   const tabs: { id: Scene; label: string; badge?: number }[] = [
@@ -558,6 +605,29 @@ export function CashDashboard({ role }: { role?: string }) {
               onKeyDown={(e) => e.key === "Enter" && handleOpenRegister()}
               autoFocus
             />
+            {shiftsToday && shiftsToday.shifts.length > 0 && (
+              <>
+                <span className="cash-label">Turno</span>
+                <div className="chip-row" role="group" aria-label="Turno de la caja">
+                  {shiftsToday.shifts.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      className={`chip ${selectedShift === t.id ? "active" : ""}`}
+                      aria-pressed={selectedShift === t.id}
+                      disabled={t.status !== "free"}
+                      title={t.status === "free" ? undefined : t.status === "open" ? "Ya tiene la caja abierta" : "Ya se cerró en esta jornada"}
+                      onClick={() => setSelectedShift(t.id)}
+                    >
+                      {t.name} · {t.start}–{t.end}{t.status === "closed" ? " · cerrado" : t.status === "open" ? " · abierto" : ""}
+                    </button>
+                  ))}
+                </div>
+                {shiftsToday.shifts.every((t) => t.status !== "free") && (
+                  <p className="cash-help">Todos los turnos de hoy ya tuvieron su caja. Un turno tiene una sola caja.</p>
+                )}
+              </>
+            )}
             <span className="cash-label">Esta caja recibe</span>
             <div className="chip-row">
               {CHANNEL_OPTIONS.map((c) => (
@@ -684,10 +754,16 @@ export function CashDashboard({ role }: { role?: string }) {
         {!loading && scene === "historial" && (
           <>
             <div className="sales-chips" role="group" aria-label="Período de cierres" style={{ alignSelf: "flex-start", marginBottom: "var(--sp-3)" }}>
-              {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [90, "90 días"]] as [1 | 7 | 30 | 90, string][]).map(([d, label]) => (
+              {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [90, "90 días"], ["custom", "Elegir fechas"]] as [1 | 7 | 30 | 90 | "custom", string][]).map(([d, label]) => (
                 <button key={d} type="button" className={`sales-chip${histDays === d ? " active" : ""}`} aria-pressed={histDays === d} onClick={() => setHistDays(d)}>{label}</button>
               ))}
             </div>
+            {histDays === "custom" && (
+              <div className="cash-range" role="group" aria-label="Rango de fechas">
+                <label>Desde <input id="cash-range-from" type="date" className="search-input" value={customFrom} max={customTo} onChange={(e) => e.target.value && setCustomFrom(e.target.value)} /></label>
+                <label>Hasta <input id="cash-range-to" type="date" className="search-input" value={customTo} min={customFrom} max={localToday()} onChange={(e) => e.target.value && setCustomTo(e.target.value)} /></label>
+              </div>
+            )}
             {summaryLoading && !summary && <div className="loading-state"><span className="spinner" /> Cargando…</div>}
             {summary && summary.closes.length === 0 && (
               <div className="empty-state">
@@ -712,7 +788,7 @@ export function CashDashboard({ role }: { role?: string }) {
                     >
                       <span className="cash-history-date">
                         {new Date(row.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                        <span className="sale-line-sub"> · {row.closedBy ?? row.openedBy}</span>
+                        <span className="sale-line-sub"> · {row.shiftName ? `${row.shiftName} · ` : ""}{row.closedBy ?? row.openedBy}</span>
                       </span>
                       <span className="cash-history-total">{row.salesTotal !== null ? `Ventas ${formatCurrency(row.salesTotal)}` : "—"}</span>
                       <span className={`cash-history-diff ${diff === null ? "" : diff === 0 ? "ok" : diff > 0 ? "over" : "short"}`}>

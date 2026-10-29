@@ -511,6 +511,10 @@ export interface CashRegister {
   status: CashRegisterStatus
   /** Conteo por billete declarado al cerrar (cierre ciego). */
   closingCount?: CashClosingCount | null
+  /** Turno de la caja (Fase 2, 29/10): nombre y jornada YYYY-MM-DD. */
+  shiftId?: string | null
+  shiftName?: string | null
+  shiftDate?: string | null
   /**
    * Canal default para routing de pedidos TakeasyGO.
    * Decisión: Consenso v1 §2.3 — Multi-caja routing.
@@ -660,6 +664,9 @@ export interface ZReport {
   tenantId: string
   closedAt: Date
   closedBy: string
+  /** Turno de la caja (Fase 2). Ausente en Z viejos o sin turnos. */
+  shiftName?: string | null
+  shiftDate?: string | null
 
   // ── Totales generales ────────────────────────────────────────────
   initialAmount: number

@@ -3040,6 +3040,75 @@
     }
    }
   },
+  "/api/{tenant}/pos/cash/shifts": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_cash_shifts",
+    "summary": "turnos de la jornada y su caja (Fase 2)",
+    "description": "GET /api/[tenant]/pos/cash/shifts — turnos de la jornada y su caja (Fase 2)\nPara abrir caja (qué turno corresponde ahora) y para el estado general de\nla sede: cada turno libre, con caja abierta o cerrada. Sin montos: lo ve\ntambién el cajero (cierre ciego).\n\nFuente: `apps/saas/app/api/[tenant]/pos/cash/shifts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "cash.read"
+   }
+  },
   "/api/{tenant}/pos/cash/summary": {
    "get": {
     "tags": [
@@ -3545,6 +3614,152 @@
      }
     ],
     "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/config/shifts": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_shifts",
+    "summary": "Configuración › Turnos (Fase 2)",
+    "description": "/api/[tenant]/pos/config/shifts — Configuración › Turnos (Fase 2)\nGET (admin y encargado): turnos de la sede.\nPUT { shifts: [{ id?, name, start, end, active }] } (solo admin): reemplaza\n  la lista. Sin superposiciones entre turnos activos; hasta 8 por sede.\nLas cajas ya abiertas o cerradas conservan el nombre de su turno.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/shifts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   },
+   "put": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "put_api_tenant_pos_config_shifts",
+    "summary": "Configuración › Turnos (Fase 2)",
+    "description": "/api/[tenant]/pos/config/shifts — Configuración › Turnos (Fase 2)\nGET (admin y encargado): turnos de la sede.\nPUT { shifts: [{ id?, name, start, end, active }] } (solo admin): reemplaza\n  la lista. Sin superposiciones entre turnos activos; hasta 8 por sede.\nLas cajas ya abiertas o cerradas conservan el nombre de su turno.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/shifts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.admin",
     "requestBody": {
      "required": true,
      "content": {

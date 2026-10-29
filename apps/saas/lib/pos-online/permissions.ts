@@ -41,6 +41,8 @@ export type PosCapability =
   | 'config.manage'
   /** Configuración fiscal del POS: cómo se factura (solo admin). */
   | 'config.fiscal'
+  /** Definiciones del admin: turnos de caja (Fase 2). */
+  | 'config.admin'
 
 const WAITER: readonly PosCapability[] = [
   'catalog.read',
@@ -64,7 +66,7 @@ const MATRIX: Readonly<Record<PosRole, ReadonlySet<PosCapability>>> = {
   waiter: new Set(WAITER),
   cashier: new Set(COUNTER),
   manager: new Set<PosCapability>([...COUNTER, 'config.manage']),
-  admin: new Set<PosCapability>([...COUNTER, 'config.manage', 'config.fiscal']),
+  admin: new Set<PosCapability>([...COUNTER, 'config.manage', 'config.fiscal', 'config.admin']),
 }
 
 const POS_ROLES = new Set<string>(['admin', 'manager', 'cashier', 'waiter'])

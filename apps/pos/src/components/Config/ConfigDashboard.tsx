@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Printer, Receipt, Plus } from "lucide-react"
+import { Printer, Receipt, Plus, Clock, Trash2 } from "lucide-react"
 import { FISCAL_DOCUMENTS, PRINTER_DOCUMENTS, PRINTER_DOCUMENT_LABELS, type PrinterDocument } from "@takeasygo/business/browser"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
 import {
   createPrinter,
   getFiscalConfig,
+  getShiftsConfig,
+  saveShiftsConfig,
   listPrinters,
   previewDocument,
   setInvoicingMode,
@@ -15,6 +17,7 @@ import {
   type PosPrinter,
   type PreviewLine,
   type PrintersConfig,
+  type ShiftConfig,
 } from "../../services/config"
 
 // ============================================================================
@@ -30,11 +33,12 @@ import {
 // fases siguientes.
 // ============================================================================
 
-type Section = "impresoras" | "comprobantes"
+type Section = "impresoras" | "comprobantes" | "turnos"
 
 const SECTIONS: { id: Section; label: string; hint: string; icon: typeof Printer }[] = [
   { id: "impresoras", label: "Impresoras", hint: "Qué imprime cada una", icon: Printer },
   { id: "comprobantes", label: "Comprobantes", hint: "Cómo factura la sede", icon: Receipt },
+  { id: "turnos", label: "Turnos", hint: "Un turno, una caja", icon: Clock },
 ]
 
 const STATUS_LABEL: Record<string, string> = { ok: "Imprimiendo bien", error: "Con error", offline: "Sin conexión", unknown: "Sin datos todavía" }
@@ -98,6 +102,10 @@ export function ConfigDashboard({ role }: { role?: string }) {
   // Comprobantes
   const [fiscal, setFiscal] = useState<FiscalConfigView | null>(null)
 
+  // Turnos (Fase 2): los define el admin; el encargado los ve.
+  const [shifts, setShifts] = useState<ShiftConfig[] | null>(null)
+  const [shiftsDirty, setShiftsDirty] = useState(false)
+
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
     setTimeout(() => setNotice(null), 4000)
@@ -121,10 +129,39 @@ export function ConfigDashboard({ role }: { role?: string }) {
     }
   }, [tenantId, flash])
 
+  const loadShifts = useCallback(async () => {
+    if (!tenantId) return
+    try {
+      setShifts((await getShiftsConfig(tenantId)).shifts)
+      setShiftsDirty(false)
+    } catch (err) {
+      flash("error", errorText(err, "No se pudieron cargar los turnos"))
+    }
+  }, [tenantId, flash])
+
   useEffect(() => {
-    const id = setTimeout(() => { void (section === "impresoras" ? loadPrinters() : loadFiscal()) }, 0)
+    const id = setTimeout(() => { void (section === "impresoras" ? loadPrinters() : section === "comprobantes" ? loadFiscal() : loadShifts()) }, 0)
     return () => clearTimeout(id)
-  }, [section, loadPrinters, loadFiscal])
+  }, [section, loadPrinters, loadFiscal, loadShifts])
+
+  const editShift = (i: number, patch: Partial<ShiftConfig>) => {
+    setShifts((list) => (list ? list.map((x, j) => (j === i ? { ...x, ...patch } : x)) : list))
+    setShiftsDirty(true)
+  }
+
+  const saveShifts = useCallback(async () => {
+    if (!tenantId || !shifts) return
+    setBusy(true)
+    try {
+      setShifts((await saveShiftsConfig(tenantId, shifts)).shifts)
+      setShiftsDirty(false)
+      flash("success", "Turnos guardados")
+    } catch (err) {
+      flash("error", errorText(err, "No se pudieron guardar los turnos"))
+    } finally {
+      setBusy(false)
+    }
+  }, [tenantId, shifts, flash])
 
   // Vista previa: ancho de la impresora en edición (o 80 mm).
   const previewWidth = draft?.paperWidth ?? 80
@@ -303,6 +340,23 @@ export function ConfigDashboard({ role }: { role?: string }) {
       })
       return
     }
+    if (section === "turnos") {
+      setContextPanel({
+        title: "Turnos",
+        subtitle: shifts ? `${shifts.filter((x) => x.active).length} activos` : undefined,
+        body: (
+          <p className="cash-help">
+            Cada turno tiene una sola caja por jornada. Al abrir la caja, el POS propone el turno según la hora de la sede; el cajero puede elegir otro libre.
+            Un turno puede cruzar la medianoche (por ejemplo 20:00 a 02:00). Los turnos activos no se pueden superponer.
+          </p>
+        ),
+      })
+      setActionBar(isAdmin ? {
+        left: shiftsDirty ? <button className="btn btn-ghost" disabled={busy} onClick={() => { void loadShifts() }}>Descartar</button> : undefined,
+        right: <button className="btn btn-primary" disabled={busy || !shiftsDirty} onClick={() => { void saveShifts() }}>Guardar turnos</button>,
+      } : null)
+      return
+    }
     setContextPanel({
       title: section === "impresoras" ? "Impresoras" : "Comprobantes",
       subtitle: section === "impresoras" && config ? `${config.active} de ${config.limit} activas en la sede` : undefined,
@@ -315,7 +369,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
       ),
     })
     setActionBar(null)
-  }, [section, draft, editing, config, busy, setContextPanel, setActionBar, savePrinter, toggleActive])
+  }, [section, draft, editing, config, busy, shifts, shiftsDirty, isAdmin, setContextPanel, setActionBar, savePrinter, toggleActive, saveShifts, loadShifts])
 
   const docsInUse = useMemo(() => new Set((config?.printers ?? []).filter((p) => p.isActive).flatMap((p) => p.documents)), [config])
   const missing = (["comanda", "precuenta", "factura", "reporte_caja"] as PrinterDocument[]).filter((d) => config && !docsInUse.has(d))
@@ -333,7 +387,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
               </button>
             )
           })}
-          <p className="config-nav-soon">Cajas, turnos, deliverys y dispositivos: próximamente.</p>
+          <p className="config-nav-soon">Deliverys externos y dispositivos: próximamente.</p>
         </nav>
 
         <div className="config-body">
@@ -389,6 +443,46 @@ export function ConfigDashboard({ role }: { role?: string }) {
                   )) ?? <div className="ticket-line">Cargando…</div>}
                 </div>
               </div>
+            </div>
+          )}
+
+          {section === "turnos" && (
+            <div className="config-fiscal">
+              <div className="config-section-head">
+                <div>
+                  <h2>Turnos de caja</h2>
+                  <p>{isAdmin ? "Definí cuántos turnos tiene la sede y su horario" : "Los turnos los define el administrador"}</p>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={busy || (shifts?.length ?? 0) >= 8}
+                    onClick={() => { setShifts((l) => [...(l ?? []), { name: "", start: "08:00", end: "16:00", active: true }]); setShiftsDirty(true) }}
+                  >
+                    <Plus size={16} aria-hidden /> Agregar turno
+                  </button>
+                )}
+              </div>
+              {shifts?.length === 0 && (
+                <p className="cash-help">Sin turnos: la caja se abre y se cierra sin turno, como hasta ahora.</p>
+              )}
+              <fieldset className="config-modes" disabled={!isAdmin || busy}>
+                {shifts?.map((t, i) => (
+                  <div key={t.id ?? `nuevo-${i}`} className="config-shift-row">
+                    <input id={`shift-name-${i}`} className="search-input" aria-label="Nombre del turno" placeholder="Mañana" maxLength={30} value={t.name} onChange={(e) => editShift(i, { name: e.target.value })} />
+                    <input id={`shift-start-${i}`} className="search-input" type="time" aria-label="Empieza" value={t.start} onChange={(e) => editShift(i, { start: e.target.value })} />
+                    <input id={`shift-end-${i}`} className="search-input" type="time" aria-label="Termina" value={t.end} onChange={(e) => editShift(i, { end: e.target.value })} />
+                    <label className="config-check">
+                      <input type="checkbox" checked={t.active} onChange={(e) => editShift(i, { active: e.target.checked })} />
+                      <span>Activo</span>
+                    </label>
+                    <button type="button" className="btn btn-ghost btn-sm" aria-label={`Quitar el turno ${t.name || i + 1}`} onClick={() => { setShifts((l) => (l ?? []).filter((_, j) => j !== i)); setShiftsDirty(true) }}>
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </fieldset>
             </div>
           )}
 

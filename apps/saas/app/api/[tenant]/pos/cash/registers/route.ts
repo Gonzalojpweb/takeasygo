@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { resolveShiftForOpen } from '@/lib/pos-online/cashShifts'
 import CashRegister from '@/models/CashRegister'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
@@ -163,6 +164,10 @@ export const POST = posRoute('cash.write', async (ctx) => {
     )
   }
 
+  // Fase 2: turno de la caja (un turno = una caja por jornada).
+  const shift = await resolveShiftForOpen(ctx, (body as Record<string, unknown>).shiftId)
+  if (shift) Object.assign(draft, shift)
+
   // §2 — UNA caja abierta por sede. El índice parcial único lo garantiza en
   // DB; acá se devuelve un 409 legible antes de llegar al driver.
   const alreadyOpen = await findOpenRegister(ctx)
@@ -183,6 +188,9 @@ export const POST = posRoute('cash.write', async (ctx) => {
       }
       throw error
     }
+    if (isDuplicateKey(error, 'shiftId')) {
+      throw PosError.conflict('Ese turno ya tiene su caja en esta jornada')
+    }
     if (isDuplicateKey(error, 'locationId')) {
       // Carrera entre dos aperturas distintas en la misma sede.
       throw PosError.conflict('Ya hay una caja abierta en esta sede')
@@ -201,6 +209,7 @@ export const POST = posRoute('cash.write', async (ctx) => {
       posId: draft.posId,
       initialAmount: draft.initialAmount,
       defaultForChannel: draft.defaultForChannel,
+      shift: shift ? `${shift.shiftName} ${shift.shiftDate}` : null,
     },
     request: ctx.request,
     userId: ctx.user.id,

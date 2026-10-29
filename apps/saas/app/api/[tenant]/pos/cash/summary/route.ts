@@ -44,6 +44,8 @@ interface ClosedDoc {
   difference: number | null
   shareToken: string | null
   zReport?: { salesTotal?: number } | null
+  shiftName?: string | null
+  shiftDate?: string | null
 }
 
 export const GET = posRoute('cash.read', async (ctx) => {
@@ -64,7 +66,7 @@ export const GET = posRoute('cash.read', async (ctx) => {
   })
     .sort({ closedAt: -1 })
     .limit(500)
-    .select('posId openedAt closedAt openedBy closedBy closedByUserId initialAmount finalAmount expectedAmount difference shareToken zReport.salesTotal')
+    .select('posId openedAt closedAt openedBy closedBy closedByUserId initialAmount finalAmount expectedAmount difference shareToken zReport.salesTotal shiftName shiftDate')
     .lean<ClosedDoc[]>()
 
   const seesExpected = canSeeExpectedCash(resolvePosRole(ctx.user.role))
@@ -77,6 +79,8 @@ export const GET = posRoute('cash.read', async (ctx) => {
     closedAt: d.closedAt,
     openedBy: d.openedBy,
     closedBy: d.closedBy,
+    shiftName: d.shiftName ?? null,
+    shiftDate: d.shiftDate ?? null,
     salesTotal: seesExpected ? d.zReport?.salesTotal ?? null : null,
     initialAmount: seesExpected ? d.initialAmount : null,
     finalAmount: seesExpected ? d.finalAmount : null,

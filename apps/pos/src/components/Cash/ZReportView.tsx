@@ -114,7 +114,7 @@ export function ZReportView({ z }: { z: ZReport }) {
       </div>
 
       <p className="z-meta">
-        Cerró {z.closedBy} · {new Date(z.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {z.totalMovements} movimientos
+        {z.shiftName ? `Turno ${z.shiftName} · ` : ""}Cerró {z.closedBy} · {new Date(z.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {z.totalMovements} movimientos
       </p>
     </div>
   )

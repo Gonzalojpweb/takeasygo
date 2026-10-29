@@ -125,7 +125,12 @@ describe('resolvePosRole / capacidades', () => {
     expect(resolvePosRole('staff')).toBe('waiter')
     expect(resolvePosRole('superadmin')).toBe('admin')
     expect(resolvePosRole('consumer')).toBeNull()
-    expect(resolvePosRole('host')).toBeNull()
+    // Fase 0 (29/10): recepción entra como mozo y el encargado de operaciones
+    // como encargado; cocina y auditor todavía no tienen rol POS.
+    expect(resolvePosRole('host')).toBe('waiter')
+    expect(resolvePosRole('operations_manager')).toBe('manager')
+    expect(resolvePosRole('kitchen_lead')).toBeNull()
+    expect(resolvePosRole('rol_inventado')).toBeNull()
     expect(resolvePosRole('__proto__')).toBeNull()
     expect(hasPosCapability('staff', 'cash.write')).toBe(false)
     expect(hasPosCapability('auditor', 'orders.read')).toBe(false)

@@ -46,6 +46,10 @@ export interface ICashRegister extends Document {
   shareToken: string | null
   /** Conteo por billete declarado al cerrar (cierre ciego). Montos en centavos. */
   closingCount: CashClosingCount | null
+  /** Turno de la caja (Fase 2): id, nombre y jornada YYYY-MM-DD. null = sin turnos. */
+  shiftId: string | null
+  shiftName: string | null
+  shiftDate: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -72,6 +76,9 @@ const CashRegisterSchema = new Schema<ICashRegister>(
     status: { type: String, enum: ['open', 'closed'] as CashRegisterStatus[], default: 'open' },
     defaultForChannel: { type: String, enum: ['counter', 'takeasygo', null], default: null },
     zReport: { type: Schema.Types.Mixed, default: null },
+    shiftId: { type: String, default: null },
+    shiftName: { type: String, default: null },
+    shiftDate: { type: String, default: null },
     shareToken: { type: String, default: null },
     closingCount: {
       type: new Schema(
@@ -101,6 +108,11 @@ CashRegisterSchema.index(
   { unique: true, partialFilterExpression: { status: 'open' } }
 )
 
+// Fase 2: UN turno = UNA caja por jornada y sede.
+CashRegisterSchema.index(
+  { tenantId: 1, locationId: 1, shiftDate: 1, shiftId: 1 },
+  { unique: true, partialFilterExpression: { shiftId: { $type: 'string' } } }
+)
 // Reporte histórico por rango (CashDashboard "historial").
 CashRegisterSchema.index({ tenantId: 1, locationId: 1, status: 1, closedAt: -1 })
 // Vista consolidada del admin (Cajas POS sin filtro de sede): el índice de

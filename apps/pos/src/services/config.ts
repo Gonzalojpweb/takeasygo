@@ -102,3 +102,21 @@ export function getFiscalConfig(tenantId: string): Promise<FiscalConfigView> {
 export function setInvoicingMode(tenantId: string, invoicingMode: FiscalConfigView["invoicingMode"]): Promise<FiscalConfigView> {
   return posApi<FiscalConfigView>(tenantId, "/config/fiscal", { method: "PATCH", body: { invoicingMode } })
 }
+
+// ── Turnos de caja (Fase 2) ─────────────────────────────────────────────────
+
+export interface ShiftConfig {
+  id?: string
+  name: string
+  start: string
+  end: string
+  active: boolean
+}
+
+export function getShiftsConfig(tenantId: string): Promise<{ shifts: ShiftConfig[]; timezone: string }> {
+  return posApi(tenantId, "/config/shifts")
+}
+
+export function saveShiftsConfig(tenantId: string, shifts: ShiftConfig[]): Promise<{ shifts: ShiftConfig[]; timezone: string }> {
+  return posApi(tenantId, "/config/shifts", { method: "PUT", body: { shifts } })
+}

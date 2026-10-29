@@ -45,10 +45,11 @@ export function useCash() {
       openRegister: (
         initialAmount: number,
         openedBy: string,
-        defaultForChannel: CashChannel | null = null
+        defaultForChannel: CashChannel | null = null,
+        shiftId: string | null = null
       ) => {
         if (!tenantId) throw new Error("[useCash] Not authenticated")
-        return openRegister(tenantId, initialAmount, openedBy, defaultForChannel)
+        return openRegister(tenantId, initialAmount, openedBy, defaultForChannel, shiftId)
       },
       closeRegister: (
         registerId: string,

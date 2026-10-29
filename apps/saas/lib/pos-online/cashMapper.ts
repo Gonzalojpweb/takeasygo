@@ -72,6 +72,9 @@ export interface PosRegisterDoc {
   zReport?: Record<string, unknown> | null
   shareToken?: string | null
   closingCount?: CashClosingCount | null
+  shiftId?: string | null
+  shiftName?: string | null
+  shiftDate?: string | null
 }
 
 export interface PosMovementDoc {
@@ -135,6 +138,8 @@ export interface PosRegisterInput {
   initialAmount: number
   openedBy?: string
   defaultForChannel?: CashChannel | null
+  /** Turno elegido (Fase 2); si falta, el server toma el de la hora. */
+  shiftId?: string | null
 }
 
 export interface SaasRegisterDraft {
@@ -148,6 +153,9 @@ export interface SaasRegisterDraft {
   expectedAmount: number
   status: 'open'
   defaultForChannel: CashChannel | null
+  shiftId?: string | null
+  shiftName?: string | null
+  shiftDate?: string | null
 }
 
 export function toSaasRegister(
@@ -230,6 +238,11 @@ export function toPosRegister(
   if (doc.zReport) register.zReport = doc.zReport as unknown as ZReport
   if (doc.shareToken) register.shareToken = doc.shareToken
   if (doc.closingCount) register.closingCount = doc.closingCount
+  if (doc.shiftId) {
+    register.shiftId = doc.shiftId
+    register.shiftName = doc.shiftName ?? null
+    register.shiftDate = doc.shiftDate ?? null
+  }
   return register
 }
 
