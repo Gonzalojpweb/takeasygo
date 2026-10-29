@@ -50,6 +50,8 @@ interface RecordInput {
   approvedBy?: string | null
   /** posId del movimiento para la parte `i` (determinístico ⇒ reintento seguro). */
   movementPosId: (part: PaymentPartForCash, index: number) => string
+  /** Se llama por cada movimiento NUEVO (no por los que ya existían). */
+  onCreated?: () => void
 }
 
 /**
@@ -90,6 +92,7 @@ export async function recordPartsInOpenRegister(
       if (isDuplicateKey(error)) continue
       throw error
     }
+    input.onCreated?.()
     const delta = cashExpectedDelta(input.type, part.method, part.amount)
     if (delta !== 0) {
       await CashRegister.updateOne({ _id: registerId, status: 'open' }, { $inc: { expectedAmount: delta } })

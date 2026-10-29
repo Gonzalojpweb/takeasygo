@@ -106,6 +106,14 @@ export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; b
     out.push(row(`Facturado (${z.fiscal.invoices})`, money(z.fiscal.invoicedCents)))
     if (z.fiscal.creditNotes > 0) out.push(row(`Notas de credito (${z.fiscal.creditNotes})`, money(-z.fiscal.creditedCents)))
     if (z.fiscal.pending > 0) out.push(row('Facturas sin CAE', String(z.fiscal.pending)))
+    for (const r of z.fiscal.iva ?? []) {
+      if (r.rate > 0) {
+        out.push(row(`Neto ${r.rate}%`, money(r.netCents)))
+        out.push(row(`IVA ${r.rate}%`, money(r.ivaCents)))
+      } else {
+        out.push(row('Exento / no gravado', money(r.netCents)))
+      }
+    }
   }
 
   const categories = Object.entries(z.byCategory ?? {}).filter(([, v]) => (v ?? 0) > 0)

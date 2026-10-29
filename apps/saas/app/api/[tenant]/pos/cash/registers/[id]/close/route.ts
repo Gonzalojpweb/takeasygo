@@ -17,6 +17,8 @@ import {
 import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cashRepo'
 import { operatorName } from '@/lib/pos-online/operator'
 import { fiscalSummaryForShift } from '@/lib/fiscal/shift-summary'
+import { reconcileShiftSales } from '@/lib/pos-online/cashReconcile'
+import { publicOrigin, tenantSlugOf, zShareUrl } from '@/lib/cash/z-share'
 import { enqueueZPrint, type ZPrintRegister } from '@/lib/cash/z-print'
 
 // ============================================================================
@@ -77,6 +79,10 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
 
   // Fase 2: quién cerró sale del usuario del token (el body es respaldo).
   const closedBy = await operatorName(ctx, typeof raw.closedBy === 'string' ? raw.closedBy : null)
+
+  // Informe X3/X7: cobros (y devoluciones) del turno sin su movimiento de
+  // caja se registran ANTES de calcular el arqueo y el Z. Idempotente.
+  const reconciled = await reconcileShiftSales(ctx, register.openedAt)
 
   const movementDocs = await loadMovementsForRegister(register._id)
   const movements = movementDocs.map(toPosMovement)
@@ -143,6 +149,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
       difference,
       movements: movements.length,
       blindCount: Boolean(closingCount),
+      reconciled,
     },
     request: ctx.request,
     userId: ctx.user.id,
@@ -167,9 +174,13 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     print = { ok: false, reason: 'error' }
   }
 
+  const slug = await tenantSlugOf(ctx.tenantId)
   return NextResponse.json({
     register: toPosRegister(updated as unknown as PosRegisterDoc, movements),
     print,
+    // Link público del Z (informe X4): lo arma el server, el POS no sabe el slug.
+    shareUrl: slug ? zShareUrl(publicOrigin(ctx.request.url), slug, shareToken, closedAt) : null,
+    reconciled,
     serverTime: new Date().toISOString(),
   })
 })

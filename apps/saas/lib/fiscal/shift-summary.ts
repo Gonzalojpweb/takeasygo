@@ -20,13 +20,22 @@ export async function fiscalSummaryForShift(input: {
     locationId: new mongoose.Types.ObjectId(input.locationId),
     createdAt: { $gte: input.from, $lte: input.to },
   })
-    .select('kind status amounts.totalCents')
-    .lean<{ kind: string; status: string; amounts: { totalCents: number } }[]>()
+    .select('kind status amounts.totalCents ivaGroups')
+    .lean<{ kind: string; status: string; amounts: { totalCents: number }; ivaGroups?: { ivaRate: number; baseCents: number; amountCents: number }[] }[]>()
   if (docs.length === 0) return null
   const summary: ZFiscalSummary = { invoices: 0, invoicedCents: 0, creditNotes: 0, creditedCents: 0, pending: 0 }
+  // IVA por alícuota: facturas suman, notas de crédito restan (solo autorizados).
+  const byRate = new Map<number, { netCents: number; ivaCents: number }>()
   for (const d of docs) {
     if (d.status === 'pending' || d.status === 'retrying') summary.pending++
     if (d.status !== 'authorized') continue
+    const sign = d.kind === 'invoice' ? 1 : -1
+    for (const g of d.ivaGroups ?? []) {
+      const cur = byRate.get(g.ivaRate) ?? { netCents: 0, ivaCents: 0 }
+      cur.netCents += sign * g.baseCents
+      cur.ivaCents += sign * g.amountCents
+      byRate.set(g.ivaRate, cur)
+    }
     if (d.kind === 'invoice') {
       summary.invoices++
       summary.invoicedCents += d.amounts.totalCents
@@ -35,5 +44,9 @@ export async function fiscalSummaryForShift(input: {
       summary.creditedCents += d.amounts.totalCents
     }
   }
+  summary.iva = [...byRate.entries()]
+    .map(([rate, v]) => ({ rate, ...v }))
+    .filter((r) => r.netCents !== 0 || r.ivaCents !== 0)
+    .sort((a, b) => b.rate - a.rate)
   return summary
 }

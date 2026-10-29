@@ -82,6 +82,16 @@ export function ZReportView({ z }: { z: ZReport }) {
               <dt>Facturado ({z.fiscal.invoices})</dt><dd>{formatCurrency(z.fiscal.invoicedCents)}</dd>
               {z.fiscal.creditNotes > 0 && (<><dt>Notas de crédito ({z.fiscal.creditNotes})</dt><dd>−{formatCurrency(z.fiscal.creditedCents)}</dd></>)}
               {z.fiscal.pending > 0 && (<><dt>Facturas esperando a ARCA</dt><dd>{z.fiscal.pending}</dd></>)}
+              {(z.fiscal.iva ?? []).map((r) => r.rate > 0 ? (
+                <span key={r.rate} style={{ display: "contents" }}>
+                  <dt>Neto gravado {r.rate}%</dt><dd>{formatCurrency(r.netCents)}</dd>
+                  <dt>IVA {r.rate}%</dt><dd>{formatCurrency(r.ivaCents)}</dd>
+                </span>
+              ) : (
+                <span key={r.rate} style={{ display: "contents" }}>
+                  <dt>Exento / no gravado</dt><dd>{formatCurrency(r.netCents)}</dd>
+                </span>
+              ))}
             </dl>
           )}
         </section>

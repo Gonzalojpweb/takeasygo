@@ -100,9 +100,9 @@ export async function closeRegister(
   closedBy: string,
   /** Cierre ciego: conteo por billete (el total lo recalcula el server). */
   closingCount?: Pick<CashClosingCount, "bills" | "coins">
-): Promise<{ register: CashRegister; print: ZPrintStatus }> {
+): Promise<{ register: CashRegister; print: ZPrintStatus; shareUrl: string | null; reconciled: number }> {
   return runMutation(async () => {
-    const { register, print } = await posApi<{ register: CashRegister; print?: ZPrintStatus }>(
+    const { register, print, shareUrl, reconciled } = await posApi<{ register: CashRegister; print?: ZPrintStatus; shareUrl?: string | null; reconciled?: number }>(
       tenantId,
       `/cash/registers/${encodeURIComponent(registerId)}/close`,
       {
@@ -113,8 +113,41 @@ export async function closeRegister(
 
     const rehydrated = rehydrateRegister(register)
     await db.cashRegister.put(rehydrated)
-    return { register: rehydrated, print: print ?? { ok: false, reason: "unknown" } }
+    return { register: rehydrated, print: print ?? { ok: false, reason: "unknown" }, shareUrl: shareUrl ?? null, reconciled: reconciled ?? 0 }
   })
+}
+
+// ── Cierres por rango y faltantes por cajero (informe de caja X9 / Fase K) ──
+
+export interface CashCloseRow {
+  id: string
+  posId: string
+  openedAt: string
+  closedAt: string
+  openedBy: string
+  closedBy: string | null
+  /** null para el cajero (cierre ciego). */
+  salesTotal: number | null
+  finalAmount: number | null
+  expectedAmount: number | null
+  difference: number | null
+  shareUrl: string | null
+}
+
+export interface CashSummary {
+  range: { from: string; to: string }
+  revenueVisible: boolean
+  closes: CashCloseRow[]
+  cashiers: {
+    cashiers: { key: string; name: string; closes: number; shortCloses: number; shortTotal: number; overTotal: number }[]
+    totals: { closes: number; shortCloses: number; shortTotal: number; overTotal: number }
+  } | null
+  /** Cajeros con faltantes recurrentes en el período. */
+  alerts: { name: string; shortCloses: number; shortTotal: number }[]
+}
+
+export async function getCashSummary(tenantId: string, range: { from: string; to: string }): Promise<CashSummary> {
+  return posApi<CashSummary>(tenantId, "/cash/summary", { query: range })
 }
 
 /** Resultado de mandar el Z a la impresora de caja (Fase 2). */
@@ -367,15 +400,3 @@ export async function refreshRegisters(tenantId: string): Promise<CashRegister[]
   return db.cashRegister.where("tenantId").equals(tenantId).toArray()
 }
 
-/**
- * Genera la URL compartible para un Z Report.
- * Decisión: Consenso v1 §4 — Token de alta entropía, expira en 30 días.
- *
- * @param register - Caja cerrada con shareToken
- * @returns URL completa o undefined si no tiene token
- */
-export function getShareUrl(register: CashRegister): string | undefined {
-  if (!register.shareToken) return undefined
-  const syncUrl = import.meta.env.VITE_SYNC_URL ?? ""
-  return `${syncUrl}/api/v1/z-report/${register.shareToken}`
-}

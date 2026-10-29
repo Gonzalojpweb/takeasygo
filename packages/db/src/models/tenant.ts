@@ -12,9 +12,6 @@ export interface TenantDocument extends Document {
     currency: string
   }
   isActive: boolean
-  afipCertificate?: string
-  afipCertificateKey?: string
-  mercadopagoAccessToken?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -40,9 +37,11 @@ export const TenantSchema = new Schema<TenantDocument>(
       currency: { type: String, default: "ARS" },
     },
     isActive: { type: Boolean, default: true },
-    afipCertificate: { type: String },
-    afipCertificateKey: { type: String },
-    mercadopagoAccessToken: { type: String },
+    // Informe de caja X5 (2026-10-29): se quitaron afipCertificate,
+    // afipCertificateKey y mercadopagoAccessToken — eran secretos en texto
+    // plano que nadie usa. El certificado de ARCA vive cifrado (AES-256-GCM,
+    // select:false) en el FiscalProfile del SaaS; MercadoPago, en el SaaS.
+    // Con el esquema estricto de Mongoose ya no se pueden volver a guardar.
   },
   { timestamps: true }
 )

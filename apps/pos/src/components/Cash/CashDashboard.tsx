@@ -15,6 +15,7 @@ import type { FailedCashSaleEvent } from "../../services/sync-api"
 import type { PendingMovementRecord } from "../../db/dexie"
 import { isPosApiError } from "../../services/pos-api"
 import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
+import { getCashSummary, type CashSummary } from "../../services/cash"
 
 // ============================================================================
 // Caja — Fase 1 de caja profesional (2026-10)
@@ -64,6 +65,18 @@ function billLabel(cents: number): string {
   return `$${(cents / 100).toLocaleString("es-AR")}`
 }
 
+/** YYYY-MM-DD del día local del equipo (la sede filtra en su zona en el server). */
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 function errorText(err: unknown, fallback: string): string | null {
   // El cajero cerró el pedido de PIN: no es un error que mostrar.
   if (isPosApiError(err) && err.code === "approval_cancelled") return null
@@ -94,9 +107,16 @@ export function CashDashboard({ role }: { role?: string }) {
   const { activeRegister, closedRegisters, loading, openRegister, closeRegister, addMovement, assignPendingMovements, getPending, printZ } =
     useCash()
   const [selectedRegisterId, setSelectedRegisterId] = useState<string | null>(null)
+  // Link público del Z abierto (lo arma el server: el POS no sabe el slug).
+  const [zShareUrl, setZShareUrl] = useState<string | null>(null)
+  // Cierres por rango + faltantes por cajero (informe X9 / Fase K).
+  const [histDays, setHistDays] = useState<1 | 7 | 30 | 90>(30)
+  const [summary, setSummary] = useState<CashSummary | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   const { state: authState } = useAuth()
   const jwt = authState.status === "authenticated" ? authState.jwt?.accessToken : undefined
+  const tenantIdForSummary = authState.status === "authenticated" ? authState.tenantId : undefined
 
   const showError = useCallback((msg: string | null) => {
     if (!msg) return
@@ -210,7 +230,7 @@ export function CashDashboard({ role }: { role?: string }) {
     })).filter((b) => b.count > 0)
     setBusy(true)
     try {
-      const { register: closed, print } = await closeRegister(activeRegister.id, countedTotal, "Operador", {
+      const { register: closed, print, shareUrl, reconciled } = await closeRegister(activeRegister.id, countedTotal, "Operador", {
         bills: billRows,
         coins: parsePesosInput(coins) ?? 0,
       })
@@ -220,11 +240,15 @@ export function CashDashboard({ role }: { role?: string }) {
       if (closed.zReport) {
         setSelectedZReport(closed.zReport)
         setSelectedRegisterId(closed.id)
+        setZShareUrl(shareUrl)
         setScene("z-report")
       } else {
         go("resumen")
       }
-      showSuccess(print.ok ? `Caja cerrada · Z impreso en ${print.printerName}` : "Caja cerrada")
+      // Informe X3/X7: cobros del turno que no tenían su movimiento y se
+      // registraron al cerrar (el Z ya los incluye).
+      const recon = reconciled > 0 ? ` · ${reconciled} cobro(s) conciliado(s)` : ""
+      showSuccess(print.ok ? `Caja cerrada · Z impreso en ${print.printerName}${recon}` : `Caja cerrada${recon}`)
     } catch (err) {
       setConfirmClose(false)
       showError(errorText(err, "No se pudo cerrar la caja"))
@@ -233,12 +257,48 @@ export function CashDashboard({ role }: { role?: string }) {
     }
   }, [activeRegister, confirmClose, bills, coins, countedTotal, closeRegister, showError, showSuccess, go])
 
-  const openZ = useCallback((register: CashRegister) => {
+  const openZ = useCallback((register: CashRegister, shareUrl: string | null = null) => {
     if (!register.zReport) return
     setSelectedZReport(register.zReport)
     setSelectedRegisterId(register.id)
+    setZShareUrl(shareUrl)
     setScene("z-report")
   }, [])
+
+  // Cierres del servidor por rango (incluye link del Z y faltantes por cajero).
+  useEffect(() => {
+    if (scene !== "historial" || !tenantIdForSummary) return
+    let alive = true
+    const to = localToday()
+    const from = histDays === 1 ? to : shiftDate(to, -(histDays - 1))
+    setSummaryLoading(true)
+    getCashSummary(tenantIdForSummary, { from, to })
+      .then((s) => { if (alive) setSummary(s) })
+      .catch((err) => { if (alive) showError(errorText(err, "No se pudieron cargar los cierres")) })
+      .finally(() => { if (alive) setSummaryLoading(false) })
+    return () => { alive = false }
+  }, [scene, histDays, tenantIdForSummary, showError])
+
+  /** Compartir el link del Z (WhatsApp / mail del celular) o copiarlo. */
+  const shareZ = useCallback(async (url: string) => {
+    const text = "Cierre de caja (Reporte Z)"
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: text, text, url })
+        return
+      }
+      await navigator.clipboard.writeText(url)
+      showSuccess("Link del Z copiado")
+    } catch (err) {
+      if ((err as { name?: string })?.name === "AbortError") return
+      try {
+        await navigator.clipboard.writeText(url)
+        showSuccess("Link del Z copiado")
+      } catch {
+        showError("No se pudo compartir. Abrilo y copiá la dirección.")
+      }
+    }
+  }, [showSuccess, showError])
 
   const handleReprint = useCallback(async () => {
     if (!selectedRegisterId) return
@@ -366,6 +426,13 @@ export function CashDashboard({ role }: { role?: string }) {
           left: selectedRegisterId ? (
             <button className="btn btn-ghost" disabled={busy} onClick={handleReprint}>Reimprimir</button>
           ) : undefined,
+          // Informe X4: el Z «para llevarse» — link público (con PDF) del SaaS.
+          center: zShareUrl ? (
+            <>
+              <button className="btn btn-secondary" onClick={() => { void shareZ(zShareUrl) }}>Compartir Z</button>
+              <a className="btn btn-ghost" href={zShareUrl} target="_blank" rel="noreferrer">Abrir</a>
+            </>
+          ) : undefined,
           right: <button className="btn btn-primary" onClick={() => go(activeRegister ? "resumen" : "historial")}>Listo</button>,
         })
         break
@@ -381,9 +448,32 @@ export function CashDashboard({ role }: { role?: string }) {
 
       case "historial":
         setContextPanel({
-          title: "Cierres anteriores",
-          subtitle: `${closedRegisters.length} cierres`,
-          body: <p className="cash-help">Tocá un cierre para ver su reporte Z.</p>,
+          title: "Cierres",
+          subtitle: summary ? `${summary.closes.length} en el período` : "Cargando…",
+          body: (
+            <div className="sale-detail">
+              {summary?.alerts.length ? (
+                <div className="sale-warn" role="alert">
+                  Faltantes recurrentes: {summary.alerts.map((a) => `${a.name} (${a.shortCloses} cierres, −${formatCurrency(a.shortTotal)})`).join(" · ")}. Revisá el conteo y el manejo de la caja con esa persona.
+                </div>
+              ) : null}
+              {summary?.cashiers && (
+                <>
+                  <div className="sale-section-title">Por cajero</div>
+                  {summary.cashiers.cashiers.map((c) => (
+                    <div key={c.key} className="sale-channel-row">
+                      <span>{c.name}</span>
+                      <span className="text-muted">{c.closes} cierres · {c.shortCloses} con faltante</span>
+                      <span className={`sale-money${c.shortTotal > 0 ? " text-error" : ""}`}>{c.shortTotal > 0 ? `−${formatCurrency(c.shortTotal)}` : c.overTotal > 0 ? `+${formatCurrency(c.overTotal)}` : "Exacto"}</span>
+                    </div>
+                  ))}
+                  <p className="text-sm text-muted">Faltante total: {formatCurrency(summary.cashiers.totals.shortTotal)} · Sobrante: {formatCurrency(summary.cashiers.totals.overTotal)}</p>
+                </>
+              )}
+              {summary && !summary.revenueVisible && <p className="cash-help">Los montos esperados y las diferencias los ve el encargado (cierre ciego).</p>}
+              <p className="cash-help">Tocá un cierre para ver su Z, reimprimirlo o compartirlo.</p>
+            </div>
+          ),
         })
         setActionBar(null)
         break
@@ -413,7 +503,7 @@ export function CashDashboard({ role }: { role?: string }) {
         })
         break
     }
-  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
+  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, zShareUrl, summary, shareZ, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
 
   const pendingCount = pendingMovements.length + failedEvents.length
   const tabs: { id: Scene; label: string; badge?: number }[] = [
@@ -593,31 +683,48 @@ export function CashDashboard({ role }: { role?: string }) {
         )}
 
         {!loading && scene === "historial" && (
-          closedRegisters.length === 0 ? (
-            <div className="empty-state">
-              <span className="empty-state-icon">📊</span>
-              <span className="empty-state-text">Todavía no hay cierres</span>
+          <>
+            <div className="sales-chips" role="group" aria-label="Período de cierres" style={{ alignSelf: "flex-start", marginBottom: "var(--sp-3)" }}>
+              {([[1, "Hoy"], [7, "7 días"], [30, "30 días"], [90, "90 días"]] as [1 | 7 | 30 | 90, string][]).map(([d, label]) => (
+                <button key={d} type="button" className={`sales-chip${histDays === d ? " active" : ""}`} aria-pressed={histDays === d} onClick={() => setHistDays(d)}>{label}</button>
+              ))}
             </div>
-          ) : (
-            <div className="cash-history">
-              {[...closedRegisters]
-                .sort((a, b) => new Date(b.closedAt ?? 0).getTime() - new Date(a.closedAt ?? 0).getTime())
-                .map((reg) => {
-                  const diff = reg.difference ?? 0
+            {summaryLoading && !summary && <div className="loading-state"><span className="spinner" /> Cargando…</div>}
+            {summary && summary.closes.length === 0 && (
+              <div className="empty-state">
+                <span className="empty-state-icon">📊</span>
+                <span className="empty-state-text">Sin cierres en el período</span>
+              </div>
+            )}
+            {summary && summary.closes.length > 0 && (
+              <div className="cash-history">
+                {summary.closes.map((row) => {
+                  const local = closedRegisters.find((r) => r.id === row.posId)
+                  const diff = row.difference
                   return (
-                    <button key={reg.id} className="cash-history-row" onClick={() => openZ(reg)} disabled={!reg.zReport}>
+                    <button
+                      key={row.id}
+                      className="cash-history-row"
+                      onClick={() => {
+                        if (local?.zReport) openZ(local, row.shareUrl)
+                        else if (row.shareUrl) window.open(row.shareUrl, "_blank", "noopener")
+                      }}
+                      disabled={!local?.zReport && !row.shareUrl}
+                    >
                       <span className="cash-history-date">
-                        {reg.closedAt ? new Date(reg.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                        {new Date(row.closedAt).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        <span className="sale-line-sub"> · {row.closedBy ?? row.openedBy}</span>
                       </span>
-                      <span className="cash-history-total">{formatCurrency(reg.finalAmount ?? 0)}</span>
-                      <span className={`cash-history-diff ${diff === 0 ? "ok" : diff > 0 ? "over" : "short"}`}>
-                        {diff === 0 ? "Exacta" : `${diff > 0 ? "+" : "−"}${formatCurrency(Math.abs(diff))}`}
+                      <span className="cash-history-total">{row.salesTotal !== null ? `Ventas ${formatCurrency(row.salesTotal)}` : "—"}</span>
+                      <span className={`cash-history-diff ${diff === null ? "" : diff === 0 ? "ok" : diff > 0 ? "over" : "short"}`}>
+                        {diff === null ? "Cerrada" : diff === 0 ? "Exacta" : `${diff > 0 ? "+" : "−"}${formatCurrency(Math.abs(diff))}`}
                       </span>
                     </button>
                   )
                 })}
-            </div>
-          )
+              </div>
+            )}
+          </>
         )}
 
         {!loading && scene === "pending" && (

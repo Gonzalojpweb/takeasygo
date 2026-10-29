@@ -586,6 +586,11 @@ export interface ZFiscalSummary {
   creditedCents: number
   /** Comprobantes sin CAE todavía (ARCA caída): se reintentan solos. */
   pending: number
+  /**
+   * IVA del turno por alícuota (facturas − notas de crédito autorizadas).
+   * `netCents` = base imponible, `ivaCents` = impuesto. Ausente en Z viejos.
+   */
+  iva?: { rate: number; netCents: number; ivaCents: number }[]
 }
 
 /** Conteo de un billete en el cierre ciego. `value` en centavos. */
