@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
-import { calculateItemTotal } from "@takeasygo/business/browser"
+import { calculateItemTotal, canSeeSharedSurfaces } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { ChefHat, Users, BellRing, ReceiptText } from "lucide-react"
 import { db } from "../../db/dexie"
@@ -66,7 +66,7 @@ function describeError(err: unknown, fallback: string): string {
   return fallback
 }
 
-export function WaiterDashboard() {
+export function WaiterDashboard({ role }: { role?: string }) {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
 
@@ -81,7 +81,9 @@ export function WaiterDashboard() {
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
   // Obs. 24/10: el mozo ve las reservas sobre las mesas (la caja las opera).
-  const { byTable: reservationsByTable } = useReservations(tenantId)
+  // El mozo ve la mesa «reservada» pero no el detalle: las reservas son de
+  // admin, encargado y caja (business/surfaces).
+  const { byTable: reservationsByTable } = useReservations(tenantId, canSeeSharedSurfaces(role))
   const { tables, markNeedsBill, markNeedsAttention, occupyTable, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)

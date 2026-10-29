@@ -20,7 +20,9 @@ import { DEFAULT_TIMEZONE, getTodayStrInTimezone, isValidCalendarDate } from '@/
 
 const VISIBLE = ['pending_payment', 'confirmed', 'waitlist', 'seated', 'no_show', 'cancelled']
 
-export const GET = posRoute('tables.read', async (ctx) => {
+// 29/10: reservas = función compartida (packages/business/surfaces): solo
+// admin, encargado y caja. 'tables.manage' excluye al mozo.
+export const GET = posRoute('tables.manage', async (ctx) => {
   const location = await Location.findOne({ _id: ctx.locationId, tenantId: ctx.tenantId })
     .select('timezone')
     .lean<{ timezone?: string }>()

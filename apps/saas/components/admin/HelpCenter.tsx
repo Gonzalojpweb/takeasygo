@@ -320,7 +320,7 @@ const SECTIONS: Section[] = [
       { title: 'Asignación por sede', desc: 'Cada local puede tener sus propias impresoras configuradas de forma independiente.' },
       { title: 'Impresión automática', desc: 'Al confirmar un pedido, el ticket se envía automáticamente a las impresoras configuradas.' },
       { title: 'Impresión manual', desc: 'Desde el detalle de cualquier pedido podés imprimir el ticket manualmente.' },
-      { title: 'Límites por plan', desc: 'Trial e Inicial: máximo 1 impresora. Crecimiento y Premium: sin límite.' },
+      { title: 'Límites por plan', desc: 'Por sede: Trial e Inicial hasta 2 impresoras (comandas y caja), Crecimiento hasta 3, Premium hasta 4.' },
     ],
     steps: [
       { action: 'Conectá la impresora a la red WiFi del local', detail: 'La impresora y el dispositivo donde usás el panel deben estar en la misma red.' },

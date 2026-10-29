@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { printerLimitError } from '@/lib/printers/limits'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -82,6 +83,10 @@ export async function POST(
     }
     const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
     if (sedeError) return sedeError
+
+    // Límite por plan (impresoras activas por sede).
+    const limitError = await printerLimitError(tenant, locationId)
+    if (limitError) return limitError
 
     const uid = `MANUAL-${ip.replace(/\./g, '-')}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`
 

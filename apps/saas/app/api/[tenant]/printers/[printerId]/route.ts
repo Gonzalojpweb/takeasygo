@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { printerLimitError } from '@/lib/printers/limits'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import { requireAuth } from '@/lib/apiAuth'
@@ -35,10 +36,16 @@ export async function PATCH(
 
     // Sede de la impresora: un usuario con sedes asignadas no edita
     // impresoras de otra sede (404 sin filtrar existencia).
-    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId').lean<{ locationId: unknown }>()
+    const existing = await Printer.findOne({ _id: printerId, tenantId: tenant._id }).select('locationId isActive').lean<{ locationId: unknown; isActive: boolean }>()
     if (!existing) return NextResponse.json({ error: 'Impresora no encontrada' }, { status: 404 })
     const sedeError = await guardRequestLocation(request, existing.locationId, 'Impresora no encontrada')
     if (sedeError) return sedeError
+
+    // Reactivar cuenta contra el límite del plan.
+    if (isActive === true && !existing.isActive) {
+      const limitError = await printerLimitError(tenant, existing.locationId, printerId)
+      if (limitError) return limitError
+    }
 
     const printer = await Printer.findOneAndUpdate(
       { _id: printerId, tenantId: tenant._id },

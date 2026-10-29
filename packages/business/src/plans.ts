@@ -48,7 +48,7 @@ export const PLAN_ACCESS = {
   menu:          ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
   orders:        ['trial', 'try', 'buy', 'full'] as const,
   orderHistory:  ['trial', 'try', 'buy', 'full'] as const,
-  printers:      ['trial', 'try', 'buy', 'full'] as const, // trial/try = máximo 1
+  printers:      ['trial', 'try', 'buy', 'full'] as const, // cantidad por sede: PRINTER_LIMIT
   settings:      ['trial', 'try', 'buy', 'full', 'anfitrion'] as const, // trial/try = máximo 1 ubicación
 
   // Plan Crecimiento y superior
@@ -88,8 +88,8 @@ export const PLAN_ACCESS = {
   // Integración POS — disponible en Crecimiento y Premium
   posIntegration:    ['buy', 'full'] as const,
 
-  // Delivery — Trial + Premium
-  delivery:          ['trial', 'full'] as const,
+  // Delivery — Trial, Crecimiento y Premium (Crecimiento agregado 29/10)
+  delivery:          ['trial', 'buy', 'full'] as const,
 
   // Notificaciones push al admin cuando llega un pedido nuevo
   // Disponible en Trial, Crecimiento y Premium
@@ -146,6 +146,20 @@ export const LOYALTY_MEMBER_LIMIT: Record<Plan, number | null> = {
   buy:      null,
   full:     null,
   anfitrion: 0,  // el plan anfitrion no incluye pedidos ni club activo
+}
+
+/**
+ * Impresoras activas por SEDE según el plan (29/10). Inicial (y Trial): 2 —
+ * una para comandas y una para la caja del POS. Crecimiento 3, Premium 4.
+ * Anfitriones no imprime (sin pedidos). El POS se activa aparte desde el
+ * superadmin y no cambia estos límites.
+ */
+export const PRINTER_LIMIT: Record<Plan, number> = {
+  trial:    2,
+  try:      2,
+  buy:      3,
+  full:     4,
+  anfitrion: 0,
 }
 
 /** Límite de premios ocultos por sede en plan Crecimiento. null = sin límite */

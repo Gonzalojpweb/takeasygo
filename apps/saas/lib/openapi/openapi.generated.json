@@ -5369,7 +5369,7 @@
       "PosBearer": []
      }
     ],
-    "x-pos-capability": "tables.read"
+    "x-pos-capability": "tables.manage"
    }
   },
   "/api/{tenant}/pos/reservations/seen": {
@@ -5438,7 +5438,7 @@
       "PosBearer": []
      }
     ],
-    "x-pos-capability": "tables.read",
+    "x-pos-capability": "tables.manage",
     "requestBody": {
      "required": true,
      "content": {

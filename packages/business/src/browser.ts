@@ -12,6 +12,7 @@ export {
   decryptStore,
 } from "./crypto"
 export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "./role-mapping"
+export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
 export {
   TABLE_TRANSITIONS,
   ORDER_TRANSITIONS,

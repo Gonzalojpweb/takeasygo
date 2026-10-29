@@ -13,13 +13,17 @@ import { playOrderNotification } from "../services/notification-sound"
 
 const POLL_MS = 60_000
 
-export function useReservations(tenantId: string | undefined) {
+/**
+ * @param enabled false ⇒ no consulta (el mozo no ve reservas: función
+ *   compartida solo para admin, encargado y caja — business/surfaces).
+ */
+export function useReservations(tenantId: string | undefined, enabled = true) {
   const [reservations, setReservations] = useState<PosReservation[]>([])
   const [unseen, setUnseen] = useState(0)
   const lastUnseen = useRef<number | null>(null)
 
   const refresh = useCallback(async () => {
-    if (!tenantId) return
+    if (!tenantId || !enabled) return
     try {
       const res = await listReservations(tenantId)
       setReservations(res.reservations)
@@ -32,7 +36,7 @@ export function useReservations(tenantId: string | undefined) {
       // Sin reservas habilitadas o sin red: el resto del POS sigue igual.
       console.warn("[reservations] no se pudo actualizar:", err)
     }
-  }, [tenantId])
+  }, [tenantId, enabled])
 
   useEffect(() => {
     // Primera carga en el próximo tick (no setState sincrónico en el efecto).

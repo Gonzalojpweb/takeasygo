@@ -21,7 +21,7 @@ El módulo de múltiples impresoras permite configurar y gestionar varias impres
 ## Requisitos previos / cómo se activa
 - **Plan mínimo**: `buy` (Crecimiento) o `full` (Premium).
 - **Rol mínimo**: `admin` (configuración) o `manager` (asignación).
-- Trial/try solo permiten 1 impresora.
+- Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.
 
 ## Paso a paso de las tareas principales
 
@@ -52,9 +52,9 @@ El módulo de múltiples impresoras permite configurar y gestionar varias impres
 ## Reglas de negocio y límites
 
 - **Plan buy/full**: Requerido.
-- **Trial/try**: Máximo 1 impresora.
+- **Límite por plan**: Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.
 - **Categorías únicas**: Una categoría solo puede estar en una impresora.
-- **Sin límite técnico**: No hay máximo definido de impresoras en código.
+- **Tope**: el sistema no deja activar más impresoras que las del plan (por sede).
 
 ## Relación con otros módulos
 

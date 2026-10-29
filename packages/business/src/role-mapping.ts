@@ -15,6 +15,13 @@ export const SAAS_TO_POS_ROLE: Record<string, string | null> = {
   manager: "manager",
   cashier: "cashier",
   staff: "waiter",
+  // 29/10: roles del SaaS que antes quedaban sin POS.
+  operations_manager: "manager",
+  host: "waiter", // recepción: opera el salón (sin reservas en el POS, ver surfaces)
+  // Sin rol POS todavía: cocina entra por pantalla emparejada (spoke), y
+  // auditor necesita un rol de solo lectura que aún no existe.
+  kitchen_lead: null,
+  auditor: null,
   seller: "waiter",
   // Rol SaaS `waiter` (y el rol POS ya traducido): sin esta entrada un token
   // de mozo era 403 en todo el Sync.

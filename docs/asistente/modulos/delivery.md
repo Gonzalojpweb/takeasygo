@@ -19,7 +19,7 @@ El módulo de Delivery permite gestionar pedidos para envío a domicilio. Incluy
 | **waiter** | — | Gestionar delivery. |
 
 ## Requisitos previos / cómo se activa
-- **Plan mínimo**: `trial` y `full` (no disponible en `try`, `buy`, `anfitrion`).
+- **Planes**: `trial`, `buy` y `full` (no disponible en `try` ni `anfitrion`).
 - **Rol mínimo**: `admin/manager` (configuración), `cashier` (operación).
 - Se activa en Configuración → Modo de operación → Delivery.
 
@@ -78,7 +78,7 @@ El módulo de Delivery permite gestionar pedidos para envío a domicilio. Incluy
 
 ## Reglas de negocio y límites
 
-- **Plan trial/full**: No disponible en try, buy, anfitrion.
+- **Planes trial/buy/full**: No disponible en try ni anfitrion.
 - **Zonas definidas**: Solo se entrega en zonas configuradas.
 - **Costo variable**: Se calcula según zona del cliente.
 - **Estados de orden**: pending → confirmed → preparing → ready → en_ruta → arrived → delivered.
@@ -132,7 +132,7 @@ El módulo de Delivery permite gestionar pedidos para envío a domicilio. Incluy
 | `Delivery not enabled` | Modo desactivado. | Activar en Configuración → Modo. |
 | `Outside delivery zone` | Dirección fuera de zonas. | Verificar zonas configuradas. |
 | `Minimum order not met` | Pedido menor al mínimo. | Agregar productos o reducir mínimo. |
-| `Delivery not available in your plan` | Plan try/buy/anfitrion. | Cambiar de plan a trial o full. |
+| `Delivery not available in your plan` | Plan try/anfitrion. | Pasar a Crecimiento (buy) o Premium (full). |
 | `Insufficient permissions` | Rol sin permiso. | Pedir a admin/manager. |
 
 ## Recomendaciones y buenas prácticas
@@ -147,7 +147,7 @@ El módulo de Delivery permite gestionar pedidos para envío a domicilio. Incluy
 ## Qué hacer si no funciona
 
 Si delivery no carga o hay errores:
-1. Verificar plan trial/full.
+1. Verificar plan trial, buy o full.
 2. Verificar modo activado.
 3. Verificar zonas configuradas.
 4. Verificar dirección del cliente.
@@ -155,4 +155,4 @@ Si delivery no carga o hay errores:
 
 ## Descripción breve para negocios que NO lo tienen activo
 
-El módulo de Delivery permite gestionar pedidos para envío a domicilio con zonas de cobertura, costos variables y seguimiento en tiempo real. Incluye asignación de repartidores y estados de entrega. Disponible en planes trial y full.
+El módulo de Delivery permite gestionar pedidos para envío a domicilio con zonas de cobertura, costos variables y seguimiento en tiempo real. Incluye asignación de repartidores y estados de entrega. Disponible en planes trial, Crecimiento (buy) y Premium (full).

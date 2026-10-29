@@ -19,9 +19,9 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 | **waiter** | — | Configurar impresoras. |
 
 ## Requisitos previos / cómo se activa
-- **Plan mínimo**: `trial` (máx 1 impresora) o `buy`/`full` (múltiples impresoras con `multiPrinter`).
+- **Plan mínimo**: `trial`. Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.
 - **Rol mínimo**: `admin` (configuración) o `manager` (asignación de categorías).
-- Trial/try limitan a 1 impresora. buy/full permiten múltiples (`multiPrinter`).
+- Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.
 
 ## Paso a paso de las tareas principales
 
@@ -75,7 +75,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 
 ## Reglas de negocio y límites
 
-- **Trial/try**: Máximo 1 impresora por negocio.
+- **Límite por plan**: Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4. Si llegás al tope, desactivá una impresora o pasá a un plan superior.
 - **buy/full**: Múltiples impresoras (`multiPrinter`).
 - **Fiscal driver**: Requiere plan `full` para configuración avanzada.
 - **Conexión TCP**: Requiere que la impresora esté en la misma red.
@@ -111,7 +111,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
    → Configuración → Impresoras → seleccionar impresora → cambiar categorías → guardar.
 
 7. **¿Cuántas impresoras puedo tener?**
-   → Trial/try: 1. Buy/full: múltiples (sin límite técnico definido).
+   → Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.
 
 8. **¿Puedo imprimir un ticket manualmente?**
    → Sí, desde la orden → Imprimir ticket.
@@ -154,4 +154,4 @@ Si la impresora no conecta, no imprime, o hay errores:
 
 ## Descripción breve para negocios que NO lo tienen activo
 
-El módulo de impresoras gestiona las impresoras térmicas y fiscales del negocio, permitiendo imprimir tickets de cocina, bar y comprobantes automáticamente al confirmar pedidos. Es esencial para operar con control de preparación. Trial/try permiten 1 impresora; buy/full permiten múltiples.
+El módulo de impresoras gestiona las impresoras térmicas y fiscales del negocio, permitiendo imprimir tickets de cocina, bar y comprobantes automáticamente al confirmar pedidos. Es esencial para operar con control de preparación. Por sede: trial/try hasta 2 impresoras (una de comandas y una de caja), buy hasta 3, full hasta 4.

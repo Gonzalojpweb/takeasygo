@@ -392,7 +392,7 @@ function AppShell({
 
       <main className="workspace" aria-label={current.title}>
         {current.id === "counter" && <CounterDashboard />}
-        {current.id === "waiter" && <WaiterDashboard />}
+        {current.id === "waiter" && <WaiterDashboard role={role} />}
         {current.id === "flota" && <FlotaWidget />}
         {current.id === "caja" && <CashDashboard role={role} />}
         {current.id === "ventas" && <SalesDashboard />}

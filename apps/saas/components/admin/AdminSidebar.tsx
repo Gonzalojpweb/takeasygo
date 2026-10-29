@@ -175,7 +175,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       section: 'Catálogo',
       items: [
         { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
-        { href: `${base}/paused-items`, label: 'Artículos Pausados', icon: EyeOff, roles: ['admin', 'manager', 'staff', 'cashier'] },
+        { href: `${base}/paused-items`, label: 'Artículos Pausados', icon: EyeOff, roles: ['admin', 'manager', 'cashier'] },
         { href: `${base}/special-dates`, label: 'Fechas Especiales', icon: Calendar, roles: ['admin'] },
       ],
     },

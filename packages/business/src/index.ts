@@ -13,8 +13,10 @@ export {
   PLAN_FEATURES_LANDING,
   HIDDEN_REWARDS_GROWTH_LIMIT,
   HIDDEN_REWARDS_LIMIT,
+  PRINTER_LIMIT,
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
+export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
 // sync-events and jwt removed from barrel — they use node:crypto and must NOT
 // be bundled for client. Import directly:
 //   import { ... } from '@takeasygo/business/sync-events'
