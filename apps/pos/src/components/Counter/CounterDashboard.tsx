@@ -24,6 +24,7 @@ import { ContextActionPanel, type ContextActionGroup } from "../shared/ContextAc
 import { useTableActivity } from "../../hooks/useTableActivity"
 import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
+import { useCounterConfig } from "../../hooks/useCounterConfig"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
 import { SalonSetup } from "./SalonSetup"
 import { ReservationsView } from "./ReservationsView"
@@ -191,6 +192,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
+  // Configuración › Mostrador: con o sin las fotos del menú (la elige el admin).
+  const { showProductImages } = useCounterConfig(tenantId)
   // Obs. 24/10: reservas del día (badge en «Reservaciones», mesa reservada en el salón).
   const { reservations, unseen: unseenReservations, byTable: reservationsByTable, refresh: refreshReservations, clearUnseen } = useReservations(tenantId)
   const [reservationBusyId, setReservationBusyId] = useState<string | null>(null)
@@ -2049,6 +2052,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           {scene === "productos" && (
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <ProductSelector
+                showImages={showProductImages}
                 products={products}
                 categories={categories}
                 selectedCategory={selectedCategory}
@@ -2161,6 +2165,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           {scene === "mostrador_rapido" && (
             <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
               <ProductSelector
+                showImages={showProductImages}
                 products={products}
                 categories={categories}
                 selectedCategory={selectedCategory}

@@ -3,6 +3,7 @@ import type { Product, MenuCategory } from "@takeasygo/types"
 import { ChevronLeft, Search, SlidersHorizontal, Star, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { isCoarsePointer } from "../../utils/touch"
+import { menuThumbUrl } from "../../utils/images"
 
 // ============================================================================
 // Selector de productos (Fase B, 2026-10)
@@ -28,6 +29,8 @@ import { isCoarsePointer } from "../../utils/touch"
 
 const POPULAR = "__popular"
 const TILE_MIN_W = 184
+/** Con fotos, la tarjeta es más ancha para que el nombre no quede apretado. */
+const TILE_MIN_W_IMAGES = 216
 const TILE_H = 84
 const GAP = 10
 
@@ -49,6 +52,23 @@ interface ProductSelectorProps {
    * categorías, no en un footer. Ausente ⇒ sin botón.
    */
   back?: { label: string; onClick: () => void; disabled?: boolean }
+  /**
+   * Configuración › Mostrador (30/10): tarjetas con la foto del menú en
+   * miniatura (la misma de /takeaway). Sin foto ⇒ inicial del plato.
+   */
+  showImages?: boolean
+}
+
+/** Miniatura de la tarjeta: si la foto no carga (sin conexión), la inicial. */
+function TileThumb({ product }: { product: Product }) {
+  const [failed, setFailed] = useState(false)
+  const src = menuThumbUrl(product.imageUrl)
+  if (!src || failed) {
+    return <span className="psel-tile-thumb psel-tile-thumb--empty" aria-hidden>{product.name.trim().charAt(0).toUpperCase()}</span>
+  }
+  // El POS es Vite (no Next): <img> nativo, con carga diferida.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img className="psel-tile-thumb" src={src} alt="" loading="lazy" decoding="async" draggable={false} onError={() => setFailed(true)} />
 }
 
 /** Debajo de este número de porciones el POS avisa «Quedan N». */
@@ -91,6 +111,7 @@ export function ProductSelector({
   popularIds = [],
   onToggleAvailability,
   back,
+  showImages = false,
 }: ProductSelectorProps) {
   const [pauseMode, setPauseMode] = useState(false)
   const [query, setQuery] = useState("")
@@ -142,7 +163,8 @@ export function ProductSelector({
     const measure = () => {
       const { width, height } = el.getBoundingClientRect()
       const tileH = el.querySelector(".psel-tile")?.getBoundingClientRect().height || TILE_H
-      const cols = Math.max(1, Math.floor((width + GAP) / (TILE_MIN_W + GAP)))
+      const minW = showImages ? TILE_MIN_W_IMAGES : TILE_MIN_W
+      const cols = Math.max(1, Math.floor((width + GAP) / (minW + GAP)))
       const rows = Math.max(1, Math.floor((height + GAP) / (tileH + GAP)))
       setLayout((prev) => (prev.cols === cols && prev.rows === rows ? prev : { cols, rows }))
     }
@@ -150,7 +172,7 @@ export function ProductSelector({
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [])
+  }, [showImages])
 
   // El producto marcado (cursor) define la página: una sola fuente de verdad.
   // Filtro nuevo ⇒ el cursor vuelve al primero (se descarta si la clave cambió).
@@ -273,7 +295,7 @@ export function ProductSelector({
   }, [activeChipKey])
 
   return (
-    <div className="psel" ref={rootRef}>
+    <div className={`psel${showImages ? " psel--images" : ""}`} ref={rootRef}>
       <div className="psel-head">
         <div className="psel-searchrow">
           {back && (
@@ -382,6 +404,7 @@ export function ProductSelector({
                 onClick={() => { setCursor(index); add(product) }}
                 aria-label={`${product.name}, ${formatCurrency(product.price)}${product.isAvailable ? "" : `, ${unavailableLabel(product)}`}${product.modifiers?.length ? ", con opciones" : ""}`}
               >
+                {showImages && <TileThumb product={product} />}
                 <span className="psel-tile-name">{product.name}</span>
                 {!product.isAvailable && (
                   <span className={`psel-tile-status psel-tile-status--${product.unavailableReason ?? "manual"}`}>{unavailableLabel(product)}</span>

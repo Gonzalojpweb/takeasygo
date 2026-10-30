@@ -139,3 +139,17 @@ export async function saveDeliveryPlatforms(tenantId: string, platforms: Deliver
   const body = platforms.map(({ id, enabled, commissionPercent, settlement }) => ({ id, enabled, commissionPercent, settlement }))
   return (await posApi<{ platforms: DeliveryPlatformSetting[] }>(tenantId, "/config/delivery-platforms", { method: "PUT", body: { platforms: body } })).platforms
 }
+
+// ── Mostrador (30/10): con o sin las fotos del menú ─────────────────────────
+
+export interface CounterConfig {
+  showProductImages: boolean
+}
+
+export function getCounterConfig(tenantId: string): Promise<CounterConfig> {
+  return posApi(tenantId, "/config/counter")
+}
+
+export function saveCounterConfig(tenantId: string, config: CounterConfig): Promise<CounterConfig> {
+  return posApi(tenantId, "/config/counter", { method: "PUT", body: config })
+}

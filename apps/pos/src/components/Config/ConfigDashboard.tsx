@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Printer, Receipt, Plus, Clock, Trash2, Bike } from "lucide-react"
+import { Printer, Receipt, Plus, Clock, Trash2, Bike, Store } from "lucide-react"
 import { FISCAL_DOCUMENTS, PRINTER_DOCUMENTS, PRINTER_DOCUMENT_LABELS, type PrinterDocument } from "@takeasygo/business/browser"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
+import { storeCounterConfig, useCounterConfig } from "../../hooks/useCounterConfig"
 import {
   createPrinter,
   getFiscalConfig,
   getShiftsConfig,
   getDeliveryPlatforms,
   saveDeliveryPlatforms,
+  saveCounterConfig,
   saveShiftsConfig,
   listPrinters,
   previewDocument,
@@ -36,13 +38,14 @@ import {
 // fases siguientes.
 // ============================================================================
 
-type Section = "impresoras" | "comprobantes" | "turnos" | "deliverys"
+type Section = "impresoras" | "comprobantes" | "turnos" | "deliverys" | "mostrador"
 
 const SECTIONS: { id: Section; label: string; hint: string; icon: typeof Printer }[] = [
   { id: "impresoras", label: "Impresoras", hint: "Qué imprime cada una", icon: Printer },
   { id: "comprobantes", label: "Comprobantes", hint: "Cómo factura la sede", icon: Receipt },
   { id: "turnos", label: "Turnos", hint: "Un turno, una caja", icon: Clock },
   { id: "deliverys", label: "Deliverys", hint: "PedidosYa, Rappi y otras", icon: Bike },
+  { id: "mostrador", label: "Mostrador", hint: "Productos con o sin fotos", icon: Store },
 ]
 
 const STATUS_LABEL: Record<string, string> = { ok: "Imprimiendo bien", error: "Con error", offline: "Sin conexión", unknown: "Sin datos todavía" }
@@ -114,6 +117,9 @@ export function ConfigDashboard({ role }: { role?: string }) {
   const [platforms, setPlatforms] = useState<DeliveryPlatformSetting[] | null>(null)
   const [platformsDirty, setPlatformsDirty] = useState(false)
 
+  // Mostrador (30/10): con o sin las fotos del menú. Lo cambia el admin.
+  const counterConfig = useCounterConfig(tenantId)
+
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
     setTimeout(() => setNotice(null), 4000)
@@ -157,7 +163,22 @@ export function ConfigDashboard({ role }: { role?: string }) {
     }
   }, [tenantId, flash])
 
+  const toggleCounterImages = useCallback(async () => {
+    if (!tenantId || !isAdmin) return
+    setBusy(true)
+    try {
+      const saved = await saveCounterConfig(tenantId, { showProductImages: !counterConfig.showProductImages })
+      storeCounterConfig(tenantId, saved)
+      flash("success", saved.showProductImages ? "El Mostrador ahora muestra las fotos del menú" : "El Mostrador ahora muestra los productos sin fotos")
+    } catch (err) {
+      flash("error", errorText(err, "No se pudo guardar la configuración del Mostrador"))
+    } finally {
+      setBusy(false)
+    }
+  }, [tenantId, isAdmin, counterConfig.showProductImages, flash])
+
   useEffect(() => {
+    if (section === "mostrador") return
     const id = setTimeout(() => {
       void (section === "impresoras" ? loadPrinters() : section === "comprobantes" ? loadFiscal() : section === "turnos" ? loadShifts() : loadPlatforms())
     }, 0)
@@ -396,6 +417,20 @@ export function ConfigDashboard({ role }: { role?: string }) {
       })
       return
     }
+    if (section === "mostrador") {
+      setContextPanel({
+        title: "Mostrador",
+        subtitle: counterConfig.showProductImages ? "Con fotos" : "Sin fotos",
+        body: (
+          <p className="cash-help">
+            Las fotos son las mismas que se cargan en el menú (las que ve el cliente en el pedido para llevar). Los productos sin foto muestran su inicial.
+            Con fotos entran un poco menos de productos por fila en pantallas chicas.
+          </p>
+        ),
+      })
+      setActionBar(null)
+      return
+    }
     if (section === "turnos") {
       setContextPanel({
         title: "Turnos",
@@ -425,7 +460,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
       ),
     })
     setActionBar(null)
-  }, [section, draft, editing, config, busy, shifts, shiftsDirty, platforms, platformsDirty, isAdmin, setContextPanel, setActionBar, savePrinter, toggleActive, saveShifts, loadShifts, savePlatforms, loadPlatforms])
+  }, [section, counterConfig.showProductImages, draft, editing, config, busy, shifts, shiftsDirty, platforms, platformsDirty, isAdmin, setContextPanel, setActionBar, savePrinter, toggleActive, saveShifts, loadShifts, savePlatforms, loadPlatforms])
 
   const docsInUse = useMemo(() => new Set((config?.printers ?? []).filter((p) => p.isActive).flatMap((p) => p.documents)), [config])
   const missing = (["comanda", "precuenta", "factura", "reporte_caja"] as PrinterDocument[]).filter((d) => config && !docsInUse.has(d))
@@ -529,6 +564,32 @@ export function ConfigDashboard({ role }: { role?: string }) {
                   </div>
                 ))}
               </fieldset>
+            </div>
+          )}
+
+          {section === "mostrador" && (
+            <div className="config-fiscal">
+              <div className="config-section-head">
+                <div>
+                  <h2>Mostrador</h2>
+                  <p>{isAdmin ? "Cómo se ven los productos al tomar un pedido" : "Esta opción la elige el administrador"}</p>
+                </div>
+              </div>
+              <div className="config-switch-row">
+                <div>
+                  <strong id="cfg-counter-images">Mostrar fotos de los productos</strong>
+                  <span>Miniaturas del menú en cada tarjeta del Mostrador, iguales a las del pedido para llevar.</span>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  className="config-switch"
+                  aria-labelledby="cfg-counter-images"
+                  aria-checked={counterConfig.showProductImages}
+                  disabled={!isAdmin || busy}
+                  onClick={() => { void toggleCounterImages() }}
+                />
+              </div>
             </div>
           )}
 

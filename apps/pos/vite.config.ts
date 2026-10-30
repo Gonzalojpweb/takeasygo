@@ -92,6 +92,18 @@ export default defineConfig({
               expiration: { maxEntries: 5 },
             },
           },
+          {
+            // Fotos del menú en el Mostrador (30/10): las mismas de Cloudinary
+            // que usa /takeaway, en miniatura. Una vez vistas quedan guardadas
+            // (también sin conexión); si cambian en el menú, cambia la URL.
+            urlPattern: ({ url }) => url.hostname === "res.cloudinary.com",
+            handler: "CacheFirst",
+            options: {
+              cacheName: "pos-menu-images",
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
         ],
       },
     }),

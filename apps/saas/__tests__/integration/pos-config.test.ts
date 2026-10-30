@@ -19,6 +19,7 @@ import { PATCH as printerPatch } from '@/app/api/[tenant]/pos/config/printers/[i
 import { GET as previewGet } from '@/app/api/[tenant]/pos/config/printers/preview/route'
 import { GET as fiscalGet, PATCH as fiscalPatch } from '@/app/api/[tenant]/pos/config/fiscal/route'
 import { GET as platformsGet, PUT as platformsPut } from '@/app/api/[tenant]/pos/config/delivery-platforms/route'
+import { GET as counterGet, PUT as counterPut } from '@/app/api/[tenant]/pos/config/counter/route'
 
 /**
  * Fase 1 (29/10/2026) — Configuración del POS: impresoras por documento,
@@ -186,5 +187,27 @@ describe('Configuración › Deliverys (fase 5)', () => {
     expect(saved).toMatchObject({ enabled: true, commissionPercent: 25, settlement: 'local' })
     expect((await platformsPut(req(`${BASE}/delivery-platforms`, { platforms: [{ id: 'pedidosya', commissionPercent: 99, settlement: 'local' }] }, 'admin', 'PUT'), P)).status).toBe(400)
     expect((await platformsGet(req(`${BASE}/delivery-platforms`, undefined, 'cashier'), P)).status).toBe(403)
+  })
+})
+
+describe('Configuración › Mostrador (30/10)', () => {
+  it('por defecto sin imágenes; cualquier rol lo lee', async () => {
+    for (const role of ['admin', 'manager', 'cashier', 'waiter'] as const) {
+      const res = await counterGet(req(`${BASE}/counter`, undefined, role), P)
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ showProductImages: false })
+    }
+  })
+
+  it('solo el admin lo cambia y queda guardado en la sede', async () => {
+    expect((await counterPut(req(`${BASE}/counter`, { showProductImages: true }, 'manager', 'PUT'), P)).status).toBe(403)
+    expect((await counterPut(req(`${BASE}/counter`, { showProductImages: true }, 'cashier', 'PUT'), P)).status).toBe(403)
+    expect((await counterPut(req(`${BASE}/counter`, { showProductImages: 'si' }, 'admin', 'PUT'), P)).status).toBe(400)
+    const res = await counterPut(req(`${BASE}/counter`, { showProductImages: true }, 'admin', 'PUT'), P)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ showProductImages: true })
+    const loc = await Location.findById(locationId).lean<{ posCounter?: { showProductImages?: boolean } }>()
+    expect(loc?.posCounter?.showProductImages).toBe(true)
+    expect(await (await counterGet(req(`${BASE}/counter`, undefined, 'waiter'), P)).json()).toEqual({ showProductImages: true })
   })
 })

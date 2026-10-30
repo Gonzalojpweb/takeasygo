@@ -144,6 +144,8 @@ export interface ILocation extends Document {
   cashShifts?: Array<{ id: string; name: string; start: string; end: string; active: boolean }>
   /** Deliverys externos de la sede (Fase 5): comisión y quién cobra. */
   deliveryPlatforms?: Array<{ id: string; enabled: boolean; commissionPercent: number; settlement: 'platform' | 'local' }>
+  /** Mostrador del POS (30/10): el admin elige si el selector muestra las fotos del menú. */
+  posCounter?: { showProductImages: boolean }
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
@@ -388,6 +390,9 @@ settings: {
         order: { type: Number, default: 0 },
       }],
       default: [],
+    },
+    posCounter: {
+      showProductImages: { type: Boolean, default: false },
     },
     deliveryPlatforms: {
       type: [{

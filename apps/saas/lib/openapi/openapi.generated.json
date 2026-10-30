@@ -3334,6 +3334,152 @@
     }
    }
   },
+  "/api/{tenant}/pos/config/counter": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_counter",
+    "summary": "Configuración › Mostrador (30/10/2026)",
+    "description": "/api/[tenant]/pos/config/counter — Configuración › Mostrador (30/10/2026)\nGET (cualquier rol del POS): cómo se ve el Mostrador en la sede. El\n     selector de productos lo necesita para dibujarse, por eso no exige\n     config.manage.\nPUT { showProductImages: boolean } (solo admin): con o sin las fotos del\n     menú en las tarjetas. Son las mismas imágenes del menú (/takeaway).\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/counter/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "catalog.read"
+   },
+   "put": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "put_api_tenant_pos_config_counter",
+    "summary": "Configuración › Mostrador (30/10/2026)",
+    "description": "/api/[tenant]/pos/config/counter — Configuración › Mostrador (30/10/2026)\nGET (cualquier rol del POS): cómo se ve el Mostrador en la sede. El\n     selector de productos lo necesita para dibujarse, por eso no exige\n     config.manage.\nPUT { showProductImages: boolean } (solo admin): con o sin las fotos del\n     menú en las tarjetas. Son las mismas imágenes del menú (/takeaway).\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/counter/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.admin",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/config/delivery-platforms": {
    "get": {
     "tags": [
