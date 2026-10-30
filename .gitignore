@@ -83,7 +83,9 @@ ventas_fase1.md
 patch_menu.js
 
 
-.next
+.next
+# respaldo local de .next al correr tsc/build (nunca al repo)
+.next-local-backup
 /next
 .opencode
 .kilo
