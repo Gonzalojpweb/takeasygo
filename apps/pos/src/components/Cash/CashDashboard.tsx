@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { ExternalLink, Printer, Share2 } from "lucide-react"
 import {
   ARS_BILL_DENOMINATIONS,
-  CASH_EXPENSE_CATEGORIES,
   CASH_EXPENSE_CATEGORY_LABELS,
   canSeeExpectedCash,
 } from "@takeasygo/business/browser"
@@ -19,6 +18,7 @@ import { isPosApiError } from "../../services/pos-api"
 import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
 import { getCashSummary, getShiftsToday, type CashSummary, type ShiftsToday } from "../../services/cash"
 import { localToday, shiftDate } from "../../services/reports"
+import { MANUAL_TYPES, MovementForm, MovementSummary, OpenRegisterForm, movementMissing, type ManualType } from "./CashForms"
 
 // ============================================================================
 // Caja — Fase 1 de caja profesional (2026-10)
@@ -38,7 +38,6 @@ import { localToday, shiftDate } from "../../services/reports"
 // ============================================================================
 
 type Scene = "resumen" | "abrir" | "movimiento" | "arqueo" | "historial" | "z-report" | "x-report" | "pending"
-type ManualType = "expense" | "withdrawal" | "income"
 
 const NEGATIVE = new Set(["expense", "withdrawal", "refund", "cash_order_not_collected"])
 
@@ -51,12 +50,6 @@ const MOVEMENT_LABELS: Record<string, string> = {
   refund: "Devolución",
   cash_order_not_collected: "No cobrado",
 }
-
-const MANUAL_TYPES: { id: ManualType; label: string; hint: string }[] = [
-  { id: "expense", label: "Gasto", hint: "Pago con plata del cajón (proveedor, compras)." },
-  { id: "withdrawal", label: "Retiro", hint: "Sacar efectivo del cajón. Pide el PIN del encargado." },
-  { id: "income", label: "Ingreso", hint: "Agregar efectivo al cajón (cambio, refuerzo)." },
-]
 
 const CHANNEL_OPTIONS: { id: CashChannel | null; label: string }[] = [
   { id: null, label: "Todos los pedidos" },
@@ -194,10 +187,10 @@ export function CashDashboard({ role }: { role?: string }) {
 
   const handleAddMovement = useCallback(async () => {
     if (!activeRegister) return
-    const amount = parsePesosInput(movementAmount)
-    if (amount === null || amount <= 0) return showError("Ingresá el monto")
+    const missing = movementMissing(manualType, movementAmount, category)
+    if (missing) return showError(missing)
+    const amount = parsePesosInput(movementAmount) ?? 0
     const needsCategory = manualType !== "income"
-    if (needsCategory && !category) return showError("Elegí una categoría")
     const reason = movementReason.trim() || (manualType === "income" ? "Ingreso de efectivo" : "")
     setBusy(true)
     try {
@@ -423,15 +416,35 @@ export function CashDashboard({ role }: { role?: string }) {
         break
 
       case "movimiento": {
-        const hint = MANUAL_TYPES.find((t) => t.id === manualType)?.hint ?? ""
+        // Obs. UX 30/10: el panel resume lo que se va a registrar y el botón
+        // dice tipo y monto (o qué falta).
+        const type = MANUAL_TYPES.find((t) => t.id === manualType)!
+        const missing = movementMissing(manualType, movementAmount, category)
         setContextPanel({
-          title: MOVEMENT_LABELS[manualType],
+          title: "Vas a registrar",
           subtitle: "Efectivo del cajón",
-          body: <p className="cash-help">{hint} Queda registrado con tu usuario y aparece en el cierre por categoría.</p>,
+          body: (
+            <MovementSummary
+              type={manualType}
+              amount={movementAmount}
+              category={category}
+              reason={movementReason}
+              expected={seesExpected ? expected : undefined}
+              movements={activeRegister?.movements ?? []}
+            />
+          ),
         })
         setActionBar({
           left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
-          right: <button className="btn btn-primary" disabled={busy} onClick={handleAddMovement}>Registrar</button>,
+          right: (
+            <button
+              className={`btn ${missing ? "btn-secondary" : type.direction === "out" ? "btn-danger" : "btn-primary"} cashf-submit`}
+              disabled={busy}
+              onClick={handleAddMovement}
+            >
+              {missing ?? `${type.verb} · ${formatCurrency(parsePesosInput(movementAmount) ?? 0)}`}
+            </button>
+          ),
         })
         break
       }
@@ -562,7 +575,7 @@ export function CashDashboard({ role }: { role?: string }) {
         })
         break
     }
-  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, zShareUrl, summary, shareZ, shiftsPanel, shiftsToday, selectedShiftName, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
+  }, [scene, loading, activeRegister, closedRegisters.length, seesExpected, expected, totals, manualType, movementAmount, category, movementReason, busy, confirmClose, countedTotal, selectedZReport, selectedRegisterId, zShareUrl, summary, shareZ, shiftsPanel, shiftsToday, selectedShiftName, pendingMovements.length, failedEvents.length, setContextPanel, setActionBar, handleOpenRegister, handleAddMovement, handleCloseRegister, handleReprint, assignPendingMovements, refreshPending, showSuccess, go])
 
   const pendingCount = pendingMovements.length + failedEvents.length
   const tabs: { id: Scene; label: string; badge?: number }[] = [
@@ -606,112 +619,36 @@ export function CashDashboard({ role }: { role?: string }) {
         )}
 
         {!loading && scene === "abrir" && (
-          <div className="cash-form">
-            <label className="cash-label" htmlFor="cash-initial">Efectivo en el cajón</label>
-            <input
-              id="cash-initial"
-              className="search-input cash-amount"
-              inputMode="decimal"
-              placeholder="$ 0"
-              value={initialAmount}
-              onChange={(e) => setInitialAmount(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleOpenRegister()}
-              autoFocus
-            />
-            {shiftsToday && shiftsToday.shifts.length > 0 && (
-              <>
-                <span className="cash-label">Turno</span>
-                <div className="chip-row" role="group" aria-label="Turno de la caja">
-                  {shiftsToday.shifts.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      className={`chip ${selectedShift === t.id ? "active" : ""}`}
-                      aria-pressed={selectedShift === t.id}
-                      disabled={t.status !== "free"}
-                      title={t.status === "free" ? undefined : t.status === "open" ? "Ya tiene la caja abierta" : "Ya se cerró en esta jornada"}
-                      onClick={() => setSelectedShift(t.id)}
-                    >
-                      {t.name} · {t.start}–{t.end}{t.status === "closed" ? " · cerrado" : t.status === "open" ? " · abierto" : ""}
-                    </button>
-                  ))}
-                </div>
-                {shiftsToday.shifts.every((t) => t.status !== "free") && (
-                  <p className="cash-help">Todos los turnos de hoy ya tuvieron su caja. Un turno tiene una sola caja.</p>
-                )}
-              </>
-            )}
-            <span className="cash-label">Esta caja recibe</span>
-            <div className="chip-row">
-              {CHANNEL_OPTIONS.map((c) => (
-                <button
-                  key={String(c.id)}
-                  className={`chip ${defaultChannel === c.id ? "active" : ""}`}
-                  aria-pressed={defaultChannel === c.id}
-                  onClick={() => setDefaultChannel(c.id)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <OpenRegisterForm
+            amount={initialAmount}
+            onAmount={setInitialAmount}
+            onSubmit={handleOpenRegister}
+            shifts={shiftsToday?.shifts ?? []}
+            selectedShift={selectedShift}
+            onShift={setSelectedShift}
+            channelOptions={CHANNEL_OPTIONS}
+            channel={defaultChannel}
+            onChannel={setDefaultChannel}
+          />
         )}
 
         {!loading && scene === "movimiento" && activeRegister && (
-          <div className="cash-form">
-            <div className="segmented" role="tablist" aria-label="Tipo de movimiento">
-              {MANUAL_TYPES.map((t) => (
-                <button
-                  key={t.id}
-                  role="tab"
-                  aria-selected={manualType === t.id}
-                  className={`segmented-option ${manualType === t.id ? "active" : ""}`}
-                  onClick={() => {
-                    setManualType(t.id)
-                    if (t.id === "withdrawal") setCategory("owner_withdrawal")
-                    else if (category === "owner_withdrawal") setCategory(null)
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <input
-              className="search-input cash-amount"
-              inputMode="decimal"
-              placeholder="$ 0"
-              aria-label="Monto"
-              value={movementAmount}
-              onChange={(e) => setMovementAmount(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddMovement()}
-              autoFocus
-            />
-            {manualType !== "income" && (
-              <div className="chip-row" role="radiogroup" aria-label="Categoría">
-                {CASH_EXPENSE_CATEGORIES.map((c) => (
-                  <button
-                    key={c}
-                    role="radio"
-                    aria-checked={category === c}
-                    className={`chip ${category === c ? "active" : ""}`}
-                    onClick={() => setCategory(c)}
-                  >
-                    {CASH_EXPENSE_CATEGORY_LABELS[c]}
-                  </button>
-                ))}
-              </div>
-            )}
-            <input
-              className="search-input"
-              type="text"
-              maxLength={120}
-              placeholder="Detalle (opcional) — ej: Verdulería Don José"
-              aria-label="Detalle"
-              value={movementReason}
-              onChange={(e) => setMovementReason(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddMovement()}
-            />
-          </div>
+          <MovementForm
+            shiftLabel={activeRegister.shiftName ? `Caja · turno ${activeRegister.shiftName}` : "Caja abierta"}
+            type={manualType}
+            onType={(t) => {
+              setManualType(t)
+              if (t === "withdrawal") setCategory("owner_withdrawal")
+              else if (category === "owner_withdrawal") setCategory(null)
+            }}
+            amount={movementAmount}
+            onAmount={setMovementAmount}
+            category={category}
+            onCategory={setCategory}
+            reason={movementReason}
+            onReason={setMovementReason}
+            onSubmit={handleAddMovement}
+          />
         )}
 
         {!loading && scene === "arqueo" && activeRegister && (
