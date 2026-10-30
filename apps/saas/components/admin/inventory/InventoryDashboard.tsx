@@ -13,6 +13,8 @@
 // ============================================================================
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { Upload } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import TodayTab from './TodayTab'
 import StockTab from './StockTab'
@@ -69,6 +71,14 @@ export default function InventoryDashboard({ tenantSlug, canRead, canRecipes, ca
             Las ventas descuentan insumos solas. Vos verificás solo lo que importa.
           </p>
         </div>
+        {canManage && (
+          <Link
+            href={`/${tenantSlug}/admin/inventario/importar`}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-border bg-background px-4 text-sm font-bold hover:bg-muted"
+          >
+            <Upload size={18} aria-hidden /> Importar desde otro sistema
+          </Link>
+        )}
         {locations.length > 1 && (
           <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={`${fieldClass} w-56`} aria-label="Sede">
             {locations.map((l) => (

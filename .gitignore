@@ -147,3 +147,10 @@ apps/saas/scripts/kekelarry-*.ts
 
 # Resultados de las baterías del asistente (pnpm assistant:eval)
 apps/saas/.assistant-eval/
+
+# Exports de otros sistemas (Fudo, Maxirest…) con datos reales de comercios:
+# referencia local para el importador de inventario, nunca al repo.
+/*.xlsx
+/*.xls
+/*.csv
+/*.zip

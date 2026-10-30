@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CircleHelp, ClipboardList, PackageOpen, Settings2, Truck, UtensilsCrossed, Zap } from 'lucide-react'
+import { CircleHelp, ClipboardList, PackageOpen, Settings2, Truck, Upload, UtensilsCrossed, Zap } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { invApi } from './data/api'
 import { useResource } from './data/useResource'
@@ -169,6 +169,11 @@ export default function InventoryV3({
             {pill.label}
             <span className="sr-only">: {pill.title}</span>
           </span>
+          {capabilities.manage && (
+            <Link href={`/${tenantSlug}/admin/inventario/importar`} className={btnSecondary} title="Desde Fudo, Maxirest, Bistrosoft, Núcleo o una planilla">
+              <Upload size={18} aria-hidden /> Importar
+            </Link>
+          )}
           <button type="button" className={btnSecondary} onClick={() => openHelp(HELP_BY_VIEW[view])}>
             <CircleHelp size={18} aria-hidden /> Ver ayuda
           </button>
