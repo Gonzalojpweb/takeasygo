@@ -98,6 +98,7 @@ export function toPosTable(doc: {
   section?: string | null
   currentOrderId?: string | null
   serverId?: string | null
+  serverName?: string | null
   needsBill?: boolean
   guests?: number | null
   spaceId?: mongoose.Types.ObjectId | string | null
@@ -117,6 +118,7 @@ export function toPosTable(doc: {
     status: doc.status,
     ...(doc.currentOrderId ? { currentOrderId: doc.currentOrderId } : {}),
     ...(doc.serverId ? { serverId: doc.serverId } : {}),
+    ...(doc.serverName ? { serverName: doc.serverName } : {}),
     ...(doc.section ? { section: doc.section } : {}),
     needsBill: doc.needsBill ?? false,
     ...(doc.guests ? { guests: doc.guests } : {}),

@@ -13,9 +13,10 @@ interface WaiterSectorGridProps {
   onSelectTable: (tableId: string) => void
   /** Obs. 24/10: reserva por mesa reservada (hora, nombre, comensales). */
   reservations?: Map<string, { time: string; name: string; partySize: number }>
+  showServer?: boolean
 }
 
-export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSelectTable, reservations }: WaiterSectorGridProps) {
+export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSelectTable, reservations, showServer = false }: WaiterSectorGridProps) {
   if (tables.length === 0) {
     return (
       <div className="empty-state">
@@ -32,6 +33,7 @@ export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSe
       selectedTableId={selectedTableId}
       onSelectTable={onSelectTable}
       reservations={reservations}
+      showServer={showServer}
     />
   )
 }

@@ -15,6 +15,7 @@ import { loadSectors, resolveSector } from '@/lib/pos-online/sectors'
 import { assertPosCapability, tableStatusCapability } from '@/lib/pos-online/permissions'
 import { toPosTable, TABLE_STATUSES } from '@/lib/pos-online/tableMapper'
 import { findPosTable, assertTablePosId, type PosTableDoc } from '@/lib/pos-online/tableRepo'
+import { operatorName } from '@/lib/pos-online/operator'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/tables/[id] — una mesa por su posId
@@ -125,7 +126,16 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
 
   // ── mesero / orden activa ─────────────────────────────────────────────────
   if (body.serverId !== undefined) {
-    update.serverId = assertOptionalString(body.serverId, 'serverId')
+    // 30/10: el POS mandaba un texto fijo («counter»/mozo); quién atiende sale
+    // del token. null del cliente = soltar la mesa (sin mozo).
+    const requested = assertOptionalString(body.serverId, 'serverId')
+    if (requested === null) {
+      update.serverId = null
+      update.serverName = null
+    } else {
+      update.serverId = ctx.user.id
+      update.serverName = await operatorName(ctx)
+    }
     audit.serverId = update.serverId
   }
   if (body.currentOrderId !== undefined) {
@@ -157,13 +167,21 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
       await assertCanRelease(ctx, current.currentOrderId)
       update.currentOrderId = null
       update.serverId = null
+      update.serverName = null
       update.needsBill = false
       update.guests = null
       update.reservationId = null
     }
     // Ocupar una mesa reservada la suelta de su reserva (para sentar una
     // reserva el POS usa PATCH /pos/reservations/[id]).
-    if (to === 'occupied') update.reservationId = null
+    if (to === 'occupied') {
+      update.reservationId = null
+      // Mesa que se abre sin mozo informado: atiende quien la abre.
+      if (!(current as { serverName?: string | null }).serverName && update.serverName === undefined) {
+        update.serverId = ctx.user.id
+        update.serverName = await operatorName(ctx)
+      }
+    }
 
     update.status = to
     audit.from = from

@@ -119,7 +119,7 @@ function describePosError(err: unknown, fallback: string): string {
   return fallback
 }
 
-export function CounterDashboard() {
+export function CounterDashboard({ role }: { role?: string } = {}) {
   const { state } = useAuth()
   const tenantId = state.status === "authenticated" ? state.tenantId : undefined
   const jwt = state.status === "authenticated" ? state.jwt?.accessToken : undefined
@@ -2036,6 +2036,7 @@ export function CounterDashboard() {
                       selectedTableId={selectedTableId}
                       onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
                       reservations={reservationsByTable}
+                      showServer={role === "admin" || role === "manager"}
                     />
                   </>
                 )}

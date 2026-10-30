@@ -3527,3 +3527,10 @@ body.is-resizing-panel .ros-app { transition: none; }
 .config-platform { display: grid; grid-template-columns: minmax(140px, 1fr) 120px auto; gap: var(--sp-3); align-items: end; padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .config-platform.active { border-color: var(--primary-action); }
 @media (max-width: 700px) { .config-platform { grid-template-columns: 1fr 1fr; } .config-platform .sales-chips { grid-column: 1 / -1; } }
+
+/* ── Tiempos y mozo en la mesa (30/10/2026) ───────────────────────────────── */
+.mesa-times { gap: 4px; font-variant-numeric: tabular-nums; font-size: 10px; flex-wrap: wrap; justify-content: center; }
+.mesa-kitchen { padding: 1px 4px; border-radius: 6px; background: rgba(255,255,255,.55); }
+.mesa-kitchen.warn { background: var(--warning); color: #1B1B1F; font-weight: var(--font-weight-semibold); }
+.mesa-kitchen.late { background: var(--error); color: #fff; font-weight: var(--font-weight-semibold); }
+.mesa-server { position: absolute; top: 4px; left: 6px; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; font-weight: var(--font-weight-medium); color: var(--on-mesa); opacity: .85; }

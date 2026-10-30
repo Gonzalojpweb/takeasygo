@@ -38,8 +38,22 @@ describe("summarizeTableActivity", () => {
       unpaid: 1000,
       openedAt: new Date("2026-10-21T20:00:00Z"),
       rounds: 2,
+      // 30/10: sin hora de comanda informada, se usa la de creación.
+      kitchenSince: new Date("2026-10-21T20:00:00Z"),
     })
     expect(map.get("m2")?.rounds).toBe(1)
+  })
+
+  it("en cocina: la comanda más vieja sin terminar; lo pendiente de mandar y lo listo no cuentan", () => {
+    const map = summarizeTableActivity([
+      order({ tableId: "m1", status: "pending", createdAt: new Date("2026-10-21T19:00:00Z") }),
+      order({ tableId: "m1", status: "ready", createdAt: new Date("2026-10-21T19:10:00Z") }),
+      order({ tableId: "m1", status: "preparing", createdAt: new Date("2026-10-21T19:20:00Z"), sentToKitchenAt: "2026-10-21T19:25:00Z" }),
+      order({ tableId: "m1", status: "confirmed", createdAt: new Date("2026-10-21T19:40:00Z"), sentToKitchenAt: new Date("2026-10-21T19:41:00Z") }),
+      order({ tableId: "m2", status: "pending" }),
+    ])
+    expect(map.get("m1")?.kitchenSince).toEqual(new Date("2026-10-21T19:25:00Z"))
+    expect(map.get("m2")?.kitchenSince).toBeNull()
   })
 
   it("ignora órdenes cerradas, sin mesa o que no son del POS", () => {

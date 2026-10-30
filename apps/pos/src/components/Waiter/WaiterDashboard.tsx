@@ -423,6 +423,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
               selectedTableId={selectedTableId}
               onSelectTable={handleSelectTable}
               reservations={reservationsByTable}
+              showServer={role === "admin" || role === "manager"}
             />
           </div>
         </>

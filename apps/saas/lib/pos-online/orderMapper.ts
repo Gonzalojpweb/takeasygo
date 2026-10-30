@@ -79,6 +79,8 @@ export interface SaasOrderDraft {
   orderNumber: string
   orderMode: 'dine-in' | 'takeaway'
   status: PosOrderStatusValue
+  /** Orden creada ya comandada: hora de comanda (30/10). */
+  statusTimestamps?: { confirmedAt: Date }
   source: 'pos'
   items: SaasOrderItemDraft[]
   subtotal: number
@@ -324,6 +326,7 @@ export function toSaasOrder(input: PosOrderInput, ctx: PosOrderWriteContext): Sa
     // Con mesa es salón; sin mesa es takeaway. El POS no manda el modo.
     orderMode: tableId ? 'dine-in' : 'takeaway',
     status: input.status ?? 'pending',
+    ...(input.status === 'confirmed' ? { statusTimestamps: { confirmedAt: new Date() } } : {}),
     source: 'pos',
     items,
     subtotal,
@@ -368,6 +371,8 @@ export interface PosOrderContract {
   paymentSource?: 'pos_charged'
   /** Venta anulada (Order.voided). */
   voided?: { at: Date; reason: string }
+  /** Cuándo se comandó (mandó a cocina): statusTimestamps.confirmedAt. */
+  sentToKitchenAt?: Date
   createdAt: Date
   updatedAt: Date
 }
@@ -401,6 +406,7 @@ export function toPosOrder(doc: {
   notes?: string | null
   posPayments?: { method: string; amount: number; reference?: string | null }[] | null
   voided?: { at: Date; reason: string } | null
+  statusTimestamps?: { confirmedAt?: Date | null } | null
   createdAt: Date
   updatedAt: Date
 }): PosOrderContract {
@@ -449,6 +455,7 @@ export function toPosOrder(doc: {
     total: doc.total,
     menuVersion: doc.menuVersion ?? 1,
     notes: doc.notes || undefined,
+    ...(doc.statusTimestamps?.confirmedAt ? { sentToKitchenAt: doc.statusTimestamps.confirmedAt } : {}),
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   }

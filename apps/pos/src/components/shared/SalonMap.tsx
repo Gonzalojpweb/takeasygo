@@ -139,10 +139,12 @@ interface SalonMapProps {
   onSelectTable: (tableId: string) => void
   /** Obs. 24/10: reserva por mesa reservada (useReservations().byTable). */
   reservations?: Map<string, { time: string; name: string; partySize: number }>
+  /** 30/10: mostrar quién atiende cada mesa (encargado y admin). */
+  showServer?: boolean
 }
 
 /** Mesas del sector activo, a todo el workspace. */
-export function SalonMap({ view, variant, selectedTableId, activity, onSelectTable, reservations }: SalonMapProps) {
+export function SalonMap({ view, variant, selectedTableId, activity, onSelectTable, reservations, showServer = false }: SalonMapProps) {
   const now = useNow()
   const { sector, filter, sectorTables } = view
   const visible = useMemo(
@@ -171,6 +173,7 @@ export function SalonMap({ view, variant, selectedTableId, activity, onSelectTab
                 activity={activity.get(table.id)}
                 now={now}
                 reservation={reservations?.get(table.id)}
+                showServer={showServer}
               />
             ))}
           </div>

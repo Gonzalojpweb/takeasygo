@@ -29,8 +29,12 @@ export interface ITable extends Document {
   status: TableStatus
   /** posId de la orden abierta en la mesa (no _id). */
   currentOrderId: string | null
-  /** posId del mozo asignado. */
+  /**
+   * Quién atiende la mesa (30/10): id y nombre del usuario del token que la
+   * abrió o la tomó. Lo fija el servidor, nunca el cliente. Se borra al liberar.
+   */
   serverId: string | null
+  serverName: string | null
   section: string | null
   needsBill: boolean
   /**
@@ -64,6 +68,7 @@ const TableSchema = new Schema<ITable>(
     },
     currentOrderId: { type: String, default: null },
     serverId: { type: String, default: null },
+    serverName: { type: String, default: null, trim: true, maxlength: 120 },
     section: { type: String, default: null, trim: true },
     needsBill: { type: Boolean, default: false },
     guests: { type: Number, default: null, min: 1, max: 99 },

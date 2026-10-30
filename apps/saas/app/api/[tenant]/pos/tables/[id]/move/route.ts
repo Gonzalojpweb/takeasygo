@@ -66,6 +66,7 @@ export const POST = posRoute('tables.manage', async (ctx, { id }) => {
         guests: from.guests ?? null,
         needsBill: from.needsBill ?? false,
         serverId: from.serverId ?? null,
+        serverName: (from as { serverName?: string | null }).serverName ?? null,
         currentOrderId: from.currentOrderId ?? null,
       }
 
@@ -83,7 +84,7 @@ export const POST = posRoute('tables.manage', async (ctx, { id }) => {
 
   const updatedFrom = await Table.findOneAndUpdate(
     { tenantId: ctx.tenantId, locationId: ctx.locationId, posId: fromId },
-    { $set: { status: 'free', currentOrderId: null, serverId: null, needsBill: false, guests: null } },
+    { $set: { status: 'free', currentOrderId: null, serverId: null, serverName: null, needsBill: false, guests: null } },
     { new: true }
   ).lean()
 

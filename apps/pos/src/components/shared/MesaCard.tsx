@@ -1,6 +1,6 @@
 import type { Table } from "@takeasygo/types"
 import { formatCurrency } from "../../utils/format"
-import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
+import { formatElapsed, type TableActivity, formatElapsedShort, KITCHEN_WARN_MIN, KITCHEN_LATE_MIN } from "../../hooks/useTableActivity"
 
 // ============================================================================
 // Mesa — Domain Component (Component System §4)
@@ -40,12 +40,20 @@ interface MesaCardProps {
   now: number
   /** Obs. 24/10: reserva asignada a la mesa (hora, nombre, comensales). */
   reservation?: { time: string; name: string; partySize: number }
+  /** 30/10: encargado y admin ven quién atiende la mesa. */
+  showServer?: boolean
 }
 
-export function MesaCard({ table, variant, onClick, isSelected = false, activity, now, reservation }: MesaCardProps) {
+export function MesaCard({ table, variant, onClick, isSelected = false, activity, now, reservation, showServer = false }: MesaCardProps) {
   const statusLabel = table.needsBill && variant === "waiter" ? "Pide cuenta" : (MESA_STATUS_LABEL[table.status] ?? "Libre")
   const elapsed = activity ? formatElapsed(activity.openedAt, now) : null
   const amount = activity && activity.total > 0 ? formatCurrency(activity.total) : null
+  // 30/10: tiempos visibles en la mesa — abierta y en cocina (semáforo).
+  const openedShort = activity ? formatElapsedShort(activity.openedAt, now) : null
+  const kitchenMin = activity?.kitchenSince ? Math.floor((now - activity.kitchenSince.getTime()) / 60_000) : null
+  const kitchenShort = activity?.kitchenSince ? formatElapsedShort(activity.kitchenSince, now) : null
+  const kitchenClass = kitchenMin === null ? "" : kitchenMin >= KITCHEN_LATE_MIN ? " late" : kitchenMin >= KITCHEN_WARN_MIN ? " warn" : ""
+  const server = showServer && table.serverName ? table.serverName.split(" ")[0] : null
 
   const ariaLabel = [
     `Mesa ${table.number}`,
@@ -54,6 +62,8 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
     table.guests ? `${table.guests} comensales` : null,
     amount,
     elapsed ? `abierta hace ${elapsed}` : null,
+    kitchenShort ? `en cocina hace ${kitchenShort}` : null,
+    server ? `atiende ${table.serverName}` : null,
   ]
     .filter(Boolean)
     .join(", ")
@@ -70,7 +80,12 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
       {amount ? (
         <>
           <span className="mesa-info mesa-amount">{amount}</span>
-          {elapsed && <span className="mesa-info">{elapsed}</span>}
+          {openedShort && (
+            <span className="mesa-info mesa-times">
+              <span title="Abierta hace">⏱ {openedShort}</span>
+              {kitchenShort && <span className={`mesa-kitchen${kitchenClass}`} title="En cocina hace">🍳 {kitchenShort}</span>}
+            </span>
+          )}
         </>
       ) : reservation ? (
         <>
@@ -81,6 +96,7 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
         <span className="mesa-info">{statusLabel}</span>
       )}
       {table.guests ? <span className="mesa-guests" aria-hidden>👥 {table.guests}</span> : null}
+      {server && <span className="mesa-server" aria-hidden>{server}</span>}
     </button>
   )
 }

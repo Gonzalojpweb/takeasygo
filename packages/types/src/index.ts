@@ -263,6 +263,8 @@ export interface Table {
   status: TableStatus
   currentOrderId?: string
   serverId?: string
+  /** Nombre de quien atiende la mesa (lo fija el servidor). */
+  serverName?: string
   section?: string
   needsBill?: boolean
   /** Comensales sentados (se informa al abrir la mesa; se borra al liberarla). */
@@ -303,6 +305,8 @@ export interface Order {
   total: number
   menuVersion: number
   notes?: string
+  /** Cuándo se comandó (mandó a cocina). Lo informa el servidor (30/10). */
+  sentToKitchenAt?: Date | string
   createdAt: Date
   updatedAt: Date
   syncedAt?: Date

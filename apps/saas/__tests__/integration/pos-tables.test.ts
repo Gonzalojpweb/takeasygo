@@ -252,7 +252,9 @@ describe('PATCH /pos/tables/[id]', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.table.status).toBe('occupied')
-    expect(body.table.serverId).toBe('mozo-1')
+    // 30/10: quién atiende sale del token (sub), no del valor que manda el cliente.
+    expect(body.table.serverId).toBe('64b0000000000000000000a1')
+    expect(body.table.serverName).toBeTruthy()
     expect(body.table.currentOrderId).toBe(orderId)
   })
 
