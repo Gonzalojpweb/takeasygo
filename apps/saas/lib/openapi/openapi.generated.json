@@ -3178,6 +3178,162 @@
     "x-pos-capability": "cash.read"
    }
   },
+  "/api/{tenant}/pos/club": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_club",
+    "summary": "socio del club por celular (Fase 4)",
+    "description": "GET /api/[tenant]/pos/club?phone=… — socio del club por celular (Fase 4)\nCaja, encargado y admin. Devuelve nombre, puntos, nivel y canjes\npendientes de la sede; nunca el código del canje ni el celular.\n60 consultas por minuto por usuario (frena barridos de números).\n\nFuente: `apps/saas/app/api/[tenant]/pos/club/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/club/redemptions/{id}": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_club_redemptions_id",
+    "summary": "entregar un canje",
+    "description": "POST /api/[tenant]/pos/club/redemptions/[id] { code } — entregar un canje\nEl cliente muestra su código; la caja lo tipea. Condicional: un premio se\nentrega una sola vez. 10 intentos de código por minuto por usuario.\n\nFuente: `apps/saas/app/api/[tenant]/pos/club/redemptions/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/config/fiscal": {
    "get": {
     "tags": [

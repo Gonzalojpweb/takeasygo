@@ -3510,3 +3510,17 @@ body.is-resizing-panel .ros-app { transition: none; }
 .pin-reveal-label { font-size: var(--font-size-sm); color: var(--primary-action); font-weight: var(--font-weight-semibold); }
 .pin-reveal-value { font-size: 36px; letter-spacing: .15em; font-variant-numeric: tabular-nums; color: var(--text-primary); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; }
 .pin-reveal p { margin: 0; font-size: var(--font-size-sm); color: var(--text-secondary); }
+
+/* ── Clientes (Fase 4, 29/10/2026) ─────────────────────────────────────────── */
+.clients-search { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); max-width: 520px; }
+.clients-search input { flex: 1; }
+.clients-subtitle { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 0; font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.clients-club { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); max-width: 720px; }
+.clients-club-search { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.clients-club-search input { flex: 1; min-width: 200px; }
+.clients-member { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-radius: 12px; background: var(--primary-action-light); }
+.clients-member small { color: var(--text-secondary); }
+.clients-member strong { font-size: var(--font-size-lg); color: var(--primary-action); font-variant-numeric: tabular-nums; }
+.clients-redemption { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) 0; border-top: 1px solid var(--border); }
+.clients-redemption small { color: var(--text-muted); }
+@media (max-width: 600px) { .clients-redemption { grid-template-columns: 1fr 1fr; } .clients-redemption > span { grid-column: 1 / -1; } }

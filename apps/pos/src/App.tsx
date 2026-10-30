@@ -13,6 +13,7 @@ import { SummaryDashboard } from "./components/Summary/SummaryDashboard"
 import { FiscalDashboard } from "./components/Fiscal/FiscalDashboard"
 import { ConfigDashboard } from "./components/Config/ConfigDashboard"
 import { UserDashboard } from "./components/User/UserDashboard"
+import { ClientsDashboard } from "./components/Customers/ClientsDashboard"
 import { CashDashboard } from "./components/Cash/CashDashboard"
 import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
@@ -402,6 +403,7 @@ function AppShell({
         {current.id === "facturacion" && <FiscalDashboard />}
         {current.id === "config" && <ConfigDashboard role={role} />}
         {current.id === "usuario" && <UserDashboard role={role} />}
+        {current.id === "clientes" && <ClientsDashboard />}
       </main>
 
       <ContextPanel
