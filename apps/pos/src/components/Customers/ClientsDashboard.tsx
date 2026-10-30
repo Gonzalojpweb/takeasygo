@@ -11,6 +11,7 @@ import {
   type CustomerSearchResult,
 } from "../../services/customers-api"
 import { claimRedemption, lookupClubMember, type ClubLookup } from "../../services/club"
+import { closeKeyboardOnEnter } from "../../utils/touch"
 
 // ============================================================================
 // Contexto Clientes (Fase 4, 29/10/2026) — caja, encargado y admin
@@ -189,7 +190,7 @@ export function ClientsDashboard() {
 
         <label className="clients-search">
           <Search size={18} aria-hidden />
-          <input id="clients-query" className="search-input" placeholder="Nombre o celular" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar cliente" />
+          <input id="clients-query" className="search-input" type="search" enterKeyHint="search" autoComplete="off" placeholder="Nombre o celular" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={closeKeyboardOnEnter} aria-label="Buscar cliente" />
         </label>
 
         {searching && <p className="cash-help">Buscando…</p>}
@@ -226,7 +227,7 @@ export function ClientsDashboard() {
         <section className="clients-club" aria-labelledby="club-title">
           <h3 id="club-title" className="clients-subtitle"><Gift size={18} aria-hidden /> Club</h3>
           <div className="clients-club-search">
-            <input id="club-phone" className="search-input" inputMode="tel" placeholder="Celular del socio" value={clubPhone} onChange={(e) => setClubPhone(e.target.value)} onKeyDown={(e) => e.key === "Enter" && void lookupClub(clubPhone)} />
+            <input id="club-phone" className="search-input" inputMode="tel" enterKeyHint="search" autoComplete="off" placeholder="Celular del socio" value={clubPhone} onChange={(e) => setClubPhone(e.target.value)} onKeyDown={(e) => { if (e.key !== "Enter") return; void lookupClub(clubPhone); closeKeyboardOnEnter(e) }} />
             <button type="button" className="btn btn-secondary btn-sm" disabled={busy || clubPhone.replace(/\D/g, "").length < 8} onClick={() => { void lookupClub(clubPhone) }}>Buscar socio</button>
           </div>
           {club && !club.member && <p className="cash-help">Ese celular no es socio del club en esta sede.</p>}

@@ -1,25 +1,32 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { Product, MenuCategory } from "@takeasygo/types"
-import { ChevronLeft, ChevronRight, Search, Star, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, Star, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
+import { isCoarsePointer } from "../../utils/touch"
 
 // ============================================================================
 // Selector de productos (Fase B, 2026-10)
 // ============================================================================
 // Pedido 24/10: con 50+ productos el mozo no puede tardar 5 minutos buscando.
-// · Buscador siempre visible: busca en TODA la carta, sin tildes ni
+// · Buscador siempre visible ARRIBA: busca en TODA la carta, sin tildes ni
 //   mayúsculas, por nombre, descripción o categoría.
-// · Categorías en columna (con «Frecuentes» primero): un toque filtra.
-// · Grilla compacta PAGINADA, nunca scroll: la página se calcula con el
-//   alto real disponible (ResizeObserver) y se cambia con ‹ › o PgUp/PgDn.
+// · Obs. UX 30/10: categorías como CHIPS horizontales debajo de la búsqueda
+//   (antes, columna a la izquierda); «Frecuentes» arranca elegido. Un toque
+//   cambia la grilla sin cambiar de pantalla.
+// · Tarjetas más grandes: el nombre manda, el precio acompaña, sin textos
+//   largos. Paginado y contador abajo, discretos (nivel 4 de atención).
+// · Grilla PAGINADA, nunca scroll: la página se calcula con el alto real
+//   disponible (ResizeObserver) y se cambia con ‹ › o PgUp/PgDn.
+// · Táctil: «Buscar» en el teclado de pantalla lo cierra (no agrega); al
+//   tocar una tarjeta hay respuesta inmediata en la tarjeta y en el carrito.
 // · Teclado: escribir busca (o «/»), flechas mueven, Enter agrega,
 //   Esc limpia, Alt+1…9 elige categoría. Todo accesible con lector.
 // ============================================================================
 
 const POPULAR = "__popular"
-const TILE_MIN_W = 168
-const TILE_H = 68
-const GAP = 8
+const TILE_MIN_W = 184
+const TILE_H = 84
+const GAP = 10
 
 interface ProductSelectorProps {
   products: Product[]
@@ -85,7 +92,10 @@ export function ProductSelector({
   const [pauseMode, setPauseMode] = useState(false)
   const [query, setQuery] = useState("")
   const [selectedSub, setSelectedSub] = useState<string | null>(null)
-  const [popularActive, setPopularActive] = useState(false)
+  // «Frecuentes» por defecto (si el comercio todavía no tiene, cae en «Todos»).
+  const [popularActive, setPopularActive] = useState(selectedCategory === null)
+  const [tapped, setTapped] = useState<{ id: string; n: number } | null>(null)
+  const chipsRef = useRef<HTMLDivElement>(null)
   const [layout, setLayout] = useState({ cols: 4, rows: 4 })
   const searchRef = useRef<HTMLInputElement>(null)
   const gridRef = useRef<HTMLDivElement>(null)
@@ -167,8 +177,15 @@ export function ProductSelector({
     if (!p) return
     if (pauseMode && onToggleAvailability) { onToggleAvailability(p); return }
     if (!p.isAvailable) return
+    setTapped((prev) => ({ id: p.id, n: (prev?.n ?? 0) + 1 }))
     onSelectProduct(p)
   }, [onSelectProduct, onToggleAvailability, pauseMode])
+
+  useEffect(() => {
+    if (!tapped) return
+    const id = window.setTimeout(() => setTapped(null), 650)
+    return () => window.clearTimeout(id)
+  }, [tapped])
 
   const goPage = useCallback((delta: number) => {
     const next = Math.min(pageCount - 1, Math.max(0, safePage + delta))
@@ -206,6 +223,11 @@ export function ProductSelector({
         case "PageDown": e.preventDefault(); goPage(1); return
         case "PageUp": e.preventDefault(); goPage(-1); return
         case "Enter":
+          if (inSearch && isCoarsePointer()) {
+            e.preventDefault()
+            searchRef.current?.blur()
+            return
+          }
           if (inSearch || (!isTypingTarget(document.activeElement) && document.activeElement?.tagName !== "BUTTON")) {
             e.preventDefault()
             add(filtered[safeCursor])
@@ -233,76 +255,46 @@ export function ProductSelector({
       ? `No hay productos en ${selectedCategory}`
       : "No hay productos disponibles"
 
+  // El chip activo siempre a la vista (la fila se desplaza de costado).
+  const activeChipKey = showingPopular ? POPULAR : query ? "__search" : "cat:" + (selectedCategory ?? "")
+  useEffect(() => {
+    chipsRef.current?.querySelector<HTMLElement>(".psel-chip.active")?.scrollIntoView({ block: "nearest", inline: "nearest" })
+  }, [activeChipKey])
+
   return (
     <div className="psel" ref={rootRef}>
-      <aside className="psel-cats" aria-label="Categorías">
-        {back && (
-          <button type="button" className="psel-back" onClick={back.onClick} disabled={back.disabled}>
-            ← {back.label}
-          </button>
-        )}
-        {hasPopular && (
-          <button type="button" className={`psel-cat${showingPopular ? " active" : ""}`} onClick={() => selectCategory(POPULAR)}
-            aria-pressed={showingPopular} title="Alt+1">
-            <Star size={14} aria-hidden /> <span className="psel-cat-name">Frecuentes</span>
-          </button>
-        )}
-        <button type="button" className={`psel-cat${!showingPopular && !query && selectedCategory === null ? " active" : ""}`}
-          onClick={() => selectCategory(null)} aria-pressed={!showingPopular && selectedCategory === null}
-          title={`Alt+${hasPopular ? 2 : 1}`}>
-          <span className="psel-cat-name">Todos</span>
-          <span className="psel-cat-count">{products.length}</span>
-        </button>
-        {topCategories.map((cat, i) => {
-          const active = !showingPopular && !query && selectedCategory === cat.name
-          const shortcut = i + (hasPopular ? 3 : 2)
-          return (
-            <div key={cat.id} className="psel-cat-group">
-              <button type="button" className={`psel-cat${active ? " active" : ""}`} onClick={() => selectCategory(cat.name)}
-                aria-pressed={active} title={shortcut <= 9 ? `Alt+${shortcut}` : undefined}>
-                <span className="psel-cat-name">{cat.name}</span>
-                <span className="psel-cat-count">{countByCategory.get(cat.name) ?? 0}</span>
-              </button>
-              {active && subcategories.length > 0 && (
-                <div className="psel-subcats" role="group" aria-label={`Subcategorías de ${cat.name}`}>
-                  {subcategories.map((sub) => (
-                    <button key={sub.id} type="button" className={`psel-subcat${activeSub === sub.id ? " active" : ""}`}
-                      aria-pressed={activeSub === sub.id}
-                      onClick={() => { setQuery(""); setSelectedSub(activeSub === sub.id ? null : sub.id) }}>
-                      {sub.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
-      </aside>
-
-      <section className="psel-main" aria-label="Productos">
-        <div className="psel-toolbar">
+      <div className="psel-head">
+        <div className="psel-searchrow">
+          {back && (
+            <button type="button" className="psel-back" onClick={back.onClick} disabled={back.disabled}>
+              <ChevronLeft size={18} aria-hidden /> {back.label}
+            </button>
+          )}
           <label className="psel-search">
-            <Search size={18} aria-hidden />
+            <Search size={20} aria-hidden />
             <input
               ref={searchRef}
               type="search"
+              inputMode="search"
+              enterKeyHint="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar producto…"
+              placeholder="Buscar en toda la carta…"
               aria-label="Buscar producto en toda la carta"
               aria-controls="psel-grid"
               autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
               spellCheck={false}
             />
             {query ? (
               <button type="button" className="psel-search-clear" onClick={() => { setQuery(""); searchRef.current?.focus() }} aria-label="Limpiar búsqueda">
-                <X size={16} aria-hidden />
+                <X size={18} aria-hidden />
               </button>
             ) : (
-              <kbd className="kbd" aria-hidden>/</kbd>
+              <kbd className="kbd psel-search-kbd" aria-hidden>/</kbd>
             )}
           </label>
-          <span className="psel-count" aria-live="polite">{filtered.length} {filtered.length === 1 ? "producto" : "productos"}</span>
           {onToggleAvailability && (
             <button
               type="button"
@@ -314,17 +306,47 @@ export function ProductSelector({
               {pauseMode ? "Listo" : "Faltantes"}
             </button>
           )}
-          <div className="psel-pager" role="group" aria-label="Páginas">
-            <button type="button" className="btn btn-secondary psel-page-btn" onClick={() => goPage(-1)} disabled={safePage === 0} aria-label="Página anterior" title="Re Pág">
-              <ChevronLeft size={20} aria-hidden />
-            </button>
-            <span className="psel-page">{safePage + 1} / {pageCount}</span>
-            <button type="button" className="btn btn-secondary psel-page-btn" onClick={() => goPage(1)} disabled={safePage >= pageCount - 1} aria-label="Página siguiente" title="Av Pág">
-              <ChevronRight size={20} aria-hidden />
-            </button>
-          </div>
         </div>
 
+        <div className="psel-chips" ref={chipsRef} role="toolbar" aria-label="Categorías">
+          {hasPopular && (
+            <button type="button" className={`psel-chip psel-chip--popular${showingPopular ? " active" : ""}`} onClick={() => selectCategory(POPULAR)}
+              aria-pressed={showingPopular} title="Alt+1">
+              <Star size={15} aria-hidden /> Frecuentes
+            </button>
+          )}
+          <button type="button" className={`psel-chip${!showingPopular && !query && selectedCategory === null ? " active" : ""}`}
+            onClick={() => selectCategory(null)} aria-pressed={!showingPopular && !query && selectedCategory === null}
+            title={`Alt+${hasPopular ? 2 : 1}`}>
+            Todos
+          </button>
+          {topCategories.map((cat, i) => {
+            const active = !showingPopular && !query && selectedCategory === cat.name
+            const shortcut = i + (hasPopular ? 3 : 2)
+            return (
+              <button key={cat.id} type="button" className={`psel-chip${active ? " active" : ""}`} onClick={() => selectCategory(cat.name)}
+                aria-pressed={active} title={shortcut <= 9 ? `Alt+${shortcut}` : undefined}
+                aria-label={`${cat.name}, ${countByCategory.get(cat.name) ?? 0} productos`}>
+                {cat.name}
+              </button>
+            )
+          })}
+        </div>
+
+        {!query && !showingPopular && selectedTop && subcategories.length > 0 && (
+          <div className="psel-subchips" role="group" aria-label={`Subcategorías de ${selectedTop.name}`}>
+            {subcategories.map((sub) => (
+              <button key={sub.id} type="button" className={`psel-subchip${activeSub === sub.id ? " active" : ""}`}
+                aria-pressed={activeSub === sub.id}
+                onClick={() => { setQuery(""); setSelectedSub(activeSub === sub.id ? null : sub.id) }}>
+                {sub.name}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <section className="psel-main" aria-label="Productos">
         <div
           id="psel-grid"
           ref={gridRef}
@@ -337,6 +359,7 @@ export function ProductSelector({
           {pageItems.map((product, i) => {
             const index = safePage * pageSize + i
             const marked = index === safeCursor
+            const justTapped = tapped?.id === product.id
             return (
               <button
                 type="button"
@@ -344,7 +367,7 @@ export function ProductSelector({
                 key={product.id}
                 role="option"
                 aria-selected={marked}
-                className={`psel-tile${marked ? " marked" : ""}${product.isAvailable ? "" : " unavailable"}${pauseMode ? " pause-mode" : ""}`}
+                className={`psel-tile${marked ? " marked" : ""}${product.isAvailable ? "" : " unavailable"}${pauseMode ? " pause-mode" : ""}${justTapped ? " is-tapped" : ""}`}
                 aria-disabled={!product.isAvailable && !pauseMode}
                 onClick={() => { setCursor(index); add(product) }}
                 aria-label={`${product.name}, ${formatCurrency(product.price)}${product.isAvailable ? "" : `, ${unavailableLabel(product)}`}${product.modifiers?.length ? ", con opciones" : ""}`}
@@ -360,8 +383,11 @@ export function ProductSelector({
                   <span className="psel-tile-price">{formatCurrency(product.price)}</span>
                   {pauseMode && <span className="psel-tile-cat">{product.isAvailable ? "Tocá para pausar" : "Tocá para reanudar"}</span>}
                   {!pauseMode && query && <span className="psel-tile-cat">{product.category}</span>}
-                  {!pauseMode && !query && product.modifiers && product.modifiers.length > 0 && <span className="psel-tile-opts">opciones</span>}
+                  {!pauseMode && !query && product.modifiers && product.modifiers.length > 0 && (
+                    <SlidersHorizontal size={14} className="psel-tile-opts" aria-hidden />
+                  )}
                 </span>
+                {justTapped && <span key={tapped.n} className="psel-tile-plus" aria-hidden>+1</span>}
               </button>
             )
           })}
@@ -371,15 +397,28 @@ export function ProductSelector({
             </div>
           )}
         </div>
+      </section>
 
+      <footer className="psel-foot">
+        <span className="psel-count" aria-live="polite">{filtered.length} {filtered.length === 1 ? "producto" : "productos"}</span>
         <div className="psel-hints" aria-hidden>
           <span><kbd className="kbd">↑↓←→</kbd> mover</span>
           <span><kbd className="kbd">Enter</kbd> agregar</span>
-          <span><kbd className="kbd">Av/Re Pág</kbd> página</span>
           <span><kbd className="kbd">Alt+1…9</kbd> categoría</span>
           <span><kbd className="kbd">Esc</kbd> limpiar</span>
         </div>
-      </section>
+        {pageCount > 1 && (
+          <div className="psel-pager" role="group" aria-label="Páginas">
+            <button type="button" className="psel-page-btn" onClick={() => goPage(-1)} disabled={safePage === 0} aria-label="Página anterior" title="Re Pág">
+              <ChevronLeft size={18} aria-hidden />
+            </button>
+            <span className="psel-page">{safePage + 1} / {pageCount}</span>
+            <button type="button" className="psel-page-btn" onClick={() => goPage(1)} disabled={safePage >= pageCount - 1} aria-label="Página siguiente" title="Av Pág">
+              <ChevronRight size={18} aria-hidden />
+            </button>
+          </div>
+        )}
+      </footer>
     </div>
   )
 }

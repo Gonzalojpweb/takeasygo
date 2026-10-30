@@ -4,9 +4,12 @@ import { AuthProvider } from "./hooks/AuthContext"
 import App from "./App"
 import { ensureLatestBuild, registerAppUpdates } from "./services/app-update"
 import { bootUiZoom } from "./hooks/useUiZoom"
+import { bootKeyboardViewport } from "./services/keyboard-viewport"
 
 // Zoom de la interfaz guardado en este dispositivo, antes del primer render.
 bootUiZoom()
+// Teclado en pantalla: la app se ajusta al alto visible (táctil, 30/10).
+bootKeyboardViewport()
 
 const root = document.getElementById("root")
 if (!root) throw new Error("Root element not found")

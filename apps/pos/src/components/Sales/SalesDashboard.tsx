@@ -22,6 +22,7 @@ import {
   type SalesFilters,
   type SalesView,
 } from "../../services/reports"
+import { closeKeyboardOnEnter } from "../../utils/touch"
 
 // ============================================================================
 // Contexto Ventas — flujo completo del local (2026-10-25)
@@ -521,7 +522,7 @@ export function SalesDashboard() {
         )}
         <label className="sales-search">
           <Search size={16} aria-hidden />
-          <input type="search" value={query} placeholder="Mesa, código o producto…" aria-label="Buscar venta" onChange={(e) => setQuery(e.target.value)} />
+          <input type="search" enterKeyHint="search" autoComplete="off" value={query} placeholder="Mesa, código o producto…" aria-label="Buscar venta" onChange={(e) => setQuery(e.target.value)} onKeyDown={closeKeyboardOnEnter} />
         </label>
       </div>
 

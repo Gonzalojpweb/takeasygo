@@ -106,6 +106,27 @@ export function OrderPanel({
   footerContent,
 }: OrderPanelProps) {
   const [editing, setEditing] = useState<number | null>(null)
+  // Obs. UX 30/10 (táctil): al agregar, respuesta inmediata acá — sin modal.
+  // La línea nueva o que sumó cantidad se marca un instante, queda a la vista
+  // y el total late. Restar o quitar no se marca.
+  const [flash, setFlash] = useState<{ idx: number; n: number } | null>(null)
+  const prevQty = useRef<number[]>(items.map((i) => i.quantity))
+  const listRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const prev = prevQty.current
+    prevQty.current = items.map((i) => i.quantity)
+    const idx = items.length > prev.length
+      ? items.length - 1
+      : items.findIndex((it, i) => i < prev.length && it.quantity > prev[i])
+    if (idx < 0) return
+    setFlash((f) => ({ idx, n: (f?.n ?? 0) + 1 }))
+    listRef.current?.querySelectorAll<HTMLElement>(".order-item-card")[idx]?.scrollIntoView({ block: "nearest" })
+  }, [items])
+  useEffect(() => {
+    if (!flash) return
+    const id = window.setTimeout(() => setFlash(null), 900)
+    return () => window.clearTimeout(id)
+  }, [flash])
 
   return (
     <div className="order-panel" style={{ height: "100%" }}>
@@ -114,7 +135,7 @@ export function OrderPanel({
         <span className="status-badge pending">{items.reduce((n, i) => n + i.quantity, 0)} u.</span>
       </div>
 
-      <div className="order-panel-items">
+      <div className="order-panel-items" ref={listRef}>
         {items.length === 0 ? (
           <div className="empty-state" style={{ padding: "32px 16px" }}>
             <span className="empty-state-icon">🛒</span>
@@ -123,7 +144,7 @@ export function OrderPanel({
         ) : (
           <div className="order-items">
             {items.map((item, idx) => (
-              <div key={`${item.productId}-${idx}`} className="order-item-card">
+              <div key={`${item.productId}-${idx}`} className={`order-item-card${flash?.idx === idx ? " is-added" : ""}`}>
                 <div className="order-item-main">
                   <div className="order-item-top">
                     <span className="order-item-name">
@@ -203,7 +224,7 @@ export function OrderPanel({
         {footerContent}
         <div className="order-total-row order-total-grand">
           <span className="order-total-label">Total</span>
-          <span className="order-total-value">{formatCurrency(total)}</span>
+          <span key={flash?.n ?? 0} className={`order-total-value${flash ? " is-bump" : ""}`}>{formatCurrency(total)}</span>
         </div>
         {primaryAction && (
           <button
