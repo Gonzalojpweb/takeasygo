@@ -16,6 +16,7 @@ import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
 import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
+import { SaleDoneModal } from "../shared/SaleDoneModal"
 import { CheckoutPanel } from "../shared/CheckoutPanel"
 import { SalonMap, SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { TableDetail } from "./TableDetail"
@@ -138,7 +139,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [sendToKitchen, setSendToKitchen] = useState(true)
   /** Celular del cliente para el club (opcional, se pide al cobrar). */
   const [clubPhone, setClubPhone] = useState("")
-  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean; invoices?: FiscalDocumentSummary[] } | null>(null)
+  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean; invoices?: FiscalDocumentSummary[]; parts?: CheckoutPart[]; cashReceivedCents?: number | null } | null>(null)
   // Factura electrónica (Fase 5): config del comercio y elección del cobro actual.
   const [fiscalConfig, setFiscalConfig] = useState<FiscalConfig>(OFF_CONFIG)
   const [invoiceChoice, setInvoiceChoice] = useState<InvoiceChoice>(() => defaultInvoiceChoice(OFF_CONFIG))
@@ -1057,7 +1058,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // 3. Deja un movimiento de caja por parte (cualquier método).
   // 4. Cierra: mesa / venta inmediata → `delivered` por el grafo legal; el
   //    mostrador enviado a cocina queda en Mostrador → «Para entregar».
-  const handlePay = useCallback(async (parts: CheckoutPart[]) => {
+  const handlePay = useCallback(async (parts: CheckoutPart[], meta?: { cashReceivedCents: number | null }) => {
     if (!tenantId || paying) return
     const keepForKitchen = view === "mostrador" && sendToKitchen
     const tableId = selectedTableId ?? `mostrador-${Date.now()}`
@@ -1201,7 +1202,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       }
 
       pointPaidRef.current.clear()
-      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices })
+      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices, parts, cashReceivedCents: meta?.cashReceivedCents ?? null })
       setInvoiceChoice(defaultInvoiceChoice(fiscalConfig))
       if (clubPhoneFailed) showErrorToast("El cobro quedó registrado, pero no se pudo guardar el celular del club.")
       setClubPhone("")
@@ -2080,8 +2081,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           )}
 
           {scene === "cobro" && (
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
-              <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
+            <div className="checkout-scene">
+              <div className="checkout-scene-inner">
                 {/* key: si el total cambia (ronda nueva por polling) el cobro arranca de cero */}
                 <CheckoutPanel
                   key={chargeTotal}
@@ -2098,16 +2099,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           )}
 
           {scene === "cierre" && (
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <div className="text-center">
-                <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-                <div className="workspace-title" style={{ marginBottom: 8 }}>Mesa cerrada</div>
-                <div className="workspace-subtitle" style={{ marginBottom: 24 }}>
-                  {formatCurrency(lastSale?.total ?? 0)} — Mesa {selectedTable?.number ?? "?"}
-                </div>
-                <InvoiceResults invoices={lastSale?.invoices} />
-              </div>
-            </div>
+            <SaleDoneModal
+              title="Mesa cerrada"
+              subtitle={`Mesa ${selectedTable?.number ?? "?"}`}
+              sale={lastSale}
+              actionLabel="Volver al salón"
+              onDone={handleNewSale}
+            >
+              <InvoiceResults invoices={lastSale?.invoices} />
+            </SaleDoneModal>
           )}
         </>
       )}
@@ -2189,8 +2189,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           )}
 
           {scene === "cobro" && (
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "auto" }}>
-              <div className="p-6" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
+            <div className="checkout-scene">
+              <div className="checkout-scene-inner">
                 <CheckoutPanel
                   key={`${chargeTotal}-${mostradorDiscountCents}`}
                   total={chargeTotal - mostradorDiscountCents}
@@ -2214,19 +2214,18 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           )}
 
           {scene === "cierre" && (
-            <div style={{ display: "flex", flexDirection: "column", flex: 1, alignItems: "center", justifyContent: "center" }}>
-              <div className="text-center">
-                <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-                <div className="workspace-title" style={{ marginBottom: 8 }}>Venta completada</div>
-                <div className="workspace-subtitle" style={{ marginBottom: 8 }}>
-                  {formatCurrency(lastSale?.total ?? 0)} — Mostrador
-                </div>
-                {lastSale?.sentToKitchen && (
-                  <div className="text-sm text-muted">Enviado a cocina — entregalo desde Mostrador → Para entregar.</div>
-                )}
-                <InvoiceResults invoices={lastSale?.invoices} />
-              </div>
-            </div>
+            <SaleDoneModal
+              title="Venta completada"
+              subtitle="Mostrador"
+              sale={lastSale}
+              actionLabel="Nueva venta"
+              onDone={handleNewSale}
+            >
+              {lastSale?.sentToKitchen && (
+                <div className="sale-done-note">Enviado a cocina — entregalo desde Mostrador → «Para entregar».</div>
+              )}
+              <InvoiceResults invoices={lastSale?.invoices} />
+            </SaleDoneModal>
           )}
         </>
       )}

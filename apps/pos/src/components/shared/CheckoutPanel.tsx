@@ -33,7 +33,8 @@ interface CheckoutPanelProps {
   /** Total a cobrar, en centavos. */
   total: number
   busy?: boolean
-  onConfirm: (parts: CheckoutPart[]) => void
+  /** `meta.cashReceivedCents`: lo que entregó el cliente en efectivo (para mostrar el vuelto al final). */
+  onConfirm: (parts: CheckoutPart[], meta?: { cashReceivedCents: number | null }) => void
   /** Mostrador: "Enviar a cocina" (la orden nace confirmada e imprime comanda). */
   sendToKitchen?: { value: boolean; onChange: (value: boolean) => void }
   /** Celular del cliente para el club (opcional): suma puntos y cuenta como visita. */
@@ -124,11 +125,13 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
 
   if (splittingByItems && splitLines?.length) {
     return (
-      <div className="flex flex-col gap-4">
-        <div className="text-center">
-          <div className="text-muted text-sm">Dividir por platos — total</div>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{formatCurrency(total)}</div>
-        </div>
+      <div className="checkout">
+        <header className="checkout-head">
+          <div className="checkout-head-total">
+            <span className="checkout-eyebrow">Dividir por platos — total</span>
+            <strong className="checkout-total">{formatCurrency(total)}</strong>
+          </div>
+        </header>
         <SplitByItems
           lines={splitLines}
           initialPeople={guests && guests >= 2 ? guests : 2}
@@ -139,230 +142,246 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
     )
   }
 
+  const statusLabel =
+    parts.length === 0
+      ? "Elegí cómo paga"
+      : remaining === 0
+        ? "Cubierto"
+        : remaining > 0
+          ? `Falta ${formatCurrency(remaining)}`
+          : `Sobra ${formatCurrency(-remaining)}`
+  const statusClass = parts.length === 0 ? "idle" : remaining === 0 ? "ok" : "short"
+  const confirmDisabled = !complete ||
+    busy ||
+    (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||
+    (invoice ? !isInvoiceChoiceValid(invoice.value) : false)
+
+  // 30/10 (obs. UX): el cobro era una columna angosta centrada con todo
+  // suelto. Ahora: total arriba, «Cómo paga» a la izquierda, efectivo /
+  // cocina / club / comprobante a la derecha, cada bloque con su borde, y el
+  // botón de confirmar fijo abajo.
   return (
-    <div className="flex flex-col gap-6">
-      <div className="text-center">
-        <div className="text-muted text-sm">Total a cobrar</div>
-        <div style={{ fontSize: 32, fontWeight: 700, color: "var(--primary-action)" }}>{formatCurrency(total)}</div>
-        {discount && (
-          <div className="checkout-discount">
-            {discount.appliedCents > 0 ? (
-              <span className="text-success">Descuento {discount.label ? `${discount.label} ` : ""}−{formatCurrency(discount.appliedCents)}</span>
-            ) : null}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={discount.onEdit}>
-              % {discount.appliedCents > 0 ? "Cambiar descuento" : "Descuento"}
-            </button>
-          </div>
-        )}
-        {parts.length > 0 && (
-          <div
-            className="text-sm"
-            style={{ marginTop: 4, fontWeight: 600, color: remaining === 0 ? "var(--success)" : "var(--error)" }}
-          >
-            {remaining === 0
-              ? "Cubierto"
-              : remaining > 0
-                ? `Falta ${formatCurrency(remaining)}`
-                : `Sobra ${formatCurrency(-remaining)}`}
-          </div>
-        )}
-      </div>
-
-      {parts.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {parts.map((part, i) => {
-            const info = formatPaymentMethod(part.method)
-            return (
-              <div key={part.id} className="card" style={{ padding: "var(--sp-3)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", marginBottom: "var(--sp-2)" }}>
-                  <span style={{ fontSize: 20 }}>{info.icon}</span>
-                  <select
-                    className="search-input"
-                    value={part.method}
-                    onChange={(e) => updatePart(part.id, { method: e.target.value as PaymentMethod })}
-                    aria-label={`Método de la parte ${i + 1}`}
-                    style={{ flex: 1 }}
-                  >
-                    {(["cash", "mercadopago", "posnet_debit", "posnet_credit", "transfer"] as PaymentMethod[]).map((m) => (
-                      <option key={m} value={m}>
-                        {formatPaymentMethod(m).name}
-                      </option>
-                    ))}
-                  </select>
-                  <button className="btn btn-ghost btn-sm" onClick={() => removePart(part.id)} aria-label="Quitar parte">
-                    ✕
-                  </button>
-                </div>
-                <input
-                  className="search-input"
-                  inputMode="decimal"
-                  placeholder="Monto"
-                  value={amountText[part.id] ?? ""}
-                  onChange={(e) => updateAmount(part.id, e.target.value)}
-                  aria-label={`Monto de la parte ${i + 1}`}
-                  style={{ fontSize: 20, textAlign: "center" }}
-                />
-                {isExternalPaymentMethod(part.method) && (
-                  <input
-                    className="search-input"
-                    placeholder="Comprobante / N° de operación (opcional)"
-                    maxLength={100}
-                    value={part.reference ?? ""}
-                    onChange={(e) => updatePart(part.id, { reference: e.target.value || undefined })}
-                    style={{ marginTop: "var(--sp-2)" }}
-                  />
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {remaining > 0 && (
-        <div>
-          <div className="text-sm text-muted" style={{ marginBottom: "var(--sp-2)" }}>
-            {parts.length === 0 ? "Elegí cómo paga" : "Agregar otro método"}
-          </div>
-          <PaymentMethodGrid onSelect={addPart} />
-        </div>
-      )}
-
-      <div style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", justifyContent: "center" }}>
-        <span className="text-sm text-muted">Dividir en</span>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setSplitCount((n) => Math.max(2, n - 1))}
-          disabled={splitCount <= 2}
-          style={{ width: 32, height: 32, padding: 0 }}
-        >
-          −
-        </button>
-        <span style={{ fontWeight: 600, minWidth: 24, textAlign: "center" }}>{splitCount}</span>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => setSplitCount((n) => Math.min(20, n + 1))}
-          style={{ width: 32, height: 32, padding: 0 }}
-        >
-          +
-        </button>
-        <button className="btn btn-ghost btn-sm" onClick={() => splitInto(splitCount)}>
-          partes iguales
-        </button>
-      </div>
-
-      {(Boolean(guests && guests >= 2) || Boolean(splitLines?.length)) && (
-        <div style={{ display: "flex", gap: "var(--sp-2)", justifyContent: "center", flexWrap: "wrap" }}>
-          {guests !== undefined && guests >= 2 && (
-            <button className="btn btn-secondary btn-sm" onClick={() => splitInto(guests)}>
-              Por comensal ({guests})
-            </button>
-          )}
-          {splitLines && splitLines.length > 0 && (
-            <button className="btn btn-secondary btn-sm" onClick={() => setSplittingByItems(true)}>
-              Por platos
-            </button>
-          )}
-        </div>
-      )}
-
-      {cashDue > 0 && (
-        <div className="card cash-card">
-          <label htmlFor="cash-received" className="text-sm text-muted" style={{ display: "block", marginBottom: "var(--sp-1)" }}>
-            Efectivo recibido
-          </label>
-          {/* Fase E: un toque con el billete que entrega el cliente. */}
-          <div className="cash-quick" role="group" aria-label="Monto recibido">
-            {quickCashOptions(cashDue).map((amount) => (
-              <button
-                key={amount}
-                type="button"
-                className={`cash-quick-btn${receivedCents === amount ? " active" : ""}`}
-                onClick={() => setReceived(centsToPesosInput(amount))}
-              >
-                {amount === cashDue ? "Justo" : formatCurrency(amount)}
+    <div className="checkout">
+      <header className="checkout-head">
+        <div className="checkout-head-total">
+          <span className="checkout-eyebrow">Total a cobrar</span>
+          <strong className="checkout-total">{formatCurrency(total)}</strong>
+          {discount && (
+            <div className="checkout-discount">
+              {discount.appliedCents > 0 ? (
+                <span className="text-success">Descuento {discount.label ? `${discount.label} ` : ""}−{formatCurrency(discount.appliedCents)}</span>
+              ) : null}
+              <button type="button" className="btn btn-secondary btn-sm" onClick={discount.onEdit}>
+                % {discount.appliedCents > 0 ? "Cambiar descuento" : "Descuento"}
               </button>
-            ))}
-          </div>
-          <input
-            id="cash-received"
-            className="search-input"
-            inputMode="decimal"
-            placeholder={`Otro monto (${centsToPesosInput(cashDue)})`}
-            value={received}
-            onChange={(e) => setReceived(e.target.value)}
-          />
-          {receivedCents !== null && receivedCents > 0 && (
-            receivedCents < cashDue ? (
-              <div className="cash-change cash-change--short" role="status">
-                Faltan {formatCurrency(cashDue - receivedCents)}
-              </div>
-            ) : (
-              <div className="cash-change" role="status">
-                <span>Vuelto</span>
-                <strong>{formatCurrency(cashChange(cashDue, receivedCents))}</strong>
-              </div>
-            )
+            </div>
           )}
         </div>
-      )}
+        <span className={`checkout-status ${statusClass}`} role="status">{statusLabel}</span>
+      </header>
 
-      {sendToKitchen && (
-        <label style={{ display: "flex", alignItems: "center", gap: "var(--sp-2)", cursor: "pointer" }}>
-          <input
-            type="checkbox"
-            checked={sendToKitchen.value}
-            onChange={(e) => sendToKitchen.onChange(e.target.checked)}
-          />
-          <span>
-            Enviar a cocina <span className="text-muted text-sm">(imprime la comanda; se entrega desde Mostrador → «Para entregar»)</span>
-          </span>
-        </label>
-      )}
+      <div className="checkout-grid">
+        <section className="checkout-section" aria-labelledby="checkout-methods">
+          <h3 id="checkout-methods" className="checkout-section-title">Cómo paga</h3>
 
-      {clubPhone && (
-        <div className="card" style={{ padding: "var(--sp-3)" }}>
-          <label htmlFor="club-phone" className="text-sm" style={{ display: "block", marginBottom: "var(--sp-1)", fontWeight: 600 }}>
-            Celular del cliente para el club <span className="text-muted">(opcional)</span>
-          </label>
-          <input
-            id="club-phone"
-            className="search-input"
-            type="tel"
-            inputMode="tel"
-            autoComplete="off"
-            placeholder="Ej: 11 2345 6789"
-            value={clubPhone.value}
-            onChange={(e) => clubPhone.onChange(e.target.value)}
-            aria-invalid={!isClubPhoneValid(clubPhone.value)}
-          />
-          <div className="text-sm text-muted" style={{ marginTop: "var(--sp-1)" }}>
-            {isClubPhoneValid(clubPhone.value)
-              ? "Si es socio del club, la compra le suma puntos. Si lo invitó otro socio, cuenta como su visita al local."
-              : "Revisá el número: tiene que tener entre 8 y 15 dígitos."}
+          {parts.length > 0 && (
+            <div className="checkout-parts">
+              {parts.map((part, i) => {
+                const info = formatPaymentMethod(part.method)
+                return (
+                  <div key={part.id} className="checkout-part">
+                    <div className="checkout-part-row">
+                      <span className="checkout-part-icon" aria-hidden>{info.icon}</span>
+                      <select
+                        className="search-input"
+                        value={part.method}
+                        onChange={(e) => updatePart(part.id, { method: e.target.value as PaymentMethod })}
+                        aria-label={`Método de la parte ${i + 1}`}
+                      >
+                        {(["cash", "mercadopago", "posnet_debit", "posnet_credit", "transfer"] as PaymentMethod[]).map((m) => (
+                          <option key={m} value={m}>
+                            {formatPaymentMethod(m).name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="search-input checkout-part-amount"
+                        inputMode="decimal"
+                        placeholder="Monto"
+                        value={amountText[part.id] ?? ""}
+                        onChange={(e) => updateAmount(part.id, e.target.value)}
+                        aria-label={`Monto de la parte ${i + 1}`}
+                      />
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => removePart(part.id)} aria-label="Quitar parte">
+                        ✕
+                      </button>
+                    </div>
+                    {isExternalPaymentMethod(part.method) && (
+                      <input
+                        className="search-input"
+                        placeholder="Comprobante / N° de operación (opcional)"
+                        maxLength={100}
+                        value={part.reference ?? ""}
+                        onChange={(e) => updatePart(part.id, { reference: e.target.value || undefined })}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {remaining > 0 && (
+            <div className="checkout-subblock">
+              {parts.length > 0 && <span className="checkout-sublabel">Agregar otro método</span>}
+              <PaymentMethodGrid onSelect={addPart} />
+            </div>
+          )}
+
+          <div className="checkout-split" role="group" aria-label="Dividir la cuenta">
+            <span className="checkout-sublabel">Dividir</span>
+            <div className="checkout-stepper">
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSplitCount((n) => Math.max(2, n - 1))}
+                disabled={splitCount <= 2}
+                aria-label="Una parte menos"
+              >
+                −
+              </button>
+              <span className="checkout-stepper-value">{splitCount}</span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setSplitCount((n) => Math.min(20, n + 1))}
+                aria-label="Una parte más"
+              >
+                +
+              </button>
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => splitInto(splitCount)}>
+              Partes iguales
+            </button>
+            {guests !== undefined && guests >= 2 && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => splitInto(guests)}>
+                Por comensal ({guests})
+              </button>
+            )}
+            {splitLines && splitLines.length > 0 && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSplittingByItems(true)}>
+                Por platos
+              </button>
+            )}
           </div>
+        </section>
+
+        <div className="checkout-side">
+          {cashDue > 0 && (
+            <section className="checkout-section checkout-section--cash" aria-labelledby="cash-received-title">
+              <h3 id="cash-received-title" className="checkout-section-title">
+                Efectivo recibido <span className="checkout-section-hint">a cobrar {formatCurrency(cashDue)}</span>
+              </h3>
+              {/* Fase E: un toque con el billete que entrega el cliente. */}
+              <div className="cash-quick" role="group" aria-label="Monto recibido">
+                {quickCashOptions(cashDue).map((amount) => (
+                  <button
+                    key={amount}
+                    type="button"
+                    className={`cash-quick-btn${receivedCents === amount ? " active" : ""}`}
+                    onClick={() => setReceived(centsToPesosInput(amount))}
+                  >
+                    {amount === cashDue ? "Justo" : formatCurrency(amount)}
+                  </button>
+                ))}
+              </div>
+              <input
+                id="cash-received"
+                className="search-input"
+                inputMode="decimal"
+                aria-labelledby="cash-received-title"
+                placeholder={`Otro monto (${centsToPesosInput(cashDue)})`}
+                value={received}
+                onChange={(e) => setReceived(e.target.value)}
+              />
+              {receivedCents !== null && receivedCents > 0 && (
+                receivedCents < cashDue ? (
+                  <div className="cash-change cash-change--short" role="status">
+                    Faltan {formatCurrency(cashDue - receivedCents)}
+                  </div>
+                ) : (
+                  <div className="cash-change" role="status">
+                    <span>Vuelto</span>
+                    <strong>{formatCurrency(cashChange(cashDue, receivedCents))}</strong>
+                  </div>
+                )
+              )}
+            </section>
+          )}
+
+          {sendToKitchen && (
+            <section className="checkout-section" aria-label="Cocina">
+              <label className="checkout-toggle">
+                <input
+                  type="checkbox"
+                  checked={sendToKitchen.value}
+                  onChange={(e) => sendToKitchen.onChange(e.target.checked)}
+                />
+                <span>
+                  <strong>Enviar a cocina</strong>
+                  <span className="checkout-section-hint">Imprime la comanda; se entrega desde Mostrador → «Para entregar».</span>
+                </span>
+              </label>
+            </section>
+          )}
+
+          {clubPhone && (
+            <section className="checkout-section" aria-labelledby="club-phone-title">
+              <h3 id="club-phone-title" className="checkout-section-title">
+                Club <span className="checkout-section-hint">opcional</span>
+              </h3>
+              <input
+                id="club-phone"
+                className="search-input"
+                type="tel"
+                inputMode="tel"
+                autoComplete="off"
+                aria-labelledby="club-phone-title"
+                placeholder="Celular del cliente · Ej: 11 2345 6789"
+                value={clubPhone.value}
+                onChange={(e) => clubPhone.onChange(e.target.value)}
+                aria-invalid={!isClubPhoneValid(clubPhone.value)}
+              />
+              <span className={`checkout-section-hint${isClubPhoneValid(clubPhone.value) ? "" : " is-error"}`}>
+                {isClubPhoneValid(clubPhone.value)
+                  ? "Si es socio, la compra le suma puntos. Si lo invitó otro socio, cuenta como su visita."
+                  : "Revisá el número: tiene que tener entre 8 y 15 dígitos."}
+              </span>
+            </section>
+          )}
+
+          {invoice && (
+            <section className="checkout-section checkout-section--invoice" aria-label="Comprobante">
+              <h3 className="checkout-section-title">Comprobante</h3>
+              <InvoicePicker config={invoice.config} value={invoice.value} onChange={invoice.onChange} />
+            </section>
+          )}
         </div>
-      )}
+      </div>
 
-      {invoice && <InvoicePicker config={invoice.config} value={invoice.value} onChange={invoice.onChange} />}
-
-      {hasExternal && (
-        <div className="text-sm text-muted text-center">
-          Confirmá solo cuando el terminal / la transferencia esté aprobada.
-        </div>
-      )}
-
-      <button
-        className="btn btn-primary"
-        disabled={
-          !complete ||
-          busy ||
-          (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||
-          (invoice ? !isInvoiceChoiceValid(invoice.value) : false)
-        }
-        onClick={() => onConfirm(parts)}
-      >
-        {busy ? "Registrando cobro…" : `Confirmar cobro ${formatCurrency(total)}`}
-      </button>
+      <footer className="checkout-foot">
+        {hasExternal && (
+          <span className="checkout-foot-hint">Confirmá solo cuando el terminal / la transferencia esté aprobada.</span>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary btn-lg checkout-confirm"
+          disabled={confirmDisabled}
+          onClick={() => onConfirm(parts, { cashReceivedCents: cashDue > 0 ? receivedCents : null })}
+        >
+          {busy ? "Registrando cobro…" : `Confirmar cobro ${formatCurrency(total)}`}
+        </button>
+      </footer>
     </div>
   )
 }

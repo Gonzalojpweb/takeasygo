@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
+import { ExternalLink, Printer, Share2 } from "lucide-react"
 import {
   ARS_BILL_DENOMINATIONS,
   CASH_EXPENSE_CATEGORIES,
@@ -467,15 +468,27 @@ export function CashDashboard({ role }: { role?: string }) {
             </p>
           ),
         })
+        // Obs. UX 30/10: las tres acciones del Z juntas, con ícono y borde
+        // (antes «Reimprimir» y «Abrir» eran texto suelto, casi invisibles).
         setActionBar({
-          left: selectedRegisterId ? (
-            <button className="btn btn-ghost" disabled={busy} onClick={handleReprint}>Reimprimir</button>
-          ) : undefined,
-          // Informe X4: el Z «para llevarse» — link público (con PDF) del SaaS.
-          center: zShareUrl ? (
+          center: selectedRegisterId || zShareUrl ? (
             <>
-              <button className="btn btn-secondary" onClick={() => { void shareZ(zShareUrl) }}>Compartir Z</button>
-              <a className="btn btn-ghost" href={zShareUrl} target="_blank" rel="noreferrer">Abrir</a>
+              {selectedRegisterId && (
+                <button className="btn btn-secondary" disabled={busy} onClick={handleReprint}>
+                  <Printer size={18} aria-hidden /> Reimprimir
+                </button>
+              )}
+              {/* Informe X4: el Z «para llevarse» — link público (con PDF) del SaaS. */}
+              {zShareUrl && (
+                <button className="btn btn-secondary" onClick={() => { void shareZ(zShareUrl) }}>
+                  <Share2 size={18} aria-hidden /> Compartir Z
+                </button>
+              )}
+              {zShareUrl && (
+                <a className="btn btn-secondary" href={zShareUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink size={18} aria-hidden /> Ver PDF
+                </a>
+              )}
             </>
           ) : undefined,
           right: <button className="btn btn-primary" onClick={() => go(activeRegister ? "resumen" : "historial")}>Listo</button>,
@@ -703,10 +716,15 @@ export function CashDashboard({ role }: { role?: string }) {
 
         {!loading && scene === "arqueo" && activeRegister && (
           <div className="cash-count">
+            <div className="cash-count-head" aria-hidden>
+              <span>Billete</span>
+              <span>Cantidad</span>
+              <span>Subtotal</span>
+            </div>
             {ARS_BILL_DENOMINATIONS.map((value) => {
               const count = Number.parseInt(bills[value] ?? "", 10) || 0
               return (
-                <label key={value} className="cash-count-row">
+                <label key={value} className={`cash-count-row${count > 0 ? " filled" : ""}`}>
                   <span className="cash-count-bill">{billLabel(value)}</span>
                   <input
                     className="search-input cash-count-input"
@@ -723,7 +741,7 @@ export function CashDashboard({ role }: { role?: string }) {
                 </label>
               )
             })}
-            <label className="cash-count-row">
+            <label className={`cash-count-row cash-count-row--coins${coins.trim() ? " filled" : ""}`}>
               <span className="cash-count-bill">Monedas</span>
               <input
                 className="search-input cash-count-input"
