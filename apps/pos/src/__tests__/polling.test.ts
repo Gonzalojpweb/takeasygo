@@ -303,6 +303,38 @@ describe("diff-then-put", () => {
     expect(h.cashRegister.deleteCalls).toHaveLength(0)
   })
 
+  it("30/10: una mesa local que el server ya no tiene se borra (si no: «Mesa no encontrada»)", async () => {
+    h.diningTable.store.set("mesa-vieja", { id: "mesa-vieja", tenantId: TENANT, number: 1 })
+    h.diningTable.store.set("mesa-otro-tenant", { id: "mesa-otro-tenant", tenantId: "otro", number: 1 })
+
+    const result = await pollNow(TENANT)
+
+    expect(h.diningTable.store.has("mesa-vieja")).toBe(false)
+    expect(h.diningTable.store.has("mesa-1")).toBe(true)
+    expect(h.diningTable.store.has("mesa-otro-tenant")).toBe(true)
+    expect(result.tables).toBe(2) // 1 escrita + 1 borrada
+  })
+
+  it("30/10: una mesa creada por una mutación mientras el polling esperaba NO se borra", async () => {
+    fetchMock.mockImplementation(async (input: unknown) => {
+      const url = String(input)
+      if (url.includes("/pos/tables")) {
+        // La respuesta salió antes de que existiera la mesa nueva.
+        await runMutation(async () => {
+          await h.diningTable.table.put({ id: "mesa-nueva", tenantId: TENANT, number: 2 })
+        })
+        return jsonResponse({ tables: server.tables, serverTime: NOW })
+      }
+      if (url.includes("/pos/orders")) return jsonResponse({ orders: server.orders, serverTime: NOW })
+      return jsonResponse({ registers: server.registers, serverTime: NOW })
+    })
+
+    await pollNow(TENANT)
+
+    expect(h.diningTable.store.has("mesa-nueva")).toBe(true)
+    expect(h.diningTable.deleteCalls).toHaveLength(0)
+  })
+
   it("rehidrata las fechas antes de tocar Dexie (D10)", async () => {
     await pollNow(TENANT)
 

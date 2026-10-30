@@ -1,7 +1,7 @@
 import type { Table, TableStatus } from "@takeasygo/types"
 import { db } from "../db/dexie"
-import { posApi } from "./pos-api"
-import { runMutation } from "./polling"
+import { posApi, isPosApiError } from "./pos-api"
+import { runMutation, resyncTablesSoon } from "./polling"
 
 // ============================================================================
 // Server-first (V1 POS Online)
@@ -57,14 +57,20 @@ async function patchTable(
   tableId: string,
   body: Record<string, unknown>
 ): Promise<void> {
-  return runMutation(async () => {
-    const { table } = await posApi<{ table: WireTable }>(
-      tenantId,
-      `/tables/${encodeURIComponent(tableId)}`,
-      { method: "PATCH", body }
-    )
-    await applyServerTable(table)
-  })
+  try {
+    return await runMutation(async () => {
+      const { table } = await posApi<{ table: WireTable }>(
+        tenantId,
+        `/tables/${encodeURIComponent(tableId)}`,
+        { method: "PATCH", body }
+      )
+      await applyServerTable(table)
+    })
+  } catch (err) {
+    // 30/10: mesa que el server no tiene ⇒ el salón se actualiza solo.
+    if (isPosApiError(err) && err.status === 404) resyncTablesSoon(tenantId)
+    throw err
+  }
 }
 
 // ============================================================================

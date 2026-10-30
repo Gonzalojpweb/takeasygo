@@ -1,8 +1,8 @@
 import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
 import { pathToDelivered, type AllocatedPayment } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
-import { posApi } from "./pos-api"
-import { runMutation } from "./polling"
+import { posApi, isPosApiError } from "./pos-api"
+import { runMutation, resyncTablesSoon } from "./polling"
 import { rehydrateOrder } from "./pos-wire"
 import { notifyStatusToSyncLayer } from "./sync-api"
 
@@ -162,6 +162,10 @@ export async function createOrder(
     )
 
     return saveOrder(order)
+  }).catch((err: unknown) => {
+    // 30/10: «Mesa no encontrada en esta sede» ⇒ el salón se actualiza solo.
+    if (tableId && isPosApiError(err) && err.status === 404) resyncTablesSoon(tenantId)
+    throw err
   })
 }
 

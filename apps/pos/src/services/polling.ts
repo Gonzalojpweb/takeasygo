@@ -159,7 +159,38 @@ export async function syncTables(tenantId: string): Promise<number> {
   const epoch = completedMutations
 
   const { tables } = await posApi<{ tables: Table[] }>(tenantId, "/tables")
-  return flush(db.diningTable, tables ?? [], epoch)
+  const incoming = tables ?? []
+  const written = await flush(db.diningTable, incoming, epoch)
+  return written + (await pruneMissingTables(tenantId, incoming, epoch))
+}
+
+/**
+ * 30/10: el server es la lista COMPLETA de mesas de la sede. Las que quedaron
+ * en este dispositivo y el server ya no tiene (borradas o recreadas desde el
+ * panel, de otra época) se borran: si no, aparecían en el salón y al tocarlas
+ * el server respondía «Mesa no encontrada». Misma guardia de cruce que flush:
+ * una mesa recién creada por una mutación en vuelo no se toca.
+ */
+async function pruneMissingTables(tenantId: string, incoming: Table[], epoch: number): Promise<number> {
+  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  const keep = new Set(incoming.map((t) => t.id))
+  const local = await db.diningTable.where("tenantId").equals(tenantId).toArray()
+  const stale = local.filter((t) => !keep.has(t.id)).map((t) => t.id)
+  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  if (stale.length === 0) return 0
+  await Promise.all(stale.map((id) => db.diningTable.delete(id)))
+  return stale.length
+}
+
+/**
+ * Una acción sobre una mesa respondió 404: este dispositivo tiene una mesa
+ * que el server no conoce. Se re-sincroniza apenas termina la mutación (en
+ * vuelo el polling está bloqueado a propósito).
+ */
+export function resyncTablesSoon(tenantId: string): void {
+  setTimeout(() => {
+    syncTables(tenantId).catch((err) => console.warn("[polling] resync de mesas:", err))
+  }, 0)
 }
 
 export async function syncOrders(tenantId: string): Promise<number> {
