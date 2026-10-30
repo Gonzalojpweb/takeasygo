@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import type { Product, MenuCategory } from "@takeasygo/types"
-import { ChevronLeft, ChevronRight, Search, SlidersHorizontal, Star, X } from "lucide-react"
+import { ChevronLeft, Search, SlidersHorizontal, Star, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { isCoarsePointer } from "../../utils/touch"
 
@@ -14,9 +14,12 @@ import { isCoarsePointer } from "../../utils/touch"
 //   (antes, columna a la izquierda); «Frecuentes» arranca elegido. Un toque
 //   cambia la grilla sin cambiar de pantalla.
 // · Tarjetas más grandes: el nombre manda, el precio acompaña, sin textos
-//   largos. Paginado y contador abajo, discretos (nivel 4 de atención).
-// · Grilla PAGINADA, nunca scroll: la página se calcula con el alto real
-//   disponible (ResizeObserver) y se cambia con ‹ › o PgUp/PgDn.
+//   largos. Contador abajo, discreto (nivel 4 de atención).
+// · Obs. UX 30/10 (notebook): el paginado dejaba 4 platos por vista y
+//   obligaba a tocar ‹ ›. Ahora la grilla tiene SCROLL vertical: rueda,
+//   touchpad o arrastrando con el dedo. Las columnas se calculan con el ancho
+//   real (ResizeObserver); en pantallas bajas las tarjetas son más bajas
+//   (pos.css, --psel-tile-h). PgUp/PgDn saltan una vista.
 // · Táctil: «Buscar» en el teclado de pantalla lo cierra (no agrega); al
 //   tocar una tarjeta hay respuesta inmediata en la tarjeta y en el carrito.
 // · Teclado: escribir busca (o «/»), flechas mueven, Enter agrega,
@@ -132,14 +135,15 @@ export function ProductSelector({
     })
   }, [products, query, showingPopular, popularIds, selectedCategory, activeSub])
 
-  // ── Paginado al alto real: nunca scroll ────────────────────────────────
+  // ── Columnas por el ancho real; filas visibles para PgUp/PgDn ──────────
   useLayoutEffect(() => {
     const el = gridRef.current
     if (!el) return
     const measure = () => {
       const { width, height } = el.getBoundingClientRect()
+      const tileH = el.querySelector(".psel-tile")?.getBoundingClientRect().height || TILE_H
       const cols = Math.max(1, Math.floor((width + GAP) / (TILE_MIN_W + GAP)))
-      const rows = Math.max(1, Math.floor((height + GAP) / (TILE_H + GAP)))
+      const rows = Math.max(1, Math.floor((height + GAP) / (tileH + GAP)))
       setLayout((prev) => (prev.cols === cols && prev.rows === rows ? prev : { cols, rows }))
     }
     measure()
@@ -160,11 +164,21 @@ export function ProductSelector({
     })
   }, [filterKey])
 
-  const pageSize = layout.cols * layout.rows
-  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safeCursor = Math.min(cursor, Math.max(0, filtered.length - 1))
-  const safePage = Math.min(Math.floor(safeCursor / pageSize), pageCount - 1)
-  const pageItems = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize)
+
+  // Filtro nuevo ⇒ la grilla vuelve arriba.
+  useLayoutEffect(() => {
+    if (gridRef.current) gridRef.current.scrollTop = 0
+  }, [filterKey])
+
+  // Moverse con el teclado lleva el producto marcado a la vista.
+  const scrollToCursor = useRef(false)
+  useEffect(() => {
+    if (!scrollToCursor.current) return
+    scrollToCursor.current = false
+    const id = filtered[safeCursor]?.id
+    if (id) document.getElementById(`psel-${id}`)?.scrollIntoView({ block: "nearest" })
+  }, [safeCursor, filtered])
 
   const selectCategory = useCallback((name: string | null) => {
     setQuery("")
@@ -187,10 +201,6 @@ export function ProductSelector({
     return () => window.clearTimeout(id)
   }, [tapped])
 
-  const goPage = useCallback((delta: number) => {
-    const next = Math.min(pageCount - 1, Math.max(0, safePage + delta))
-    setCursor(next * pageSize)
-  }, [pageCount, safePage, pageSize, setCursor])
 
   // ── Teclado global del selector ─────────────────────────────────────────
   // Solo actúa si no hay un diálogo encima (role=dialog captura su teclado).
@@ -213,6 +223,7 @@ export function ProductSelector({
 
       const move = (delta: number) => {
         e.preventDefault()
+        scrollToCursor.current = true
         setCursor((c) => Math.min(Math.max(0, filtered.length - 1), Math.max(0, Math.min(c, filtered.length - 1) + delta)))
       }
       switch (e.key) {
@@ -220,8 +231,8 @@ export function ProductSelector({
         case "ArrowLeft": if (!inSearch || query === "") move(-1); return
         case "ArrowDown": move(layout.cols); return
         case "ArrowUp": move(-layout.cols); return
-        case "PageDown": e.preventDefault(); goPage(1); return
-        case "PageUp": e.preventDefault(); goPage(-1); return
+        case "PageDown": move(layout.cols * layout.rows); return
+        case "PageUp": move(-layout.cols * layout.rows); return
         case "Enter":
           if (inSearch && isCoarsePointer()) {
             e.preventDefault()
@@ -247,7 +258,7 @@ export function ProductSelector({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [categoryOptions, selectCategory, filtered, safeCursor, layout.cols, goPage, add, query, setCursor])
+  }, [categoryOptions, selectCategory, filtered, safeCursor, layout.cols, layout.rows, add, query, setCursor])
 
   const emptyText = query
     ? `Nada coincide con «${query}»`
@@ -354,10 +365,9 @@ export function ProductSelector({
           role="listbox"
           aria-label="Resultados"
           aria-activedescendant={filtered[safeCursor] ? `psel-${filtered[safeCursor].id}` : undefined}
-          style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`, gridAutoRows: TILE_H, gap: GAP }}
+          style={{ gridTemplateColumns: `repeat(${layout.cols}, minmax(0, 1fr))`, gap: GAP }}
         >
-          {pageItems.map((product, i) => {
-            const index = safePage * pageSize + i
+          {filtered.map((product, index) => {
             const marked = index === safeCursor
             const justTapped = tapped?.id === product.id
             return (
@@ -407,17 +417,6 @@ export function ProductSelector({
           <span><kbd className="kbd">Alt+1…9</kbd> categoría</span>
           <span><kbd className="kbd">Esc</kbd> limpiar</span>
         </div>
-        {pageCount > 1 && (
-          <div className="psel-pager" role="group" aria-label="Páginas">
-            <button type="button" className="psel-page-btn" onClick={() => goPage(-1)} disabled={safePage === 0} aria-label="Página anterior" title="Re Pág">
-              <ChevronLeft size={18} aria-hidden />
-            </button>
-            <span className="psel-page">{safePage + 1} / {pageCount}</span>
-            <button type="button" className="psel-page-btn" onClick={() => goPage(1)} disabled={safePage >= pageCount - 1} aria-label="Página siguiente" title="Av Pág">
-              <ChevronRight size={18} aria-hidden />
-            </button>
-          </div>
-        )}
       </footer>
     </div>
   )

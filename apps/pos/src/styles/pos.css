@@ -4068,3 +4068,30 @@ body.is-resizing-panel .ros-app { transition: none; }
 @media (max-width: 768px) {
   .keyboard-open .navigation { display: none; }
 }
+
+/* ========================================================================
+   SELECTOR CON SCROLL (obs. UX 30/10/2026, notebook: 4 platos por vista)
+   Sin páginas: la grilla se desplaza con rueda, touchpad o el dedo.
+   En pantallas bajas, tarjetas y cabecera más compactas para ver más filas.
+   ======================================================================== */
+.psel { --psel-tile-h: 84px; }
+.psel-grid {
+  grid-auto-rows: var(--psel-tile-h);
+  overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  scrollbar-width: thin; scrollbar-gutter: stable;
+  padding: 3px 3px var(--sp-3); margin: -3px -3px 0;
+}
+.psel-main { min-height: 0; }
+
+@media (max-height: 860px) {
+  .psel { --psel-tile-h: 66px; }
+  .psel-head { padding: var(--sp-2) var(--sp-4); gap: var(--sp-2); }
+  .psel-search, .psel-searchrow .psel-back, .psel-searchrow .psel-pause-toggle { min-height: 44px; }
+  .psel-chip { min-height: 38px; padding: 0 var(--sp-3); font-size: var(--font-size-sm); }
+  .psel-subchip { min-height: 32px; }
+  .psel-main { padding-top: var(--sp-2); }
+  .psel-tile { padding: var(--sp-2) var(--sp-3); }
+  .psel-tile-name { font-size: 14px; }
+  .psel-foot { min-height: 32px; padding-bottom: var(--sp-1); }
+}
