@@ -18,6 +18,7 @@ import { GET as printersGet, POST as printersPost } from '@/app/api/[tenant]/pos
 import { PATCH as printerPatch } from '@/app/api/[tenant]/pos/config/printers/[id]/route'
 import { GET as previewGet } from '@/app/api/[tenant]/pos/config/printers/preview/route'
 import { GET as fiscalGet, PATCH as fiscalPatch } from '@/app/api/[tenant]/pos/config/fiscal/route'
+import { GET as platformsGet, PUT as platformsPut } from '@/app/api/[tenant]/pos/config/delivery-platforms/route'
 
 /**
  * Fase 1 (29/10/2026) — Configuración del POS: impresoras por documento,
@@ -172,5 +173,18 @@ describe('Configuración › Comprobantes', () => {
     const ok = await fiscalPatch(req(`${BASE}/fiscal`, { invoicingMode: 'always' }, 'admin', 'PATCH'), P)
     expect((await ok.json()).invoicingMode).toBe('always')
     expect((await fiscalPatch(req(`${BASE}/fiscal`, { invoicingMode: 'siempre' }, 'admin', 'PATCH'), P)).status).toBe(400)
+  })
+})
+
+describe('Configuración › Deliverys (fase 5)', () => {
+  it('lista las 4 plataformas, guarda comisión y quién cobra; el cajero no entra', async () => {
+    const empty = (await (await platformsGet(req(`${BASE}/delivery-platforms`), P)).json()).platforms
+    expect(empty.map((p: { id: string; enabled: boolean }) => [p.id, p.enabled])).toEqual([['pedidosya', false], ['rappi', false], ['uber_eats', false], ['didi_food', false]])
+    const res = await platformsPut(req(`${BASE}/delivery-platforms`, { platforms: [{ id: 'pedidosya', enabled: true, commissionPercent: 25, settlement: 'local' }] }, 'manager', 'PUT'), P)
+    expect(res.status).toBe(200)
+    const saved = (await res.json()).platforms.find((p: { id: string }) => p.id === 'pedidosya')
+    expect(saved).toMatchObject({ enabled: true, commissionPercent: 25, settlement: 'local' })
+    expect((await platformsPut(req(`${BASE}/delivery-platforms`, { platforms: [{ id: 'pedidosya', commissionPercent: 99, settlement: 'local' }] }, 'admin', 'PUT'), P)).status).toBe(400)
+    expect((await platformsGet(req(`${BASE}/delivery-platforms`, undefined, 'cashier'), P)).status).toBe(403)
   })
 })

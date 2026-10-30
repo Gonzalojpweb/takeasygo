@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { deliveryCommissionCents, type DeliveryPlatformConfig } from '@takeasygo/business'
 import Order from '@/models/Order'
 import Table from '@/models/Table'
 import Menu from '@/models/Menu'
@@ -84,7 +85,19 @@ export interface SalesViewResult {
   invoicing: Record<'invoiced' | 'notInvoiced' | 'pending', { count: number; amount: number }>
   /** Desglose de la App por modo y de marketplaces por plataforma. */
   byMode: { mode: string; sales: number; revenue: number }[]
-  byPlatform: { platform: string; sales: number; revenue: number }[]
+  /**
+   * Marketplaces por plataforma. Fase 5: comisión según la config de la
+   * sede (null si la plataforma no está configurada) y neto = vendido − comisión.
+   */
+  byPlatform: {
+    platform: string
+    sales: number
+    revenue: number
+    commissionPercent: number | null
+    commissionCents: number | null
+    netCents: number | null
+    settlement: 'platform' | 'local' | null
+  }[]
   cost: {
     available: boolean
     cmvCents: number
@@ -167,7 +180,10 @@ export async function loadSalesView(
   filters: SalesFilters,
   paging: { page?: number; pageSize?: number; all?: boolean } = {}
 ): Promise<SalesViewResult> {
-  const location = await Location.findOne({ _id: locationId, tenantId }).select('timezone').lean<{ timezone?: string }>()
+  const location = await Location.findOne({ _id: locationId, tenantId })
+    .select('timezone deliveryPlatforms')
+    .lean<{ timezone?: string; deliveryPlatforms?: DeliveryPlatformConfig[] }>()
+  const platformConfig = new Map((location?.deliveryPlatforms ?? []).map((c) => [c.id as string, c]))
   const timezone = location?.timezone || DEFAULT_TIMEZONE
   const range = assertRange(rangeQuery, timezone)
   const start = getDayAndMidnightInTimezone(range.from, timezone).date
@@ -304,7 +320,20 @@ export async function loadSalesView(
     metrics,
     invoicing,
     byMode: [...modes.entries()].map(([mode, v]) => ({ mode, ...v })).sort((a, b) => b.revenue - a.revenue),
-    byPlatform: [...platforms.entries()].map(([platform, v]) => ({ platform, ...v })).sort((a, b) => b.revenue - a.revenue),
+    byPlatform: [...platforms.entries()]
+      .map(([platform, v]) => {
+        const c = platformConfig.get(platform)
+        const commissionCents = c ? deliveryCommissionCents(v.revenue, c.commissionPercent) : null
+        return {
+          platform,
+          ...v,
+          commissionPercent: c?.commissionPercent ?? null,
+          commissionCents,
+          netCents: commissionCents === null ? null : v.revenue - commissionCents,
+          settlement: c?.settlement ?? null,
+        }
+      })
+      .sort((a, b) => b.revenue - a.revenue),
     cost: {
       available: costData.available,
       cmvCents: costData.cmvCents,
@@ -342,7 +371,7 @@ export function redactSalesView(v: SalesViewResult): unknown {
     },
     invoicing: Object.fromEntries(Object.entries(v.invoicing).map(([k, b]) => [k, { ...b, amount: null }])),
     byMode: v.byMode.map((m) => ({ ...m, revenue: null })),
-    byPlatform: v.byPlatform.map((m) => ({ ...m, revenue: null })),
+    byPlatform: v.byPlatform.map((m) => ({ ...m, revenue: null, commissionCents: null, netCents: null })),
     cost: { available: v.cost.available, coverage: v.cost.coverage, unmappedProducts: v.cost.unmappedProducts, cmvCents: null, grossMarginCents: null, foodCostPct: null, missingCostSkus: v.cost.missingCostSkus },
     products: v.products.map((p) => ({ ...p, revenue: null, costCents: null, marginPct: null })),
   }

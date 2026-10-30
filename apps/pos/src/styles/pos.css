@@ -3524,3 +3524,6 @@ body.is-resizing-panel .ros-app { transition: none; }
 .clients-redemption { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) 0; border-top: 1px solid var(--border); }
 .clients-redemption small { color: var(--text-muted); }
 @media (max-width: 600px) { .clients-redemption { grid-template-columns: 1fr 1fr; } .clients-redemption > span { grid-column: 1 / -1; } }
+.config-platform { display: grid; grid-template-columns: minmax(140px, 1fr) 120px auto; gap: var(--sp-3); align-items: end; padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.config-platform.active { border-color: var(--primary-action); }
+@media (max-width: 700px) { .config-platform { grid-template-columns: 1fr 1fr; } .config-platform .sales-chips { grid-column: 1 / -1; } }

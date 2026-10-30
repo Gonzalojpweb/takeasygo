@@ -148,7 +148,8 @@ export interface SalesView {
   metrics: SalesMetrics
   invoicing: Record<"invoiced" | "notInvoiced" | "pending", { count: number; amount: number | null }>
   byMode: { mode: string; sales: number; revenue: number | null }[]
-  byPlatform: { platform: string; sales: number; revenue: number | null }[]
+  /** Fase 5: comisión y neto según la config de la sede (null = sin configurar u oculto). */
+  byPlatform: { platform: string; sales: number; revenue: number | null; commissionPercent: number | null; commissionCents: number | null; netCents: number | null; settlement: "platform" | "local" | null }[]
   cost: {
     available: boolean
     cmvCents: number | null

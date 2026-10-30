@@ -38,6 +38,17 @@ export {
   type CashShift,
 } from "./shifts"
 export {
+  DELIVERY_PLATFORM_LIST,
+  MAX_DELIVERY_COMMISSION_PERCENT,
+  isDeliveryPlatformId,
+  deliveryPlatformName,
+  validateDeliveryPlatforms,
+  deliveryCommissionCents,
+  type DeliveryPlatformId,
+  type DeliverySettlement,
+  type DeliveryPlatformConfig,
+} from "./delivery-platforms"
+export {
   TABLE_TRANSITIONS,
   ORDER_TRANSITIONS,
   ORDER_ITEM_EDITABLE_STATUSES,

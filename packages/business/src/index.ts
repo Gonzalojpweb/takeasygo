@@ -41,6 +41,17 @@ export {
   shiftLabel,
   type CashShift,
 } from "./shifts"
+export {
+  DELIVERY_PLATFORM_LIST,
+  MAX_DELIVERY_COMMISSION_PERCENT,
+  isDeliveryPlatformId,
+  deliveryPlatformName,
+  validateDeliveryPlatforms,
+  deliveryCommissionCents,
+  type DeliveryPlatformId,
+  type DeliverySettlement,
+  type DeliveryPlatformConfig,
+} from "./delivery-platforms"
 // sync-events and jwt removed from barrel — they use node:crypto and must NOT
 // be bundled for client. Import directly:
 //   import { ... } from '@takeasygo/business/sync-events'

@@ -120,3 +120,22 @@ export function getShiftsConfig(tenantId: string): Promise<{ shifts: ShiftConfig
 export function saveShiftsConfig(tenantId: string, shifts: ShiftConfig[]): Promise<{ shifts: ShiftConfig[]; timezone: string }> {
   return posApi(tenantId, "/config/shifts", { method: "PUT", body: { shifts } })
 }
+
+// ── Deliverys externos (Fase 5) ─────────────────────────────────────────────
+
+export interface DeliveryPlatformSetting {
+  id: string
+  label: string
+  enabled: boolean
+  commissionPercent: number
+  settlement: "platform" | "local"
+}
+
+export async function getDeliveryPlatforms(tenantId: string): Promise<DeliveryPlatformSetting[]> {
+  return (await posApi<{ platforms: DeliveryPlatformSetting[] }>(tenantId, "/config/delivery-platforms")).platforms
+}
+
+export async function saveDeliveryPlatforms(tenantId: string, platforms: DeliveryPlatformSetting[]): Promise<DeliveryPlatformSetting[]> {
+  const body = platforms.map(({ id, enabled, commissionPercent, settlement }) => ({ id, enabled, commissionPercent, settlement }))
+  return (await posApi<{ platforms: DeliveryPlatformSetting[] }>(tenantId, "/config/delivery-platforms", { method: "PUT", body: { platforms: body } })).platforms
+}

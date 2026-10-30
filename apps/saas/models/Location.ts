@@ -142,6 +142,8 @@ export interface ILocation extends Document {
    * Un turno = una caja por día (business/shifts).
    */
   cashShifts?: Array<{ id: string; name: string; start: string; end: string; active: boolean }>
+  /** Deliverys externos de la sede (Fase 5): comisión y quién cobra. */
+  deliveryPlatforms?: Array<{ id: string; enabled: boolean; commissionPercent: number; settlement: 'platform' | 'local' }>
   hero: {
     mediaType: 'none' | 'image' | 'video'
     url: string
@@ -384,6 +386,16 @@ settings: {
         enabled: { type: Boolean, default: true },
         blockedDates: { type: [String], default: [] },
         order: { type: Number, default: 0 },
+      }],
+      default: [],
+    },
+    deliveryPlatforms: {
+      type: [{
+        _id: false,
+        id: { type: String, required: true, enum: ['pedidosya', 'rappi', 'uber_eats', 'didi_food'] },
+        enabled: { type: Boolean, default: true },
+        commissionPercent: { type: Number, default: 0, min: 0, max: 60 },
+        settlement: { type: String, enum: ['platform', 'local'], default: 'platform' },
       }],
       default: [],
     },

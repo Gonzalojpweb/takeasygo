@@ -405,7 +405,14 @@ export function SalesDashboard() {
       return [
         ...(["salon", "mostrador", "app", "delivery"] as SaleChannel[]).map((c) => ({ key: c, label: CHANNEL_LABEL[c], qty: m.byChannel[c].sales, unit: "ventas", amount: m.byChannel[c].revenue })),
         ...view.byMode.map((x) => ({ key: `mode-${x.mode}`, label: `App · ${orderModeLabel(x.mode) ?? x.mode}`, qty: x.sales, unit: "ventas", amount: x.revenue })),
-        ...view.byPlatform.map((x) => ({ key: `pf-${x.platform}`, label: `Marketplace · ${deliveryPlatformLabel(x.platform) ?? x.platform}`, qty: x.sales, unit: "ventas", amount: x.revenue })),
+        ...view.byPlatform.map((x) => ({
+          key: `pf-${x.platform}`,
+          // Fase 5: comisión de la plataforma y neto para el local.
+          label: `Marketplace · ${deliveryPlatformLabel(x.platform) ?? x.platform}${x.commissionCents !== null && x.commissionPercent !== null ? ` · comisión ${x.commissionPercent} % (−${formatCurrency(x.commissionCents)}) · neto ${formatCurrency(x.netCents ?? 0)}` : ""}`,
+          qty: x.sales,
+          unit: "ventas",
+          amount: x.revenue,
+        })),
       ]
     }
     return []

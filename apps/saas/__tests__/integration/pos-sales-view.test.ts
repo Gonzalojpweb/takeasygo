@@ -97,6 +97,14 @@ beforeEach(async () => {
 })
 
 describe('vista de ventas filtrada', () => {
+  it('Fase 5: comisión y neto del marketplace según la config de la sede; el cajero no los ve', async () => {
+    await Location.updateOne({ _id: locationId }, { $set: { deliveryPlatforms: [{ id: 'rappi', enabled: true, commissionPercent: 27.5, settlement: 'platform' }] } })
+    const { body } = await view('')
+    expect(body.byPlatform).toEqual([{ platform: 'rappi', sales: 1, revenue: 1_000_000, commissionPercent: 27.5, commissionCents: 275_000, netCents: 725_000, settlement: 'platform' }])
+    const cashier = await view('', 'cashier')
+    expect(cashier.body.byPlatform[0]).toMatchObject({ revenue: null, commissionCents: null, netCents: null })
+  })
+
   it('todas: KPIs, canales, facturación y costo sobre el mismo conjunto', async () => {
     const { status, body } = await view('')
     expect(status).toBe(200)
@@ -111,7 +119,8 @@ describe('vista de ventas filtrada', () => {
     const row = body.rows.find((r: { id: string }) => r.id === salon)
     expect(row.fiscal).toEqual({ state: 'invoiced', label: 'Factura B 00003-00000015' })
     expect(row.costCents).toBe(200_000)
-    expect(body.byPlatform).toEqual([{ platform: 'rappi', sales: 1, revenue: 1_000_000 }])
+    // Fase 5: sin configurar la plataforma no hay comisión (null, no 0).
+    expect(body.byPlatform).toEqual([{ platform: 'rappi', sales: 1, revenue: 1_000_000, commissionPercent: null, commissionCents: null, netCents: null, settlement: null }])
     expect(body.byMode).toEqual([{ mode: 'delivery', sales: 1, revenue: 1_000_000 }])
   })
 

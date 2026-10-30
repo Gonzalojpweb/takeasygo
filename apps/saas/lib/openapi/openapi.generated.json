@@ -3334,6 +3334,152 @@
     }
    }
   },
+  "/api/{tenant}/pos/config/delivery-platforms": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_delivery_platforms",
+    "summary": "Configuración › Deliverys",
+    "description": "/api/[tenant]/pos/config/delivery-platforms — Configuración › Deliverys\nGET  (admin y encargado): las plataformas conocidas con la config de la\n     sede (las no configuradas vienen inactivas, 0 %, cobra la plataforma).\nPUT  { platforms: [{ id, enabled, commissionPercent, settlement }] }.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/delivery-platforms/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   },
+   "put": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "put_api_tenant_pos_config_delivery_platforms",
+    "summary": "Configuración › Deliverys",
+    "description": "/api/[tenant]/pos/config/delivery-platforms — Configuración › Deliverys\nGET  (admin y encargado): las plataformas conocidas con la config de la\n     sede (las no configuradas vienen inactivas, 0 %, cobra la plataforma).\nPUT  { platforms: [{ id, enabled, commissionPercent, settlement }] }.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/delivery-platforms/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/config/fiscal": {
    "get": {
     "tags": [

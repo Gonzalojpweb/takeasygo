@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Printer, Receipt, Plus, Clock, Trash2 } from "lucide-react"
+import { Printer, Receipt, Plus, Clock, Trash2, Bike } from "lucide-react"
 import { FISCAL_DOCUMENTS, PRINTER_DOCUMENTS, PRINTER_DOCUMENT_LABELS, type PrinterDocument } from "@takeasygo/business/browser"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
@@ -7,6 +7,8 @@ import {
   createPrinter,
   getFiscalConfig,
   getShiftsConfig,
+  getDeliveryPlatforms,
+  saveDeliveryPlatforms,
   saveShiftsConfig,
   listPrinters,
   previewDocument,
@@ -18,6 +20,7 @@ import {
   type PreviewLine,
   type PrintersConfig,
   type ShiftConfig,
+  type DeliveryPlatformSetting,
 } from "../../services/config"
 
 // ============================================================================
@@ -33,12 +36,13 @@ import {
 // fases siguientes.
 // ============================================================================
 
-type Section = "impresoras" | "comprobantes" | "turnos"
+type Section = "impresoras" | "comprobantes" | "turnos" | "deliverys"
 
 const SECTIONS: { id: Section; label: string; hint: string; icon: typeof Printer }[] = [
   { id: "impresoras", label: "Impresoras", hint: "Qué imprime cada una", icon: Printer },
   { id: "comprobantes", label: "Comprobantes", hint: "Cómo factura la sede", icon: Receipt },
   { id: "turnos", label: "Turnos", hint: "Un turno, una caja", icon: Clock },
+  { id: "deliverys", label: "Deliverys", hint: "PedidosYa, Rappi y otras", icon: Bike },
 ]
 
 const STATUS_LABEL: Record<string, string> = { ok: "Imprimiendo bien", error: "Con error", offline: "Sin conexión", unknown: "Sin datos todavía" }
@@ -106,6 +110,10 @@ export function ConfigDashboard({ role }: { role?: string }) {
   const [shifts, setShifts] = useState<ShiftConfig[] | null>(null)
   const [shiftsDirty, setShiftsDirty] = useState(false)
 
+  // Deliverys externos (Fase 5).
+  const [platforms, setPlatforms] = useState<DeliveryPlatformSetting[] | null>(null)
+  const [platformsDirty, setPlatformsDirty] = useState(false)
+
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
     setTimeout(() => setNotice(null), 4000)
@@ -129,6 +137,16 @@ export function ConfigDashboard({ role }: { role?: string }) {
     }
   }, [tenantId, flash])
 
+  const loadPlatforms = useCallback(async () => {
+    if (!tenantId) return
+    try {
+      setPlatforms(await getDeliveryPlatforms(tenantId))
+      setPlatformsDirty(false)
+    } catch (err) {
+      flash("error", errorText(err, "No se pudieron cargar los deliverys"))
+    }
+  }, [tenantId, flash])
+
   const loadShifts = useCallback(async () => {
     if (!tenantId) return
     try {
@@ -140,9 +158,30 @@ export function ConfigDashboard({ role }: { role?: string }) {
   }, [tenantId, flash])
 
   useEffect(() => {
-    const id = setTimeout(() => { void (section === "impresoras" ? loadPrinters() : section === "comprobantes" ? loadFiscal() : loadShifts()) }, 0)
+    const id = setTimeout(() => {
+      void (section === "impresoras" ? loadPrinters() : section === "comprobantes" ? loadFiscal() : section === "turnos" ? loadShifts() : loadPlatforms())
+    }, 0)
     return () => clearTimeout(id)
-  }, [section, loadPrinters, loadFiscal, loadShifts])
+  }, [section, loadPrinters, loadFiscal, loadShifts, loadPlatforms])
+
+  const editPlatform = (id: string, patch: Partial<DeliveryPlatformSetting>) => {
+    setPlatforms((list) => (list ? list.map((x) => (x.id === id ? { ...x, ...patch } : x)) : list))
+    setPlatformsDirty(true)
+  }
+
+  const savePlatforms = useCallback(async () => {
+    if (!tenantId || !platforms) return
+    setBusy(true)
+    try {
+      setPlatforms(await saveDeliveryPlatforms(tenantId, platforms))
+      setPlatformsDirty(false)
+      flash("success", "Deliverys guardados")
+    } catch (err) {
+      flash("error", errorText(err, "No se pudieron guardar los deliverys"))
+    } finally {
+      setBusy(false)
+    }
+  }, [tenantId, platforms, flash])
 
   const editShift = (i: number, patch: Partial<ShiftConfig>) => {
     setShifts((list) => (list ? list.map((x, j) => (j === i ? { ...x, ...patch } : x)) : list))
@@ -340,6 +379,23 @@ export function ConfigDashboard({ role }: { role?: string }) {
       })
       return
     }
+    if (section === "deliverys") {
+      setContextPanel({
+        title: "Deliverys externos",
+        subtitle: platforms ? `${platforms.filter((x) => x.enabled).length} activas` : undefined,
+        body: (
+          <p className="cash-help">
+            La comisión se descuenta de lo vendido en cada plataforma y se ve en Ventas como neto. Si cobra la plataforma, la venta no entra a la caja
+            (se concilia con la liquidación); si cobra el local al entregar, entra a la caja del turno.
+          </p>
+        ),
+      })
+      setActionBar({
+        left: platformsDirty ? <button className="btn btn-ghost" disabled={busy} onClick={() => { void loadPlatforms() }}>Descartar</button> : undefined,
+        right: <button className="btn btn-primary" disabled={busy || !platformsDirty} onClick={() => { void savePlatforms() }}>Guardar</button>,
+      })
+      return
+    }
     if (section === "turnos") {
       setContextPanel({
         title: "Turnos",
@@ -369,7 +425,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
       ),
     })
     setActionBar(null)
-  }, [section, draft, editing, config, busy, shifts, shiftsDirty, isAdmin, setContextPanel, setActionBar, savePrinter, toggleActive, saveShifts, loadShifts])
+  }, [section, draft, editing, config, busy, shifts, shiftsDirty, platforms, platformsDirty, isAdmin, setContextPanel, setActionBar, savePrinter, toggleActive, saveShifts, loadShifts, savePlatforms, loadPlatforms])
 
   const docsInUse = useMemo(() => new Set((config?.printers ?? []).filter((p) => p.isActive).flatMap((p) => p.documents)), [config])
   const missing = (["comanda", "precuenta", "factura", "reporte_caja"] as PrinterDocument[]).filter((d) => config && !docsInUse.has(d))
@@ -387,7 +443,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
               </button>
             )
           })}
-          <p className="config-nav-soon">Deliverys externos y dispositivos: próximamente.</p>
+          <p className="config-nav-soon">Dispositivos y emparejamiento: próximamente.</p>
         </nav>
 
         <div className="config-body">
@@ -443,6 +499,36 @@ export function ConfigDashboard({ role }: { role?: string }) {
                   )) ?? <div className="ticket-line">Cargando…</div>}
                 </div>
               </div>
+            </div>
+          )}
+
+          {section === "deliverys" && (
+            <div className="config-fiscal">
+              <div className="config-section-head">
+                <div>
+                  <h2>Deliverys externos</h2>
+                  <p>Comisión y quién cobra, por plataforma</p>
+                </div>
+              </div>
+              <fieldset className="config-modes" disabled={busy}>
+                {platforms?.map((pf) => (
+                  <div key={pf.id} className={`config-platform${pf.enabled ? " active" : ""}`}>
+                    <label className="config-check">
+                      <input type="checkbox" checked={pf.enabled} onChange={(e) => editPlatform(pf.id, { enabled: e.target.checked })} />
+                      <span><b>{pf.label}</b></span>
+                    </label>
+                    <label className="config-field config-field--short">
+                      <span>Comisión %</span>
+                      <input id={`pf-commission-${pf.id}`} className="search-input" type="number" min={0} max={60} step={0.01} inputMode="decimal" value={pf.commissionPercent} disabled={!pf.enabled} onChange={(e) => editPlatform(pf.id, { commissionPercent: Number(e.target.value) || 0 })} />
+                    </label>
+                    <div className="sales-chips" role="group" aria-label={`Quién cobra en ${pf.label}`}>
+                      {([["platform", "Cobra la plataforma"], ["local", "Cobra el local"]] as const).map(([v, label]) => (
+                        <button key={v} type="button" disabled={!pf.enabled} className={`sales-chip${pf.settlement === v ? " active" : ""}`} aria-pressed={pf.settlement === v} onClick={() => editPlatform(pf.id, { settlement: v })}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </fieldset>
             </div>
           )}
 
