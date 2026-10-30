@@ -3878,3 +3878,70 @@ body.is-resizing-panel .ros-app { transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .ft--atencion .ft-shape, .ft--atencion .ft-bell { animation: none; }
 }
+
+/* ========================================================================
+   NAVEGACIÓN EN CELULAR Y TABLET — atajos + «Más» (obs. UX 30/10/2026)
+   Celular: barra inferior con 5 atajos + «Más». Tablet: columna con 6 + «Más».
+   «Más» abre un menú lateral desde la izquierda con todos los contextos.
+   ======================================================================== */
+.nav-drawer-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(6, 30, 32, .45);
+  animation: nav-drawer-fade var(--transition-normal);
+}
+.nav-drawer {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: min(300px, 86vw);
+  display: flex; flex-direction: column;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  background: var(--frame-bg); color: var(--frame-text);
+  box-shadow: 12px 0 40px rgba(0, 0, 0, .28);
+  animation: nav-drawer-in var(--transition-slow);
+  overflow-y: auto;
+}
+.nav-drawer-head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-height: 64px; padding: 0 var(--sp-2) 0 var(--sp-4); margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--frame-border);
+}
+.nav-drawer-head .nav-brand-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.2; }
+.nav-drawer-head .nav-brand-tenant { font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-drawer-head .nav-brand-location { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--frame-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-drawer-close {
+  width: 44px; height: 44px; flex-shrink: 0; display: grid; place-items: center;
+  border: 0; border-radius: 12px; background: transparent; color: var(--frame-text); cursor: pointer;
+}
+.nav-drawer-close:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+.nav-drawer .nav-label { padding: 0 var(--sp-4); margin: var(--sp-1) 0 var(--sp-2); color: var(--frame-text-muted); }
+.nav-drawer-list { list-style: none; margin: 0; padding: 0 var(--sp-2); display: flex; flex-direction: column; gap: 2px; }
+.nav-drawer-foot { margin-top: auto; padding: var(--sp-3) var(--sp-2); border-top: 1px solid var(--frame-border); }
+.nav-drawer .nav-drawer-item {
+  width: 100%; min-height: 52px; margin: 0; padding: 0 var(--sp-3);
+  display: flex; flex-direction: row; align-items: center; gap: var(--sp-3);
+  border-radius: 12px; font-size: var(--font-size-base); text-align: left;
+  color: var(--frame-text);
+}
+.nav-drawer .nav-drawer-item .nav-item-svg { color: currentColor; }
+.nav-drawer .nav-drawer-item:hover { background: rgba(255, 255, 255, .08); color: #fff; }
+.nav-drawer .nav-drawer-item.active {
+  background: rgba(255, 255, 255, .14); color: #fff; font-weight: var(--font-weight-semibold);
+  box-shadow: inset 4px 0 0 var(--brand-orange);
+}
+.nav-drawer .nav-item-label { display: inline; flex: 1; }
+.nav-drawer .nav-item-badge { position: static; margin-left: auto; background: var(--brand-orange); color: #fff; }
+@keyframes nav-drawer-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes nav-drawer-in { from { transform: translateX(-100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .nav-drawer-overlay, .nav-drawer { animation: none; } }
+
+/* Tablet: columna de atajos; «Más» separado con una línea. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .navigation--has-more .nav-more { margin-top: var(--sp-1); }
+  .navigation--has-more .nav-list li:has(.nav-more) { border-top: 1px solid var(--frame-border); padding-top: var(--sp-1); margin-top: var(--sp-1); }
+}
+
+/* Celular: barra inferior de 6 botones parejos, etiquetas que no se cortan feo. */
+@media (max-width: 768px) {
+  .navigation .nav-item-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+  .navigation .nav-item.active { box-shadow: inset 0 3px 0 var(--brand-orange); }
+  .navigation--has-more .nav-more .nav-item-badge { right: calc(50% - 22px); }
+}
