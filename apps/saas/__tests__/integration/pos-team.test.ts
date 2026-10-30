@@ -56,12 +56,15 @@ afterAll(() => { delete process.env.POS_PIN_PEPPER })
 
 beforeEach(async () => {
   ;(auth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+  // El índice único de phone (sparse) del modelo, como en producción: dos
+  // usuarios con phone: null chocarían; las altas del POS no guardan phone.
+  await User.collection.createIndex({ phone: 1 }, { unique: true, sparse: true }).catch(() => undefined)
   const tenant = await Tenant.create({ name: 'Café Demo', slug: SLUG, plan: 'buy', features: { posEnabled: true } })
   tenantId = tenant._id.toString()
   const loc = await Location.create({ tenantId, name: 'Centro', slug: 'centro', address: 'Av. Demo 1', isActive: true })
   locationId = loc._id.toString()
-  adminId = (await User.create({ name: 'Ana Admin', email: 'ana@cafedemo.test', role: 'admin', tenantId, isActive: true }))._id.toString()
-  managerId = (await User.create({ name: 'Mario Encargado', email: 'mario@cafedemo.test', role: 'manager', tenantId, isActive: true, assignedLocations: [loc._id] }))._id.toString()
+  adminId = (await User.create({ name: 'Ana Admin', email: 'ana@cafedemo.test', phone: '+5491100000001', role: 'admin', tenantId, isActive: true }))._id.toString()
+  managerId = (await User.create({ name: 'Mario Encargado', email: 'mario@cafedemo.test', phone: '+5491100000002', role: 'manager', tenantId, isActive: true, assignedLocations: [loc._id] }))._id.toString()
 })
 
 describe('Equipo', () => {
@@ -103,6 +106,15 @@ describe('Equipo', () => {
     const { team } = await (await teamGet(req(`${BASE}/team`, MANAGER()), P)).json()
     expect(team.map((m: { name: string }) => m.name).sort()).toEqual(['Ana Admin', 'Mario Encargado'])
     expect(JSON.stringify(team)).not.toContain('@')
+  })
+
+  it('se pueden dar de alta varias personas sin teléfono (índice único de phone)', async () => {
+    for (const name of ['Mozo Uno', 'Mozo Dos', 'Mozo Tres']) {
+      const res = await teamPost(req(`${BASE}/team`, MANAGER(), { name, role: 'waiter' }), P)
+      expect(res.status, name).toBe(201)
+    }
+    const stored = await User.find({ tenantId, role: 'waiter' }).lean<{ phone?: string | null }[]>()
+    expect(stored.every((u) => u.phone === undefined)).toBe(true)
   })
 
   it('el cajero no entra a Equipo', async () => {

@@ -29,7 +29,7 @@ export const POST = posRoute('config.manage', async (ctx) => {
   const role = body.role as CreatableRole
   if (!canManage(ctx.user.role, role)) throw PosError.forbidden('Tu rol no puede dar de alta ese puesto')
 
-  const created = await User.create({
+  const created = new User({
     name,
     email: technicalEmail(ctx.tenantSlug),
     role,
@@ -37,6 +37,10 @@ export const POST = posRoute('config.manage', async (ctx) => {
     assignedLocations: [new mongoose.Types.ObjectId(ctx.locationId)],
     isActive: true,
   })
+  // Sin teléfono: el campo NO se guarda (el modelo pone `phone: null` por
+  // defecto y el índice único sparse de phone no admite dos null).
+  created.set('phone', undefined)
+  await created.save()
 
   const issued = await issuePosPin(ctx.tenantId, created._id)
   if (!issued.ok) {
