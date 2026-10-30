@@ -38,11 +38,9 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
 
-    // ── DIAGNÓSTICO TEMPORAL: verificar DB en momento de request ───────────
+    // (30/10) Se quitó un log de diagnóstico que imprimía el comienzo de
+    // MONGODB_URI — usuario y contraseña incluidos — en los logs de Vercel.
     await connectDB()
-    const envUri = (process.env.MONGODB_URI || '').substring(0, 60)
-    console.log(`[HR-DISCOVER] env.MONGODB_URI="${envUri}..." conn.name="${mongoose.connection.name}" host="${mongoose.connection.host}" readyState=${mongoose.connection.readyState} tenant="${tenantSlug}"`)
-    // ── FIN DIAGNÓSTICO ────────────────────────────────────────────────────
 
     const body = await request.json()
     const { menuItemId, locationId, sessionId } = body as {
