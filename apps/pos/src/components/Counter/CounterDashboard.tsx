@@ -194,7 +194,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Obs. 24/10: reservas del día (badge en «Reservaciones», mesa reservada en el salón).
   const { reservations, unseen: unseenReservations, byTable: reservationsByTable, refresh: refreshReservations, clearUnseen } = useReservations(tenantId)
   const [reservationBusyId, setReservationBusyId] = useState<string | null>(null)
-  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder, markNeedsBill, moveTable } = useTables()
+  const { tables, occupyTable, freeTable, reserveTable, occupyTableForLoading, occupyTableWithGuests, setTableGuests, bindTableOrder, markNeedsBill, moveTable, updateTableSetup } = useTables()
   // Fase C: quitar plato enviado (con motivo), cambiar / unir mesas.
   const [voidTarget, setVoidTarget] = useState<{ order: Order; item: OrderItem } | null>(null)
   const [voidBusy, setVoidBusy] = useState(false)
@@ -2029,7 +2029,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                   </div>
                 ) : (
                   <>
-                    <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} />
+                    <SalonHeaderBar view={salonView} onConfigure={scene === "mover" ? undefined : () => setScene("setup")} canEditLayout={scene !== "mover"} />
                     <SalonMap
                       view={salonView}
                       variant="counter"
@@ -2038,6 +2038,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                       onSelectTable={scene === "mover" ? handleMoveTarget : handleSelectTable}
                       reservations={reservationsByTable}
                       showServer={role === "admin" || role === "manager"}
+                      onLayoutChange={scene === "mover" ? undefined : (id, layout) => updateTableSetup(id, { layout })}
                     />
                   </>
                 )}

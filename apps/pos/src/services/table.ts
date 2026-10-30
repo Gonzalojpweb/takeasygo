@@ -88,11 +88,11 @@ export async function openTable(
   })
 }
 
-/** Cambia el sector y/o la capacidad de una mesa (caja/encargado). */
+/** Cambia sector, capacidad y/o lugar en el plano de una mesa (caja/encargado). */
 export async function updateTableSetup(
   tenantId: string,
   tableId: string,
-  changes: { spaceId?: string; capacity?: number }
+  changes: { spaceId?: string; capacity?: number; layout?: Table["layout"] | null }
 ): Promise<void> {
   await patchTable(tenantId, tableId, changes)
 }

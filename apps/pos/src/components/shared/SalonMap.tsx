@@ -1,7 +1,9 @@
 import { useMemo, useState, type ReactNode } from "react"
 import type { Table, TableStatus } from "@takeasygo/types"
-import { LayoutGrid, CircleCheck, Users, BellRing, CalendarClock, Settings } from "lucide-react"
-import { MesaCard, MESA_STATUS_LABEL, type MesaVariant } from "./MesaCard"
+import { LayoutGrid, CircleCheck, Users, BellRing, CalendarClock, Settings, PencilRuler, Check } from "lucide-react"
+import type { TableLayout } from "@takeasygo/business/browser"
+import { MESA_STATUS_LABEL, type MesaVariant } from "./MesaCard"
+import { FloorPlan } from "./FloorPlan"
 import { useNow } from "../../hooks/useNow"
 import type { TableActivity } from "../../hooks/useTableActivity"
 
@@ -43,12 +45,16 @@ export interface SalonView {
   setFilter: (f: Filter) => void
   /** Mesas del sector activo (sin filtrar por estado) — base de los contadores. */
   sectorTables: Table[]
+  /** 30/10: modo «Editar plano» (mover, cambiar forma, girar). */
+  editing: boolean
+  setEditing: (v: boolean) => void
 }
 
 /** Estado del mapa: sector activo + filtro por estado. */
 export function useSalonView(tables: Table[]): SalonView {
   const [picked, setSector] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>("all")
+  const [editing, setEditing] = useState(false)
 
   const sectors = useMemo(() => {
     const seen: string[] = []
@@ -64,7 +70,7 @@ export function useSalonView(tables: Table[]): SalonView {
   const sectorTables = useMemo(() => tables.filter((t) => sectionOf(t) === sector), [tables, sector])
 
   // Memo: la vista dueña lo usa como dependencia al poner la barra en el header.
-  return useMemo(() => ({ sectors, sector, setSector, filter, setFilter, sectorTables }), [sectors, sector, filter, sectorTables])
+  return useMemo(() => ({ sectors, sector, setSector, filter, setFilter, sectorTables, editing, setEditing }), [sectors, sector, filter, sectorTables, editing])
 }
 
 interface SalonHeaderBarProps {
@@ -73,11 +79,13 @@ interface SalonHeaderBarProps {
   onConfigure?: () => void
   /** Acciones extra del contexto (p. ej. «Cocina» del mozo). */
   extra?: ReactNode
+  /** Presente ⇒ botón «Editar plano» (caja, encargado, admin). */
+  canEditLayout?: boolean
 }
 
 /** Encabezado del workspace del salón: sectores + estados + configurar. */
-export function SalonHeaderBar({ view, onConfigure, extra }: SalonHeaderBarProps) {
-  const { sectors, sector, setSector, filter, setFilter, sectorTables } = view
+export function SalonHeaderBar({ view, onConfigure, extra, canEditLayout = false }: SalonHeaderBarProps) {
+  const { sectors, sector, setSector, filter, setFilter, sectorTables, editing, setEditing } = view
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: sectorTables.length }
     for (const t of sectorTables) c[t.status] = (c[t.status] ?? 0) + 1
@@ -121,7 +129,19 @@ export function SalonHeaderBar({ view, onConfigure, extra }: SalonHeaderBarProps
           )
         })}
       </div>
-      {onConfigure && (
+      {canEditLayout && (
+        <button
+          type="button"
+          className={`salon-status-btn salon-edit-btn${editing ? " active" : ""}`}
+          aria-pressed={editing}
+          onClick={() => setEditing(!editing)}
+          title={editing ? "Terminar edición del plano" : "Editar plano: mover mesas, forma y giro"}
+        >
+          {editing ? <Check size={18} aria-hidden /> : <PencilRuler size={18} aria-hidden />}
+          <span className="salon-edit-label">{editing ? "Listo" : "Editar plano"}</span>
+        </button>
+      )}
+      {onConfigure && !editing && (
         <button type="button" className="salon-status-btn" onClick={onConfigure} title="Configurar salón: mesas, capacidad y sectores" aria-label="Configurar salón">
           <Settings size={18} aria-hidden />
         </button>
@@ -141,42 +161,37 @@ interface SalonMapProps {
   reservations?: Map<string, { time: string; name: string; partySize: number }>
   /** 30/10: mostrar quién atiende cada mesa (encargado y admin). */
   showServer?: boolean
+  /** 30/10: guarda posición/forma/giro (solo quien puede editar el plano). */
+  onLayoutChange?: (tableId: string, layout: TableLayout) => Promise<void>
 }
 
-/** Mesas del sector activo, a todo el workspace. */
-export function SalonMap({ view, variant, selectedTableId, activity, onSelectTable, reservations, showServer = false }: SalonMapProps) {
+/** Plano del sector activo, a todo el workspace. */
+export function SalonMap({ view, variant, selectedTableId, activity, onSelectTable, reservations, showServer = false, onLayoutChange }: SalonMapProps) {
   const now = useNow()
-  const { sector, filter, sectorTables } = view
-  const visible = useMemo(
-    () => (filter === "all" ? sectorTables : sectorTables.filter((t) => t.status === filter)).sort((a, b) => a.number - b.number),
-    [sectorTables, filter]
-  )
+  const { sector, filter, sectorTables, editing } = view
 
   return (
     <div className="salon-map">
-      <div className="salon-map-container" key={sector ?? ""} /* al cambiar de sector el scroll vuelve arriba */ aria-label={sector ?? "Salón"} role="region">
-        {visible.length === 0 ? (
+      <div className="salon-map-container salon-floor" aria-label={sector ?? "Salón"} role="region">
+        {sectorTables.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-state-text">
-              {filter === "all" ? "No hay mesas en este sector" : `No hay mesas ${FILTERS.find((f) => f.id === filter)?.label.toLowerCase()}`}
-            </span>
+            <span className="empty-state-text">No hay mesas en este sector</span>
           </div>
         ) : (
-          <div className="sector-grid salon-sector-grid">
-            {visible.map((table) => (
-              <MesaCard
-                key={table.id}
-                table={table}
-                variant={variant}
-                onClick={onSelectTable}
-                isSelected={selectedTableId === table.id}
-                activity={activity.get(table.id)}
-                now={now}
-                reservation={reservations?.get(table.id)}
-                showServer={showServer}
-              />
-            ))}
-          </div>
+          <FloorPlan
+            tables={sectorTables}
+            sectorName={sector ?? "Salón"}
+            filter={filter}
+            variant={variant}
+            selectedTableId={selectedTableId}
+            activity={activity}
+            reservations={reservations}
+            showServer={showServer}
+            now={now}
+            onSelectTable={onSelectTable}
+            editing={editing && Boolean(onLayoutChange)}
+            onLayoutChange={onLayoutChange}
+          />
         )}
       </div>
     </div>

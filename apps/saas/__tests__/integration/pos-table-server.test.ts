@@ -70,6 +70,25 @@ describe('mesa: quién atiende', () => {
   })
 })
 
+describe('mesa: plano del salón', () => {
+  it('caja/encargado guardan posición, forma y giro; el mozo no puede', async () => {
+    const id = await newTable()
+    const denied = await tablePatch(req(BASE + "/tables/" + id, { layout: { x: 100, y: 100, shape: 'round' } }, { id: waiterId, role: 'waiter' }, 'PATCH'), IP(id))
+    expect(denied.status).toBe(403)
+
+    const ok = await tablePatch(req(BASE + "/tables/" + id, { layout: { x: 203, y: 97, shape: 'rect', rotation: 90 } }, { id: waiterId, role: 'manager' }, 'PATCH'), IP(id))
+    expect(ok.status).toBe(200)
+    expect((await ok.json()).table.layout).toEqual({ x: 200, y: 100, shape: 'rect', rotation: 90 })
+
+    const bad = await tablePatch(req(BASE + "/tables/" + id, { layout: { x: 1, y: 1, shape: 'estrella' } }, { id: waiterId, role: 'manager' }, 'PATCH'), IP(id))
+    expect(bad.status).toBe(400)
+
+    const cleared = await tablePatch(req(BASE + "/tables/" + id, { layout: null }, { id: waiterId, role: 'cashier' }, 'PATCH'), IP(id))
+    expect(cleared.status).toBe(200)
+    expect((await cleared.json()).table.layout).toBeUndefined()
+  })
+})
+
 describe('orden: hora de comanda', () => {
   it('crear ya comandada guarda la hora; pendiente no; el POS la recibe como sentToKitchenAt', () => {
     const ctx = { tenantId: tenantId, locationId: locationId, tenantSlug: SLUG }

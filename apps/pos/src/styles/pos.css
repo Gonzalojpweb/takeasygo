@@ -3731,3 +3731,150 @@ body.is-resizing-panel .ros-app { transition: none; }
 .z-block .z-count, .z-block .z-totals { margin-top: var(--sp-4); padding: var(--sp-1) var(--sp-3); border: none; border-radius: 12px; background: var(--surface-secondary); }
 .z-block .z-count dt, .z-block .z-count dd, .z-block .z-totals dt, .z-block .z-totals dd { font-size: var(--font-size-sm); }
 @media (max-width: 768px) { .z-report { padding: var(--sp-3); } }
+
+/* ========================================================================
+   SALÓN COMO PLANO — obs. UX 30/10/2026 (ref. «Plano de Salón» del dueño)
+   Fondo hundido en relieve, sector como panel con pared blanca, decoración
+   en bajorrelieve, mesas como fichas de color con su forma real.
+   ======================================================================== */
+.salon-map { --floor-plan: #DCE1D6; --floor-floor: #F2F5ED; --floor-zone: #E7EBE0; --floor-wall: #FFFFFF;
+  --floor-deco: #C6CEBE; --floor-hi: rgba(255, 255, 255, .95); --floor-lo: rgba(60, 78, 55, .24); --floor-tshadow: rgba(28, 42, 28, .30);
+  --floor-muted: #5A6558; --floor-line: #CBD3C4;
+  --ft-free: #4E8A3A; --ft-busy: #C9671F; --ft-resv: #3F73BC; --ft-call: #C23B31; --ft-closed: #7C8579; }
+
+.salon-map-container.salon-floor {
+  display: flex; padding: 0; overflow: hidden; gap: 0;
+  background: var(--floor-plan); background-image: none;
+  border: none; border-radius: 24px;
+  box-shadow: inset 3px 3px 10px var(--floor-lo), inset -2px -2px 8px var(--floor-hi);
+}
+.salon-floor > .empty-state { margin: auto; }
+
+.floor-vp { position: relative; flex: 1; min-width: 0; min-height: 320px; overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.floor-vp.is-panning { cursor: grabbing; }
+.floor-world {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; border-radius: 26px;
+  background: var(--floor-floor);
+  box-shadow: 0 0 0 7px var(--floor-wall), 0 22px 50px var(--floor-lo);
+}
+.floor-vp.is-editing .floor-world {
+  background-image: radial-gradient(circle, var(--floor-line) 1.3px, transparent 1.8px);
+  background-size: 20px 20px;
+}
+.floor-zone {
+  position: absolute; left: 18px; top: 18px; right: 18px; bottom: 18px; border-radius: 20px;
+  background: var(--floor-zone);
+  box-shadow: inset 3px 3px 7px var(--floor-lo), inset -3px -3px 7px var(--floor-hi);
+}
+.floor-vp.is-editing .floor-zone { background: transparent; }
+.floor-zone-label {
+  position: absolute; left: 0; right: 0; top: 12px; text-align: center;
+  font-size: 14px; font-weight: 600; letter-spacing: .22em; text-transform: uppercase; color: var(--floor-muted); opacity: .85;
+}
+.floor-decor {
+  position: absolute; left: 0; top: 0; pointer-events: none; color: var(--floor-deco);
+  filter: drop-shadow(1.5px 1.5px 0 var(--floor-hi)) drop-shadow(-1.5px -1.5px 0 var(--floor-lo));
+}
+
+/* — Mesa (ficha) — */
+.ft { position: absolute; padding: 0; border: 0; background: none; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: opacity .2s; --c: var(--ft-free); }
+.ft--ocupada { --c: var(--ft-busy); }
+.ft--reservada { --c: var(--ft-resv); }
+.ft--atencion { --c: var(--ft-call); }
+.ft--cerrada { --c: var(--ft-closed); }
+.ft.is-editing { cursor: move; }
+.ft-shape { position: absolute; inset: 0; filter: drop-shadow(0 7px 7px var(--floor-tshadow)); transition: filter .15s, transform .15s; }
+.ft:hover .ft-shape { transform: translateY(-2px); }
+.ft-face {
+  display: block; width: 100%; height: 100%; background-color: var(--c); transition: background-color .35s;
+  background-image: linear-gradient(155deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 3px 3px rgba(255, 255, 255, .28), inset 0 -5px 9px rgba(0, 0, 0, .16);
+}
+.ft-shape--round .ft-face { border-radius: 50%; }
+.ft-shape--square .ft-face, .ft-shape--rect .ft-face { border-radius: 26px; }
+.ft-shape--clover .ft-face {
+  border-radius: 0;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='%23000'><circle cx='31' cy='31' r='29'/><circle cx='69' cy='31' r='29'/><circle cx='31' cy='69' r='29'/><circle cx='69' cy='69' r='29'/><rect x='20' y='20' width='60' height='60'/></g></svg>") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='%23000'><circle cx='31' cy='31' r='29'/><circle cx='69' cy='31' r='29'/><circle cx='31' cy='69' r='29'/><circle cx='69' cy='69' r='29'/><rect x='20' y='20' width='60' height='60'/></g></svg>") center / 100% 100% no-repeat;
+}
+.ft-txt {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  color: #fff; pointer-events: none; text-shadow: 0 1px 2px rgba(0, 0, 0, .28);
+}
+.ft-num { font-size: var(--ft-num, 26px); font-weight: 700; line-height: 1; letter-spacing: -.01em; margin-bottom: 1px; }
+.ft-line { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ft-line svg { flex: none; }
+.ft-amount { font-size: 12px; opacity: .95; }
+.ft-times { gap: 6px; font-size: 11px; }
+.ft-times > span { display: inline-flex; align-items: center; gap: 2px; }
+.ft-time { border-radius: 6px; padding: 0 3px; }
+.ft-time.warn { background: #FFD45C; color: #1B1B1F; text-shadow: none; }
+.ft-time.late { background: #fff; color: var(--ft-call); text-shadow: none; }
+.ft.is-selected .ft-shape {
+  filter: drop-shadow(0 0 1.5px #1B231E) drop-shadow(0 0 1.5px #1B231E) drop-shadow(0 0 1.5px #1B231E) drop-shadow(0 7px 7px var(--floor-tshadow));
+}
+.ft.is-dimmed { opacity: .22; }
+.ft:focus-visible { outline: 3px solid var(--brand-orange); outline-offset: 4px; border-radius: 12px; }
+.ft-badge {
+  position: absolute; top: -6px; right: -6px; width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; background: #fff; color: var(--ft-call); box-shadow: 0 2px 6px rgba(0, 0, 0, .2);
+}
+.ft-server {
+  position: absolute; left: 50%; top: calc(100% + 4px); transform: translateX(-50%);
+  max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 1px 8px; border-radius: 999px; background: rgba(255, 255, 255, .9); color: #1B231E;
+  font-size: 11px; font-weight: 600; box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+}
+.ft--atencion .ft-shape { animation: ft-pulse 1.9s ease-in-out infinite; }
+.ft--atencion .ft-bell { animation: ft-ring 1.9s ease-in-out infinite; transform-origin: 50% 10%; }
+@keyframes ft-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+@keyframes ft-ring { 0%, 60%, 100% { transform: rotate(0); } 68% { transform: rotate(14deg); } 76% { transform: rotate(-12deg); } 84% { transform: rotate(8deg); } 92% { transform: rotate(-4deg); } }
+
+/* — Controles del plano — */
+.floor-ctl {
+  position: absolute; left: 14px; bottom: 14px; display: flex; align-items: center; gap: 4px; padding: 6px;
+  border-radius: 16px; background: var(--surface); box-shadow: 0 1px 0 var(--floor-hi) inset, 0 10px 30px rgba(40, 55, 40, .14);
+}
+.floor-ctl button { width: 44px; height: 44px; border-radius: 11px; border: 0; background: transparent; color: var(--text-primary); cursor: pointer; display: grid; place-items: center; }
+.floor-ctl button:hover { background: var(--floor-zone); }
+.floor-ctl output { min-width: 48px; text-align: center; font-size: 13px; color: var(--floor-muted); font-variant-numeric: tabular-nums; }
+.floor-hint { position: absolute; left: 14px; top: 14px; right: 14px; display: flex; pointer-events: none; }
+.floor-hint span { background: var(--surface); border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--floor-muted); box-shadow: 0 10px 30px rgba(40, 55, 40, .12); }
+.floor-edit {
+  position: absolute; right: 14px; bottom: 14px; max-width: calc(100% - 28px);
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 8px 10px;
+  border-radius: 16px; background: var(--surface); box-shadow: 0 10px 30px rgba(40, 55, 40, .18);
+}
+.floor-edit-title { padding: 0 6px; font-size: var(--font-size-base); }
+.floor-edit-shapes { display: flex; flex-wrap: wrap; gap: 6px; }
+.floor-edit-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px;
+  border-radius: 12px; border: 1.5px solid var(--border); background: var(--surface);
+  font: inherit; font-size: var(--font-size-sm); font-weight: 600; color: var(--text-primary); cursor: pointer;
+}
+.floor-edit-btn:hover { border-color: var(--primary-action); }
+.floor-edit-btn.active { border-color: var(--primary-action); background: var(--primary-action-light); color: var(--primary-action); }
+.floor-edit-close { width: 44px; height: 44px; border-radius: 12px; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; display: grid; place-items: center; }
+.floor-shape-icon { width: 16px; height: 16px; background: currentColor; opacity: .75; border-radius: 4px; }
+.floor-shape-icon--round { border-radius: 50%; }
+.floor-shape-icon--rect { width: 22px; height: 14px; }
+.floor-shape-icon--clover { border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%; box-shadow: 4px 0 0 -2px currentColor, -4px 0 0 -2px currentColor; }
+.floor-toast {
+  position: absolute; left: 50%; top: 14px; transform: translateX(-50%); max-width: calc(100% - 40px);
+  padding: 10px 16px; border-radius: 12px; background: #1B231E; color: #fff; font-size: 14px; font-weight: 600; text-align: center;
+}
+
+/* Botón «Editar plano» en la barra del salón */
+.salon-edit-btn { width: auto; gap: 6px; padding: 0 12px; }
+.salon-edit-label { font-size: var(--font-size-sm); font-weight: 600; white-space: nowrap; }
+.salon-edit-btn.active { background: var(--brand-orange); color: #fff; }
+
+@media (max-width: 768px) {
+  .salon-map-container.salon-floor { border-radius: 16px; }
+  .floor-ctl { left: 10px; bottom: 10px; }
+  .floor-edit { left: 10px; right: 10px; bottom: 70px; }
+  .salon-edit-label { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ft--atencion .ft-shape, .ft--atencion .ft-bell { animation: none; }
+}

@@ -103,6 +103,7 @@ export function toPosTable(doc: {
   guests?: number | null
   spaceId?: mongoose.Types.ObjectId | string | null
   reservationId?: mongoose.Types.ObjectId | string | null
+  layout?: { x: number; y: number; shape: string; rotation?: number } | null
   createdAt: Date
   updatedAt: Date
 }): PosTable {
@@ -119,6 +120,16 @@ export function toPosTable(doc: {
     ...(doc.currentOrderId ? { currentOrderId: doc.currentOrderId } : {}),
     ...(doc.serverId ? { serverId: doc.serverId } : {}),
     ...(doc.serverName ? { serverName: doc.serverName } : {}),
+    ...(doc.layout
+      ? {
+          layout: {
+            x: doc.layout.x,
+            y: doc.layout.y,
+            shape: doc.layout.shape as NonNullable<PosTable['layout']>['shape'],
+            rotation: doc.layout.rotation === 90 ? 90 : 0,
+          },
+        }
+      : {}),
     ...(doc.section ? { section: doc.section } : {}),
     needsBill: doc.needsBill ?? false,
     ...(doc.guests ? { guests: doc.guests } : {}),

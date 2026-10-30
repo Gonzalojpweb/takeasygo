@@ -168,3 +168,21 @@ export {
   allocatePayments,
   pathToDelivered,
 } from "./checkout"
+
+export {
+  FLOOR_WIDTH,
+  FLOOR_HEIGHT,
+  FLOOR_GRID,
+  TABLE_SHAPES,
+  TABLE_SHAPE_LABELS,
+  tableSize,
+  defaultShapeFor,
+  snapToGrid,
+  clampLayout,
+  validateTableLayout,
+  autoLayout,
+  type TableShape,
+  type TableRotation,
+  type TableLayout,
+  type PlacedTable,
+} from "./floor-plan"

@@ -8,6 +8,7 @@ import {
 } from '@takeasygo/business'
 import type { TableStatus } from '@takeasygo/types'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
+import { validateTableLayout } from '@takeasygo/business'
 import { PosError } from '@/lib/pos-online/errors'
 import { requireManagerApproval } from '@/lib/pos-online/approval'
 import mongoose from 'mongoose'
@@ -114,6 +115,18 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     update.spaceId = new mongoose.Types.ObjectId(sector.id)
     update.section = sector.name
     audit.spaceId = sector.id
+  }
+  // ── plano del salón (30/10): posición, forma y giro — caja/encargado ──
+  if (body.layout !== undefined) {
+    assertPosCapability(ctx.user.role, 'tables.manage')
+    if (body.layout === null) {
+      update.layout = null
+    } else {
+      const checked = validateTableLayout(body.layout)
+      if (!checked.ok) throw PosError.validation(checked.error)
+      update.layout = checked.layout
+    }
+    audit.layout = update.layout
   }
   if (body.capacity !== undefined) {
     assertPosCapability(ctx.user.role, 'tables.manage')

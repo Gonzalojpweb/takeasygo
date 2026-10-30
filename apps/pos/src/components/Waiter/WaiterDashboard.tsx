@@ -84,7 +84,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
   // El mozo ve la mesa «reservada» pero no el detalle: las reservas son de
   // admin, encargado y caja (business/surfaces).
   const { byTable: reservationsByTable } = useReservations(tenantId, canSeeSharedSurfaces(role))
-  const { tables, markNeedsBill, markNeedsAttention, occupyTable, occupyTableWithGuests, setTableGuests, bindTableOrder } = useTables()
+  const { tables, markNeedsBill, markNeedsAttention, occupyTable, occupyTableWithGuests, setTableGuests, bindTableOrder, updateTableSetup } = useTables()
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
@@ -408,6 +408,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
             {tables.length > 0 && (
               <SalonHeaderBar
                 view={salonView}
+                canEditLayout={role === "admin" || role === "manager"}
                 extra={
                   <button type="button" className="salon-status-btn salon-kitchen-btn" onClick={() => setScene("cocina")} title="Estado de cocina" aria-label={readyCount > 0 ? `Cocina, ${readyCount} listos` : "Cocina"}>
                     <ChefHat size={18} aria-hidden />
@@ -424,6 +425,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
               onSelectTable={handleSelectTable}
               reservations={reservationsByTable}
               showServer={role === "admin" || role === "manager"}
+              onLayoutChange={role === "admin" || role === "manager" ? (id, layout) => updateTableSetup(id, { layout }) : undefined}
             />
           </div>
         </>

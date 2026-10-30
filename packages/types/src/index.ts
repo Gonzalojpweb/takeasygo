@@ -273,6 +273,16 @@ export interface Table {
   spaceId?: string
   /** Reserva asignada mientras la mesa está reservada. */
   reservationId?: string
+  /**
+   * Plano del salón (30/10): posición en su sector, forma y giro. Sin layout,
+   * el POS la acomoda solo (autoLayout de @takeasygo/business).
+   */
+  layout?: {
+    x: number
+    y: number
+    shape: "round" | "square" | "rect" | "clover"
+    rotation: 0 | 90
+  }
 }
 
 export type TableStatus = "free" | "occupied" | "reserved" | "closed" | "needs_attention"

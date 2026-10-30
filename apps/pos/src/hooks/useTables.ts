@@ -1,5 +1,6 @@
 import { useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
+import type { Table } from "@takeasygo/types"
 import { db } from "../db/dexie"
 import { useAuth } from "./useAuth"
 import {
@@ -37,7 +38,7 @@ export function useTables() {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
         return openTable(tenantId, number, capacity, section, spaceId)
       },
-      updateTableSetup: (tableId: string, changes: { spaceId?: string; capacity?: number }) => {
+      updateTableSetup: (tableId: string, changes: { spaceId?: string; capacity?: number; layout?: Table["layout"] | null }) => {
         if (!tenantId) throw new Error("[useTables] Not authenticated")
         return updateTableSetup(tenantId, tableId, changes)
       },

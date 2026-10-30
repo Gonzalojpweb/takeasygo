@@ -1,4 +1,5 @@
 import type { Table } from "@takeasygo/types"
+import type { TableLayout } from "@takeasygo/business/browser"
 import { SalonMap, type SalonView } from "../shared/SalonMap"
 import type { TableActivity } from "../../hooks/useTableActivity"
 
@@ -14,9 +15,10 @@ interface WaiterSectorGridProps {
   /** Obs. 24/10: reserva por mesa reservada (hora, nombre, comensales). */
   reservations?: Map<string, { time: string; name: string; partySize: number }>
   showServer?: boolean
+  onLayoutChange?: (tableId: string, layout: TableLayout) => Promise<void>
 }
 
-export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSelectTable, reservations, showServer = false }: WaiterSectorGridProps) {
+export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSelectTable, reservations, showServer = false, onLayoutChange }: WaiterSectorGridProps) {
   if (tables.length === 0) {
     return (
       <div className="empty-state">
@@ -34,6 +36,7 @@ export function WaiterSectorGrid({ view, tables, activity, selectedTableId, onSe
       onSelectTable={onSelectTable}
       reservations={reservations}
       showServer={showServer}
+      onLayoutChange={onLayoutChange}
     />
   )
 }

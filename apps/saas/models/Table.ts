@@ -20,6 +20,11 @@ import type { TableStatus } from '@takeasygo/types'
 //   que es la misma función que usa el POS client-side.
 // ============================================================================
 
+// Copia local de TABLE_SHAPES (@takeasygo/business/floor-plan): el modelo no
+// importa business (rompe el mock de vitest); un test verifica que coincidan.
+export const TABLE_SHAPE_VALUES = ['round', 'square', 'rect', 'clover'] as const
+export type TableShapeValue = (typeof TABLE_SHAPE_VALUES)[number]
+
 export interface ITable extends Document {
   posId: string
   tenantId: mongoose.Types.ObjectId
@@ -50,6 +55,11 @@ export interface ITable extends Document {
   spaceId: mongoose.Types.ObjectId | null
   /** Reserva asignada a la mesa mientras está `reserved` (null = ninguna). */
   reservationId: mongoose.Types.ObjectId | null
+  /**
+   * Plano del salón (30/10): posición en el sector, forma y giro. Opcional:
+   * sin layout el POS acomoda la mesa solo. Lo valida validateTableLayout.
+   */
+  layout: { x: number; y: number; shape: TableShapeValue; rotation: 0 | 90 } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -74,6 +84,18 @@ const TableSchema = new Schema<ITable>(
     guests: { type: Number, default: null, min: 1, max: 99 },
     spaceId: { type: Schema.Types.ObjectId, default: null },
     reservationId: { type: Schema.Types.ObjectId, default: null },
+    layout: {
+      type: new Schema(
+        {
+          x: { type: Number, required: true, min: 0, max: 2000 },
+          y: { type: Number, required: true, min: 0, max: 2000 },
+          shape: { type: String, enum: TABLE_SHAPE_VALUES, required: true },
+          rotation: { type: Number, enum: [0, 90], default: 0 },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   { timestamps: true }
 )
