@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type { Product, MenuCategory } from "@takeasygo/types"
 import { ChevronLeft, Search, SlidersHorizontal, Star, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
@@ -57,6 +57,11 @@ interface ProductSelectorProps {
    * miniatura (la misma de /takeaway). Sin foto ⇒ inicial del plato.
    */
   showImages?: boolean
+  /**
+   * Obs. UX 30/10: la hoja de personalización (ProductConfigSheet) se dibuja
+   * encima de la grilla, dentro del selector: el carrito sigue a la vista.
+   */
+  overlay?: ReactNode
 }
 
 /** Miniatura de la tarjeta: si la foto no carga (sin conexión), la inicial. */
@@ -112,6 +117,7 @@ export function ProductSelector({
   onToggleAvailability,
   back,
   showImages = false,
+  overlay,
 }: ProductSelectorProps) {
   const [pauseMode, setPauseMode] = useState(false)
   const [query, setQuery] = useState("")
@@ -441,6 +447,7 @@ export function ProductSelector({
           <span><kbd className="kbd">Esc</kbd> limpiar</span>
         </div>
       </footer>
+      {overlay}
     </div>
   )
 }

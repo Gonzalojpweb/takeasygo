@@ -19,7 +19,8 @@ import { printPrecuenta } from "../../services/table"
 import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
-import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
+import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
+import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
@@ -43,7 +44,7 @@ import { formatCurrency } from "../../utils/format"
 // checkboxes locales y mostraba "entregado" sin registrar nada.
 // ============================================================================
 
-type Scene = "mesas" | "mesa" | "pedido" | "configurar" | "cocina"
+type Scene = "mesas" | "mesa" | "pedido" | "cocina"
 
 interface CartItem extends OrderItem {
   product: Product
@@ -74,7 +75,9 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [configProduct, setConfigProduct] = useState<Product | null>(null)
+  // Obs. UX 30/10: la hoja de personalización flota sobre la grilla del
+  // pedido; index ≠ null ⇒ edita esa línea del carrito.
+  const [configuring, setConfiguring] = useState<{ product: Product; index: number | null; initial?: ProductConfigDraft } | null>(null)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
@@ -153,8 +156,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
   // ── Carrito ──────────────────────────────────────────────────────────────
   const handleAddProduct = useCallback((product: Product) => {
     if (product.modifiers && product.modifiers.length > 0) {
-      setConfigProduct(product)
-      setScene("configurar")
+      setConfiguring({ product, index: null })
       return
     }
     setCart((prev) => {
@@ -174,7 +176,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
     setCart((prev) =>
       quantity <= 0
         ? prev.filter((_, i) => i !== index)
-        : prev.map((item, i) => (i === index ? { ...item, quantity, total: calculateItemTotal({ ...item, quantity }) } : item))
+        : prev.map((item, i) => (i === index ? { ...item, quantity, total: scaleLineTotal(item, quantity) } : item))
     )
   }, [])
 
@@ -187,11 +189,25 @@ export function WaiterDashboard({ role }: { role?: string }) {
   }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
-    if (!configProduct) return
-    setCart((prev) => [...prev, { ...item, product: configProduct }])
-    setConfigProduct(null)
-    setScene("pedido")
-  }, [configProduct])
+    if (!configuring) return
+    const { product, index } = configuring
+    setConfiguring(null)
+    setCart((prev) => index !== null
+      ? prev.map((line, i) => (i === index ? { ...item, course: line.course, product } : line))
+      : [...prev, { ...item, product }])
+  }, [configuring])
+
+  const handleEditOptions = useCallback((index: number) => {
+    const line = cart[index]
+    if (!line?.product?.modifiers?.length) return
+    setConfiguring({
+      product: line.product,
+      index,
+      initial: { selections: selectionsFromItem(line.product, line), notes: line.notes ?? "", quantity: line.quantity },
+    })
+  }, [cart])
+
+  const isConfigurableLine = useCallback((index: number) => Boolean(cart[index]?.product?.modifiers?.length), [cart])
 
   // ── Operaciones (todas server-first) ─────────────────────────────────────
   const handleSendToKitchen = useCallback(async () => {
@@ -350,6 +366,8 @@ export function WaiterDashboard({ role }: { role?: string }) {
               onUpdateQuantity={handleUpdateQuantity}
               onRemoveItem={handleRemoveItem}
               onEditNote={handleEditNote}
+              onEditOptions={handleEditOptions}
+              isConfigurable={isConfigurableLine}
               total={cartTotal}
             />
           ),
@@ -369,18 +387,14 @@ export function WaiterDashboard({ role }: { role?: string }) {
         })
         break
 
-      case "configurar":
-        // ProductConfigurationPanel maneja su propio panel y Action Bar.
-        break
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.
   useEscapeBack(
     scene === "mesa" || scene === "cocina" ? backToTables
     : scene === "pedido" ? (sending ? null : () => setScene("mesa"))
-    : scene === "configurar" ? () => { setConfigProduct(null); setScene("pedido") }
     : null
   )
 
@@ -441,19 +455,17 @@ export function WaiterDashboard({ role }: { role?: string }) {
             onSelectProduct={handleAddProduct}
             popularIds={popularIds}
             back={{ label: `Mesa ${selectedTable?.number ?? ""}`, onClick: () => setScene("mesa"), disabled: sending }}
+            overlay={configuring && (
+              <ProductConfigSheet
+                key={`${configuring.product.id}-${configuring.index ?? "new"}`}
+                product={configuring.product}
+                initial={configuring.initial}
+                onConfirm={handleConfigConfirm}
+                onCancel={() => setConfiguring(null)}
+              />
+            )}
           />
         </div>
-      )}
-
-      {scene === "configurar" && configProduct && (
-        <ProductConfigurationPanel
-          product={configProduct}
-          onConfirm={handleConfigConfirm}
-          onCancel={() => {
-            setConfigProduct(null)
-            setScene("pedido")
-          }}
-        />
       )}
 
       {scene === "cocina" && (

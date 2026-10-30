@@ -12,7 +12,8 @@ import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
-import { ProductConfigurationPanel } from "../shared/ProductConfigurationPanel"
+import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
+import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
@@ -70,7 +71,7 @@ import {
 import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/mp-point"
 
 type CounterView = "salon" | "mostrador" | "entrantes" | "delivery" | "reservaciones"
-type Scene = "salon" | "mesa" | "mover" | "productos" | "configurar" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "mostrador_entregas" | "entrantes" | "delivery" | "reservaciones"
+type Scene = "salon" | "mesa" | "mover" | "productos" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "mostrador_entregas" | "entrantes" | "delivery" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
 type GatewayScene = "queue" | "validation" | "transform"
 
@@ -133,7 +134,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [customer, setCustomer] = useState<CustomerProfile | null>(null)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  const [configProduct, setConfigProduct] = useState<Product | null>(null)
+  // Obs. UX 30/10: la hoja de personalización flota sobre la grilla (no es
+  // una escena): el carrito sigue a la vista. index ≠ null ⇒ edita esa línea.
+  const [configuring, setConfiguring] = useState<{ product: Product; index: number | null; initial?: ProductConfigDraft; scene: Scene } | null>(null)
   // Cobro: `paying` bloquea el doble click; `pendingOrderIdRef` fija el posId
   // de la orden ANTES del primer intento para que un reintento no la duplique.
   const [paying, setPaying] = useState(false)
@@ -677,8 +680,6 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         return moveBusy ? null : () => setScene("mesa")
       case "productos":
         return view === "salon" ? () => setScene(cart.length > 0 ? "salon" : "mesa") : null
-      case "configurar":
-        return () => { setConfigProduct(null); setScene(view === "mostrador" ? "mostrador_rapido" : "productos") }
       case "revision":
         return () => setScene(view === "mostrador" ? "mostrador_rapido" : "productos")
       case "cobro":
@@ -927,8 +928,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const handleAddProduct = useCallback((product: Product) => {
     const hasModifiers = product.modifiers && product.modifiers.length > 0
     if (hasModifiers) {
-      setConfigProduct(product)
-      setScene("configurar")
+      setConfiguring({ product, index: null, scene })
       return
     }
     const isFirstItem = cart.length === 0
@@ -953,7 +953,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       return [...prev, item]
     })
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
-  }, [cart.length, selectedTableId, maybeOccupyForLoading])
+  }, [cart.length, selectedTableId, maybeOccupyForLoading, scene])
 
   // Fase B: las líneas del carrito se tocan por POSICIÓN (dos líneas del
   // mismo producto con distinta nota u opciones son independientes).
@@ -967,7 +967,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     setCart((prev) =>
       prev.map((item, i) =>
         i === index
-          ? { ...item, quantity, total: calculateItemTotal({ ...item, quantity }) }
+          ? { ...item, quantity, total: scaleLineTotal(item, quantity) }
           : item
       )
     )
@@ -984,15 +984,31 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   }, [])
 
   const handleConfigConfirm = useCallback((item: OrderItem) => {
-    if (!configProduct) return
+    if (!configuring) return
+    const { product, index } = configuring
+    setConfiguring(null)
+    if (index !== null) {
+      // Editar opciones: se reemplaza la línea (conserva el curso).
+      setCart((prev) => prev.map((line, i) => (i === index ? { ...item, course: line.course, product } : line)))
+      return
+    }
     const isFirstItem = cart.length === 0
-    setCart((prev) => [...prev, { ...item, product: configProduct }])
-    setConfigProduct(null)
-    // En Mostrador la grilla de productos es la escena "mostrador_rapido";
-    // volver a "productos" dejaba la pantalla en blanco.
-    setScene(view === "mostrador" ? "mostrador_rapido" : "productos")
+    setCart((prev) => [...prev, { ...item, product }])
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
-  }, [configProduct, cart.length, selectedTableId, maybeOccupyForLoading, view])
+  }, [configuring, cart.length, selectedTableId, maybeOccupyForLoading])
+
+  const handleEditOptions = useCallback((index: number) => {
+    const line = cart[index]
+    if (!line?.product?.modifiers?.length) return
+    setConfiguring({
+      product: line.product,
+      index,
+      initial: { selections: selectionsFromItem(line.product, line), notes: line.notes ?? "", quantity: line.quantity },
+      scene,
+    })
+  }, [cart, scene])
+
+  const isConfigurableLine = useCallback((index: number) => Boolean(cart[index]?.product?.modifiers?.length), [cart])
 
   const showErrorToast = useCallback((message: string) => {
     setToast({ message, type: "error" })
@@ -1504,6 +1520,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onUpdateQuantity={handleUpdateQuantity}
                 onRemoveItem={handleRemoveItem}
                 onEditNote={handleEditNote}
+                onEditOptions={handleEditOptions}
+                isConfigurable={isConfigurableLine}
                 total={cartTotal}
                 primaryAction={{
                   label: cart.length > 0 ? "Revisar pedido" : "Cobrar cuenta",
@@ -1536,11 +1554,6 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
       }
-
-      case "configurar":
-        setContextPanel(null)
-        setActionBar(null)
-        break
 
       case "revision": {
         const isMostrador = view === "mostrador"
@@ -1981,7 +1994,20 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+
+  // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
+  // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
+  const sheet = configuring && configuring.scene === scene ? (
+    <ProductConfigSheet
+      key={`${configuring.product.id}-${configuring.index ?? "new"}`}
+      product={configuring.product}
+      initial={configuring.initial}
+      showImage={showProductImages}
+      onConfirm={handleConfigConfirm}
+      onCancel={() => setConfiguring(null)}
+    />
+  ) : null
 
   // ============================================================================
   // RENDER
@@ -1997,14 +2023,6 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       {view === "salon" && (
         <>
           {scene === "setup" && <SalonSetup onDone={() => setScene("salon")} />}
-
-          {scene === "configurar" && configProduct && (
-            <ProductConfigurationPanel
-              product={configProduct}
-              onConfirm={handleConfigConfirm}
-              onCancel={() => { setConfigProduct(null); setScene("productos") }}
-            />
-          )}
 
           {scene === "mesa" && selectedTable && (
             <TableDetail
@@ -2060,6 +2078,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
+                overlay={sheet}
                 back={{
                   label: cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`,
                   onClick: () => setScene(cart.length > 0 ? "salon" : "mesa"),
@@ -2122,13 +2141,6 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       {/* ================================================ */}
       {view === "mostrador" && (
         <>
-          {scene === "configurar" && configProduct && (
-            <ProductConfigurationPanel
-              product={configProduct}
-              onConfirm={handleConfigConfirm}
-              onCancel={() => { setConfigProduct(null); setScene("mostrador_rapido") }}
-            />
-          )}
 
           {scene === "mostrador_entregas" && (
             <div className="channel-view">
@@ -2173,6 +2185,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onSelectProduct={handleAddProduct}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
+                overlay={sheet}
               />
             </div>
           )}

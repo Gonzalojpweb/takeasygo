@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { ItemCourse, OrderItem } from "@takeasygo/types"
-import { MessageSquare } from "lucide-react"
+import { MessageSquare, SlidersHorizontal } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 
 // ============================================================================
@@ -22,7 +22,7 @@ const COURSES: { id: ItemCourse; label: string }[] = [
   { id: "postre", label: "Postre" },
 ]
 const COURSE_LABEL: Record<ItemCourse, string> = { entrada: "Entrada", principal: "Principal", postre: "Postre" }
-const QUICK_NOTES = ["Sin sal", "Sin cebolla", "Sin TACC", "Bien cocido", "Jugoso", "Sin hielo", "Para compartir", "Sale después"]
+export const QUICK_NOTES = ["Sin sal", "Sin cebolla", "Sin TACC", "Bien cocido", "Jugoso", "Sin hielo", "Para compartir", "Sale después"]
 
 interface OrderPanelProps {
   title: string
@@ -31,6 +31,13 @@ interface OrderPanelProps {
   onRemoveItem?: (index: number) => void
   /** Presente ⇒ cada línea muestra «Nota» (nota + curso). */
   onEditNote?: (index: number, note: string, course: ItemCourse | undefined) => void
+  /**
+   * Obs. UX 30/10: presente ⇒ las líneas con opciones muestran «Opciones» y
+   * se reabren en la hoja de personalización con lo elegido cargado.
+   */
+  onEditOptions?: (index: number) => void
+  /** Qué líneas tienen opciones para editar (por defecto: las que tienen modificadores). */
+  isConfigurable?: (index: number) => boolean
   total: number
   primaryAction?: { label: string; onClick: () => void; disabled?: boolean }
   footerContent?: React.ReactNode
@@ -101,6 +108,8 @@ export function OrderPanel({
   onUpdateQuantity,
   onRemoveItem,
   onEditNote,
+  onEditOptions,
+  isConfigurable,
   total,
   primaryAction,
   footerContent,
@@ -110,20 +119,19 @@ export function OrderPanel({
   // La línea nueva o que sumó cantidad se marca un instante, queda a la vista
   // y el total late. Restar o quitar no se marca.
   const [flash, setFlash] = useState<{ idx: number; n: number } | null>(null)
-  const prevQty = useRef<number[]>(items.map((i) => i.quantity))
+  const [prevItems, setPrevItems] = useState(items)
   const listRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const prev = prevQty.current
-    prevQty.current = items.map((i) => i.quantity)
-    const idx = items.length > prev.length
+  // Se decide en el render (al cambiar items), no en un efecto.
+  if (items !== prevItems) {
+    const idx = items.length > prevItems.length
       ? items.length - 1
-      : items.findIndex((it, i) => i < prev.length && it.quantity > prev[i])
-    if (idx < 0) return
-    setFlash((f) => ({ idx, n: (f?.n ?? 0) + 1 }))
-    listRef.current?.querySelectorAll<HTMLElement>(".order-item-card")[idx]?.scrollIntoView({ block: "nearest" })
-  }, [items])
+      : items.findIndex((it, i) => i < prevItems.length && it.quantity > prevItems[i].quantity)
+    setPrevItems(items)
+    if (idx >= 0) setFlash({ idx, n: (flash?.n ?? 0) + 1 })
+  }
   useEffect(() => {
     if (!flash) return
+    listRef.current?.querySelectorAll<HTMLElement>(".order-item-card")[flash.idx]?.scrollIntoView({ block: "nearest" })
     const id = window.setTimeout(() => setFlash(null), 900)
     return () => window.clearTimeout(id)
   }, [flash])
@@ -177,6 +185,16 @@ export function OrderPanel({
                   )}
                 </div>
                 <div className="order-item-actions">
+                  {onEditOptions && editing !== idx && (isConfigurable ? isConfigurable(idx) : Boolean(item.modifiers?.length)) && (
+                    <button
+                      type="button"
+                      className="order-item-options-btn"
+                      onClick={() => onEditOptions(idx)}
+                      aria-label={`Cambiar las opciones de ${item.name}`}
+                    >
+                      <SlidersHorizontal size={14} aria-hidden /> Opciones
+                    </button>
+                  )}
                   {onEditNote && editing !== idx && (
                     <button
                       type="button"
