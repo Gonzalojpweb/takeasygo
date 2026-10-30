@@ -6,7 +6,7 @@ import Location from '@/models/Location'
 import { posRoute } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { resolvePosRole } from '@/lib/pos-online/permissions'
-import { summarizeCashiers } from '@/lib/cash/cashier-summary'
+import { RECURRENT_SHORT_CLOSES, summarizeCashiers } from '@/lib/cash/cashier-summary'
 import { publicOrigin, tenantSlugOf, zShareUrl } from '@/lib/cash/z-share'
 import { DEFAULT_TIMEZONE, getDayAndMidnightInTimezone, getTodayStrInTimezone } from '@/lib/restaurant-time'
 
@@ -21,8 +21,6 @@ import { DEFAULT_TIMEZONE, getDayAndMidnightInTimezone, getTodayStrInTimezone } 
 // ============================================================================
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-/** Faltantes en el período a partir de los cuales se marca «recurrente». */
-export const RECURRENT_SHORT_CLOSES = 3
 
 function shiftDay(date: string, days: number): string {
   const d = new Date(`${date}T12:00:00Z`)

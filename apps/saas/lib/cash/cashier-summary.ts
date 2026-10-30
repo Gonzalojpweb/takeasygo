@@ -5,6 +5,13 @@
 // por el nombre guardado en `closedBy`. Montos en centavos.
 // ============================================================================
 
+/**
+ * Cierres con faltante en el período a partir de los cuales se alerta
+ * «faltantes recurrentes» (POS › Cierres). Vive acá y no en la ruta: un
+ * route.ts de Next solo puede exportar handlers y su configuración.
+ */
+export const RECURRENT_SHORT_CLOSES = 3
+
 export interface ClosedRegisterRow {
   closedBy?: string | null
   closedByUserId?: string | null
