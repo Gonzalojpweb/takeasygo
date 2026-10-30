@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, SAAS_TO_POS_ROLE } from '@takeasygo/business'
+import { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, SAAS_TO_POS_ROLE, POS_ONLY_ADMIN_PATHS, isPosOnlyAdminPath } from '@takeasygo/business'
 import { canAccess, PRINTER_LIMIT } from '@/lib/plans'
 import { hasPosCapability } from '@/lib/pos-online/permissions'
 
@@ -106,5 +106,20 @@ describe('printerLimitError', () => {
     count.mockResolvedValue(3)
     expect(await printerLimitError({ ...tenant, plan: 'full' }, loc)).toBeNull()
     expect(count.mock.calls[0][0]).toMatchObject({ isActive: true })
+  })
+})
+
+describe('panel web reducido «solo POS» (fase 6)', () => {
+  it('cada sección permitida existe en el sidebar del panel', () => {
+    const src = readFileSync(join(SAAS, 'components', 'admin', 'AdminSidebar.tsx'), 'utf8')
+    for (const path of POS_ONLY_ADMIN_PATHS) {
+      const href = path === '' ? 'href: base,' : '${base}/' + path + '`'
+      expect(src.includes(href), 'sidebar sin ' + (path || 'Dashboard')).toBe(true)
+    }
+  })
+
+  it('deja la oficina y saca venta online, club, marketing y comisiones', () => {
+    for (const ok of ['', 'menu', 'settings', 'factura-electronica', 'users', 'printers', 'caja-pos']) expect(isPosOnlyAdminPath(ok)).toBe(true)
+    for (const no of ['orders', 'orders/history', 'club', 'store', 'promotions', 'marketing-qr', 'commissions', 'crm', 'delivery', 'reservas']) expect(isPosOnlyAdminPath(no)).toBe(false)
   })
 })

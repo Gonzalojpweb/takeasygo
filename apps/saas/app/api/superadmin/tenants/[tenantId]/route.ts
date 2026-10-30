@@ -92,6 +92,10 @@ export async function PUT(
     if (features?.posEnabled !== undefined) {
       updateSet['features.posEnabled'] = !!features.posEnabled
     }
+    // Fase 6: «solo POS» exige POS activo (sin POS no tiene sentido).
+    if (features?.posOnly !== undefined) {
+      updateSet['features.posOnly'] = !!features.posOnly && (features.posEnabled ?? true) !== false
+    }
 
     const tenant = await Tenant.findByIdAndUpdate(
       tenantId,

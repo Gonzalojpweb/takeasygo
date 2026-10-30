@@ -102,3 +102,36 @@ export const SHARED_SURFACES: readonly SharedSurface[] = [
 export function canSeeSharedSurfaces(posRole: string | null | undefined): boolean {
   return (SHARED_SURFACE_ROLES as readonly string[]).includes(posRole ?? "")
 }
+
+// ============================================================================
+// Panel web reducido para comercios «solo POS» (Fase 6, 29/10/2026)
+// ============================================================================
+// Un comercio que opera solo con el POS (sin venta online) usa el panel web
+// únicamente como oficina: carta, sedes y configuración, perfil fiscal,
+// usuarios, impresoras, cajas y reportes. Todo lo de venta online, club y
+// marketing se oculta. Lo activa el superadmin (features.posOnly), igual que
+// el POS. Rutas relativas a /[tenant]/admin ('' = Dashboard).
+// ============================================================================
+
+export const POS_ONLY_ADMIN_PATHS: readonly string[] = [
+  "",
+  "menu",
+  "paused-items",
+  "printers",
+  "caja-pos",
+  "inventario",
+  "factura-electronica",
+  "reports",
+  "audit",
+  "users",
+  "settings",
+  "settings/pos",
+  "billing",
+  "ayuda",
+  "updates",
+]
+
+/** ¿Se muestra esta sección del panel a un comercio solo POS? */
+export function isPosOnlyAdminPath(relativePath: string): boolean {
+  return POS_ONLY_ADMIN_PATHS.includes(relativePath.replace(/^\/+|\/+$/g, ""))
+}

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { isPosOnlyAdminPath } from '@takeasygo/business/browser'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
@@ -66,6 +67,8 @@ interface Props {
   crmEnabled?: boolean
   /** Tenant con POS habilitado: muestra "Cajas POS" (cierres + Z). */
   posEnabled?: boolean
+  /** Fase 6: comercio solo POS — el panel muestra solo la oficina. */
+  posOnly?: boolean
   assignedLocations?: string[]
   locations?: { _id: string; name: string; colorIndex?: number }[]
   rbacSedeScope?: boolean
@@ -129,7 +132,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -142,6 +145,8 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
   // Filtra un item del menú: con flag ON usa permisos (rbac-client),
   // con flag OFF usa el array roles legacy (comportamiento sin-cambio).
   function isItemVisible(item: NavItem, effectiveRole: string): boolean {
+    // Solo POS: fuera todo lo de venta online, club y marketing (business/surfaces).
+    if (posOnly && !isPosOnlyAdminPath(item.href === base ? '' : item.href.replace(`${base}/`, ''))) return false
     if (rbacSedeScope) {
       const suffix = item.href === base ? '' : item.href.replace(`${base}/`, '')
       const requiredPerm = MENU_PERMISSIONS[suffix]

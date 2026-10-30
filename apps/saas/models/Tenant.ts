@@ -148,6 +148,8 @@ export interface ITenant extends Document {
     posLocationGate: boolean
     /** POS bundle activo: cuando es true, los pedidos se envían al Sync Layer para el POS */
     posEnabled: boolean
+    /** Fase 6: comercio que opera solo con el POS (panel web reducido a oficina). */
+    posOnly?: boolean
   }
   /**
    * Feature flags por tenant (clave plana con namespace, ej:
@@ -634,6 +636,7 @@ const TenantSchema = new Schema<ITenant>(
       cashPaymentEnabledBySuperadmin: { type: Boolean, default: false },
       posLocationGate: { type: Boolean, default: false },
       posEnabled: { type: Boolean, default: false },
+      posOnly: { type: Boolean, default: false },
     },
     // Feature flags por tenant (ver lib/feature-flags.ts). Mixed para permitir
     // claves planas con namespace (ej: 'multisede.strictLocationId') sin nesting.

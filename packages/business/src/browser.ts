@@ -12,7 +12,7 @@ export {
   decryptStore,
 } from "./crypto"
 export { SAAS_TO_POS_ROLE, VALID_DEVICE_ROLES, deviceTypeForPosRole } from "./role-mapping"
-export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
+export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, POS_ONLY_ADMIN_PATHS, isPosOnlyAdminPath, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
 export {
   PRINTER_DOCUMENTS,
   PRINTER_DOCUMENT_LABELS,

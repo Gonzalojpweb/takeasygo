@@ -16,7 +16,7 @@ export {
   PRINTER_LIMIT,
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
-export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
+export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, POS_ONLY_ADMIN_PATHS, isPosOnlyAdminPath, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"
 export {
   PRINTER_DOCUMENTS,
   PRINTER_DOCUMENT_LABELS,

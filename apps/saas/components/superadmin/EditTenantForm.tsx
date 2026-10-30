@@ -69,6 +69,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     featuresTgoGrowthPushEnabled: tenant.features?.tgoGrowthPushEnabled ?? false,
     featuresCashPaymentEnabledBySuperadmin: tenant.features?.cashPaymentEnabledBySuperadmin ?? false,
     featuresPosEnabled: tenant.features?.posEnabled ?? false,
+    featuresPosOnly: tenant.features?.posOnly ?? false,
     businessEnabled: tenant.business?.enabled ?? false,
     sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
     // Labels de tipo de promoción
@@ -101,7 +102,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           isActive: form.isActive,
           isOperational: form.isOperational,
           alwaysVisible: form.alwaysVisible,
-          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin, posEnabled: form.featuresPosEnabled },
+          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin, posEnabled: form.featuresPosEnabled, posOnly: form.featuresPosEnabled && form.featuresPosOnly },
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
@@ -516,6 +517,27 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   )} />
                 </button>
               </div>
+
+              {form.featuresPosEnabled && (
+                <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm" title="El panel web muestra solo la oficina: carta, sedes, usuarios, impresoras, cajas, factura electrónica y reportes.">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-2 h-2 rounded-full", form.featuresPosOnly ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Solo POS (panel reducido)</span>
+                  </div>
+                  <button type="button"
+                    aria-pressed={form.featuresPosOnly}
+                    onClick={() => setForm(p => ({ ...p, featuresPosOnly: !p.featuresPosOnly }))}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-all relative flex items-center",
+                      form.featuresPosOnly ? 'bg-primary' : 'bg-muted-foreground/20'
+                    )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                      form.featuresPosOnly ? 'left-[26px]' : 'left-1'
+                    )} />
+                  </button>
+                </div>
+              )}
 
               {form.plan === 'buy' || form.plan === 'full' ? (
                 <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
