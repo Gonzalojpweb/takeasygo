@@ -7,19 +7,21 @@ describe("splitNav", () => {
   it("admin en celular: 5 atajos por prioridad, el resto en «Más»", () => {
     const { shortcuts, overflow } = splitNav(contextsForRole("admin"), MOBILE_SHORTCUTS)
     expect(shortcuts.map((c) => c.id)).toEqual(["counter", "resumen", "waiter", "caja", "ventas"])
-    expect(overflow.map((c) => c.id)).toEqual(["flota", "facturacion", "config", "clientes", "usuario"])
+    expect(overflow.map((c) => c.id)).toEqual(["facturacion", "clientes", "usuario", "config"])
   })
 
   it("admin en tablet: 6 atajos", () => {
     const { shortcuts } = splitNav(contextsForRole("admin"), TABLET_SHORTCUTS)
     expect(shortcuts).toHaveLength(6)
-    expect(shortcuts.map((c) => c.id)).toContain("flota")
+    // Flota oculta (31/10): el 6.º atajo pasa a ser Clientes.
+    expect(shortcuts.map((c) => c.id)).toContain("clientes")
+    expect(shortcuts.map((c) => c.id)).not.toContain("flota")
   })
 
   it("cajero: sin Ventas ni Configuración, los atajos siguen siendo los más usados", () => {
     const { shortcuts, overflow } = splitNav(contextsForRole("cashier"), MOBILE_SHORTCUTS)
-    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "resumen", "waiter", "flota", "caja"])
-    expect(overflow.map((c) => c.id)).toEqual(["facturacion", "clientes", "usuario"])
+    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "resumen", "waiter", "caja", "clientes"])
+    expect(overflow.map((c) => c.id)).toEqual(["facturacion", "usuario"])
   })
 
   it("mozo (2 contextos): no hace falta «Más»", () => {

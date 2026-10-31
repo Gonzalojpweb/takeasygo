@@ -208,6 +208,8 @@ input, select, textarea {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  /* overflow-y:auto vuelve auto también el eje X: nunca scroll horizontal. */
+  overflow-x: hidden;
   width: var(--nav-width);
   transition: width var(--transition-normal);
 }
@@ -229,7 +231,7 @@ input, select, textarea {
   min-height: 44px;
 }
 .nav-toggle:hover { background: var(--surface-secondary); color: var(--text-primary); }
-.navigation.collapsed .nav-toggle { justify-content: center; padding: var(--sp-3) 0; }
+.navigation.collapsed .nav-toggle { justify-content: center; padding: var(--sp-3) 0; margin: 0 var(--sp-1) var(--sp-2); }
 .nav-label { padding: 0 var(--sp-4); margin-bottom: var(--sp-2); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
 .navigation.collapsed .nav-label { display: none; }
 .nav-item {

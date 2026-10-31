@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import { LayoutGrid, Utensils, Bike, Banknote, BarChart3, Gauge, FileText, Settings, UserRound, Contact } from "lucide-react"
+import { LayoutGrid, Utensils, Banknote, BarChart3, Gauge, FileText, Settings, UserRound, Contact } from "lucide-react"
 
 // ============================================================================
 // Contextos operativos del ROS — definición única
@@ -34,6 +34,8 @@ export interface RosContext {
 const ALL_HUB_ROLES = ["admin", "manager", "cashier"] as const
 const KNOWN_ROLES = ["admin", "manager", "cashier", "waiter"] as const
 
+// Orden del sidebar (decisión del dueño 31/10): Counter, Resumen, Salón, Caja,
+// Ventas, Facturación, Clientes, Usuario, Configuración.
 export const ROS_CONTEXTS: readonly RosContext[] = [
   {
     id: "counter",
@@ -61,14 +63,17 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     roles: [...ALL_HUB_ROLES, "waiter"],
     empty: { title: "Sin mesa seleccionada", hint: "Elegí una mesa para tomar el pedido o ver su estado en cocina." },
   },
-  {
-    id: "flota",
-    label: "Flota",
-    title: "Flota",
-    icon: Bike,
-    roles: ALL_HUB_ROLES,
-    empty: { title: "Sin trabajo seleccionado", hint: "Elegí un pedido listo o un repartidor para ver el detalle." },
-  },
+  // Flota oculta por ahora (decisión del dueño 31/10): el contexto y su
+  // widget siguen en el código; para volver a mostrarla, descomentar este
+  // bloque y el ícono Bike en el import de lucide-react.
+  // {
+  //   id: "flota",
+  //   label: "Flota",
+  //   title: "Flota",
+  //   icon: Bike,
+  //   roles: ALL_HUB_ROLES,
+  //   empty: { title: "Sin trabajo seleccionado", hint: "Elegí un pedido listo o un repartidor para ver el detalle." },
+  // },
   {
     id: "caja",
     label: "Caja",
@@ -97,16 +102,6 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     empty: { title: "Sin comprobante seleccionado", hint: "Elegí un comprobante para reintentarlo, reimprimirlo o emitir la nota de crédito." },
   },
   {
-    // Fase 1 (29/10): configuración del POS — impresoras, comprobantes y,
-    // en las fases siguientes, cajas, turnos, deliverys y dispositivos.
-    id: "config",
-    label: "Configuración",
-    title: "Configuración",
-    icon: Settings,
-    roles: ["admin", "manager"],
-    empty: { title: "Configuración", hint: "Elegí una sección y un elemento para editarlo." },
-  },
-  {
     // Fase 4 (29/10): ficha operativa del cliente, club y canjes a entregar.
     id: "clientes",
     label: "Clientes",
@@ -123,6 +118,16 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: UserRound,
     roles: KNOWN_ROLES,
     empty: { title: "Usuario", hint: "Tu perfil y, si sos encargado, el equipo de la sede." },
+  },
+  {
+    // Fase 1 (29/10): configuración del POS — impresoras, comprobantes y,
+    // en las fases siguientes, cajas, turnos, deliverys y dispositivos.
+    id: "config",
+    label: "Configuración",
+    title: "Configuración",
+    icon: Settings,
+    roles: ["admin", "manager"],
+    empty: { title: "Configuración", hint: "Elegí una sección y un elemento para editarlo." },
   },
 ]
 
