@@ -6,6 +6,8 @@ interface ViewDefinition {
   icon: ComponentType<{ size?: number; className?: string }> | string
   /** Trabajo pendiente en la vista (p. ej. reservas nuevas). 0/ausente = sin badge. */
   badge?: number
+  /** Algo urgente en la vista (pedido de la App sin aceptar): la pestaña parpadea. */
+  alert?: boolean
 }
 
 interface WorkspaceViewBarProps {
@@ -24,7 +26,7 @@ export function WorkspaceViewBar({ views, activeView, onChange }: WorkspaceViewB
           <button
             key={view.id}
             type="button"
-            className={`view-tab${activeView === view.id ? " active" : ""}`}
+            className={`view-tab${activeView === view.id ? " active" : ""}${view.alert ? " is-alert" : ""}`}
             aria-current={activeView === view.id ? "page" : undefined}
             aria-label={view.badge ? `${view.label}, ${view.badge} nuevas` : view.label}
             title={view.label}

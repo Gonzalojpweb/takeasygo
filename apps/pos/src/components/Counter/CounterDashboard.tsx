@@ -27,6 +27,7 @@ import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { useCounterConfig } from "../../hooks/useCounterConfig"
 import { WorkspaceViewBar } from "../shared/WorkspaceViewBar"
+import { OPEN_APP_ORDERS_EVENT } from "../layout/AppOrderBanner"
 import { SalonSetup } from "./SalonSetup"
 import { ReservationsView } from "./ReservationsView"
 import { useReservations } from "../../hooks/useReservations"
@@ -313,13 +314,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // esperando respuesta). Mis Pedidos NO suena por el lote inicial ni por
   // las órdenes que creó esta misma terminal (antes: toast + sonido por cada
   // venta propia y por todas las órdenes al abrir la vista).
-  const seenGatewayRef = useRef<Set<string>>(new Set())
-  useEffect(() => {
-    const fresh = gatewayOrders.filter((o) => !seenGatewayRef.current.has(o.id))
-    if (fresh.length === 0) return
-    fresh.forEach((o) => seenGatewayRef.current.add(o.id))
-    playOrderNotification()
-  }, [gatewayOrders])
+  // Pedidos App: el aviso (sonido que insiste, aviso arriba) es global, en
+  // App.tsx (hooks/useAppOrderAlert), para que suene en cualquier pantalla.
 
   const ownOrderIdsRef = useRef<Set<string>>(new Set())
   const seenPosRef = useRef<Set<string> | null>(null)
@@ -667,10 +663,19 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       v.id === "reservaciones" ? { ...v, badge: unseenReservations }
       : v.id === "mostrador" ? { ...v, badge: pickupOrders.length }
       : v.id === "delivery" ? { ...v, badge: deliveryOrders.length }
+      // Obs. UX 30/10: Pedidos App también cuenta (y parpadea) lo que espera.
+      : v.id === "entrantes" ? { ...v, badge: gatewayOrders.length, alert: gatewayOrders.length > 0 }
       : v
     ),
-    [unseenReservations, pickupOrders.length, deliveryOrders.length]
+    [unseenReservations, pickupOrders.length, deliveryOrders.length, gatewayOrders.length]
   )
+
+  // El aviso global «Ver pedido» trae a Pedidos App desde cualquier pantalla.
+  useEffect(() => {
+    const open = () => handleViewChange("entrantes")
+    window.addEventListener(OPEN_APP_ORDERS_EVENT, open)
+    return () => window.removeEventListener(OPEN_APP_ORDERS_EVENT, open)
+  }, [handleViewChange])
   // ── Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible ────────
   const escapeBack = (() => {
     switch (scene) {

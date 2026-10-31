@@ -23,11 +23,13 @@ interface NavigationProps {
   items: readonly RosContext[]
   activeId: string
   badges?: Partial<Record<string, number>>
+  /** Contextos con algo urgente (pedido de la App sin aceptar): el badge parpadea. */
+  alerts?: Partial<Record<string, boolean>>
   onSelect: (id: string) => void
   onLogout: () => void
 }
 
-export function Navigation({ tenantName, locationName, items, activeId, badges = {}, onSelect, onLogout }: NavigationProps) {
+export function Navigation({ tenantName, locationName, items, activeId, badges = {}, alerts = {}, onSelect, onLogout }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
   const isMobile = useMediaQuery("(max-width: 768px)")
   const isTablet = useMediaQuery("(max-width: 1100px)") && !isMobile
@@ -72,7 +74,7 @@ export function Navigation({ tenantName, locationName, items, activeId, badges =
             <Icon size={iconSize} className="nav-item-svg" aria-hidden />
           </span>
           <span className="nav-item-label">{item.label}</span>
-          {badge > 0 && <span className="nav-item-badge" aria-hidden>{badge}</span>}
+          {badge > 0 && <span className={`nav-item-badge${alerts[item.id] ? " is-alert" : ""}`} aria-hidden>{badge}</span>}
         </button>
       </li>
     )

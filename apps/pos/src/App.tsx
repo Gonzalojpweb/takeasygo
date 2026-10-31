@@ -19,6 +19,8 @@ import { Header } from "./components/layout/Header"
 import { Navigation } from "./components/layout/Navigation"
 import { ContextPanel } from "./components/layout/ContextPanel"
 import { UpdateBanner } from "./components/layout/UpdateBanner"
+import { AppOrderBanner, OPEN_APP_ORDERS_EVENT } from "./components/layout/AppOrderBanner"
+import { useAppOrderAlert } from "./hooks/useAppOrderAlert"
 import { applyAppUpdate, isAppUpdateReady, subscribeAppUpdate } from "./services/app-update"
 import { LayoutProvider, useLayout } from "./components/layout/LayoutContext"
 import { PanelResizer, useContextPanelWidth } from "./components/layout/PanelResizer"
@@ -369,6 +371,17 @@ function AppShell({
     [tenantId]
   ) ?? 0
 
+  // Obs. UX 30/10: los pedidos de la App avisan en cualquier pantalla (sonido
+  // que insiste, aviso arriba, badges que parpadean) para quien los atiende.
+  const handlesAppOrders = contexts.some((c) => c.id === "counter")
+  const appAlert = useAppOrderAlert(tenantId, handlesAppOrders)
+  const openAppOrders = () => {
+    setActiveContext("counter")
+    appAlert.dismiss()
+    // Counter puede estar montándose: el pedido de vista va después del render.
+    window.setTimeout(() => window.dispatchEvent(new CustomEvent(OPEN_APP_ORDERS_EVENT)), 0)
+  }
+
   return (
     <div
       className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
@@ -389,6 +402,7 @@ function AppShell({
         items={contexts}
         activeId={current.id}
         badges={{ counter: pendingIncoming }}
+        alerts={{ counter: appAlert.pending > 0 }}
         onSelect={(id) => setActiveContext(id as ContextId)}
         onLogout={logout}
       />
@@ -410,6 +424,9 @@ function AppShell({
         empty={current.empty}
         resizer={<PanelResizer width={panelWidth.width} onChange={panelWidth.setWidth} />}
       />
+      {appAlert.latest && (
+        <AppOrderBanner order={appAlert.latest} pending={appAlert.pending} onOpen={openAppOrders} onDismiss={appAlert.dismiss} />
+      )}
       {/* PIN del encargado: aparece solo cuando una operación lo pide. */}
       <ManagerApprovalDialog />
       {/* Cobro en el posnet MercadoPago Point (Fase 6). */}

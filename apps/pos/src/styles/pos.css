@@ -4398,3 +4398,57 @@ body.is-resizing-panel .ros-app { transition: none; }
   .cashf-amount-field input { font-size: 28px; }
   .cashf-submit { min-width: 0; }
 }
+
+/* ========================================================================
+   PEDIDO NUEVO DE LA APP (obs. UX 30/10/2026: «el POS es silencioso»)
+   Aviso arriba en cualquier pantalla + badges y pestaña que parpadean
+   mientras haya pedidos sin aceptar. Sin animación si el sistema la pide
+   reducida (el aviso y los colores quedan igual).
+   ======================================================================== */
+.app-order-banner {
+  position: fixed; top: calc(var(--header-height, 56px) + var(--sp-2)); left: 50%; z-index: 900;
+  transform: translateX(-50%);
+  display: flex; align-items: stretch; width: min(560px, calc(100vw - 2 * var(--sp-3)));
+  border-radius: 16px; background: var(--brand-orange); color: #fff;
+  box-shadow: 0 12px 32px rgba(247, 66, 17, .35), 0 2px 6px rgba(0, 0, 0, .12);
+  animation: app-order-in .35s cubic-bezier(.2, .8, .2, 1), app-order-glow 1.6s ease-in-out .35s infinite;
+}
+.app-order-banner-main {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.app-order-banner-bell {
+  flex-shrink: 0; display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255, 255, 255, .2); animation: app-order-ring 1.2s ease-in-out infinite; transform-origin: 50% 10%;
+}
+.app-order-banner-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.app-order-banner-text b { font-size: var(--font-size-lg); line-height: 1.2; }
+.app-order-banner-text small { font-size: var(--font-size-sm); opacity: .92; font-variant-numeric: tabular-nums; }
+.app-order-banner-cta {
+  flex-shrink: 0; padding: var(--sp-2) var(--sp-3); border-radius: 10px; background: #fff; color: var(--brand-orange-text);
+  font-weight: 700; font-size: var(--font-size-sm); white-space: nowrap;
+}
+.app-order-banner-close {
+  flex-shrink: 0; width: 48px; border: none; border-left: 1px solid rgba(255, 255, 255, .3); border-radius: 0 16px 16px 0;
+  background: none; color: #fff; cursor: pointer; display: grid; place-items: center;
+}
+.app-order-banner-close:hover, .app-order-banner-main:hover .app-order-banner-cta { filter: brightness(.95); }
+
+.nav-item-badge.is-alert, .view-tab.is-alert .view-tab-badge {
+  background: var(--brand-orange); color: #fff; animation: app-order-blink 1s ease-in-out infinite;
+}
+.view-tab.is-alert { color: var(--brand-orange-text); animation: app-order-tab 1.6s ease-in-out infinite; border-radius: 10px; }
+
+@keyframes app-order-in { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes app-order-glow { 50% { box-shadow: 0 12px 40px rgba(247, 66, 17, .6), 0 0 0 4px rgba(247, 66, 17, .25); } }
+@keyframes app-order-ring { 0%, 50%, 100% { transform: rotate(0); } 10%, 30% { transform: rotate(-16deg); } 20%, 40% { transform: rotate(16deg); } }
+@keyframes app-order-blink { 50% { transform: scale(1.18); box-shadow: 0 0 0 4px rgba(247, 66, 17, .3); } }
+@keyframes app-order-tab { 50% { background: var(--brand-orange-surface); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-order-banner, .app-order-banner-bell, .nav-item-badge.is-alert, .view-tab.is-alert, .view-tab.is-alert .view-tab-badge { animation: none; }
+}
+@media (max-width: 768px) {
+  .app-order-banner { top: calc(env(safe-area-inset-top, 0px) + var(--sp-2)); }
+  .app-order-banner-cta { display: none; }
+}

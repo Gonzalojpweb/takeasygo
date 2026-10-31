@@ -75,7 +75,7 @@ export default defineConfig({
       workbox: {
         // index.html NO se precachea: servirlo cache-first mostraba la versión
         // vieja en cada apertura. Solo assets con hash (inmutables).
-        globPatterns: ["**/*.{js,css,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff2,mp3}"],
         navigateFallback: null,
         skipWaiting: true,
         clientsClaim: true,
