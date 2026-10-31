@@ -1,13 +1,14 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
 import { hashPhone } from '@/lib/crypto'
 import { signMemberToken } from '@/lib/memberToken'
 import { rateLimit } from '@/lib/rateLimit'
 import { attachReferralFromRequest } from '@/lib/referrals'
+import { parseRegisterIdentity, resolveRegisterUserId } from '@/lib/loyalty-register-user'
 import { NextRequest, NextResponse } from 'next/server'
+import mongoose from 'mongoose'
 import crypto from 'crypto'
 
 /** Generate best-effort device fingerprint from request headers */
@@ -27,10 +28,14 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { name, email, phone, promotionId, locationId } = body
-
-    if (!name || !email || !phone) {
+    const { promotionId, locationId } = body
+    const identity = parseRegisterIdentity(body)
+    if (!identity) {
       return NextResponse.json({ error: 'Nombre, correo y teléfono son obligatorios' }, { status: 400 })
+    }
+    const { name, email, phone } = identity
+    if (locationId != null && (typeof locationId !== 'string' || !mongoose.Types.ObjectId.isValid(locationId))) {
+      return NextResponse.json({ error: 'locationId inválido' }, { status: 400 })
     }
 
     await connectDB()
@@ -61,30 +66,6 @@ export async function POST(
     }
 
     const phoneHash = hashPhone(phone)
-
-    // Buscar users por email y phone por separado para evitar E11000
-    const userByEmail = await User.findOne({ email })
-    const userByPhone = await User.findOne({ phone })
-
-    let user: typeof userByEmail
-
-    if (userByEmail && userByPhone && userByEmail._id.toString() !== userByPhone._id.toString()) {
-      // Conflicto: phone y email pertenecen a users distintos → priorizar el del email
-      user = userByEmail
-    } else if (userByEmail) {
-      user = userByEmail
-    } else if (userByPhone) {
-      user = userByPhone
-    } else {
-      // Crear nuevo user
-      user = await User.create({
-        name,
-        phone,
-        email,
-        role: 'consumer',
-        isActive: true,
-      })
-    }
 
     // Verificar si ya es miembro del club
     const existing = await LoyaltyMember.findOne({
@@ -156,10 +137,14 @@ export async function POST(
       }
     }
 
+    // Hotfix S1: nunca vincula por celular solo ni modifica un User existente
+    // (lib/loyalty-register-user).
+    const userId = await resolveRegisterUserId(identity)
+
     // Crear nuevo miembro vinculado al User de TakeasyGo
     const member = await LoyaltyMember.create({
       tenantId: tenant._id,
-      userId: user._id,
+      userId,
       name,
       phone,
       phoneHash,
@@ -200,11 +185,6 @@ export async function POST(
         _id: member._id,
         name: member.name,
         publicId: member.wallet?.publicId,
-      },
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
       },
       memberToken,
       welcomePoints,

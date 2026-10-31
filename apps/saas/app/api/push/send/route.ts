@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import PushSubscription from '@/models/PushSubscription'
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { auth } from '@/lib/auth'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 try {
   webpush.setVapidDetails(
@@ -16,13 +16,15 @@ try {
 }
 
 export async function POST(request: NextRequest) {
+  let clientToken: string | null = null
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
+    // Solo superadmin (hotfix S3, 31/10/2026): antes cualquier sesión, incluido
+    // un cliente, mandaba título, texto y link libres a cualquier suscripción.
+    const authError = await requireSuperAdmin()
+    if (authError) return authError
 
-    const { clientToken, title, body, url } = await request.json()
+    const { clientToken: rawToken, title, body, url } = await request.json()
+    clientToken = typeof rawToken === 'string' ? rawToken : null
 
     if (!clientToken || !title || !body) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
@@ -52,7 +54,6 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     // Si el endpoint expiró (410), eliminar la suscripción
     if (error?.statusCode === 410) {
-      const { clientToken } = await request.json().catch(() => ({}))
       if (clientToken) await PushSubscription.deleteOne({ clientToken })
       return NextResponse.json({ error: 'Suscripción expirada, eliminada' }, { status: 410 })
     }

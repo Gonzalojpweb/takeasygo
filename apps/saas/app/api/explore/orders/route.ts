@@ -19,9 +19,10 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Try authenticated user first
+    // Solo con sesión (hotfix S2, 31/10/2026): antes aceptaba ?email= sin
+    // sesión y devolvía los pedidos de cualquier email.
     const session = await auth()
-    const email = session?.user?.email ?? searchParams.get('email')
+    const email = session?.user?.email ?? null
 
     if (!email) {
       return NextResponse.json({ error: 'Autenticación requerida' }, { status: 401 })

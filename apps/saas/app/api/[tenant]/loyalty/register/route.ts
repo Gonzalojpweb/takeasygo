@@ -1,12 +1,12 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import User from '@/models/User'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import { hashPhone } from '@/lib/crypto'
 import { signMemberToken } from '@/lib/memberToken'
 import { rateLimit } from '@/lib/rateLimit'
 import { requireLocationId } from '@/lib/loyalty-location'
 import { attachReferralFromRequest } from '@/lib/referrals'
+import { parseRegisterIdentity, resolveRegisterUserId } from '@/lib/loyalty-register-user'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 
@@ -26,11 +26,12 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
     const body = await request.json()
-    const { name, email, phone, source = 'qr_scan' } = body
-
-    if (!name || !email || !phone) {
+    const { source = 'qr_scan' } = body
+    const identity = parseRegisterIdentity(body)
+    if (!identity) {
       return NextResponse.json({ error: 'Nombre, correo y teléfono son obligatorios' }, { status: 400 })
     }
+    const { name, email, phone } = identity
 
     await connectDB()
 
@@ -119,33 +120,15 @@ export async function POST(
       })
     }
 
-    // Crear o encontrar User vinculado (por phone o email)
-    let user = await User.findOne({ $or: [{ phone }, { email }] })
-    if (!user) {
-      user = await User.create({
-        name,
-        phone,
-        email,
-        role: 'consumer',
-        isActive: true,
-      })
-    } else {
-      if (user.phone !== phone) {
-        await User.updateOne({ _id: user._id }, { $set: { phone } })
-        user.phone = phone
-      }
-      if (user.email !== email) {
-        await User.updateOne({ _id: user._id }, { $set: { email } })
-        user.email = email
-      }
-    }
+    // Hotfix S1: nunca modifica un User existente (lib/loyalty-register-user).
+    const userId = await resolveRegisterUserId(identity)
 
     const welcomePoints = (tenant as any).pointsConfig?.welcomePoints ?? 0
 
     // Crear nuevo miembro
     const member = await LoyaltyMember.create({
       tenantId: tenant._id,
-      userId: user._id,
+      userId,
       name,
       phone,
       phoneHash,
