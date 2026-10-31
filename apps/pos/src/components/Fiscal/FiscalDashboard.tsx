@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { RotateCcw, Printer, FileMinus, Download } from "lucide-react"
+import { RotateCcw, Printer, FileMinus, Download, CheckCircle2, ShieldAlert } from "lucide-react"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
 import { useEscapeBack } from "../../hooks/useEscapeBack"
@@ -10,10 +10,15 @@ import {
   creditNoteFor,
   downloadLibroIva,
   getFiscalConfig,
+  getFiscalHealth,
   listFiscalDocuments,
   reprintFiscalDocument,
   retryFiscalDocument,
+  resolveFiscalDocument,
+  confirmFiscalPrinted,
   type FiscalConfig,
+  type FiscalHealth,
+  type ReviewAction,
   type PosFiscalDocument,
   type PosFiscalDocuments,
 } from "../../services/fiscal"
@@ -31,11 +36,49 @@ import { FiscalHelpButton, FiscalHelpCenter } from "./FiscalHelpCenter"
 //   · Libro IVA del mes (CSV y Libro IVA Digital): encargado y admin (el
 //     server lo exige; el botón se ofrece y, si no corresponde, avisa).
 //   · Centro de ayuda siempre a mano.
+//   · Orden 31/10: alertas fiscales de la sede (pendientes demorados, en
+//     revisión, ventas cobradas sin comprobante, certificado, CAEA, tickets sin
+//     impresión confirmada); estado de impresión SEPARADO del fiscal;
+//     resolución controlada de lo que está «en revisión».
 // ============================================================================
+
+const PRINT_LABEL: Record<string, string> = {
+  not_requested: "Sin imprimir",
+  queued: "En cola",
+  printing: "Imprimiendo",
+  printed: "Enviado a la impresora",
+  failed: "No se pudo imprimir",
+  unknown: "Desconocido: verificá el papel",
+}
+
+/** Acciones de revisión que corresponden a cada motivo (el server lo vuelve a validar). */
+const REVIEW_ACTIONS: Record<string, { action: ReviewAction; label: string; hint: string }[]> = {
+  arca_number_mismatch: [
+    { action: "retry_new_number", label: "Pedir otro número", hint: "El número reservado es de otro comprobante" },
+    { action: "discard", label: "Descartar", hint: "La venta queda para facturar de nuevo" },
+  ],
+  environment_mismatch: [
+    { action: "reissue", label: "Emitir con la configuración actual", hint: "Descarta este y emite uno nuevo" },
+    { action: "discard", label: "Descartar", hint: "La venta queda sin factura" },
+  ],
+  cuit_mismatch: [
+    { action: "reissue", label: "Emitir con el CUIT actual", hint: "Descarta este y emite uno nuevo" },
+    { action: "discard", label: "Descartar", hint: "La venta queda sin factura" },
+  ],
+  missing_identity: [{ action: "reissue", label: "Emitir de nuevo", hint: "Con la configuración actual" }],
+  caea_report_rejected: [{ action: "retry_caea_report", label: "Volver a informar a ARCA", hint: "Revisalo antes con el contador" }],
+  number_taken_locally: [{ action: "discard", label: "Descartar", hint: "Solo si no tiene CAE propio: consultá al contador" }],
+}
 
 type Preset = "today" | "yesterday" | "week"
 
-const STATUS_LABEL: Record<string, string> = { authorized: "Autorizado", pending: "Pendiente", retrying: "Reintentando", rejected: "Rechazado" }
+const STATUS_LABEL: Record<string, string> = {
+  authorized: "Autorizado",
+  pending: "Pendiente",
+  retrying: "Reintentando",
+  rejected: "Rechazado",
+  needs_review: "En revisión",
+}
 const CONDITION_LABEL: Record<string, string> = {
   consumidor_final: "Consumidor final", responsable_inscripto: "Responsable inscripto", monotributo: "Monotributo", exento: "Exento", no_categorizado: "No categorizado",
 }
@@ -59,6 +102,7 @@ export function FiscalDashboard() {
   const [month, setMonth] = useState(() => localToday().slice(0, 7))
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [health, setHealth] = useState<FiscalHealth | null>(null)
   const range = useMemo(() => rangeFor(preset), [preset])
   // Esc: cierra el comprobante abierto (el centro de ayuda maneja su propio Esc).
   useEscapeBack(selectedId ? () => setSelectedId(null) : null)
@@ -71,9 +115,14 @@ export function FiscalDashboard() {
   const load = useCallback(async () => {
     if (!tenantId) return
     try {
-      const [c, d] = await Promise.all([getFiscalConfig(tenantId), listFiscalDocuments(tenantId, range)])
+      const [c, d, h] = await Promise.all([
+        getFiscalConfig(tenantId),
+        listFiscalDocuments(tenantId, range),
+        getFiscalHealth(tenantId).catch(() => null),
+      ])
       setConfig(c)
       setData(d)
+      setHealth(h)
     } catch (err) {
       flash("error", err instanceof Error ? err.message : "No se pudieron cargar los comprobantes")
     }
@@ -81,7 +130,13 @@ export function FiscalDashboard() {
 
   useEffect(() => {
     const id = setTimeout(() => { void load() }, 0)
-    return () => clearTimeout(id)
+    // Mientras el contexto está abierto, se refresca (y el server aprovecha
+    // para recuperar pendientes del comercio).
+    const every = setInterval(() => { void load() }, 60_000)
+    return () => {
+      clearTimeout(id)
+      clearInterval(every)
+    }
   }, [load])
 
   const run = useCallback(async (op: () => Promise<string>) => {
@@ -108,6 +163,15 @@ export function FiscalDashboard() {
             {config && !config.enabled && (
               <div className="setup-error" role="note">
                 La factura electrónica no está activa en este comercio. La configura el administrador (CUIT, certificado y punto de venta). Mientras tanto podés leer el centro de ayuda.
+              </div>
+            )}
+            {health && health.alerts.length > 0 && (
+              <div className="fiscal-alerts" role="status" aria-label="Alertas fiscales">
+                {health.alerts.map((a) => (
+                  <div key={a.code} className={a.level === "critical" ? "setup-error" : "sale-void-info"}>
+                    <ShieldAlert size={14} aria-hidden /> {a.message}
+                  </div>
+                ))}
               </div>
             )}
             {data && (
@@ -138,7 +202,9 @@ export function FiscalDashboard() {
     }
 
     const isInvoice = selected.kind === "invoice"
-    const canRetry = selected.status !== "authorized"
+    const canRetry = selected.status !== "authorized" && selected.status !== "needs_review"
+    const reviewActions = selected.status === "needs_review" ? (REVIEW_ACTIONS[selected.reviewCode ?? ""] ?? []) : []
+    const printUncertain = selected.printStatus === "unknown" || selected.printStatus === "failed"
     const canCredit = isInvoice && selected.status === "authorized" && !selected.hasCreditNote
     setContextPanel({
       title: selected.label,
@@ -157,8 +223,12 @@ export function FiscalDashboard() {
             <div><dt>Pedido</dt><dd>{selected.orderNumber ?? (selected.orderPosId ? `#${selected.orderPosId.slice(0, 6).toUpperCase()}` : "—")}</dd></div>
             {selected.cae && <div><dt>{selected.authMode === "caea" ? "CAEA" : "CAE"}</dt><dd>{selected.cae}</dd></div>}
             {selected.caeExpiresAt && <div><dt>Vence</dt><dd>{new Date(selected.caeExpiresAt).toLocaleDateString("es-AR")}</dd></div>}
+            <div><dt>Impresión</dt><dd>{PRINT_LABEL[selected.printStatus ?? "not_requested"]}</dd></div>
+            {selected.authMode === "caea" && selected.caeaReportStatus && selected.caeaReportStatus !== "not_applicable" && (
+              <div><dt>Informe CAEA</dt><dd>{{ pending: "Pendiente de informar", informed: "Informado", rejected: "Rechazado por ARCA" }[selected.caeaReportStatus] ?? selected.caeaReportStatus}</dd></div>
+            )}
           </dl>
-          {selected.message && <div className={selected.status === "rejected" ? "setup-error" : "sale-void-info"}>{selected.message}</div>}
+          {selected.message && <div className={selected.status === "rejected" || selected.status === "needs_review" ? "setup-error" : "sale-void-info"}>{selected.message}</div>}
           {selected.qrUrl && <a className="text-sm" href={selected.qrUrl} target="_blank" rel="noreferrer">Verificar en ARCA (QR)</a>}
           <div className="sale-section-title">Acciones</div>
           <div className="fiscal-actions">
@@ -168,10 +238,25 @@ export function FiscalDashboard() {
               </button>
             )}
             {selected.status === "authorized" && (
-              <button className="ctx-action ctx-action--teal" disabled={busy} onClick={() => { void run(async () => `Enviado a ${await reprintFiscalDocument(tenantId!, selected.id)}`) }}>
+              <button className="ctx-action ctx-action--teal" disabled={busy} onClick={() => { void run(async () => `Reimpresión enviada a ${await reprintFiscalDocument(tenantId!, selected.id)}`) }}>
                 <span className="ctx-action-icon"><Printer size={20} aria-hidden /></span><span className="ctx-action-label">Reimprimir</span>
+                {printUncertain && <span className="ctx-action-hint">Solo si NO salió</span>}
               </button>
             )}
+            {printUncertain && (
+              <button className="ctx-action ctx-action--teal" disabled={busy} onClick={() => { void run(async () => { await confirmFiscalPrinted(tenantId!, selected.id); return "Impresión confirmada" }) }}>
+                <span className="ctx-action-icon"><CheckCircle2 size={20} aria-hidden /></span><span className="ctx-action-label">Salió bien</span><span className="ctx-action-hint">Confirmar el ticket</span>
+              </button>
+            )}
+            {reviewActions.map((r) => (
+              <button key={r.action} className="ctx-action ctx-action--amber" disabled={busy} onClick={() => { void run(async () => {
+                const out = await resolveFiscalDocument(tenantId!, selected.id, r.action)
+                const doc = out.replacement ?? out.document
+                return doc.status === "authorized" ? `${doc.label} autorizado` : `Resuelto: ${STATUS_LABEL[doc.status]?.toLowerCase() ?? doc.status}`
+              }) }}>
+                <span className="ctx-action-icon"><ShieldAlert size={20} aria-hidden /></span><span className="ctx-action-label">{r.label}</span><span className="ctx-action-hint">{r.hint} · admin</span>
+              </button>
+            ))}
             {canCredit && (
               <button className="ctx-action ctx-action--red" disabled={busy} onClick={() => { void run(async () => { const d = await creditNoteFor(tenantId!, selected.id); return d.status === "authorized" ? `${d.label} emitida` : "Nota de crédito pendiente de ARCA" }) }}>
                 <span className="ctx-action-icon"><FileMinus size={20} aria-hidden /></span><span className="ctx-action-label">Nota de crédito</span><span className="ctx-action-hint">PIN de encargado</span>

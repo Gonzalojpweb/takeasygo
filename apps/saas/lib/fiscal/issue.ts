@@ -13,6 +13,7 @@ import {
   type IssuerIvaCondition,
 } from '@takeasygo/business'
 import { runAfterResponse } from '@/lib/after-response'
+import { enqueueFiscalTicket } from './ticket'
 import { issueWithCaea } from './caea'
 import { buildFiscalLines, ivaRatesForLocation } from './order-lines'
 import { arcaQrUrl } from './qr'
@@ -590,9 +591,21 @@ export function documentSummary(doc: IFiscalDocument) {
     cae: doc.cae,
     caeExpiresAt: doc.caeExpiresAt,
     totalCents: doc.amounts.totalCents,
-    message: doc.status === 'authorized' ? (doc.authMode === 'caea' ? 'Emitida en contingencia (CAEA)' : null) : doc.arca.lastError || null,
+    message:
+      doc.status === 'needs_review'
+        ? doc.review?.message || doc.arca.lastError || 'Necesita revisión'
+        : doc.status === 'authorized'
+          ? doc.authMode === 'caea'
+            ? 'Emitida en contingencia (CAEA)'
+            : null
+          : doc.arca.lastError || null,
     authMode: doc.authMode ?? 'cae',
     environment: doc.environment,
+    /** Motivo estable de la revisión (para ofrecer la acción que corresponde). */
+    reviewCode: doc.status === 'needs_review' ? doc.review?.code || null : null,
+    /** Estado de la impresión: independiente del estado fiscal. */
+    printStatus: doc.printing?.status ?? 'not_requested',
+    caeaReportStatus: doc.caeaReportStatus ?? 'not_applicable',
   }
 }
 
@@ -624,7 +637,14 @@ export async function retryPendingDocuments(options: {
   for (const doc of docs) {
     try {
       const result = await authorizeDocument(doc, { fetchImpl: options.fetchImpl })
-      if (result.status === 'authorized') authorized++
+      if (result.status === 'authorized') {
+        authorized++
+        // Emitido por la recuperación (el POS no estaba): sale el ticket
+        // ORIGINAL, una sola vez (dedupeKey) y solo si nunca se pidió.
+        if (result.printing?.status === 'not_requested') {
+          await enqueueFiscalTicket(result).catch((e) => console.error('[fiscal/retry] ticket:', e instanceof Error ? e.message : e))
+        }
+      }
     } catch (err) {
       console.error(`[fiscal/retry] ${String(doc._id)}:`, err instanceof Error ? err.message : err)
     }

@@ -30,11 +30,66 @@ export interface FiscalDocumentSummary {
   id: string
   kind: "invoice" | "credit_note"
   letter: string
-  status: "pending" | "authorized" | "rejected" | "retrying"
+  /** needs_review (31/10): el sistema no lo emite solo; lo resuelve una persona. */
+  status: "pending" | "authorized" | "rejected" | "retrying" | "needs_review"
   label: string
   cae: string | null
   totalCents: number
   message: string | null
+  reviewCode?: string | null
+  /** Estado de impresión del ticket: independiente del estado fiscal. */
+  printStatus?: "not_requested" | "queued" | "printing" | "printed" | "failed" | "unknown"
+  caeaReportStatus?: "not_applicable" | "pending" | "informed" | "rejected"
+}
+
+/**
+ * Decisión de facturar que viaja CON el cobro (orden 31/10, P1.2): el server
+ * deja la factura pendiente en el mismo pedido que confirma el cobro, así no
+ * se pierde si el POS se cierra antes de pedirla.
+ */
+export type InvoiceIntent = { none: true } | { receiver: { condition: string; docNumber: string; name: string } }
+
+export function invoiceIntentFor(choice: InvoiceChoice): InvoiceIntent {
+  if (choice.type === "none") return { none: true }
+  const docNumber = choice.docNumber.replace(/\D/g, "")
+  return {
+    receiver:
+      choice.type === "company"
+        ? { condition: choice.companyCondition, docNumber, name: choice.name.trim() }
+        : { condition: "consumidor_final", docNumber, name: choice.name.trim() },
+  }
+}
+
+export interface FiscalAlert {
+  level: "critical" | "warning" | "info"
+  code: string
+  message: string
+  count?: number
+}
+
+export interface FiscalHealth {
+  enabled: boolean
+  environment: "homologation" | "production" | null
+  counts: { pending: number; needsReview: number; rejectedLast24h: number; caeaToReport: number; printUnknown: number; paidWithoutInvoice: number }
+  oldestPendingMinutes: number | null
+  certificateExpiresInDays: number | null
+  alerts: FiscalAlert[]
+}
+
+/** Alertas fiscales de la sede. También dispara la recuperación en el server. */
+export async function getFiscalHealth(tenantId: string): Promise<FiscalHealth> {
+  return posApi<FiscalHealth>(tenantId, "/fiscal/health")
+}
+
+export type ReviewAction = "retry_new_number" | "reissue" | "retry_caea_report" | "discard" | "caea_manual"
+
+export async function resolveFiscalDocument(tenantId: string, id: string, action: ReviewAction): Promise<{ document: FiscalDocumentSummary; replacement: FiscalDocumentSummary | null }> {
+  return posApi(tenantId, `/fiscal/documents/${encodeURIComponent(id)}/resolve`, { method: "POST", body: { action } })
+}
+
+/** El operador confirma que un ticket con resultado desconocido salió bien. */
+export async function confirmFiscalPrinted(tenantId: string, id: string): Promise<void> {
+  await posApi(tenantId, `/fiscal/documents/${encodeURIComponent(id)}/print-status`, { method: "POST", body: { printed: true } })
 }
 
 export const OFF_CONFIG: FiscalConfig = {
@@ -75,19 +130,11 @@ export async function invoiceOrder(
   orderId: string,
   choice: InvoiceChoice
 ): Promise<FiscalDocumentSummary> {
-  const docNumber = choice.docNumber.replace(/\D/g, "")
+  const intent = invoiceIntentFor(choice)
   const { document } = await posApi<{ document: FiscalDocumentSummary }>(
     tenantId,
     `/orders/${encodeURIComponent(orderId)}/invoice`,
-    {
-      method: "POST",
-      body: {
-        receiver:
-          choice.type === "company"
-            ? { condition: choice.companyCondition, docNumber, name: choice.name.trim() }
-            : { condition: "consumidor_final", docNumber, name: choice.name.trim() },
-      },
-    }
+    { method: "POST", body: { receiver: "receiver" in intent ? intent.receiver : undefined } }
   )
   return document
 }

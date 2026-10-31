@@ -494,3 +494,121 @@ describe('Fase 6 — MercadoPago Point', () => {
     expect(res.status).toBe(400)
   })
 })
+
+// ============================================================================
+// Orden de ejecución 31/10 — P1.2: una venta cobrada no sale del circuito
+// fiscal aunque el POS se cierre o pierda la red después del cobro.
+// ============================================================================
+describe('P1.2 — obligación fiscal al cobrar', () => {
+  const RECEIVER_CF = { receiver: { condition: 'consumidor_final', docNumber: '', name: '' } }
+
+  async function createOrder(): Promise<string> {
+    const id = crypto.randomUUID()
+    await CREATE(req(`${BASE}/orders`, { id, items: [{ productId: PRODUCT_ID, name: 'Pizza', quantity: 1, unitPrice: 605_000, total: 605_000 }] }), tp())
+    return id
+  }
+  const payBody = (invoice?: unknown, partId = 'p-1') => ({ payments: [{ id: partId, method: 'cash', amount: 605_000 }], ...(invoice ? { invoice } : {}) })
+
+  async function makeOld(filter: Record<string, unknown>) {
+    const old = new Date(Date.now() - 10 * 60_000)
+    await FiscalDocument.updateMany(filter, { $set: { updatedAt: old, 'arca.nextAttemptAt': null } }, { timestamps: false })
+  }
+
+  it('el POS se cierra justo después de cobrar: la factura queda pendiente y la recuperación la emite e imprime una vez', async () => {
+    const id = await createOrder()
+    const paid = await PAY(req(`${BASE}/orders/${id}/payments`, payBody(RECEIVER_CF)), ip(id))
+    expect(paid.status).toBe(201)
+    expect((await paid.json()).fiscalObligation).toBe('created')
+    // Nunca llega el pedido de factura del POS.
+    const pending = await FiscalDocument.findOne({ tenantId, kind: 'invoice' }).lean()
+    expect(pending).toMatchObject({ status: 'pending', issuerCuit: CUIT, environment: 'homologation' })
+    expect(arca.caeRequests).toBe(0)
+
+    await makeOld({ tenantId })
+    expect(await retryPendingDocuments({ tenantId })).toEqual({ tried: 1, authorized: 1 })
+    expect(await FiscalDocument.countDocuments({ tenantId, kind: 'invoice', status: 'authorized' })).toBe(1)
+    expect(await PreClosePrintJob.countDocuments({ tenantId, kind: 'fiscal_invoice', isReprint: false })).toBe(1)
+    // Un segundo barrido no emite ni imprime nada más.
+    await makeOld({ tenantId })
+    expect(await retryPendingDocuments({ tenantId })).toEqual({ tried: 0, authorized: 0 })
+    expect(arca.caeRequests).toBe(1)
+  })
+
+  it('red caída entre el cobro y la factura, el POS reintenta todo varias veces: un cobro, una factura, un ticket', async () => {
+    const id = await createOrder()
+    expect((await PAY(req(`${BASE}/orders/${id}/payments`, payBody(RECEIVER_CF)), ip(id))).status).toBe(201)
+    // El POS no recibió la respuesta y reenvía el cobro (idempotente).
+    const replay = await PAY(req(`${BASE}/orders/${id}/payments`, payBody(RECEIVER_CF)), ip(id))
+    expect(replay.status).toBe(200)
+    // Y pide la factura tres veces.
+    for (let i = 0; i < 3; i++) expect([201, 200]).toContain((await invoice(id)).status)
+    expect(await FiscalDocument.countDocuments({ tenantId, kind: 'invoice' })).toBe(1)
+    expect(arca.caeRequests).toBe(1)
+    expect(await PreClosePrintJob.countDocuments({ tenantId, kind: 'fiscal_invoice' })).toBe(1)
+    const order = await Order.findOne({ tenantId, posId: id }).lean<{ posPayments: unknown[] }>()
+    expect(order?.posPayments).toHaveLength(1)
+  })
+
+  it('«sin factura» elegido por el cajero no crea obligación; con «facturar siempre» un POS viejo igual la deja', async () => {
+    const a = await createOrder()
+    await PAY(req(`${BASE}/orders/${a}/payments`, payBody({ none: true })), ip(a))
+    expect(await FiscalDocument.countDocuments({ tenantId })).toBe(0)
+
+    await FiscalProfile.updateOne({ tenantId }, { $set: { invoicingMode: 'always' } })
+    const b = await createOrder()
+    const paid = await PAY(req(`${BASE}/orders/${b}/payments`, payBody(undefined, 'p-2')), ip(b))
+    expect((await paid.json()).fiscalObligation).toBe('created')
+    expect(await FiscalDocument.countDocuments({ tenantId, status: 'pending' })).toBe(1)
+  })
+
+  it('con ARCA caída el cobro se registra igual y la obligación sobrevive hasta que ARCA vuelve', async () => {
+    arca.mode = 'down'
+    const id = await createOrder()
+    expect((await PAY(req(`${BASE}/orders/${id}/payments`, payBody(RECEIVER_CF)), ip(id))).status).toBe(201)
+    expect((await invoice(id)).status).toBe(202)
+    expect(await FiscalDocument.findOne({ tenantId }).lean()).toMatchObject({ status: 'retrying' })
+    arca.mode = 'ok'
+    await makeOld({ tenantId })
+    expect(await retryPendingDocuments({ tenantId })).toEqual({ tried: 1, authorized: 1 })
+  })
+})
+
+describe('Salud fiscal y resolución controlada (31/10)', () => {
+  it('alerta las ventas cobradas sin comprobante cuando el comercio factura siempre', async () => {
+    const { computeFiscalHealth } = await import('@/lib/fiscal/health')
+    await FiscalProfile.updateOne({ tenantId }, { $set: { invoicingMode: 'always' } })
+    const id = crypto.randomUUID()
+    await CREATE(req(`${BASE}/orders`, { id, items: [{ productId: PRODUCT_ID, name: 'Pizza', quantity: 1, unitPrice: 605_000, total: 605_000 }] }), tp())
+    await PAY(req(`${BASE}/orders/${id}/payments`, { payments: [{ id: 'p-9', method: 'cash', amount: 605_000 }], invoice: { none: true } }), ip(id))
+    // createdAt es inmutable en Mongoose: se envejece directo en la colección.
+    await Order.collection.updateOne({ posId: id }, { $set: { createdAt: new Date(Date.now() - 30 * 60_000) } })
+    const health = await computeFiscalHealth(tenantId, { locationId })
+    expect(health.counts.paidWithoutInvoice).toBe(1)
+    expect(health.alerts.map((a) => a.code)).toContain('paid_without_invoice')
+  })
+
+  it('cambio de ambiente con un pendiente: queda en revisión; «emitir con la configuración actual» lo reemplaza sin duplicar', async () => {
+    const { resolveFiscalReview } = await import('@/lib/fiscal/review')
+    arca.mode = 'down'
+    const id = await paidOrder(1)
+    await invoice(id)
+    // Cambio de identidad directo en la base (el panel lo bloquea): el pendiente NO se emite.
+    await FiscalProfile.updateOne({ tenantId }, { $set: { environment: 'production', 'wsaa.environment': 'production' } })
+    arca.mode = 'ok'
+    await FiscalDocument.updateMany({ tenantId }, { $set: { updatedAt: new Date(Date.now() - 600_000), 'arca.nextAttemptAt': null } }, { timestamps: false })
+    await retryPendingDocuments({ tenantId })
+    const doc = await FiscalDocument.findOne({ tenantId })
+    expect(doc).toMatchObject({ status: 'needs_review', environment: 'homologation' })
+    expect(arca.caeRequests).toBe(0)
+
+    // La acción equivocada para el motivo se rechaza.
+    await expect(resolveFiscalReview(doc!, 'retry_new_number', 'admin-1')).rejects.toThrow()
+    // Vuelve a homologación (el entorno del simulador) y reemite.
+    await FiscalProfile.updateOne({ tenantId }, { $set: { environment: 'homologation', 'wsaa.environment': 'homologation' } })
+    const fresh = await FiscalDocument.findById(doc!._id)
+    const out = await resolveFiscalReview(fresh!, 'reissue', 'admin-1')
+    expect(out.document.status).toBe('rejected')
+    expect(out.replacement?.status).toBe('authorized')
+    expect(await FiscalDocument.countDocuments({ tenantId, kind: 'invoice', status: 'authorized' })).toBe(1)
+  })
+})

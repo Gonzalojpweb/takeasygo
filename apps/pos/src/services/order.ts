@@ -5,6 +5,7 @@ import { posApi, isPosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
 import { rehydrateOrder } from "./pos-wire"
 import { notifyStatusToSyncLayer } from "./sync-api"
+import type { InvoiceIntent } from "./fiscal"
 
 // ============================================================================
 // Server-first (V1 POS Online) — órdenes
@@ -179,7 +180,12 @@ export async function recordPayments(
   orderId: string,
   payments: AllocatedPayment[],
   /** Concepto en la caja ("Pedido M5"): el server registra la venta con él. */
-  reason?: string
+  reason?: string,
+  /**
+   * Decisión de facturar (orden 31/10, P1.2). Con facturación activa el
+   * server deja la factura pendiente al confirmar el cobro.
+   */
+  invoice?: InvoiceIntent
 ): Promise<Order> {
   return runMutation(async () => {
     const order = await postOrder(
@@ -187,6 +193,7 @@ export async function recordPayments(
       `/orders/${encodeURIComponent(orderId)}/payments`,
       {
         ...(reason ? { reason } : {}),
+        ...(invoice ? { invoice } : {}),
         payments: payments.map((p) => ({
           id: p.id,
           method: p.method,

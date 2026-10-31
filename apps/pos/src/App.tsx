@@ -6,6 +6,7 @@ import { AccessScreen } from "./components/Root/AccessScreen"
 import { BootScreen } from "./components/Root/BootScreen"
 import { SessionExpiredOverlay } from "./components/Root/SessionExpiredOverlay"
 import { useIdleLock } from "./hooks/useIdleLock"
+import { useFiscalRecoveryPulse } from "./hooks/useFiscalRecoveryPulse"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
@@ -375,6 +376,8 @@ function AppShell({
   // Obs. UX 25/10: ancho del panel de detalle regulable (como VS Code).
   const panelWidth = useContextPanelWidth()
   const role = profile?.role ?? tokenRole
+  // Orden 31/10 (P1.3): emite las facturas pendientes aunque nadie mire Facturación.
+  useFiscalRecoveryPulse(tenantId, role)
   const contexts = useMemo(() => contextsForRole(role), [role])
 
   // Un rol que perdió acceso al contexto activo vuelve al primero permitido.

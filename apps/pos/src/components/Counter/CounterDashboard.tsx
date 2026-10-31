@@ -69,6 +69,7 @@ import {
   defaultInvoiceChoice,
   getFiscalConfig,
   invoiceOrder,
+  invoiceIntentFor,
   type FiscalConfig,
   type FiscalDocumentSummary,
   type InvoiceChoice,
@@ -1109,7 +1110,13 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
             part.reference = `MP Point ${paymentId}`
           }
         }
-        await recordPayments(tenantId, order.id, allocated, `Pedido ${label}`)
+        await recordPayments(
+          tenantId,
+          order.id,
+          allocated,
+          `Pedido ${label}`,
+          fiscalConfig.enabled ? invoiceIntentFor(invoiceChoice) : undefined
+        )
 
         // Club: el celular viaja ANTES de entregar, así el pedido entregado
         // suma los puntos del cliente. Si falla, el cobro sigue: es un extra.

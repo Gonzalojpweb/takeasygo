@@ -13,6 +13,7 @@ import {
   summaryPaymentMethod,
 } from '@/lib/pos-online/paymentPolicy'
 import { recordPartsInOpenRegister, type PaymentPartForCash } from '@/lib/pos-online/cashRecorder'
+import { readInvoiceIntent, registerFiscalObligation } from '@/lib/fiscal/obligation'
 
 // ============================================================================
 // POST /api/[tenant]/pos/orders/[id]/payments — registra el cobro de la orden
@@ -65,6 +66,7 @@ async function recordSaleInCash(
 }
 
 type PaidOrderDoc = PosOrderDoc & {
+  _id: unknown
   total: number
   status: string
   posPayments?: { posId: string; method: string; amount: number; reference?: string | null }[] | null
@@ -75,6 +77,10 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   const body = await readPosBody(ctx.request)
   const parts = parsePosPayments(body)
   const reason = readReason(body, posId)
+  // P1.2 (31/10): la decisión de facturar viaja con el cobro.
+  const invoiceIntent = readInvoiceIntent(body)
+  const fiscal = (orderId: unknown) =>
+    registerFiscalObligation({ tenantId: ctx.tenantId, orderId: String(orderId), userId: ctx.user.id, userRole: ctx.user.role, intent: invoiceIntent })
 
   const order = (await findPosOrder(ctx, posId)) as PaidOrderDoc
 
@@ -84,7 +90,9 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     }
     // Reintento: si la venta no había llegado a la caja, se completa ahora.
     const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
-    return NextResponse.json({ order: toPosOrder(existing), cashRegisterId }, { status: 200 })
+    // …y si la obligación fiscal no había quedado, también (idempotente).
+    const fiscalObligation = await fiscal(existing._id)
+    return NextResponse.json({ order: toPosOrder(existing), cashRegisterId, fiscalObligation }, { status: 200 })
   }
 
   if (order.posPayments?.length) return replay(order)
@@ -155,9 +163,12 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   })
 
   const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
+  // Obligación fiscal persistida en el MISMO pedido que confirma el cobro:
+  // si el POS se cae ahora, la factura se emite igual (recuperación).
+  const fiscalObligation = await fiscal(updated._id)
 
   return NextResponse.json(
-    { order: toPosOrder(updated as unknown as PosOrderDoc), cashRegisterId },
+    { order: toPosOrder(updated as unknown as PosOrderDoc), cashRegisterId, fiscalObligation },
     { status: 201 }
   )
 })
