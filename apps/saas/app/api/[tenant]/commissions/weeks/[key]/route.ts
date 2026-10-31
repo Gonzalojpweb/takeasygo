@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isValidCalendarDate } from '@/lib/restaurant-time'
-import { loadAutoCollectedByWeek, loadCommissionWeeks, weekKeyOf, weekBounds } from '@/lib/commission-weeks'
+import { loadCommissionWeeks, weekKeyOf, weekBounds } from '@/lib/commission-weeks'
 import { loadWeekTickets } from '@/lib/commission-tickets'
 import { commissionsTenant } from '../../_shared'
 
@@ -19,12 +19,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!isValidCalendarDate(key) || weekKeyOf(weekBounds(key, ctx.tz).weekStart, ctx.tz) !== key) {
       return NextResponse.json({ error: 'Semana inválida' }, { status: 400 })
     }
-    // MercadoPago / Kripton: solo el superadmin (el comercio no lo ve).
-    const isSuperadmin = ctx.role === 'superadmin'
-    const [detail, weeks, auto] = await Promise.all([
+    // MercadoPago / Kripton no viajan por el panel del comercio (30/10/2026):
+    // solo Superadmin › Comisiones, por comercio.
+    const [detail, weeks] = await Promise.all([
       loadWeekTickets(ctx.tenant._id, key, ctx.tz),
       loadCommissionWeeks(ctx.tenant._id, { tz: ctx.tz }),
-      isSuperadmin ? loadAutoCollectedByWeek(ctx.tenant._id, { tz: ctx.tz }) : null,
     ])
     const week = weeks.find((w) => w.key === key)
     return NextResponse.json(
@@ -34,7 +33,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         status: week?.status ?? (detail.tickets.length ? 'pagada' : 'en_curso'),
         // Pendiente según la fuente única (incluye créditos viejos sin detalle).
         pendingCents: week?.pendingCents ?? detail.totals.pendingCents,
-        ...(auto ? { autoCollected: auto.get(key) ?? { cents: 0, orders: 0 } } : {}),
       },
       { headers: { 'Cache-Control': 'no-store' } },
     )

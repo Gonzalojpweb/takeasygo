@@ -32,12 +32,6 @@ interface WeekRow {
   pendingOrderCount: number
 }
 
-interface AutoCollected {
-  cents: number
-  orders: number
-  weeks: Array<{ key: string; cents: number; orders: number }>
-}
-
 interface Settlement {
   amountCollected: number
   collectedAt: string
@@ -59,7 +53,7 @@ const fmtRange = (w: Pick<WeekRow, 'weekStart' | 'weekEnd'>) => `${fmtDay(w.week
 export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: string; canPay: boolean }) {
   const params = useSearchParams()
   const returned = params?.get('pago')
-  const [state, setState] = useState<{ status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; alerts: CommissionAlerts; weeks: WeekRow[]; auto: AutoCollected }>({ status: 'loading' })
+  const [state, setState] = useState<{ status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; alerts: CommissionAlerts; weeks: WeekRow[] }>({ status: 'loading' })
   const [settlements, setSettlements] = useState<Settlement[]>([])
   const [paying, setPaying] = useState<string | null>(null)
   const [payError, setPayError] = useState<string | null>(null)
@@ -72,7 +66,7 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
       ])
       const wj = await w.json()
       if (!w.ok) throw new Error(wj?.error || 'No se pudieron cargar las comisiones')
-      setState({ status: 'ready', alerts: wj.alerts, weeks: wj.weeks, auto: wj.autoCollected ?? { cents: 0, orders: 0, weeks: [] } })
+      setState({ status: 'ready', alerts: wj.alerts, weeks: wj.weeks })
       if (s.ok) setSettlements((await s.json()).settlements ?? [])
     } catch (e) {
       setState({ status: 'error', message: e instanceof Error ? e.message : 'Sin conexión' })
@@ -132,7 +126,7 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
     )
   }
 
-  const { alerts, weeks, auto } = state
+  const { alerts, weeks } = state
   const dueCents = alerts.overdue.cents + alerts.pending.cents
   const allCents = dueCents + alerts.accrued.cents
   const locked = alerts.transferLock?.locked ?? false
@@ -217,18 +211,6 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
         </ul>
       </section>
 
-      {/* MercadoPago: cobrada automáticamente (la API lo manda solo al superadmin) */}
-      {auto.cents > 0 && (
-        <section aria-labelledby="mp-title" className={cn('space-y-1 rounded-2xl border-2 p-5', TONE.ok)}>
-          <h2 id="mp-title" className="flex items-center gap-2 text-base font-black">
-            <CheckCircle2 size={18} aria-hidden /> MercadoPago: {pesos(auto.cents)} cobrada automáticamente · vista superadmin
-          </h2>
-          <p className="text-sm">
-            Comisión de {auto.orders} pedido(s) pagados con MercadoPago en las últimas semanas, cobrada sola en cada pago. El comercio no ve este bloque.
-          </p>
-        </section>
-      )}
-
       {/* Semanas */}
       <section aria-labelledby="weeks-title" className="space-y-3">
         <h2 id="weeks-title" className="text-lg font-black">Semanas</h2>
@@ -252,10 +234,6 @@ export default function CommissionsCenter({ tenantSlug, canPay }: { tenantSlug: 
                       {w.pendingCents > 0 && w.pendingCents < w.totalCents && ` · falta ${pesos(w.pendingCents)}`}
                       {(w.status === 'pendiente' || w.status === 'vencida') && ` · vence el ${fmtDay(w.dueAt)}`}
                     </p>
-                    {(() => {
-                      const mp = auto.weeks.find((x) => x.key === w.key)
-                      return mp ? <p className="mt-0.5 text-sm text-emerald-700 dark:text-emerald-300">+ MercadoPago {pesos(mp.cents)} · cobrada automáticamente</p> : null
-                    })()}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Link href={`/${tenantSlug}/admin/commissions/semana/${w.key}`} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border-2 border-border px-4 text-sm font-bold hover:bg-muted">

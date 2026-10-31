@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 import { WEEK_STATUS, originMessage, pesos } from '@/lib/commissions-ui'
 import type { WeekTickets, CommissionTicket } from '@/lib/commission-tickets'
 
-type Detail = WeekTickets & { tenantName: string; status: string; pendingCents: number; autoCollected?: { cents: number; orders: number } }
+type Detail = WeekTickets & { tenantName: string; status: string; pendingCents: number; }
 
 const TZ = 'America/Argentina/Buenos_Aires'
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TZ })
@@ -126,9 +126,6 @@ export default function CommissionWeekDetail({ tenantSlug, weekKey, canPay }: { 
           {t.paidByCustomerCents > 0 && <Row label="…de la cual pagaron los clientes (cargo por usar la app)" value={pesos(t.paidByCustomerCents)} />}
           {t.paidByRestaurantCents > 0 && <Row label="…de la cual salió del total de los pedidos" value={pesos(t.paidByRestaurantCents)} />}
           {t.unknownOriginCents > 0 && <Row label="…de pedidos anteriores al desglose" value={pesos(t.unknownOriginCents)} />}
-          {d.autoCollected && d.autoCollected.cents > 0 && (
-            <Row label={`MercadoPago (${d.autoCollected.orders} pedido/s): cobrada automáticamente`} value={pesos(d.autoCollected.cents)} />
-          )}
         </dl>
         {t.paidByCustomerCents > 0 && t.paidByRestaurantCents === 0 && t.unknownOriginCents === 0 && (
           <p className={cn('rounded-xl border-2 p-3 text-sm', TONE.ok)}>

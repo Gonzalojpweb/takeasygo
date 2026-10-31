@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { loadAutoCollectedByWeek, loadCommissionWeeks, summarizeAlerts } from '@/lib/commission-weeks'
+import { loadCommissionWeeks, summarizeAlerts } from '@/lib/commission-weeks'
 import { commissionsTenant } from '../_shared'
 
 /**
@@ -12,20 +12,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   try {
     const ctx = await commissionsTenant(request, (await params).tenant)
     if ('error' in ctx) return ctx.error
-    // MercadoPago / Kripton (cobradas automáticamente): solo el superadmin.
-    // El comercio no ve esas comisiones (decisión 2026-10-22).
-    const isSuperadmin = ctx.role === 'superadmin'
-    const [weeks, auto] = await Promise.all([
-      loadCommissionWeeks(ctx.tenant._id, { tz: ctx.tz }),
-      isSuperadmin ? loadAutoCollectedByWeek(ctx.tenant._id, { tz: ctx.tz }) : null,
-    ])
-    const autoTotal = auto ? [...auto.values()].reduce((a, w) => ({ cents: a.cents + w.cents, orders: a.orders + w.orders }), { cents: 0, orders: 0 }) : null
+    // MercadoPago / Kripton (cobradas automáticamente) NO viajan por el panel
+    // del comercio, ni siquiera con sesión de superadmin (30/10/2026): lo
+    // cobrado por MP de cada comercio se ve solo en Superadmin › Comisiones.
+    const weeks = await loadCommissionWeeks(ctx.tenant._id, { tz: ctx.tz })
     return NextResponse.json(
       {
         alerts: summarizeAlerts(weeks),
-        ...(auto && autoTotal
-          ? { autoCollected: { ...autoTotal, weeks: [...auto.entries()].map(([key, v]) => ({ key, ...v })).sort((a, b) => b.key.localeCompare(a.key)) } }
-          : {}),
         weeks: weeks
           .slice()
           .reverse()

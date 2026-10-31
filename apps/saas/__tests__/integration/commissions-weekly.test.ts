@@ -319,7 +319,9 @@ describe('permisos y validaciones', () => {
     expect((await weekGet(new NextRequest(`http://localhost/x`), P('2026-10-12'))).status).toBe(200)
   })
 
-  it('MercadoPago cobrado solo: el comercio no lo ve; el superadmin sí', async () => {
+  // 30/10/2026: lo cobrado por MP no viaja por el panel del comercio para
+  // NADIE (ni con sesión de superadmin): se ve solo en Superadmin › Comisiones.
+  it('MercadoPago cobrado solo: no viaja por el panel del comercio, ni para el superadmin', async () => {
     await order('2026-10-14T15:00:00Z', 25_000)
     await order('2026-10-14T16:00:00Z', 12_345, { payment: { method: 'mercadopago' } })
     const P = { params: Promise.resolve({ tenant: SLUG }) }
@@ -336,8 +338,9 @@ describe('permisos y validaciones', () => {
     vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as any)
     const list = await (await weeksGet(new NextRequest(`http://localhost/api/${SLUG}/commissions/weeks`), P)).json()
     const week = await (await weekGet(new NextRequest(`http://localhost/x`), PK)).json()
-    expect(list.autoCollected).toMatchObject({ cents: 12_345, orders: 1 })
-    expect(week.autoCollected).toMatchObject({ cents: 12_345, orders: 1 })
+    expect(list.autoCollected).toBeUndefined()
+    expect(week.autoCollected).toBeUndefined()
+    expect(JSON.stringify([list, week])).not.toContain('12345')
   })
 
   it('el cierre semanal es idempotente y congela los pedidos de cada semana', async () => {
