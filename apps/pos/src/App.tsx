@@ -138,6 +138,11 @@ function App() {
             orderMode: o.orderMode,
             items: o.items as Order["items"],
             total: o.total,
+            baseTotal: o.baseTotal,
+            surchargeAmount: o.surchargeAmount,
+            notes: o.notes,
+            display: o.display,
+            createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
           }).catch(() => {})
         })
 
@@ -156,7 +161,7 @@ function App() {
     }).catch(() => {})
 
     const unsubOrderCreated = onSocketEvent("order:created", (data: unknown) => {
-      const event = data as { orderId: string; items: unknown[]; total: number; baseTotal?: number; surchargeAmount?: number; source?: string; paymentMethod?: string; orderMode?: string }
+      const event = data as { orderId: string; items: unknown[]; total: number; baseTotal?: number; surchargeAmount?: number; source?: string; paymentMethod?: string; orderMode?: string; notes?: string; display?: Order["display"] }
       const orderSource = (event.source as Order["source"]) || "external"
 
       persistExternalOrder({
@@ -174,6 +179,8 @@ function App() {
         total: event.total,
         baseTotal: event.baseTotal,
         surchargeAmount: event.surchargeAmount,
+        notes: event.notes,
+        display: event.display,
       }).then(() => {
         console.log(`[App] order:created persisted: ${event.orderId}`)
       }).catch((err) => {
@@ -238,6 +245,11 @@ function App() {
               orderMode: o.orderMode,
               items: o.items as Order["items"],
               total: o.total,
+              baseTotal: o.baseTotal,
+              surchargeAmount: o.surchargeAmount,
+              notes: o.notes,
+              display: o.display,
+              createdAt: o.createdAt ? new Date(o.createdAt) : undefined,
             }).catch(() => {})
           })
 

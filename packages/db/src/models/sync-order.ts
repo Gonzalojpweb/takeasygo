@@ -30,6 +30,18 @@ export interface SyncOrderDocument extends Document {
   paymentMethod?: string
   /** Modo del pedido en el SaaS (dine-in | takeaway | delivery | business). */
   orderMode?: string
+  /**
+   * Pedidos App (30/10/2026): lo que el POS muestra para atenderlo — número
+   * del pedido, cliente y entrega. Viene del SaaS; datos personales mínimos
+   * (nombre, teléfono, dirección) que el comercio necesita para entregar.
+   */
+  display?: {
+    orderNumber?: string
+    customerName?: string
+    customerPhone?: string
+    deliveryAddress?: string
+    deliveryReference?: string
+  }
   /** B1: true si locationId fue inferido en backfill (no viene del dato original). */
   locationInferred?: boolean
   /** B1: motivo de la inferencia de sede (backfill). */
@@ -82,6 +94,16 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
     notes: { type: String },
     paymentMethod: { type: String },
     orderMode: { type: String },
+    display: {
+      type: new Schema({
+        orderNumber: { type: String, maxlength: 40 },
+        customerName: { type: String, maxlength: 120 },
+        customerPhone: { type: String, maxlength: 40 },
+        deliveryAddress: { type: String, maxlength: 240 },
+        deliveryReference: { type: String, maxlength: 240 },
+      }, { _id: false }),
+      default: undefined,
+    },
     // B1 sede en sync_orders: marca de inferencia en backfill.
     locationInferred: { type: Boolean, default: false },
     locationInferenceReason: { type: String },

@@ -304,6 +304,15 @@ export type OrderStatus =
   | "cancelled"
   | "requires_manual_attention"
 
+/** Lo que el POS muestra de un pedido de la App (viene del SaaS vía Sync). */
+export interface OrderDisplay {
+  orderNumber?: string
+  customerName?: string
+  customerPhone?: string
+  deliveryAddress?: string
+  deliveryReference?: string
+}
+
 export interface Order {
   id: string
   tenantId: string
@@ -328,6 +337,8 @@ export interface Order {
   paymentMethod?: PaymentMethod
   /** Modo del pedido externo (dine-in | takeaway | delivery | business) — filtros de Entrantes. */
   orderMode?: string
+  /** Pedidos App (30/10/2026): número del pedido, cliente y entrega para atenderlo. */
+  display?: OrderDisplay
   /**
    * Canal del pedido externo (obs. 24/10): ausente o "takeasygo" = App
    * TakeasyGO; una plataforma de delivery integrada (pedidosya, rappi…) =

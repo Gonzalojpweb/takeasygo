@@ -52,14 +52,18 @@ import {
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
-import { OrderCard } from "../IncomingOrders/OrderCard"
-import { OrderValidationPanel } from "../IncomingOrders/OrderValidationPanel"
-import { OrderTransformPanel } from "../IncomingOrders/OrderTransformPanel"
-import { GatewayStats } from "../IncomingOrders/GatewayStats"
-import { GatewayFilters } from "../IncomingOrders/GatewayFilters"
-import { AutoConfirmToggle } from "../IncomingOrders/AutoConfirmToggle"
-import { SocketStatus } from "../IncomingOrders/SocketStatus"
-import type { FilterOption } from "../IncomingOrders/GatewayFilters"
+import {
+  AppOrderDetail,
+  AppOrdersHead,
+  ReceiveGrid,
+  RunBoard,
+  customerLabel,
+  matchesFilter,
+  nextStep,
+  orderNumberLabel,
+  payStateOf,
+  type AppOrderFilter,
+} from "../IncomingOrders/AppOrders"
 import {
   OFF_CONFIG,
   defaultInvoiceChoice,
@@ -74,7 +78,6 @@ import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/
 type CounterView = "salon" | "mostrador" | "entrantes" | "delivery" | "reservaciones"
 type Scene = "salon" | "mesa" | "mover" | "productos" | "revision" | "cobro" | "cierre" | "setup" | "mostrador_rapido" | "mostrador_entregas" | "entrantes" | "delivery" | "reservaciones"
 type EntrantesSubView = "gateway" | "kanban"
-type GatewayScene = "queue" | "validation" | "transform"
 
 interface ViewDef {
   id: string
@@ -99,16 +102,6 @@ interface CartItem extends OrderItem {
   product: Product
 }
 
-interface ValidationItem {
-  productId: string
-  name: string
-  quantity: number
-  unitPrice: number
-  total: number
-  status: "valid" | "needs_attention"
-}
-
-const SYNC_URL = import.meta.env.VITE_SYNC_URL
 
 /**
  * Mensaje para el cajero. Los errores de negocio del server (400/409) traen
@@ -178,16 +171,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const pendingOrderIdRef = useRef<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
 
-  // ── Gateway state ─────────────────────────────────────────────────
+  // ── Pedidos App (maqueta aprobada 30/10): Recibir / En curso ────────
+  // gateway = Recibir · kanban = En curso. El detalle va al panel derecho.
   const [entrantesSubView, setEntrantesSubView] = useState<EntrantesSubView>("gateway")
-  const [gatewayScene, setGatewayScene] = useState<GatewayScene>("queue")
-  const [gatewayFilter, setGatewayFilter] = useState<FilterOption>("all")
+  const [gatewayFilter, setGatewayFilter] = useState<AppOrderFilter>("all")
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
-  const [validationItems, setValidationItems] = useState<ValidationItem[]>([])
-  const [transformResult, setTransformResult] = useState<{ localOrderId: string } | null>(null)
-  const [transforming, setTransforming] = useState(false)
   const [connected, setConnected] = useState(false)
   const [selectedKanbanOrderId, setSelectedKanbanOrderId] = useState<string | null>(null)
+  const [rejectingId, setRejectingId] = useState<string | null>(null)
+  const [appOrderBusyId, setAppOrderBusyId] = useState<string | null>(null)
 
   const showToast = useCallback((message: string, type: string) => {
     setToast({ message, type })
@@ -339,110 +331,55 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // GATEWAY HANDLERS
   // ============================================================================
 
-  const handleConfirmOrder = useCallback(async (orderId: string) => {
-    try {
-      const res = await fetch(`${SYNC_URL}/api/v1/orders/${orderId}/confirm`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${jwt}` },
-      })
-      if (!res.ok) throw new Error(`Confirm failed (${res.status})`)
-      if (tenantId) {
-        updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
-      }
-      showToast("Pedido confirmado en origen", "success")
-    } catch {
-      showToast("Error al confirmar", "error")
-    }
-  }, [jwt, tenantId, showToast])
-
   const handleConfirmTransfer = useCallback(async (orderId: string) => {
     if (!tenantId || !jwt) return
+    setAppOrderBusyId(orderId)
     const ok = await confirmTransferPayment(orderId, tenantId, jwt)
+    setAppOrderBusyId(null)
     if (ok) {
       updateExternalOrderStatus(orderId, tenantId, "confirmed").catch(() => {})
-      showToast("Pago confirmado y pedido integrado", "success")
+      setSelectedOrderId(orderId)
+      showToast("Pago confirmado: ya podés aceptar el pedido", "success")
     } else {
-      showToast("Error al confirmar pago", "error")
+      showToast("No se pudo confirmar el pago", "error")
     }
   }, [tenantId, jwt, showToast])
 
-  const handleRejectOrder = useCallback(async (orderId: string) => {
-    if (tenantId) {
-      await cancelExternalOrder(orderId, tenantId, "rejected_by_cashier").catch(() => {})
-    }
-    setSelectedOrderId(null)
-    setGatewayScene("queue")
-    showToast("Pedido rechazado", "info")
-  }, [tenantId, showToast])
-
-  const handleConfirmAllPaid = useCallback(() => {
-    const pendingPaid = gatewayOrders.filter((o) => o.status === "pending")
-    pendingPaid.forEach((o) => handleConfirmOrder(o.id))
-  }, [gatewayOrders, handleConfirmOrder])
-
-  const handleSelectOrder = useCallback((orderId: string) => {
+  // Rechazar: hoy solo en el POS (como antes del rediseño), con el motivo.
+  const handleRejectOrder = useCallback(async (orderId: string, reason: string) => {
     const order = gatewayOrders.find((o) => o.id === orderId)
-    if (!order) return
-    setSelectedOrderId(orderId)
-    setValidationItems(
-      order.items.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.total,
-        status: "valid" as const,
-      }))
-    )
-    setTransformResult(null)
-    setGatewayScene("validation")
-  }, [gatewayOrders])
+    if (tenantId) {
+      await cancelExternalOrder(orderId, tenantId, `Rechazado: ${reason}`).catch(() => {})
+    }
+    setRejectingId(null)
+    setSelectedOrderId(null)
+    showToast(`Pedido ${order ? orderNumberLabel(order) : ""} rechazado · ${reason}`, "info")
+  }, [tenantId, gatewayOrders, showToast])
 
-  const handleToggleItemStatus = useCallback((productId: string) => {
-    setValidationItems((prev) =>
-      prev.map((item) =>
-        item.productId === productId
-          ? { ...item, status: item.status === "valid" ? "needs_attention" as const : "valid" as const }
-          : item
-      )
-    )
-  }, [])
-
-  const handleTransform = useCallback(async () => {
-    const order = gatewayOrders.find((o) => o.id === selectedOrderId)
+  // Aceptar = tomar el pedido y pasarlo a En curso. NO manda nada a cocina:
+  // la comanda la imprime el SaaS cuando el pedido queda confirmado.
+  const handleAcceptOrder = useCallback(async (orderId: string) => {
+    const order = gatewayOrders.find((o) => o.id === orderId)
     if (!order || !tenantId) return
-
-    setTransforming(true)
+    setAppOrderBusyId(orderId)
     try {
-      const updated = await transformExternalOrder({
+      await transformExternalOrder({
         orderId: order.id,
         tenantId,
         items: order.items,
         total: order.total,
-        notes: order.notes ?? `Pedido online #${order.id.slice(0, 8)}`,
+        notes: order.notes ?? `Pedido online ${orderNumberLabel(order)}`,
       })
-      setTransformResult({ localOrderId: updated.id })
-      showToast("Pedido transformado a orden local", "success")
-
-      // Notificar al SyncLayer que el pedido pasó a "confirmed"
-      if (jwt) {
-        notifyStatusToSyncLayer(order.id, "confirmed", jwt).catch(() => {})
-      }
-
-      // Auto-switch to kanban after short delay
-      setTimeout(() => setEntrantesSubView("kanban"), 1500)
+      if (jwt) notifyStatusToSyncLayer(order.id, "confirmed", jwt).catch(() => {})
+      setSelectedOrderId(null)
+      setRejectingId(null)
+      showToast(`Pedido ${orderNumberLabel(order)} aceptado · pasó a En curso`, "success")
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Error al transformar", "error")
+      showToast(err instanceof Error ? err.message : "No se pudo aceptar el pedido", "error")
     } finally {
-      setTransforming(false)
+      setAppOrderBusyId(null)
     }
-  }, [gatewayOrders, selectedOrderId, tenantId, jwt, showToast])
-
-  const handleGatewayBack = useCallback(() => {
-    setGatewayScene("queue")
-    setSelectedOrderId(null)
-    setTransformResult(null)
-  }, [])
+  }, [gatewayOrders, tenantId, jwt, showToast])
 
   // ============================================================================
   // KANBAN HANDLERS (existing)
@@ -500,6 +437,22 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       showToast("Error al marcar llegó", "error")
     }
   }, [tenantId, state.jwt?.accessToken])
+
+  // Pedidos App › En curso: el paso que corresponde (ver nextStep).
+  const handleAdvanceAppOrder = useCallback(async (order: Order) => {
+    const step = nextStep(order)
+    if (!step) return
+    setAppOrderBusyId(order.id)
+    try {
+      if (step.status === "preparing") await handlePrepareExternal(order.id)
+      else if (step.status === "ready") await handleMarkReadyExternal(order.id)
+      else if (step.status === "en_ruta") await handleSetEnRutaExternal(order.id)
+      else if (step.status === "arrived") await handleSetArrivedExternal(order.id)
+      else await handleDeliverExternal(order.id)
+    } finally {
+      setAppOrderBusyId(null)
+    }
+  }, [handlePrepareExternal, handleMarkReadyExternal, handleSetEnRutaExternal, handleSetArrivedExternal, handleDeliverExternal])
 
   // ============================================================================
   // Mostrador → «Para entregar»: un solo paso. La caja entrega lo que se
@@ -643,8 +596,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     setSelectedTableId(null)
     setSelectedCategory(null)
     setEntrantesSubView("gateway")
-    setGatewayScene("queue")
     setSelectedOrderId(null)
+    setRejectingId(null)
     setSelectedKanbanOrderId(null)
     const defaults: Record<string, Scene> = {
       salon: "salon",
@@ -695,9 +648,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         return () => setScene("salon")
       case "entrantes":
         if (entrantesSubView === "kanban") return selectedKanbanOrderId ? () => setSelectedKanbanOrderId(null) : null
-        if (gatewayScene === "validation") return handleGatewayBack
-        if (gatewayScene === "transform") return transformResult ? handleGatewayBack : () => setGatewayScene("validation")
-        return null
+        if (rejectingId) return () => setRejectingId(null)
+        return selectedOrderId ? () => setSelectedOrderId(null) : null
       default:
         return null
     }
@@ -1270,45 +1222,28 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // DERIVED STATE
   // ============================================================================
 
-  // Filtros por modo del pedido: el orderMode viaja SaaS → Sync → POS
-  // (antes delivery/take away estaban fijos en 0 y no filtraban nada).
-  // Marketplaces sigue deshabilitado: no hay integración.
-  const filteredGatewayOrders = useMemo(() => {
-    switch (gatewayFilter) {
-      case "delivery":
-        return gatewayOrders.filter((o) => o.orderMode === "delivery")
-      case "takeaway":
-        return gatewayOrders.filter((o) => o.orderMode === "takeaway")
-      case "pending_payment":
-        return gatewayOrders.filter((o) => o.status === "pending")
-      default:
-        return gatewayOrders
-    }
-  }, [gatewayOrders, gatewayFilter])
-
-  const gatewayPendingCount = useMemo(
-    () => gatewayOrders.filter((o) => o.status === "pending" || o.externalStatus === "awaiting_payment").length,
-    [gatewayOrders]
+  // Recibir: los más viejos primero (esperan hace más). Filtros que funcionan.
+  const filteredGatewayOrders = useMemo(
+    () => gatewayOrders
+      .filter((o) => matchesFilter(o, gatewayFilter))
+      .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
+    [gatewayOrders, gatewayFilter]
   )
 
-  const gatewayPaidCount = useMemo(
-    () => gatewayOrders.filter(
-      (o) => o.source === "external" && ["confirmed", "preparing", "ready", "delivered"].includes(o.status)
-    ).length,
-    [gatewayOrders]
-  )
-
-  const gatewayFilterCounts = useMemo(() => ({
+  const gatewayFilterCounts = useMemo((): Record<AppOrderFilter, number> => ({
     all: gatewayOrders.length,
-    delivery: gatewayOrders.filter((o) => o.orderMode === "delivery").length,
-    takeaway: gatewayOrders.filter((o) => o.orderMode === "takeaway").length,
-    marketplace: 0,
-    pending_payment: gatewayPendingCount,
-  }), [gatewayOrders, gatewayPendingCount])
+    delivery: gatewayOrders.filter((o) => matchesFilter(o, "delivery")).length,
+    takeaway: gatewayOrders.filter((o) => matchesFilter(o, "takeaway")).length,
+    pay: gatewayOrders.filter((o) => matchesFilter(o, "pay")).length,
+  }), [gatewayOrders])
 
   const selectedOrder = useMemo(
     () => gatewayOrders.find((o) => o.id === selectedOrderId),
     [gatewayOrders, selectedOrderId]
+  )
+  const selectedKanbanOrder = useMemo(
+    () => kanbanOrders.find((o) => o.id === selectedKanbanOrderId),
+    [kanbanOrders, selectedKanbanOrderId]
   )
 
   // ============================================================================
@@ -1638,327 +1573,70 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
 
-      case "entrantes":
+      case "entrantes": {
+        // Maqueta aprobada 30/10: el detalle del pedido elegido va al panel;
+        // la barra tiene LA acción (aceptar / confirmar pago / avanzar).
+        const detail = entrantesSubView === "gateway" ? selectedOrder : selectedKanbanOrder
+        if (!detail) {
+          setContextPanel({
+            title: entrantesSubView === "gateway" ? "Recibir" : "En curso",
+            subtitle: connected ? "● Conectado" : "○ Sin conexión: los pedidos llegan al reconectar",
+            body: (
+              <p className="cash-help">
+                {entrantesSubView === "gateway"
+                  ? "Elegí un pedido para ver el cliente, la entrega, los productos con sus opciones y el pago. Aceptarlo lo pasa a En curso; la comanda la imprime el sistema cuando el pedido queda confirmado."
+                  : "Avanzá cada pedido desde su tarjeta: Empezar → Marcar listo → Entregado (o Salió el delivery → Llegó → Entregado)."}
+              </p>
+            ),
+          })
+          setActionBar(null)
+          break
+        }
+        setContextPanel({
+          title: `Pedido ${orderNumberLabel(detail)}`,
+          subtitle: customerLabel(detail),
+          body: (
+            <AppOrderDetail
+              order={detail}
+              now={now}
+              rejecting={rejectingId === detail.id}
+              onReject={(reason) => { void handleRejectOrder(detail.id, reason) }}
+            />
+          ),
+        })
         if (entrantesSubView === "gateway") {
-          // Gateway context panel
-          switch (gatewayScene) {
-            case "queue":
-              setContextPanel({
-                title: "Bandeja de entrada",
-                subtitle: connected ? "● Conectado" : "○ Desconectado — offline",
-                body: (
-                  <div style={{ padding: "var(--sp-2)" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                      <div>
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                          En cola
-                        </div>
-                        <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
-                          {gatewayOrders.length}
-                        </div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                          Pendientes
-                        </div>
-                        <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: gatewayPendingCount > 0 ? "var(--warning)" : "var(--text-primary)" }}>
-                          {gatewayPendingCount}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ),
-              })
-              setActionBar({
-                right: gatewayPendingCount > 0 ? (
-                  <button className="btn btn-primary btn-sm" onClick={handleConfirmAllPaid}>
-                    Confirmar todos
-                  </button>
-                ) : undefined,
-              })
-              break
-
-            case "validation":
-              if (!selectedOrder) {
-                handleGatewayBack()
-                break
-              }
-              const needsAttention = validationItems.filter((v) => v.status === "needs_attention").length
-              setContextPanel({
-                title: "Validar pedido",
-                subtitle: `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`,
-                body: (
-                  <div style={{ padding: "var(--sp-2)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-2)" }}>
-                      Items ({selectedOrder.items.length})
-                    </div>
-                    {validationItems.map((item) => (
-                      <div
-                        key={item.productId}
-                        onClick={() => handleToggleItemStatus(item.productId)}
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          padding: "var(--sp-1) 0",
-                          borderBottom: "1px solid var(--border)",
-                          cursor: "pointer",
-                          opacity: item.status === "needs_attention" ? 0.6 : 1,
-                          textDecoration: item.status === "needs_attention" ? "line-through" : "none",
-                        }}
-                      >
-                        <div>
-                          <span style={{ fontSize: "var(--font-size-sm)" }}>
-                            {item.status === "needs_attention" ? "⚠" : "✓"} {item.quantity}x {item.name}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: "var(--font-size-sm)", fontWeight: 600 }}>
-                          {formatCurrency(item.total)}
-                        </span>
-                      </div>
-                    ))}
-                    {needsAttention > 0 && (
-                      <div style={{ marginTop: "var(--sp-2)", padding: "var(--sp-2)", background: "var(--warning-bg, #fff3cd)", borderRadius: "var(--radius)", fontSize: "var(--font-size-sm)" }}>
-                        ⚠ {needsAttention} item(s) requieren atención. Hacé clic para alternar estado.
-                      </div>
-                    )}
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "var(--sp-2)", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
-                      <span>Total</span>
-                      <span>{formatCurrency(selectedOrder.total)}</span>
-                    </div>
-                  </div>
-                ),
-              })
-              setActionBar({
-                left: (
-                  <button className="btn btn-ghost" onClick={handleGatewayBack}>
-                    ← Volver
-                  </button>
-                ),
-                center: selectedOrder && (
-                  <button className="btn btn-danger" onClick={() => handleRejectOrder(selectedOrder.id)}>
-                    Rechazar pedido
-                  </button>
-                ),
-                right: (
-                  <button className="btn btn-primary" onClick={() => setGatewayScene("transform")}>
-                    Transformar a local
-                  </button>
-                ),
-              })
-              break
-
-            case "transform":
-              setContextPanel({
-                title: transformResult ? "Transformación completa" : "Procesando...",
-                subtitle: selectedOrder ? `#${selectedOrder.id.slice(0, 8)}` : "",
-                body: (
-                  <div style={{ padding: "var(--sp-3)", textAlign: "center" }}>
-                    {transformResult ? (
-                      <div>
-                        <div style={{ fontSize: 48, marginBottom: "var(--sp-3)" }}>✅</div>
-                        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: "var(--sp-2)" }}>
-                          Pedido transformado
-                        </div>
-                        <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
-                          Orden local: {transformResult.localOrderId.slice(0, 12)}...
-                        </div>
-                        <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-sm)" }}>
-                          Enviado a cocina automáticamente
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize: 48, marginBottom: "var(--sp-3)" }}>🔄</div>
-                        <div style={{ fontSize: "var(--font-size-lg)", fontWeight: 600, marginBottom: "var(--sp-2)" }}>
-                          {transforming ? "Transformando..." : "Listo para transformar"}
-                        </div>
-                        {selectedOrder && (
-                          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-muted)", marginBottom: "var(--sp-3)" }}>
-                            {selectedOrder.items.length} items — {formatCurrency(selectedOrder.total)}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ),
-              })
-              setActionBar({
-                left: transformResult ? (
-                  <button className="btn btn-ghost" onClick={handleGatewayBack}>
-                    ← Volver a bandeja
-                  </button>
-                ) : (
-                  <button className="btn btn-ghost" onClick={() => setGatewayScene("validation")}>
-                    ← Volver a validación
-                  </button>
-                ),
-                right: !transformResult ? (
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleTransform}
-                    disabled={transforming}
-                  >
-                    {transforming ? "Transformando..." : "Crear orden local"}
-                  </button>
-                ) : undefined,
-              })
-              break
-          }
+          const state = payStateOf(detail)
+          const busy = appOrderBusyId === detail.id
+          setActionBar({
+            left: (
+              <button className="btn btn-ghost ao-reject" onClick={() => setRejectingId(rejectingId === detail.id ? null : detail.id)}>
+                {rejectingId === detail.id ? "Cancelar rechazo" : "Rechazar"}
+              </button>
+            ),
+            right: state === "transfer_pending" ? (
+              <button className="btn ao-btn-warn ao-bar-main" disabled={busy} onClick={() => { void handleConfirmTransfer(detail.id) }}>
+                Confirmar pago recibido · {formatCurrency(detail.total)}
+              </button>
+            ) : state === "mp_pending" ? (
+              <button className="btn btn-secondary ao-bar-main" disabled>Esperando el pago</button>
+            ) : (
+              <button className="btn btn-primary ao-bar-main" disabled={busy} onClick={() => { void handleAcceptOrder(detail.id) }}>
+                Aceptar pedido
+              </button>
+            ),
+          })
         } else {
-          // Kanban context panel
-          const selectedKanbanOrder = selectedKanbanOrderId ? kanbanOrders.find((o) => o.id === selectedKanbanOrderId) : null
-
-          if (selectedKanbanOrder) {
-            // Detail view for selected order
-            const nextStatus: Record<string, { label: string; handler: () => void } | null> = {
-              confirmed: { label: "Iniciar Preparación", handler: () => handlePrepareExternal(selectedKanbanOrder.id) },
-              preparing: { label: "Marcar Listo", handler: () => handleMarkReadyExternal(selectedKanbanOrder.id) },
-              ready: selectedKanbanOrder.source === "delivery"
-                ? { label: "En Ruta", handler: () => handleSetEnRutaExternal(selectedKanbanOrder.id) }
-                : { label: "Entregado", handler: () => handleDeliverExternal(selectedKanbanOrder.id) },
-              en_ruta: { label: "Llegó", handler: () => handleSetArrivedExternal(selectedKanbanOrder.id) },
-              arrived: { label: "Entregado", handler: () => handleDeliverExternal(selectedKanbanOrder.id) },
-            }
-            const next = nextStatus[selectedKanbanOrder.status] ?? null
-
-            setContextPanel({
-              title: `Pedido #${selectedKanbanOrder.id.slice(0, 8)}`,
-              subtitle: selectedKanbanOrder.source === "delivery" ? "Delivery" : "Take Away",
-              body: (
-                <div style={{ padding: "var(--sp-2)" }}>
-                  <div style={{ marginBottom: "var(--sp-3)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
-                      Estado
-                    </div>
-                    <div style={{
-                      fontSize: "var(--font-size-sm)", fontWeight: 600,
-                      color: selectedKanbanOrder.status === "confirmed" ? "var(--text-primary)" :
-                             selectedKanbanOrder.status === "preparing" ? "var(--warning)" :
-                             selectedKanbanOrder.status === "ready" ? "var(--success)" :
-                             selectedKanbanOrder.status === "en_ruta" ? "var(--info)" :
-                             selectedKanbanOrder.status === "arrived" ? "var(--primary-action)" : "var(--text-muted)",
-                    }}>
-                      {selectedKanbanOrder.status === "confirmed" && "Por preparar"}
-                      {selectedKanbanOrder.status === "preparing" && "Preparando"}
-                      {selectedKanbanOrder.status === "ready" && "Listo"}
-                      {selectedKanbanOrder.status === "en_ruta" && "En Ruta"}
-                      {selectedKanbanOrder.status === "arrived" && "Llegó"}
-                    </div>
-                  </div>
-                  <div style={{ marginBottom: "var(--sp-3)" }}>
-                    <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--sp-1)" }}>
-                      Items ({selectedKanbanOrder.items.length})
-                    </div>
-                    {selectedKanbanOrder.items.map((item, i) => (
-                      <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "var(--sp-1) 0", borderBottom: "1px solid var(--border)", fontSize: "var(--font-size-sm)" }}>
-                        <span>{item.quantity}× {item.name}</span>
-                        <span style={{ fontWeight: 600 }}>{formatCurrency(item.total)}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {selectedKanbanOrder.surchargeAmount && selectedKanbanOrder.surchargeAmount > 0 ? (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                        <span>Precio de carta</span>
-                        <span style={{ fontWeight: 500 }}>{formatCurrency(selectedKanbanOrder.baseTotal ?? selectedKanbanOrder.total - selectedKanbanOrder.surchargeAmount)}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--warning)" }}>
-                        <span>Costos operativos y/o comerciales</span>
-                        <span style={{ fontWeight: 500 }}>+{formatCurrency(selectedKanbanOrder.surchargeAmount)}</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
-                        <span>Total cobrado</span>
-                        <span>{formatCurrency(selectedKanbanOrder.total)}</span>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "var(--sp-2)", borderTop: "2px solid var(--text-primary)", fontWeight: 700 }}>
-                      <span>Total</span>
-                      <span>{formatCurrency(selectedKanbanOrder.total)}</span>
-                    </div>
-                  )}
-                  <div style={{ marginTop: "var(--sp-2)", fontSize: "var(--font-size-xs)", color: "var(--text-muted)" }}>
-                    {selectedKanbanOrder.paymentMethod === "mercadopago" ? "💙 MercadoPago" :
-                     selectedKanbanOrder.paymentMethod === "transfer" ? "🏦 Transferencia" :
-                     selectedKanbanOrder.paymentMethod}
-                  </div>
-                </div>
-              ),
-            })
-            setActionBar({
-              left: (
-                <button className="btn btn-ghost" onClick={() => setSelectedKanbanOrderId(null)}>
-                  ← Volver
-                </button>
-              ),
-              right: next ? (
-                <button className="btn btn-primary" onClick={next.handler}>
-                  {next.label}
-                </button>
-              ) : undefined,
-            })
-          } else {
-            // Summary counts
-            const pendingCount = kanbanOrders.filter((o) => o.status === "confirmed").length
-            const preparingCount = kanbanOrders.filter((o) => o.status === "preparing").length
-            const readyCount = kanbanOrders.filter((o) => o.status === "ready").length
-            const enRutaCount = kanbanOrders.filter((o) => o.status === "en_ruta").length
-            const arrivedCount = kanbanOrders.filter((o) => o.status === "arrived").length
-            setContextPanel({
-              title: "Pedidos App",
-              subtitle: "Órdenes del ecosistema en operación",
-              body: (
-                <div style={{ padding: "var(--sp-2)" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-3)" }}>
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Por preparar
-                      </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
-                        {pendingCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        En preparación
-                      </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--warning)" }}>
-                        {preparingCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Listos
-                      </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--success)" }}>
-                        {readyCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        En ruta
-                      </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--info)" }}>
-                        {enRutaCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                        Llegaron
-                      </div>
-                      <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700, color: "var(--primary-action)" }}>
-                        {arrivedCount}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ),
-            })
-            setActionBar(null)
-          }
+          const step = nextStep(detail)
+          setActionBar(step ? {
+            right: (
+              <button className="btn btn-primary ao-bar-main" disabled={appOrderBusyId === detail.id} onClick={() => { void handleAdvanceAppOrder(detail) }}>
+                {step.label}
+              </button>
+            ),
+          } : null)
         }
         break
+      }
 
       case "cierre":
         setContextPanel({
@@ -1999,7 +1677,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, gatewayScene, gatewayOrders, kanbanOrders, gatewayPendingCount, gatewayPaidCount, connected, selectedOrder, selectedKanbanOrderId, validationItems, transformResult, transforming, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleConfirmAllPaid, handleGatewayBack, handleRejectOrder, handleTransform, handlePrepareExternal, handleMarkReadyExternal, handleDeliverExternal, handleSetEnRutaExternal, handleSetArrivedExternal])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder])
 
   // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
   // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
@@ -2258,331 +1936,39 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       {/* VIEW: ENTRANTES (Gateway + Kanban) */}
       {/* ================================================ */}
       {view === "entrantes" && (
-        <>
-          {/* Sub-tabs: Recibir / Operar */}
-          <div style={{
-            display: "flex",
-            gap: "var(--sp-2)",
-            padding: "var(--sp-3) var(--sp-4)",
-            borderBottom: "1px solid var(--border)",
-            background: "var(--surface-primary)",
-          }}>
-            <button
-              className={`btn btn-sm ${entrantesSubView === "gateway" ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setEntrantesSubView("gateway")}
-              style={{ position: "relative" }}
-            >
-              {gatewayOrders.length > 0 && (
-                <span className="pulse-dot" />
-              )}
-              Recibir
-              {gatewayOrders.length > 0 && (
-                <span style={{
-                  marginLeft: "var(--sp-1)",
-                  background: entrantesSubView === "gateway" ? "rgba(255,255,255,0.3)" : "var(--warning)",
-                  color: entrantesSubView === "gateway" ? "white" : "white",
-                  padding: "1px 6px",
-                  borderRadius: 10,
-                  fontSize: "var(--font-size-xs)",
-                  fontWeight: 700,
-                }}>
-                  {gatewayOrders.length}
-                </span>
-              )}
-            </button>
-            <button
-              className={`btn btn-sm ${entrantesSubView === "kanban" ? "btn-primary" : "btn-ghost"}`}
-              onClick={() => setEntrantesSubView("kanban")}
-              style={{ position: "relative" }}
-            >
-              Operar
-              {kanbanOrders.length > 0 && (
-                <span style={{
-                  marginLeft: "var(--sp-1)",
-                  background: entrantesSubView === "kanban" ? "rgba(255,255,255,0.3)" : "var(--info)",
-                  color: entrantesSubView === "kanban" ? "white" : "white",
-                  padding: "1px 6px",
-                  borderRadius: 10,
-                  fontSize: "var(--font-size-xs)",
-                  fontWeight: 700,
-                }}>
-                  {kanbanOrders.length}
-                </span>
-              )}
-            </button>
+        <div className="ao">
+          <AppOrdersHead
+            mode={entrantesSubView === "gateway" ? "recv" : "run"}
+            onMode={(m) => { setEntrantesSubView(m === "recv" ? "gateway" : "kanban"); setRejectingId(null) }}
+            recvCount={gatewayOrders.length}
+            runCount={kanbanOrders.length}
+            filter={gatewayFilter}
+            onFilter={setGatewayFilter}
+            counts={gatewayFilterCounts}
+          />
+          <div className="ao-body">
+            {entrantesSubView === "gateway" ? (
+              <ReceiveGrid
+                orders={filteredGatewayOrders}
+                now={now}
+                selectedId={selectedOrderId}
+                onSelect={(id) => { setSelectedOrderId(id); if (rejectingId !== id) setRejectingId(null) }}
+                onAccept={(id) => { void handleAcceptOrder(id) }}
+                onConfirmPayment={(id) => { void handleConfirmTransfer(id) }}
+                busyId={appOrderBusyId}
+              />
+            ) : (
+              <RunBoard
+                orders={kanbanOrders}
+                now={now}
+                selectedId={selectedKanbanOrderId}
+                onSelect={setSelectedKanbanOrderId}
+                onAdvance={(o) => { void handleAdvanceAppOrder(o) }}
+                busyId={appOrderBusyId}
+              />
+            )}
           </div>
-
-          {/* ── GATEWAY: Cola de pedidos del SaaS ── */}
-          {entrantesSubView === "gateway" && (
-            <>
-              <div className="workspace-header">
-                <div>
-                  <div className="workspace-title">
-                    {gatewayScene === "queue" ? "Pedidos App" : gatewayScene === "validation" ? "Validar pedido" : "Transformar a local"}
-                  </div>
-                  <div className="workspace-subtitle">
-                    {gatewayScene === "queue"
-                      ? "Pedidos de la App TakeasyGO — Recibir → Validar → Transformar"
-                      : gatewayScene === "validation" && selectedOrder
-                        ? `#${selectedOrder.id.slice(0, 8)} — ${formatCurrency(selectedOrder.total)}`
-                        : gatewayScene === "transform" && selectedOrder
-                          ? `#${selectedOrder.id.slice(0, 8)}`
-                          : ""}
-                  </div>
-                </div>
-                <div className="workspace-actions">
-                  {gatewayScene === "queue" && (
-                    <>
-                      <GatewayStats urgent={0} pendingPayment={gatewayPendingCount} paid={gatewayPaidCount} urgentDisabled />
-                      <AutoConfirmToggle />
-                      <SocketStatus connected={connected} />
-                    </>
-                  )}
-                  {gatewayScene === "validation" && (
-                    <span className="status-badge">
-                      {validationItems.filter((v) => v.status === "needs_attention").length > 0
-                        ? `${validationItems.filter((v) => v.status === "needs_attention").length} pendiente(s)`
-                        : "Todos OK"}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                {gatewayScene === "queue" && (
-                  <>
-                    <GatewayFilters active={gatewayFilter} counts={gatewayFilterCounts} onChange={setGatewayFilter} />
-                    {filteredGatewayOrders.length === 0 ? (
-                      <div className="empty-state">
-                        <span className="empty-state-icon">📦</span>
-                        <span className="empty-state-text">
-                          No hay pedidos externos pendientes
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="orders-list">
-                        {filteredGatewayOrders.map((order) => (
-                          <OrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={handleSelectOrder}
-                            onConfirmTransfer={handleConfirmTransfer}
-                            showLifecycleButtons={false}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-
-                {gatewayScene === "validation" && selectedOrder && (
-                  <OrderValidationPanel
-                    order={selectedOrder}
-                    items={validationItems}
-                    onToggleItem={handleToggleItemStatus}
-                  />
-                )}
-
-                {gatewayScene === "transform" && selectedOrder && (
-                  <OrderTransformPanel
-                    order={selectedOrder}
-                    transformResult={transformResult}
-                    transforming={transforming}
-                    onTransform={handleTransform}
-                    onReturn={handleGatewayBack}
-                  />
-                )}
-              </div>
-            </>
-          )}
-
-          {/* ── KANBAN: Pedidos integrados en operación ── */}
-          {entrantesSubView === "kanban" && (
-            <>
-              <div className="p-6" style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
-                {kanbanOrders.length === 0 ? (
-                  <div className="empty-state">
-                    <span className="empty-state-icon">📦</span>
-                    <span className="empty-state-text">No hay pedidos en operación</span>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "var(--sp-3)", height: "100%" }}>
-                    {/* Columna: Por preparar (confirmed) */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                      <div style={{
-                        padding: "var(--sp-2)",
-                        background: "var(--surface-secondary)",
-                        borderRadius: "var(--radius)",
-                        fontWeight: 600,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}>
-                        <span>Por preparar</span>
-                        <span style={{
-                          background: "var(--warning-bg, #fff3cd)",
-                          color: "var(--warning)",
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "var(--font-size-xs)"
-                        }}>
-                          {kanbanOrders.filter((o) => o.status === "confirmed").length}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "confirmed").map((order) => (
-                          <KanbanOrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={setSelectedKanbanOrderId}
-                            onPrepare={handlePrepareExternal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Columna: Preparando */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                      <div style={{
-                        padding: "var(--sp-2)",
-                        background: "var(--surface-secondary)",
-                        borderRadius: "var(--radius)",
-                        fontWeight: 600,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}>
-                        <span>Preparando</span>
-                        <span style={{
-                          background: "var(--info-bg, #e3f2fd)",
-                          color: "var(--info)",
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "var(--font-size-xs)"
-                        }}>
-                          {kanbanOrders.filter((o) => o.status === "preparing").length}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "preparing").map((order) => (
-                          <KanbanOrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={setSelectedKanbanOrderId}
-                            onMarkReady={handleMarkReadyExternal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Columna: Listos */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                      <div style={{
-                        padding: "var(--sp-2)",
-                        background: "var(--surface-secondary)",
-                        borderRadius: "var(--radius)",
-                        fontWeight: 600,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}>
-                        <span>Listos</span>
-                        <span style={{
-                          background: "var(--success-bg, #e6f7e6)",
-                          color: "var(--success)",
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "var(--font-size-xs)"
-                        }}>
-                          {kanbanOrders.filter((o) => o.status === "ready").length}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "ready").map((order) => (
-                          <KanbanOrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={setSelectedKanbanOrderId}
-                            onSetEnRuta={handleSetEnRutaExternal}
-                            onDeliver={handleDeliverExternal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Columna: En Ruta */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                      <div style={{
-                        padding: "var(--sp-2)",
-                        background: "var(--surface-secondary)",
-                        borderRadius: "var(--radius)",
-                        fontWeight: 600,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}>
-                        <span>En Ruta</span>
-                        <span style={{
-                          background: "var(--info-bg, #e3f2fd)",
-                          color: "var(--info)",
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "var(--font-size-xs)"
-                        }}>
-                          {kanbanOrders.filter((o) => o.status === "en_ruta").length}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "en_ruta").map((order) => (
-                          <KanbanOrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={setSelectedKanbanOrderId}
-                            onSetArrived={handleSetArrivedExternal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Columna: Llegaron */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                      <div style={{
-                        padding: "var(--sp-2)",
-                        background: "var(--surface-secondary)",
-                        borderRadius: "var(--radius)",
-                        fontWeight: 600,
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center"
-                      }}>
-                        <span>Llegaron</span>
-                        <span style={{
-                          background: "var(--primary-action-light)",
-                          color: "var(--primary-action)",
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "var(--font-size-xs)"
-                        }}>
-                          {kanbanOrders.filter((o) => o.status === "arrived").length}
-                        </span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "var(--sp-2)" }}>
-                        {kanbanOrders.filter((o) => o.status === "arrived").map((order) => (
-                          <KanbanOrderCard
-                            key={order.id}
-                            order={order}
-                            onClick={setSelectedKanbanOrderId}
-                            onDeliver={handleDeliverExternal}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </>
+        </div>
       )}
 
       {/* ================================================ */}
@@ -2706,112 +2092,6 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         </div>
       )}
     </>
-  )
-}
-
-// ============================================================================
-// KanbanOrderCard - Componente para pedidos en el kanban de operación
-// ============================================================================
-
-interface KanbanOrderCardProps {
-  order: Order
-  onClick?: (orderId: string) => void
-  onPrepare?: (orderId: string) => void
-  onMarkReady?: (orderId: string) => void
-  onSetEnRuta?: (orderId: string) => void
-  onSetArrived?: (orderId: string) => void
-  onDeliver?: (orderId: string) => void
-}
-
-function KanbanOrderCard({ order, onClick, onPrepare, onMarkReady, onSetEnRuta, onSetArrived, onDeliver }: KanbanOrderCardProps) {
-  const isDelivery = order.source === "delivery"
-  const now = useNow()
-  const minutes = Math.floor((now - new Date(order.createdAt).getTime()) / 60000)
-  const isUrgent = minutes > 5
-
-  function getNextAction() {
-    switch (order.status) {
-      case "pending":
-      case "confirmed":
-        return { label: "Iniciar Preparación", action: onPrepare }
-      case "preparing":
-        return { label: "Marcar Listo", action: onMarkReady }
-      case "ready":
-        if (isDelivery) {
-          return { label: "En Ruta", action: onSetEnRuta }
-        }
-        return { label: "Entregado", action: onDeliver }
-      case "en_ruta":
-        return { label: "Llegó", action: onSetArrived }
-      case "arrived":
-        return { label: "Entregado", action: onDeliver }
-      default:
-        return { label: null, action: null }
-    }
-  }
-
-  const nextAction = getNextAction()
-
-  return (
-    <div
-      className={`order-card ${isUrgent ? "urgent" : ""}`}
-      style={{ cursor: "pointer" }}
-      onClick={() => onClick?.(order.id)}
-    >
-      <div className="order-card-left">
-        <div className="order-card-header">
-          <div className={`order-card-source ${isDelivery ? "delivery" : "pickup"}`}>
-            {isDelivery ? "🚚" : "🥡"}
-          </div>
-          <div>
-            <div className="order-card-title">
-              #{order.id.slice(0, 8)}
-            </div>
-            <div className="order-card-meta">
-              <span>{isDelivery ? "Delivery" : "Take Away"}</span>
-              <span className={`order-card-payment ${order.paymentMethod === "mercadopago" ? "mercadopago" : "other"}`}>
-                💙 MP
-              </span>
-              <span style={{
-                fontSize: "var(--font-size-xs)",
-                color: order.status === "pending" || order.status === "confirmed" ? "var(--text-muted)" :
-                       order.status === "preparing" ? "var(--warning)" :
-                       order.status === "ready" ? "var(--success)" :
-                       order.status === "en_ruta" ? "var(--info)" :
-                       order.status === "arrived" ? "var(--primary-action)" : "var(--text-muted)",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-              }}>
-                {(order.status === "pending" || order.status === "confirmed") && "Por preparar"}
-                {order.status === "preparing" && "Preparando"}
-                {order.status === "ready" && "Listo"}
-                {order.status === "en_ruta" && "En Ruta"}
-                {order.status === "arrived" && "Llegó"}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="order-card-items">
-          {order.items.map((i) => `${i.quantity}× ${i.name}`).join(", ")}
-        </div>
-        {nextAction.action && (
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ marginTop: "var(--sp-2)" }}
-            onClick={() => nextAction.action?.(order.id)}
-          >
-            {nextAction.label}
-          </button>
-        )}
-      </div>
-      <div className="order-card-right">
-        <span className={`order-card-time ${isUrgent ? "urgent" : ""}`}>
-          {isUrgent ? `⚠ ${minutes} min` : timeAgo(order.createdAt)}
-        </span>
-        <span className="order-card-total">{formatCurrency(order.total)}</span>
-      </div>
-    </div>
   )
 }
 

@@ -3,7 +3,7 @@ import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
 import { config } from "../config"
-import { createTranslatedOrder, updateOrderStatus } from "../services/order-translator"
+import { createTranslatedOrder, sanitizeDisplay, updateOrderStatus } from "../services/order-translator"
 import { enqueueOrderCreated, removePendingOrder, voidsOfflineTimeout } from "../queues/order-queue"
 import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
@@ -29,6 +29,7 @@ export function internalRouter(
   router.post("/orders", async (req, res) => {
     try {
       const data = req.body
+      const display = sanitizeDisplay(data.display)
 
       const { id: orderId, duplicate } = await createTranslatedOrder({
         tenantId: data.tenantId,
@@ -43,6 +44,7 @@ export function internalRouter(
         externalOrderId: data.externalOrderId,
         paymentMethod: data.paymentMethod,
         orderMode: typeof data.orderMode === "string" ? data.orderMode.slice(0, 20) : undefined,
+        display,
       })
 
       if (duplicate) {
@@ -60,6 +62,8 @@ export function internalRouter(
         surchargeAmount: data.surchargeAmount,
         paymentMethod: data.paymentMethod,
         orderMode: typeof data.orderMode === "string" ? data.orderMode.slice(0, 20) : undefined,
+        notes: typeof data.notes === "string" ? data.notes.slice(0, 500) : undefined,
+        display,
         timestamp: new Date().toISOString(),
       }
 

@@ -25,7 +25,7 @@ interface SyncOrderPayload {
   tenantId: string
   externalOrderId: string
   locationId?: string
-  items: { productId?: string; name: string; quantity: number; unitPrice: number; total: number }[]
+  items: { productId?: string; name: string; quantity: number; unitPrice: number; total: number; modifiers?: { name: string; price: number }[] }[]
   total: number
   baseTotal?: number
   surchargeAmount?: number
@@ -34,6 +34,13 @@ interface SyncOrderPayload {
   paymentMethod?: string
   /** dine-in | takeaway | delivery | business — alimenta los filtros de Entrantes del POS. */
   orderMode?: string
+  /** Pedidos App (30/10): número, cliente y entrega para atenderlo en el POS. */
+  display?: {
+    orderNumber?: string
+    customerName?: string
+    customerPhone?: string
+    deliveryAddress?: string
+  }
 }
 
 const PUSH_TIMEOUT_MS = 8000

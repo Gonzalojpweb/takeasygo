@@ -141,8 +141,12 @@ export interface PendingSyncOrder {
   status: string
   paymentMethod?: string
   orderMode?: string
-  items: Array<{ name: string; quantity: number; unitPrice: number; total: number }>
+  items: Array<{ name: string; quantity: number; unitPrice: number; total: number; modifiers?: Array<{ name: string; price: number }> }>
   total: number
+  baseTotal?: number
+  surchargeAmount?: number
+  notes?: string
+  display?: import("@takeasygo/types").OrderDisplay
   createdAt: string
 }
 

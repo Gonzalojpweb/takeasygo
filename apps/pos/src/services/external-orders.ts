@@ -66,6 +66,10 @@ interface PersistExternalOrderParams {
   surchargeAmount?: number
   notes?: string
   orderMode?: string
+  /** Pedidos App: número, cliente y entrega. */
+  display?: Order["display"]
+  /** Hora real del pedido (recuperación al reconectar); ausente = ahora. */
+  createdAt?: Date
 }
 
 /**
@@ -108,6 +112,8 @@ export async function persistExternalOrder(
     surchargeAmount,
     notes,
     orderMode,
+    display,
+    createdAt,
   } = params
 
   const existing = await db.orders.get(orderId)
@@ -124,6 +130,8 @@ export async function persistExternalOrder(
       status: existing.status === "pending" && status !== "pending" ? status : existing.status,
       paymentMethod: paymentMethod ?? existing.paymentMethod,
       orderMode: orderMode ?? existing.orderMode,
+      display: display ?? existing.display,
+      notes: existing.notes ?? notes,
       updatedAt: new Date(),
     })
     return orderId
@@ -166,8 +174,9 @@ export async function persistExternalOrder(
       externalStatus: appliedCancelReason ? "cancelled" : appliedExternalStatus,
       paymentMethod,
       ...(orderMode ? { orderMode } : {}),
+      ...(display ? { display } : {}),
       paymentSource: "external_prepaid",
-      createdAt: now,
+      createdAt: createdAt && !Number.isNaN(createdAt.getTime()) ? createdAt : now,
       updatedAt: now,
     }
 

@@ -41,6 +41,48 @@ export interface OrderEffectItem {
   quantity: number
   price: number
   subtotal: number
+  /** Opciones elegidas (punto, guarnición…): el POS las muestra en Pedidos App. */
+  customizations?: Array<{ groupName: string; selectedOptions: Array<{ name: string; subGroups?: unknown[] }> }>
+  selectedVariant?: { name?: string } | null
+}
+
+type CustomizationGroup = NonNullable<OrderEffectItem['customizations']>[number]
+
+/**
+ * Opciones de un ítem como modificadores para el POS («Punto: Jugoso»).
+ * Precio 0: el `unitPrice` que viaja ya incluye los extras; si se repitieran
+ * acá, una suma del POS podría contarlos dos veces. Solo se muestran.
+ */
+export function itemModifiersForPos(item: OrderEffectItem): { name: string; price: number }[] {
+  const out: { name: string; price: number }[] = []
+  if (item.selectedVariant?.name) out.push({ name: `Variante: ${item.selectedVariant.name}`, price: 0 })
+  const walk = (groups: CustomizationGroup[] | undefined) => {
+    for (const g of groups ?? []) {
+      for (const o of g.selectedOptions ?? []) {
+        out.push({ name: `${g.groupName}: ${o.name}`.slice(0, 120), price: 0 })
+        walk(o.subGroups as CustomizationGroup[] | undefined)
+      }
+    }
+  }
+  walk(item.customizations)
+  return out.slice(0, 30)
+}
+
+/**
+ * Lo que el POS necesita para ATENDER el pedido en Pedidos App: número,
+ * cliente y (si es delivery) la dirección. Datos personales mínimos.
+ */
+export function orderDisplayForPos(order: Pick<IOrder, 'orderNumber' | 'customer' | 'orderMode' | 'deliveryAddress'>) {
+  const a = order.deliveryAddress
+  const address = order.orderMode === 'delivery' && a
+    ? [[a.street, a.number].filter(Boolean).join(' '), a.apt, a.city].filter(Boolean).join(', ')
+    : undefined
+  return {
+    orderNumber: order.orderNumber || undefined,
+    customerName: order.customer?.name || undefined,
+    customerPhone: order.customer?.phone || undefined,
+    deliveryAddress: address || undefined,
+  }
 }
 
 /**
@@ -254,19 +296,24 @@ export async function syncOrderAfterStatusSet(args: {
       tenantId: tenant._id.toString(),
       externalOrderId: order._id.toString(),
       locationId: locationId ?? undefined,
-      items: items.map((i) => ({
-        productId: i.menuItemId?.toString() ?? undefined,
-        name: i.name,
-        quantity: i.quantity,
-        unitPrice: i.price,
-        total: i.subtotal,
-      })),
+      items: items.map((i) => {
+        const modifiers = itemModifiersForPos(i)
+        return {
+          productId: i.menuItemId?.toString() ?? undefined,
+          name: i.name,
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.subtotal,
+          ...(modifiers.length > 0 ? { modifiers } : {}),
+        }
+      }),
       total: order.total,
       baseTotal: order.payment?.baseTotal,
       surchargeAmount: order.payment?.surchargeAmount,
       notes: order.notes || undefined,
       paymentMethod: order.payment?.method ?? 'mercadopago',
       orderMode: order.orderMode,
+      display: orderDisplayForPos(order),
     }
     runAfterResponse('pushOrderToSyncLayer', () => pushOrderToSyncLayer(payload))
   }

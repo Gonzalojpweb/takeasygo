@@ -163,6 +163,11 @@ export function ordersRouter(
         orderMode: doc.orderMode,
         items: doc.items,
         total: doc.total,
+        baseTotal: doc.baseTotal,
+        surchargeAmount: doc.surchargeAmount,
+        notes: doc.notes,
+        display: doc.display,
+        createdAt: doc.createdAt,
       })))
     } catch (err) {
       console.error("[orders] pending list error:", err)

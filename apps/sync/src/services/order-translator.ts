@@ -23,6 +23,35 @@ export interface TranslatedOrder {
   notes?: string
   paymentMethod?: string
   orderMode?: string
+  /** Pedidos App: número, cliente y entrega para atenderlo en el POS. */
+  display?: OrderDisplay
+}
+
+export interface OrderDisplay {
+  orderNumber?: string
+  customerName?: string
+  customerPhone?: string
+  deliveryAddress?: string
+  deliveryReference?: string
+}
+
+const DISPLAY_LIMITS: Record<keyof OrderDisplay, number> = {
+  orderNumber: 40,
+  customerName: 120,
+  customerPhone: 40,
+  deliveryAddress: 240,
+  deliveryReference: 240,
+}
+
+/** Solo los campos conocidos, como texto y acotados (el body es externo). */
+export function sanitizeDisplay(raw: unknown): OrderDisplay | undefined {
+  if (!raw || typeof raw !== "object") return undefined
+  const out: OrderDisplay = {}
+  for (const key of Object.keys(DISPLAY_LIMITS) as (keyof OrderDisplay)[]) {
+    const v = (raw as Record<string, unknown>)[key]
+    if (typeof v === "string" && v.trim()) out[key] = v.trim().slice(0, DISPLAY_LIMITS[key])
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 export async function createTranslatedOrder(
@@ -54,6 +83,7 @@ export async function createTranslatedOrder(
     notes: data.notes ?? undefined,
     paymentMethod: data.paymentMethod ?? undefined,
     orderMode: data.orderMode ?? undefined,
+    display: data.display ?? undefined,
   })
 
   return { id: doc._id.toString() }
