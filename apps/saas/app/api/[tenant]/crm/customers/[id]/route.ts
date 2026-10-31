@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import Consumer from '@/models/Consumer'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 
 export async function DELETE(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function DELETE(
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const consumer = await Consumer.findOne({ _id: id, tenantIds: tenant._id })

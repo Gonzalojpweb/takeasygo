@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { NextRequest, NextResponse } from 'next/server'
@@ -19,7 +19,7 @@ export async function PUT(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const permError = await enforcePermissionForRequest(request, {
@@ -79,7 +79,7 @@ export async function DELETE(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const permError = await enforcePermissionForRequest(request, {

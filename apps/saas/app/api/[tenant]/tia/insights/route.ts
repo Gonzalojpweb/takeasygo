@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
 import { generateRecommendations } from '@/lib/tia/recommendations'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 
 async function getTenant(tenantSlug: string) {
   const Tenant = (await import('@/models/Tenant')).default
@@ -19,7 +19,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 
   // Cerrado (hardening): ruta STAFF que estaba sin sesión.
-  const authError = await requireAuth(request, String(tenant._id))
+  const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
 
   try {

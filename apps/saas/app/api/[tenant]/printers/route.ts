@@ -4,7 +4,7 @@ import { printerLimitError } from '@/lib/printers/limits'
 import Printer from '@/models/Printer'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import mongoose from 'mongoose'
@@ -59,7 +59,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const permError = await enforcePermissionForRequest(request, {

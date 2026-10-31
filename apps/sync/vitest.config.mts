@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['__tests__/**/*.test.ts'],
+    // Auditoría 30/10/2026 (M3): el Sync ya no acepta pedidos internos sin
+    // secreto configurado; los tests corren con uno, como producción.
+    env: { INTERNAL_API_SECRET: 'test-internal-secret-0123456789' },
   },
   resolve: {
     alias: {

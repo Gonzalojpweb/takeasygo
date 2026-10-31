@@ -139,45 +139,43 @@ describe('M1 — Guards de escritura: sin token → 401', () => {
   }
 })
 
-describe('M1 — Guards: token POS válido → pasa la autenticación', () => {
-  // Inventario (inventoryRoute): el token POS autentica; el ROL decide.
-  // Un admin pasa la autenticación y falla después por el body (400).
-  it('POST inventory/transfers acepta un token POS con rol admin', async () => {
+// Auditoría de seguridad 30/10/2026 (A1): el token del POS SOLO vale en la
+// superficie del POS (/api/{tenant}/pos/*) y en el logout. Antes abría las
+// rutas del panel (inventario, fechas especiales, settings…) con el rol del
+// token; el POS no las usa. Fuera de /pos/* se rechaza (401) con cualquier rol.
+describe('A1 — token POS fuera de /pos/* → 401 con cualquier rol', () => {
+  it('POST inventory/transfers rechaza un token POS aunque sea admin', async () => {
     const res = await transfersPost(req('POST', `${URL_BASE}/inventory/transfers`, {}, bearer(posToken('admin'))), params)
-    expect(res.status).not.toBe(401)
-    expect(res.status).not.toBe(403)
+    expect(res.status).toBe(401)
   })
 
-  it('POST inventory/transfers rechaza un token POS de cajero (capacidad manage)', async () => {
+  it('POST inventory/transfers rechaza un token POS de cajero', async () => {
     const res = await transfersPost(req('POST', `${URL_BASE}/inventory/transfers`, {}, bearer(posToken('cashier'))), params)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 
-  it('POST special-dates acepta un token POS con rol admin', async () => {
+  it('POST special-dates rechaza un token POS aunque sea admin', async () => {
     const res = await specialDatesPost(
       req('POST', `${URL_BASE}/special-dates`, {}, bearer(posToken('admin'))),
       params
     )
-    expect(res.status).not.toBe(401)
-    expect(res.status).not.toBe(403)
+    expect(res.status).toBe(401)
   })
-})
 
-describe('M1 — Guards: rol insuficiente → 403', () => {
-  it('POST special-dates rechaza a un cashier (requireAdminRole)', async () => {
+  it('POST special-dates rechaza un token POS de cajero', async () => {
     const res = await specialDatesPost(
       req('POST', `${URL_BASE}/special-dates`, {}, bearer(posToken('cashier'))),
       params
     )
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 
-  it('DELETE special-dates/[id] rechaza a un waiter', async () => {
+  it('DELETE special-dates/[id] rechaza un token POS de mozo', async () => {
     const res = await specialDateDelete(
       req('DELETE', `${URL_BASE}/special-dates/x`, undefined, bearer(posToken('waiter'))),
       notFoundParams
     )
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(401)
   })
 })
 

@@ -16,7 +16,7 @@ import { join } from 'node:path'
 const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 
 /** Ruta con sesión de staff/admin (no pública ni de consumidor). */
-const SESSION_RE = /\brequireAuth\b|\brequireAdminRole\b|\benforcePermission\w*\b|\bgetSessionUser\b|\bresolveDashboardScope\b|\bposRoute\b/
+const SESSION_RE = /\brequireAuth\b|\brequireTenantRole\b|\brequireAdminRole\b|\benforcePermission\w*\b|\bgetSessionUser\b|\bresolveDashboardScope\b|\bposRoute\b/
 
 /** Modelos cuyos documentos pertenecen a una sede. */
 const SEDE_MODEL_RE = /models\/(Order|Reservation|Menu|CashRegister|CashMovement|Table|Printer|Promotion|InventoryStorageLocation|PreClosePrintJob|Location|Rating|LoyaltyMember|StoreItem|StoreRedemption|QrPromo|Feedback|AuditLog)'/

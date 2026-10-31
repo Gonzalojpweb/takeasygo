@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, ADMIN_ROLES } from '@/lib/apiAuth'
 import { notifyReviewSubmission } from '@/lib/onboarding/notify'
 
 export async function PATCH(
@@ -15,7 +15,7 @@ export async function PATCH(
     const tenant = await Tenant.findOne({ slug: tenantSlug })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), ADMIN_ROLES)
     if (authError) return authError
 
     tenant.onboarding.status = 'pending_review'

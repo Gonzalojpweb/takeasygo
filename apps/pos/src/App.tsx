@@ -5,6 +5,7 @@ import { db } from "./db/dexie"
 import { AccessScreen } from "./components/Root/AccessScreen"
 import { BootScreen } from "./components/Root/BootScreen"
 import { SessionExpiredOverlay } from "./components/Root/SessionExpiredOverlay"
+import { useIdleLock } from "./hooks/useIdleLock"
 import { CounterDashboard } from "./components/Counter/CounterDashboard"
 import { WaiterDashboard } from "./components/Waiter/WaiterDashboard"
 import { FlotaWidget } from "./components/Flota/FlotaWidget"
@@ -60,6 +61,8 @@ function App() {
   useEffect(() => installAudioUnlock(), [])
   const [activeContext, setActiveContext] = useState<ContextId>("counter")
   const updateReady = useSyncExternalStore(subscribeAppUpdate, isAppUpdateReady)
+  // A6: se bloquea tras 10 min sin uso, solo con una sesión abierta en el shell.
+  const idleLocked = useIdleLock(state.status === "authenticated" ? state.jwt?.accessToken : undefined, state.status === "authenticated")
 
   // Versión nueva sin sesión activa (login, carga o justo después de cerrar
   // sesión): se aplica sola. Con sesión activa se avisa (UpdateBanner).
@@ -313,9 +316,12 @@ function App() {
   // Shell. Con la sesión vencida (R6) el shell NO se desmonta: queda inerte
   // bajo el overlay y, al reingresar, todo sigue exactamente donde estaba.
   const expired = state.status === "expired"
+  // Auditoría 30/10 (A6): bloqueo por inactividad, mismo overlay, sesión viva.
+  const locked = idleLocked && !expired
+  const covered = expired || locked
   return (
     <LayoutProvider>
-      <div className="root-shell-wrap" inert={expired || undefined} aria-hidden={expired || undefined}>
+      <div className="root-shell-wrap" inert={covered || undefined} aria-hidden={covered || undefined}>
         <AppShell
           tenantId={state.tenantId}
           profile={state.jwt?.profile}
@@ -325,10 +331,16 @@ function App() {
           logout={logout}
         />
       </div>
-      {expired && (
-        <SessionExpiredOverlay state={state} where={findContext(activeContext).title} onLogin={login} onLogout={() => { void logout() }} />
+      {covered && (
+        <SessionExpiredOverlay
+          state={state}
+          where={findContext(activeContext).title}
+          onLogin={login}
+          onLogout={() => { void logout() }}
+          variant={locked ? "locked" : "expired"}
+        />
       )}
-      {updateReady && !expired && <UpdateBanner />}
+      {updateReady && !covered && <UpdateBanner />}
     </LayoutProvider>
   )
 }

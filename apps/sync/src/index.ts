@@ -14,6 +14,12 @@ async function main(): Promise<void> {
     console.error("MONGODB_URI is not set")
     process.exit(1)
   }
+  // Auditoría 30/10/2026 (M3): sin secreto interno el SaaS no puede hablar con
+  // el Sync de forma segura: mejor no arrancar que arrancar abierto.
+  if (!config.internalApiSecret) {
+    console.error("INTERNAL_API_SECRET (o SYNC_LAYER_SECRET) is not set")
+    process.exit(1)
+  }
 
   await connectMongo()
   console.log("[sync] MongoDB connected")

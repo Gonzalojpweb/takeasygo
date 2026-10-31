@@ -289,7 +289,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (mode: "pin" | "email", credentials: Record<string, string>) => {
-      const reauth = stateRef.current.status === "expired" ? stateRef.current : null
+      // Reingreso sin desmontar el shell: sesión vencida (R6) o pantalla
+      // bloqueada por inactividad (auditoría 30/10, A6: sesión todavía viva).
+      const current = stateRef.current
+      const reauth = current.status === "expired" || current.status === "authenticated" ? current : null
+      const previousToken = current.status === "authenticated" ? current.jwt?.accessToken : undefined
       setState(reauth ? { ...reauth, busy: true, errorInfo: undefined } : { status: "loading", phase: "login" })
 
       try {
@@ -331,6 +335,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
           rememberLogin(tenantId, result, "pin", locationId)
+          // Desbloqueo con un PIN (el mismo u otro cajero): el token anterior
+          // no puede quedar vivo.
+          if (previousToken && previousToken !== result.accessToken) void authApi.revokeSession(previousToken)
         } else {
           const { email, password, locationId } = credentials as {
             email: string
@@ -369,6 +376,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
           rememberLogin(tenantId, result, "email", locationId, email)
+          if (previousToken && previousToken !== result.accessToken) void authApi.revokeSession(previousToken)
         }
       } catch (err) {
         const message =

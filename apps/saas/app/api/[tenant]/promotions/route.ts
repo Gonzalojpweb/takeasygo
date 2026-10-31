@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
@@ -85,7 +85,7 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const permError = await enforcePermissionForRequest(request, {

@@ -3,7 +3,7 @@ import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Printer from '@/models/Printer'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { getSessionUser, requireTenantRole, FLOOR_ROLES } from '@/lib/apiAuth'
 import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import { buildPrintPayload } from '@/lib/printing'
 
@@ -49,7 +49,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), FLOOR_ROLES)
     if (authError) return authError
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })

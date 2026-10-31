@@ -37,6 +37,11 @@ export async function POST(
     }
 
     const { locationId } = await request.json()
+    // Público (el menú lo llama al pasar a inglés): el locationId tiene que ser
+    // un id, nunca un objeto con operadores de consulta.
+    if (typeof locationId !== 'string' || !/^[a-f0-9]{24}$/i.test(locationId)) {
+      return NextResponse.json({ error: 'Sede inválida' }, { status: 400 })
+    }
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })

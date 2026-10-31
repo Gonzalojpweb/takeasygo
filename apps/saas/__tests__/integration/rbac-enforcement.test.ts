@@ -104,7 +104,11 @@ function params() {
 }
 
 describe('Pattern A — requireAuth + enforcePermission (rutas con guard de sesión)', () => {
-  it('flag OFF (default): staff pasa en users/branding/cash-adjustment (sin cambio de conducta)', async () => {
+  // Auditoría de seguridad 30/10/2026 (C1): con el flag apagado (estado de
+  // todos los comercios) staff podía cambiar la marca y ajustar caja. Ahora
+  // hay una guardia de rol DURA que no depende del flag (requireTenantRole);
+  // las lecturas (GET /users) siguen igual.
+  it('flag OFF (default): staff lee users, pero NO cambia branding ni ajusta caja', async () => {
     setSession({ id: staffId, role: 'staff' })
 
     const usersRes = await listUsers(jsonRequest('/users', 'GET'), params())
@@ -114,15 +118,25 @@ describe('Pattern A — requireAuth + enforcePermission (rutas con guard de sesi
       jsonRequest('/settings/branding', 'PUT', {}),
       params()
     )
-    // 400 = validación de body DESPUÉS del guard (no hay 403 de RBAC).
-    expect(brandingRes.status).toBe(400)
+    expect(brandingRes.status).toBe(403)
 
     const cashRes = await cashAdjustment(
       jsonRequest('/cash-adjustment', 'POST', { orderId: new mongoose.Types.ObjectId().toString() }),
       params()
     )
-    // 404 = pasó el guard y no encontró la orden (no hay 403 de RBAC).
-    expect(cashRes.status).toBe(404)
+    expect(cashRes.status).toBe(403)
+  })
+
+  it('flag OFF: manager cambia branding (400 = pasó la guardia) y cashier ajusta caja (404)', async () => {
+    setSession({ id: managerId, role: 'manager' })
+    expect((await putBranding(jsonRequest('/settings/branding', 'PUT', {}), params())).status).toBe(400)
+    setSession({ id: cashierId, role: 'cashier' })
+    expect(
+      (await cashAdjustment(
+        jsonRequest('/cash-adjustment', 'POST', { orderId: new mongoose.Types.ObjectId().toString() }),
+        params()
+      )).status
+    ).toBe(404)
   })
 
   it('flag ON: staff recibe 403 en users/branding/cash-adjustment; manager y cashier pasan', async () => {

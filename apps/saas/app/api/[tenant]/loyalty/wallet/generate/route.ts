@@ -10,7 +10,7 @@
 
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, FLOOR_ROLES } from '@/lib/apiAuth'
 import { 
   generateGoogleWalletJWT, 
   generateAppleWalletPass 
@@ -74,7 +74,7 @@ export async function POST(
       }).lean()
     } else {
       // Buscar por sesión autenticada
-      const authError = await requireAuth(request, tenant._id.toString())
+      const authError = await requireTenantRole(request, tenant._id.toString(), FLOOR_ROLES)
       if (authError) return authError
       
       // Aquí necesitaríamos vincular la sesión con un miembro

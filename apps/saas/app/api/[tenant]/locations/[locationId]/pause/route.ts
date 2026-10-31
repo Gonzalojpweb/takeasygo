@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -14,7 +14,7 @@ export async function PATCH(
   const tenant = await Tenant.findOne({ slug: tenantSlug }).lean<{ _id: any }>()
   if (!tenant) return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
 
-  const authError = await requireAuth(request, tenant._id.toString())
+  const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
   if (authError) return authError
   const sedeError = await guardRequestLocation(request, locationId, 'Sede no encontrada')
   if (sedeError) return sedeError

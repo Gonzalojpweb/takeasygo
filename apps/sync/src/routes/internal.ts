@@ -1,4 +1,5 @@
 import mongoose from "mongoose"
+import { timingSafeEqual } from "node:crypto"
 import { Router } from "express"
 import type { Queue as BullQueue } from "bullmq"
 import type { Server as SocketServer } from "socket.io"
@@ -9,9 +10,18 @@ import { enqueueConfirmForward } from "../queues/order-confirm-forward-queue"
 import type { ConfirmForwardJobData } from "../queues/order-confirm-forward-queue"
 import { SyncOrderModel } from "@takeasygo/db"
 
+export function isInternalSecretValid(header: unknown, expected: string): boolean {
+  // Auditoría 30/10/2026 (M3): fail-closed. Sin secreto configurado NADIE
+  // entra (antes "" === "" dejaba pasar un pedido sin header), y la
+  // comparación es en tiempo constante.
+  if (!expected || typeof header !== "string" || !header) return false
+  const a = Buffer.from(header)
+  const b = Buffer.from(expected)
+  return a.length === b.length && timingSafeEqual(a, b)
+}
+
 function internalAuth(req: any, res: any, next: any) {
-  const header = req.headers["x-internal-secret"] ?? ""
-  if (header !== config.internalApiSecret) {
+  if (!isInternalSecretValid(req.headers["x-internal-secret"], config.internalApiSecret)) {
     return res.status(401).json({ error: "Unauthorized" })
   }
   next()

@@ -102,8 +102,31 @@ export function zReportViewRouter(): Router {
  * En producción, el POS se build separadamente y este import funciona.
  * Este fallback es para desarrollo/testing.
  */
+/** Auditoría 30/10/2026 (M8): todo texto del comercio/cajero va escapado. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
+/** Solo URLs https para el logo (nunca javascript: ni data:). */
+function safeImageUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  try {
+    const u = new URL(value)
+    return u.protocol === "https:" ? u.toString() : null
+  } catch {
+    return null
+  }
+}
+
 function generateStaticHTML(zReport: any, options: { tenantName: string; tenantLogo?: string }): string {
-  const { tenantName, tenantLogo } = options
+  const tenantName = escapeHtml(options.tenantName)
+  const logoUrl = safeImageUrl(options.tenantLogo)
+  const tenantLogo = logoUrl ? escapeHtml(logoUrl) : undefined
   const z = zReport
 
   return `<!DOCTYPE html>
@@ -133,7 +156,7 @@ function generateStaticHTML(zReport: any, options: { tenantName: string; tenantL
   <div class="header">
     ${tenantLogo ? `<img src="${tenantLogo}" alt="${tenantName}">` : ""}
     <h1>${tenantName}</h1>
-    <p>${z.cashierName} — ${new Date(z.closedAt).toLocaleDateString("es-AR")}</p>
+    <p>${escapeHtml(z.cashierName)} — ${new Date(z.closedAt).toLocaleDateString("es-AR")}</p>
   </div>
 
   <div class="section">
@@ -154,7 +177,7 @@ function generateStaticHTML(zReport: any, options: { tenantName: string; tenantL
   <div class="section">
     <div class="section-title">Por método de pago</div>
     ${Object.entries(z.byPaymentMethod ?? {}).map(([pm, amount]: [string, any]) => `
-      <div class="row"><span class="label">${pm}</span><span>$${typeof amount === "number" ? amount.toFixed(2) : "0.00"}</span></div>
+      <div class="row"><span class="label">${escapeHtml(pm)}</span><span>$${typeof amount === "number" ? amount.toFixed(2) : "0.00"}</span></div>
     `).join("")}
   </div>
 

@@ -6,7 +6,7 @@ import Location from '@/models/Location'
 import PushSubscription from '@/models/PushSubscription'
 import Feedback from '@/models/Feedback'
 import webpush from 'web-push'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
 import { haversineDistance } from '@/lib/geo'
 
@@ -130,7 +130,7 @@ export async function POST(
     }
 
     // ── Modo Admin (manual) ──────────────────────────────────────────────
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const membersQuery: any = {

@@ -8,7 +8,7 @@ import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import StoreRedemption from '@/models/StoreRedemption'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, FLOOR_ROLES } from '@/lib/apiAuth'
 import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
 import Location from '@/models/Location'
 import { expireStoreRedemption } from '@/lib/store-redemptions'
@@ -27,7 +27,7 @@ export async function PATCH(
     }
 
     // Requiere autenticación de staff/admin
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), FLOOR_ROLES)
     if (authError) return authError
 
     const body = await request.json()

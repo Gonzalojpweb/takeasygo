@@ -19,11 +19,11 @@
     "@takeasygo/types": "workspace:*",
     "bullmq": "^5",
     "cors": "^2",
-    "express": "^4",
+    "express": "^4.22.3",
     "helmet": "^7",
     "ioredis": "^5",
     "mongoose": "^9.2.1",
-    "socket.io": "^4",
+    "socket.io": "^4.8.4",
     "zod": "^3"
   },
   "devDependencies": {

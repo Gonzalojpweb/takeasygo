@@ -7,6 +7,12 @@ import { slugifyOrFallback } from '@/lib/slugify'
 import { resolveInitialPlan } from '@/lib/plans'
 import { sendOnboardingVerifyEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rateLimit'
+
+const RESERVED_SLUGS = new Set([
+  'api', 'app', 'auth', 'admin', 'superadmin', 'seller', 'login', 'logout', 'demo', 'empezar', 'invite',
+  'forgot-password', 'reset-password', 'sso-callback', 'privacidad', 'terminos', 'tgo', 'autorizar-mercadopago',
+  'takeasygo', 'soporte', 'support', 'ayuda', 'help', 'www', 'pos', 'sync', 'static', 'assets', 'public', 'explore',
+])
 import crypto from 'crypto'
 import { headers } from 'next/headers'
 
@@ -39,7 +45,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'El email ya está registrado' }, { status: 400 })
     }
 
-    // 2. Check if slug exists
+    // 2. Slugs reservados (auditoría 30/10/2026, M5): rutas propias de la app
+    // y nombres que suplantarían a la plataforma.
+    if (RESERVED_SLUGS.has(finalSlug)) {
+      return NextResponse.json(
+        { error: `El enlace "${finalSlug}" está reservado. Probá con otro.` },
+        { status: 400 }
+      )
+    }
+
+    // 2b. Check if slug exists
     const tenantExists = await Tenant.exists({ slug: finalSlug })
     if (tenantExists) {
       return NextResponse.json(

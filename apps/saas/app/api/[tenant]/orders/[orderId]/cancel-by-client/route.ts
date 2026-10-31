@@ -1,3 +1,4 @@
+import { safeEqual } from '@/lib/safe-equal'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
@@ -69,7 +70,7 @@ export async function POST(
       return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 })
     }
 
-    if (!order.trackingToken || order.trackingToken !== trackingToken) {
+    if (!safeEqual(order.trackingToken, trackingToken)) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 403 })
     }
 

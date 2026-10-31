@@ -5,7 +5,7 @@ import Consumer from '@/models/Consumer'
 import CustomerProfile from '@/models/CustomerProfile'
 import { safeDecrypt } from '@/lib/crypto'
 import { canAccess } from '@/lib/plans'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import {
   getAuthenticatedClient,
   listAllConnections,
@@ -29,7 +29,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } })
     if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     if (!canAccess(tenant.plan, 'crm')) {

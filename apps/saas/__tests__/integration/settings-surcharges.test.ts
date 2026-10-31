@@ -20,6 +20,12 @@ vi.mock('@/lib/mongoose', () => ({
 
 vi.mock('@/lib/apiAuth', () => ({
   requireAuth: vi.fn().mockResolvedValue(null),
+  // Auditoría 30/10/2026: las rutas usan además el rol mínimo (requireTenantRole).
+  requireTenantRole: vi.fn().mockResolvedValue(null),
+  ADMIN_ROLES: ['admin'],
+  MANAGE_ROLES: ['admin', 'manager'],
+  CASH_ROLES: ['admin', 'manager', 'cashier'],
+  FLOOR_ROLES: ['admin', 'manager', 'cashier', 'staff', 'host', 'waiter'],
 }))
 
 vi.mock('@/lib/rbac', () => ({

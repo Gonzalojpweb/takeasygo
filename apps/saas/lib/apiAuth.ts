@@ -131,6 +131,10 @@ export async function getSessionUser(request?: NextRequest) {
   // Es la vía que habilita POS → SaaS sin crear un segundo login.
   const bearer = extractBearerToken(request.headers.get('authorization'))
   if (bearer) {
+    // Auditoría 30/10/2026 (A1): el token del POS solo vale en la superficie
+    // del POS (/api/{tenant}/pos/*) y en el logout. Antes abría TODO el panel
+    // con el rol del token (un mozo podía cambiar settings del comercio).
+    if (!isPosBearerPath(requestPathname(request))) return null
     const payload = await verifyPosToken(bearer)
     if (payload?.sub && payload.tenantId && payload.role) {
       return toSessionFromPosToken(payload)
@@ -149,6 +153,12 @@ export async function requireAuth(request: NextRequest, tenantId: string) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
+  // Auditoría 30/10/2026 (C1): un consumidor (cliente final) nunca opera el
+  // panel de un comercio, aunque su usuario tenga tenantId cargado.
+  if (user.role === 'consumer') {
+    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  }
+
   const isSuperAdmin = user.role === 'superadmin'
   const belongsToTenant = user.tenantId === tenantId
 
@@ -157,6 +167,54 @@ export async function requireAuth(request: NextRequest, tenantId: string) {
   }
 
   return null
+}
+
+// ── Rol mínimo por acción (auditoría 30/10/2026, C1) ─────────────────────────
+// `enforcePermission*` no valida nada con el flag `rbac.sedeScope` apagado
+// (estado de todos los comercios). Estas listas son la guardia DURA, que no
+// depende del flag: el permiso fino por sede se suma encima cuando se active.
+
+/** Solo el dueño/administrador: dinero, usuarios, datos fiscales y del comercio. */
+export const ADMIN_ROLES = ['admin'] as const
+/** Gestión del comercio: menú, promociones, impresoras, club, comunicaciones. */
+export const MANAGE_ROLES = ['admin', 'manager'] as const
+/** Caja: ajustes de cobro (mismo alcance que `cash.movements.write` en la matriz v3). */
+export const CASH_ROLES = ['admin', 'manager', 'cashier'] as const
+/** Operación en el salón/mostrador: reservas, reimpresión, canjes del club. */
+export const FLOOR_ROLES = ['admin', 'manager', 'cashier', 'staff', 'host', 'waiter'] as const
+
+/**
+ * requireAuth + rol permitido. Superadmin siempre pasa. Mismo contrato que
+ * requireAuth: null si puede, o la respuesta de error.
+ */
+export async function requireTenantRole(
+  request: NextRequest,
+  tenantId: string,
+  roles: readonly string[]
+) {
+  const authError = await requireAuth(request, tenantId)
+  if (authError) return authError
+  const user = await getSessionUser(request)
+  if (user?.role === 'superadmin') return null
+  if (!user?.role || !roles.includes(user.role)) {
+    return NextResponse.json({ error: 'Tu rol no puede hacer esta acción' }, { status: 403 })
+  }
+  return null
+}
+
+/** Path del request (NextRequest.nextUrl o, si no está, la URL cruda). */
+function requestPathname(request: NextRequest): string {
+  if (request.nextUrl?.pathname) return request.nextUrl.pathname
+  try {
+    return new URL(request.url).pathname
+  } catch {
+    return ''
+  }
+}
+
+/** Rutas donde el Bearer del POS es válido (ver getSessionUser, 3ra vía). */
+export function isPosBearerPath(pathname: string): boolean {
+  return /^\/api\/[^/]+\/pos(\/|$)/.test(pathname) || pathname === '/api/auth/logout'
 }
 
 export async function requireSuperAdmin() {

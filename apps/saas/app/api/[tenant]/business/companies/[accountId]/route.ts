@@ -74,6 +74,26 @@ export async function PATCH(
 
     const body = await request.json()
 
+    // Auditoría 30/10/2026 (A2): una cuenta compartida con otros comercios
+    // (accessMode 'all' o varios tenantIds) es de la plataforma. El admin de
+    // UN comercio solo edita su configuración de pago (tenantSettings);
+    // nombre, CUIT, estado, notas y empleados los gestiona el superadmin.
+    const exclusiveToThisTenant =
+      account.accessMode !== 'all' &&
+      account.tenantIds.length === 1 &&
+      account.tenantIds[0].toString() === tenant._id.toString()
+    const touchesShared = ['companyName', 'companyTaxId', 'status', 'notes', 'addEmployeeEmails', 'removeEmployeeEmails']
+      .some((k) => body[k] !== undefined)
+    if (touchesShared && !exclusiveToThisTenant) {
+      return NextResponse.json(
+        { error: 'Esta empresa es compartida con otros comercios: sus datos y empleados los gestiona TakeasyGO' },
+        { status: 403 }
+      )
+    }
+    if (body.status !== undefined && !['active', 'suspended', 'cancelled'].includes(body.status)) {
+      return NextResponse.json({ error: 'Estado inválido' }, { status: 400 })
+    }
+
     const updates: Record<string, any> = {}
     if (body.companyName !== undefined) updates.companyName = body.companyName.trim()
     if (body.companyTaxId !== undefined) updates.companyTaxId = body.companyTaxId.trim()

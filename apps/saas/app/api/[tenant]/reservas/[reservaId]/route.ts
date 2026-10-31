@@ -5,7 +5,7 @@ import Reservation from '@/models/Reservation'
 import { acquireReservationLock } from '@/lib/reservation-lock'
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { getSessionUser, requireTenantRole, FLOOR_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardResourceLocation } from '@/lib/location-scope'
 import { safeDecrypt } from '@/lib/crypto'
@@ -36,7 +36,7 @@ export async function PUT(
     const tenant = await resolveTenant(tenantSlug)
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), FLOOR_ROLES)
     if (authError) return authError
 
     const body = await request.json()

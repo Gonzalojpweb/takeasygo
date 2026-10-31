@@ -22,13 +22,19 @@ interface Props {
   where: string
   onLogin: (mode: "pin" | "email", credentials: Record<string, string>) => Promise<void>
   onLogout: () => void
+  /**
+   * Auditoría 30/10/2026 (A6): «locked» = pantalla bloqueada por inactividad.
+   * La sesión sigue viva (los pedidos siguen sonando); pide el PIN directo.
+   */
+  variant?: "expired" | "locked"
 }
 
-export function SessionExpiredOverlay({ state, where, onLogin, onLogout }: Props) {
+export function SessionExpiredOverlay({ state, where, onLogin, onLogout, variant = "expired" }: Props) {
+  const locked = variant === "locked"
   const memory = readRootMemory()
   const sameTenant = memory?.tenantId === state.tenantId ? memory : null
   const mode: "pin" | "email" = sameTenant?.user?.mode ?? "pin"
-  const [reentering, setReentering] = useState(false)
+  const [reentering, setReentering] = useState(locked)
   const [pin, setPin] = useState("")
   const [email, setEmail] = useState(sameTenant?.user?.email ?? "")
   const [password, setPassword] = useState("")
@@ -65,8 +71,12 @@ export function SessionExpiredOverlay({ state, where, onLogin, onLogout }: Props
     <div className="root-overlay">
       <div className="root-dlg" role="dialog" aria-modal="true" aria-labelledby="expired-title" tabIndex={-1} ref={dialogRef}>
         <div className="root-dlg-ic" aria-hidden><KeyRound size={30} /></div>
-        <h2 id="expired-title">Tu sesión expiró</h2>
-        <p>Por seguridad cerramos la sesión. Tus mesas y pedidos siguen donde los dejaste.</p>
+        <h2 id="expired-title">{locked ? "Pantalla bloqueada" : "Tu sesión expiró"}</h2>
+        <p>
+          {locked
+            ? "Se bloqueó por inactividad. Los pedidos siguen entrando y sonando. Ingresá tu PIN para seguir (otro cajero puede entrar con el suyo)."
+            : "Por seguridad cerramos la sesión. Tus mesas y pedidos siguen donde los dejaste."}
+        </p>
 
         {!reentering ? (
           <>

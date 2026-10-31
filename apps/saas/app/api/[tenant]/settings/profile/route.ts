@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, ADMIN_ROLES } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 
 export async function PUT(
@@ -16,7 +16,7 @@ export async function PUT(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), ADMIN_ROLES)
     if (authError) return authError
 
     const { menuDescription, about, social, branding, timezone } = await request.json()

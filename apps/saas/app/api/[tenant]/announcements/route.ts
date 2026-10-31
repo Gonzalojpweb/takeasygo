@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
 import Tenant from '@/models/Tenant'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { requireAuth, getSessionUser, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import mongoose from 'mongoose'
 
 export async function GET(
@@ -86,7 +86,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id').lean() as any
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const { auth } = await import('@/lib/auth')

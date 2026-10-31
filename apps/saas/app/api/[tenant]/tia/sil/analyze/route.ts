@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import { fetchDashboardMetrics } from '@/lib/tia/metrics'
 import { runSilAnalysis } from '@/lib/tia/sil/engine'
 import TiaInsight from '@/models/TiaInsight'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Cerrado (hardening): ruta STAFF que estaba sin sesión.
-  const authError = await requireAuth(request, String(tenant._id))
+  const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
 
   const isPremium = tenant.plan === 'full'

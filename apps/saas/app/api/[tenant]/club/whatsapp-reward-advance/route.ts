@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import StoreItem from '@/models/StoreItem'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { canAccess } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import mongoose from 'mongoose'
@@ -143,7 +143,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Plan no soporta club de fidelización' }, { status: 403 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const body = await request.json()

@@ -96,7 +96,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: 'Password', type: 'password' },
         ssoCode: { label: 'SSO Code' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const [
           { default: User },
           { default: Tenant }
@@ -106,6 +106,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ])
 
         // SSO via one-time auth code (from sso-callback page)
+        if (credentials?.ssoCode !== undefined && typeof credentials.ssoCode !== 'string') return null
         if (credentials?.ssoCode) {
           const redis = new Redis({
             url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -140,11 +141,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
         }
 
-        if (!credentials?.email || !credentials?.password) return null
+        // Auditoría 30/10/2026 (M12): solo strings (nunca un objeto con
+        // operadores de consulta) y límite también por IP, no solo por email
+        // (frena probar una contraseña contra muchas cuentas).
+        if (typeof credentials?.email !== 'string' || typeof credentials?.password !== 'string') return null
+        if (!credentials.email || !credentials.password) return null
 
-        const { success } = await rateLimit(`login:${credentials.email}`, 5, 60_000)
+        const { success } = await rateLimit(`login:${credentials.email.toLowerCase().trim()}`, 5, 60_000)
         if (!success) {
           throw new Error('Demasiados intentos. Esperá 1 minuto.')
+        }
+        const ip = request?.headers?.get('x-forwarded-for')?.split(',')[0]?.trim() || request?.headers?.get('x-real-ip') || 'unknown'
+        const byIp = await rateLimit(`login-ip:${ip}`, 20, 10 * 60_000)
+        if (!byIp.success) {
+          throw new Error('Demasiados intentos desde esta red. Esperá unos minutos.')
         }
 
         await connectDB()

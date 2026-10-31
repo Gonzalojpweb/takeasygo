@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { FLOOR_ROLES, requireTenantRole } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { scopeLocationFilter } from '@/lib/location-scope'
 import { acknowledgeReservations, countUnseenReservations } from '@/lib/reservations/unseen'
@@ -19,7 +19,7 @@ async function context(request: NextRequest, tenantSlug: string) {
   await connectDB()
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id slug plan').lean()
   if (!tenant) return { error: NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 }) }
-  const authError = await requireAuth(request, tenant._id.toString())
+  const authError = await requireTenantRole(request, tenant._id.toString(), FLOOR_ROLES)
   if (authError) return { error: authError }
   const locationId = new URL(request.url).searchParams.get('locationId')
   const permError = await enforcePermissionForRequest(request, {

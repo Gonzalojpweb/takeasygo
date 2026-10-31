@@ -17,7 +17,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { ComplianceAlertModel } from '@takeasygo/db/models/compliance-alert'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { resolveAlerts } from '@/lib/compliance-alerts'
 
 const MAX_ALERTS_PER_REQUEST = 200
@@ -37,7 +37,7 @@ export async function POST(
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     let body: { alertIds?: unknown } = {}

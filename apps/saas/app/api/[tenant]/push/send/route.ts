@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import PushSubscription from '@/models/PushSubscription'
-import { requireAuth, getSessionUser } from '@/lib/apiAuth'
+import { getSessionUser, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { sendBulkPush, getSubscribersByPhoneHashes, logPushNotification, getLastBroadcastTime } from '@/lib/push'
 import type { PushTargetType } from '@/models/PushNotificationLog'
 import { loyaltyListFilter } from '@/lib/loyalty-scope'
@@ -22,7 +22,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean()
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
     const user = await getSessionUser(request)

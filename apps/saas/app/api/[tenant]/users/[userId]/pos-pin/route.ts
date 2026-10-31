@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 import Tenant from '@/models/Tenant'
-import { requireAuth } from '@/lib/apiAuth'
+import { MANAGE_ROLES, requireTenantRole } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { issuePosPin } from '@/lib/pos-online/pinIssue'
@@ -33,7 +33,7 @@ async function resolveTarget(request: NextRequest, params: Params['params']) {
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
   if (!tenant) return { error: NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 }) }
 
-  const authError = await requireAuth(request, tenant._id.toString())
+  const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
   if (authError) return { error: authError }
 
   const permError = await enforcePermissionForRequest(request, {

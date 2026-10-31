@@ -3,7 +3,7 @@ import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireAuth, requireTenantRole, ADMIN_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 
 // Roles que un admin puede crear — nunca puede escalar a admin ni superadmin.
@@ -50,7 +50,7 @@ export async function POST(
     const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
-    const authError = await requireAuth(request, tenant._id.toString())
+    const authError = await requireTenantRole(request, tenant._id.toString(), ADMIN_ROLES)
     if (authError) return authError
 
     const permError = await enforcePermissionForRequest(request, {

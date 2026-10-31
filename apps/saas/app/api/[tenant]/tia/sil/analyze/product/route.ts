@@ -5,7 +5,7 @@ import type { Insight, SilConfig } from '@/lib/tia/types'
 import { detectAnomaliesInSeries } from '@/lib/tia/sil/anomaly'
 import { analyzeTrend } from '@/lib/tia/sil/trend'
 import { toPesos } from '@takeasygo/business'
-import { requireAuth } from '@/lib/apiAuth'
+import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 
 const CONFIG: SilConfig = {
   minSampleSize: 10,
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   // Cerrado (hardening): ruta STAFF que estaba sin sesión.
-  const authError = await requireAuth(request, String(tenant._id))
+  const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
 
   try {
