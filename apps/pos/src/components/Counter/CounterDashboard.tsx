@@ -2175,7 +2175,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           )}
 
           {scene === "mostrador_rapido" && (
-            <div style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <ProductSelector
                 showImages={showProductImages}
                 products={products}
