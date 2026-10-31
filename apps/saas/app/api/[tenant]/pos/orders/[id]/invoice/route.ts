@@ -7,6 +7,7 @@ import { logAudit } from '@/lib/audit'
 import { FiscalIssueError, documentSummary, issueInvoiceForOrder } from '@/lib/fiscal/issue'
 import { enqueueFiscalTicket } from '@/lib/fiscal/ticket'
 import { ArcaError } from '@/lib/fiscal/arca/wsfe'
+import { enqueueControllerInvoice, loadModality } from '@/lib/fiscal/controller'
 
 // ============================================================================
 // POST /api/[tenant]/pos/orders/[id]/invoice — factura una orden cobrada
@@ -38,6 +39,31 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   const paid =
     (order.posPayments?.length ?? 0) > 0 || (order.source !== 'pos' && order.payment?.status === 'approved')
   if (!paid) throw PosError.conflict('Primero cobrá la orden: se factura lo cobrado')
+
+  // Fase 3 (31/10): sede con controlador fiscal ⇒ la operación va al equipo
+  // por el agente local (no a ARCA). 202: el resultado lo informa el agente.
+  const { modality } = await loadModality(ctx.tenantId, ctx.locationId)
+  if (modality === 'controller') {
+    try {
+      const job = await enqueueControllerInvoice({
+        tenantId: ctx.tenantId,
+        orderId: String(order._id),
+        receiver: {
+          condition: r.condition as never,
+          docNumber: typeof r.docNumber === 'string' ? r.docNumber : null,
+          name: typeof r.name === 'string' ? r.name : null,
+        },
+        userId: ctx.user.id,
+      })
+      return NextResponse.json(
+        { controllerJob: { id: String(job._id), status: job.status, device: job.device.brand, result: job.result, message: job.lastError || null } },
+        { status: 202 }
+      )
+    } catch (err) {
+      if (err instanceof FiscalIssueError) throw err.status === 400 ? PosError.validation(err.message) : PosError.conflict(err.message)
+      throw err
+    }
+  }
 
   try {
     const doc = await issueInvoiceForOrder({

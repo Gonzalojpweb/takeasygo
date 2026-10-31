@@ -59,7 +59,9 @@ if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
 
 // Headers comunes de todo request al SaaS (poll + confirmaciones)
 function agentHeaders() {
-    const h = { 'X-Agent-Version': LOCAL_VERSION };
+    // Fase 3 (31/10): el agente declara que puede recibir operaciones de
+    // controlador fiscal (las ejecuta con fiscal-drivers/<marca>.js).
+    const h = { 'X-Agent-Version': LOCAL_VERSION, 'X-Agent-Capabilities': 'fiscal-controller' };
     if (config.agentToken) h['X-Agent-Token'] = config.agentToken;
     return h;
 }
@@ -932,6 +934,65 @@ function processPreCloseJob(preCloseJob) {
 }
 
 // ============================================================================
+// Controlador fiscal homologado (fase 3, 31/10)
+// ============================================================================
+// Nunca se reintenta solo una operación que pudo haber emitido: el resultado
+// incierto se informa 'unknown' y se reconcilia consultando el equipo.
+const fiscalDrivers = require('./fiscal-drivers');
+const fiscalQueue = [];
+let fiscalRunning = false;
+
+async function processControllerJob(job) {
+    if (!markHandled(`fc:${job._id}:${job.claimId}`)) return;
+    fiscalQueue.push(job);
+    if (fiscalRunning) return;
+    fiscalRunning = true;
+    try {
+        // Un controlador procesa una operación a la vez.
+        while (fiscalQueue.length > 0) await runControllerJob(fiscalQueue.shift());
+    } finally {
+        fiscalRunning = false;
+    }
+}
+
+async function runControllerJob(job) {
+    const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs`;
+    const label = `Fiscal ${job._id} (${job.device && job.device.brand})`;
+    let driver;
+    try {
+        driver = fiscalDrivers.loadDriver(job.device && job.device.brand);
+    } catch (e) {
+        console.error(`[FISCAL] ${label}: ${e.message}`);
+        return postResultWithRetry(url, { fiscalControllerJobId: job._id, claimId: job.claimId, outcome: 'driver_unavailable', errorMsg: e.message }, label);
+    }
+    let started = false;
+    try {
+        const r = await axios.post(url, { fiscalControllerJobId: job._id, claimId: job.claimId, event: 'start' }, { headers: agentHeaders(), validateStatus: () => true });
+        started = r.status === 200 && r.data && r.data.ok === true;
+    } catch (e) {
+        console.error(`[FISCAL] ${label}: no se pudo confirmar inicio: ${e.message}`);
+    }
+    if (!started) {
+        console.warn(`[FISCAL] ${label}: reserva no confirmada, no se envía al equipo`);
+        return;
+    }
+    let outcome;
+    try {
+        outcome = await driver.execute(job.device, job.operation, job.payload);
+    } catch (e) {
+        outcome = { outcome: e && e.beforeSend ? (e.name === 'DriverUnavailableError' ? 'driver_unavailable' : 'failed') : 'unknown', errorMsg: e.message };
+    }
+    console.log(`[FISCAL] ${label}: ${outcome.outcome}${outcome.errorMsg ? ' — ' + outcome.errorMsg : ''}`);
+    await postResultWithRetry(url, {
+        fiscalControllerJobId: job._id,
+        claimId: job.claimId,
+        outcome: outcome.outcome,
+        result: outcome.result || null,
+        errorMsg: outcome.errorMsg || null,
+    }, label);
+}
+
+// ============================================================================
 // Deduplicación local y confirmación con reintentos (P0.2, 31/10)
 // ============================================================================
 const HANDLED_TTL_MS = 60 * 60 * 1000;
@@ -1048,6 +1109,11 @@ async function poll() {
 
             for (const job of preCloseJobs) {
                 processPreCloseJob(job);
+            }
+
+            for (const job of data.fiscalControllerJobs || []) {
+                hadWork = true;
+                processControllerJob(job).catch((e) => console.error(`[FISCAL] ${e.message}`));
             }
 
         // ── Formato VIEJO: orders + printers (fallback) ─────────────────

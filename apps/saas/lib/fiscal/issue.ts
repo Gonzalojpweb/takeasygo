@@ -2,6 +2,7 @@ import mongoose from 'mongoose'
 import FiscalDocument, { type IFiscalDocument, type ReceiverCondition } from '@/models/FiscalDocument'
 import FiscalProfile from '@/models/FiscalProfile'
 import FiscalSequenceLock from '@/models/FiscalSequenceLock'
+import FiscalControllerJob from '@/models/FiscalControllerJob'
 import Order from '@/models/Order'
 import {
   RECEIVER_IVA_CONDITION_IDS,
@@ -83,11 +84,12 @@ interface ProfileForIssue {
   defaultIvaRate: number
   environment: 'homologation' | 'production'
   pointsOfSale: { locationId: mongoose.Types.ObjectId; number: number }[]
+  controllers?: { locationId: mongoose.Types.ObjectId; active: boolean }[]
 }
 
 async function loadProfile(tenantId: mongoose.Types.ObjectId): Promise<ProfileForIssue> {
   const p = await FiscalProfile.findOne({ tenantId })
-    .select('enabled cuit ivaCondition defaultIvaRate environment pointsOfSale')
+    .select('enabled cuit ivaCondition defaultIvaRate environment pointsOfSale controllers')
     .lean<ProfileForIssue>()
   if (!p?.enabled || !p.ivaCondition) throw new FiscalIssueError('La facturación no está activa para este comercio')
   return p
@@ -449,6 +451,15 @@ export async function prepareInvoiceForOrder(input: {
   if (order.status === 'cancelled') throw new FiscalIssueError('La orden está anulada: no se factura')
   if (order.total <= 0) throw new FiscalIssueError('La orden no tiene importe para facturar')
 
+  // Fase 3 (31/10): modalidad excluyente. Una sede con controlador fiscal
+  // activo NO emite factura electrónica, y una venta con operación de
+  // controlador tampoco (nunca dos comprobantes para la misma venta).
+  if ((profile.controllers ?? []).some((c) => c.active && String(c.locationId) === String(order.locationId))) {
+    throw new FiscalIssueError('Esta sede emite con controlador fiscal, no con factura electrónica')
+  }
+  if (await FiscalControllerJob.exists({ tenantId, orderId: order._id, status: { $nin: ['cancelled', 'failed', 'driver_unavailable'] } })) {
+    throw new FiscalIssueError('La venta ya tiene una operación en el controlador fiscal')
+  }
   const pointOfSale = pointOfSaleFor(profile, order.locationId)
   const { letter, receiver } = resolveReceiver(profile.ivaCondition!, input.receiver, order.total)
   const rates = await ivaRatesForLocation(tenantId, order.locationId, profile.defaultIvaRate)

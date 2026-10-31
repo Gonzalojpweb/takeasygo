@@ -22,6 +22,7 @@ $files = @(
     'pnpm-lock.yaml',
     '.npmrc',
     'send-raw.ps1',
+    'fiscal-drivers',
     'SETUP.bat',
     'start.bat',
     'UPDATE.bat',
@@ -34,7 +35,7 @@ $files = @(
 foreach ($file in $files) {
     $src = Join-Path $agentDir $file
     if (Test-Path $src) {
-        Copy-Item $src -Destination $stageDir
+        Copy-Item $src -Destination $stageDir -Recurse
         Write-Host "  + $file"
     } else {
         Write-Host "  ! $file no encontrado, saltando"

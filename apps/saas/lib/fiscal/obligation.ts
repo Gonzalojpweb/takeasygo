@@ -3,6 +3,8 @@ import FiscalProfile from '@/models/FiscalProfile'
 import { logAudit } from '@/lib/audit'
 import type { ReceiverCondition } from '@/models/FiscalDocument'
 import { FiscalIssueError, prepareInvoiceForOrder, type ReceiverInput } from './issue'
+import { enqueueControllerInvoice, loadModality } from './controller'
+import Order from '@/models/Order'
 
 // ============================================================================
 // Obligación fiscal al cobrar — orden de ejecución 31/10 (P1.2)
@@ -68,6 +70,13 @@ export async function registerFiscalObligation(input: {
     else if (!input.intent && profile.invoicingMode === 'always') receiver = { condition: 'consumidor_final' }
     if (!receiver) return 'skipped'
 
+    // Fase 3: la sede decide la modalidad (factura electrónica o controlador).
+    const order = await Order.findById(input.orderId).select('locationId').lean<{ locationId: unknown }>()
+    const { modality } = await loadModality(input.tenantId, String(order?.locationId ?? ''))
+    if (modality === 'controller') {
+      await enqueueControllerInvoice({ tenantId: input.tenantId, orderId: String(input.orderId), receiver, userId: input.userId })
+      return 'created'
+    }
     await prepareInvoiceForOrder({ tenantId: input.tenantId, orderId: input.orderId, receiver, userId: input.userId })
     return 'created'
   } catch (err) {

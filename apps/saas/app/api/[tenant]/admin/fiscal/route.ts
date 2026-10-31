@@ -108,6 +108,24 @@ const bodySchema = z.object({
       pointsOfSale: z.array(z.object({ locationId: objectId, number: z.number().int().min(1).max(99998) })).max(200),
     })
     .default({ enabled: false, automatic: false, pointsOfSale: [] }),
+  // Fase 3 (31/10): controlador fiscal homologado por sede. Opcional: si no
+  // viene, no se tocan los configurados. Una sede con uno ACTIVO emite con el
+  // equipo y no con factura electrónica.
+  controllers: z
+    .array(
+      z.object({
+        locationId: objectId,
+        brand: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{2,40}$/, 'Marca inválida'),
+        model: z.string().trim().max(60).default(''),
+        firmware: z.string().trim().max(40).default(''),
+        connection: z.enum(['usb', 'serial', 'tcp']),
+        address: z.string().trim().max(120).default(''),
+        active: z.boolean(),
+      })
+    )
+    .max(200)
+    .refine((list) => new Set(list.filter((c) => c.active).map((c) => c.locationId)).size === list.filter((c) => c.active).length, 'Una sede tiene dos controladores activos')
+    .optional(),
 })
 
 export async function PUT(request: NextRequest, { params }: Params) {
@@ -123,6 +141,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const locations = await Location.find({ tenantId: ctx.tenant._id, isActive: true }).select('_id').lean()
     const activeIds = locations.map((l) => String(l._id))
+    if ((body.controllers ?? []).some((c) => !activeIds.includes(c.locationId))) {
+      return NextResponse.json({ error: 'Un controlador fiscal es de una sede ajena' }, { status: 400 })
+    }
     if (body.pointsOfSale.some((p) => !activeIds.includes(p.locationId))) {
       return NextResponse.json({ error: 'Una de las sedes no es de este comercio' }, { status: 400 })
     }
@@ -179,6 +200,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
       onlineInvoicing: body.onlineInvoicing,
       environment: body.environment,
       pointsOfSale: body.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
+      ...(body.controllers
+        ? { controllers: body.controllers.map((c) => ({ ...c, locationId: new mongoose.Types.ObjectId(c.locationId) })) }
+        : {}),
       contingency: {
         enabled: body.contingency.enabled,
         automatic: body.contingency.enabled && body.contingency.automatic,

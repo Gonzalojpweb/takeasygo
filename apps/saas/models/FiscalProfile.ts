@@ -77,6 +77,12 @@ export interface IFiscalProfile extends Document {
     certificateSubject: string
     certificateExpiresAt: Date | null
   }
+  /**
+   * Controladores fiscales homologados por sede (orden 31/10, fase 3). Una
+   * sede con un controlador ACTIVO emite con el equipo y NO con factura
+   * electrónica: la modalidad es explícita y excluyente.
+   */
+  controllers: IFiscalController[]
   /** Última corrida de la recuperación fiscal del comercio (kickFiscalRecovery). */
   recovery: { lastRunAt: Date | null }
   /** Última prueba de conexión con ARCA (Fase 4). */
@@ -100,6 +106,31 @@ export interface IFiscalProfile extends Document {
   createdAt: Date
   updatedAt: Date
 }
+
+export interface IFiscalController {
+  locationId: mongoose.Types.ObjectId
+  /** Fabricante (clave del driver del agente: 'epson', 'hasar', …). */
+  brand: string
+  model: string
+  firmware: string
+  connection: 'usb' | 'serial' | 'tcp'
+  /** Puerto COM, nombre del dispositivo o IP:puerto. */
+  address: string
+  active: boolean
+}
+
+const FiscalControllerSchema = new Schema<IFiscalController>(
+  {
+    locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
+    brand: { type: String, required: true, lowercase: true, trim: true, maxlength: 40 },
+    model: { type: String, default: '', maxlength: 60 },
+    firmware: { type: String, default: '', maxlength: 40 },
+    connection: { type: String, enum: ['usb', 'serial', 'tcp'], default: 'usb' },
+    address: { type: String, default: '', maxlength: 120 },
+    active: { type: Boolean, default: false },
+  },
+  { _id: false }
+)
 
 const PointOfSaleSchema = new Schema<IPointOfSale>(
   {
@@ -146,6 +177,7 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
       certificateSubject: { type: String, default: '' },
       certificateExpiresAt: { type: Date, default: null },
     },
+    controllers: { type: [FiscalControllerSchema], default: [] },
     recovery: {
       lastRunAt: { type: Date, default: null },
     },

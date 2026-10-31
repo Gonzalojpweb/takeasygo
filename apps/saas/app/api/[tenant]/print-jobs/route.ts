@@ -11,6 +11,7 @@ import { checkAgentToken, agentTokenDenied } from '@/lib/printer-agent-auth'
 import { claimOrderPrintJob, claimPreCloseJobs, completePreCloseJob, startPreCloseJob } from '@/lib/printing/job-lifecycle'
 import { runAfterResponse } from '@/lib/after-response'
 import { kickFiscalRecovery } from '@/lib/fiscal/issue'
+import { claimControllerJobs, completeControllerJob, startControllerJob } from '@/lib/fiscal/controller'
 
 const MAX_ATTEMPTS = 3
 
@@ -134,6 +135,19 @@ export async function GET(
       isReprint: j.isReprint,
     }))
 
+    // Fase 3 (31/10): operaciones para el controlador fiscal de la sede. Solo
+    // agentes que declaran soportarlas (header x-agent-capabilities).
+    const capabilities = (request.headers.get('x-agent-capabilities') ?? '').split(',').map((c) => c.trim())
+    const fiscalControllerJobs = capabilities.includes('fiscal-controller')
+      ? (await claimControllerJobs(tenant._id, location._id, agentVersion ?? null)).map((j) => ({
+          _id: j._id,
+          claimId: j.claimId,
+          operation: j.operation,
+          device: j.device,
+          payload: j.payload,
+        }))
+      : []
+
     // El agente corre mientras el local opera: aprovecha el poll para la
     // recuperación fiscal del comercio (a lo sumo cada 2 min, ver issue.ts).
     runAfterResponse('fiscal: recuperación desde el poll del agente', () => kickFiscalRecovery(String(tenant._id)))
@@ -222,7 +236,7 @@ export async function GET(
       }
 
       // Enviar también printers para que el agente resuelva printerName → config
-      return NextResponse.json({ jobs, printers, preCloseJobs, pollInterval })
+      return NextResponse.json({ jobs, printers, preCloseJobs, fiscalControllerJobs, pollInterval })
     } else {
       // ── Formato VIEJO: orders + printers (decrypt en cada poll) ─────
       // Mismo gate T-lead que la rama nueva.
@@ -282,6 +296,28 @@ export async function POST(
     const body = await request.json()
     const { success, errorMsg } = body
     const preCloseJobId = body.preCloseJobId
+
+    // ── Operación de controlador fiscal (fase 3) ────────────────────────
+    if (typeof body.fiscalControllerJobId === 'string') {
+      const FiscalControllerJob = (await import('@/models/FiscalControllerJob')).default
+      const cj = await FiscalControllerJob.findOne({ _id: body.fiscalControllerJobId, tenantId: tenant._id }).select('locationId')
+      if (!cj) return NextResponse.json({ error: 'Operación fiscal no encontrada' }, { status: 404 })
+      const deniedCj = await agentTokenDeniedForLocation(request, cj.locationId)
+      if (deniedCj) return deniedCj
+      const claimId = typeof body.claimId === 'string' ? body.claimId : ''
+      if (body.event === 'start') {
+        const ok = await startControllerJob(body.fiscalControllerJobId, claimId)
+        return NextResponse.json({ ok }, { status: ok ? 200 : 409 })
+      }
+      const outcome = ['confirmed', 'failed', 'unknown', 'driver_unavailable'].includes(body.outcome) ? body.outcome : 'unknown'
+      const updated = await completeControllerJob(body.fiscalControllerJobId, {
+        claimId,
+        outcome,
+        result: body.result && typeof body.result === 'object' ? body.result : undefined,
+        errorMsg: typeof errorMsg === 'string' ? errorMsg : undefined,
+      })
+      return updated ? NextResponse.json({ ok: true, status: updated.status }) : NextResponse.json({ ok: false, ignored: true }, { status: 409 })
+    }
 
     // ── Pre-close job ──────────────────────────────────────────────────
     if (preCloseJobId) {
