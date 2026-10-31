@@ -42,9 +42,11 @@ describe('funciones compartidas (business/surfaces)', () => {
     }
   })
 
-  it('los contextos del POS (caja, ventas, facturación, flota) no incluyen mozo ni cocina', async () => {
+  // Flota está oculta del sidebar desde el 31/10 (bloque comentado en
+  // contexts.ts): no se lista acá mientras siga oculta.
+  it('los contextos del POS (caja, ventas, facturación) no incluyen mozo ni cocina', async () => {
     const { ROS_CONTEXTS } = await import(join(REPO, 'apps', 'pos', 'src', 'components', 'layout', 'contexts.ts'))
-    for (const id of ['caja', 'ventas', 'facturacion', 'flota']) {
+    for (const id of ['caja', 'ventas', 'facturacion']) {
       const ctx = (ROS_CONTEXTS as { id: string; roles: readonly string[] }[]).find((c) => c.id === id)!
       for (const r of ctx.roles) expect(allowed.has(r), `${id}: ${r}`).toBe(true)
     }
