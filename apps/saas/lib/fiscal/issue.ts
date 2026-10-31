@@ -17,7 +17,15 @@ import { issueWithCaea } from './caea'
 import { buildFiscalLines, ivaRatesForLocation } from './order-lines'
 import { arcaQrUrl } from './qr'
 import { openArcaSession, type ArcaSession } from './arca/session'
-import { ArcaError, feCaeSolicitar, feCompConsultar, feCompUltimoAutorizado, type FetchLike } from './arca/wsfe'
+import {
+  ArcaError,
+  feCaeSolicitar,
+  feCompConsultar,
+  feCompUltimoAutorizado,
+  toArcaDate,
+  type ConsultResult,
+  type FetchLike,
+} from './arca/wsfe'
 
 // ============================================================================
 // Emisión de comprobantes (Fase 5 de caja, 2026-10)
@@ -147,6 +155,45 @@ async function withSequenceLock<T>(
   }
 }
 
+/** Espera progresiva entre reintentos automáticos: 1, 2, 4… hasta 60 min. */
+export function nextAttemptDelayMs(attempts: number, kind: string): number {
+  // Credenciales o configuración: no tiene sentido insistir cada minuto.
+  if (kind === 'auth') return 15 * 60_000
+  const minutes = Math.min(60, 2 ** Math.max(0, attempts - 1))
+  return minutes * 60_000
+}
+
+/** Pasa el comprobante a revisión manual: el sistema no decide solo. */
+async function markNeedsReview(doc: IFiscalDocument, code: string, message: string): Promise<IFiscalDocument> {
+  doc.status = 'needs_review'
+  doc.review = { code, message, at: new Date(), resolvedBy: null, resolvedAt: null }
+  doc.arca.lastError = message
+  doc.arca.lastErrorKind = 'review'
+  doc.arca.nextAttemptAt = null
+  await doc.save()
+  return doc
+}
+
+/** ¿El comprobante que informa ARCA para el número reservado es ESTE? */
+export function sameDocument(doc: IFiscalDocument, found: ConsultResult, number: number): { ok: boolean; mismatch: string[] } {
+  const id = found.identity
+  const expectedDocNumber = doc.receiver.docType === 99 ? '0' : doc.receiver.docNumber
+  const checks: [string, boolean][] = [
+    ['punto de venta', id.pointOfSale === doc.pointOfSale],
+    ['tipo de comprobante', id.cbteTipo === doc.cbteTipo],
+    ['número', id.number === number],
+    ['fecha', id.date === toArcaDate(doc.issuedAt)],
+    ['tipo de documento del receptor', id.docType === doc.receiver.docType],
+    ['documento del receptor', String(Number(id.docNumber ?? 'NaN')) === String(Number(expectedDocNumber))],
+    ['importe total', found.totalCents === doc.amounts.totalCents],
+    ['neto', id.netCents === null || id.netCents === doc.amounts.netCents],
+    ['IVA', id.ivaCents === null || id.ivaCents === doc.amounts.ivaCents],
+    ['resultado', found.result === 'A' && Boolean(found.cae)],
+  ]
+  const mismatch = checks.filter(([, ok]) => !ok).map(([label]) => label)
+  return { ok: mismatch.length === 0, mismatch }
+}
+
 async function markAuthorized(
   doc: IFiscalDocument,
   number: number,
@@ -173,30 +220,70 @@ async function markAuthorized(
   })
   doc.arca.observations = observations
   doc.arca.lastError = ''
-  await doc.save()
+  doc.arca.lastErrorKind = ''
+  doc.arca.nextAttemptAt = null
+  try {
+    await doc.save()
+  } catch (err) {
+    // Índice único de numeración: otro comprobante NUESTRO ya tiene ese número.
+    // Nunca se pisa: queda para revisión (no reintenta en bucle).
+    if ((err as { code?: number })?.code === 11000) {
+      const fresh = await FiscalDocument.findById(doc._id)
+      if (!fresh) throw err
+      fresh.reservedNumber = number
+      return markNeedsReview(
+        fresh,
+        'duplicate_number',
+        `ARCA autorizó el número ${number}, pero otro comprobante del sistema ya lo tiene. Revisar antes de reintentar.`
+      )
+    }
+    throw err
+  }
   return doc
 }
 
-/** Pide (o recupera) el CAE de un documento pendiente. Idempotente. */
+/**
+ * Pide (o recupera) el CAE de un documento pendiente. Idempotente.
+ *
+ * Orden de ejecución 31/10:
+ *   · La identidad fiscal es la DEL COMPROBANTE (ambiente + CUIT con que se
+ *     creó), no la del perfil actual. Si no coinciden ⇒ `needs_review`, sin
+ *     llamar a ARCA.
+ *   · Dentro del candado se RELEE el comprobante: si otro proceso ya lo
+ *     resolvió, no se hace nada.
+ *   · Recuperar un número reservado exige que coincidan todos los datos del
+ *     comprobante (no solo el importe); si ARCA tiene ese número con otros
+ *     datos ⇒ `needs_review`.
+ *   · Errores clasificados con espera progresiva; CAEA solo si el comercio la
+ *     habilitó como automática y es elegible (ver caea.ts).
+ */
 export async function authorizeDocument(
-  doc: IFiscalDocument,
+  input: IFiscalDocument,
   options: { fetchImpl?: FetchLike; allowContingency?: boolean } = {}
 ): Promise<IFiscalDocument> {
-  if (doc.status === 'authorized') return doc
+  if (input.status === 'authorized' || input.status === 'rejected' || input.status === 'needs_review') return input
 
   return withSequenceLock(
-    { tenantId: doc.tenantId, environment: doc.environment, pointOfSale: doc.pointOfSale, cbteTipo: doc.cbteTipo },
+    { tenantId: input.tenantId, environment: input.environment, pointOfSale: input.pointOfSale, cbteTipo: input.cbteTipo },
     async () => {
+      const doc = (await FiscalDocument.findById(input._id)) ?? input
+      if (doc.status === 'authorized' || doc.status === 'rejected' || doc.status === 'needs_review') return doc
+
+      if (!doc.issuerCuit) {
+        return markNeedsReview(doc, 'missing_identity', 'El comprobante no tiene CUIT del emisor registrado. No se emite.')
+      }
+      const expect = { environment: doc.environment, cuit: doc.issuerCuit }
+
       // La sesión se abre adentro del try: si ARCA no responde ya en la
       // autenticación, el comprobante queda en reintento (no tira error al POS).
       let session: ArcaSession | null = null
       const call = async <T>(fn: (s: ArcaSession) => Promise<T>): Promise<T> => {
-        session ??= await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl })
+        session ??= await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl, expect })
         try {
           return await fn(session)
         } catch (err) {
           if (err instanceof ArcaError && err.kind === 'auth' && err.code === '600') {
-            session = await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl, forceRefresh: true })
+            session = await openArcaSession(doc.tenantId, { fetchImpl: options.fetchImpl, forceRefresh: true, expect })
             return fn(session)
           }
           throw err
@@ -209,12 +296,31 @@ export async function authorizeDocument(
       try {
         // 3. ¿Quedó autorizado el número de un intento colgado?
         if (doc.reservedNumber) {
-          const prev = await call((s) =>
-            feCompConsultar(s.environment, s.auth, doc.pointOfSale, doc.cbteTipo, doc.reservedNumber!, s.fetchImpl)
-          )
-          if (prev.found && prev.cae && prev.totalCents === doc.amounts.totalCents) {
-            return markAuthorized(doc, doc.reservedNumber, prev.cae, prev.caeExpiresAt, session!.cuit)
+          const reserved = doc.reservedNumber
+          const prev = await call((s) => feCompConsultar(s.environment, s.auth, doc.pointOfSale, doc.cbteTipo, reserved, s.fetchImpl))
+          if (prev.found) {
+            const match = sameDocument(doc, prev, reserved)
+            if (!match.ok) {
+              return markNeedsReview(
+                doc,
+                'arca_number_mismatch',
+                `ARCA tiene el número ${reserved} con otros datos (${match.mismatch.join(', ')}). No se adopta ese CAE: revisar.`
+              )
+            }
+            const taken = await FiscalDocument.exists({
+              _id: { $ne: doc._id },
+              tenantId: doc.tenantId,
+              environment: doc.environment,
+              pointOfSale: doc.pointOfSale,
+              cbteTipo: doc.cbteTipo,
+              number: reserved,
+            })
+            if (taken) {
+              return markNeedsReview(doc, 'number_taken_locally', `Otro comprobante del sistema ya tiene el número ${reserved}. Revisar.`)
+            }
+            return markAuthorized(doc, reserved, prev.cae!, prev.caeExpiresAt, session!.cuit)
           }
+          // ARCA no tiene ese número: el pedido anterior nunca se autorizó.
           doc.reservedNumber = null
         }
 
@@ -270,31 +376,36 @@ export async function authorizeDocument(
           doc.reservedNumber = null
           doc.arca.observations = [...result.observations, ...result.errors]
           doc.arca.lastError = (result.observations[0] ?? result.errors[0])?.message ?? 'ARCA rechazó el comprobante'
+          doc.arca.lastErrorKind = 'rejected'
+          doc.arca.nextAttemptAt = null
           await doc.save()
           return doc
         }
         return doc
       } catch (err) {
-        if (err instanceof ArcaError && (err.kind === 'timeout' || err.kind === 'network' || err.kind === 'fault')) {
-          // Contingencia CAEA (Fase 6): SOLO si el pedido de CAE nunca llegó a
-          // ARCA (sin número reservado). Si se cortó a mitad, podría estar
-          // autorizado: se reintenta y se consulta, nunca se duplica.
-          if (doc.reservedNumber === null && options.allowContingency !== false) {
-            const viaCaea = await issueWithCaea(doc).catch((e) => {
-              console.error('[fiscal/caea] no se pudo usar la contingencia:', e instanceof Error ? e.message : e)
-              return null
-            })
-            if (viaCaea) return viaCaea
-          }
-          // El número (si se pidió) queda reservado: el próximo intento lo consulta.
-          doc.status = 'retrying'
-          doc.arca.lastError = err.message
-          await doc.save()
-          return doc
+        if (err instanceof ArcaError && err.kind === 'identity') {
+          return markNeedsReview(doc, err.code ?? 'identity_mismatch', err.message)
         }
-        doc.status = doc.status === 'authorized' ? doc.status : 'retrying'
+        const kind = err instanceof ArcaError ? err.kind : 'internal'
+        const transient = kind === 'timeout' || kind === 'network' || kind === 'fault'
+        if (transient && doc.reservedNumber === null && options.allowContingency !== false) {
+          // Contingencia CAEA: SOLO si el pedido de CAE nunca llegó a ARCA (sin
+          // número reservado) y el comercio la habilitó como automática.
+          const viaCaea = await issueWithCaea(doc, { trigger: 'automatic' }).catch((e) => {
+            console.error('[fiscal/caea] no se pudo usar la contingencia:', e instanceof Error ? e.message : e)
+            return null
+          })
+          if (viaCaea) return viaCaea
+        }
+        // El número (si se pidió) queda reservado: el próximo intento lo consulta.
+        doc.status = 'retrying'
         doc.arca.lastError = err instanceof Error ? err.message : 'Error al emitir'
+        doc.arca.lastErrorKind = kind
+        doc.arca.nextAttemptAt = new Date(Date.now() + nextAttemptDelayMs(doc.arca.attempts, kind))
         await doc.save()
+        // Transitorios y credenciales: la venta sigue, el comprobante queda en
+        // reintento. Un error inesperado se propaga (además queda guardado).
+        if (transient || kind === 'auth') return doc
         throw err
       }
     }
@@ -314,24 +425,22 @@ interface OrderLean {
 }
 
 /**
- * Factura de una orden cobrada. Devuelve el documento (autorizado, rechazado
- * o en reintento). Lanza FiscalIssueError si no corresponde facturar.
+ * Crea (o devuelve) la OBLIGACIÓN fiscal de una orden cobrada, sin llamar a
+ * ARCA: un documento `pending` con la identidad fiscal congelada (CUIT y
+ * ambiente del momento del cobro). Orden de ejecución 31/10 (P1.2): se llama
+ * al confirmar el cobro, así una venta cobrada nunca queda fuera del circuito
+ * aunque el POS se cierre antes de pedir la factura. Idempotente por orden.
  */
-export async function issueInvoiceForOrder(input: {
+export async function prepareInvoiceForOrder(input: {
   tenantId: string
   orderId: mongoose.Types.ObjectId | string
   receiver: ReceiverInput
   userId: string
-  fetchImpl?: FetchLike
 }): Promise<IFiscalDocument> {
   const tenantId = new mongoose.Types.ObjectId(input.tenantId)
   const idempotencyKey = `invoice:${String(input.orderId)}`
   const existing = await FiscalDocument.findOne({ tenantId, idempotencyKey })
-  if (existing) {
-    return existing.status === 'authorized' || existing.status === 'rejected'
-      ? existing
-      : authorizeDocument(existing, { fetchImpl: input.fetchImpl })
-  }
+  if (existing) return existing
 
   const profile = await loadProfile(tenantId)
   const order = await Order.findOne({ _id: input.orderId, tenantId }).lean<OrderLean>()
@@ -358,6 +467,7 @@ export async function issueInvoiceForOrder(input: {
       cbteTipo: cbteTipoFor(letter, 'invoice'),
       pointOfSale,
       environment: profile.environment,
+      issuerCuit: profile.cuit,
       status: 'pending',
       issuedAt: new Date(),
       receiver,
@@ -375,10 +485,26 @@ export async function issueInvoiceForOrder(input: {
   } catch (err) {
     if ((err as { code?: number })?.code === 11000) {
       const winner = await FiscalDocument.findOne({ tenantId, idempotencyKey })
-      if (winner) return winner.status === 'authorized' ? winner : authorizeDocument(winner, { fetchImpl: input.fetchImpl })
+      if (winner) return winner
     }
     throw err
   }
+  return doc
+}
+
+/**
+ * Factura de una orden cobrada. Devuelve el documento (autorizado, rechazado,
+ * en reintento o en revisión). Lanza FiscalIssueError si no corresponde.
+ */
+export async function issueInvoiceForOrder(input: {
+  tenantId: string
+  orderId: mongoose.Types.ObjectId | string
+  receiver: ReceiverInput
+  userId: string
+  fetchImpl?: FetchLike
+}): Promise<IFiscalDocument> {
+  const doc = await prepareInvoiceForOrder(input)
+  if (doc.status === 'authorized' || doc.status === 'rejected' || doc.status === 'needs_review') return doc
   const issued = await authorizeDocument(doc, { fetchImpl: input.fetchImpl })
   // Si ARCA respondió, se aprovecha para destrabar pendientes viejos del comercio.
   if (issued.status === 'authorized') {
@@ -420,6 +546,8 @@ export async function issueCreditNoteForOrder(input: {
       cbteTipo: cbteTipoFor(invoice.letter, 'credit_note'),
       pointOfSale: invoice.pointOfSale,
       environment: invoice.environment,
+      // La NC es del mismo emisor y ambiente que su factura, siempre.
+      issuerCuit: invoice.issuerCuit,
       status: 'pending',
       issuedAt: new Date(),
       receiver: invoice.receiver,
@@ -477,11 +605,18 @@ export async function retryPendingDocuments(options: {
   tenantId?: string
   limit?: number
   olderThanMs?: number
+  /** Ignora la espera progresiva (botón «Reintentar» de una persona). */
+  ignoreBackoff?: boolean
   fetchImpl?: FetchLike
 } = {}): Promise<{ tried: number; authorized: number }> {
+  const now = new Date()
+  // `needs_review` y `rejected` NUNCA se reintentan solos.
   const filter: Record<string, unknown> = {
     status: { $in: ['pending', 'retrying'] },
-    updatedAt: { $lt: new Date(Date.now() - (options.olderThanMs ?? 60_000)) },
+    updatedAt: { $lt: new Date(now.getTime() - (options.olderThanMs ?? 60_000)) },
+  }
+  if (!options.ignoreBackoff) {
+    filter.$or = [{ 'arca.nextAttemptAt': null }, { 'arca.nextAttemptAt': { $exists: false } }, { 'arca.nextAttemptAt': { $lte: now } }]
   }
   if (options.tenantId) filter.tenantId = new mongoose.Types.ObjectId(options.tenantId)
   const docs = await FiscalDocument.find(filter).sort({ createdAt: 1 }).limit(options.limit ?? 20)
@@ -495,4 +630,29 @@ export async function retryPendingDocuments(options: {
     }
   }
   return { tried: docs.length, authorized }
+}
+
+const KICK_EVERY_MS = 2 * 60_000
+
+/**
+ * Disparador de la recuperación fiscal de UN comercio, a lo sumo cada 2 min.
+ * Orden de ejecución 31/10 (P1.3): con Vercel Hobby el cron es diario; el POS
+ * abierto y el agente de impresión (activos mientras el local opera) llaman a
+ * esto en segundo plano. El candado vive en la base: varias instancias no
+ * corren a la vez. Con Vercel Pro el cron `fiscal-retry` puede correr cada 5 minutos.
+ */
+export async function kickFiscalRecovery(tenantId: string, options: { fetchImpl?: FetchLike } = {}): Promise<boolean> {
+  const tid = new mongoose.Types.ObjectId(tenantId)
+  const now = new Date()
+  const claimed = await FiscalProfile.updateOne(
+    {
+      tenantId: tid,
+      enabled: true,
+      $or: [{ 'recovery.lastRunAt': null }, { 'recovery.lastRunAt': { $exists: false } }, { 'recovery.lastRunAt': { $lt: new Date(now.getTime() - KICK_EVERY_MS) } }],
+    },
+    { $set: { 'recovery.lastRunAt': now } }
+  )
+  if (claimed.modifiedCount !== 1) return false
+  await retryPendingDocuments({ tenantId, limit: 10, olderThanMs: 30_000, fetchImpl: options.fetchImpl })
+  return true
 }

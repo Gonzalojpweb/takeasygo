@@ -17,7 +17,14 @@ import type { FiscalEnvironment } from './FiscalProfile'
 //   · Montos en centavos.
 // ============================================================================
 
-export type FiscalDocumentStatus = 'pending' | 'authorized' | 'rejected' | 'retrying'
+// 'needs_review' (orden de ejecución 31/10): el sistema NO puede decidir solo
+// sin riesgo fiscal (identidad que no coincide, número de ARCA con otros
+// datos, informe CAEA rechazado). No se reintenta automáticamente; lo
+// resuelve una persona (ver `review`).
+export type FiscalDocumentStatus = 'pending' | 'authorized' | 'rejected' | 'retrying' | 'needs_review'
+/** Estado de la impresión del comprobante: INDEPENDIENTE del estado fiscal. */
+export type FiscalPrintStatus = 'not_requested' | 'queued' | 'printing' | 'printed' | 'failed' | 'unknown'
+export type CaeaReportStatus = 'not_applicable' | 'pending' | 'informed' | 'rejected'
 export type FiscalDocumentKind = 'invoice' | 'credit_note'
 export type InvoiceLetterValue = 'A' | 'B' | 'C'
 export type ReceiverCondition = 'consumidor_final' | 'responsable_inscripto' | 'monotributo' | 'exento' | 'no_categorizado'
@@ -33,6 +40,12 @@ export interface IFiscalDocument extends Document {
   cbteTipo: number
   pointOfSale: number
   environment: FiscalEnvironment
+  /**
+   * CUIT del emisor con el que se creó el comprobante. Junto con `environment`
+   * es su identidad fiscal: nunca se emite con otro CUIT ni en otro ambiente,
+   * aunque el perfil del comercio cambie después.
+   */
+  issuerCuit: string | null
   status: FiscalDocumentStatus
   number: number | null
   reservedNumber: number | null
@@ -64,8 +77,24 @@ export interface IFiscalDocument extends Document {
   arca: {
     attempts: number
     lastAttemptAt: Date | null
+    /** Próximo reintento automático (espera progresiva). null = cuanto antes. */
+    nextAttemptAt: Date | null
+    /** Clase del último error: transitorio, configuración/credenciales, etc. */
+    lastErrorKind: string
     lastError: string
     observations: { code: string; message: string }[]
+  }
+  /** Motivo de `needs_review` (código estable + texto para el operador). */
+  review: { code: string; message: string; at: Date | null; resolvedBy: string | null; resolvedAt: Date | null }
+  /** Estado del informe del CAEA a ARCA (solo authMode 'caea'). */
+  caeaReportStatus: CaeaReportStatus
+  /** Impresión del comprobante (independiente de la autorización). */
+  printing: {
+    status: FiscalPrintStatus
+    lastJobId: mongoose.Types.ObjectId | null
+    printedAt: Date | null
+    reprints: number
+    lastError: string
   }
   idempotencyKey: string
   createdBy: string
@@ -87,7 +116,8 @@ const FiscalDocumentSchema = new Schema<IFiscalDocument>(
     cbteTipo: { type: Number, required: true },
     pointOfSale: { type: Number, required: true, min: 1, max: 99998 },
     environment: { type: String, enum: ['homologation', 'production'], required: true },
-    status: { type: String, enum: ['pending', 'authorized', 'rejected', 'retrying'], default: 'pending' },
+    issuerCuit: { type: String, default: null, match: /^\d{11}$/ },
+    status: { type: String, enum: ['pending', 'authorized', 'rejected', 'retrying', 'needs_review'], default: 'pending' },
     number: { type: Number, default: null },
     reservedNumber: { type: Number, default: null },
     issuedAt: { type: Date, required: true },
@@ -146,8 +176,33 @@ const FiscalDocumentSchema = new Schema<IFiscalDocument>(
     arca: {
       attempts: { type: Number, default: 0 },
       lastAttemptAt: { type: Date, default: null },
+      nextAttemptAt: { type: Date, default: null },
+      lastErrorKind: { type: String, default: '', maxlength: 40 },
       lastError: { type: String, default: '', maxlength: 500 },
       observations: { type: [MessageSchema], default: [] },
+    },
+    review: {
+      code: { type: String, default: '', maxlength: 60 },
+      message: { type: String, default: '', maxlength: 500 },
+      at: { type: Date, default: null },
+      resolvedBy: { type: String, default: null },
+      resolvedAt: { type: Date, default: null },
+    },
+    caeaReportStatus: {
+      type: String,
+      enum: ['not_applicable', 'pending', 'informed', 'rejected'],
+      default: 'not_applicable',
+    },
+    printing: {
+      status: {
+        type: String,
+        enum: ['not_requested', 'queued', 'printing', 'printed', 'failed', 'unknown'],
+        default: 'not_requested',
+      },
+      lastJobId: { type: Schema.Types.ObjectId, ref: 'PreClosePrintJob', default: null },
+      printedAt: { type: Date, default: null },
+      reprints: { type: Number, default: 0 },
+      lastError: { type: String, default: '', maxlength: 300 },
     },
     idempotencyKey: { type: String, required: true, maxlength: 120 },
     createdBy: { type: String, required: true },
@@ -166,6 +221,8 @@ FiscalDocumentSchema.index(
 FiscalDocumentSchema.index({ tenantId: 1, environment: 1, issuedAt: -1 })
 // Reintentos pendientes (cron).
 FiscalDocumentSchema.index({ status: 1, updatedAt: 1 })
+// Recuperación con espera progresiva y alertas por comercio.
+FiscalDocumentSchema.index({ tenantId: 1, status: 1, 'arca.nextAttemptAt': 1 })
 // Comprobantes de una orden.
 FiscalDocumentSchema.index({ tenantId: 1, orderId: 1 })
 // CAEA pendientes de informar (cron).

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import mongoose from 'mongoose'
 import FiscalProfile from '@/models/FiscalProfile'
+import FiscalDocument from '@/models/FiscalDocument'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { logAudit } from '@/lib/audit'
@@ -101,9 +102,12 @@ const bodySchema = z.object({
   contingency: z
     .object({
       enabled: z.boolean(),
+      // Orden de ejecución 31/10: la contingencia automática es una opción
+      // aparte y apagada por defecto (RG 5782: uso excepcional).
+      automatic: z.boolean().default(false),
       pointsOfSale: z.array(z.object({ locationId: objectId, number: z.number().int().min(1).max(99998) })).max(200),
     })
-    .default({ enabled: false, pointsOfSale: [] }),
+    .default({ enabled: false, automatic: false, pointsOfSale: [] }),
 })
 
 export async function PUT(request: NextRequest, { params }: Params) {
@@ -137,6 +141,30 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const current = await loadFiscalProfile(ctx.tenant._id)
     // Cambiar de ambiente invalida la prueba de conexión y el ticket de ARCA.
     const environmentChanged = (current?.environment ?? 'homologation') !== body.environment
+    const cuitChanged = Boolean(current?.cuit) && current?.cuit !== body.cuit
+
+    // Orden de ejecución 31/10 (P0.1): no se cambia la identidad fiscal con
+    // comprobantes sin resolver. Cada comprobante se emite con SU ambiente y
+    // CUIT; si quedaran pendientes, pasarían a revisión manual. Mejor frenar
+    // el cambio y que la persona los resuelva primero.
+    if (environmentChanged || cuitChanged) {
+      const unresolved = await FiscalDocument.countDocuments({
+        tenantId: ctx.tenant._id,
+        $or: [
+          { status: { $in: ['pending', 'retrying', 'needs_review'] } },
+          { authMode: 'caea', caeaReportStatus: 'pending' },
+        ],
+      })
+      if (unresolved > 0) {
+        return NextResponse.json(
+          {
+            error: `Hay ${unresolved} comprobante(s) sin resolver (pendientes, en revisión o CAEA sin informar). Resolvelos antes de cambiar ${environmentChanged ? 'el ambiente' : 'el CUIT'}.`,
+            unresolved,
+          },
+          { status: 409 }
+        )
+      }
+    }
 
     const update = {
       tenantId: ctx.tenant._id,
@@ -153,6 +181,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       pointsOfSale: body.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
       contingency: {
         enabled: body.contingency.enabled,
+        automatic: body.contingency.enabled && body.contingency.automatic,
         pointsOfSale: body.contingency.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
       },
       ...(environmentChanged

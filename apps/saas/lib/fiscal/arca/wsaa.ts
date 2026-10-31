@@ -110,12 +110,13 @@ function tryDecrypt(value: string): string | null {
 }
 
 interface StoredTicket {
-  wsaa?: { environment?: string | null; token?: string; sign?: string; expiresAt?: Date | null; lockedUntil?: Date | null }
+  wsaa?: { environment?: string | null; cuit?: string | null; token?: string; sign?: string; expiresAt?: Date | null; lockedUntil?: Date | null }
 }
 
-function usable(doc: StoredTicket | null, env: FiscalEnvironment, now = Date.now()): AccessTicket | null {
+function usable(doc: StoredTicket | null, env: FiscalEnvironment, cuit: string, now = Date.now()): AccessTicket | null {
   const w = doc?.wsaa
-  if (!w || w.environment !== env || !w.token || !w.sign || !w.expiresAt) return null
+  // El ticket es de un CUIT y un ambiente: cualquier diferencia ⇒ pedir otro.
+  if (!w || w.environment !== env || w.cuit !== cuit || !w.token || !w.sign || !w.expiresAt) return null
   if (new Date(w.expiresAt).getTime() - now < REUSE_MARGIN_MS) return null
   const token = tryDecrypt(w.token)
   const sign = tryDecrypt(w.sign)
@@ -144,7 +145,7 @@ export async function getWsfeAuth(input: TicketInput): Promise<WsfeAuth> {
 
   for (;;) {
     const stored = await readTicket(tenantId)
-    const cached = input.forceRefresh ? null : usable(stored, input.environment)
+    const cached = input.forceRefresh ? null : usable(stored, input.environment, input.cuit)
     if (cached) return { token: cached.token, sign: cached.sign, cuit: input.cuit }
 
     // Candado: solo una instancia pide el ticket.
@@ -165,6 +166,7 @@ export async function getWsfeAuth(input: TicketInput): Promise<WsfeAuth> {
           {
             $set: {
               'wsaa.environment': input.environment,
+              'wsaa.cuit': input.cuit,
               'wsaa.token': encrypt(ticket.token),
               'wsaa.sign': encrypt(ticket.sign),
               'wsaa.expiresAt': ticket.expiresAt,

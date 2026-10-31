@@ -7,6 +7,8 @@ import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import User from '@/models/User'
 import FiscalProfile from '@/models/FiscalProfile'
+import FiscalDocument from '@/models/FiscalDocument'
+import mongoose from 'mongoose'
 import { auth } from '@/lib/auth'
 import { decrypt } from '@/lib/crypto'
 import { fakeArcaCertificate, soapResponse } from '../fixtures/arca'
@@ -124,6 +126,30 @@ describe('datos fiscales (Fase 3)', () => {
   it('un punto de venta de una sede ajena se rechaza', async () => {
     const res = await PUT(req(profileBody({ pointsOfSale: [{ locationId: '64b0000000000000000000ff', number: 3 }] })), P)
     expect(res.status).toBe(400)
+  })
+
+  // Orden de ejecución 31/10 (P0.1): la identidad fiscal no cambia con
+  // comprobantes sin resolver; cada uno se emite con SU ambiente y CUIT.
+  it('no deja pasar a producción (ni cambiar el CUIT) con comprobantes pendientes', async () => {
+    expect((await PUT(req(profileBody()), P)).status).toBe(200)
+    const orderId = new mongoose.Types.ObjectId()
+    await FiscalDocument.create({
+      tenantId, locationId, orderId, kind: 'invoice', letter: 'B', cbteTipo: 6, pointOfSale: 3,
+      environment: 'homologation', issuerCuit: CUIT, status: 'retrying', issuedAt: new Date(),
+      receiver: { condition: 'consumidor_final', docType: 99, docNumber: '0', name: '' },
+      amounts: { totalCents: 1000, netCents: 826, ivaCents: 174, exemptCents: 0 },
+      idempotencyKey: `invoice:${orderId}`, createdBy: 'test',
+    })
+    const toProd = await PUT(req(profileBody({ environment: 'production' })), P)
+    expect(toProd.status).toBe(409)
+    expect((await toProd.json()).unresolved).toBe(1)
+    const otherCuit = await PUT(req(profileBody({ cuit: '30-71234567-1' })), P)
+    expect(otherCuit.status).toBe(409)
+    expect((await FiscalProfile.findOne({ tenantId }).lean())?.environment).toBe('homologation')
+
+    // Resuelto el pendiente, el cambio pasa.
+    await FiscalDocument.updateMany({ tenantId }, { $set: { status: 'rejected' } })
+    expect((await PUT(req(profileBody({ environment: 'production' })), P)).status).toBe(200)
   })
 
   it('un cajero no puede tocar los datos fiscales', async () => {

@@ -29,6 +29,19 @@ import {
 //      comprobante se emite con el CAEA, en el punto de venta de contingencia
 //      de la sede, con numeración local atómica. Es un comprobante válido:
 //      lleva el CAEA y el QR con tipo de autorización «A».
+//
+// Orden de ejecución 31/10 (contraste con arca.gob.ar/fe/emision-autorizacion/
+// contingencias.asp, consultado el 31/10/2026, RG 5782):
+//   · La contingencia es EXCEPCIONAL: si los comprobantes CAEA llegan al 5 %
+//     de los del mes de la sucursal (2 meses seguidos o 3 alternados), ARCA
+//     puede suspender la factura electrónica por un año. Por eso NO es
+//     automática salvo que el comercio lo active (`contingency.automatic`), y
+//     aun así se frena antes de llegar al 4 % del mes de la sede.
+//   · Factura C con CAEA: sin confirmar en el manual WSFEv1 v4.7 (un resumen
+//     indica «CAEA solo para A y B»). Bloqueada hasta validarlo con el manual
+//     y el contador.
+//   · Un informe rechazado NO deja el comprobante como autorizado: pasa a
+//     `needs_review` con caeaReportStatus 'rejected'.
 //   3. Después (cron diario, con conexión): cada comprobante CAEA se informa
 //      con FECAEARegInformativo; los puntos de contingencia sin uso en una
 //      quincena terminada se informan «sin movimiento». ARCA da 8 días
@@ -40,7 +53,51 @@ interface ContingencyProfile {
   cuit: string
   environment: 'homologation' | 'production'
   ivaCondition: IssuerIvaCondition | null
-  contingency?: { enabled?: boolean; pointsOfSale?: { locationId: mongoose.Types.ObjectId; number: number }[] }
+  contingency?: { enabled?: boolean; automatic?: boolean; pointsOfSale?: { locationId: mongoose.Types.ObjectId; number: number }[] }
+}
+
+/** Tope propio, por debajo del 5 % de ARCA (RG 5782), por sede y mes. */
+export const CAEA_MONTHLY_SHARE_LIMIT = 0.04
+/** Por debajo de este volumen mensual, un solo CAEA ya «supera» el porcentaje. */
+const CAEA_MIN_MONTHLY_DOCS = 25
+
+export type CaeaTrigger = 'automatic' | 'manual'
+
+/** ¿Este comprobante puede salir con CAEA? Motivo legible si no. */
+export async function caeaEligibility(
+  doc: IFiscalDocument,
+  profile: ContingencyProfile | null,
+  trigger: CaeaTrigger,
+  now = new Date()
+): Promise<{ ok: true; pointOfSale: number } | { ok: false; reason: string }> {
+  if (!profile) return { ok: false, reason: 'La contingencia CAEA no está habilitada para este comercio' }
+  if (trigger === 'automatic' && !profile.contingency?.automatic) {
+    return { ok: false, reason: 'La contingencia no es automática: la decide una persona' }
+  }
+  if (doc.authMode === 'caea') return { ok: false, reason: 'El comprobante ya está en contingencia' }
+  if (doc.environment !== profile.environment || !doc.issuerCuit || doc.issuerCuit !== profile.cuit) {
+    return { ok: false, reason: 'El comprobante es de otro ambiente o CUIT que la configuración actual' }
+  }
+  if (doc.letter === 'C') {
+    return { ok: false, reason: 'Factura C con CAEA sin validar en el manual de ARCA: no se usa contingencia' }
+  }
+  if (doc.reservedNumber !== null) {
+    return { ok: false, reason: 'El pedido de CAE pudo haber llegado a ARCA: primero hay que consultarlo' }
+  }
+  const pos = profile.contingency?.pointsOfSale?.find((p) => String(p.locationId) === String(doc.locationId))
+  if (!pos) return { ok: false, reason: 'La sede no tiene punto de venta de contingencia' }
+
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 3))
+  const base = { tenantId: doc.tenantId, locationId: doc.locationId, environment: doc.environment, createdAt: { $gte: monthStart } }
+  const [total, viaCaea] = await Promise.all([
+    FiscalDocument.countDocuments({ ...base, status: { $in: ['authorized', 'needs_review'] } }),
+    FiscalDocument.countDocuments({ ...base, authMode: 'caea' }),
+  ])
+  const share = (viaCaea + 1) / Math.max(total + 1, CAEA_MIN_MONTHLY_DOCS)
+  if (trigger === 'automatic' && share > CAEA_MONTHLY_SHARE_LIMIT) {
+    return { ok: false, reason: `La contingencia ya cubre ${Math.round(share * 100)} % del mes de la sede: no sale sola` }
+  }
+  return { ok: true, pointOfSale: pos.number }
 }
 
 async function loadContingency(tenantId: mongoose.Types.ObjectId | string): Promise<ContingencyProfile | null> {
@@ -55,21 +112,32 @@ function tiposFor(issuer: IssuerIvaCondition): number[] {
     : [cbteTipo('C', 'invoice'), cbteTipo('C', 'credit_note')]
 }
 
-/** Emite un comprobante pendiente con el CAEA vigente. null si no se puede. */
-export async function issueWithCaea(doc: IFiscalDocument): Promise<IFiscalDocument | null> {
+/**
+ * Emite un comprobante pendiente con el CAEA vigente. null si no corresponde
+ * (con `onIneligible` se conoce el motivo, p. ej. para mostrarlo al operador).
+ */
+export async function issueWithCaea(
+  doc: IFiscalDocument,
+  options: { trigger: CaeaTrigger; onIneligible?: (reason: string) => void }
+): Promise<IFiscalDocument | null> {
   const profile = await loadContingency(doc.tenantId)
-  if (!profile || doc.authMode === 'caea') return null
-  const contingencyPos = profile.contingency?.pointsOfSale?.find((p) => String(p.locationId) === String(doc.locationId))
-  if (!contingencyPos) return null
-
   const now = new Date()
+  const eligible = await caeaEligibility(doc, profile, options.trigger, now)
+  if (!eligible.ok) {
+    options.onIneligible?.(eligible.reason)
+    return null
+  }
+  const contingencyPos = { number: eligible.pointOfSale }
+
   const { period, order } = caeaPeriodFor(now)
-  const caea = await CaeaPeriod.findOne({ tenantId: doc.tenantId, environment: profile.environment, period, order }).lean()
-  if (!caea) return null
-  if (caea.validTo && toArcaDate(now) > toArcaDate(caea.validTo)) return null
+  const caea = await CaeaPeriod.findOne({ tenantId: doc.tenantId, environment: doc.environment, period, order }).lean()
+  if (!caea || (caea.validTo && toArcaDate(now) > toArcaDate(caea.validTo))) {
+    options.onIneligible?.('No hay un CAEA vigente para esta quincena')
+    return null
+  }
 
   const counter = await FiscalCounter.findOneAndUpdate(
-    { tenantId: doc.tenantId, environment: profile.environment, pointOfSale: contingencyPos.number, cbteTipo: doc.cbteTipo },
+    { tenantId: doc.tenantId, environment: doc.environment, pointOfSale: contingencyPos.number, cbteTipo: doc.cbteTipo },
     { $inc: { last: 1 } },
     { upsert: true, new: true }
   )
@@ -83,10 +151,11 @@ export async function issueWithCaea(doc: IFiscalDocument): Promise<IFiscalDocume
   doc.caeExpiresAt = caea.validTo
   doc.authMode = 'caea'
   doc.caeaInformedAt = null
+  doc.caeaReportStatus = 'pending'
   doc.status = 'authorized'
   doc.qrUrl = arcaQrUrl({
     issuedAt: now,
-    cuit: profile.cuit,
+    cuit: doc.issuerCuit!,
     pointOfSale: doc.pointOfSale,
     cbteTipo: doc.cbteTipo,
     number,
@@ -97,7 +166,14 @@ export async function issueWithCaea(doc: IFiscalDocument): Promise<IFiscalDocume
     authType: 'A',
   })
   doc.arca.lastError = ''
-  doc.arca.observations = [{ code: 'CAEA', message: 'Emitido en contingencia (ARCA sin respuesta). Se informa automáticamente.' }]
+  doc.arca.lastErrorKind = ''
+  doc.arca.nextAttemptAt = null
+  doc.arca.observations = [
+    {
+      code: 'CAEA',
+      message: `Emitido en contingencia (${options.trigger === 'manual' ? 'decisión del operador' : 'automática'}). Pendiente de informar a ARCA.`,
+    },
+  ]
   await doc.save()
   return doc
 }
@@ -153,9 +229,25 @@ export async function informCaea(
 ): Promise<{ informed: number; rejected: number; noMovement: number }> {
   const profile = await loadContingency(tenantId)
   const result = { informed: 0, rejected: 0, noMovement: 0 }
-  const pending = await FiscalDocument.find({ tenantId, authMode: 'caea', status: 'authorized', caeaInformedAt: null }).sort({ issuedAt: 1 }).limit(100)
+  const ident = await FiscalProfile.findOne({ tenantId })
+    .select('cuit environment')
+    .lean<{ cuit?: string; environment?: 'homologation' | 'production' }>()
+  if (!ident?.cuit || !ident.environment) return result
+  // Solo los del CUIT y ambiente vigentes: la sesión es de esa identidad.
+  const pending = await FiscalDocument.find({
+    tenantId,
+    authMode: 'caea',
+    caeaReportStatus: 'pending',
+    environment: ident.environment,
+    issuerCuit: ident.cuit,
+  })
+    .sort({ issuedAt: 1 })
+    .limit(100)
   if (pending.length === 0 && !profile) return result
-  const session = await openArcaSession(tenantId, { fetchImpl: options.fetchImpl })
+  const session = await openArcaSession(tenantId, {
+    fetchImpl: options.fetchImpl,
+    expect: { environment: ident.environment, cuit: ident.cuit },
+  })
 
   for (const doc of pending) {
     const r = await feCaeaRegInformativo(
@@ -184,10 +276,18 @@ export async function informCaea(
     )
     if (r.result === 'A') {
       doc.caeaInformedAt = new Date()
+      doc.caeaReportStatus = 'informed'
       result.informed++
     } else {
+      // El comprobante ya se entregó con el CAEA, pero ARCA no lo validó: NO
+      // puede seguir figurando como autorizado sin más. Revisión manual.
+      const message = `ARCA no aceptó el informe del CAEA: ${(r.observations[0] ?? r.errors[0])?.message ?? 'revisar'}`
       doc.arca.observations = [...r.observations, ...r.errors]
-      doc.arca.lastError = `ARCA no aceptó el informe del CAEA: ${(r.observations[0] ?? r.errors[0])?.message ?? 'revisar'}`
+      doc.arca.lastError = message
+      doc.arca.lastErrorKind = 'review'
+      doc.caeaReportStatus = 'rejected'
+      doc.status = 'needs_review'
+      doc.review = { code: 'caea_report_rejected', message, at: new Date(), resolvedBy: null, resolvedAt: null }
       result.rejected++
     }
     await doc.save()

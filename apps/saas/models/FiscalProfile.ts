@@ -51,6 +51,13 @@ export interface IFiscalProfile extends Document {
    */
   contingency: {
     enabled: boolean
+    /**
+     * Orden de ejecución 31/10: la contingencia NO es automática por defecto.
+     * Con `automatic` en false, si ARCA no responde el comprobante queda en
+     * reintento y una persona decide emitirlo con CAEA (RG 5782: solo en
+     * condiciones de excepcionalidad, límite del 5 %).
+     */
+    automatic: boolean
     pointsOfSale: IPointOfSale[]
   }
   credentials: {
@@ -70,6 +77,8 @@ export interface IFiscalProfile extends Document {
     certificateSubject: string
     certificateExpiresAt: Date | null
   }
+  /** Última corrida de la recuperación fiscal del comercio (kickFiscalRecovery). */
+  recovery: { lastRunAt: Date | null }
   /** Última prueba de conexión con ARCA (Fase 4). */
   connection: {
     checkedAt: Date | null
@@ -80,6 +89,8 @@ export interface IFiscalProfile extends Document {
   /** Ticket de acceso WSAA (token/sign cifrados), por ambiente. */
   wsaa: {
     environment: FiscalEnvironment | null
+    /** CUIT para el que se emitió el ticket: un ticket nunca sirve para otro. */
+    cuit: string | null
     token: string
     sign: string
     expiresAt: Date | null
@@ -123,6 +134,7 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
     pointsOfSale: { type: [PointOfSaleSchema], default: [] },
     contingency: {
       enabled: { type: Boolean, default: false },
+      automatic: { type: Boolean, default: false },
       pointsOfSale: { type: [PointOfSaleSchema], default: [] },
     },
     credentials: {
@@ -134,6 +146,9 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
       certificateSubject: { type: String, default: '' },
       certificateExpiresAt: { type: Date, default: null },
     },
+    recovery: {
+      lastRunAt: { type: Date, default: null },
+    },
     connection: {
       checkedAt: { type: Date, default: null },
       ok: { type: Boolean, default: false },
@@ -142,6 +157,7 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
     },
     wsaa: {
       environment: { type: String, enum: ['homologation', 'production', null], default: null },
+      cuit: { type: String, default: null },
       token: { type: String, default: '', select: false },
       sign: { type: String, default: '', select: false },
       expiresAt: { type: Date, default: null },

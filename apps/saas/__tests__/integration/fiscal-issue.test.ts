@@ -61,7 +61,8 @@ type Mode = 'ok' | 'lost-response' | 'down' | 'reject'
 const arca = {
   mode: 'ok' as Mode,
   last: new Map<string, number>(),
-  authorized: new Map<string, { cae: string; total: string }>(),
+  // Lo que ARCA guarda de cada comprobante autorizado (FECompConsultar lo devuelve).
+  authorized: new Map<string, { cae: string; fields: Record<string, string> }>(),
   caeRequests: 0,
   informed: 0,
 }
@@ -101,9 +102,14 @@ const arcaFetch = vi.fn(async (url: string, init?: RequestInit) => {
   }
   if (body.includes('FECompConsultar')) {
     const found = arca.authorized.get(`${key}-${tag(body, 'CbteNro')}`)
-    return found
-      ? soapResponse(`<ResultGet><ImpTotal>${found.total}</ImpTotal><CodAutorizacion>${found.cae}</CodAutorizacion><FchVto>20261102</FchVto><Resultado>A</Resultado></ResultGet>`)
-      : soapResponse('<Errors><Err><Code>602</Code><Msg>Sin resultados</Msg></Err></Errors>')
+    if (!found) return soapResponse('<Errors><Err><Code>602</Code><Msg>Sin resultados</Msg></Err></Errors>')
+    const f = found.fields
+    return soapResponse(
+      `<ResultGet><Concepto>1</Concepto><DocTipo>${f.DocTipo}</DocTipo><DocNro>${f.DocNro}</DocNro><CbteDesde>${f.CbteDesde}</CbteDesde><CbteHasta>${f.CbteDesde}</CbteHasta>` +
+        `<CbteFch>${f.CbteFch}</CbteFch><ImpTotal>${f.ImpTotal}</ImpTotal><ImpNeto>${f.ImpNeto}</ImpNeto><ImpOpEx>${f.ImpOpEx}</ImpOpEx><ImpIVA>${f.ImpIVA}</ImpIVA>` +
+        `<Resultado>A</Resultado><CodAutorizacion>${found.cae}</CodAutorizacion><EmisionTipo>CAE</EmisionTipo><FchVto>20261102</FchVto>` +
+        `<PtoVta>${f.PtoVta}</PtoVta><CbteTipo>${f.CbteTipo}</CbteTipo></ResultGet>`
+    )
   }
   if (body.includes('FECAESolicitar')) {
     arca.caeRequests++
@@ -113,7 +119,9 @@ const arcaFetch = vi.fn(async (url: string, init?: RequestInit) => {
     }
     const cae = String(70000000000000 + arca.caeRequests)
     arca.last.set(key, number)
-    arca.authorized.set(`${key}-${number}`, { cae, total: tag(body, 'ImpTotal') })
+    const fields: Record<string, string> = {}
+    for (const name of ['PtoVta', 'CbteTipo', 'CbteDesde', 'CbteFch', 'DocTipo', 'DocNro', 'ImpTotal', 'ImpNeto', 'ImpOpEx', 'ImpIVA']) fields[name] = tag(body, name)
+    arca.authorized.set(`${key}-${number}`, { cae, fields })
     if (arca.mode === 'lost-response') throw Object.assign(new Error('aborted'), { name: 'AbortError' })
     return soapResponse(`<FECAEDetResponse><Resultado>A</Resultado><CbteDesde>${number}</CbteDesde><CAE>${cae}</CAE><CAEFchVto>20261102</CAEFchVto></FECAEDetResponse>`)
   }
@@ -199,7 +207,7 @@ beforeEach(async () => {
     },
     connection: { ok: true, environment: 'homologation', checkedAt: new Date(), message: 'ok' },
     // Ticket de ARCA ya vigente: estos tests no pasan por WSAA.
-    wsaa: { environment: 'homologation', token: encrypt('T'), sign: encrypt('S'), expiresAt: new Date(Date.now() + 3600_000) },
+    wsaa: { environment: 'homologation', cuit: CUIT, token: encrypt('T'), sign: encrypt('S'), expiresAt: new Date(Date.now() + 3600_000) },
   })
   await User.create({
     name: 'Encargada',
@@ -267,7 +275,12 @@ describe('factura desde el POS', () => {
     expect(pending).toMatchObject({ status: 'retrying', reservedNumber: 1, number: null })
 
     arca.mode = 'ok'
-    await FiscalDocument.updateOne({ _id: pending!._id }, { $set: { updatedAt: new Date(Date.now() - 10 * 60_000) } }, { timestamps: false })
+    // Pasa el tiempo: vence la espera progresiva del reintento.
+    await FiscalDocument.updateOne(
+      { _id: pending!._id },
+      { $set: { updatedAt: new Date(Date.now() - 10 * 60_000), 'arca.nextAttemptAt': new Date(Date.now() - 1000) } },
+      { timestamps: false }
+    )
     const result = await retryPendingDocuments({ tenantId })
     expect(result).toEqual({ tried: 1, authorized: 1 })
     const done = await FiscalDocument.findById(pending!._id).lean()
@@ -361,8 +374,17 @@ describe('panel: comprobantes y Libro IVA', () => {
 })
 
 describe('Fase 6 — contingencia CAEA', () => {
-  it('ARCA caída antes del pedido de CAE: sale con CAEA en el PV de contingencia y se informa después', async () => {
-    await FiscalProfile.updateOne({ tenantId }, { $set: { contingency: { enabled: true, pointsOfSale: [{ locationId, number: 13 }] } } })
+  it('sin contingencia AUTOMÁTICA, ARCA caída deja la factura en reintento (no usa CAEA sola)', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { contingency: { enabled: true, automatic: false, pointsOfSale: [{ locationId, number: 13 }] } } })
+    await ensureCaea(tenantId)
+    const orderId = await paidOrder()
+    arca.mode = 'down'
+    expect((await invoice(orderId)).status).toBe(202)
+    expect(await FiscalDocument.findOne({ tenantId }).lean()).toMatchObject({ status: 'retrying', authMode: 'cae' })
+  })
+
+  it('ARCA caída antes del pedido de CAE: con contingencia automática sale con CAEA y se informa después', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { contingency: { enabled: true, automatic: true, pointsOfSale: [{ locationId, number: 13 }] } } })
     const got = await ensureCaea(tenantId)
     expect(got.periods.length).toBeGreaterThan(0)
 
@@ -378,7 +400,9 @@ describe('Fase 6 — contingencia CAEA', () => {
     arca.mode = 'ok'
     const informed = await informCaea(tenantId)
     expect(informed.informed).toBe(1)
-    expect((await FiscalDocument.findOne({ tenantId }).lean())?.caeaInformedAt).toBeTruthy()
+    const after = await FiscalDocument.findOne({ tenantId }).lean()
+    expect(after?.caeaInformedAt).toBeTruthy()
+    expect(after?.caeaReportStatus).toBe('informed')
   })
 
   it('si el pedido de CAE pudo haber llegado (respuesta perdida), NO usa CAEA: reintenta', async () => {

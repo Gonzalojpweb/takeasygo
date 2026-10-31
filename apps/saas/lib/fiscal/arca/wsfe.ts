@@ -17,7 +17,9 @@ import { escapeXml, getAllTags, getText } from './xml'
 
 export class ArcaError extends Error {
   constructor(
-    readonly kind: 'network' | 'timeout' | 'fault' | 'rejected' | 'auth',
+    // 'identity': el comprobante y la configuración actual no coinciden
+    // (CUIT o ambiente): nunca se llama a ARCA en ese caso.
+    readonly kind: 'network' | 'timeout' | 'fault' | 'rejected' | 'auth' | 'identity',
     message: string,
     readonly code?: string
   ) {
@@ -248,6 +250,47 @@ export interface ConsultResult {
   caeExpiresAt: Date | null
   totalCents: number | null
   result: string | null
+  /**
+   * Identidad del comprobante TAL COMO LA INFORMA ARCA (FECompConsultar ·
+   * ResultGet). La recuperación de un número reservado compara todos estos
+   * campos: el importe solo no alcanza para saber que es el nuestro.
+   */
+  identity: {
+    pointOfSale: number | null
+    cbteTipo: number | null
+    number: number | null
+    /** yyyymmdd */
+    date: string | null
+    docType: number | null
+    docNumber: string | null
+    netCents: number | null
+    ivaCents: number | null
+    exemptCents: number | null
+  }
+}
+
+const EMPTY_IDENTITY: ConsultResult['identity'] = {
+  pointOfSale: null,
+  cbteTipo: null,
+  number: null,
+  date: null,
+  docType: null,
+  docNumber: null,
+  netCents: null,
+  ivaCents: null,
+  exemptCents: null,
+}
+
+function cents(value: string | null): number | null {
+  if (value === null || value === '') return null
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.round(n * 100) : null
+}
+
+function int(value: string | null): number | null {
+  if (value === null || value === '') return null
+  const n = Number(value)
+  return Number.isInteger(n) ? n : null
 }
 
 export async function feCompConsultar(
@@ -266,15 +309,28 @@ export async function feCompConsultar(
   )
   const errors = parseMessages(xml, 'Errors', 'Err')
   // 602: "Sin Resultados" — el número no existe.
-  if (errors.some((e) => e.code === '602')) return { found: false, cae: null, caeExpiresAt: null, totalCents: null, result: null }
+  if (errors.some((e) => e.code === '602')) {
+    return { found: false, cae: null, caeExpiresAt: null, totalCents: null, result: null, identity: EMPTY_IDENTITY }
+  }
   if (errors.length > 0) assertNoErrors(xml)
-  const total = getText(xml, 'ImpTotal')
+  const get = getAllTags(xml, 'ResultGet')[0] ?? xml
   return {
-    found: Boolean(getText(xml, 'CodAutorizacion')),
-    cae: getText(xml, 'CodAutorizacion'),
-    caeExpiresAt: fromArcaDate(getText(xml, 'FchVto') ?? ''),
-    totalCents: total === null ? null : Math.round(Number(total) * 100),
-    result: getText(xml, 'Resultado'),
+    found: Boolean(getText(get, 'CodAutorizacion')),
+    cae: getText(get, 'CodAutorizacion'),
+    caeExpiresAt: fromArcaDate(getText(get, 'FchVto') ?? ''),
+    totalCents: cents(getText(get, 'ImpTotal')),
+    result: getText(get, 'Resultado'),
+    identity: {
+      pointOfSale: int(getText(get, 'PtoVta')),
+      cbteTipo: int(getText(get, 'CbteTipo')),
+      number: int(getText(get, 'CbteDesde')),
+      date: getText(get, 'CbteFch'),
+      docType: int(getText(get, 'DocTipo')),
+      docNumber: getText(get, 'DocNro'),
+      netCents: cents(getText(get, 'ImpNeto')),
+      ivaCents: cents(getText(get, 'ImpIVA')),
+      exemptCents: cents(getText(get, 'ImpOpEx')),
+    },
   }
 }
 
