@@ -7,8 +7,12 @@ import { isServiceOpen } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
 import LocationConfirmDialog from './LocationConfirmDialog'
 
+import { menuHref, locationPathSegment } from '@/lib/menu/location-ref'
+
 interface LocationInfo {
   _id: string
+  /** Nombre corto de la sede en la dirección (31/10). */
+  slug?: string
   name: string
   address?: string
   settings?: {
@@ -119,7 +123,8 @@ export default function LocationSwitcher({ tenantSlug, locations, currentLocatio
     sessionStorage.removeItem(`cart_${tenantSlug}`)
     sessionStorage.removeItem('mode')
     onClose()
-    router.push(`/${tenantSlug}/menu/${locId}`)
+    const target = locations.find((l) => l._id === locId)
+    router.push(target ? menuHref(tenantSlug, target) : `/${tenantSlug}/menu/${locId}`)
   }
 
   const requestGeo = () => {

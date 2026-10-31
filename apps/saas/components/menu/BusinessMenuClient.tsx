@@ -8,6 +8,7 @@ import { privacidad } from '@/lib/legal-content'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import BusinessGuideSheet from '@/components/business/BusinessGuideSheet'
 import CorporateDirectory from '@/components/business/CorporateDirectory'
+import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
   tenant: any
@@ -93,7 +94,7 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
 
       if (res.status === 409) {
         // Session already exists — re-enter it
-        const sessionUrl = `/${tenant.slug}/menu/${location._id}/business/group/${data.token}`
+        const sessionUrl = menuHref(tenant.slug, location, `business/group/${data.token}`)
         window.location.href = sessionUrl
         return
       }
@@ -124,7 +125,7 @@ export default function BusinessMenuClient({ tenant, location, menu }: Props) {
     if (!corporateAccountId) return toast.error('Error de sesión')
 
     const token = groupToken.trim()
-    const sessionUrl = `/${tenant.slug}/menu/${location._id}/business/group/${token}`
+    const sessionUrl = menuHref(tenant.slug, location, `business/group/${token}`)
 
     // Verify the session exists
     setLoading(true)

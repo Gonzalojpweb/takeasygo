@@ -9,21 +9,23 @@ import GroupSessionClient from '@/components/menu/GroupSessionClient'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { getTenantPaymentConfig } from '@/lib/corporateAccess'
 import type { Types } from 'mongoose'
+import { locationRefFilter } from '@/lib/menu/location-ref'
 
 interface Props {
   params: Promise<{ tenant: string; locationId: string; token: string }>
 }
 
 export default async function GroupSessionPage({ params }: Props) {
-  const { tenant: tenantSlug, locationId, token } = await params
+  const { tenant: tenantSlug, locationId: locationRef, token } = await params
 
   await connectDB()
 
   const tenantDoc = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean<ITenant & { _id: Types.ObjectId }>()
   if (!tenantDoc) notFound()
 
-  const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenantDoc._id, isActive: true }).lean()
+  const locationDoc = await Location.findOne({ ...locationRefFilter(locationRef), tenantId: tenantDoc._id, isActive: true }).lean()
   if (!locationDoc) notFound()
+  const locationId = String(locationDoc._id)
 
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()

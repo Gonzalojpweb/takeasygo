@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 import { decidePosCors } from '@/lib/pos-cors'
+import { parseLegacyMenuPath } from '@/lib/menu/location-ref'
 
 const { auth } = NextAuth(authConfig)
 
@@ -54,6 +55,21 @@ export async function proxy(request: NextRequest) {
   }
 
   const isApiRoute = pathname.startsWith('/api/')
+
+  // Direcciones viejas del menú con el _id de la sede (QR impresos, links en
+  // redes): se resuelven al nombre de la sede conservando el resto y la query.
+  if (!isApiRoute && (request.method === 'GET' || request.method === 'HEAD')) {
+    const legacy = parseLegacyMenuPath(pathname)
+    if (legacy) {
+      const target = new URL('/api/menu-link', request.url)
+      for (const [k, v] of request.nextUrl.searchParams.entries()) target.searchParams.append(k, v)
+      target.searchParams.set('t', legacy.tenant)
+      target.searchParams.set('l', legacy.locationId)
+      target.searchParams.set('rest', legacy.rest)
+      return NextResponse.redirect(target, 307)
+    }
+  }
+
   const segments = pathname.split('/').filter(Boolean)
   const tenantSlug = isApiRoute ? segments[1] : segments[0]
 

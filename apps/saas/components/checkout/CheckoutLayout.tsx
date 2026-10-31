@@ -24,6 +24,8 @@ import type { CartItem } from '@/types/cart'
 interface Props {
   tenantSlug: string
   locationId: string
+  /** Segmento público de la sede en la dirección (slug). */
+  locationPath?: string
   mode: 'takeaway' | 'delivery'
 }
 

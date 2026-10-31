@@ -89,6 +89,8 @@ export interface CheckoutState {
   mode: 'takeaway' | 'delivery'
   tenantSlug: string
   locationId: string
+  /** Segmento público de la sede en la dirección (slug): solo para links. */
+  locationPath: string
   tenantName: string
   cart: CartItem[]
   upsellHints: any[]
@@ -288,12 +290,13 @@ function reducer(state: CheckoutState, action: CheckoutAction): CheckoutState {
   }
 }
 
-function createInitialState(tenantSlug: string, locationId: string, mode: 'takeaway' | 'delivery'): CheckoutState {
+function createInitialState(tenantSlug: string, locationId: string, mode: 'takeaway' | 'delivery', locationPath?: string): CheckoutState {
   return {
     currentStep: 0,
     mode,
     tenantSlug,
     locationId,
+    locationPath: locationPath || locationId,
     tenantName: '',
     cart: [],
     upsellHints: [],
@@ -347,14 +350,16 @@ export const stepsMap: Record<string, string[]> = {
 interface Props {
   tenantSlug: string
   locationId: string
+  /** Segmento público de la sede (slug) para armar links; por defecto el _id. */
+  locationPath?: string
   mode: 'takeaway' | 'delivery'
   children: ReactNode
 }
 
-export function CheckoutProvider({ tenantSlug, locationId, mode, children }: Props) {
+export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, children }: Props) {
   const router = useRouter()
   const { data: session } = useSession()
-  const [state, dispatch] = useReducer(reducer, { tenantSlug, locationId, mode }, (init) => createInitialState(init.tenantSlug, init.locationId, init.mode))
+  const [state, dispatch] = useReducer(reducer, { tenantSlug, locationId, mode, locationPath }, (init) => createInitialState(init.tenantSlug, init.locationId, init.mode, init.locationPath))
   const stateRef = useRef(state)
   stateRef.current = state
 

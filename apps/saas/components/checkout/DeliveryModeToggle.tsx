@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 export default function DeliveryModeToggle() {
   const router = useRouter()
   const { state, dispatch } = useCheckout()
-  const { deliveryMode, tenantSlug, locationId, serviceHours, timezone, deliveryConfig } = state
+  const { deliveryMode, tenantSlug, locationPath, serviceHours, timezone, deliveryConfig } = state
 
   const deliveryEnabled = deliveryConfig?.enabled !== false
   const deliveryBySchedule = isServiceOpen(serviceHours?.delivery, timezone)
@@ -29,7 +29,7 @@ export default function DeliveryModeToggle() {
       return
     }
     dispatch({ type: 'SET_DELIVERY_MODE', delivery: true })
-    router.replace(`/${tenantSlug}/menu/${locationId}/delivery/checkout`)
+    router.replace(`/${tenantSlug}/menu/${locationPath}/delivery/checkout`)
   }
 
   return (
@@ -42,7 +42,7 @@ export default function DeliveryModeToggle() {
             dispatch({ type: 'SET_DELIVERY_MODE', delivery: false })
             dispatch({ type: 'SET_DELIVERY_QUOTE', quote: { loading: false, cost: 0, distance: 0, withinRange: false, error: null } })
             dispatch({ type: 'SET_DELIVERY_CONFIRMED', confirmed: false })
-            router.replace(`/${tenantSlug}/menu/${locationId}/takeaway/checkout`)
+            router.replace(`/${tenantSlug}/menu/${locationPath}/takeaway/checkout`)
           }}
           className={cn(
             'flex-1 py-3 px-4 rounded-xl text-sm font-semibold border-2 transition-all',

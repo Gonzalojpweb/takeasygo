@@ -123,7 +123,7 @@ export async function POST(
       }
     }
 
-    const shareLink = `/${tenantSlug}/menu/${locationId}/business/group/${token}`
+    const shareLink = `/${tenantSlug}/menu/${(location as { slug?: string }).slug || locationId}/business/group/${token}`
 
     return NextResponse.json({
       session: {

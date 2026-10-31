@@ -15,6 +15,7 @@ interface Tenant {
 
 interface Location {
   _id: string
+  slug?: string
   name: string
   settings?: {
     orderModes?: string[]
@@ -108,7 +109,7 @@ export default function FounderLinksGenerator({ tenants }: Props) {
   }
 
   const currentLink = selectedTenant && selectedLocationId && selectedMode
-    ? generateLink(selectedTenant.slug, selectedLocationId, selectedMode)
+    ? generateLink(selectedTenant.slug, selectedLocation?.slug || selectedLocationId, selectedMode)
     : ''
 
   const copyToClipboard = async (text: string, key: string) => {

@@ -21,6 +21,7 @@ import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
 import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
+import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
   tenant: any
@@ -371,7 +372,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   function goToCheckout() {
     sessionStorage.setItem(`cart_${tenant.slug}`, JSON.stringify(cart))
     sessionStorage.setItem('mode', 'dine-in')
-    router.push(`/${tenant.slug}/menu/${location._id}/dine-in/checkout`)
+    router.push(menuHref(tenant.slug, location, 'dine-in/checkout'))
   }
 
   const totalCartItems = cart.reduce((sum, i) => sum + i.quantity, 0)

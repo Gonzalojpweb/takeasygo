@@ -44,8 +44,11 @@ interface QrPromoItem {
   maxRedemptions?: number
 }
 
+import { menuHref, locationPathSegment } from '@/lib/menu/location-ref'
+
 interface LocationOption {
   _id: string
+  slug?: string
   name: string
   address?: string
 }
@@ -132,7 +135,9 @@ export default function QrPromoConfig({ tenantSlug }: QrPromoConfigProps) {
   const baseUrl = typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : ''
 
   const getPromoUrl = (promo: QrPromoItem) => {
-    const id = promo.locationId || '{locationId}'
+    // QR nuevos con el nombre de la sede (los viejos con el código siguen andando).
+    const loc = locations.find((l) => l._id === promo.locationId)
+    const id = loc ? locationPathSegment(loc) : promo.locationId || '{locationId}'
     return `${baseUrl}/${tenantSlug}/menu/${id}?source=qr&promo=${promo.slug}`
   }
 

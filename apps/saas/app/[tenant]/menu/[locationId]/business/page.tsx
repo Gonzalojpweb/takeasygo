@@ -7,6 +7,7 @@ import BusinessMenuClient from '@/components/menu/BusinessMenuClient'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
+import { locationPathSegment, locationRefFilter } from '@/lib/menu/location-ref'
 
 export const revalidate = 300
 
@@ -24,11 +25,11 @@ export async function generateStaticParams() {
         const locations = await Location.find({
           tenantId: tenant._id,
           isActive: true,
-        }).select('_id').lean()
+        }).select('slug').lean()
 
         return (locations as any[]).map((loc) => ({
           tenant: tenant.slug,
-          locationId: loc._id.toString(),
+          locationId: loc.slug,
         }))
       }),
     )
@@ -44,7 +45,7 @@ interface Props {
 }
 
 export default async function BusinessMenuPage({ params }: Props) {
-  const { tenant: tenantSlug, locationId } = await params
+  const { tenant: tenantSlug, locationId: locationRef } = await params
 
   await connectDB()
 
@@ -53,8 +54,11 @@ export default async function BusinessMenuPage({ params }: Props) {
 
   if (!tenantDoc.business?.enabled) notFound()
 
-  const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenantDoc._id, isActive: true }).lean()
+  const locationDoc = await Location.findOne({ ...locationRefFilter(locationRef), tenantId: tenantDoc._id, isActive: true }).lean()
   if (!locationDoc) notFound()
+  // La dirección trae el slug; adentro se trabaja con el _id de siempre.
+  const locationId = String(locationDoc._id)
+  const locationSegment = locationPathSegment(locationDoc)
 
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()

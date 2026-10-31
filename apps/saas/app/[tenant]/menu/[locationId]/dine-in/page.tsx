@@ -8,6 +8,7 @@ import { getBestSellers } from '@/lib/tia/bestSellers'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
+import { locationPathSegment, locationRefFilter } from '@/lib/menu/location-ref'
 
 export const revalidate = 300
 
@@ -22,11 +23,11 @@ export async function generateStaticParams() {
       const locations = await Location.find({
         tenantId: tenant._id,
         isActive: true,
-      }).select('_id').lean()
+      }).select('slug').lean()
 
       return (locations as any[]).map((loc) => ({
         tenant: tenant.slug,
-        locationId: loc._id.toString(),
+        locationId: loc.slug,
       }))
     }),
   )
@@ -39,15 +40,18 @@ interface Props {
 }
 
 export default async function DineInMenuPage({ params }: Props) {
-  const { tenant: tenantSlug, locationId } = await params
+  const { tenant: tenantSlug, locationId: locationRef } = await params
 
   await connectDB()
 
   const tenantDoc = await Tenant.findOne({ slug: tenantSlug }).lean<ITenant & { _id: Types.ObjectId }>()
   if (!tenantDoc || !isTenantPubliclyOperational(tenantDoc)) notFound()
 
-  const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenantDoc._id, isActive: true }).lean()
+  const locationDoc = await Location.findOne({ ...locationRefFilter(locationRef), tenantId: tenantDoc._id, isActive: true }).lean()
   if (!locationDoc) notFound()
+  // La dirección trae el slug; adentro se trabaja con el _id de siempre.
+  const locationId = String(locationDoc._id)
+  const locationSegment = locationPathSegment(locationDoc)
 
   const menuDoc = await Menu.findOne({ tenantId: tenantDoc._id, locationId, isActive: true }).lean()
   if (!menuDoc) notFound()

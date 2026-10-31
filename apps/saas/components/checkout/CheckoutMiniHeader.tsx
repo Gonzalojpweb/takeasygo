@@ -11,7 +11,7 @@ import { ChevronLeft } from 'lucide-react'
 export default function CheckoutMiniHeader() {
   const router = useRouter()
   const { state, steps, total } = useCheckout()
-  const { cart, deliveryMode, deliveryQuote, tenantSlug, locationId, mode } = state
+  const { cart, deliveryMode, deliveryQuote, tenantSlug, locationPath, mode } = state
   const [open, setOpen] = useState(false)
 
   const itemCount = cart.reduce((sum, i) => sum + i.quantity, 0)
@@ -19,7 +19,7 @@ export default function CheckoutMiniHeader() {
 
   function handleBackToMenu() {
     sessionStorage.setItem(`cart_${tenantSlug}`, JSON.stringify(cart))
-    router.push(`/${tenantSlug}/menu/${locationId}/${mode}`)
+    router.push(`/${tenantSlug}/menu/${locationPath}/${mode}`)
   }
 
   return (

@@ -10,6 +10,7 @@ import WelcomeBackground from '@/components/menu/WelcomeBackground'
 import WelcomeLocationBar from '@/components/menu/WelcomeLocationBar'
 import ReturningCustomerBanner from '@/components/menu/ReturningCustomerBanner'
 import MenuOpenTracker from '@/components/menu/MenuOpenTracker'
+import { locationPathSegment, locationRefFilter } from '@/lib/menu/location-ref'
 
 export const revalidate = 300
 
@@ -24,11 +25,11 @@ export async function generateStaticParams() {
       const locations = await Location.find({
         tenantId: tenant._id,
         isActive: true,
-      }).select('_id').lean()
+      }).select('slug').lean()
 
       return (locations as any[]).map((loc) => ({
         tenant: tenant.slug,
-        locationId: loc._id.toString(),
+        locationId: loc.slug,
       }))
     }),
   )
@@ -41,15 +42,18 @@ interface Props {
 }
 
 export default async function MenuSelectorPage({ params }: Props) {
-  const { tenant: tenantSlug, locationId } = await params
+  const { tenant: tenantSlug, locationId: locationRef } = await params
 
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
   if (!tenant || !isTenantPubliclyOperational(tenant)) notFound()
 
-  const locationDoc = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true }).lean() as any
+  const locationDoc = await Location.findOne({ ...locationRefFilter(locationRef), tenantId: tenant._id, isActive: true }).lean() as any
   if (!locationDoc) notFound()
+  // La dirección trae el slug; adentro se trabaja con el _id de siempre.
+  const locationId = String(locationDoc._id)
+  const locationSegment = locationPathSegment(locationDoc)
   const location = JSON.parse(JSON.stringify(locationDoc))
 
   const modes: string[] = location.settings?.orderModes || ['takeaway']
@@ -394,7 +398,7 @@ export default async function MenuSelectorPage({ params }: Props) {
           <div className="mh-buttons">
             {modes.includes('dine-in') && (
               <Link
-                href={`/${tenantSlug}/menu/${locationId}/dine-in`}
+                href={`/${tenantSlug}/menu/${locationSegment}/dine-in`}
                 className="mh-btn mh-btn-glass"
                 style={{ borderRadius: br }}
               >
@@ -411,7 +415,7 @@ export default async function MenuSelectorPage({ params }: Props) {
             )}
             {modes.includes('takeaway') && (
               <Link
-                href={`/${tenantSlug}/menu/${locationId}/takeaway`}
+                href={`/${tenantSlug}/menu/${locationSegment}/takeaway`}
                 className="mh-btn mh-btn-primary"
                 style={{
                   borderRadius: br,
@@ -429,7 +433,7 @@ export default async function MenuSelectorPage({ params }: Props) {
             )}
             {businessEnabled && (
               <Link
-                href={`/${tenantSlug}/menu/${locationId}/business`}
+                href={`/${tenantSlug}/menu/${locationSegment}/business`}
                 className="mh-btn mh-btn-glass"
                 style={{ borderRadius: br }}
               >

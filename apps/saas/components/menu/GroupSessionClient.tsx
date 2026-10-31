@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import GroupAddConfirmModal from '@/components/menu/GroupAddConfirmModal'
+import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
   tenant: any
@@ -142,7 +143,7 @@ export default function GroupSessionClient({
   }
 
   function copyLink() {
-    const link = `${window.location.origin}/${tenant.slug}/menu/${location._id}/business/group/${token}`
+    const link = `${window.location.origin}${menuHref(tenant.slug, location, `business/group/${token}`)}`
     navigator.clipboard.writeText(link)
     toast.success('Link copiado al portapapeles')
   }
@@ -358,7 +359,7 @@ export default function GroupSessionClient({
             <div className="flex gap-2">
               <input
                 readOnly
-                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/${tenant.slug}/menu/${location._id}/business/group/${token}`}
+                value={`${typeof window !== 'undefined' ? window.location.origin : ''}${menuHref(tenant.slug, location, `business/group/${token}`)}`}
                 className="flex-1 bg-muted/40 border-2 border-border/60 rounded-xl px-4 py-3 text-xs font-mono outline-none"
               />
               <button

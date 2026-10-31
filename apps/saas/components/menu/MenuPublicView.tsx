@@ -49,6 +49,7 @@ import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 import PromotionStories from '@/components/menu/PromotionStories'
 import AppStoryViewer, { type AppStoryItem } from '@/components/menu/AppStoryViewer'
 import { SectionContainer } from '@/components/menu/SectionContainer'
+import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
   tenant: any
@@ -1108,7 +1109,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .slice(0, 2)
     sessionStorage.setItem('upsellHints', JSON.stringify(hints))
 
-    router.push(`/${tenant.slug}/menu/${location._id}/${mode}/checkout`)
+    router.push(menuHref(tenant.slug, location, `${mode}/checkout`))
   }
 
   function scrollTo(categoryId: string) {

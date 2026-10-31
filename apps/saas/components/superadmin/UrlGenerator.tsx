@@ -83,7 +83,7 @@ export default function UrlGenerator({ tenants }: UrlGeneratorProps) {
 
   const baseUrl = selectedTenantData
     ? selectedLocationData
-      ? `https://takeasygo.com/${selectedTenantData.slug}/menu/${selectedLocationData._id}`
+      ? `https://takeasygo.com/${selectedTenantData.slug}/menu/${selectedLocationData.slug || selectedLocationData._id}`
       : `https://takeasygo.com/${selectedTenantData.slug}/menu`
     : 'https://takeasygo.com/[tenant]/menu'
 

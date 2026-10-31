@@ -1,6 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Location from '@/models/Location'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -21,12 +20,6 @@ export async function GET(
   const tenant = await Tenant.findOne({ slug: tenantSlug }).lean() as any
   if (!tenant || !isTenantPubliclyOperational(tenant)) return new NextResponse(null, { status: 404 })
 
-  // Fetch first active location to build a valid start_url
-  const firstLocation = await Location.findOne({ tenantId: tenant._id, isActive: true })
-    .sort({ createdAt: 1 })
-    .select('_id')
-    .lean() as any
-
   const branding = tenant.branding || {}
   const name: string = tenant.name || 'Menu'
   // Keep short_name under 12 chars for home screen label
@@ -40,9 +33,8 @@ export async function GET(
     name,
     short_name: shortName,
     description: tenant.profile?.menuDescription || `Menu digital de ${name}`,
-    start_url: firstLocation
-      ? `/${tenantSlug}/menu/${firstLocation._id}`
-      : `/${tenantSlug}/menu`,
+    // 31/10: el link corto (una sede: su menú; varias: el selector).
+    start_url: `/${tenantSlug}/menu`,
     scope: `/${tenantSlug}/`,
     display: 'standalone',
     orientation: 'portrait-primary',

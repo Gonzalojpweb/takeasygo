@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Menu from '@/models/Menu'
+import { menuHref, locationPathSegment } from '@/lib/menu/location-ref'
 import Location from '@/models/Location'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
@@ -27,7 +28,7 @@ export default async function MenuPage() {
   // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
   // recibe datos de sus sedes.
   const pageScope = await getPageScope()
-  const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter }).lean<Array<{ _id: { toString(): string }; name: string }>>()
+  const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter }).lean<Array<{ _id: { toString(): string }; name: string; slug?: string }>>()
   const menus = await Menu.find({ tenantId, isActive: true, ...pageScope.locationFilter }).lean()
 
   // Extract categories from all menus (merged, deduplicated by _id)
@@ -72,7 +73,7 @@ export default async function MenuPage() {
           {locations.map((loc) => (
             <a
               key={loc._id.toString()}
-              href={`/${tenantSlug}/menu/${loc._id.toString()}`}
+              href={menuHref(tenantSlug ?? "", loc)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 text-sm transition-colors">
