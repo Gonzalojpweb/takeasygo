@@ -117,6 +117,7 @@ export async function enqueuePrecuenta(input: {
   )
 
   await PreClosePrintJob.create({
+    kind: 'precuenta',
     tenantId,
     locationId,
     printerName: printer.name,

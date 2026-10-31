@@ -90,7 +90,9 @@ export interface IPrintLogEntry {
   printedAt: Date
 }
 
-export type PrintJobStatus = 'pending' | 'success' | 'error' | 'failed'
+// 'unknown' (31/10): falla a mitad de envío, pudo haber impreso. No se
+// reintenta solo; una persona reimprime si hace falta.
+export type PrintJobStatus = 'pending' | 'success' | 'error' | 'failed' | 'unknown'
 
 export interface IPrintJob {
   printerId: mongoose.Types.ObjectId
@@ -107,6 +109,9 @@ export interface IPrintJob {
    * El agente los entrega sin importar el estado del pedido ni el gate T-lead.
    */
   isReprint?: boolean
+  /** Reserva del poll que lo entregó (lib/printing/job-lifecycle). */
+  claimId?: string | null
+  claimedUntil?: Date | null
 }
 
 export interface IStatusTimestamps {
@@ -831,11 +836,13 @@ const OrderSchema = new Schema(
         printerName: { type: String, required: true },
         role: { type: String, required: true },
         payload: { type: String, required: true }, // base64 ESC/POS
-        status: { type: String, enum: ['pending', 'success', 'error', 'failed'], default: 'pending' },
+        status: { type: String, enum: ['pending', 'success', 'error', 'failed', 'unknown'], default: 'pending' },
         attempts: { type: Number, default: 0 },
         lastError: { type: String, default: null },
         printedAt: { type: Date, default: null },
         isReprint: { type: Boolean, default: false },
+        claimId: { type: String, default: null },
+        claimedUntil: { type: Date, default: null },
       }],
       default: [],
     },

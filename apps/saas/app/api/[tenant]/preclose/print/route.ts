@@ -89,6 +89,7 @@ export async function POST(
 
     // Create print job
     const job = await PreClosePrintJob.create({
+      kind: 'preclose',
       tenantId: tenant._id,
       locationId: location._id,
       printerName: printer.name,

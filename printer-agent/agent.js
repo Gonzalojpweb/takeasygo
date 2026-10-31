@@ -383,24 +383,34 @@ async function sendToPrinter(ip, port, dataBuffer) {
 
         const client = new net.Socket();
         client.setTimeout(8000);
+        // P0.2 (31/10): si la conexión nunca se abrió, NADA llegó a la
+        // impresora y reintentar es seguro. Si se cortó después de conectar,
+        // pudo haber impreso: el servidor lo marca «desconocido».
+        let connected = false;
+        const fail = (message) => {
+            const e = new Error(message);
+            e.safeToRetry = !connected;
+            return e;
+        };
 
         client.on('error', (err) => {
             client.destroy();
-            reject(new Error(classifyTcpError(err)));
+            reject(fail(classifyTcpError(err)));
         });
 
         client.on('timeout', () => {
             client.destroy();
-            reject(new Error('Timeout: la impresora no respondió'));
+            reject(fail('Timeout: la impresora no respondió'));
         });
 
         client.connect(port, ip, () => {
+            connected = true;
             console.log(`[TCP] Conectado a ${ip}:${port}, enviando ${dataBuffer.length} bytes...`);
             client.write(dataBuffer, (err) => {
-                if (err) return reject(new Error(classifyTcpError(err)));
+                if (err) return reject(fail(classifyTcpError(err)));
                 client.end(() => {
                     client.destroy();
-                    resolve();
+                    resolve('delivered_to_device');
                 });
             });
         });
@@ -448,7 +458,9 @@ function classifySpoolerError(stderr, err) {
 
 async function sendToPrinterUSB(printerName, dataBuffer) {
     if (!printerName || !printerName.trim()) {
-        throw new Error('Error de configuración: nombre de impresora USB vacío');
+        const e = new Error('Error de configuración: nombre de impresora USB vacío');
+        e.safeToRetry = true;
+        throw e;
     }
 
     const tmpFile = path.join(os.tmpdir(), `ticket-${Date.now()}-${process.pid}.bin`);
@@ -458,7 +470,9 @@ async function sendToPrinterUSB(printerName, dataBuffer) {
         const psScript = path.join(__dirname, 'send-raw.ps1');
         if (!fs.existsSync(psScript)) {
             try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
-            return reject(new Error(`send-raw.ps1 no encontrado en ${psScript}`));
+            const e = new Error(`send-raw.ps1 no encontrado en ${psScript}`);
+            e.safeToRetry = true;
+            return reject(e);
         }
 
         execFile(
@@ -476,9 +490,15 @@ async function sendToPrinterUSB(printerName, dataBuffer) {
                 try { fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
 
                 if (err) {
-                    reject(new Error(classifySpoolerError(stderr, err)));
+                    const e = new Error(classifySpoolerError(stderr, err));
+                    // P0.2: -1/-2/-3 (OpenPrinter, StartDoc, StartPage) fallan
+                    // ANTES de escribir: seguro reintentar. -4/-5/-6 o un
+                    // timeout de PowerShell: los datos pudieron llegar.
+                    const code = ((stderr || '').match(/codigo=(-?\d+)/) || [])[1];
+                    e.safeToRetry = code === '-1' || code === '-2' || code === '-3';
+                    reject(e);
                 } else {
-                    resolve(stdout.trim());
+                    resolve('accepted_by_spooler');
                 }
             }
         );
@@ -495,12 +515,12 @@ class JobManager {
         this.running = new Map();
     }
 
-    enqueue(printerUid, printerConfig, buffer, onComplete) {
+    enqueue(printerUid, printerConfig, buffer, onComplete, beforeSend) {
         if (!this.queues.has(printerUid)) {
             this.queues.set(printerUid, []);
             this.running.set(printerUid, false);
         }
-        this.queues.get(printerUid).push({ printerConfig, buffer, onComplete });
+        this.queues.get(printerUid).push({ printerConfig, buffer, onComplete, beforeSend });
         if (!this.running.get(printerUid)) {
             this._processQueue(printerUid);
         }
@@ -516,20 +536,28 @@ class JobManager {
 
                 const isUSB = job.printerConfig.connectionType === 'usb';
 
+                // P0.2: confirmar con el servidor ANTES de mandar los bytes.
+                // Si la reserva ya no es nuestra, no se imprime.
+                if (job.beforeSend && !(await job.beforeSend())) {
+                    console.warn(`[JOB] Reserva no confirmada para ${job.printerConfig.name}: no se imprime`);
+                    continue;
+                }
+
+                let outcome;
                 if (isUSB) {
                     console.log(`[USB] Enviando RAW a ${job.printerConfig.name}`);
                     // USB/local: enviar SIEMPRE el nombre de Windows, NUNCA la IP
-                    await sendToPrinterUSB(job.printerConfig.name, job.buffer);
+                    outcome = await sendToPrinterUSB(job.printerConfig.name, job.buffer);
                 } else {
                     console.log(`[TCP] Enviando a ${job.printerConfig.ip}:${job.printerConfig.port}`);
-                    await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
+                    outcome = await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
                 }
 
-                console.log(`[OK] Impreso correctamente en ${job.printerConfig.name}`);
-                await job.onComplete(true);
+                console.log(`[OK] Enviado a ${job.printerConfig.name} (${outcome})`);
+                await job.onComplete(true, null, { outcome, safeToRetry: false });
             } catch (err) {
                 console.error(`[FALLO] ${job.printerConfig.name}: ${err.message}`);
-                await job.onComplete(false, err.message);
+                await job.onComplete(false, err.message, { outcome: null, safeToRetry: err.safeToRetry === true });
             }
         }
         this.running.set(printerUid, false);
@@ -865,22 +893,78 @@ function processPreCloseJob(preCloseJob) {
         return;
     }
 
+    // P0.2: un mismo trabajo nunca se encola dos veces en este proceso.
+    const key = `pc:${preCloseJob._id}:${preCloseJob.claimId || ''}`;
+    if (!markHandled(key)) {
+        console.log(`[DEDUP] PreClose ${preCloseJob._id} ya está en curso: se ignora`);
+        return;
+    }
+
     console.log(`[QUEUE] PreClose ${preCloseJob._id} → ${printer.name}`);
     const buffer = Buffer.from(preCloseJob.data, 'base64');
+    const url = `${config.apiUrl}/api/${config.tenantSlug}/print-jobs`;
 
-    jobManager.enqueue(printer.uid, printer, buffer, async (success, errorMsg) => {
-        try {
-            await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
-                preCloseJobId: preCloseJob._id,
-                printerName: printer.name,
-                success,
-                errorMsg
-            }, { headers: agentHeaders() });
-            console.log(`[CLOUD] PreClose ${preCloseJob._id} sincronizado`);
-        } catch (e) {
-            console.error(`[CLOUD ERROR] No se pudo confirmar pre-close: ${e.message}`);
+    const beforeSend = preCloseJob.claimId
+        ? async () => {
+            try {
+                const r = await axios.post(url, { preCloseJobId: preCloseJob._id, claimId: preCloseJob.claimId, event: 'start' },
+                    { headers: agentHeaders(), validateStatus: () => true });
+                return r.status === 200 && r.data && r.data.ok === true;
+            } catch (e) {
+                // Sin confirmación no se imprime: la reserva vence y vuelve a pendiente.
+                console.error(`[CLOUD ERROR] No se pudo confirmar inicio: ${e.message}`);
+                return false;
+            }
         }
-    });
+        : null;
+
+    jobManager.enqueue(printer.uid, printer, buffer, async (success, errorMsg, meta = {}) => {
+        await postResultWithRetry(url, {
+            preCloseJobId: preCloseJob._id,
+            claimId: preCloseJob.claimId || null,
+            printerName: printer.name,
+            success,
+            errorMsg,
+            outcome: meta.outcome || null,
+            safeToRetry: meta.safeToRetry === true,
+        }, `PreClose ${preCloseJob._id}`);
+    }, beforeSend);
+}
+
+// ============================================================================
+// Deduplicación local y confirmación con reintentos (P0.2, 31/10)
+// ============================================================================
+const HANDLED_TTL_MS = 60 * 60 * 1000;
+const handledJobs = new Map();
+
+/** true si el trabajo es nuevo para este proceso (y lo registra). */
+function markHandled(key) {
+    const now = Date.now();
+    for (const [k, at] of handledJobs) {
+        if (now - at > HANDLED_TTL_MS) handledJobs.delete(k);
+    }
+    if (handledJobs.has(key)) return false;
+    handledJobs.set(key, now);
+    return true;
+}
+
+/**
+ * Informa el resultado; si la red falla, reintenta unas veces. Un resultado
+ * que no llega no provoca otra impresión: el servidor lo resuelve como
+ * «desconocido» y decide una persona.
+ */
+async function postResultWithRetry(url, body, label) {
+    for (let i = 0; i < 4; i++) {
+        try {
+            const r = await axios.post(url, body, { headers: agentHeaders(), validateStatus: () => true });
+            if (r.status === 409) console.warn(`[CLOUD] ${label}: el servidor ignoró el resultado (reserva vencida u otra)`);
+            else console.log(`[CLOUD] ${label} sincronizado`);
+            return;
+        } catch (e) {
+            console.error(`[CLOUD ERROR] ${label}: ${e.message} (intento ${i + 1})`);
+            await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
+        }
+    }
 }
 
 // ============================================================================
@@ -943,20 +1027,22 @@ async function poll() {
                     continue;
                 }
 
+                if (!markHandled(`oj:${job.printJobId}:${job.claimId || ''}`)) {
+                    console.log(`[DEDUP] Job ${job.printJobId} ya está en curso: se ignora`);
+                    continue;
+                }
                 console.log(`[QUEUE] Job ${job.printJobId} → ${job.printerName} (${job.role}) [${printer.connectionType}]`);
 
-                jobManager.enqueue(printer.uid, printer, Buffer.from(job.payload, 'base64'), async (success, errorMsg) => {
-                    try {
-                        await axios.post(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
-                            orderId: job.orderId,
-                            printJobId: job.printJobId,
-                            success,
-                            errorMsg
-                        }, { headers: agentHeaders() });
-                        console.log(`[CLOUD] Job ${job.printJobId} sincronizado`);
-                    } catch (e) {
-                        console.error(`[CLOUD ERROR] No se pudo sincronizar job: ${e.message}`);
-                    }
+                jobManager.enqueue(printer.uid, printer, Buffer.from(job.payload, 'base64'), async (success, errorMsg, meta = {}) => {
+                    await postResultWithRetry(`${config.apiUrl}/api/${config.tenantSlug}/print-jobs`, {
+                        orderId: job.orderId,
+                        printJobId: job.printJobId,
+                        claimId: job.claimId || null,
+                        success,
+                        errorMsg,
+                        outcome: meta.outcome || null,
+                        safeToRetry: meta.safeToRetry === true,
+                    }, `Job ${job.printJobId}`);
                 });
             }
 

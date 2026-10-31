@@ -11,12 +11,14 @@ import { findPosFiscalDocument } from '@/lib/fiscal/pos-documents'
 export const POST = posRoute('orders.pay', async (ctx, { id }) => {
   const doc = await findPosFiscalDocument(ctx.tenantId, ctx.locationId, id)
   if (doc.status !== 'authorized') throw PosError.conflict('Solo se reimprime un comprobante autorizado')
-  const res = await enqueueFiscalTicket(doc)
+  const res = await enqueueFiscalTicket(doc, { reprint: true, requestedBy: ctx.user.id })
   if (!res.ok) {
     throw PosError.conflict(
       res.reason === 'no_profile'
         ? 'Faltan los datos fiscales del comercio (razón social, CUIT, condición de IVA)'
-        : 'No hay impresora de caja activa en esta sede'
+        : res.reason === 'in_progress'
+          ? 'Ya hay una impresión de este comprobante en curso. Esperá a que termine.'
+          : 'No hay impresora de caja activa en esta sede'
     )
   }
   await logAudit({
@@ -24,7 +26,7 @@ export const POST = posRoute('orders.pay', async (ctx, { id }) => {
     action: 'pos.fiscal.reprint',
     entity: 'FiscalDocument',
     entityId: String(doc._id),
-    details: { number: doc.number, printer: res.printerName },
+    details: { number: doc.number, printer: res.printerName, reprint: res.reprint, jobId: res.jobId },
     request: ctx.request,
     userId: ctx.user.id,
     userRole: ctx.user.role,

@@ -50,6 +50,7 @@ export async function enqueueZPrint(register: ZPrintRegister, options: { reprint
   })
 
   await PreClosePrintJob.create({
+    kind: 'z_report',
     tenantId,
     locationId,
     printerName: printer.name,

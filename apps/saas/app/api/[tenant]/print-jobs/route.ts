@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { safeDecrypt } from '@/lib/crypto'
 import { resolvePrintLeadMinutes } from '@/lib/printing/printTiming'
 import { checkAgentToken, agentTokenDenied } from '@/lib/printer-agent-auth'
+import { claimOrderPrintJob, claimPreCloseJobs, completePreCloseJob, startPreCloseJob } from '@/lib/printing/job-lifecycle'
+import { runAfterResponse } from '@/lib/after-response'
+import { kickFiscalRecovery } from '@/lib/fiscal/issue'
 
 const MAX_ATTEMPTS = 3
 
@@ -115,13 +118,25 @@ export async function GET(
       .select('name uid connectionType ip port paperWidth roles printSettings')
       .lean()
 
-    const preCloseJobs = await PreClosePrintJob.find({
-      tenantId: tenant._id,
-      locationId,
-      status: 'pending',
-    })
-      .select('printerName connectionType ip port paperWidth data')
-      .lean()
+    // P0.2 (31/10): cada trabajo se RESERVA atómicamente para este poll (con
+    // claimId). Antes se devolvían todos los pendientes en cada poll y un
+    // ticket lento o una confirmación perdida lo imprimía varias veces.
+    const preCloseJobs = (await claimPreCloseJobs(tenant._id, location._id, agentVersion ?? null)).map((j) => ({
+      _id: j._id,
+      claimId: j.claimId,
+      printerName: j.printerName,
+      connectionType: j.connectionType,
+      ip: j.ip,
+      port: j.port,
+      paperWidth: j.paperWidth,
+      data: j.data,
+      kind: j.kind,
+      isReprint: j.isReprint,
+    }))
+
+    // El agente corre mientras el local opera: aprovecha el poll para la
+    // recuperación fiscal del comercio (a lo sumo cada 2 min, ver issue.ts).
+    runAfterResponse('fiscal: recuperación desde el poll del agente', () => kickFiscalRecovery(String(tenant._id)))
 
     const pollInterval = computePollInterval(location)
 
@@ -187,9 +202,13 @@ export async function GET(
             const retryable = job.status === 'error' && job.attempts < MAX_ATTEMPTS
             const isPending = job.status === 'pending' || retryable
             if (isPending && printerIds.includes(job.printerId?.toString())) {
+              // Reserva atómica: si otro poll ya lo entregó y sigue vigente, no se repite.
+              const claimId = await claimOrderPrintJob(order._id, job._id)
+              if (!claimId) continue
               jobs.push({
                 orderId: order._id,
                 printJobId: job._id,
+                claimId,
                 printerName: job.printerName,
                 role: job.role,
                 payload: job.payload,
@@ -272,8 +291,22 @@ export async function POST(
       const deniedPreClose = await agentTokenDeniedForLocation(request, job.locationId)
       if (deniedPreClose) return deniedPreClose
 
-      job.status = success ? 'success' : 'error'
-      await job.save()
+      // P0.2: el agente avisa ANTES de mandar los bytes. Si la reserva ya no es
+      // suya (venció, otro la tomó), no debe imprimir.
+      if (body.event === 'start') {
+        const ok = await startPreCloseJob(String(job._id), typeof body.claimId === 'string' ? body.claimId : '')
+        return NextResponse.json({ ok }, { status: ok ? 200 : 409 })
+      }
+
+      const updated = await completePreCloseJob(String(job._id), {
+        claimId: typeof body.claimId === 'string' ? body.claimId : null,
+        success: Boolean(success),
+        safeToRetry: body.safeToRetry === true,
+        outcome: body.outcome === 'delivered_to_device' || body.outcome === 'accepted_by_spooler' ? body.outcome : null,
+        errorMsg: typeof errorMsg === 'string' ? errorMsg : null,
+      })
+      // Confirmación de otra reserva o tardía sobre un trabajo ya resuelto: se ignora.
+      if (!updated) return NextResponse.json({ ok: false, ignored: true }, { status: 409 })
 
       if (printerName) {
         // P-2: acotar por sede — dos sedes pueden tener una impresora
@@ -307,12 +340,22 @@ export async function POST(
 
       const job = order.printJobs?.id(printJobId)
       if (!job) return NextResponse.json({ error: 'Print job no encontrado' }, { status: 404 })
+      // P0.2: una confirmación de otra reserva no toca este job.
+      if (typeof body.claimId === 'string' && job.claimId && job.claimId !== body.claimId) {
+        return NextResponse.json({ ok: false, ignored: true }, { status: 409 })
+      }
 
       job.attempts += 1
+      job.claimId = null
+      job.claimedUntil = null
       if (success) {
         job.status = 'success'
         job.printedAt = new Date()
         job.lastError = null
+      } else if (body.safeToRetry === false) {
+        // Falla a mitad de envío: pudo haber impreso. No se reintenta solo.
+        job.status = 'unknown'
+        job.lastError = `${errorMsg || 'error'} — pudo haber impreso: reimprimir solo si hace falta`
       } else {
         job.status = job.attempts >= MAX_ATTEMPTS ? 'failed' : 'error'
         job.lastError = errorMsg || 'unknown error'
