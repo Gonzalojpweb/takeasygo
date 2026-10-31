@@ -44,7 +44,7 @@ Los siguientes términos son el glosario estándar usado en toda la plataforma T
 | **CashChannel** | Canal de la venta: `counter` (presencial en mostrador/salón) o `takeasygo` (delivery, takeaway, venta por app). |
 | **surcharge** | Recargo por método de pago (ej. tarjeta de crédito, débito). Configurable por plan. |
 | **Z Report** | Reporte de cierre Z: snapshot inmutable de la caja al final del turno. Generado UNA sola vez. |
-| **fiscal** | Configuración de facturación AFIP (WSFE o impresora fiscal). Requiere plan `full` para configuración avanzada. |
+| **fiscal** | Facturación electrónica con ARCA (web service WSFEv1, CAE). El comprobante se imprime en la impresora térmica de caja. No hay soporte de controladores fiscales homologados. |
 
 ## Club de Fidelización
 
@@ -60,7 +60,7 @@ Los siguientes términos son el glosario estándar usado en toda la plataforma T
 
 | Término | Definición |
 |---------|------------|
-| **fiscalDriver** | Driver fiscal: `printer` (impresora térmica) o `wsfe` (AFIP/WFEs). |
+| **homologación** | Ambiente de pruebas de ARCA: los comprobantes NO tienen validez fiscal y el ticket lo indica. |
 | **comprobante** | Documento electrónico: tipo `A`, `B`, `C` o `ticket`. |
 | **CAE** | Código de Autorización Electrónica AFIP. Vence y se reintenta automáticamente. |
 | **puntoVenta** | Número de punto de venta AFIP. |

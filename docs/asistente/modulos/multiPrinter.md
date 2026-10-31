@@ -44,7 +44,7 @@ El módulo de múltiples impresoras permite configurar y gestionar varias impres
 | Opción | Qué hace |
 |--------|----------|
 | **Nombre** | Identificador de cada impresora. |
-| **Tipo** | Térmica o Fiscal. |
+| **Tipo** | Impresora térmica (ESC/POS). Sin soporte de controladores fiscales. |
 | **Conexión** | Serial, USB o TCP. |
 | **Puerto/IP** | Dirección de conexión. |
 | **Categorías** | Qué productos imprime cada impresora. |
@@ -81,7 +81,7 @@ El módulo de múltiples impresoras permite configurar y gestionar varias impres
    → El sistema intentará reintentar. Puedes reasignar categorías temporalmente.
 
 6. **¿Puedo tener impresora fiscal y térmica juntas?**
-   → Sí, puedes configurar ambas tipos en el mismo negocio.
+   → No: TakeasyGo todavía no se conecta con controladores fiscales homologados. La factura electrónica (ARCA) se imprime en la impresora térmica de caja.
 
 7. **¿Los managers pueden agregar impresoras?**
    → No, solo admin configura impresoras.

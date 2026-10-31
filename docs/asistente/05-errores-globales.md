@@ -44,8 +44,9 @@ Errores que pueden ocurrir en cualquier módulo o flujo del sistema, independien
 
 | Código | Mensaje | Causa | Solución |
 |--------|---------|-------|----------|
-| `Fiscal driver not configured` | No hay driver fiscal configurado para el tenant. | Falta configurar WS FE o impresora fiscal. | Configurar fiscal driver en configuración del negocio (requiere plan `full` o `admin`). |
-| `Fiscal printer not connected` | La impresora fiscal no está conectada o no responde. | Conexión suelta, puerto incorrecto, o impresora apagada. | Verificar conexión física/puerto, reiniciar impresora, verificar configuración. |
+| `La facturación no está activa para este comercio` | La factura electrónica no está configurada o activada. | Faltan CUIT, certificado de ARCA o punto de venta. | El administrador la configura en Factura electrónica (panel). |
+| `En revisión` (comprobante) | El sistema no emitió el comprobante porque hay un riesgo fiscal (cambió el ambiente o el CUIT, o ARCA tiene el número con otros datos). | Protección contra facturas duplicadas o en el ambiente equivocado. | El administrador lo resuelve desde Facturación en el POS con la acción que se ofrece; ante dudas, con el contador. |
+| `Impresión desconocida` (ticket fiscal) | El ticket se cortó a mitad de envío: pudo haber salido. | Impresora desconectada durante la impresión. | Mirar el papel: si salió, «Salió bien»; si no, «Reimprimir». El sistema no reimprime solo. |
 | `Z Report already generated` | Intento de generar un Z Report sobre una caja ya cerrada. | El Z Report es inmutable y se genera UNA sola vez al cerrar. | El Z Report ya está disponible en el historial; no se puede regenerar. Si se perdió, contactar soporte. |
 | `Z Report not yet generated` | No hay Z Report para la caja actual. | La caja aún no se cierra o no se generó el reporte. | Cerrar la caja para generar el Z Report. |
 

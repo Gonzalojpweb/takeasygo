@@ -66,7 +66,7 @@ No requiere activación. Siempre activo en todos los planes. Trial/try limitan a
 1. Ir a **Configuración → Impresoras**.
 2. Agregar impresora:
    - **Nombre**: ej. "Impresora Cocina".
-   - **Tipo**: Térmica o Fiscal.
+   - **Tipo**: impresora térmica (ESC/POS).
    - **Conexión**: Serial, USB o TCP.
    - **Puerto/IP**: según conexión.
 3. Asignar categorías de productos a cada impresora.

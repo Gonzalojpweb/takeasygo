@@ -4445,6 +4445,93 @@
     }
    }
   },
+  "/api/{tenant}/pos/fiscal/documents/{id}/print-status": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_documents_id_print_status",
+    "summary": "orden 31/10 (P0.2). Body: { printed: true }",
+    "description": "POST /api/[tenant]/pos/fiscal/documents/[id]/print-status — orden 31/10\n(P0.2). Body: { printed: true }\nUn ticket con resultado DESCONOCIDO (se cortó a mitad de envío) no se\nreimprime solo. La persona que lo tiene delante confirma que salió bien;\nsi no salió, usa «Reimprimir». Queda auditado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/[id]/print-status/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/fiscal/documents/{id}/reprint": {
    "post": {
     "tags": [
@@ -4520,6 +4607,93 @@
      }
     ],
     "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/documents/{id}/resolve": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_documents_id_resolve",
+    "summary": "orden 31/10.",
+    "description": "POST /api/[tenant]/pos/fiscal/documents/[id]/resolve — orden 31/10.\nBody: { action: 'retry_new_number' | 'reissue' | 'retry_caea_report' |\n                'discard' | 'caea_manual' }\nResolución controlada de un comprobante en revisión (o contingencia CAEA\ndecidida por una persona). Solo administradores: tiene efecto fiscal.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/documents/[id]/resolve/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.fiscal",
     "requestBody": {
      "required": true,
      "content": {
@@ -4617,6 +4791,75 @@
       }
      }
     }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/health": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_health",
+    "summary": "orden de ejecución 31/10 (P1.3/P7.3): alertas fiscales de la sede (pendientes demorados, en revisión, ventas cobradas sin comprobante,…",
+    "description": "GET /api/[tenant]/pos/fiscal/health — orden de ejecución 31/10 (P1.3/P7.3):\nalertas fiscales de la sede (pendientes demorados, en revisión, ventas\ncobradas sin comprobante, credenciales, certificado, CAEA, tickets sin\nimpresión confirmada). El POS lo consulta periódicamente mientras está\nabierto, y eso también dispara la recuperación del comercio (cada 2 min).\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/health/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
    }
   },
   "/api/{tenant}/pos/fiscal/libro-iva": {

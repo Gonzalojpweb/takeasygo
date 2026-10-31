@@ -30,7 +30,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 2. Clic en **"+ Nueva impresora"**.
 3. Completar campos:
    - **Nombre**: ej. "Impresora Cocina Principal".
-   - **Tipo**: Térmica o Fiscal.
+   - **Tipo**: impresora térmica (ESC/POS). TakeasyGo todavía no se conecta con controladores fiscales homologados.
    - **Conexión**: Serial, USB o TCP.
    - **Puerto/IP**: según tipo de conexión.
      - Serial: `COM1`, `COM2`, etc.
@@ -65,7 +65,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 | Opción | Qué hace |
 |--------|----------|
 | **Nombre** | Identificador visible de la impresora. |
-| **Tipo** | Térmica (tickets cocina/bar) o Fiscal (comprobantes AFIP). |
+| **Tipo** | Impresora térmica (ESC/POS): comandas de cocina/barra, precuentas, cierres y el ticket de la factura electrónica. No hay soporte de controladores fiscales homologados. |
 | **Conexión** | Serial, USB o TCP (red). |
 | **Puerto/IP** | Dirección de conexión específica. |
 | **Modelo** | Modelo de impresora para driver específico. |
@@ -87,7 +87,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 - **settings**: Las impresoras se configuran desde Configuración.
 - **menu**: Las categorías de productos se asignan a impresoras.
 - **orders**: Al confirmar orden, se imprime en impresora asignada.
-- **fiscal**: Impresora fiscal para comprobantes AFIP.
+- **fiscal**: la factura electrónica autorizada por ARCA (CAE) se imprime en la impresora de caja como ticket con QR. No es un controlador fiscal.
 - **multiPrinter**: Módulo que habilita múltiples impresoras (plan buy/full).
 
 ## Preguntas frecuentes
@@ -98,8 +98,8 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 2. **¿Puedo tener dos impresoras para la misma categoría?**
    → No, cada categoría se asigna a una sola impresora. Puedes crear una categoría duplicada si necesitas dos impresoras.
 
-3. **¿Cómo asigno la impresora fiscal?**
-   → Configuración → Impresoras → "+ Nueva" → tipo Fiscal → configurar driver WSFE o impresora fiscal.
+3. **¿Puedo usar una impresora fiscal (controlador fiscal homologado)?**
+   → Todavía no. TakeasyGo emite factura electrónica con ARCA (CAE) y la imprime en la impresora térmica de caja. La conexión con controladores fiscales homologados está en desarrollo y no está disponible.
 
 4. **¿Qué hago si la impresora no imprime?**
    → Verificar conexión, probar impresora, reiniciar. Si persiste, contactar soporte.
