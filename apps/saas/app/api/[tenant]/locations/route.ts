@@ -8,6 +8,16 @@ import { loadClonableConfig, cloneMenu } from '@/lib/location-clone'
 import { logAudit } from '@/lib/audit'
 import { slugifyOrFallback } from '@/lib/slugify'
 
+/**
+ * GET público (barra y selector de sedes del menú; selectores del admin).
+ * Solo los campos que usan LocationBar/LocationSwitcher, QrPromoConfig,
+ * settings/pos y FounderLinksGenerator. Nada de WhatsApp, cuentas de pago,
+ * Rapiboy, token del agente ni márgenes (S7, 31/10/2026).
+ */
+const PUBLIC_LOCATION_LIST_FIELDS =
+  '_id name slug address geo timezone serviceHours deliveryConfig.enabled ' +
+  'settings.acceptsOrders settings.orderModes settings.estimatedPickupTime settings.delayAnnouncement'
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
@@ -22,6 +32,8 @@ export async function GET(
     }
 
     const locations = await Location.find({ tenantId: tenant._id, isActive: true })
+      .select(PUBLIC_LOCATION_LIST_FIELDS)
+      .lean()
     return NextResponse.json({ locations })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

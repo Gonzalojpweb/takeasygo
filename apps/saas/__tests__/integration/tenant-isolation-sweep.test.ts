@@ -56,23 +56,16 @@ const OPEN_BY_DESIGN = new Set(
  */
 const KNOWN_FOREIGN_2XX: Record<string, string> = {
   // Públicas por diseño (menú, club, tienda) — pendiente declararlas como GET públicos
-  'locations/route.ts': 'público: barra de sedes del menú (LocationBar). Filtra de más → S7',
-  'locations/[locationId]/route.ts': 'público: checkout del menú. Incluye WhatsApp de la sede → S7',
+  'locations/route.ts': 'público: barra de sedes del menú (LocationBar). Proyección mínima desde S7',
+  'locations/[locationId]/route.ts': 'público: checkout del menú. Proyección mínima desde S7',
   'loyalty/settings/route.ts': 'público: configuración del club para la página del club',
   'promotions/route.ts': 'público: promociones del menú',
   'store/config/route.ts': 'público: configuración de la tienda de canjes',
   'store/items/route.ts': 'público: catálogo de la tienda de canjes (el detalle admin exige sesión)',
-  // A corregir
-  'settings/notifications/route.ts': 'S8: GET sin sesión devuelve las notificaciones del comercio (WhatsApp admin)',
-  'delivery/persons/route.ts': 'S8: GET sin sesión devuelve repartidores (nombre y teléfono)',
 }
 
 /** Respuestas que HOY contienen datos privados de A (línea base 31/10/2026). Solo se achica. */
-const KNOWN_LEAKS: Record<string, string> = {
-  'settings/notifications/route.ts': 'S8: WhatsApp de notificaciones del comercio',
-  'locations/route.ts': 'S7: documento completo de la sede (WhatsApp, apiToken/webhookSecret cifrados de Rapiboy, hash del agente)',
-  'locations/[locationId]/route.ts': 'S7: WhatsApp de la sede',
-}
+const KNOWN_LEAKS: Record<string, string> = {}
 
 // Datos que NO deben salir nunca a otro comercio ni al público. El CBU/alias y
 // titular de transferencia NO van acá: el checkout los muestra al cliente.

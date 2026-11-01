@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import DeliveryPerson from '@/models/DeliveryPerson'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdminRole } from '@/lib/apiAuth'
+import { requireAdminRole, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import crypto from 'crypto'
 
 function getBaseUrl(request: NextRequest): string {
@@ -12,7 +12,7 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
@@ -23,6 +23,10 @@ export async function GET(
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
     }
+
+    // S8 (31/10/2026): antes respondía sin sesión. Mismos roles que ven «Flota» en el sidebar.
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
+    if (authError) return authError
 
     const persons = await DeliveryPerson.find({ tenantId: tenant._id })
       .select('-tokenHash')

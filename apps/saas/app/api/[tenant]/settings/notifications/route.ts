@@ -88,6 +88,10 @@ export async function GET(
 
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
+    // S8 (31/10/2026): antes respondía sin sesión. Mismos roles que el PATCH.
+    const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
+    if (authError) return authError
+
     return NextResponse.json({ notifications: tenant.notifications })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

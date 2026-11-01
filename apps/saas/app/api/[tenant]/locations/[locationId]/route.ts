@@ -55,13 +55,11 @@ export async function GET(
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const location = await Location.findOne({ _id: locationId, tenantId: tenant._id, isActive: true })
+      // GET público: solo lo que leen CheckoutContext, CheckoutForm y LocationBar
+      // (S7, 31/10/2026). Medios de pago y recargos salen de /payment-methods.
       .select(
-        'name scheduledOrdersConfig serviceHours timezone deliveryConfig prefix ' +
-        'settings.acceptsOrders settings.orderModes settings.estimatedPickupTime ' +
-        'settings.delayAnnouncement settings.cash settings.mpAccountId ' +
-        'settings.whatsappPhone settings.transferAccountId ' +
-        'settings.notifyOnOrder settings.notifyOnReservation ' +
-        'settings.paymentSurcharges settings.kriptonEnabled settings.clubDiscountEnabled'
+        'name slug address scheduledOrdersConfig serviceHours timezone deliveryConfig.enabled ' +
+        'settings.acceptsOrders settings.orderModes settings.estimatedPickupTime settings.delayAnnouncement'
       )
       .lean() as any
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
