@@ -38,6 +38,7 @@ interface Profile {
   onlineInvoicing: 'off' | 'auto'
   pointsOfSale: { locationId: string; number: number }[]
   contingency: { enabled: boolean; pointsOfSale: { locationId: string; number: number }[] }
+  controllers: { locationId: string; brand: string; model: string; firmware: string; connection: 'usb' | 'serial' | 'tcp'; address: string; active: boolean }[]
   connection: { checkedAt: string | null; ok: boolean; environment: string | null; message: string }
   credentials: {
     hasCsr: boolean
@@ -148,6 +149,7 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
             enabled: profile.contingency.enabled,
             pointsOfSale: profile.contingency.pointsOfSale.filter((p) => p.number > 0),
           },
+          controllers: profile.controllers.filter((c) => c.brand.trim().length >= 2),
           enabled,
         }),
       })
@@ -447,6 +449,84 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
             ))}
           </div>
         )}
+      </section>
+
+      {/* ── 2c. Impresora fiscal homologada (fase 3, 31/10) ────── */}
+      <section className={card}>
+        <h2 className="text-lg font-black">Impresora fiscal homologada (controlador fiscal)</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Solo para sedes que facturan con un equipo fiscal en lugar de factura electrónica. <strong>Todavía no emite
+          comprobantes</strong>: falta programar la conexión con cada marca. Activarlo sirve para probar que la PC de caja
+          recibe el pedido. Mientras esté activo, <strong>esa sede deja de emitir factura electrónica</strong>.
+        </p>
+        <div className="mt-4 space-y-3">
+          {locations.map((l) => {
+            const c = profile.controllers.find((x) => x.locationId === l.id)
+            const update = (patch: Partial<Profile['controllers'][number]>) => {
+              const base = c ?? { locationId: l.id, brand: '', model: '', firmware: '', connection: 'usb' as const, address: '', active: false }
+              set('controllers', [...profile.controllers.filter((x) => x.locationId !== l.id), { ...base, ...patch }])
+            }
+            return (
+              <div key={l.id} className="rounded-2xl bg-muted/30 p-4">
+                <p className="font-bold">{l.name}</p>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <label className="space-y-1">
+                    <span className={label}>Marca</span>
+                    <input
+                      id={`ctrl-brand-${l.id}`}
+                      className={input}
+                      placeholder="epson, hasar…"
+                      value={c?.brand ?? ''}
+                      onChange={(e) => update({ brand: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40) })}
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className={label}>Modelo exacto</span>
+                    <input id={`ctrl-model-${l.id}`} className={input} placeholder="Ej: TM-T900FA" value={c?.model ?? ''} onChange={(e) => update({ model: e.target.value.slice(0, 60) })} />
+                  </label>
+                  <label className="space-y-1">
+                    <span className={label}>Firmware / versión</span>
+                    <input id={`ctrl-fw-${l.id}`} className={input} value={c?.firmware ?? ''} onChange={(e) => update({ firmware: e.target.value.slice(0, 40) })} />
+                  </label>
+                  <label className="space-y-1">
+                    <span className={label}>Conexión</span>
+                    <select
+                      id={`ctrl-conn-${l.id}`}
+                      className={input}
+                      value={c?.connection ?? 'usb'}
+                      onChange={(e) => update({ connection: e.target.value as 'usb' | 'serial' | 'tcp' })}
+                    >
+                      <option value="usb">USB</option>
+                      <option value="serial">Serie (COM)</option>
+                      <option value="tcp">Red (IP)</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1 md:col-span-2">
+                    <span className={label}>Dirección del equipo</span>
+                    <input
+                      id={`ctrl-addr-${l.id}`}
+                      className={input}
+                      placeholder="USB001, COM3 o 192.168.0.50:9100"
+                      value={c?.address ?? ''}
+                      onChange={(e) => update({ address: e.target.value.slice(0, 120) })}
+                    />
+                  </label>
+                </div>
+                <label className="mt-3 flex items-center gap-3 font-bold">
+                  <input
+                    id={`ctrl-active-${l.id}`}
+                    type="checkbox"
+                    className="h-5 w-5"
+                    checked={c?.active ?? false}
+                    disabled={!c || c.brand.trim().length < 2}
+                    onChange={(e) => update({ active: e.target.checked })}
+                  />
+                  Usar este equipo en {l.name} (la sede deja de emitir factura electrónica)
+                </label>
+              </div>
+            )
+          })}
+        </div>
       </section>
 
       {/* ── 3. POS ─────────────────────────────────────────────── */}

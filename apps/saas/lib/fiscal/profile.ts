@@ -24,6 +24,8 @@ export interface PublicFiscalProfile {
   onlineInvoicing: IFiscalProfile['onlineInvoicing']
   pointsOfSale: { locationId: string; number: number }[]
   contingency: { enabled: boolean; pointsOfSale: { locationId: string; number: number }[] }
+  /** Controladores fiscales homologados por sede (fase 3, 31/10). */
+  controllers: { locationId: string; brand: string; model: string; firmware: string; connection: 'usb' | 'serial' | 'tcp'; address: string; active: boolean }[]
   connection: { checkedAt: string | null; ok: boolean; environment: IFiscalProfile['environment'] | null; message: string }
   credentials: {
     hasCsr: boolean
@@ -69,6 +71,15 @@ export function toPublicProfile(p: LeanProfile | null, hasCertificate = false): 
     invoicingMode: p?.invoicingMode ?? 'ask',
     onlineInvoicing: p?.onlineInvoicing ?? 'off',
     pointsOfSale: (p?.pointsOfSale ?? []).map((x) => ({ locationId: String(x.locationId), number: x.number })),
+    controllers: (p?.controllers ?? []).map((c) => ({
+      locationId: String(c.locationId),
+      brand: c.brand,
+      model: c.model ?? '',
+      firmware: c.firmware ?? '',
+      connection: c.connection ?? 'usb',
+      address: c.address ?? '',
+      active: Boolean(c.active),
+    })),
     contingency: {
       enabled: p?.contingency?.enabled ?? false,
       pointsOfSale: (p?.contingency?.pointsOfSale ?? []).map((x) => ({ locationId: String(x.locationId), number: x.number })),

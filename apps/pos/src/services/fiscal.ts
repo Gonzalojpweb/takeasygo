@@ -131,12 +131,28 @@ export async function invoiceOrder(
   choice: InvoiceChoice
 ): Promise<FiscalDocumentSummary> {
   const intent = invoiceIntentFor(choice)
-  const { document } = await posApi<{ document: FiscalDocumentSummary }>(
+  const res = await posApi<{
+    document?: FiscalDocumentSummary
+    controllerJob?: { id: string; status: string; message: string | null }
+  }>(
     tenantId,
     `/orders/${encodeURIComponent(orderId)}/invoice`,
     { method: "POST", body: { receiver: "receiver" in intent ? intent.receiver : undefined } }
   )
-  return document
+  if (res.document) return res.document
+  // Sede con impresora fiscal homologada (fase 3, 31/10): el comprobante lo
+  // emite el equipo por el agente local; acá solo queda «enviado».
+  const job = res.controllerJob
+  return {
+    id: job?.id ?? orderId,
+    kind: "invoice",
+    letter: "",
+    status: "pending",
+    label: "Impresora fiscal",
+    cae: null,
+    totalCents: 0,
+    message: job?.message || "Enviado a la impresora fiscal de la caja",
+  }
 }
 
 // ============================================================================
