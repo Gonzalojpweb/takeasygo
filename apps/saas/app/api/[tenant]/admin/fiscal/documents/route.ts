@@ -5,6 +5,7 @@ import { fiscalAdminContext } from '@/lib/fiscal/admin-context'
 import { documentSummary } from '@/lib/fiscal/issue'
 import { libroIvaCsv, libroIvaTotals, monthRange } from '@/lib/fiscal/libro-iva'
 import { libroIvaDigitalFiles } from '@/lib/fiscal/libro-iva-digital'
+import { getTodayStrInTimezone } from '@/lib/restaurant-time'
 
 // ============================================================================
 // GET /api/[tenant]/admin/fiscal/documents — comprobantes y Libro IVA
@@ -25,7 +26,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if ('error' in ctx) return ctx.error
 
     const url = new URL(request.url)
-    const month = url.searchParams.get('month') ?? new Date().toISOString().slice(0, 7)
+    // Mes por defecto en hora argentina, igual que monthRange. En UTC, el último
+    // día del mes desde las 21:00 abría el mes siguiente (vacío).
+    const month = url.searchParams.get('month') ?? getTodayStrInTimezone('America/Argentina/Buenos_Aires').slice(0, 7)
     const range = monthRange(month)
     if (!range) return NextResponse.json({ error: 'Mes inválido (formato AAAA-MM)' }, { status: 400 })
 

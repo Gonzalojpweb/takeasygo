@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { generateKeyPairSync } from 'node:crypto'
 import bcrypt from 'bcryptjs'
+import mongoose from 'mongoose'
 import './setup'
 
 import Tenant from '@/models/Tenant'
@@ -373,6 +374,42 @@ describe('panel: comprobantes y Libro IVA', () => {
     const csv = await DOCUMENTS(new NReq(`http://localhost/api/${SLUG}/admin/fiscal/documents?month=${month}&format=csv`), P)
     expect(csv.headers.get('content-disposition')).toContain('PRUEBAS')
     expect(await csv.text()).toContain('Factura B;006;00003;00000001')
+  })
+
+  describe('sin ?month: mes en hora argentina (America/Argentina/Buenos_Aires)', () => {
+    afterEach(() => vi.useRealTimers())
+
+    async function defaultMonth(nowUtc: string) {
+      // Comprobante emitido en ese mismo instante (insertado crudo: no pasa por ARCA).
+      await FiscalDocument.collection.insertOne({
+        tenantId: new mongoose.Types.ObjectId(tenantId), environment: 'homologation', kind: 'invoice', letter: 'B',
+        status: 'pending', pointOfSale: 3, number: null, issuedAt: new Date(nowUtc),
+        amounts: { netCents: 0, ivaCents: 0, exemptCents: 0, totalCents: 1000 }, ivaGroups: [], arca: { lastError: null },
+      })
+      const admin = await User.create({
+        name: 'Admin', email: `adm-${Math.random().toString(36).slice(2)}@t.test`, password: 'x'.repeat(20),
+        phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'admin', tenantId,
+      })
+      vi.mocked(auth).mockResolvedValue({ user: { id: String(admin._id), role: 'admin', tenantId, assignedLocations: [] }, expires: '' } as never)
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date(nowUtc))
+      const res = await DOCUMENTS(new NReq(`http://localhost/api/${SLUG}/admin/fiscal/documents`), { params: Promise.resolve({ tenant: SLUG }) })
+      vi.useRealTimers()
+      expect(res.status).toBe(200)
+      return res.json() as Promise<{ month: string; documents: unknown[] }>
+    }
+
+    it('31/10 22:30 en Argentina (1/11 01:30 UTC) → octubre, con el comprobante de esa hora', async () => {
+      const body = await defaultMonth('2026-11-01T01:30:00Z')
+      expect(body.month).toBe('2026-10')
+      expect(body.documents).toHaveLength(1)
+    })
+
+    it('1/11 00:30 en Argentina (03:30 UTC) → noviembre', async () => {
+      const body = await defaultMonth('2026-11-01T03:30:00Z')
+      expect(body.month).toBe('2026-11')
+      expect(body.documents).toHaveLength(1)
+    })
   })
 })
 
