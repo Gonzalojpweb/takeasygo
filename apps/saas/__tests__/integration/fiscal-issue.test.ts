@@ -35,6 +35,7 @@ import { POST as MANUAL_INVOICE } from '@/app/api/[tenant]/admin/fiscal/invoice/
 import { POST as POINT_INTENT } from '@/app/api/[tenant]/pos/point/route'
 import { GET as POINT_STATUS } from '@/app/api/[tenant]/pos/point/[intentId]/route'
 import { NextRequest as NReq } from 'next/server'
+import { getTodayStrInTimezone } from '@/lib/restaurant-time'
 import { POST as OPEN } from '@/app/api/[tenant]/pos/cash/registers/route'
 import { POST as CLOSE } from '@/app/api/[tenant]/pos/cash/registers/[id]/close/route'
 
@@ -358,7 +359,9 @@ describe('panel: comprobantes y Libro IVA', () => {
       tenantId,
     })
     vi.mocked(auth).mockResolvedValue({ user: { id: String(admin._id), role: 'admin', tenantId, assignedLocations: [] }, expires: '' } as never)
-    const month = new Date().toISOString().slice(0, 7)
+    // Mes en hora argentina, como la factura: en UTC, del último día del mes
+    // a partir de las 21:00 daba el mes siguiente y la lista venía vacía.
+    const month = getTodayStrInTimezone().slice(0, 7)
     const P = { params: Promise.resolve({ tenant: SLUG }) }
 
     const list = await DOCUMENTS(new NReq(`http://localhost/api/${SLUG}/admin/fiscal/documents?month=${month}`), P)

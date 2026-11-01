@@ -8,13 +8,22 @@
 //   · Avisos: la suscripción se liga al socio del TOKEN, nunca al del cuerpo
 // ============================================================================
 
-import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { generateKeyPairSync } from 'node:crypto'
 import mongoose from 'mongoose'
 import { NextRequest } from 'next/server'
 import './setup'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
+
+// Las tareas «después de responder» (club y referidos del pedido entregado) se
+// juntan y se esperan. Antes corrían sueltas y el test sondeaba 3 s: bajo carga
+// no llegaban, o escribían después de que setup.ts vaciara las colecciones.
+const afterTasks = vi.hoisted(() => [] as Promise<unknown>[])
+vi.mock('@/lib/after-response', () => ({
+  runAfterResponse: (_label: string, fn: () => Promise<unknown>) => { afterTasks.push(fn()) },
+}))
+const flushAfterResponse = async () => { while (afterTasks.length) await Promise.all(afterTasks.splice(0)) }
 
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -62,14 +71,6 @@ async function member(name: string, phone: string, email: string) {
   return LoyaltyMember.create({ tenantId, name, phone, phoneHash: hashPhone(phone), email, status: 'active', source: 'qr_scan', joinedAt: new Date() })
 }
 
-async function waitFor(check: () => Promise<boolean>, ms = 3000) {
-  const until = Date.now() + ms
-  while (Date.now() < until) {
-    if (await check()) return true
-    await new Promise((r) => setTimeout(r, 50))
-  }
-  return false
-}
 
 beforeAll(() => {
   // lib/crypto espera una clave base64 de 32 bytes (AES-256), como en producción.
@@ -88,6 +89,9 @@ beforeEach(async () => {
   await Menu.create({ tenantId, locationId: loc._id, isActive: true, categories: [{ name: 'Platos', sortOrder: 0, items: [{ _id: PRODUCT, name: 'Milanesa', price: 1500 }] }] })
   await ReferralProgram.create({ tenantId, enabled: true })
 })
+
+// Corre antes de la limpieza de setup.ts (los afterEach van en orden inverso).
+afterEach(flushAfterResponse)
 
 describe('POS: celular del cliente para el club', () => {
   async function posOrder() {
@@ -120,8 +124,8 @@ describe('POS: celular del cliente para el club', () => {
     for (const status of ['confirmed', 'preparing', 'ready', 'delivered']) {
       expect((await patch(id, { status })).status, status).toBe(200)
     }
-    const visited = await waitFor(async () => !!(await ReferralEvent.exists({ task: 'visit', status: 'credited' })))
-    expect(visited).toBe(true)
+    await flushAfterResponse()
+    expect(await ReferralEvent.exists({ task: 'visit', status: 'credited' })).toBeTruthy()
     expect(await ReferralEvent.exists({ task: 'registered', status: 'credited' })).toBeTruthy()
   })
 })

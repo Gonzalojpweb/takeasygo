@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+// Sin shebang a propósito: se corre con `node scripts/build-openapi.mjs` (pnpm openapi) y los tests lo
+// importan; con CRLF (checkout en Windows) el shebang rompe el import de vitest.
 // ============================================================================
 // OpenAPI 3.1 de TakeasyGO — generado DEL CÓDIGO (reemplaza docs/openapi y
 // docs/scripts/*.py, que describían solo el Sync, eran JSON inválido y no

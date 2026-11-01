@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+// Sin shebang a propósito: se corre con `node scripts/build-assistant-kb.mjs` (pnpm assistant:kb) y los tests lo
+// importan; con CRLF (checkout en Windows) el shebang rompe el import de vitest.
 // ============================================================================
 // Base de conocimiento de TEO — docs/asistente → lib/assistant/kb.generated.json
 // ============================================================================
