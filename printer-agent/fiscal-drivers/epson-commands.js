@@ -157,8 +157,9 @@ function buildTicketCommands(payload) {
         ].join('|'));
     }
 
-    // Cerrar: bit 0 = cortar papel. 7 campos opcionales vacíos.
-    cmds.push(`${CMD.TICKET_CLOSE}|0001|||||||`);
+    // Cerrar: bit 0 = cortar papel, bit 1 = devolver respuesta electrónica
+    // (sin este bit el equipo NO informa el número del tique). 7 campos vacíos.
+    cmds.push(`${CMD.TICKET_CLOSE}|0003|||||||`);
     return cmds;
 }
 

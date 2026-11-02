@@ -197,15 +197,18 @@ async function execute(device, operation, payload) {
     if (!failed && close) {
         const f = close.fields || [];
         const number = Number(f[0]);
+        if (!Number.isInteger(number) || number <= 0) {
+            // Cerró bien pero sin número: se lee de los contadores (08 30).
+            return recover(dllPath, port, lastBefore, 'El equipo cerró el tique pero no informó el número');
+        }
         return {
-            outcome: Number.isInteger(number) && number > 0 ? 'confirmed' : 'unknown',
+            outcome: 'confirmed',
             result: {
                 documentType: 'TIQUE',
-                number: Number.isInteger(number) ? number : undefined,
+                number,
                 totalCents: Number.isInteger(Number(f[1])) ? Number(f[1]) : undefined,
-                raw: `Tique ${f[0] || '?'} · total ${f[1] || '?'} · IVA ${f[2] || '?'}`,
+                raw: `Tique ${f[0]} · total ${f[1] || '?'} · IVA ${f[2] || '?'}`,
             },
-            errorMsg: Number.isInteger(number) && number > 0 ? null : 'El equipo cerró el tique pero no informó el número',
         };
     }
 

@@ -18,7 +18,7 @@ test('ítem con el formato del ejemplo oficial: 15 campos, cantidad 5,4, precio 
     assert.equal(cmds[1], '0A02|0000|||||Pizza muzza|10000|1000000|2100|||||1|7|7');
     assert.equal(cmds[1].split('|').length, 2 + 15);
     assert.equal(cmds[2], '0A05|0000||||||08|10000');   // 5 campos antes del código, como el ejemplo oficial
-    assert.equal(cmds[3], '0A06|0001|||||||');
+    assert.equal(cmds[3], '0A06|0003|||||||');   // bit 1: sin él el equipo no informa el número
 });
 
 test('cantidad × precio da exacto el total del ítem (precio con 4 decimales)', () => {
@@ -91,6 +91,18 @@ test('emisión correcta en modo entrenamiento: confirmado con el número que da 
     assert.equal(out.outcome, 'confirmed');
     assert.equal(out.result.number, 42);
     assert.equal(out.result.totalCents, 10000);
+});
+
+test('cerró bien pero sin número (visto con el equipo real): lo toma de los contadores', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), counters(46275)] }),
+        (cmds) => ({ opened: true, results: cmds.map((c) => ok(c.split('|')[0])) }),
+        () => ({ opened: true, results: [ok('0001'), counters(46276)] }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'invoice', PAYLOAD);
+    assert.equal(out.outcome, 'confirmed');
+    assert.equal(out.result.number, 46276);
 });
 
 test('equipo en MODO FISCAL sin habilitar: no se envía nada', async () => {
