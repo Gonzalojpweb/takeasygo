@@ -26,6 +26,7 @@ import {
   startControllerJob,
 } from '@/lib/fiscal/controller'
 import { prepareInvoiceForOrder } from '@/lib/fiscal/issue'
+import { registerFiscalObligation } from '@/lib/fiscal/obligation'
 import { GET as POLL, POST as REPORT } from '@/app/api/[tenant]/print-jobs/route'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
@@ -39,7 +40,7 @@ let eLocation: mongoose.Types.ObjectId
 async function paidOrder(locationId: mongoose.Types.ObjectId): Promise<string> {
   const _id = new mongoose.Types.ObjectId()
   await Order.collection.insertOne({
-    _id, tenantId, locationId, total: 121_000, status: 'delivered',
+    _id, tenantId, locationId, orderNumber: `T-${String(_id).slice(-6)}`, total: 121_000, status: 'delivered',
     items: [{ name: 'Pizza', quantity: 1, subtotal: 121_000 }],
     posPayments: [{ method: 'cash', amount: 121_000 }],
   })
@@ -88,6 +89,26 @@ describe('Modalidad fiscal explícita y excluyente', () => {
   it('en una sede electrónica no se encola nada al controlador', async () => {
     const id = await paidOrder(eLocation)
     await expect(enqueueControllerInvoice({ tenantId: String(tenantId), orderId: id, receiver: CF, userId: 'u' })).rejects.toThrow(/no emite con controlador/)
+  })
+})
+
+describe('Sede con impresora fiscal sin factura electrónica (02/11)', () => {
+  it('sin certificado ni facturación activada, el cobro igual genera la operación para el equipo', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { enabled: false, invoicingMode: 'ask' } })
+    const id = await paidOrder(ctrlLocation)
+    const out = await registerFiscalObligation({ tenantId: String(tenantId), orderId: id, userId: 'u', userRole: 'cashier', intent: { receiver: CF } })
+    expect(out).toBe('created')
+    expect(await FiscalControllerJob.countDocuments({ tenantId, orderId: new mongoose.Types.ObjectId(id) })).toBe(1)
+    // La sede electrónica, con la facturación apagada, no factura.
+    const e = await paidOrder(eLocation)
+    expect(await registerFiscalObligation({ tenantId: String(tenantId), orderId: e, userId: 'u', userRole: 'cashier', intent: { receiver: CF } })).toBe('skipped')
+    expect(await FiscalDocument.countDocuments({ tenantId })).toBe(0)
+  })
+
+  it('con «no facturar» el controlador tampoco recibe nada', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { enabled: false, invoicingMode: 'off' } })
+    const id = await paidOrder(ctrlLocation)
+    expect(await registerFiscalObligation({ tenantId: String(tenantId), orderId: id, userId: 'u', userRole: 'cashier', intent: { receiver: CF } })).toBe('skipped')
   })
 })
 

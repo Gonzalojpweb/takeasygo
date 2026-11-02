@@ -39,6 +39,10 @@ interface ProfileForModality {
 }
 
 /** Modalidad fiscal de una sede, con el perfil ya leído. */
+/**
+ * Modalidad fiscal de una sede, con el perfil ya leído. 02/11: el controlador
+ * NO depende de `enabled` (eso es la factura electrónica de ARCA).
+ */
 export function modalityFor(profile: ProfileForModality | null, locationId: string | mongoose.Types.ObjectId): FiscalModality {
   if (!profile) return 'none'
   const loc = String(locationId)

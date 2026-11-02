@@ -62,7 +62,12 @@ export async function registerFiscalObligation(input: {
     const profile = await FiscalProfile.findOne({ tenantId: input.tenantId })
       .select('enabled invoicingMode')
       .lean<{ enabled?: boolean; invoicingMode?: 'ask' | 'always' | 'off' }>()
-    if (!profile?.enabled || profile.invoicingMode === 'off') return 'skipped'
+    if (!profile || profile.invoicingMode === 'off') return 'skipped'
+    // La sede decide la modalidad: con impresora fiscal activa no hace falta
+    // la facturación electrónica (ni su certificado) habilitada.
+    const order = await Order.findById(input.orderId).select('locationId').lean<{ locationId: unknown }>()
+    const { modality } = await loadModality(input.tenantId, String(order?.locationId ?? ''))
+    if (modality === 'none' || (modality === 'electronic' && !profile.enabled)) return 'skipped'
 
     let receiver: ReceiverInput | null = null
     if (input.intent && 'receiver' in input.intent) receiver = input.intent.receiver
@@ -70,9 +75,6 @@ export async function registerFiscalObligation(input: {
     else if (!input.intent && profile.invoicingMode === 'always') receiver = { condition: 'consumidor_final' }
     if (!receiver) return 'skipped'
 
-    // Fase 3: la sede decide la modalidad (factura electrónica o controlador).
-    const order = await Order.findById(input.orderId).select('locationId').lean<{ locationId: unknown }>()
-    const { modality } = await loadModality(input.tenantId, String(order?.locationId ?? ''))
     if (modality === 'controller') {
       await enqueueControllerInvoice({ tenantId: input.tenantId, orderId: String(input.orderId), receiver, userId: input.userId })
       return 'created'
