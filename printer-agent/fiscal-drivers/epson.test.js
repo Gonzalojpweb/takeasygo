@@ -105,6 +105,60 @@ test('cerró bien pero sin número (visto con el equipo real): lo toma de los co
     assert.equal(out.result.number, 46276);
 });
 
+test('cierre Z: confirmado con el número del equipo', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), counters(46276)] }),
+        (cmds) => { assert.deepEqual(cmds, ['0801|0000']); return { opened: true, results: [ok('0801', ['1355'])] }; },
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'z_report', null);
+    assert.equal(out.outcome, 'confirmed');
+    assert.equal(out.result.number, 1355);
+    assert.equal(out.result.documentType, 'CIERRE Z');
+});
+
+test('salida de cajero (X) usa la extensión del ejemplo oficial', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), counters(46276)] }),
+        (cmds) => { assert.deepEqual(cmds, ['0802|0C01']); return { opened: true, results: [ok('0802', ['29'])] }; },
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    assert.equal((await epson.execute(DEVICE, 'x_report', null)).result.number, 29);
+});
+
+test('Z con la jornada cerrada: no se envía', async () => {
+    const b = fakeBridge([() => ({ opened: true, results: [ok('0001', [], 0x8000), counters(10)] })]);
+    epson.__setBridgeForTests(b.fn);
+    await assert.rejects(epson.execute(DEVICE, 'z_report', null), (e) => e.beforeSend === true && /ya está cerrada/.test(e.message));
+    assert.equal(b.calls.length, 1);
+});
+
+test('corte durante el Z: subió el contador de cierres ⇒ confirmado, sin reenviar', async () => {
+    const zCounters = (z) => ok('0830', [String(z), '0', '0', '0', '5', '5', '0']);
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), zCounters(1354)] }),
+        Object.assign(new Error('timeout'), { uncertain: true }),
+        () => ({ opened: true, results: [ok('0001'), zCounters(1355)] }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'z_report', null);
+    assert.equal(out.outcome, 'confirmed');
+    assert.equal(out.result.number, 1355);
+    assert.equal(b.calls.filter((c) => c[0] === '0801').length, 1);
+});
+
+test('corte durante el Z y el equipo no responde: «unknown», avisa no repetir', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), counters(10)] }),
+        Object.assign(new Error('timeout'), { uncertain: true }),
+        Object.assign(new Error('timeout'), { uncertain: true }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'z_report', null);
+    assert.equal(out.outcome, 'unknown');
+    assert.match(out.errorMsg, /NO pidas otro/);
+});
+
 test('equipo en MODO FISCAL sin habilitar: no se envía nada', async () => {
     const b = fakeBridge([() => ({ opened: true, results: [ok('0001', [], 0xc080), counters(10)] })]);
     epson.__setBridgeForTests(b.fn);

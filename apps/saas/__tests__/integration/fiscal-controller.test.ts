@@ -22,6 +22,7 @@ import {
   claimControllerJobs,
   completeControllerJob,
   enqueueControllerInvoice,
+  enqueueControllerReport,
   modalityFor,
   startControllerJob,
 } from '@/lib/fiscal/controller'
@@ -163,6 +164,45 @@ describe('Operación idempotente y ciclo de vida', () => {
     const [job] = await claimControllerJobs(tenantId, ctrlLocation, '2.1.0')
     await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { claimExpiresAt: new Date(Date.now() - 1000) } })
     expect(await claimControllerJobs(tenantId, ctrlLocation, '2.1.0')).toHaveLength(1)
+  })
+})
+
+describe('Informes X y Z', () => {
+  const report = (kind: 'x' | 'z', requestId: string, locationId = ctrlLocation) =>
+    enqueueControllerReport({ tenantId: String(tenantId), locationId: String(locationId), kind, requestId, userId: 'u' })
+
+  it('reenviar el mismo pedido no crea otro Z', async () => {
+    const a = await report('z', 'pedido-1')
+    const b = await report('z', 'pedido-1')
+    expect(String(a._id)).toBe(String(b._id))
+    expect(a.operation).toBe('z_report')
+    expect(a.orderId).toBeNull()
+    expect(await FiscalControllerJob.countDocuments({ tenantId })).toBe(1)
+  })
+
+  it('no acepta un segundo informe con otro en curso', async () => {
+    await report('z', 'pedido-1')
+    await expect(report('x', 'pedido-2')).rejects.toThrow(/informe en curso/)
+  })
+
+  it('una sede sin impresora fiscal no pide informes', async () => {
+    await expect(report('z', 'pedido-3', eLocation)).rejects.toThrow(/no tiene impresora fiscal/)
+  })
+
+  it('un Z que nadie tomó en 2 minutos se cancela: no se dispara cuando prenden el agente', async () => {
+    const job = await report('z', 'pedido-4')
+    await FiscalControllerJob.collection.updateOne({ _id: job._id }, { $set: { createdAt: new Date(Date.now() - 3 * 60_000) } })
+    expect(await claimControllerJobs(tenantId, ctrlLocation, '2.3.0')).toHaveLength(0)
+    expect((await FiscalControllerJob.findById(job._id))?.status).toBe('cancelled')
+  })
+
+  it('un pedido reciente sí se entrega y se confirma con el número del equipo', async () => {
+    const job = await report('z', 'pedido-5')
+    const [claimed] = await claimControllerJobs(tenantId, ctrlLocation, '2.3.0')
+    expect(String(claimed._id)).toBe(String(job._id))
+    await startControllerJob(String(job._id), claimed.claimId!)
+    const out = await completeControllerJob(String(job._id), { claimId: claimed.claimId!, outcome: 'confirmed', result: { documentType: 'CIERRE Z', number: 1355 } })
+    expect(out).toMatchObject({ status: 'confirmed', result: { number: 1355 } })
   })
 })
 

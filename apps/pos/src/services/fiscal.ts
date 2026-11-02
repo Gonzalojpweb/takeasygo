@@ -62,6 +62,36 @@ export function invoiceIntentFor(choice: InvoiceChoice): InvoiceIntent {
   }
 }
 
+// ── Impresora fiscal homologada: informes X y Z ─────────────────────────────
+
+export interface ControllerReport {
+  id: string
+  kind: "x" | "z"
+  status: "pending" | "claimed" | "sending" | "confirmed" | "failed" | "unknown" | "driver_unavailable" | "cancelled"
+  number: number | null
+  message: string | null
+  createdAt: string
+}
+
+export interface ControllerReports {
+  modality: "electronic" | "controller" | "none"
+  device: { brand: string; model: string } | null
+  reports: ControllerReport[]
+}
+
+export async function getControllerReports(tenantId: string): Promise<ControllerReports> {
+  return posApi<ControllerReports>(tenantId, "/fiscal/controller/reports")
+}
+
+/** Pide X o Z. `requestId` hace idempotente el pedido (un reintento no pide otro). */
+export async function requestControllerReport(tenantId: string, kind: "x" | "z", requestId: string): Promise<ControllerReport> {
+  const { report } = await posApi<{ report: ControllerReport }>(tenantId, "/fiscal/controller/reports", {
+    method: "POST",
+    body: { kind, requestId },
+  })
+  return report
+}
+
 export interface FiscalAlert {
   level: "critical" | "warning" | "info"
   code: string

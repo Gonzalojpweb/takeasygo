@@ -16,6 +16,8 @@
 // ── Comandos (sección 6 del manual) ─────────────────────────────────────────
 const CMD = {
     STATUS: '0001',          // 6.1.1 Obtener Estado
+    Z_REPORT: '0801',        // 6.6.1 Informe Diario de Cierre (Cierre Z)
+    X_REPORT: '0802',        // 6.6.2 Informe «Salida de Cajero»
     COUNTERS: '0830',        // 6.6.12 Información de Contadores
     TICKET_OPEN: '0A01',     // 6.8.1
     TICKET_ITEM: '0A02',     // 6.8.2
@@ -163,8 +165,19 @@ function buildTicketCommands(payload) {
     return cmds;
 }
 
+/**
+ * Informes, con las extensiones del ejemplo oficial (cmd_templates):
+ * Z 0000 · X 0C01 (bit 0 imprime, bits 10-11 encabezados y establecimiento).
+ */
+function buildReportCommand(kind) {
+    if (kind === 'z') return `${CMD.Z_REPORT}|0000`;
+    if (kind === 'x') return `${CMD.X_REPORT}|0C01`;
+    throw new Error(`Informe desconocido: ${kind}`);
+}
+
 module.exports = {
     CMD,
+    buildReportCommand,
     DOC_TYPE,
     decodeFiscalStatus,
     decodePrinterStatus,

@@ -11,6 +11,8 @@ import {
   downloadLibroIva,
   getFiscalConfig,
   getFiscalHealth,
+  getControllerReports,
+  requestControllerReport,
   listFiscalDocuments,
   reprintFiscalDocument,
   retryFiscalDocument,
@@ -18,6 +20,7 @@ import {
   confirmFiscalPrinted,
   type FiscalConfig,
   type FiscalHealth,
+  type ControllerReports,
   type ReviewAction,
   type PosFiscalDocument,
   type PosFiscalDocuments,
@@ -41,6 +44,21 @@ import { FiscalHelpButton, FiscalHelpCenter } from "./FiscalHelpCenter"
 //     impresión confirmada); estado de impresión SEPARADO del fiscal;
 //     resolución controlada de lo que está «en revisión».
 // ============================================================================
+
+const REPORT_NAME = { x: "Salida de cajero (X)", z: "Cierre Z" } as const
+
+const REPORT_STATUS: Record<string, string> = {
+  pending: "Esperando al agente de impresión",
+  claimed: "Enviando a la impresora fiscal",
+  sending: "Imprimiendo",
+  confirmed: "Hecho",
+  failed: "No se hizo",
+  unknown: "Resultado desconocido",
+  driver_unavailable: "No se pudo hablar con el equipo",
+  cancelled: "Cancelado",
+}
+
+const REPORT_ACTIVE = new Set(["pending", "claimed", "sending"])
 
 const PRINT_LABEL: Record<string, string> = {
   not_requested: "Sin imprimir",
@@ -103,6 +121,8 @@ export function FiscalDashboard() {
   const [notice, setNotice] = useState<{ kind: "success" | "error"; text: string } | null>(null)
   const [showHelp, setShowHelp] = useState(false)
   const [health, setHealth] = useState<FiscalHealth | null>(null)
+  const [controller, setController] = useState<ControllerReports | null>(null)
+  const [confirmZ, setConfirmZ] = useState(false)
   const range = useMemo(() => rangeFor(preset), [preset])
   // Esc: cierra el comprobante abierto (el centro de ayuda maneja su propio Esc).
   useEscapeBack(selectedId ? () => setSelectedId(null) : null)
@@ -123,6 +143,7 @@ export function FiscalDashboard() {
       setConfig(c)
       setData(d)
       setHealth(h)
+      setController(await getControllerReports(tenantId).catch(() => null))
     } catch (err) {
       flash("error", err instanceof Error ? err.message : "No se pudieron cargar los comprobantes")
     }
@@ -153,6 +174,24 @@ export function FiscalDashboard() {
 
   const selected = data?.documents.find((d) => d.id === selectedId) ?? null
 
+  // Con un informe en curso se consulta seguido: lo ejecuta el agente de la caja.
+  const reportActive = Boolean(controller?.reports.some((r) => REPORT_ACTIVE.has(r.status)))
+  useEffect(() => {
+    if (!tenantId || !reportActive) return
+    const id = setInterval(() => {
+      void getControllerReports(tenantId).then(setController).catch(() => undefined)
+    }, 3000)
+    return () => clearInterval(id)
+  }, [tenantId, reportActive])
+
+  const askReport = useCallback((kind: "x" | "z") => {
+    setConfirmZ(false)
+    void run(async () => {
+      await requestControllerReport(tenantId!, kind, crypto.randomUUID())
+      return `${REPORT_NAME[kind]} enviado a la impresora fiscal`
+    })
+  }, [run, tenantId])
+
   useEffect(() => {
     if (!selected) {
       setContextPanel({
@@ -182,6 +221,40 @@ export function FiscalDashboard() {
                 <div><span>Pendientes</span><strong className={data.counts.pending ? "text-error" : ""}>{data.counts.pending}</strong></div>
                 {data.counts.rejected > 0 && <div><span>Rechazados</span><strong className="text-error">{data.counts.rejected}</strong></div>}
               </div>
+            )}
+            {controller?.modality === "controller" && (
+              <>
+                <div className="sale-section-title">Impresora fiscal{controller.device ? ` · ${controller.device.brand} ${controller.device.model}` : ""}</div>
+                <div className="fiscal-actions">
+                  <button className="ctx-action ctx-action--teal" disabled={busy || reportActive} onClick={() => askReport("x")}>
+                    <span className="ctx-action-icon"><Printer size={20} aria-hidden /></span>
+                    <span className="ctx-action-label">Salida de cajero (X)</span>
+                    <span className="ctx-action-hint">No cierra la jornada</span>
+                  </button>
+                  {!confirmZ && (
+                    <button className="ctx-action ctx-action--red" disabled={busy || reportActive} onClick={() => setConfirmZ(true)}>
+                      <span className="ctx-action-icon"><FileMinus size={20} aria-hidden /></span>
+                      <span className="ctx-action-label">Cierre Z</span>
+                      <span className="ctx-action-hint">Admin o encargado</span>
+                    </button>
+                  )}
+                </div>
+                {confirmZ && (
+                  <div className="setup-error" role="alert">
+                    <p><strong>El cierre Z no se puede deshacer.</strong> Cierra la jornada fiscal y graba los importes en la memoria fiscal.</p>
+                    <div className="fiscal-actions">
+                      <button className="btn btn-secondary btn-sm" onClick={() => setConfirmZ(false)}>Cancelar</button>
+                      <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => askReport("z")}>Sí, hacer el cierre Z</button>
+                    </div>
+                  </div>
+                )}
+                {controller.reports.map((r) => (
+                  <div key={r.id} className={r.status === "failed" || r.status === "unknown" || r.status === "driver_unavailable" ? "setup-error" : "sale-void-info"}>
+                    {REPORT_NAME[r.kind]}{r.number ? ` N.º ${r.number}` : ""} · {formatTime(new Date(r.createdAt))} · {REPORT_STATUS[r.status] ?? r.status}
+                    {r.message ? `: ${r.message}` : ""}
+                  </div>
+                ))}
+              </>
             )}
             <div className="sale-section-title">Libro IVA (encargado / admin)</div>
             <div className="fiscal-libro">
@@ -268,7 +341,7 @@ export function FiscalDashboard() {
       ),
     })
     setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>← Volver</button> })
-  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar])
+  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport])
 
   return (
     <div className="workspace sales">

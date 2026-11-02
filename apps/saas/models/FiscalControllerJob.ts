@@ -39,8 +39,9 @@ export type ControllerJobStatus =
 export interface IFiscalControllerJob extends Document {
   tenantId: mongoose.Types.ObjectId
   locationId: mongoose.Types.ObjectId
-  orderId: mongoose.Types.ObjectId
-  operation: 'invoice' | 'credit_note' | 'status' | 'query_last'
+  /** Venta que factura. null en los informes (X y Z), que no son de una venta. */
+  orderId: mongoose.Types.ObjectId | null
+  operation: 'invoice' | 'credit_note' | 'status' | 'query_last' | 'x_report' | 'z_report'
   /** Equipo configurado en el perfil (copia: si se cambia, la operación no se mueve). */
   device: { brand: string; model: string; firmware: string; connection: string; address: string }
   /** Datos de la venta a emitir (sin datos sensibles más allá de lo fiscal). */
@@ -80,8 +81,8 @@ const FiscalControllerJobSchema = new Schema<IFiscalControllerJob>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
-    orderId: { type: Schema.Types.ObjectId, ref: 'Order', required: true },
-    operation: { type: String, enum: ['invoice', 'credit_note', 'status', 'query_last'], required: true },
+    orderId: { type: Schema.Types.ObjectId, ref: 'Order', default: null },
+    operation: { type: String, enum: ['invoice', 'credit_note', 'status', 'query_last', 'x_report', 'z_report'], required: true },
     device: {
       brand: { type: String, required: true, maxlength: 40 },
       model: { type: String, default: '', maxlength: 60 },

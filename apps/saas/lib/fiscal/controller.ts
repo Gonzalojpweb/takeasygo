@@ -31,6 +31,12 @@ export type FiscalModality = 'electronic' | 'controller' | 'none'
 
 const CLAIM_TTL_MS = 45_000
 const SENDING_TTL_MS = 180_000
+/**
+ * Un informe sin tomar vence: un Z pedido con el agente apagado no puede quedar
+ * en cola y dispararse horas después, cuando alguien prenda la PC.
+ */
+const REPORT_PENDING_TTL_MS = 2 * 60_000
+const REPORT_OPERATIONS = ['x_report', 'z_report'] as const
 
 interface ProfileForModality {
   enabled?: boolean
@@ -134,6 +140,58 @@ export async function enqueueControllerInvoice(input: {
   }
 }
 
+export type ControllerReportKind = 'x' | 'z'
+
+/**
+ * Pide un informe al equipo de la sede: X (salida de cajero) o Z (cierre de la
+ * jornada fiscal, irreversible). `requestId` lo genera el POS: reenviar el mismo
+ * pedido devuelve la misma operación. Uno a la vez por sede.
+ */
+export async function enqueueControllerReport(input: {
+  tenantId: string
+  locationId: string
+  kind: ControllerReportKind
+  requestId: string
+  userId: string
+}): Promise<IFiscalControllerJob> {
+  const tenantId = new mongoose.Types.ObjectId(input.tenantId)
+  const locationId = new mongoose.Types.ObjectId(input.locationId)
+  const idempotencyKey = `controller:report:${input.requestId}`
+  const existing = await FiscalControllerJob.findOne({ tenantId, idempotencyKey })
+  if (existing) return existing
+
+  const { modality, controller } = await loadModality(input.tenantId, input.locationId)
+  if (modality !== 'controller' || !controller) throw new FiscalIssueError('Esta sede no tiene impresora fiscal activa')
+
+  const active = await FiscalControllerJob.exists({
+    tenantId,
+    locationId,
+    operation: { $in: REPORT_OPERATIONS },
+    status: { $in: ['pending', 'claimed', 'sending'] },
+    createdAt: { $gte: new Date(Date.now() - REPORT_PENDING_TTL_MS - SENDING_TTL_MS) },
+  })
+  if (active) throw new FiscalIssueError('Ya hay un informe en curso en la impresora fiscal. Esperá a que termine.')
+
+  try {
+    return await FiscalControllerJob.create({
+      tenantId,
+      locationId,
+      orderId: null,
+      operation: input.kind === 'z' ? 'z_report' : 'x_report',
+      device: { brand: controller.brand, model: controller.model, firmware: controller.firmware, connection: controller.connection, address: controller.address },
+      payload: null,
+      idempotencyKey,
+      createdBy: input.userId,
+    })
+  } catch (err) {
+    if ((err as { code?: number })?.code === 11000) {
+      const winner = await FiscalControllerJob.findOne({ tenantId, idempotencyKey })
+      if (winner) return winner
+    }
+    throw err
+  }
+}
+
 /** Reserva atómica de operaciones de controlador para el poll del agente. */
 export async function claimControllerJobs(
   tenantId: mongoose.Types.ObjectId,
@@ -147,6 +205,17 @@ export async function claimControllerJobs(
   await FiscalControllerJob.updateMany(
     { tenantId, locationId: loc, status: 'sending', startedAt: { $lt: new Date(now.getTime() - SENDING_TTL_MS) } },
     { $set: { status: 'unknown', lastError: 'El agente no informó el resultado: consultar el equipo antes de reintentar.' } }
+  )
+  // Informe que nadie tomó a tiempo (agente apagado): se cancela, no espera.
+  await FiscalControllerJob.updateMany(
+    {
+      tenantId,
+      locationId: loc,
+      operation: { $in: REPORT_OPERATIONS },
+      status: { $in: ['pending', 'claimed'] },
+      createdAt: { $lt: new Date(now.getTime() - REPORT_PENDING_TTL_MS) },
+    },
+    { $set: { status: 'cancelled', completedAt: now, lastError: 'El agente de impresión no lo tomó a tiempo. No se envió nada al equipo: pedilo de nuevo.' } }
   )
   // Reserva vencida sin inicio: nunca se mandó al equipo ⇒ vuelve a pendiente.
   await FiscalControllerJob.updateMany(
