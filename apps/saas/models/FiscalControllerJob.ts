@@ -35,6 +35,8 @@ export type ControllerJobStatus =
   | 'unknown'
   | 'driver_unavailable'
   | 'cancelled'
+  /** No salió a tiempo (agente apagado): no se envió nada; se puede reintentar. */
+  | 'expired'
 
 export interface IFiscalControllerJob extends Document {
   tenantId: mongoose.Types.ObjectId
@@ -52,6 +54,8 @@ export interface IFiscalControllerJob extends Document {
     discountCents: number
     payments: { method: string; amountCents: number }[]
     issuerIvaCondition?: string | null
+    /** Nota de crédito: comprobante que revierte. */
+    origin?: { documentType: string | null; pointOfSale: number | null; number: number | null } | null
   } | null
   status: ControllerJobStatus
   /** Resultado informado por el equipo. */
@@ -64,6 +68,8 @@ export interface IFiscalControllerJob extends Document {
     raw: string
   }
   attempts: number
+  /** Sin tomar pasada esta fecha, no se ejecuta: no sale horas después. */
+  expiresAt: Date | null
   claimId: string | null
   claimExpiresAt: Date | null
   startedAt: Date | null
@@ -93,7 +99,7 @@ const FiscalControllerJobSchema = new Schema<IFiscalControllerJob>(
     payload: { type: Schema.Types.Mixed, default: null },
     status: {
       type: String,
-      enum: ['pending', 'claimed', 'sending', 'confirmed', 'failed', 'unknown', 'driver_unavailable', 'cancelled'],
+      enum: ['pending', 'claimed', 'sending', 'confirmed', 'failed', 'unknown', 'driver_unavailable', 'cancelled', 'expired'],
       default: 'pending',
     },
     result: {
@@ -105,6 +111,7 @@ const FiscalControllerJobSchema = new Schema<IFiscalControllerJob>(
       raw: { type: String, default: '', maxlength: 2000 },
     },
     attempts: { type: Number, default: 0 },
+    expiresAt: { type: Date, default: null },
     claimId: { type: String, default: null },
     claimExpiresAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },

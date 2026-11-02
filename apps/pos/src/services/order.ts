@@ -385,13 +385,14 @@ export async function voidOrder(
   orderId: string,
   reason: "load_error" | "customer_left" | "complaint" | "other",
   note?: string
-): Promise<Order> {
+): Promise<Order & { fiscalNotice?: string | null }> {
   return runMutation(async () => {
-    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/void`, {
-      reason,
-      ...(note ? { note } : {}),
-    })
-    return saveOrder(order)
+    const { order, fiscalNotice } = await posApi<{ order: WireOrder; fiscalNotice?: string | null }>(
+      tenantId,
+      `/orders/${encodeURIComponent(orderId)}/void`,
+      { method: "POST", body: { reason, ...(note ? { note } : {}) } }
+    )
+    return { ...(await saveOrder(order)), fiscalNotice }
   })
 }
 

@@ -63,6 +63,16 @@ export function InvoicePicker({
             value={value.name}
             onChange={(e) => set({ name: e.target.value })}
           />
+          {config.modality === "controller" && (
+            <input
+              className="search-input"
+              placeholder="Domicilio del cliente"
+              aria-label="Domicilio del cliente"
+              maxLength={40}
+              value={value.address ?? ""}
+              onChange={(e) => set({ address: e.target.value })}
+            />
+          )}
           <div className="chip-row" role="radiogroup" aria-label="Condición del cliente">
             {(
               [

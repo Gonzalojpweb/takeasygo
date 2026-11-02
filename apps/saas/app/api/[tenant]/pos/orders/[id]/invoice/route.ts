@@ -24,7 +24,7 @@ const CONDITIONS = new Set(['consumidor_final', 'responsable_inscripto', 'monotr
 
 export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async (ctx, params) => {
   const posId = assertPosId(params.id)
-  const body = await readPosBody<{ receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown } }>(ctx.request)
+  const body = await readPosBody<{ receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown; address?: unknown } }>(ctx.request)
   const r = body.receiver ?? {}
   if (r.condition !== undefined && (typeof r.condition !== 'string' || !CONDITIONS.has(r.condition))) {
     throw PosError.validation('Condición del cliente inválida')
@@ -52,6 +52,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
           condition: r.condition as never,
           docNumber: typeof r.docNumber === 'string' ? r.docNumber : null,
           name: typeof r.name === 'string' ? r.name : null,
+          address: typeof r.address === 'string' ? r.address.slice(0, 120) : null,
         },
         userId: ctx.user.id,
       })

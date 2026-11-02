@@ -210,13 +210,124 @@ test('corte de comunicación y el equipo no responde después: «unknown»', asy
     assert.equal(out.outcome, 'unknown');
 });
 
-test('cliente con CUIT (Tique Factura A/B): todavía no, y no se toca el equipo', async () => {
-    const b = fakeBridge([]);
+// ── Tique Factura y notas de crédito ────────────────────────────────────────
+
+const COMPANY = { condition: 'responsable_inscripto', docType: 80, docNumber: '30712345671', name: 'Empresa SA' };
+
+test('Tique Factura: apertura con 12 campos, ítem con montos brutos, cierre con 6 campos', () => {
+    const cmds = C.buildDocumentCommands({
+        receiver: COMPANY,
+        lines: [{ description: 'Pizza', quantity: 1, totalCents: 12100, ivaRate: 21 }],
+        payments: [{ method: 'transfer', amountCents: 12100 }],
+    }, { kind: 'invoice' });
+    assert.equal(cmds[0], '0B01|0000|Empresa SA||No informado|||T|30712345671|I||||');
+    assert.equal(cmds[0].split('|').length, 2 + 12);
+    assert.equal(cmds[1], '0B02|4000|||||Pizza|10000|1210000|2100|||||1|7|7');
+    assert.equal(cmds[2], '0B05|0000||||||23|12100');
+    assert.equal(cmds[3], '0B06|0003||||||');
+    assert.equal(cmds[3].split('|').length, 2 + 6);
+});
+
+test('el descuento va dentro del precio en Tique Factura y la suma da exacto', () => {
+    assert.deepEqual(C.prorateDiscount([{ totalCents: 1000 }, { totalCents: 2000 }, { totalCents: 3000 }], 100), [983, 1967, 2950]);
+    const cmds = C.buildDocumentCommands({
+        receiver: COMPANY,
+        lines: [{ description: 'A', quantity: 1, totalCents: 10000, ivaRate: 21 }],
+        discountCents: 1000,
+    }, { kind: 'invoice' });
+    assert.ok(!cmds.some((c) => c.startsWith('0B04')));
+    assert.ok(cmds[1].includes('|900000|'));
+});
+
+test('consumidor final con DNI: Tique Factura con responsabilidad F', () => {
+    const cmds = C.buildDocumentCommands({
+        receiver: { condition: 'consumidor_final', docType: 96, docNumber: '30111222', name: '' },
+        lines: [{ description: 'A', quantity: 1, totalCents: 100, ivaRate: 21 }],
+    }, { kind: 'invoice' });
+    assert.equal(cmds[0], '0B01|0000|Documento 30111222|||||D|30111222|F||||');
+});
+
+test('NC de un tique: 0A con bit 14 y el origen como descripción', () => {
+    const cmds = C.buildDocumentCommands({
+        receiver: { condition: 'consumidor_final', docType: 99, docNumber: '0' },
+        lines: [{ description: 'Pizza', quantity: 1, totalCents: 10000, ivaRate: 21 }],
+        origin: { documentType: 'TIQUE', pointOfSale: 4, number: 46279 },
+    }, { kind: 'credit_note' });
+    assert.equal(cmds[0], '0A01|4000');
+    assert.ok(cmds[1].startsWith('0A02|0000|Anula 083-00004-00046279|'));
+});
+
+test('NC de una factura: 0D con el comprobante de origen en el campo 12', () => {
+    const cmds = C.buildDocumentCommands({
+        receiver: COMPANY,
+        lines: [{ description: 'Pizza', quantity: 1, totalCents: 12100, ivaRate: 21 }],
+        origin: { documentType: 'TIQUE FACTURA A', number: 27 },
+    }, { kind: 'credit_note', pointOfSale: 4 });
+    assert.equal(cmds[0].split('|')[13], '081-00004-00000027');
+    assert.equal(cmds[0].split('|').length, 2 + 12);
+    assert.equal(cmds[cmds.length - 1].split('|').length, 2 + 7);
+});
+
+test('Tique Factura: el equipo decide la letra y queda en el resultado', async () => {
+    const countersLetter = (a, b, c) => [a, b, c].map((n) => ok('0830', ['1', '0', '0', '0', String(n), String(n), '0']));
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), ok('0507', ['Razon', '20123456786', '4', 'I']), ...countersLetter(10, 20, 30)] }),
+        (cmds) => ({ opened: true, results: cmds.map((c) => (c.startsWith('0B06') ? ok('0B06', ['11', 'A', '12100', '2100', '0']) : ok(c.split('|')[0]))) }),
+    ]);
     epson.__setBridgeForTests(b.fn);
-    await assert.rejects(
-        epson.execute(DEVICE, 'invoice', { ...PAYLOAD, receiver: { condition: 'responsable_inscripto', docType: 80 } }),
-        (e) => e.name === 'DriverUnavailableError'
-    );
-    assert.equal(b.calls.length, 0);
+    const out = await epson.execute(DEVICE, 'invoice', { ...PAYLOAD, receiver: COMPANY, totalCents: 12100 });
+    assert.equal(out.outcome, 'confirmed');
+    assert.deepEqual([out.result.documentType, out.result.number, out.result.pointOfSale, out.result.totalCents], ['TIQUE FACTURA A', 11, 4, 12100]);
+    assert.equal(out.errorMsg, null);
+});
+
+test('la condición de IVA la manda el equipo, no la configuración del panel', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), ok('0507', ['Razon', '20123456786', '4', 'M']), counters(10)] }),
+        (cmds) => {
+            assert.equal(cmds[1].split('|')[9], '0');   // tasa 0: emisor no inscripto
+            return { opened: true, results: cmds.map((c) => (c.startsWith('0A06') ? ok('0A06', ['11', '10000', '0', '0']) : ok(c.split('|')[0]))) };
+        },
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    assert.equal((await epson.execute(DEVICE, 'invoice', { ...PAYLOAD, issuerIvaCondition: 'responsable_inscripto' })).outcome, 'confirmed');
+});
+
+test('un total distinto del de la venta se avisa, sin invalidar lo ya emitido', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), counters(10)] }),
+        (cmds) => ({ opened: true, results: cmds.map((c) => (c.startsWith('0A06') ? ok('0A06', ['11', '9000', '0', '0']) : ok(c.split('|')[0]))) }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'invoice', { ...PAYLOAD, totalCents: 10000 });
+    assert.equal(out.outcome, 'confirmed');
+    assert.match(out.errorMsg, /no coincide/);
+});
+
+test('corte en una NC de factura: mira los contadores de las tres letras', async () => {
+    const row = (n) => ok('0830', ['1', '0', '0', '0', String(n), String(n), '0']);
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), row(1), row(2), row(3)] }),
+        Object.assign(new Error('timeout'), { uncertain: true }),
+        () => ({ opened: true, results: [ok('0001'), row(1), row(3), row(3)] }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'credit_note', { ...PAYLOAD, receiver: COMPANY });
+    assert.equal(out.outcome, 'confirmed');
+    assert.deepEqual([out.result.documentType, out.result.number], ['TIQUE NOTA DE CREDITO B', 3]);
+});
+
+test('el equipo rechaza un ítem de un Tique Factura: cancela con 0B 07', async () => {
+    const row = ok('0830', ['1', '0', '0', '0', '5', '5', '0']);
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001'), row, row, row] }),
+        () => ({ opened: true, results: [ok('0B01'), { command: '0B02', dllError: 0, returnCode: 0x0208, fiscalStatus: 0x8082, printerStatus: 0, fields: [] }] }),
+        () => ({ opened: true, results: [ok('0001', [], 0x8082), row, row, row] }),
+        () => ({ opened: true, results: [ok('0B07', ['6'])] }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'invoice', { ...PAYLOAD, receiver: COMPANY });
+    assert.equal(out.outcome, 'failed');
+    assert.deepEqual(b.calls[3], ['0B07']);
     epson.__setBridgeForTests(null);
 });

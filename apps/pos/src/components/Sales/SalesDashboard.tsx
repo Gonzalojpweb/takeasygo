@@ -178,8 +178,8 @@ export function SalesDashboard() {
     if (!tenantId || !voidReason || !row.posId) return
     setVoidBusy(true)
     try {
-      await voidOrder(tenantId, row.posId, voidReason)
-      flash("success", "Venta anulada. La devolución quedó registrada en la caja.")
+      const voided = await voidOrder(tenantId, row.posId, voidReason)
+      flash("success", `Venta anulada. La devolución quedó registrada en la caja.${voided.fiscalNotice ? ` ${voided.fiscalNotice}` : ""}`)
       setVoiding(false)
       setVoidReason(null)
       void load()

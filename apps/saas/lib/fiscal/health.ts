@@ -4,6 +4,7 @@ import FiscalDocument from '@/models/FiscalDocument'
 import CaeaPeriod from '@/models/CaeaPeriod'
 import Order from '@/models/Order'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
+import { controllerAttention, expireControllerJobs } from './controller'
 
 // ============================================================================
 // Salud fiscal del comercio — orden de ejecución 31/10 (P1.3, P1.4, P1.5, P7.3)
@@ -73,6 +74,9 @@ export async function computeFiscalHealth(
   if (!profile) return empty
 
   const base = { tenantId, ...loc }
+  // La vencida se tiene que ver aunque el agente esté apagado (sin él no hay poll).
+  if (loc.locationId) await expireControllerJobs(tenantId, loc.locationId, now)
+  const printer = await controllerAttention(tenantId, loc, now)
   const [pending, oldest, needsReview, rejected, caeaPending, printUnknown, authErrors] = await Promise.all([
     FiscalDocument.countDocuments({ ...base, status: { $in: ['pending', 'retrying'] } }),
     FiscalDocument.findOne({ ...base, status: { $in: ['pending', 'retrying'] } }).sort({ createdAt: 1 }).select('createdAt').lean<{ createdAt: Date }>(),
@@ -110,6 +114,15 @@ export async function computeFiscalHealth(
   const oldestPendingMinutes = oldest ? Math.floor((now.getTime() - new Date(oldest.createdAt).getTime()) / 60_000) : null
 
   const alerts: FiscalAlert[] = []
+  if (printer.unknown > 0) {
+    alerts.push({ level: 'critical', code: 'controller_unknown', count: printer.unknown, message: `${printer.unknown} comprobante(s) de la impresora fiscal con resultado desconocido. Mirá el papel y resolvelos: el sistema no los vuelve a emitir solo.` })
+  }
+  if (printer.voidedWithoutCredit > 0) {
+    alerts.push({ level: 'critical', code: 'controller_voided_without_credit', count: printer.voidedWithoutCredit, message: `${printer.voidedWithoutCredit} venta(s) anulada(s) con comprobante emitido y sin nota de crédito.` })
+  }
+  if (printer.notEmitted > 0) {
+    alerts.push({ level: 'warning', code: 'controller_not_emitted', count: printer.notEmitted, message: `${printer.notEmitted} comprobante(s) no salieron de la impresora fiscal. Reintentalos desde la lista.` })
+  }
   if (needsReview > 0) {
     alerts.push({ level: 'critical', code: 'needs_review', count: needsReview, message: `${needsReview} comprobante(s) necesitan revisión: el sistema no los emite solo.` })
   }

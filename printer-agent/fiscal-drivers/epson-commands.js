@@ -16,6 +16,7 @@
 // ── Comandos (sección 6 del manual) ─────────────────────────────────────────
 const CMD = {
     STATUS: '0001',          // 6.1.1 Obtener Estado
+    FISCAL_DATA: '0507',     // 6.4.5 Obtener Datos de Fiscalización
     Z_REPORT: '0801',        // 6.6.1 Informe Diario de Cierre (Cierre Z)
     X_REPORT: '0802',        // 6.6.2 Informe «Salida de Cajero»
     COUNTERS: '0830',        // 6.6.12 Información de Contadores
@@ -29,6 +30,50 @@ const CMD = {
 
 /** Tipo de documento para «Información de Contadores» (08 30). */
 const DOC_TYPE = { TIQUE: 83, TIQUE_NC: 110 };
+
+// ── Clases de documento ─────────────────────────────────────────────────────
+// La LETRA del Tique Factura la decide el equipo según emisor y comprador (y
+// la devuelve al cerrar): por eso se miran los contadores de todas las letras.
+const DOCUMENT_CLASSES = {
+    tique: { prefix: '0A', openExt: '0000', itemExt: '0000', closeFields: 7, counters: { 83: 'TIQUE' }, numberField: 0, totalField: 1 },
+    tique_nc: { prefix: '0A', openExt: '4000', itemExt: '0000', closeFields: 7, counters: { 110: 'TIQUE NOTA DE CREDITO' }, numberField: 0, totalField: 1 },
+    factura: {
+        prefix: '0B', openExt: '0000', itemExt: '4000', closeFields: 6,
+        counters: { 81: 'TIQUE FACTURA A', 82: 'TIQUE FACTURA B', 111: 'TIQUE FACTURA C' }, numberField: 0, letterField: 1, totalField: 2,
+    },
+    nota_credito: {
+        prefix: '0D', openExt: '0000', itemExt: '4000', closeFields: 7,
+        counters: { 112: 'TIQUE NOTA DE CREDITO A', 113: 'TIQUE NOTA DE CREDITO B', 114: 'TIQUE NOTA DE CREDITO C' }, numberField: 0, letterField: 1, totalField: 2,
+    },
+};
+
+/** Código «ddd» del comprobante de origen (formato ddd-ppppp-nnnnnnnn). */
+const ORIGIN_CODES = {
+    TIQUE: '083',
+    'TIQUE FACTURA A': '081',
+    'TIQUE FACTURA B': '082',
+    'TIQUE FACTURA C': '111',
+};
+
+/** Cancelar según el documento en progreso (bits 3-0 del estado fiscal). */
+const CANCEL_BY_IN_PROGRESS = { 1: '0A07', 2: '0B07', 3: '0D07', 4: '0B07' };
+
+/** ¿Tique o Tique Factura? Consumidor final sin identificar ⇒ Tique. */
+function documentClassFor(receiver, kind) {
+    const r = receiver || {};
+    const anonymous = !r.condition || (r.condition === 'consumidor_final' && (!r.docType || r.docType === 99));
+    if (kind === 'credit_note') return anonymous ? 'tique_nc' : 'nota_credito';
+    return anonymous ? 'tique' : 'factura';
+}
+
+/** Responsabilidad ante el IVA del comprador (0B 01 / 0D 01, campo 8). */
+const BUYER_RESPONSIBILITY = {
+    responsable_inscripto: 'I',
+    monotributo: 'M',
+    exento: 'E',
+    no_categorizado: 'U',
+    consumidor_final: 'F',
+};
 
 // ── Estado fiscal (tabla 7-1) ───────────────────────────────────────────────
 const FISCAL_MODE = { 0: 'bloqueado', 1: 'manufactura', 2: 'entrenamiento', 3: 'fiscal' };
@@ -97,6 +142,28 @@ const PAYMENT_CODES = {
     transfer: 23,          // Transferencia bancaria
 };
 
+/**
+ * Reparte un descuento entre los ítems en proporción a su importe (resto mayor:
+ * la suma da exacto). En Tique Factura/NC se manda dentro del precio: el
+ * descuento global (0B 04) en clase A se interpreta sobre montos netos y el
+ * sistema trabaja con importes con IVA.
+ */
+function prorateDiscount(lines, discountCents) {
+    const totals = lines.map((l) => Number(l.totalCents) || 0);
+    const sum = totals.reduce((a, b) => a + b, 0);
+    if (discountCents <= 0 || sum <= 0) return totals;
+    const raw = totals.map((t) => (t * discountCents) / sum);
+    const floors = raw.map(Math.floor);
+    let rest = discountCents - floors.reduce((a, b) => a + b, 0);
+    const order = raw.map((r, i) => ({ i, frac: r - Math.floor(r) })).sort((a, b) => b.frac - a.frac);
+    for (const { i } of order) {
+        if (rest <= 0) break;
+        floors[i]++;
+        rest--;
+    }
+    return totals.map((t, i) => t - floors[i]);
+}
+
 function paymentFields(method) {
     const code = PAYMENT_CODES[method];
     if (code) return { code, detail: '' };
@@ -104,20 +171,58 @@ function paymentFields(method) {
     return { code: 99, detail: text(label, 30) };   // 99 - Otros medios de pago
 }
 
+/** Línea de apertura de Tique Factura / NC: 12 campos (6.9.1 y 6.10.1). */
+function openDocumentCommand(cls, klass, payload, origin) {
+    const r = payload.receiver || {};
+    const docNumber = String(r.docNumber || '').replace(/\D/g, '');
+    const anonymous = !docNumber || docNumber === '0';
+    const docLetter = anonymous ? '' : r.docType === 80 ? 'T' : r.docType === 86 ? 'L' : 'D';
+    const name = text(r.name, 40) || (anonymous ? 'Consumidor Final' : `Documento ${docNumber}`);
+    return [
+        `${cls.prefix}01`, cls.openExt,
+        name, '',                                        // 1-2 nombre del comprador
+        // 3-5 domicilio: obligatorio salvo consumidor final. El POS no lo pide todavía.
+        text(r.address, 40) || (r.condition === 'consumidor_final' ? '' : 'No informado'), '', '',
+        docLetter,                                       // 6 tipo de documento (T = CUIT, D = DNI)
+        anonymous ? '' : docNumber,                      // 7 número de documento
+        BUYER_RESPONSIBILITY[r.condition] || 'F',        // 8 responsabilidad ante el IVA
+        '', '', '',                                      // 9-11 documentos asociados
+        klass === 'nota_credito' ? origin : '',          // 12 comprobante de origen (0D) / turista (0B, vacío)
+    ].join('|');
+}
+
+/** «ddd-ppppp-nnnnnnnn», o vacío si no se conoce. */
+function originLine(origin, fallbackPointOfSale) {
+    if (!origin || !origin.number) return '';
+    const code = ORIGIN_CODES[origin.documentType];
+    const pos = origin.pointOfSale || fallbackPointOfSale;
+    if (!code || !pos) return '';
+    return `${code}-${String(pos).padStart(5, '0')}-${String(origin.number).padStart(8, '0')}`;
+}
+
 /**
- * Comandos de un TIQUE a consumidor final, en orden.
- * payload = { lines:[{description, quantity, totalCents, ivaRate}], discountCents,
- *             payments:[{method, amountCents}], issuerIvaCondition }
+ * Comandos de un documento, en orden.
+ * payload = { receiver, lines:[{description, quantity, totalCents, ivaRate}],
+ *             discountCents, payments:[{method, amountCents}], issuerIvaCondition,
+ *             origin? }  ·  options = { kind: 'invoice'|'credit_note', pointOfSale? }
  */
-function buildTicketCommands(payload) {
+function buildDocumentCommands(payload, options = {}) {
     const lines = (payload && payload.lines) || [];
     if (lines.length === 0) throw new Error('La venta no tiene ítems');
     const noIva = payload.issuerIvaCondition && payload.issuerIvaCondition !== 'responsable_inscripto';
+    const klass = documentClassFor(payload.receiver, options.kind || 'invoice');
+    const cls = DOCUMENT_CLASSES[klass];
+    const origin = originLine(payload.origin, options.pointOfSale);
+    const discount = Number(payload.discountCents) || 0;
+    const insidePrice = cls.prefix !== '0A';   // ver prorateDiscount
+    const amounts = insidePrice ? prorateDiscount(lines, discount) : lines.map((l) => Number(l.totalCents));
 
-    const cmds = [`${CMD.TICKET_OPEN}|0000`];
+    const cmds = [
+        cls.prefix === '0A' ? `${cls.prefix}01|${cls.openExt}` : openDocumentCommand(cls, klass, payload, origin),
+    ];
     lines.forEach((l, i) => {
         const qty = Number(l.quantity) > 0 ? Number(l.quantity) : 1;
-        const total = Number(l.totalCents);
+        const total = amounts[i];
         if (!Number.isInteger(total) || total < 0) throw new Error(`Importe inválido en «${l.description}»`);
         // Precio unitario 7,4 con IVA incluido: total del ítem / cantidad. La
         // impresora multiplica y redondea a 2 decimales (6.8.2, notas).
@@ -125,8 +230,9 @@ function buildTicketCommands(payload) {
         const rate = noIva ? 0 : Number(l.ivaRate) || 0;
         const ivaCondition = noIva ? 0 : rate > 0 ? 7 : 2;   // 7 gravado · 2 exento · 0 no corresponde
         cmds.push([
-            CMD.TICKET_ITEM, '0000',
-            '', '', '', '',                       // 1-4 descripciones extra
+            `${cls.prefix}02`, cls.itemExt,       // 0B/0D: bit 14 = montos brutos (con IVA)
+            // El tique NC no tiene campo de origen: va como descripción del 1.er ítem.
+            i === 0 && klass === 'tique_nc' && origin ? text(`Anula ${origin}`, 40) : '', '', '', '',
             text(l.description, 40) || 'Item',    // 5 descripción
             quantity(qty),                        // 6 cantidad 5,4
             scaled(unit4),                        // 7 precio unitario 7,4
@@ -138,10 +244,9 @@ function buildTicketCommands(payload) {
         ].join('|'));
     });
 
-    const discount = Number(payload.discountCents) || 0;
-    if (discount > 0) {
+    if (discount > 0 && !insidePrice) {
         // Descuento GLOBAL: tasa de IVA vacía (6.8.4, requerimientos).
-        cmds.push([CMD.TICKET_DISCOUNT, '0000', 'Descuento', scaled(discount), '', 'DTO', ''].join('|'));
+        cmds.push([`${cls.prefix}04`, '0000', 'Descuento', scaled(discount), '', 'DTO', ''].join('|'));
     }
 
     for (const p of payload.payments || []) {
@@ -149,7 +254,7 @@ function buildTicketCommands(payload) {
         if (amount <= 0) continue;
         const { code, detail } = paymentFields(p.method);
         cmds.push([
-            CMD.TICKET_PAYMENT, '0000',
+            `${cls.prefix}05`, '0000',
             '', '',                               // descripciones extra
             '',                                   // cuotas
             detail,                               // detalle de otra forma de pago (código 99)
@@ -160,9 +265,14 @@ function buildTicketCommands(payload) {
     }
 
     // Cerrar: bit 0 = cortar papel, bit 1 = devolver respuesta electrónica
-    // (sin este bit el equipo NO informa el número del tique). 7 campos vacíos.
-    cmds.push(`${CMD.TICKET_CLOSE}|0003|||||||`);
+    // (sin este bit el equipo NO informa el número). Campos opcionales vacíos.
+    cmds.push(`${cls.prefix}06|0003${'|'.repeat(cls.closeFields)}`);
     return cmds;
+}
+
+/** Compatibilidad: tique a consumidor final. */
+function buildTicketCommands(payload) {
+    return buildDocumentCommands(payload, { kind: 'invoice' });
 }
 
 /**
@@ -177,6 +287,12 @@ function buildReportCommand(kind) {
 
 module.exports = {
     CMD,
+    DOCUMENT_CLASSES,
+    CANCEL_BY_IN_PROGRESS,
+    documentClassFor,
+    buildDocumentCommands,
+    prorateDiscount,
+    originLine,
     buildReportCommand,
     DOC_TYPE,
     decodeFiscalStatus,

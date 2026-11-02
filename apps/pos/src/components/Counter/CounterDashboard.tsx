@@ -73,6 +73,10 @@ import {
   type FiscalConfig,
   type FiscalDocumentSummary,
   type InvoiceChoice,
+  getControllerDocument,
+  controllerOutcomeText,
+  CONTROLLER_ACTIVE,
+  type ControllerDocument,
 } from "../../services/fiscal"
 import { chargeOnPoint, isPointEnabled, PointChargeError } from "../../services/mp-point"
 
@@ -2103,22 +2107,49 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 }
 
 
+/** Impresora fiscal: se consulta hasta tener el resultado real del equipo. */
+function ControllerResult({ doc }: { doc: FiscalDocumentSummary }) {
+  const { state } = useAuth()
+  const tenantId = state.status === "authenticated" ? state.tenantId : undefined
+  const [live, setLive] = useState<ControllerDocument | null>(null)
+  const active = !live || CONTROLLER_ACTIVE.has(live.status)
+  useEffect(() => {
+    if (!tenantId || !active) return
+    let tries = 0
+    const tick = () => {
+      tries++
+      void getControllerDocument(tenantId, doc.id).then(setLive).catch(() => undefined)
+    }
+    tick()
+    const id = setInterval(() => {
+      if (tries >= 100) clearInterval(id)
+      else tick()
+    }, 3000)
+    return () => clearInterval(id)
+  }, [tenantId, doc.id, active])
+  const ok = live?.status === "confirmed"
+  const bad = live && !active && !ok
+  return (
+    <div className={`invoice-result ${ok ? "authorized" : bad ? "rejected" : "pending"}`} role={bad ? "alert" : "status"}>
+      {live ? controllerOutcomeText(live) : doc.message ?? "Enviado a la impresora fiscal de la caja"}
+    </div>
+  )
+}
+
 /** Resultado de la factura en la pantalla de venta completada (Fase 5). */
 function InvoiceResults({ invoices }: { invoices?: FiscalDocumentSummary[] }) {
   if (!invoices || invoices.length === 0) return null
   return (
     <div className="invoice-results">
-      {invoices.map((doc) => (
+      {invoices.map((doc) => doc.channel === "controller" ? <ControllerResult key={doc.id} doc={doc} /> : (
         <div key={doc.id} className={`invoice-result ${doc.status}`}>
-          {doc.channel === "controller"
-            ? doc.message ?? "Enviado a la impresora fiscal de la caja"
-            : doc.status === "authorized"
-              ? `${doc.label} · CAE ${doc.cae}`
-              : doc.status === "rejected"
-                ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`
-                : doc.status === "needs_review"
-                  ? `Factura en revisión: ${doc.message ?? "la resuelve un administrador en Facturación"}`
-                  : "Factura esperando a ARCA — se emite sola en cuanto responda"}
+          {doc.status === "authorized"
+            ? `${doc.label} · CAE ${doc.cae}`
+            : doc.status === "rejected"
+              ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`
+              : doc.status === "needs_review"
+                ? `Factura en revisión: ${doc.message ?? "la resuelve un administrador en Facturación"}`
+                : "Factura esperando a ARCA — se emite sola en cuanto responda"}
         </div>
       ))}
     </div>

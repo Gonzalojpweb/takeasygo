@@ -14,6 +14,7 @@ export interface FiscalConfig {
   environment: "homologation" | "production"
   letterForFinalConsumer: "A" | "B" | "C" | null
   letterForCompany: "A" | "B" | "C" | null
+  modality?: "electronic" | "controller" | "none"
 }
 
 /** Lo que eligió el cajero en el cobro. */
@@ -24,6 +25,8 @@ export interface InvoiceChoice {
   /** CUIT (empresa) o DNI (consumidor final identificado, opcional). */
   docNumber: string
   name: string
+  /** Domicilio del cliente: lo exige el Tique Factura de la impresora fiscal. */
+  address?: string
 }
 
 export interface FiscalDocumentSummary {
@@ -49,7 +52,7 @@ export interface FiscalDocumentSummary {
  * deja la factura pendiente en el mismo pedido que confirma el cobro, así no
  * se pierde si el POS se cierra antes de pedirla.
  */
-export type InvoiceIntent = { none: true } | { receiver: { condition: string; docNumber: string; name: string } }
+export type InvoiceIntent = { none: true } | { receiver: { condition: string; docNumber: string; name: string; address?: string } }
 
 export function invoiceIntentFor(choice: InvoiceChoice): InvoiceIntent {
   if (choice.type === "none") return { none: true }
@@ -57,8 +60,8 @@ export function invoiceIntentFor(choice: InvoiceChoice): InvoiceIntent {
   return {
     receiver:
       choice.type === "company"
-        ? { condition: choice.companyCondition, docNumber, name: choice.name.trim() }
-        : { condition: "consumidor_final", docNumber, name: choice.name.trim() },
+        ? { condition: choice.companyCondition, docNumber, name: choice.name.trim(), address: choice.address?.trim() || undefined }
+        : { condition: "consumidor_final", docNumber, name: choice.name.trim(), address: choice.address?.trim() || undefined },
   }
 }
 
@@ -90,6 +93,72 @@ export async function requestControllerReport(tenantId: string, kind: "x" | "z",
     body: { kind, requestId },
   })
   return report
+}
+
+// ── Impresora fiscal homologada: comprobantes ───────────────────────────────
+
+export interface ControllerDocument {
+  id: string
+  kind: "invoice" | "credit_note"
+  status: "pending" | "claimed" | "sending" | "confirmed" | "failed" | "unknown" | "driver_unavailable" | "cancelled" | "expired"
+  documentType: string | null
+  pointOfSale: number | null
+  number: number | null
+  totalCents: number
+  message: string | null
+  createdAt: string
+  receiver: { name: string; condition: string; docNumber: string }
+  orderPosId: string | null
+  orderNumber: string | null
+  orderCancelled: boolean
+  hasCreditNote: boolean
+}
+
+export interface ControllerDocuments {
+  range: { from: string; to: string }
+  counts: { confirmed: number; pending: number; attention: number }
+  totals: { invoicedCents: number; creditedCents: number; netCents: number }
+  documents: ControllerDocument[]
+}
+
+export const CONTROLLER_ACTIVE = new Set(["pending", "claimed", "sending"])
+
+/** Nombre legible: «Tique 46280», «Nota de crédito B 12». */
+export function controllerDocumentLabel(d: Pick<ControllerDocument, "kind" | "documentType" | "number">): string {
+  const base = d.documentType
+    ? d.documentType.replace("TIQUE FACTURA", "Tique Factura").replace("TIQUE NOTA DE CREDITO", "Nota de crédito").replace("TIQUE", "Tique")
+    : d.kind === "credit_note" ? "Nota de crédito" : "Comprobante"
+  return d.number ? `${base} ${d.number}` : base
+}
+
+/** Texto para el cajero según el resultado real del equipo. */
+export function controllerOutcomeText(d: ControllerDocument): string {
+  const name = controllerDocumentLabel(d)
+  switch (d.status) {
+    case "confirmed": return `${name} emitido${d.message ? `. ${d.message}` : ""}`
+    case "pending": case "claimed": return "Enviado a la impresora fiscal: esperando al agente de la caja"
+    case "sending": return "Imprimiendo en la impresora fiscal…"
+    case "unknown": return "No se sabe si el comprobante salió. Mirá el papel y resolvelo en Facturación: no se reemite solo."
+    case "cancelled": return "Comprobante frenado: no se emitió"
+    default: return `El comprobante NO salió: ${d.message ?? "reintentalo desde Facturación"}`
+  }
+}
+
+export async function listControllerDocuments(tenantId: string, range: { from: string; to: string }): Promise<ControllerDocuments> {
+  const q = new URLSearchParams(range)
+  return posApi<ControllerDocuments>(tenantId, `/fiscal/controller/documents?${q}`)
+}
+
+export async function getControllerDocument(tenantId: string, id: string): Promise<ControllerDocument> {
+  const { document } = await posApi<{ document: ControllerDocument }>(tenantId, `/fiscal/controller/documents/${encodeURIComponent(id)}`)
+  return document
+}
+
+export type ControllerDocumentAction = { action: "retry" } | { action: "credit_note" } | { action: "resolve"; emitted: boolean; number?: number }
+
+export async function actOnControllerDocument(tenantId: string, id: string, body: ControllerDocumentAction): Promise<ControllerDocument> {
+  const { document } = await posApi<{ document: ControllerDocument }>(tenantId, `/fiscal/controller/documents/${encodeURIComponent(id)}`, { method: "POST", body })
+  return document
 }
 
 export interface FiscalAlert {

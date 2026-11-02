@@ -21,6 +21,11 @@ import Order from '@/models/Order'
 import {
   claimControllerJobs,
   completeControllerJob,
+  controllerAttention,
+  creditNoteForControllerOrder,
+  listControllerDocuments,
+  resolveControllerJob,
+  retryControllerJob,
   enqueueControllerInvoice,
   enqueueControllerReport,
   modalityFor,
@@ -203,6 +208,114 @@ describe('Informes X y Z', () => {
     await startControllerJob(String(job._id), claimed.claimId!)
     const out = await completeControllerJob(String(job._id), { claimId: claimed.claimId!, outcome: 'confirmed', result: { documentType: 'CIERRE Z', number: 1355 } })
     expect(out).toMatchObject({ status: 'confirmed', result: { number: 1355 } })
+  })
+})
+
+describe('Comprobantes: vencimiento, nota de crédito, reintento y resolución', () => {
+  async function emitted(number = 46280) {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    const [claimed] = await claimControllerJobs(tenantId, ctrlLocation, 'x')
+    await startControllerJob(String(claimed._id), claimed.claimId!)
+    await completeControllerJob(String(claimed._id), { claimId: claimed.claimId!, outcome: 'confirmed', result: { documentType: 'TIQUE', pointOfSale: 4, number } })
+    return { orderId, jobId: String(job._id) }
+  }
+
+  it('un comprobante que nadie tomó en 15 minutos vence: no sale horas después', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { expiresAt: new Date(Date.now() - 1000) } })
+    expect(await claimControllerJobs(tenantId, ctrlLocation, 'x')).toHaveLength(0)
+    expect((await FiscalControllerJob.findById(job._id))!.status).toBe('expired')
+  })
+
+  it('uno creado antes de existir el vencimiento también vence, por su antigüedad', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.collection.updateOne({ _id: job._id }, { $set: { expiresAt: null, createdAt: new Date(Date.now() - 3_600_000) } })
+    expect(await claimControllerJobs(tenantId, ctrlLocation, 'x')).toHaveLength(0)
+    expect((await FiscalControllerJob.findById(job._id))!.status).toBe('expired')
+  })
+
+  it('un vencido se reintenta a mano y vuelve a entregarse', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { expiresAt: new Date(Date.now() - 1000) } })
+    await claimControllerJobs(tenantId, ctrlLocation, 'x')
+    await retryControllerJob(String(tenantId), String(ctrlLocation), String(job._id))
+    expect(await claimControllerJobs(tenantId, ctrlLocation, 'x')).toHaveLength(1)
+  })
+
+  it('un resultado desconocido o ya emitido NO se reintenta', async () => {
+    const { jobId } = await emitted()
+    await expect(retryControllerJob(String(tenantId), String(ctrlLocation), jobId)).rejects.toThrow(/no se emitió/)
+    await FiscalControllerJob.updateOne({ _id: jobId }, { $set: { status: 'unknown' } })
+    await expect(retryControllerJob(String(tenantId), String(ctrlLocation), jobId)).rejects.toThrow(/no se emitió/)
+  })
+
+  it('una venta anulada no reemite su comprobante', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { status: 'failed' } })
+    await Order.updateOne({ _id: orderId }, { $set: { status: 'cancelled' } })
+    await expect(retryControllerJob(String(tenantId), String(ctrlLocation), String(job._id))).rejects.toThrow(/anulada/)
+  })
+
+  it('anular una venta emitida crea UNA nota de crédito que apunta al comprobante', async () => {
+    const { orderId } = await emitted(46281)
+    const input = { tenantId: String(tenantId), orderId, userId: 'u' }
+    const [a, b] = await Promise.all([creditNoteForControllerOrder(input), creditNoteForControllerOrder(input)])
+    expect([a.kind, b.kind]).toEqual(['queued', 'queued'])
+    const notes = await FiscalControllerJob.find({ tenantId, orderId, operation: 'credit_note' })
+    expect(notes).toHaveLength(1)
+    expect(notes[0].payload!.origin).toEqual({ documentType: 'TIQUE', pointOfSale: 4, number: 46281 })
+  })
+
+  it('anular antes de que salga lo frena: el agente ya no puede enviarlo', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    const [claimed] = await claimControllerJobs(tenantId, ctrlLocation, 'x')
+    expect((await creditNoteForControllerOrder({ tenantId: String(tenantId), orderId, userId: 'u' })).kind).toBe('stopped')
+    expect(await startControllerJob(String(claimed._id), claimed.claimId!)).toBe(false)
+    expect(await FiscalControllerJob.exists({ tenantId, orderId, operation: 'credit_note' })).toBeNull()
+  })
+
+  it('con el resultado incierto no decide, y una persona lo resuelve', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { status: 'unknown' } })
+    const input = { tenantId: String(tenantId), orderId, userId: 'u' }
+    await expect(creditNoteForControllerOrder(input)).rejects.toThrow(/desconocido/)
+    const base = { tenantId: String(tenantId), locationId: String(ctrlLocation), id: String(job._id), userId: 'u' }
+    await expect(resolveControllerJob({ ...base, emitted: true })).rejects.toThrow(/número/)
+    const fixed = await resolveControllerJob({ ...base, emitted: true, number: 77 })
+    expect([fixed.status, fixed.result.number, fixed.resolvedBy]).toEqual(['confirmed', 77, 'u'])
+    expect((await creditNoteForControllerOrder(input)).kind).toBe('queued')
+  })
+
+  it('el domicilio del cliente viaja al equipo', async () => {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({
+      tenantId: String(tenantId), orderId, userId: 'u',
+      receiver: { condition: 'responsable_inscripto', docNumber: '30712345671', name: 'Empresa', address: 'Av. Siempre Viva 123' },
+    })
+    expect(job.payload!.receiver).toMatchObject({ docType: 80, address: 'Av. Siempre Viva 123' })
+  })
+
+  it('el listado y las alertas muestran lo que necesita a una persona', async () => {
+    const { orderId } = await emitted(46282)
+    await Order.updateOne({ _id: orderId }, { $set: { status: 'cancelled' } })
+    const failedOrder = await paidOrder(ctrlLocation)
+    const failed = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId: failedOrder, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: failed._id }, { $set: { status: 'failed', lastError: 'Sin papel' } })
+
+    const attention = await controllerAttention(tenantId, { locationId: ctrlLocation })
+    expect(attention).toEqual({ unknown: 0, notEmitted: 1, voidedWithoutCredit: 1 })
+
+    const list = await listControllerDocuments(String(tenantId), String(ctrlLocation), {})
+    expect(list.documents).toHaveLength(2)
+    expect(list.counts).toMatchObject({ confirmed: 1, attention: 1 })
+    expect(list.documents.find((d) => d.number === 46282)).toMatchObject({ orderCancelled: true, hasCreditNote: false })
   })
 })
 

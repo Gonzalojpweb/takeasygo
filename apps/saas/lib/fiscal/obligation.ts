@@ -32,7 +32,7 @@ export function readInvoiceIntent(body: unknown): InvoiceIntent {
   const raw = (body as { invoice?: unknown } | null)?.invoice
   if (raw === undefined || raw === null) return undefined
   if (typeof raw !== 'object') return undefined
-  const value = raw as { none?: unknown; receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown } }
+  const value = raw as { none?: unknown; receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown; address?: unknown } }
   if (value.none === true) return { none: true }
   const r = value.receiver
   if (!r || typeof r !== 'object') return undefined
@@ -42,6 +42,7 @@ export function readInvoiceIntent(body: unknown): InvoiceIntent {
       condition,
       docNumber: typeof r.docNumber === 'string' ? r.docNumber.slice(0, 20) : null,
       name: typeof r.name === 'string' ? r.name.slice(0, 120) : null,
+      address: typeof r.address === 'string' ? r.address.slice(0, 120) : null,
     },
   }
 }

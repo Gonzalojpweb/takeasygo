@@ -15,6 +15,7 @@ import { runAfterResponse } from '@/lib/after-response'
 import { isVoidReason, VOID_REASON_LABELS } from '@takeasygo/business'
 import { documentSummary, issueCreditNoteForOrder } from '@/lib/fiscal/issue'
 import { enqueueFiscalTicket } from '@/lib/fiscal/ticket'
+import { creditNoteForControllerOrder } from '@/lib/fiscal/controller'
 import type { PaymentMethod } from '@takeasygo/types'
 
 // ============================================================================
@@ -151,6 +152,22 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
 
   runAfterResponse('referidos (venta POS anulada)', () => syncReferralsForOrder(updated as never))
 
+  // Sede con impresora fiscal: el comprobante se revierte en el equipo. Si
+  // todavía no había salido se frena; con resultado incierto avisa y no decide.
+  let fiscalNotice: string | null = null
+  try {
+    const out = await creditNoteForControllerOrder({
+      tenantId: ctx.tenantId,
+      orderId: String((updated as unknown as { _id: unknown })._id),
+      userId: ctx.user.id,
+    })
+    if (out.kind === 'queued') fiscalNotice = 'Nota de crédito enviada a la impresora fiscal.'
+    if (out.kind === 'stopped') fiscalNotice = 'El comprobante todavía no había salido: se frenó y no hace falta nota de crédito.'
+  } catch (err) {
+    fiscalNotice = err instanceof Error ? err.message : 'Revisá el comprobante en Facturación.'
+    console.error('[pos/void] impresora fiscal:', err)
+  }
+
   // Nota de crédito de la factura (si la había). Nunca frena la anulación.
   let creditNote: ReturnType<typeof documentSummary> | null = null
   try {
@@ -188,5 +205,5 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ order: toPosOrder(updated as never), creditNote })
+  return NextResponse.json({ order: toPosOrder(updated as never), creditNote, fiscalNotice })
 })

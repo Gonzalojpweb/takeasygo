@@ -4,22 +4,22 @@
 // Habla con el equipo a través de la DLL oficial EpsonFiscalDriver (SDK
 // 3.07.00) usando epson-bridge.ps1. Comandos: epson-commands.js.
 //
-// Informes: X (salida de cajero) y Z (cierre de jornada, irreversible). Si se
-// corta durante un Z se verifica con el contador de cierres; nunca se reenvía.
-//
-// Alcance (02/11/2026): TIQUE a consumidor final (sin identificar). El Tique
-// Factura A/B (0B) y la Nota de Crédito quedan pendientes: se rechazan sin
-// enviar nada al equipo.
+// Documentos: Tique (consumidor final), Tique Factura A/B/C (cliente
+// identificado) y sus notas de crédito. Informes: X (salida de cajero) y Z
+// (cierre de jornada, irreversible).
 //
 // Seguridad fiscal:
 //   1. Antes de emitir: estado del equipo. Con un documento abierto, papel o
 //      tapa con problemas, o en MODO FISCAL sin habilitación explícita
 //      (config.json → epson.allowFiscalMode), NO se emite.
-//   2. Se anota el último tique completado (08 30) antes de emitir.
-//   3. Si el equipo rechaza un dato después de abrir el tique ⇒ se cancela
-//      (0A 07). Si se corta la comunicación ⇒ RECUPERACIÓN: si el contador
-//      subió, el tique salió (se informa con su número); si quedó abierto, se
-//      cancela; si no se puede saber ⇒ 'unknown' (nunca se reemite solo).
+//   2. Se anotan los últimos documentos completados (08 30) antes de emitir.
+//   3. Si el equipo rechaza un dato después de abrir ⇒ se cancela. Si se corta
+//      la comunicación ⇒ RECUPERACIÓN: si un contador subió, el documento salió
+//      (se informa con su número); si quedó abierto, se cancela; si no se puede
+//      saber ⇒ 'unknown' (nunca se reemite solo).
+//
+// La condición de IVA y el punto de venta se leen DEL EQUIPO (05 07): es quien
+// va a emitir y valida contra esos datos.
 //
 // Configuración (config.json del agente, todo opcional):
 //   "epson": { "dllPath": "C:\\TakeasyGo\\printer-agent\\fiscal-drivers\\epson\\EpsonFiscalDriver.dll",
@@ -87,7 +87,7 @@ function runBridge(dllPath, port, commands, stopOnError) {
 }
 
 // Reemplazable solo en las pruebas (sin DLL ni equipo).
-let bridge = runBridge
+let bridge = runBridge;
 
 const hex = (n) => `0x${(Number(n) >>> 0).toString(16).toUpperCase().padStart(4, '0')}`;
 
@@ -95,12 +95,23 @@ function findResult(res, cmd) {
     return (res.results || []).find((r) => r.command === cmd) || null;
 }
 
-/** Último tique COMPLETADO según 08 30 (campo de salida 6). */
-function lastCompleted(res) {
-    const r = findResult(res, C.CMD.COUNTERS);
-    if (!r || r.dllError !== 0 || r.returnCode !== 0) return null;
-    const n = Number((r.fields || [])[5]);
-    return Number.isInteger(n) ? n : null;
+/** Consulta de contadores de varios tipos de documento (una por tipo, en orden). */
+function counterCommands(types) {
+    return types.map((t) => `${C.CMD.COUNTERS}|0000|${t}`);
+}
+
+/** { tipo: último completado } según 08 30 (campo de salida 6). null si no se pudo leer. */
+function readCounters(res, types) {
+    const rows = (res.results || []).filter((r) => r.command === C.CMD.COUNTERS);
+    const out = {};
+    for (let i = 0; i < types.length; i++) {
+        const r = rows[i];
+        if (!r || r.dllError !== 0 || r.returnCode !== 0) return null;
+        const n = Number((r.fields || [])[5]);
+        if (!Number.isInteger(n)) return null;
+        out[types[i]] = n;
+    }
+    return out;
 }
 
 /** Último cierre Z según 08 30 (campo de salida 1). */
@@ -111,11 +122,24 @@ function lastZReport(res) {
     return Number.isInteger(n) ? n : null;
 }
 
-async function precheck(dllPath, port, cfg) {
-    const res = await bridge(dllPath, port, [`${C.CMD.STATUS}|0000`, `${C.CMD.COUNTERS}|0000|${C.DOC_TYPE.TIQUE}`], false);
+/** Datos fiscales DEL EQUIPO (05 07): punto de venta y condición de IVA. */
+function readFiscalData(res) {
+    const r = findResult(res, C.CMD.FISCAL_DATA);
+    if (!r || r.dllError !== 0 || r.returnCode !== 0) return { pointOfSale: null, issuerIvaCondition: null };
+    const f = r.fields || [];
+    const pos = Number(f[2]);
+    const code = String(f[3] || '').trim().toUpperCase();
+    return {
+        pointOfSale: Number.isInteger(pos) && pos > 0 ? pos : null,
+        issuerIvaCondition: code === 'I' ? 'responsable_inscripto' : code ? 'no_responsable_inscripto' : null,
+    };
+}
+
+async function precheck(dllPath, port, cfg, types) {
+    const res = await bridge(dllPath, port, [`${C.CMD.STATUS}|0000`, `${C.CMD.FISCAL_DATA}|0000`, ...counterCommands(types)], false);
     if (res.setupError) throw new DriverUnavailableError(res.setupError);
     if (!res.opened) {
-        const e = new Error(`No se pudo abrir la comunicación con la impresora fiscal (${hex(res.dllError)}). Revisar el cable USB y que esté encendida.`);
+        const e = new Error(`No se pudo abrir la comunicación con la impresora fiscal (${hex(res.dllError)}). Revisar el cable USB, que esté encendida y que no haya otro programa usándola.`);
         e.beforeSend = true;
         throw e;
     }
@@ -135,14 +159,16 @@ async function precheck(dllPath, port, cfg) {
     if (fiscal.documentInProgress !== 0) throw refuse('Hay un documento abierto en la impresora fiscal. Cerrarlo o cancelarlo antes de emitir.');
     if (fiscal.fiscalMemory >= 2 || fiscal.transactionMemory >= 2) throw refuse('La memoria fiscal o de transacciones está llena o con desperfectos');
     if (printer.offline || printer.error || printer.coverOpen) throw refuse('La impresora fiscal está fuera de línea, con error o con la tapa abierta');
-    return { fiscal, lastBefore: lastCompleted(res), lastZ: lastZReport(res) };
+    return { fiscal, before: readCounters(res, types), lastZ: lastZReport(res), data: readFiscalData(res) };
 }
 
-/** Después de un corte: ¿salió el tique? */
-async function recover(dllPath, port, lastBefore, cause) {
+/** Después de un corte o un rechazo: ¿salió el documento? */
+async function recover(dllPath, port, klass, before, pointOfSale, cause) {
+    const cls = C.DOCUMENT_CLASSES[klass];
+    const types = Object.keys(cls.counters).map(Number);
     let res;
     try {
-        res = await bridge(dllPath, port, [`${C.CMD.STATUS}|0000`, `${C.CMD.COUNTERS}|0000|${C.DOC_TYPE.TIQUE}`], false);
+        res = await bridge(dllPath, port, [`${C.CMD.STATUS}|0000`, ...counterCommands(types)], false);
     } catch {
         return { outcome: 'unknown', errorMsg: `${cause}. No se pudo consultar el equipo después: verificar el papel y la memoria fiscal antes de reintentar.` };
     }
@@ -150,23 +176,30 @@ async function recover(dllPath, port, lastBefore, cause) {
     const status = findResult(res, C.CMD.STATUS);
     const fiscal = status && status.dllError === 0 ? C.decodeFiscalStatus(status.fiscalStatus) : null;
     if (fiscal && fiscal.documentInProgress !== 0) {
-        const cancel = await bridge(dllPath, port, [`${C.CMD.TICKET_CANCEL}|0000`], true).catch(() => null);
+        const cancelCmd = C.CANCEL_BY_IN_PROGRESS[fiscal.documentInProgress];
+        const cancel = cancelCmd ? await bridge(dllPath, port, [`${cancelCmd}|0000`], true).catch(() => null) : null;
         const ok = cancel && cancel.opened && (cancel.results || [])[0] && cancel.results[0].returnCode === 0;
         return ok
-            ? { outcome: 'failed', errorMsg: `${cause}. El tique quedó abierto y se canceló: no se emitió.` }
-            : { outcome: 'unknown', errorMsg: `${cause}. El tique quedó abierto y no se pudo cancelar: revisar el equipo.` };
+            ? { outcome: 'failed', errorMsg: `${cause}. El documento quedó abierto y se canceló: no se emitió.` }
+            : { outcome: 'unknown', errorMsg: `${cause}. El documento quedó abierto y no se pudo cancelar: revisar el equipo.` };
     }
-    const after = lastCompleted(res);
-    if (after !== null && lastBefore !== null && after > lastBefore) {
-        return {
-            outcome: 'confirmed',
-            result: { documentType: 'TIQUE', number: after, totalCents: null, raw: `Recuperado por contadores (08 30): último completado ${lastBefore} → ${after}` },
-        };
+    const after = readCounters(res, types);
+    if (after && before) {
+        const risen = types.find((t) => after[t] > before[t]);
+        if (risen !== undefined) {
+            return {
+                outcome: 'confirmed',
+                result: {
+                    documentType: cls.counters[risen],
+                    pointOfSale,
+                    number: after[risen],
+                    raw: `Recuperado por contadores (08 30): ${before[risen]} → ${after[risen]}`,
+                },
+            };
+        }
+        return { outcome: 'failed', errorMsg: `${cause}. Los contadores no cambiaron: no se emitió.` };
     }
-    if (after !== null && lastBefore !== null && after === lastBefore) {
-        return { outcome: 'failed', errorMsg: `${cause}. El contador no cambió: el tique no se emitió.` };
-    }
-    return { outcome: 'unknown', errorMsg: `${cause}. No se pudo determinar si el tique salió.` };
+    return { outcome: 'unknown', errorMsg: `${cause}. No se pudo determinar si el documento salió.` };
 }
 
 /** Después de un corte durante un informe: ¿se hizo el Z? El X no deja contador. */
@@ -189,7 +222,7 @@ async function recoverReport(dllPath, port, kind, lastZ, cause) {
 }
 
 async function runReport(dllPath, port, cfg, kind) {
-    const { fiscal, lastZ } = await precheck(dllPath, port, cfg);
+    const { fiscal, lastZ } = await precheck(dllPath, port, cfg, [C.DOC_TYPE.TIQUE]);
     if (kind === 'z' && !fiscal.dayOpen) {
         throw Object.assign(new Error('La jornada fiscal ya está cerrada: no hay nada para cerrar. Se abre con el primer tique.'), { beforeSend: true });
     }
@@ -214,38 +247,36 @@ async function runReport(dllPath, port, cfg, kind) {
     return { outcome: 'confirmed', result: { documentType, number, raw: `${documentType} ${number}` } };
 }
 
-async function execute(device, operation, payload) {
-    if (operation === 'x_report' || operation === 'z_report') {
-        const cfg = loadConfig();
-        const dllPath = cfg.dllPath || path.join(__dirname, 'epson', 'EpsonFiscalDriver.dll');
-        return runReport(dllPath, portFor(device, cfg), cfg, operation === 'z_report' ? 'z' : 'x');
-    }
-    if (operation !== 'invoice') {
-        throw new DriverUnavailableError(`La operación «${operation}» todavía no está implementada para Epson`);
-    }
-    const receiver = (payload && payload.receiver) || {};
-    if (receiver.condition !== 'consumidor_final' || (receiver.docType && receiver.docType !== 99)) {
-        throw new DriverUnavailableError('Tique Factura A/B (cliente identificado) todavía no implementado para Epson: solo consumidor final');
-    }
+/** Nombre del documento con la letra que devolvió el equipo. */
+function documentTypeName(cls, letter) {
+    const names = Object.values(cls.counters);
+    if (names.length === 1) return names[0];
+    const match = names.find((n) => n.endsWith(` ${letter}`));
+    return match || names[0].replace(/ [A-Z]$/, letter ? ` ${letter}` : '');
+}
 
-    const cfg = loadConfig();
-    const dllPath = cfg.dllPath || path.join(__dirname, 'epson', 'EpsonFiscalDriver.dll');
-    const port = portFor(device, cfg);
+async function runDocument(dllPath, port, cfg, kind, payload) {
+    const klass = C.documentClassFor(payload && payload.receiver, kind);
+    const cls = C.DOCUMENT_CLASSES[klass];
+    const types = Object.keys(cls.counters).map(Number);
+    const { before, data } = await precheck(dllPath, port, cfg, types);
+
     let commands;
     try {
-        commands = C.buildTicketCommands(payload);
+        commands = C.buildDocumentCommands(
+            { ...payload, issuerIvaCondition: data.issuerIvaCondition || (payload && payload.issuerIvaCondition) },
+            { kind, pointOfSale: data.pointOfSale }
+        );
     } catch (e) {
         // Dato inválido: todavía no se tocó el equipo.
         throw Object.assign(new Error(`Venta con datos inválidos para la impresora fiscal: ${e.message}`), { beforeSend: true });
     }
 
-    const { lastBefore } = await precheck(dllPath, port, cfg);
-
     let res;
     try {
         res = await bridge(dllPath, port, commands, true);
     } catch (e) {
-        return recover(dllPath, port, lastBefore, e.message);
+        return recover(dllPath, port, klass, before, data.pointOfSale, e.message);
     }
     if (res.setupError) throw new DriverUnavailableError(res.setupError);
     if (!res.opened) {
@@ -254,44 +285,66 @@ async function execute(device, operation, payload) {
 
     const results = res.results || [];
     const failed = results.find((r) => r.dllError !== 0 || r.returnCode !== 0);
-    const close = findResult(res, C.CMD.TICKET_CLOSE);
+    const close = findResult(res, `${cls.prefix}06`);
     if (!failed && close) {
         const f = close.fields || [];
-        const number = Number(f[0]);
+        const number = Number(f[cls.numberField]);
         if (!Number.isInteger(number) || number <= 0) {
             // Cerró bien pero sin número: se lee de los contadores (08 30).
-            return recover(dllPath, port, lastBefore, 'El equipo cerró el tique pero no informó el número');
+            return recover(dllPath, port, klass, before, data.pointOfSale, 'El equipo cerró el documento pero no informó el número');
         }
+        const letter = cls.letterField !== undefined ? String(f[cls.letterField] || '').trim() : '';
+        const total = Number(f[cls.totalField]);
+        const expected = Number(payload && payload.totalCents);
+        // El comprobante YA se emitió: una diferencia se avisa, no lo invalida.
+        const mismatch = Number.isInteger(total) && Number.isInteger(expected) && Math.abs(total - expected) > 1
+            ? `El total del comprobante ($${(total / 100).toFixed(2)}) no coincide con la venta ($${(expected / 100).toFixed(2)}).`
+            : null;
         return {
             outcome: 'confirmed',
             result: {
-                documentType: 'TIQUE',
+                documentType: documentTypeName(cls, letter),
+                pointOfSale: data.pointOfSale,
                 number,
-                totalCents: Number.isInteger(Number(f[1])) ? Number(f[1]) : undefined,
-                raw: `Tique ${f[0]} · total ${f[1] || '?'} · IVA ${f[2] || '?'}`,
+                totalCents: Number.isInteger(total) ? total : undefined,
+                raw: `${documentTypeName(cls, letter)} ${number} · total ${f[cls.totalField] || '?'}`,
             },
+            errorMsg: mismatch,
         };
     }
 
     if (failed && failed.dllError !== 0) {
         // Se cortó la comunicación en medio de la emisión.
-        return recover(dllPath, port, lastBefore, `Error de comunicación ${hex(failed.dllError)} en el comando ${failed.command}`);
+        return recover(dllPath, port, klass, before, data.pointOfSale, `Error de comunicación ${hex(failed.dllError)} en el comando ${failed.command}`);
     }
 
     const reason = failed
         ? `El equipo rechazó el comando ${failed.command} (código ${hex(failed.returnCode)})`
-        : 'La emisión terminó sin cerrar el tique';
-    if (failed && failed.command === C.CMD.TICKET_OPEN) {
-        return { outcome: 'failed', errorMsg: `${reason}. No se abrió el tique.` };
+        : 'La emisión terminó sin cerrar el documento';
+    if (failed && failed.command === `${cls.prefix}01`) {
+        return { outcome: 'failed', errorMsg: `${reason}. No se abrió el documento.` };
     }
-    // El tique quedó abierto: se cancela para no dejar el equipo trabado.
-    return recover(dllPath, port, lastBefore, reason);
+    // Quedó abierto: se cancela para no dejar el equipo trabado.
+    return recover(dllPath, port, klass, before, data.pointOfSale, reason);
+}
+
+async function execute(device, operation, payload) {
+    const cfg = loadConfig();
+    const dllPath = cfg.dllPath || path.join(__dirname, 'epson', 'EpsonFiscalDriver.dll');
+    const port = portFor(device, cfg);
+    if (operation === 'x_report' || operation === 'z_report') {
+        return runReport(dllPath, port, cfg, operation === 'z_report' ? 'z' : 'x');
+    }
+    if (operation === 'invoice' || operation === 'credit_note') {
+        return runDocument(dllPath, port, cfg, operation, payload);
+    }
+    throw new DriverUnavailableError(`La operación «${operation}» todavía no está implementada para Epson`);
 }
 
 module.exports = {
     brand: 'epson',
-    /** Modelos/firmware probados FÍSICAMENTE: completar después de la prueba. */
-    validatedModels: [],
+    /** Modelos/firmware probados FÍSICAMENTE. */
+    validatedModels: ['TM-T900FA Vesta 1.01'],
     execute,
     /** Solo pruebas: simula la DLL. */
     __setBridgeForTests(fn) { bridge = fn || runBridge; },

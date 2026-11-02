@@ -75,6 +75,8 @@ export interface ReceiverInput {
   /** CUIT (Factura A) o DNI (consumidor final identificado). */
   docNumber?: string | null
   name?: string | null
+  /** Domicilio del cliente: el Tique Factura de una impresora fiscal lo exige. */
+  address?: string | null
 }
 
 interface ProfileForIssue {
@@ -457,7 +459,7 @@ export async function prepareInvoiceForOrder(input: {
   if ((profile.controllers ?? []).some((c) => c.active && String(c.locationId) === String(order.locationId))) {
     throw new FiscalIssueError('Esta sede emite con controlador fiscal, no con factura electrónica')
   }
-  if (await FiscalControllerJob.exists({ tenantId, orderId: order._id, status: { $nin: ['cancelled', 'failed', 'driver_unavailable'] } })) {
+  if (await FiscalControllerJob.exists({ tenantId, orderId: order._id, status: { $nin: ['cancelled', 'failed', 'driver_unavailable', 'expired'] } })) {
     throw new FiscalIssueError('La venta ya tiene una operación en el controlador fiscal')
   }
   const pointOfSale = pointOfSaleFor(profile, order.locationId)

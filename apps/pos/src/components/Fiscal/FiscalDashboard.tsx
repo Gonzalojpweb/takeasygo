@@ -13,6 +13,10 @@ import {
   getFiscalHealth,
   getControllerReports,
   requestControllerReport,
+  listControllerDocuments,
+  actOnControllerDocument,
+  controllerDocumentLabel,
+  CONTROLLER_ACTIVE,
   listFiscalDocuments,
   reprintFiscalDocument,
   retryFiscalDocument,
@@ -21,6 +25,8 @@ import {
   type FiscalConfig,
   type FiscalHealth,
   type ControllerReports,
+  type ControllerDocument,
+  type ControllerDocuments,
   type ReviewAction,
   type PosFiscalDocument,
   type PosFiscalDocuments,
@@ -59,6 +65,18 @@ const REPORT_STATUS: Record<string, string> = {
 }
 
 const REPORT_ACTIVE = new Set(["pending", "claimed", "sending"])
+
+const CONTROLLER_STATUS: Record<ControllerDocument["status"], { label: string; tone: string }> = {
+  pending: { label: "Esperando al agente", tone: "pending" },
+  claimed: { label: "Enviando", tone: "pending" },
+  sending: { label: "Imprimiendo", tone: "pending" },
+  confirmed: { label: "Emitido", tone: "authorized" },
+  failed: { label: "No salió", tone: "rejected" },
+  expired: { label: "No salió a tiempo", tone: "rejected" },
+  driver_unavailable: { label: "Sin conexión al equipo", tone: "rejected" },
+  unknown: { label: "A verificar", tone: "needs_review" },
+  cancelled: { label: "Frenado", tone: "retrying" },
+}
 
 const PRINT_LABEL: Record<string, string> = {
   not_requested: "Sin imprimir",
@@ -123,9 +141,12 @@ export function FiscalDashboard() {
   const [health, setHealth] = useState<FiscalHealth | null>(null)
   const [controller, setController] = useState<ControllerReports | null>(null)
   const [confirmZ, setConfirmZ] = useState(false)
+  const [printerDocs, setPrinterDocs] = useState<ControllerDocuments | null>(null)
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
+  const [resolvedNumber, setResolvedNumber] = useState("")
   const range = useMemo(() => rangeFor(preset), [preset])
   // Esc: cierra el comprobante abierto (el centro de ayuda maneja su propio Esc).
-  useEscapeBack(selectedId ? () => setSelectedId(null) : null)
+  useEscapeBack(selectedId ? () => setSelectedId(null) : selectedJobId ? () => setSelectedJobId(null) : null)
 
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
@@ -143,7 +164,9 @@ export function FiscalDashboard() {
       setConfig(c)
       setData(d)
       setHealth(h)
-      setController(await getControllerReports(tenantId).catch(() => null))
+      const reports = await getControllerReports(tenantId).catch(() => null)
+      setController(reports)
+      setPrinterDocs(reports?.modality === "controller" ? await listControllerDocuments(tenantId, range).catch(() => null) : null)
     } catch (err) {
       flash("error", err instanceof Error ? err.message : "No se pudieron cargar los comprobantes")
     }
@@ -173,6 +196,18 @@ export function FiscalDashboard() {
   }, [flash, load])
 
   const selected = data?.documents.find((d) => d.id === selectedId) ?? null
+  const selectedJob = printerDocs?.documents.find((d) => d.id === selectedJobId) ?? null
+  const isPrinter = controller?.modality === "controller"
+
+  // Con un comprobante en camino se consulta seguido: el resultado lo da el equipo.
+  const printerActive = Boolean(printerDocs?.documents.some((d) => CONTROLLER_ACTIVE.has(d.status)))
+  useEffect(() => {
+    if (!tenantId || !printerActive) return
+    const id = setInterval(() => {
+      void listControllerDocuments(tenantId, range).then(setPrinterDocs).catch(() => undefined)
+    }, 3000)
+    return () => clearInterval(id)
+  }, [tenantId, printerActive, range])
 
   // Con un informe en curso se consulta seguido: lo ejecuta el agente de la caja.
   const reportActive = Boolean(controller?.reports.some((r) => REPORT_ACTIVE.has(r.status)))
@@ -193,10 +228,70 @@ export function FiscalDashboard() {
   }, [run, tenantId])
 
   useEffect(() => {
+    if (selectedJob) {
+      const st = CONTROLLER_STATUS[selectedJob.status]
+      const canRetry = selectedJob.status === "failed" || selectedJob.status === "expired" || selectedJob.status === "driver_unavailable"
+      const canRetryNow = canRetry && (selectedJob.kind === "credit_note" || !selectedJob.orderCancelled)
+      const canCredit = selectedJob.kind === "invoice" && selectedJob.status === "confirmed" && !selectedJob.hasCreditNote
+      const number = Number(resolvedNumber)
+      setContextPanel({
+        title: controllerDocumentLabel(selectedJob),
+        subtitle: `${new Date(selectedJob.createdAt).toLocaleDateString("es-AR")} · ${formatTime(new Date(selectedJob.createdAt))} · ${formatCurrency(selectedJob.totalCents)}`,
+        body: (
+          <div className="sale-detail">
+            <div className="sale-tags">
+              <span className={`fiscal-status fiscal-status--${st.tone}`}>{st.label}</span>
+              {selectedJob.orderCancelled && <span className="sale-voided">Venta anulada</span>}
+              {selectedJob.hasCreditNote && selectedJob.kind === "invoice" && <span className="sale-voided">Con nota de crédito</span>}
+            </div>
+            <dl className="sale-facts">
+              <div><dt>Receptor</dt><dd>{selectedJob.receiver.name || CONDITION_LABEL[selectedJob.receiver.condition]}</dd></div>
+              {selectedJob.receiver.docNumber !== "0" && <div><dt>Documento</dt><dd>{selectedJob.receiver.docNumber}</dd></div>}
+              <div><dt>Pedido</dt><dd>{selectedJob.orderNumber ?? (selectedJob.orderPosId ? `#${selectedJob.orderPosId.slice(0, 6).toUpperCase()}` : "—")}</dd></div>
+              {selectedJob.pointOfSale && <div><dt>Punto de venta</dt><dd>{selectedJob.pointOfSale}</dd></div>}
+            </dl>
+            {selectedJob.message && <div className={st.tone === "authorized" || st.tone === "retrying" ? "sale-void-info" : "setup-error"}>{selectedJob.message}</div>}
+            {selectedJob.status === "unknown" && (
+              <>
+                <div className="sale-section-title">Mirá el papel y el equipo</div>
+                <div className="setup-error" role="note">El sistema no sabe si salió y no lo vuelve a emitir solo. Si salió, cargá el número impreso.</div>
+                <input className="search-input" inputMode="numeric" placeholder="Número impreso" aria-label="Número impreso en el comprobante" value={resolvedNumber} onChange={(e) => setResolvedNumber(e.target.value.replace(/\D/g, "").slice(0, 8))} />
+                <div className="fiscal-actions">
+                  <button className="ctx-action ctx-action--teal" disabled={busy || !number} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "resolve", emitted: true, number }); setResolvedNumber(""); return "Comprobante registrado como emitido" }) }}>
+                    <span className="ctx-action-icon"><CheckCircle2 size={20} aria-hidden /></span><span className="ctx-action-label">Salió</span><span className="ctx-action-hint">PIN de encargado</span>
+                  </button>
+                  <button className="ctx-action ctx-action--amber" disabled={busy} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "resolve", emitted: false }); return "Registrado como no emitido: ya se puede reintentar" }) }}>
+                    <span className="ctx-action-icon"><ShieldAlert size={20} aria-hidden /></span><span className="ctx-action-label">No salió</span><span className="ctx-action-hint">PIN de encargado</span>
+                  </button>
+                </div>
+              </>
+            )}
+            {(canRetryNow || canCredit) && <div className="sale-section-title">Acciones</div>}
+            <div className="fiscal-actions">
+              {canRetryNow && (
+                <button className="ctx-action ctx-action--amber" disabled={busy} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "retry" }); return "Enviado de nuevo a la impresora fiscal" }) }}>
+                  <span className="ctx-action-icon"><RotateCcw size={20} aria-hidden /></span><span className="ctx-action-label">Reintentar</span><span className="ctx-action-hint">Se sabe que no salió</span>
+                </button>
+              )}
+              {canCredit && (
+                <button className="ctx-action ctx-action--red" disabled={busy} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "credit_note" }); return "Nota de crédito enviada a la impresora fiscal" }) }}>
+                  <span className="ctx-action-icon"><FileMinus size={20} aria-hidden /></span><span className="ctx-action-label">Nota de crédito</span><span className="ctx-action-hint">PIN de encargado</span>
+                </button>
+              )}
+            </div>
+          </div>
+        ),
+      })
+      setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedJobId(null)}>← Volver</button> })
+      return
+    }
+
     if (!selected) {
       setContextPanel({
         title: "Facturación",
-        subtitle: data ? `${data.environment === "homologation" ? "Modo pruebas · " : ""}${data.counts.authorized} autorizados` : "Cargando…",
+        subtitle: isPrinter
+          ? `${printerDocs?.counts.confirmed ?? 0} emitidos en la impresora fiscal`
+          : data ? `${data.environment === "homologation" ? "Modo pruebas · " : ""}${data.counts.authorized} autorizados` : "Cargando…",
         body: (
           <div className="sale-detail">
             {config && !config.enabled && (
@@ -213,7 +308,16 @@ export function FiscalDashboard() {
                 ))}
               </div>
             )}
-            {data && (
+            {isPrinter && printerDocs && (
+              <div className="sale-kpis">
+                <div><span>Emitido</span><strong>{formatCurrency(printerDocs.totals.invoicedCents)}</strong></div>
+                <div><span>Notas de crédito</span><strong>{formatCurrency(printerDocs.totals.creditedCents)}</strong></div>
+                <div><span>Neto</span><strong>{formatCurrency(printerDocs.totals.netCents)}</strong></div>
+                <div><span>En camino</span><strong>{printerDocs.counts.pending}</strong></div>
+                {printerDocs.counts.attention > 0 && <div><span>A revisar</span><strong className="text-error">{printerDocs.counts.attention}</strong></div>}
+              </div>
+            )}
+            {data && !isPrinter && (
               <div className="sale-kpis">
                 <div><span>Facturado</span><strong>{formatCurrency(data.totals.invoicedCents)}</strong></div>
                 <div><span>Notas de crédito</span><strong>{formatCurrency(data.totals.creditedCents)}</strong></div>
@@ -341,14 +445,14 @@ export function FiscalDashboard() {
       ),
     })
     setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>← Volver</button> })
-  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport])
+  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport, selectedJob, isPrinter, printerDocs, resolvedNumber])
 
   return (
     <div className="workspace sales">
       <div className="sales-toolbar">
         <div className="sales-chips" role="group" aria-label="Período">
           {([["today", "Hoy"], ["yesterday", "Ayer"], ["week", "7 días"]] as [Preset, string][]).map(([p, label]) => (
-            <button key={p} type="button" className={`sales-chip${preset === p ? " active" : ""}`} aria-pressed={preset === p} onClick={() => { setPreset(p); setSelectedId(null) }}>{label}</button>
+            <button key={p} type="button" className={`sales-chip${preset === p ? " active" : ""}`} aria-pressed={preset === p} onClick={() => { setPreset(p); setSelectedId(null); setSelectedJobId(null) }}>{label}</button>
           ))}
         </div>
         {data?.environment === "homologation" && <span className="sale-voided">Modo pruebas: sin validez fiscal</span>}
@@ -366,13 +470,24 @@ export function FiscalDashboard() {
         </div>
         <div className="sales-rows fiscal-rows">
           {!data && <div className="loading-state"><span className="spinner" /> Cargando…</div>}
-          {data && data.documents.length === 0 && (
+          {printerDocs?.documents.map((d) => (
+            <button key={d.id} type="button" role="row" aria-selected={selectedJobId === d.id}
+              className={`sales-row fiscal-row${selectedJobId === d.id ? " selected" : ""}`}
+              onClick={() => { setSelectedId(null); setResolvedNumber(""); setSelectedJobId(selectedJobId === d.id ? null : d.id) }}>
+              <span role="cell" className="sales-time">{formatTime(new Date(d.createdAt))}</span>
+              <span role="cell" className="sales-title">{controllerDocumentLabel(d)}</span>
+              <span role="cell" className="sales-items">{d.receiver.name || CONDITION_LABEL[d.receiver.condition]}</span>
+              <span role="cell"><span className={`fiscal-status fiscal-status--${CONTROLLER_STATUS[d.status].tone}`}>{CONTROLLER_STATUS[d.status].label}</span></span>
+              <span role="cell" className="sales-right sale-money">{d.kind === "credit_note" ? "−" : ""}{formatCurrency(d.totalCents)}</span>
+            </button>
+          ))}
+          {data && data.documents.length === 0 && !printerDocs?.documents.length && (
             <div className="empty-state"><span className="empty-state-text">Sin comprobantes en este período</span></div>
           )}
           {data?.documents.map((d: PosFiscalDocument) => (
             <button key={d.id} type="button" role="row" aria-selected={selectedId === d.id}
               className={`sales-row fiscal-row${selectedId === d.id ? " selected" : ""}`}
-              onClick={() => setSelectedId(selectedId === d.id ? null : d.id)}>
+              onClick={() => { setSelectedJobId(null); setSelectedId(selectedId === d.id ? null : d.id) }}>
               <span role="cell" className="sales-time">{formatTime(new Date(d.issuedAt))}</span>
               <span role="cell" className="sales-title">{d.label}</span>
               <span role="cell" className="sales-items">{d.receiver.name || CONDITION_LABEL[d.receiver.condition]}</span>
