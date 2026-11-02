@@ -37,6 +37,8 @@ export interface FiscalDocumentSummary {
   totalCents: number
   message: string | null
   reviewCode?: string | null
+  /** Por dónde se emite: ARCA (factura electrónica) o la impresora fiscal de la caja. */
+  channel?: "arca" | "controller"
   /** Estado de impresión del ticket: independiente del estado fiscal. */
   printStatus?: "not_requested" | "queued" | "printing" | "printed" | "failed" | "unknown"
   caeaReportStatus?: "not_applicable" | "pending" | "informed" | "rejected"
@@ -149,6 +151,7 @@ export async function invoiceOrder(
     letter: "",
     status: "pending",
     label: "Impresora fiscal",
+    channel: "controller",
     cae: null,
     totalCents: 0,
     message: job?.message || "Enviado a la impresora fiscal de la caja",

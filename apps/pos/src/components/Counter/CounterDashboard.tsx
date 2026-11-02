@@ -2110,11 +2110,15 @@ function InvoiceResults({ invoices }: { invoices?: FiscalDocumentSummary[] }) {
     <div className="invoice-results">
       {invoices.map((doc) => (
         <div key={doc.id} className={`invoice-result ${doc.status}`}>
-          {doc.status === "authorized"
-            ? `${doc.label} · CAE ${doc.cae}`
-            : doc.status === "rejected"
-              ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`
-              : "Factura esperando a ARCA — se emite sola en cuanto responda"}
+          {doc.channel === "controller"
+            ? doc.message ?? "Enviado a la impresora fiscal de la caja"
+            : doc.status === "authorized"
+              ? `${doc.label} · CAE ${doc.cae}`
+              : doc.status === "rejected"
+                ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`
+                : doc.status === "needs_review"
+                  ? `Factura en revisión: ${doc.message ?? "la resuelve un administrador en Facturación"}`
+                  : "Factura esperando a ARCA — se emite sola en cuanto responda"}
         </div>
       ))}
     </div>
