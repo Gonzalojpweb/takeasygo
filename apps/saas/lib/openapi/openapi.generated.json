@@ -4227,7 +4227,7 @@
     ],
     "operationId": "get_api_tenant_pos_fiscal",
     "summary": "cómo factura este POS (Fase 5 de caja)",
-    "description": "GET /api/[tenant]/pos/fiscal — cómo factura este POS (Fase 5 de caja)\nLo mínimo para dibujar el selector de factura en el cobro. Sin secretos.\n  enabled: la facturación está activa y esta sede tiene punto de venta.\n  mode: 'ask' | 'always' | 'off'.\n  letterForFinalConsumer / letterForCompany: qué letra sale en cada caso.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/route.ts`",
+    "description": "GET /api/[tenant]/pos/fiscal — cómo factura este POS (Fase 5 de caja)\nLo mínimo para dibujar el selector de factura en el cobro. Sin secretos.\n  enabled: la facturación está activa y esta sede tiene punto de venta.\n  mode: 'ask' | 'always' | 'off'.\n  letterForFinalConsumer / letterForCompany: qué letra sale en cada caso.\n  modality: 'electronic' (ARCA) | 'controller' (impresora fiscal) | 'none'.\n    02/11: una sede con impresora fiscal homologada activa factura con el\n    equipo y NO necesita certificado de ARCA ni la facturación activada.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -4287,6 +4287,383 @@
      }
     ],
     "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/fiscal/controller/documents": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_controller_documents",
+    "summary": "Comprobantes que emitió (o intentó emitir) la impresora fiscal de la sede, con su resultado real: lo que el POS le muestra al cajero en…",
+    "description": "GET /api/[tenant]/pos/fiscal/controller/documents?from&to\nComprobantes que emitió (o intentó emitir) la impresora fiscal de la sede, con\nsu resultado real: lo que el POS le muestra al cajero en Facturación.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/documents/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/fiscal/controller/documents/{id}": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_controller_documents_id",
+    "summary": "",
+    "description": "/api/[tenant]/pos/fiscal/controller/documents/[id]\nGET: estado de un comprobante (el cierre de venta lo consulta hasta que hay\n     resultado).\nPOST { action }:\n  · retry: vuelve a mandar uno que se sabe que NO salió. Cualquiera que cobra.\n  · resolve { emitted, number? }: una persona miró el papel y define un\n    resultado desconocido. Encargado o PIN.\n  · credit_note: nota de crédito de un comprobante emitido. Encargado o PIN.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/documents/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_controller_documents_id",
+    "summary": "",
+    "description": "/api/[tenant]/pos/fiscal/controller/documents/[id]\nGET: estado de un comprobante (el cierre de venta lo consulta hasta que hay\n     resultado).\nPOST { action }:\n  · retry: vuelve a mandar uno que se sabe que NO salió. Cualquiera que cobra.\n  · resolve { emitted, number? }: una persona miró el papel y define un\n    resultado desconocido. Encargado o PIN.\n  · credit_note: nota de crédito de un comprobante emitido. Encargado o PIN.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/documents/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/fiscal/controller/reports": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_controller_reports",
+    "summary": "informes de la impresora fiscal",
+    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_fiscal_controller_reports",
+    "summary": "informes de la impresora fiscal",
+    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
    }
   },
   "/api/{tenant}/pos/fiscal/documents": {
