@@ -33,6 +33,7 @@ import {
 } from '@/lib/fiscal/controller'
 import { prepareInvoiceForOrder } from '@/lib/fiscal/issue'
 import { registerFiscalObligation } from '@/lib/fiscal/obligation'
+import { autoInvoiceOnlineOrder, creditNoteForCancelledOrder } from '@/lib/fiscal/online'
 import { GET as POLL, POST as REPORT } from '@/app/api/[tenant]/print-jobs/route'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
@@ -316,6 +317,52 @@ describe('Comprobantes: vencimiento, nota de crédito, reintento y resolución',
     expect(list.documents).toHaveLength(2)
     expect(list.counts).toMatchObject({ confirmed: 1, attention: 1 })
     expect(list.documents.find((d) => d.number === 46282)).toMatchObject({ orderCancelled: true, hasCreditNote: false })
+  })
+})
+
+describe('Pedidos online en una sede con impresora fiscal', () => {
+  async function onlineOrder(method: string, status = 'confirmed'): Promise<string> {
+    const _id = new mongoose.Types.ObjectId()
+    await Order.collection.insertOne({
+      _id, tenantId, locationId: ctrlLocation, orderNumber: `W-${String(_id).slice(-6)}`, source: 'online', total: 121_000, status,
+      items: [{ name: 'Pizza', quantity: 1, subtotal: 121_000 }],
+      payment: { status: 'approved', method },
+    })
+    return String(_id)
+  }
+  const setting = (value: 'off' | 'auto') => FiscalProfile.updateOne({ tenantId }, { $set: { onlineInvoicing: value } })
+
+  it('con la opción apagada (por defecto) no se emite nada', async () => {
+    await setting('off')
+    const id = await onlineOrder('mercadopago')
+    await autoInvoiceOnlineOrder(id, 'paid')
+    expect(await FiscalControllerJob.exists({ tenantId, orderId: id })).toBeNull()
+  })
+
+  it('con la opción activa sale al aprobarse el pago, sin necesitar ARCA, y la cancelación genera la NC', async () => {
+    await setting('auto')
+    await FiscalProfile.updateOne({ tenantId }, { $set: { enabled: false } })
+    const id = await onlineOrder('mercadopago')
+    await autoInvoiceOnlineOrder(id, 'paid')
+    const job = await FiscalControllerJob.findOne({ tenantId, orderId: id, operation: 'invoice' })
+    expect(job!.payload!.payments).toEqual([{ method: 'mercadopago', amountCents: 121_000 }])
+    expect(await FiscalDocument.countDocuments({ tenantId, orderId: id })).toBe(0)
+
+    await creditNoteForCancelledOrder(id)
+    expect(await FiscalControllerJob.exists({ tenantId, orderId: id, operation: 'credit_note' })).toBeNull()
+    await FiscalControllerJob.updateOne({ _id: job!._id }, { $set: { status: 'confirmed', 'result.number': 5, 'result.documentType': 'TIQUE' } })
+    await creditNoteForCancelledOrder(id)
+    expect(await FiscalControllerJob.countDocuments({ tenantId, orderId: id, operation: 'credit_note' })).toBe(1)
+  })
+
+  it('efectivo: recién al entregarse', async () => {
+    await setting('auto')
+    const id = await onlineOrder('cash')
+    await autoInvoiceOnlineOrder(id, 'paid')
+    expect(await FiscalControllerJob.exists({ tenantId, orderId: id })).toBeNull()
+    await Order.updateOne({ _id: id }, { $set: { status: 'delivered' } })
+    await autoInvoiceOnlineOrder(id, 'delivered')
+    expect(await FiscalControllerJob.countDocuments({ tenantId, orderId: id })).toBe(1)
   })
 })
 

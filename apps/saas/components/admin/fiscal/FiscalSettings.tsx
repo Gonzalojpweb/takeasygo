@@ -563,12 +563,21 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
             onChange={(e) => set('onlineInvoicing', e.target.checked ? 'auto' : 'off')}
           />
           <span>
-            <span className="font-black">Facturar pedidos online automáticamente</span>
-            <span className="block text-xs text-muted-foreground">
-              Delivery, take away y pedidos por QR: Factura a consumidor final apenas se aprueba el pago online, o al entregar si
-              pagan en efectivo. Sale impresa en la caja para ir con el pedido. Si se cancela, sale la nota de crédito. Una
-              factura con CUIT se hace desde «Comprobantes → Facturar un pedido».
+            <span className="font-black">
+              {profile.controllers.some((c) => c.active) ? 'Imprimir pedidos online automáticamente en la impresora fiscal' : 'Facturar pedidos online automáticamente'}
             </span>
+            {profile.controllers.some((c) => c.active) ? (
+              <span className="block text-xs text-muted-foreground">
+                Delivery, take away y pedidos por QR: sale el tique a consumidor final apenas se aprueba el pago online, o al entregar
+                si pagan en efectivo. Si se cancela, sale la nota de crédito. Apagado, los pedidos online no emiten nada solos.
+              </span>
+            ) : (
+              <span className="block text-xs text-muted-foreground">
+                Delivery, take away y pedidos por QR: Factura a consumidor final apenas se aprueba el pago online, o al entregar si
+                pagan en efectivo. Sale impresa en la caja para ir con el pedido. Si se cancela, sale la nota de crédito. Una
+                factura con CUIT se hace desde «Comprobantes → Facturar un pedido».
+              </span>
+            )}
           </span>
         </label>
         <div className="mt-5 flex justify-end">

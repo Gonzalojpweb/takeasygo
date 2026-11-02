@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import FiscalProfile from '@/models/FiscalProfile'
 import { issueCreditNoteForOrder, issueInvoiceForOrder } from './issue'
 import { enqueueFiscalTicket } from './ticket'
+import { creditNoteForControllerOrder, enqueueControllerInvoice, loadModality } from './controller'
 
 // ============================================================================
 // Facturas de pedidos ONLINE (delivery, take away, en mesa por QR) — Fase 6
@@ -24,6 +25,7 @@ import { enqueueFiscalTicket } from './ticket'
 interface OrderLean {
   _id: mongoose.Types.ObjectId
   tenantId: mongoose.Types.ObjectId
+  locationId: mongoose.Types.ObjectId
   source?: string
   status: string
   payment?: { status?: string; method?: string }
@@ -46,13 +48,29 @@ async function autoEnabled(tenantId: mongoose.Types.ObjectId): Promise<boolean> 
 export async function autoInvoiceOnlineOrder(orderId: string, trigger: 'paid' | 'delivered'): Promise<void> {
   try {
     const order = await Order.findById(orderId)
-      .select('tenantId source status payment.status payment.method customer.name')
+      .select('tenantId locationId source status payment.status payment.method customer.name')
       .lean<OrderLean>()
     if (!order || order.source === 'pos' || order.status === 'cancelled') return
     if (order.payment?.status !== 'approved') return
     // Efectivo: se factura recién entregado (es cuando se cobra). El cobro al
     // entregar pasa siempre por confirmOrderPaymentCore (registerCashSaleOnDelivery).
     if (order.payment.method === 'cash' && order.status !== 'delivered') return
+
+    // Sede con impresora fiscal: el admin decide si sale sola (misma opción,
+    // apagada por defecto). No depende de la factura electrónica de ARCA.
+    const { modality } = await loadModality(String(order.tenantId), String(order.locationId))
+    if (modality === 'controller') {
+      const p = await FiscalProfile.findOne({ tenantId: order.tenantId }).select('onlineInvoicing').lean<{ onlineInvoicing?: string }>()
+      if (p?.onlineInvoicing !== 'auto') return
+      await enqueueControllerInvoice({
+        tenantId: String(order.tenantId),
+        orderId: String(order._id),
+        receiver: { condition: 'consumidor_final', name: order.customer?.name ?? null },
+        userId: 'system:online',
+      })
+      return
+    }
+
     if (!(await autoEnabled(order.tenantId))) return
 
     const doc = await issueInvoiceForOrder({
@@ -72,6 +90,8 @@ export async function creditNoteForCancelledOrder(orderId: string): Promise<void
   try {
     const order = await Order.findById(orderId).select('tenantId').lean<{ tenantId: mongoose.Types.ObjectId }>()
     if (!order) return
+    // Solo actúa si el comprobante es de la impresora fiscal.
+    await creditNoteForControllerOrder({ tenantId: String(order.tenantId), orderId, userId: 'system:online' })
     const nc = await issueCreditNoteForOrder({ tenantId: String(order.tenantId), orderId, userId: 'system:online' })
     if (nc?.status === 'authorized') await enqueueFiscalTicket(nc).catch(() => undefined)
   } catch (err) {
