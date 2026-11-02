@@ -46,10 +46,11 @@ export interface IFiscalControllerJob extends Document {
   /** Datos de la venta a emitir (sin datos sensibles más allá de lo fiscal). */
   payload: {
     receiver: { condition: string; docType: number; docNumber: string; name: string }
-    lines: { description: string; quantity: number; unitPriceCents: number; ivaRate: number }[]
+    lines: { description: string; quantity: number; unitPriceCents: number; totalCents: number; ivaRate: number }[]
     totalCents: number
     discountCents: number
     payments: { method: string; amountCents: number }[]
+    issuerIvaCondition?: string | null
   } | null
   status: ControllerJobStatus
   /** Resultado informado por el equipo. */

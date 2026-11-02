@@ -154,3 +154,7 @@ apps/saas/.assistant-eval/
 /*.xls
 /*.csv
 /*.zip
+
+# SDK y drivers de Epson (fiscal): binarios del fabricante, nunca al repo
+/EpsonFiscalDriver_*/
+/EpsonFiscalInterface.*/

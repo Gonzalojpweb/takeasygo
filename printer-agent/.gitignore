@@ -8,3 +8,5 @@ docs
 docs*
 
 /docs*
+# DLL del SDK de Epson: se copia en cada PC, nunca al repo
+*.dll

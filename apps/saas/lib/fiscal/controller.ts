@@ -108,10 +108,19 @@ export async function enqueueControllerInvoice(input: {
       device: { brand: controller.brand, model: controller.model, firmware: controller.firmware, connection: controller.connection, address: controller.address },
       payload: {
         receiver,
-        lines: lines.map((l) => ({ description: l.description, quantity: l.quantity, unitPriceCents: Math.round(l.grossCents / Math.max(1, l.quantity)), ivaRate: l.ivaRate })),
+        // totalCents: importe del ítem con IVA (el driver arma el precio unitario
+        // con 4 decimales para que cantidad × precio dé exacto este total).
+        lines: lines.map((l) => ({
+          description: l.description,
+          quantity: l.quantity,
+          unitPriceCents: Math.round(l.grossCents / Math.max(1, l.quantity)),
+          totalCents: l.grossCents,
+          ivaRate: l.ivaRate,
+        })),
         totalCents: order.total,
         discountCents,
         payments: (order.posPayments ?? []).map((p) => ({ method: p.method, amountCents: p.amount })),
+        issuerIvaCondition: profile?.ivaCondition ?? null,
       },
       idempotencyKey,
       createdBy: input.userId,
