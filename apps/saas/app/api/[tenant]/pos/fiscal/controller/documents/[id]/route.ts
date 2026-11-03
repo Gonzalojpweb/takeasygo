@@ -4,7 +4,7 @@ import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
 import { requireManagerApproval } from '@/lib/pos-online/approval'
-import FiscalControllerJob from '@/models/FiscalControllerJob'
+import FiscalControllerJob, { type IFiscalControllerJob } from '@/models/FiscalControllerJob'
 import {
   controllerDocumentSummary,
   creditNoteForControllerOrder,
@@ -44,7 +44,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   let approvedBy: string | null = null
 
   try {
-    let result = job
+    let result: IFiscalControllerJob = job
     let action: string
     if (body.action === 'retry') {
       action = 'pos.fiscal.controller.retry'

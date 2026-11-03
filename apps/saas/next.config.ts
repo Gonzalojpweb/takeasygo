@@ -43,10 +43,11 @@ const nextConfig: NextConfig = {
   //   · webpackMemoryOptimizations: menos memoria en la compilación.
   //   · memoryBasedWorkersCount + cpus: menos workers en paralelo según la
   //     memoria disponible (más lento, pero no se queda sin RAM).
+  // 02/11: volvió a morir con cpus: 2, ahora compila de a un worker.
   experimental: {
     webpackMemoryOptimizations: true,
     memoryBasedWorkersCount: true,
-    cpus: 2,
+    cpus: 1,
   },
   serverExternalPackages: ['mongoose', 'agent-base', 'undici'],
   // La página /superadmin/pos-root lee este HTML en tiempo de ejecución:

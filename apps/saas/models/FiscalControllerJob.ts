@@ -48,7 +48,7 @@ export interface IFiscalControllerJob extends Document {
   device: { brand: string; model: string; firmware: string; connection: string; address: string }
   /** Datos de la venta a emitir (sin datos sensibles más allá de lo fiscal). */
   payload: {
-    receiver: { condition: string; docType: number; docNumber: string; name: string }
+    receiver: { condition: string; docType: number; docNumber: string; name: string; address?: string }
     lines: { description: string; quantity: number; unitPriceCents: number; totalCents: number; ivaRate: number }[]
     totalCents: number
     discountCents: number

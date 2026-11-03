@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --port 3000",
-    "build": "next build --webpack",
+    "build": "node scripts/next-build.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "node --max-old-space-size=8192 ./node_modules/typescript/bin/tsc --noEmit",
