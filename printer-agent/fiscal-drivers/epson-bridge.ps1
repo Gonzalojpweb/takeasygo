@@ -7,6 +7,10 @@
 # Salida (stdout, una linea JSON):
 #   { opened, apiVersion, dllError, results: [ { command, dllError, returnCode,
 #     fiscalStatus, printerStatus, fields: [...] } ] }
+# Descarga de reportes: { "download": { "start": "...", "next": "0970|0000",
+#   "end": "0971|0000", "cancel": "0972|0000", "outFile": "<ruta>" } }
+#   Salida: { opened, download: { ok, fileName, bytes, error } }. Sigue el flujo
+#   del ejemplo oficial (DownloadFileFromFp): repite hasta que el campo 2 no es S.
 # Firmas de las funciones: ejemplo oficial C#-DLL (fiscal_driver.cs), StdCall/Ansi.
 # La DLL tiene que ser de la MISMA arquitectura que PowerShell (64 bits en
 # Windows de 64 bits): la x64 viene en examples\C#-DLL\example\target.
@@ -74,6 +78,59 @@ try {
 $openError = [EpsonFiscal]::getLastError()
 if ($openError -ne 0) {
     Out-Json @{ opened = $false; apiVersion = $apiVersion; dllError = $openError }
+    exit 0
+}
+
+function Send-Field($command) {
+    [void][EpsonFiscal]::SendCommandComplete([string]$command)
+    $dllError = [EpsonFiscal]::getLastError()
+    $returnCode = [EpsonFiscal]::getReturnCode()
+    $fields = @()
+    if ($dllError -eq 0) {
+        $count = [EpsonFiscal]::getExtraFieldCount()
+        for ($i = 1; $i -le $count; $i++) {
+            $buf = New-Object System.Text.StringBuilder 51200
+            $len = 0
+            [EpsonFiscal]::GetExtraField($i, $buf, 51200, [ref]$len)
+            $s = $buf.ToString()
+            if ($len -ge 0 -and $len -lt $s.Length) { $s = $s.Substring(0, $len) }
+            $fields += $s
+        }
+    }
+    return @{ dllError = $dllError; returnCode = $returnCode; fields = $fields }
+}
+
+if ($req.download) {
+    $dl = $req.download
+    $outcome = @{ ok = $false; fileName = ''; bytes = 0; error = '' }
+    $started = $false
+    try {
+        $r = Send-Field $dl.start
+        if ($r.dllError -ne 0 -or $r.returnCode -ne 0) { throw "El equipo rechazo la descarga (dll $($r.dllError), codigo $($r.returnCode))" }
+        $started = $true
+        if ($r.fields.Count -gt 0) { $outcome.fileName = [string]$r.fields[0] }
+        $data = New-Object System.Text.StringBuilder
+        $more = 'S'
+        while ($more -eq 'S') {
+            $r = Send-Field $dl.next
+            if ($r.dllError -ne 0 -or $r.returnCode -ne 0) { throw "Se corto la descarga (dll $($r.dllError), codigo $($r.returnCode))" }
+            [void]$data.Append([string]$r.fields[0])
+            $more = [string]$r.fields[1]
+        }
+        $text = $data.ToString()
+        [System.IO.File]::WriteAllText([string]$dl.outFile, $text, (New-Object System.Text.ASCIIEncoding))
+        $r = Send-Field $dl.end
+        if ($r.dllError -ne 0 -or $r.returnCode -ne 0) { throw "No se pudo finalizar la descarga (codigo $($r.returnCode))" }
+        $started = $false
+        $outcome.ok = $true
+        $outcome.bytes = $text.Length
+    } catch {
+        $outcome.error = $_.Exception.Message
+        if ($started) { [void](Send-Field $dl.cancel) }
+    } finally {
+        [EpsonFiscal]::ClosePort()
+    }
+    Out-Json @{ opened = $true; apiVersion = $apiVersion; download = $outcome }
     exit 0
 }
 

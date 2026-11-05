@@ -22,11 +22,12 @@ interface ProfileLean {
   environment: 'homologation' | 'production'
   pointsOfSale: { locationId: unknown; number: number }[]
   controllers?: { locationId: unknown; active: boolean }[]
+  requireBuyerAddress?: boolean
 }
 
 export const GET = posRoute('orders.pay', async (ctx) => {
   const p = await FiscalProfile.findOne({ tenantId: ctx.tenantId })
-    .select('enabled ivaCondition invoicingMode environment pointsOfSale controllers')
+    .select('enabled ivaCondition invoicingMode environment pointsOfSale controllers requireBuyerAddress')
     .lean<ProfileLean>()
   const hasPos = Boolean(p?.pointsOfSale?.some((x) => String(x.locationId) === ctx.locationId))
   const controller = Boolean(p?.controllers?.some((c) => c.active && String(c.locationId) === ctx.locationId))
@@ -35,6 +36,7 @@ export const GET = posRoute('orders.pay', async (ctx) => {
   return NextResponse.json({
     enabled,
     modality: controller ? 'controller' : electronic ? 'electronic' : 'none',
+    requireBuyerAddress: controller && Boolean(p?.requireBuyerAddress),
     mode: enabled ? p!.invoicingMode : 'off',
     environment: p?.environment ?? 'homologation',
     letterForFinalConsumer: p?.ivaCondition ? invoiceLetterFor(p.ivaCondition, 'consumidor_final') : null,

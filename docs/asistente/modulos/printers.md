@@ -30,7 +30,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 2. Clic en **"+ Nueva impresora"**.
 3. Completar campos:
    - **Nombre**: ej. "Impresora Cocina Principal".
-   - **Tipo**: impresora térmica (ESC/POS). TakeasyGo todavía no se conecta con controladores fiscales homologados.
+   - **Tipo**: impresora térmica (ESC/POS). El controlador fiscal homologado no se carga acá: va en Factura electrónica → Impresora fiscal homologada.
    - **Conexión**: Serial, USB o TCP.
    - **Puerto/IP**: según tipo de conexión.
      - Serial: `COM1`, `COM2`, etc.
@@ -65,7 +65,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
 | Opción | Qué hace |
 |--------|----------|
 | **Nombre** | Identificador visible de la impresora. |
-| **Tipo** | Impresora térmica (ESC/POS): comandas de cocina/barra, precuentas, cierres y el ticket de la factura electrónica. No hay soporte de controladores fiscales homologados. |
+| **Tipo** | Impresora térmica (ESC/POS): comandas de cocina/barra, precuentas, cierres y el ticket de la factura electrónica. El controlador fiscal homologado se configura aparte. |
 | **Conexión** | Serial, USB o TCP (red). |
 | **Puerto/IP** | Dirección de conexión específica. |
 | **Modelo** | Modelo de impresora para driver específico. |
@@ -99,7 +99,7 @@ El módulo de impresoras gestiona las impresoras térmicas y fiscales del negoci
    → No, cada categoría se asigna a una sola impresora. Puedes crear una categoría duplicada si necesitas dos impresoras.
 
 3. **¿Puedo usar una impresora fiscal (controlador fiscal homologado)?**
-   → Todavía no. TakeasyGo emite factura electrónica con ARCA (CAE) y la imprime en la impresora térmica de caja. La conexión con controladores fiscales homologados está en desarrollo y no está disponible.
+   → Sí, con la Epson TM-T900FA con firmware Vesta, conectada por USB o serie a la PC de caja con el agente de impresión. Se activa por sede en Factura electrónica → Impresora fiscal homologada, y esa sede deja de emitir factura electrónica. El certificado, la habilitación del equipo y las presentaciones ante ARCA los gestiona cada local con su contador. Otras marcas todavía no están disponibles. Sin controlador, TakeasyGo emite factura electrónica con ARCA (CAE) y la imprime en la impresora térmica de caja.
 
 4. **¿Qué hago si la impresora no imprime?**
    → Verificar conexión, probar impresora, reiniciar. Si persiste, contactar soporte.

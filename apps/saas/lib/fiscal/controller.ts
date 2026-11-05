@@ -44,7 +44,7 @@ const SENDING_TTL_MS = 180_000
  * en cola y dispararse horas después, cuando alguien prenda la PC.
  */
 const REPORT_PENDING_TTL_MS = 2 * 60_000
-const REPORT_OPERATIONS = ['x_report', 'z_report'] as const
+const REPORT_OPERATIONS = ['x_report', 'z_report', 'download_report'] as const
 /** Un comprobante sin tomar en 15 min vence: no sale horas después de la venta. */
 const DOCUMENT_PENDING_TTL_MS = 15 * 60_000
 /** Se sabe que NO se emitió: se puede volver a mandar. */
@@ -113,8 +113,11 @@ export async function enqueueControllerInvoice(input: {
     throw new FiscalIssueError('La venta ya tiene factura electrónica: no se emite otra con el controlador')
   }
 
-  const profile = await FiscalProfile.findOne({ tenantId }).select('ivaCondition defaultIvaRate').lean<{ ivaCondition?: 'responsable_inscripto' | 'monotributo' | 'exento' | null; defaultIvaRate?: number }>()
-  const { receiver } = resolveReceiver(profile?.ivaCondition ?? 'responsable_inscripto', input.receiver, order.total)
+  const profile = await FiscalProfile.findOne({ tenantId }).select('ivaCondition defaultIvaRate cfIdentificationThresholdCents requireBuyerAddress').lean<{ ivaCondition?: 'responsable_inscripto' | 'monotributo' | 'exento' | null; defaultIvaRate?: number; cfIdentificationThresholdCents?: number | null; requireBuyerAddress?: boolean }>()
+  const { receiver } = resolveReceiver(profile?.ivaCondition ?? 'responsable_inscripto', input.receiver, order.total, profile?.cfIdentificationThresholdCents)
+  if (profile?.requireBuyerAddress && receiver.condition !== 'consumidor_final' && !(input.receiver.address ?? '').trim()) {
+    throw new FiscalIssueError('Este local pide el domicilio del cliente en las facturas con CUIT', 400)
+  }
   const rates = await ivaRatesForLocation(tenantId, order.locationId, profile?.defaultIvaRate ?? 21)
   const { lines, discountCents } = buildFiscalLines(order as never, rates, profile?.defaultIvaRate ?? 21)
 
@@ -159,7 +162,8 @@ export async function enqueueControllerInvoice(input: {
   }
 }
 
-export type ControllerReportKind = 'x' | 'z'
+export type ControllerReportKind = 'x' | 'z' | 'ctd' | 'duplicates' | 'totals'
+const FILE_REPORTS = new Set<ControllerReportKind>(['ctd', 'duplicates', 'totals'])
 
 /**
  * Pide un informe al equipo de la sede: X (salida de cajero) o Z (cierre de la
@@ -172,9 +176,13 @@ export async function enqueueControllerReport(input: {
   kind: ControllerReportKind
   requestId: string
   userId: string
+  /** Reportes del equipo: período, en días AAAA-MM-DD. */
+  period?: { from: string; to: string }
 }): Promise<IFiscalControllerJob> {
   const tenantId = new mongoose.Types.ObjectId(input.tenantId)
   const locationId = new mongoose.Types.ObjectId(input.locationId)
+  const fileReport = FILE_REPORTS.has(input.kind)
+  if (fileReport && !input.period) throw new FiscalIssueError('Falta el período del reporte', 400)
   const idempotencyKey = `controller:report:${input.requestId}`
   const existing = await FiscalControllerJob.findOne({ tenantId, idempotencyKey })
   if (existing) return existing
@@ -196,9 +204,9 @@ export async function enqueueControllerReport(input: {
       tenantId,
       locationId,
       orderId: null,
-      operation: input.kind === 'z' ? 'z_report' : 'x_report',
+      operation: fileReport ? 'download_report' : input.kind === 'z' ? 'z_report' : 'x_report',
       device: { brand: controller.brand, model: controller.model, firmware: controller.firmware, connection: controller.connection, address: controller.address },
-      payload: null,
+      payload: fileReport ? ({ report: input.kind, ...input.period } as IFiscalControllerJob['payload']) : null,
       idempotencyKey,
       createdBy: input.userId,
     })
@@ -362,6 +370,7 @@ export function controllerDocumentSummary(
     documentType: j.result?.documentType ?? null,
     pointOfSale: j.result?.pointOfSale ?? null,
     number: j.result?.number ?? null,
+    training: j.result?.training === true,
     totalCents: j.result?.totalCents ?? j.payload?.totalCents ?? 0,
     message: j.lastError || null,
     createdAt: j.createdAt,
@@ -502,7 +511,7 @@ export interface ControllerResult {
   claimId: string
   /** confirmed: el equipo informó el comprobante · failed: seguro que NO emitió · unknown · driver_unavailable */
   outcome: 'confirmed' | 'failed' | 'unknown' | 'driver_unavailable'
-  result?: { documentType?: string; pointOfSale?: number; number?: number; issuedAt?: string; totalCents?: number; raw?: string }
+  result?: { documentType?: string; pointOfSale?: number; number?: number; issuedAt?: string; totalCents?: number; raw?: string; training?: boolean }
   errorMsg?: string
 }
 
@@ -522,6 +531,7 @@ export async function completeControllerJob(jobId: string, r: ControllerResult):
         pointOfSale: Number.isInteger(r.result.pointOfSale) ? r.result.pointOfSale : null,
         number: r.result.number,
         issuedAt: r.result.issuedAt ? new Date(r.result.issuedAt) : new Date(),
+        training: r.result.training === true,
         totalCents: Number.isInteger(r.result.totalCents) ? r.result.totalCents : null,
         raw: (r.result.raw ?? '').slice(0, 2000),
       }

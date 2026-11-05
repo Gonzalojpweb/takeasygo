@@ -34,6 +34,11 @@ import {
 import { prepareInvoiceForOrder } from '@/lib/fiscal/issue'
 import { registerFiscalObligation } from '@/lib/fiscal/obligation'
 import { autoInvoiceOnlineOrder, creditNoteForCancelledOrder } from '@/lib/fiscal/online'
+import { listUnbilledOrders } from '@/lib/fiscal/unbilled'
+import { controllerDocsForLibro } from '@/lib/fiscal/controller-libro'
+import { libroIvaCsv, libroIvaTotals } from '@/lib/fiscal/libro-iva'
+import { libroIvaDigitalFiles, CBTE_LINE_LENGTH } from '@/lib/fiscal/libro-iva-digital'
+import AuditLog from '@/models/AuditLog'
 import { GET as POLL, POST as REPORT } from '@/app/api/[tenant]/print-jobs/route'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
@@ -317,6 +322,123 @@ describe('Comprobantes: vencimiento, nota de crédito, reintento y resolución',
     expect(list.documents).toHaveLength(2)
     expect(list.counts).toMatchObject({ confirmed: 1, attention: 1 })
     expect(list.documents.find((d) => d.number === 46282)).toMatchObject({ orderCancelled: true, hasCreditNote: false })
+  })
+})
+
+describe('Reportes del equipo', () => {
+  it('la descarga viaja al agente con su período', async () => {
+    const job = await enqueueControllerReport({
+      tenantId: String(tenantId), locationId: String(ctrlLocation), kind: 'totals', requestId: 'descarga-1', userId: 'u',
+      period: { from: '2026-11-01', to: '2026-11-30' },
+    })
+    expect(job.operation).toBe('download_report')
+    expect(job.payload).toMatchObject({ report: 'totals', from: '2026-11-01', to: '2026-11-30' })
+    const [claimed] = await claimControllerJobs(tenantId, ctrlLocation, 'x')
+    expect(String(claimed._id)).toBe(String(job._id))
+  })
+
+  it('sin período no se pide', async () => {
+    await expect(enqueueControllerReport({ tenantId: String(tenantId), locationId: String(ctrlLocation), kind: 'ctd', requestId: 'descarga-2', userId: 'u' })).rejects.toThrow(/período/)
+  })
+
+  it('nunca se confunde con un comprobante en el Libro IVA', async () => {
+    const job = await enqueueControllerReport({
+      tenantId: String(tenantId), locationId: String(ctrlLocation), kind: 'ctd', requestId: 'descarga-3', userId: 'u',
+      period: { from: '2026-11-01', to: '2026-11-30' },
+    })
+    await FiscalControllerJob.updateOne({ _id: job._id }, { $set: { status: 'confirmed', 'result.number': 5000 } })
+    expect(await controllerDocsForLibro(tenantId, { from: new Date(Date.now() - 3_600_000), to: new Date(Date.now() + 3_600_000) })).toEqual([])
+  })
+})
+
+describe('Ventas cobradas sin comprobante', () => {
+  async function posOrder(): Promise<{ id: string; posId: string }> {
+    const id = await paidOrder(ctrlLocation)
+    const posId = `pos-${id.slice(-8)}`
+    await Order.collection.updateOne({ _id: new mongoose.Types.ObjectId(id) }, { $set: { posId, createdAt: new Date() } })
+    return { id, posId }
+  }
+
+  it('lista la venta sin comprobante y deja de listarla cuando se emite', async () => {
+    const { id, posId } = await posOrder()
+    expect((await listUnbilledOrders(String(tenantId), String(ctrlLocation))).map((o) => o.posId)).toEqual([posId])
+    await enqueueControllerInvoice({ tenantId: String(tenantId), orderId: id, receiver: {}, userId: 'u' })
+    expect(await listUnbilledOrders(String(tenantId), String(ctrlLocation))).toEqual([])
+  })
+
+  it('marca la que falló con el motivo real', async () => {
+    const { id } = await posOrder()
+    await AuditLog.create({ tenantId, action: 'fiscal.obligation.failed', entity: 'Order', entityId: id, details: { message: 'CUIT inválido' } })
+    const [row] = await listUnbilledOrders(String(tenantId), String(ctrlLocation))
+    expect(row.failureMessage).toBe('CUIT inválido')
+  })
+
+  it('una venta anulada no aparece', async () => {
+    const { id } = await posOrder()
+    await Order.updateOne({ _id: id }, { $set: { status: 'cancelled' } })
+    expect(await listUnbilledOrders(String(tenantId), String(ctrlLocation))).toEqual([])
+  })
+})
+
+describe('Configuración de cada local', () => {
+  const company = { condition: 'responsable_inscripto' as const, docNumber: '30712345671', name: 'Empresa' }
+
+  it('si el local lo pide, una factura con CUIT sin domicilio no se emite', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { requireBuyerAddress: true } })
+    const orderId = await paidOrder(ctrlLocation)
+    await expect(enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: company, userId: 'u' })).rejects.toThrow(/domicilio/)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: { ...company, address: 'Calle 1' }, userId: 'u' })
+    expect(job.payload!.receiver.address).toBe('Calle 1')
+  })
+
+  it('el tope para identificar al consumidor lo puede definir el local', async () => {
+    await FiscalProfile.updateOne({ tenantId }, { $set: { cfIdentificationThresholdCents: 100_000 } })
+    const orderId = await paidOrder(ctrlLocation)
+    await expect(enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })).rejects.toThrow(/identificar/)
+  })
+})
+
+describe('Libro IVA con la impresora fiscal', () => {
+  const range = { from: new Date(Date.now() - 3_600_000), to: new Date(Date.now() + 3_600_000) }
+
+  async function emit(type: string, number: number, training = false) {
+    const orderId = await paidOrder(ctrlLocation)
+    const job = await enqueueControllerInvoice({ tenantId: String(tenantId), orderId, receiver: {}, userId: 'u' })
+    await FiscalControllerJob.updateOne({ _id: job._id }, {
+      $set: { status: 'confirmed', 'result.documentType': type, 'result.number': number, 'result.pointOfSale': 5, 'result.issuedAt': new Date(), 'result.training': training },
+    })
+    return job
+  }
+
+  it('suma tiques y facturas, y la nota de crédito resta', async () => {
+    const job = await emit('TIQUE', 100)
+    const orderId = String(job.orderId)
+    await FiscalControllerJob.create({
+      tenantId, locationId: job.locationId, orderId, operation: 'credit_note', device: job.device, payload: job.payload,
+      status: 'confirmed', result: { documentType: 'TIQUE NOTA DE CREDITO', number: 7, pointOfSale: 5, issuedAt: new Date() },
+      idempotencyKey: `controller:credit:${orderId}`, createdBy: 'u',
+    })
+    await emit('TIQUE FACTURA B', 23)
+    const docs = await controllerDocsForLibro(tenantId, range)
+    expect(docs.map((d) => [d.label, d.cbteTipo, d.number])).toEqual([['Tique', 83, 100], ['Tique Nota de crédito', 110, 7], ['Tique Factura B', 82, 23]])
+    const totals = libroIvaTotals(docs)
+    expect(totals.documents).toBe(3)
+    expect(totals.totalCents).toBe(121_000)
+    expect(totals.netCents + totals.ivaCents + totals.exemptCents).toBe(121_000)
+    expect(libroIvaCsv(docs)).toContain('Tique Factura B')
+  })
+
+  it('arma las líneas del Libro IVA Digital con el ancho exacto', async () => {
+    await emit('TIQUE FACTURA A', 11)
+    const files = libroIvaDigitalFiles(await controllerDocsForLibro(tenantId, range))
+    const line = files.comprobantes.split('\r\n')[0]
+    expect(line.length).toBe(CBTE_LINE_LENGTH)
+    expect(line.slice(8, 11)).toBe('081')
+  })
+
+  it('lo emitido en entrenamiento no entra', async () => {
+    await emit('TIQUE', 200, true)
+    expect(await controllerDocsForLibro(tenantId, range)).toEqual([])
   })
 })
 

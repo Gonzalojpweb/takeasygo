@@ -4527,7 +4527,7 @@
     ],
     "operationId": "get_api_tenant_pos_fiscal_controller_reports",
     "summary": "informes de la impresora fiscal",
-    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
+    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\nPOST { kind: 'ctd' | 'duplicates' | 'totals', month, requestId }: descarga un\n  reporte del mes a la carpeta reportes-fiscales de la PC de caja. Admin o\n  encargado. Son los archivos firmados que el local presenta con su contador.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -4594,7 +4594,7 @@
     ],
     "operationId": "post_api_tenant_pos_fiscal_controller_reports",
     "summary": "informes de la impresora fiscal",
-    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
+    "description": "/api/[tenant]/pos/fiscal/controller/reports — informes de la impresora fiscal\nGET: modalidad de la sede y últimos informes con su estado.\nPOST { kind: 'x' | 'z', requestId }: pide un informe al equipo.\nPOST { kind: 'ctd' | 'duplicates' | 'totals', month, requestId }: descarga un\n  reporte del mes a la carpeta reportes-fiscales de la PC de caja. Admin o\n  encargado. Son los archivos firmados que el local presenta con su contador.\n  · X (salida de cajero): cualquier rol que cobra.\n  · Z (cierre de la jornada fiscal, irreversible): admin o encargado.\nEl informe lo ejecuta el agente de la PC de caja; el POS consulta el estado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/controller/reports/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -5247,6 +5247,75 @@
     "operationId": "get_api_tenant_pos_fiscal_libro_iva",
     "summary": "Fase L (decisión 24/10): Libro IVA desde el POS, SOLO encargado y admin",
     "description": "GET /api/[tenant]/pos/fiscal/libro-iva?month=YYYY-MM&format=\nFase L (decisión 24/10): Libro IVA desde el POS, SOLO encargado y admin.\n  · sin format → totales del mes (autorizados; notas de crédito restan).\n  · format=csv → Libro IVA Ventas.\n  · format=lid-cbte | lid-alicuotas → archivos del Libro IVA Digital de ARCA.\nEl Libro IVA es del CUIT (todas las sedes), igual que en el panel.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/libro-iva/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
+  "/api/{tenant}/pos/fiscal/unbilled": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_fiscal_unbilled",
+    "summary": "ventas cobradas sin comprobante",
+    "description": "GET /api/[tenant]/pos/fiscal/unbilled — ventas cobradas sin comprobante\nLas de los últimos 7 días de la sede. Para emitir una: POST /orders/[id]/invoice.\n\nFuente: `apps/saas/app/api/[tenant]/pos/fiscal/unbilled/route.ts`",
     "parameters": [
      {
       "name": "tenant",

@@ -243,7 +243,7 @@ describe('factura desde el POS', () => {
 
     const saved = await FiscalDocument.findOne({ tenantId }).lean()
     expect(saved?.amounts).toEqual({ totalCents: 1_210_000, netCents: 1_000_000, ivaCents: 210_000, exemptCents: 0 })
-    expect(saved?.qrUrl).toContain('https://www.afip.gob.ar/fe/qr/?p=')
+    expect(saved?.qrUrl).toContain('https://www.arca.gob.ar/fe/qr/?p=')
     expect(await PreClosePrintJob.countDocuments({ tenantId })).toBe(1)
 
     // Reintento del POS: misma factura, ningún CAE nuevo.

@@ -7,6 +7,7 @@ import { resolvePosRole } from '@/lib/pos-online/permissions'
 import { libroIvaCsv, libroIvaTotals, monthRange } from '@/lib/fiscal/libro-iva'
 import { libroIvaDigitalFiles } from '@/lib/fiscal/libro-iva-digital'
 import { fiscalEnvironment } from '@/lib/fiscal/pos-documents'
+import { controllerDocsForLibro } from '@/lib/fiscal/controller-libro'
 
 // ============================================================================
 // GET /api/[tenant]/pos/fiscal/libro-iva?month=YYYY-MM&format=
@@ -26,10 +27,12 @@ export const GET = posRoute('orders.pay', async (ctx) => {
   const range = monthRange(month)
   if (!range) throw PosError.validation('Mes inválido (formato AAAA-MM)')
   const environment = await fiscalEnvironment(ctx.tenantId)
-  const docs = await FiscalDocument.find({ tenantId: ctx.tenantId, environment, status: 'authorized', issuedAt: { $gte: range.from, $lt: range.to } })
+  const electronic = await FiscalDocument.find({ tenantId: ctx.tenantId, environment, status: 'authorized', issuedAt: { $gte: range.from, $lt: range.to } })
     .sort({ issuedAt: 1 })
     .limit(10000)
-  const suffix = environment === 'homologation' ? '_PRUEBAS' : ''
+  const docs = [...electronic, ...(await controllerDocsForLibro(ctx.tenantId, range))]
+  // Lo de la impresora fiscal no depende del ambiente de ARCA.
+  const suffix = environment === 'homologation' && electronic.length > 0 ? '_PRUEBAS' : ''
   const format = p.get('format')
 
   if (format) {

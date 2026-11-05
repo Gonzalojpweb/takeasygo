@@ -23,7 +23,7 @@ export const ARCA_ENDPOINTS: Readonly<Record<FiscalEnvironment, { wsaa: string; 
 export const WSFE_NS = 'http://ar.gov.afip.dif.FEV1/'
 
 /** URL del QR fiscal (RG 4892). */
-export const ARCA_QR_URL = 'https://www.afip.gob.ar/fe/qr/'
+export const ARCA_QR_URL = 'https://www.arca.gob.ar/fe/qr/'
 
 /** Tiempo máximo de espera de una llamada a ARCA. */
 export const ARCA_TIMEOUT_MS = 20_000

@@ -87,11 +87,12 @@ interface ProfileForIssue {
   environment: 'homologation' | 'production'
   pointsOfSale: { locationId: mongoose.Types.ObjectId; number: number }[]
   controllers?: { locationId: mongoose.Types.ObjectId; active: boolean }[]
+  cfIdentificationThresholdCents?: number | null
 }
 
 async function loadProfile(tenantId: mongoose.Types.ObjectId): Promise<ProfileForIssue> {
   const p = await FiscalProfile.findOne({ tenantId })
-    .select('enabled cuit ivaCondition defaultIvaRate environment pointsOfSale controllers')
+    .select('enabled cuit ivaCondition defaultIvaRate environment pointsOfSale controllers cfIdentificationThresholdCents')
     .lean<ProfileForIssue>()
   if (!p?.enabled || !p.ivaCondition) throw new FiscalIssueError('La facturación no está activa para este comercio')
   return p
@@ -107,7 +108,9 @@ function pointOfSaleFor(profile: ProfileForIssue, locationId: mongoose.Types.Obj
 export function resolveReceiver(
   issuer: IssuerIvaCondition,
   input: ReceiverInput,
-  totalCents: number
+  totalCents: number,
+  /** Tope propio del local. null = valor general. */
+  thresholdCents?: number | null
 ): { letter: 'A' | 'B' | 'C'; receiver: IFiscalDocument['receiver'] } {
   const condition: ReceiverCondition = input.condition ?? 'consumidor_final'
   const letter = invoiceLetterFor(issuer, condition)
@@ -121,7 +124,7 @@ export function resolveReceiver(
   if (doc.length === 11 && isValidCuit(doc)) return { letter, receiver: { condition, docType: 80, docNumber: doc, name } }
   if (doc.length >= 7 && doc.length <= 8) return { letter, receiver: { condition, docType: 96, docNumber: doc, name } }
   if (doc.length > 0) throw new FiscalIssueError('El DNI o CUIT del cliente no es válido', 400)
-  if (totalCents >= CF_IDENTIFICATION_THRESHOLD_CENTS) {
+  if (totalCents >= (thresholdCents ?? CF_IDENTIFICATION_THRESHOLD_CENTS)) {
     throw new FiscalIssueError('Por el monto, ARCA pide identificar al cliente: cargá su DNI o CUIT', 400)
   }
   return { letter, receiver: { condition, docType: 99, docNumber: '0', name } }
@@ -463,7 +466,7 @@ export async function prepareInvoiceForOrder(input: {
     throw new FiscalIssueError('La venta ya tiene una operación en el controlador fiscal')
   }
   const pointOfSale = pointOfSaleFor(profile, order.locationId)
-  const { letter, receiver } = resolveReceiver(profile.ivaCondition!, input.receiver, order.total)
+  const { letter, receiver } = resolveReceiver(profile.ivaCondition!, input.receiver, order.total, profile.cfIdentificationThresholdCents)
   const rates = await ivaRatesForLocation(tenantId, order.locationId, profile.defaultIvaRate)
   const { lines, discountCents } = buildFiscalLines(order, rates, profile.defaultIvaRate)
   const breakdown = computeIvaBreakdown(lines, discountCents, profile.ivaCondition!)

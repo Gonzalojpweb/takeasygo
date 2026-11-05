@@ -5,6 +5,7 @@ import CaeaPeriod from '@/models/CaeaPeriod'
 import Order from '@/models/Order'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import { controllerAttention, expireControllerJobs } from './controller'
+import { listUnbilledOrders } from './unbilled'
 
 // ============================================================================
 // Salud fiscal del comercio — orden de ejecución 31/10 (P1.3, P1.4, P1.5, P7.3)
@@ -114,6 +115,12 @@ export async function computeFiscalHealth(
   const oldestPendingMinutes = oldest ? Math.floor((now.getTime() - new Date(oldest.createdAt).getTime()) / 60_000) : null
 
   const alerts: FiscalAlert[] = []
+  if (options.locationId) {
+    const failed = (await listUnbilledOrders(tenantIdRaw, options.locationId, { now })).filter((o) => o.failureMessage).length
+    if (failed > 0) {
+      alerts.push({ level: 'critical', code: 'invoice_failed', count: failed, message: `${failed} venta(s) cobrada(s) cuyo comprobante falló. Emitilo desde «Ventas sin comprobante».` })
+    }
+  }
   if (printer.unknown > 0) {
     alerts.push({ level: 'critical', code: 'controller_unknown', count: printer.unknown, message: `${printer.unknown} comprobante(s) de la impresora fiscal con resultado desconocido. Mirá el papel y resolvelos: el sistema no los vuelve a emitir solo.` })
   }

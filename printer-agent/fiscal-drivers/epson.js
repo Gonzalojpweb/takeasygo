@@ -35,6 +35,9 @@ const C = require('./epson-commands');
 
 const BRIDGE = path.join(__dirname, 'epson-bridge.ps1');
 const BRIDGE_TIMEOUT_MS = 90_000;
+/** Un mes de Cinta Testigo puede pesar: la descarga va por partes. */
+const DOWNLOAD_TIMEOUT_MS = 10 * 60_000;
+const REPORTS_DIR = path.join(__dirname, '..', 'reportes-fiscales');
 
 function loadConfig() {
     try {
@@ -60,12 +63,13 @@ function portFor(device, cfg) {
 /** Ejecuta comandos en UNA sesión con el equipo. Lanza si el puente no respondió. */
 function runBridge(dllPath, port, commands, stopOnError) {
     const file = path.join(os.tmpdir(), `tgo-epson-${process.pid}-${Date.now()}.json`);
-    fs.writeFileSync(file, JSON.stringify({ commands, stopOnError }));
+    const download = !Array.isArray(commands);
+    fs.writeFileSync(file, JSON.stringify(download ? { download: commands } : { commands, stopOnError }));
     return new Promise((resolve, reject) => {
         execFile(
             'powershell',
             ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', BRIDGE, '-DllPath', dllPath, '-Port', port, '-InputFile', file],
-            { timeout: BRIDGE_TIMEOUT_MS, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+            { timeout: download ? DOWNLOAD_TIMEOUT_MS : BRIDGE_TIMEOUT_MS, windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
             (err, stdout) => {
                 try { fs.unlinkSync(file); } catch { /* ignorar */ }
                 const line = String(stdout || '').trim().split(/\r?\n/).filter(Boolean).pop();
@@ -135,11 +139,11 @@ function readFiscalData(res) {
     };
 }
 
-async function precheck(dllPath, port, cfg, types) {
+async function precheck(dllPath, port, cfg, types, options = {}) {
     const res = await bridge(dllPath, port, [`${C.CMD.STATUS}|0000`, `${C.CMD.FISCAL_DATA}|0000`, ...counterCommands(types)], false);
     if (res.setupError) throw new DriverUnavailableError(res.setupError);
     if (!res.opened) {
-        const e = new Error(`No se pudo abrir la comunicación con la impresora fiscal (${hex(res.dllError)}). Revisar el cable USB, que esté encendida y que no haya otro programa usándola.`);
+        const e = new Error(`No se pudo abrir la comunicación con la impresora fiscal (${hex(res.dllError)}). Revisar el cable USB, que esté encendida y que no haya otro programa usándola. Si sigue, ejecutar DIAGNOSTICO.bat en la PC de caja.`);
         e.beforeSend = true;
         throw e;
     }
@@ -152,7 +156,7 @@ async function precheck(dllPath, port, cfg, types) {
     const fiscal = C.decodeFiscalStatus(status.fiscalStatus);
     const printer = C.decodePrinterStatus(status.printerStatus);
     const refuse = (msg) => Object.assign(new Error(msg), { beforeSend: true });
-    if (fiscal.mode === 'fiscal' && !cfg.allowFiscalMode) {
+    if (fiscal.mode === 'fiscal' && !cfg.allowFiscalMode && !options.readOnly) {
         throw refuse('El equipo está en MODO FISCAL (comprobantes con validez legal). Para emitir hay que habilitarlo en config.json del agente (epson.allowFiscalMode). No se envió nada.');
     }
     if (fiscal.mode !== 'entrenamiento' && fiscal.mode !== 'fiscal') throw refuse(`El equipo está en modo ${fiscal.mode}: no puede emitir`);
@@ -259,7 +263,12 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
     const klass = C.documentClassFor(payload && payload.receiver, kind);
     const cls = C.DOCUMENT_CLASSES[klass];
     const types = Object.keys(cls.counters).map(Number);
-    const { before, data } = await precheck(dllPath, port, cfg, types);
+    const { before, data, fiscal } = await precheck(dllPath, port, cfg, types);
+    // Modo entrenamiento: sin validez fiscal. Queda marcado para no contarlo.
+    const finish = (out) => {
+        if (out.result && fiscal.mode === 'entrenamiento') out.result.training = true;
+        return out;
+    };
 
     let commands;
     try {
@@ -276,7 +285,7 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
     try {
         res = await bridge(dllPath, port, commands, true);
     } catch (e) {
-        return recover(dllPath, port, klass, before, data.pointOfSale, e.message);
+        return finish(await recover(dllPath, port, klass, before, data.pointOfSale, e.message));
     }
     if (res.setupError) throw new DriverUnavailableError(res.setupError);
     if (!res.opened) {
@@ -291,7 +300,7 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
         const number = Number(f[cls.numberField]);
         if (!Number.isInteger(number) || number <= 0) {
             // Cerró bien pero sin número: se lee de los contadores (08 30).
-            return recover(dllPath, port, klass, before, data.pointOfSale, 'El equipo cerró el documento pero no informó el número');
+            return finish(await recover(dllPath, port, klass, before, data.pointOfSale, 'El equipo cerró el documento pero no informó el número'));
         }
         const letter = cls.letterField !== undefined ? String(f[cls.letterField] || '').trim() : '';
         const total = Number(f[cls.totalField]);
@@ -300,7 +309,7 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
         const mismatch = Number.isInteger(total) && Number.isInteger(expected) && Math.abs(total - expected) > 1
             ? `El total del comprobante ($${(total / 100).toFixed(2)}) no coincide con la venta ($${(expected / 100).toFixed(2)}).`
             : null;
-        return {
+        return finish({
             outcome: 'confirmed',
             result: {
                 documentType: documentTypeName(cls, letter),
@@ -310,12 +319,12 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
                 raw: `${documentTypeName(cls, letter)} ${number} · total ${f[cls.totalField] || '?'}`,
             },
             errorMsg: mismatch,
-        };
+        });
     }
 
     if (failed && failed.dllError !== 0) {
         // Se cortó la comunicación en medio de la emisión.
-        return recover(dllPath, port, klass, before, data.pointOfSale, `Error de comunicación ${hex(failed.dllError)} en el comando ${failed.command}`);
+        return finish(await recover(dllPath, port, klass, before, data.pointOfSale, `Error de comunicación ${hex(failed.dllError)} en el comando ${failed.command}`));
     }
 
     const reason = failed
@@ -325,7 +334,44 @@ async function runDocument(dllPath, port, cfg, kind, payload) {
         return { outcome: 'failed', errorMsg: `${reason}. No se abrió el documento.` };
     }
     // Quedó abierto: se cancela para no dejar el equipo trabado.
-    return recover(dllPath, port, klass, before, data.pointOfSale, reason);
+    return finish(await recover(dllPath, port, klass, before, data.pointOfSale, reason));
+}
+
+/**
+ * Descarga un reporte a la carpeta reportes-fiscales de la PC de caja. No emite
+ * ni imprime: el equipo la registra y se puede repetir (6.7.1). El nombre del
+ * archivo lo da el equipo: se limpia antes de usarlo como ruta.
+ */
+async function runFileReport(dllPath, port, cfg, payload) {
+    // No emite nada: no necesita el permiso de emisión en modo fiscal.
+    const { fiscal } = await precheck(dllPath, port, cfg, [C.DOC_TYPE.TIQUE], { readOnly: true });
+    const refuse = (msg) => Object.assign(new Error(msg), { beforeSend: true });
+    if (fiscal.mode !== 'fiscal') throw refuse('Los reportes solo se pueden descargar con el equipo en modo fiscal');
+
+    let spec;
+    try {
+        spec = C.buildFileReportDownload(payload);
+    } catch (e) {
+        throw refuse(e.message);
+    }
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+    const temp = path.join(REPORTS_DIR, `descarga-${payload.report}-${Date.now()}.tmp`);
+    const res = await bridge(dllPath, port, { ...spec, outFile: temp }, true);
+    if (res.setupError) throw new DriverUnavailableError(res.setupError);
+    if (!res.opened) return { outcome: 'failed', errorMsg: `No se pudo abrir la comunicación con la impresora fiscal (${hex(res.dllError)})` };
+    const dl = res.download || {};
+    if (!dl.ok) {
+        try { fs.unlinkSync(temp); } catch { /* ignorar */ }
+        return { outcome: 'failed', errorMsg: dl.error || 'No se pudo descargar el reporte' };
+    }
+    const safeName = path.basename(String(dl.fileName || '')).replace(/[^A-Za-z0-9._-]/g, '_');
+    const fileName = safeName || `${payload.report}-${payload.from}-${payload.to}.pem`;
+    fs.renameSync(temp, path.join(REPORTS_DIR, fileName));
+    return {
+        outcome: 'confirmed',
+        // `number`: tamaño del archivo. Este resultado no es un comprobante.
+        result: { documentType: C.FILE_REPORTS[payload.report].name, number: dl.bytes, raw: `reportes-fiscales\\${fileName}` },
+    };
 }
 
 async function execute(device, operation, payload) {
@@ -335,6 +381,7 @@ async function execute(device, operation, payload) {
     if (operation === 'x_report' || operation === 'z_report') {
         return runReport(dllPath, port, cfg, operation === 'z_report' ? 'z' : 'x');
     }
+    if (operation === 'download_report') return runFileReport(dllPath, port, cfg, payload);
     if (operation === 'invoice' || operation === 'credit_note') {
         return runDocument(dllPath, port, cfg, operation, payload);
     }

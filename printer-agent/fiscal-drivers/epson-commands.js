@@ -279,6 +279,34 @@ function buildTicketCommands(payload) {
  * Informes, con las extensiones del ejemplo oficial (cmd_templates):
  * Z 0000 · X 0C01 (bit 0 imprime, bits 10-11 encabezados y establecimiento).
  */
+/**
+ * Reportes que guarda el equipo (6.7.1). Extensión: bits 1-2 del tipo. Archivos
+ * firmados por el equipo, para que el local los presente con su contador.
+ */
+const FILE_REPORTS = {
+    ctd: { ext: '0000', name: 'Cinta Testigo Digital' },
+    duplicates: { ext: '0002', name: 'Duplicados de comprobantes A' },
+    totals: { ext: '0004', name: 'Resumen de Totales' },
+};
+
+/** 2026-11-05 → 051126 (formato de fecha del equipo: ddmmyy). */
+function deviceDate(isoDate) {
+    const m = /^\d{2}(\d{2})-(\d{2})-(\d{2})$/.exec(String(isoDate));
+    if (!m) throw new Error(`Fecha inválida: ${isoDate}`);
+    return `${m[3]}${m[2]}${m[1]}`;
+}
+
+function buildFileReportDownload(payload) {
+    const report = FILE_REPORTS[payload && payload.report];
+    if (!report) throw new Error('Reporte desconocido');
+    return {
+        start: `0951|${report.ext}|${deviceDate(payload.from)}|${deviceDate(payload.to)}`,
+        next: '0970|0000',
+        end: '0971|0000',
+        cancel: '0972|0000',
+    };
+}
+
 function buildReportCommand(kind) {
     if (kind === 'z') return `${CMD.Z_REPORT}|0000`;
     if (kind === 'x') return `${CMD.X_REPORT}|0C01`;
@@ -294,6 +322,9 @@ module.exports = {
     prorateDiscount,
     originLine,
     buildReportCommand,
+    FILE_REPORTS,
+    deviceDate,
+    buildFileReportDownload,
     DOC_TYPE,
     decodeFiscalStatus,
     decodePrinterStatus,

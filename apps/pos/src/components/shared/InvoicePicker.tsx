@@ -16,13 +16,16 @@ export function InvoicePicker({
   onChange: (value: InvoiceChoice) => void
 }) {
   if (!config.enabled) return null
+  const isPrinter = config.modality === "controller"
   const options: { id: InvoiceChoice["type"]; label: string }[] = [
     ...(config.mode === "ask" ? [{ id: "none" as const, label: "Sin factura" }] : []),
-    { id: "final", label: `Factura ${config.letterForFinalConsumer ?? ""}` },
-    { id: "company", label: `Factura ${config.letterForCompany ?? ""} con CUIT` },
+    // Con impresora fiscal la letra la define el equipo: no se anticipa.
+    { id: "final", label: isPrinter ? "Tique" : `Factura ${config.letterForFinalConsumer ?? ""}` },
+    { id: "company", label: isPrinter ? "Factura con CUIT" : `Factura ${config.letterForCompany ?? ""} con CUIT` },
   ]
   const set = (patch: Partial<InvoiceChoice>) => onChange({ ...value, ...patch })
   const valid = isInvoiceChoiceValid(value)
+  const missingAddress = valid && !isInvoiceChoiceValid(value, config)
 
   return (
     <div className="card invoice-picker" style={{ padding: "var(--sp-3)" }}>
@@ -66,7 +69,7 @@ export function InvoicePicker({
           {config.modality === "controller" && (
             <input
               className="search-input"
-              placeholder="Domicilio del cliente"
+              placeholder={config.requireBuyerAddress ? "Domicilio del cliente" : "Domicilio del cliente (opcional)"}
               aria-label="Domicilio del cliente"
               maxLength={40}
               value={value.address ?? ""}
@@ -108,6 +111,7 @@ export function InvoicePicker({
           style={{ marginTop: "var(--sp-2)" }}
         />
       )}
+      {missingAddress && <div className="text-sm" style={{ color: "var(--error)", marginTop: "var(--sp-1)" }}>Este local pide el domicilio del cliente.</div>}
       {!valid && <div className="text-sm" style={{ color: "var(--error)", marginTop: "var(--sp-1)" }}>
         {value.type === "company" ? "El CUIT no es válido: revisá los 11 números." : "Cargá un DNI de 7 u 8 dígitos o un CUIT válido."}
       </div>}

@@ -44,6 +44,10 @@ export interface IFiscalProfile extends Document {
   invoicingMode: InvoicingMode
   /** Pedidos online: 'auto' factura a consumidor final al cobrarse (Fase 6). */
   onlineInvoicing: 'off' | 'auto'
+  /** Tope para identificar al consumidor final, en centavos. null = valor general. */
+  cfIdentificationThresholdCents: number | null
+  /** Pedir el domicilio del cliente en las facturas con CUIT (impresora fiscal). */
+  requireBuyerAddress: boolean
   pointsOfSale: IPointOfSale[]
   /**
    * Contingencia CAEA (Fase 6): si ARCA no responde, se factura con el CAEA
@@ -162,6 +166,8 @@ const FiscalProfileSchema = new Schema<IFiscalProfile>(
     environment: { type: String, enum: ['homologation', 'production'], default: 'homologation' },
     invoicingMode: { type: String, enum: ['ask', 'always', 'off'], default: 'ask' },
     onlineInvoicing: { type: String, enum: ['off', 'auto'], default: 'off' },
+    cfIdentificationThresholdCents: { type: Number, default: null, min: 0 },
+    requireBuyerAddress: { type: Boolean, default: false },
     pointsOfSale: { type: [PointOfSaleSchema], default: [] },
     contingency: {
       enabled: { type: Boolean, default: false },

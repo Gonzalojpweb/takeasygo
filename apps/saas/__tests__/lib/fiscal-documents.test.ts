@@ -97,7 +97,7 @@ describe('QR de ARCA', () => {
       codAut: 76543210987654,
     })
     const url = arcaQrUrl(input)
-    expect(url.startsWith('https://www.afip.gob.ar/fe/qr/?p=')).toBe(true)
+    expect(url.startsWith('https://www.arca.gob.ar/fe/qr/?p=')).toBe(true)
     expect(JSON.parse(Buffer.from(url.split('p=')[1], 'base64').toString())).toMatchObject({ nroCmp: 42 })
   })
 })

@@ -5,6 +5,7 @@ import { fiscalAdminContext } from '@/lib/fiscal/admin-context'
 import { documentSummary } from '@/lib/fiscal/issue'
 import { libroIvaCsv, libroIvaTotals, monthRange } from '@/lib/fiscal/libro-iva'
 import { libroIvaDigitalFiles } from '@/lib/fiscal/libro-iva-digital'
+import { controllerDocsForLibro } from '@/lib/fiscal/controller-libro'
 import { getTodayStrInTimezone } from '@/lib/restaurant-time'
 
 // ============================================================================
@@ -43,9 +44,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       .limit(5000)
 
     const authorized = docs.filter((d) => d.status === 'authorized')
+    const forLibro = [...authorized, ...(await controllerDocsForLibro(ctx.tenant._id, range))]
 
     if (url.searchParams.get('format') === 'csv') {
-      return new NextResponse(libroIvaCsv(authorized), {
+      return new NextResponse(libroIvaCsv(forLibro), {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
           'Content-Disposition': `attachment; filename="libro-iva-ventas-${month}${environment === 'homologation' ? '-PRUEBAS' : ''}.csv"`,
@@ -56,7 +58,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const lid = url.searchParams.get('format')
     if (lid === 'lid-cbte' || lid === 'lid-alicuotas') {
-      const files = libroIvaDigitalFiles(authorized)
+      const files = libroIvaDigitalFiles(forLibro)
       const body = lid === 'lid-cbte' ? files.comprobantes : files.alicuotas
       const name = `LIBRO_IVA_DIGITAL_VENTAS_${lid === 'lid-cbte' ? 'CBTE' : 'ALICUOTAS'}_${month.replace('-', '')}${environment === 'homologation' ? '_PRUEBAS' : ''}.txt`
       return new NextResponse(Buffer.from(body, 'latin1'), {
@@ -72,7 +74,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       {
         month,
         environment,
-        totals: libroIvaTotals(authorized),
+        totals: libroIvaTotals(forLibro),
         pending: docs.filter((d) => d.status === 'pending' || d.status === 'retrying').length,
         rejected: docs.filter((d) => d.status === 'rejected').length,
         documents: docs.slice(0, 500).map((d) => ({

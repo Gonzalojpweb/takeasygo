@@ -17,6 +17,10 @@ import {
   actOnControllerDocument,
   controllerDocumentLabel,
   CONTROLLER_ACTIVE,
+  listUnbilledOrders,
+  invoiceOrder,
+  defaultInvoiceChoice,
+  isInvoiceChoiceValid,
   listFiscalDocuments,
   reprintFiscalDocument,
   retryFiscalDocument,
@@ -27,11 +31,14 @@ import {
   type ControllerReports,
   type ControllerDocument,
   type ControllerDocuments,
+  type UnbilledOrder,
+  type InvoiceChoice,
   type ReviewAction,
   type PosFiscalDocument,
   type PosFiscalDocuments,
 } from "../../services/fiscal"
 import { FiscalHelpButton, FiscalHelpCenter } from "./FiscalHelpCenter"
+import { InvoicePicker } from "../shared/InvoicePicker"
 
 // ============================================================================
 // Contexto Facturación — factura electrónica en el POS (Fase L, 2026-10)
@@ -51,7 +58,13 @@ import { FiscalHelpButton, FiscalHelpCenter } from "./FiscalHelpCenter"
 //     resolución controlada de lo que está «en revisión».
 // ============================================================================
 
-const REPORT_NAME = { x: "Salida de cajero (X)", z: "Cierre Z" } as const
+const REPORT_NAME = {
+  x: "Salida de cajero (X)",
+  z: "Cierre Z",
+  ctd: "Cinta Testigo Digital",
+  duplicates: "Duplicados de comprobantes A",
+  totals: "Resumen de Totales",
+} as const
 
 const REPORT_STATUS: Record<string, string> = {
   pending: "Esperando al agente de impresión",
@@ -144,9 +157,12 @@ export function FiscalDashboard() {
   const [printerDocs, setPrinterDocs] = useState<ControllerDocuments | null>(null)
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [resolvedNumber, setResolvedNumber] = useState("")
+  const [unbilled, setUnbilled] = useState<UnbilledOrder[]>([])
+  const [selectedUnbilledId, setSelectedUnbilledId] = useState<string | null>(null)
+  const [unbilledChoice, setUnbilledChoice] = useState<InvoiceChoice | null>(null)
   const range = useMemo(() => rangeFor(preset), [preset])
   // Esc: cierra el comprobante abierto (el centro de ayuda maneja su propio Esc).
-  useEscapeBack(selectedId ? () => setSelectedId(null) : selectedJobId ? () => setSelectedJobId(null) : null)
+  useEscapeBack(selectedId ? () => setSelectedId(null) : selectedJobId ? () => setSelectedJobId(null) : selectedUnbilledId ? () => setSelectedUnbilledId(null) : null)
 
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
@@ -167,6 +183,7 @@ export function FiscalDashboard() {
       const reports = await getControllerReports(tenantId).catch(() => null)
       setController(reports)
       setPrinterDocs(reports?.modality === "controller" ? await listControllerDocuments(tenantId, range).catch(() => null) : null)
+      setUnbilled(await listUnbilledOrders(tenantId).catch(() => []))
     } catch (err) {
       flash("error", err instanceof Error ? err.message : "No se pudieron cargar los comprobantes")
     }
@@ -198,6 +215,7 @@ export function FiscalDashboard() {
   const selected = data?.documents.find((d) => d.id === selectedId) ?? null
   const selectedJob = printerDocs?.documents.find((d) => d.id === selectedJobId) ?? null
   const isPrinter = controller?.modality === "controller"
+  const selectedUnbilled = unbilled.find((o) => o.posId === selectedUnbilledId) ?? null
 
   // Con un comprobante en camino se consulta seguido: el resultado lo da el equipo.
   const printerActive = Boolean(printerDocs?.documents.some((d) => CONTROLLER_ACTIVE.has(d.status)))
@@ -228,6 +246,33 @@ export function FiscalDashboard() {
   }, [run, tenantId])
 
   useEffect(() => {
+    if (selectedUnbilled && config && unbilledChoice) {
+      const order = selectedUnbilled
+      // Ya se decidió emitir: el selector no ofrece «Sin factura».
+      const pickerConfig: FiscalConfig = { ...config, mode: "always" }
+      setContextPanel({
+        title: "Emitir comprobante",
+        subtitle: `${order.orderNumber ?? `#${order.posId.slice(0, 6).toUpperCase()}`} · ${formatCurrency(order.totalCents)}`,
+        body: (
+          <div className="sale-detail">
+            {order.failureMessage && <div className="setup-error" role="note">Falló al cobrar: {order.failureMessage}</div>}
+            <InvoicePicker config={pickerConfig} value={unbilledChoice} onChange={setUnbilledChoice} />
+            <div className="fiscal-actions">
+              <button className="ctx-action ctx-action--teal" disabled={busy || !isInvoiceChoiceValid(unbilledChoice, config)} onClick={() => { void run(async () => {
+                const doc = await invoiceOrder(tenantId!, order.posId, unbilledChoice)
+                setSelectedUnbilledId(null)
+                return doc.channel === "controller" ? "Enviado a la impresora fiscal" : doc.status === "authorized" ? `${doc.label} autorizado` : "Comprobante pendiente"
+              }) }}>
+                <span className="ctx-action-icon"><Printer size={20} aria-hidden /></span><span className="ctx-action-label">Emitir comprobante</span>
+              </button>
+            </div>
+          </div>
+        ),
+      })
+      setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedUnbilledId(null)}>← Volver</button> })
+      return
+    }
+
     if (selectedJob) {
       const st = CONTROLLER_STATUS[selectedJob.status]
       const canRetry = selectedJob.status === "failed" || selectedJob.status === "expired" || selectedJob.status === "driver_unavailable"
@@ -241,6 +286,7 @@ export function FiscalDashboard() {
           <div className="sale-detail">
             <div className="sale-tags">
               <span className={`fiscal-status fiscal-status--${st.tone}`}>{st.label}</span>
+              {selectedJob.training && <span className="sale-voided">Entrenamiento: sin validez fiscal</span>}
               {selectedJob.orderCancelled && <span className="sale-voided">Venta anulada</span>}
               {selectedJob.hasCreditNote && selectedJob.kind === "invoice" && <span className="sale-voided">Con nota de crédito</span>}
             </div>
@@ -326,6 +372,19 @@ export function FiscalDashboard() {
                 {data.counts.rejected > 0 && <div><span>Rechazados</span><strong className="text-error">{data.counts.rejected}</strong></div>}
               </div>
             )}
+            {unbilled.length > 0 && (
+              <>
+                <div className="sale-section-title">Ventas sin comprobante ({unbilled.length})</div>
+                <p className="text-sm text-muted">De los últimos 7 días. Tocá una para emitirlo.</p>
+                {unbilled.slice(0, 15).map((o) => (
+                  <button key={o.posId} type="button" className={o.failureMessage ? "setup-error" : "sale-void-info"} style={{ textAlign: "left", width: "100%" }}
+                    onClick={() => { if (config) { setUnbilledChoice({ ...defaultInvoiceChoice(config), type: "final" }); setSelectedJobId(null); setSelectedId(null); setSelectedUnbilledId(o.posId) } }}>
+                    {new Date(o.createdAt).toLocaleDateString("es-AR")} {formatTime(new Date(o.createdAt))} · {o.orderNumber ?? `#${o.posId.slice(0, 6).toUpperCase()}`} · {formatCurrency(o.totalCents)}
+                    {o.failureMessage ? ` · Falló: ${o.failureMessage}` : ""}
+                  </button>
+                ))}
+              </>
+            )}
             {controller?.modality === "controller" && (
               <>
                 <div className="sale-section-title">Impresora fiscal{controller.device ? ` · ${controller.device.brand} ${controller.device.model}` : ""}</div>
@@ -354,10 +413,27 @@ export function FiscalDashboard() {
                 )}
                 {controller.reports.map((r) => (
                   <div key={r.id} className={r.status === "failed" || r.status === "unknown" || r.status === "driver_unavailable" ? "setup-error" : "sale-void-info"}>
-                    {REPORT_NAME[r.kind]}{r.number ? ` N.º ${r.number}` : ""} · {formatTime(new Date(r.createdAt))} · {REPORT_STATUS[r.status] ?? r.status}
+                    {REPORT_NAME[r.kind]}{r.number && !r.file ? ` N.º ${r.number}` : ""} · {formatTime(new Date(r.createdAt))} · {REPORT_STATUS[r.status] ?? r.status}
+                    {r.file ? ` · Guardado en la PC de caja: ${r.file}` : ""}
                     {r.message ? `: ${r.message}` : ""}
                   </div>
                 ))}
+              </>
+            )}
+            {controller?.modality === "controller" && (
+              <>
+                <div className="sale-section-title">Reportes del equipo (encargado / admin)</div>
+                <p className="text-sm text-muted">Archivos firmados del mes elegido en Libro IVA. Quedan en la PC de caja, para presentarlos con tu contador. No imprimen ni emiten nada.</p>
+                <div className="fiscal-libro">
+                  {(["totals", "ctd", "duplicates"] as const).map((kind) => (
+                    <button key={kind} className="btn btn-secondary btn-sm" disabled={busy || reportActive} onClick={() => { void run(async () => {
+                      await requestControllerReport(tenantId!, kind, crypto.randomUUID(), month)
+                      return `${REPORT_NAME[kind]}: descarga pedida a la impresora fiscal`
+                    }) }}>
+                      <Download size={14} aria-hidden /> {REPORT_NAME[kind]}
+                    </button>
+                  ))}
+                </div>
               </>
             )}
             <div className="sale-section-title">Libro IVA (encargado / admin)</div>
@@ -445,14 +521,14 @@ export function FiscalDashboard() {
       ),
     })
     setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>← Volver</button> })
-  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport, selectedJob, isPrinter, printerDocs, resolvedNumber])
+  }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport, selectedJob, isPrinter, printerDocs, resolvedNumber, unbilled, selectedUnbilled, unbilledChoice])
 
   return (
     <div className="workspace sales">
       <div className="sales-toolbar">
         <div className="sales-chips" role="group" aria-label="Período">
           {([["today", "Hoy"], ["yesterday", "Ayer"], ["week", "7 días"]] as [Preset, string][]).map(([p, label]) => (
-            <button key={p} type="button" className={`sales-chip${preset === p ? " active" : ""}`} aria-pressed={preset === p} onClick={() => { setPreset(p); setSelectedId(null); setSelectedJobId(null) }}>{label}</button>
+            <button key={p} type="button" className={`sales-chip${preset === p ? " active" : ""}`} aria-pressed={preset === p} onClick={() => { setPreset(p); setSelectedId(null); setSelectedJobId(null); setSelectedUnbilledId(null) }}>{label}</button>
           ))}
         </div>
         {data?.environment === "homologation" && <span className="sale-voided">Modo pruebas: sin validez fiscal</span>}
@@ -475,7 +551,7 @@ export function FiscalDashboard() {
               className={`sales-row fiscal-row${selectedJobId === d.id ? " selected" : ""}`}
               onClick={() => { setSelectedId(null); setResolvedNumber(""); setSelectedJobId(selectedJobId === d.id ? null : d.id) }}>
               <span role="cell" className="sales-time">{formatTime(new Date(d.createdAt))}</span>
-              <span role="cell" className="sales-title">{controllerDocumentLabel(d)}</span>
+              <span role="cell" className="sales-title">{controllerDocumentLabel(d)}{d.training ? " · Entrenamiento" : ""}</span>
               <span role="cell" className="sales-items">{d.receiver.name || CONDITION_LABEL[d.receiver.condition]}</span>
               <span role="cell"><span className={`fiscal-status fiscal-status--${CONTROLLER_STATUS[d.status].tone}`}>{CONTROLLER_STATUS[d.status].label}</span></span>
               <span role="cell" className="sales-right sale-money">{d.kind === "credit_note" ? "−" : ""}{formatCurrency(d.totalCents)}</span>

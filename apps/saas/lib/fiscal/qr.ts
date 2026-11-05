@@ -3,7 +3,7 @@ import { ARCA_QR_URL } from './arca/endpoints'
 // ============================================================================
 // QR fiscal de ARCA (RG 4892/2020)
 // ============================================================================
-// URL: https://www.afip.gob.ar/fe/qr/?p=<base64(JSON)>
+// URL: https://www.arca.gob.ar/fe/qr/?p=<base64(JSON)>
 // Campos (especificación de ARCA, versión 1): ver, fecha (yyyy-mm-dd), cuit,
 // ptoVta, tipoCmp, nroCmp, importe, moneda, ctz, tipoDocRec, nroDocRec,
 // tipoCodAut ("E" = CAE), codAut.

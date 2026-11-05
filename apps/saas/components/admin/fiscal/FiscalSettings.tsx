@@ -36,6 +36,8 @@ interface Profile {
   environment: 'homologation' | 'production'
   invoicingMode: 'ask' | 'always' | 'off'
   onlineInvoicing: 'off' | 'auto'
+  cfIdentificationThresholdCents: number | null
+  requireBuyerAddress: boolean
   pointsOfSale: { locationId: string; number: number }[]
   contingency: { enabled: boolean; pointsOfSale: { locationId: string; number: number }[] }
   controllers: { locationId: string; brand: string; model: string; firmware: string; connection: 'usb' | 'serial' | 'tcp'; address: string; active: boolean }[]
@@ -143,6 +145,8 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
           defaultIvaRate: profile.defaultIvaRate,
           invoicingMode: profile.invoicingMode,
           onlineInvoicing: profile.onlineInvoicing,
+          cfIdentificationThresholdCents: profile.cfIdentificationThresholdCents,
+          requireBuyerAddress: profile.requireBuyerAddress,
           environment: profile.environment,
           pointsOfSale: profile.pointsOfSale.filter((p) => p.number > 0),
           contingency: {
@@ -455,9 +459,9 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
       <section className={card}>
         <h2 className="text-lg font-black">Impresora fiscal homologada (controlador fiscal)</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Solo para sedes que facturan con un equipo fiscal en lugar de factura electrónica. <strong>Todavía no emite
-          comprobantes</strong>: falta programar la conexión con cada marca. Activarlo sirve para probar que la PC de caja
-          recibe el pedido. Mientras esté activo, <strong>esa sede deja de emitir factura electrónica</strong>.
+          Para sedes que facturan con un equipo fiscal en lugar de factura electrónica: no hace falta certificado de ARCA.
+          Hoy funciona la <strong>Epson TM-T900FA con firmware Vesta</strong>, con el agente de impresión instalado en la PC de
+          caja. Mientras esté activo, <strong>esa sede deja de emitir factura electrónica</strong>.
         </p>
         <div className="mt-4 space-y-3">
           {locations.map((l) => {
@@ -578,6 +582,37 @@ export default function FiscalSettings({ tenantSlug }: { tenantSlug: string }) {
                 factura con CUIT se hace desde «Comprobantes → Facturar un pedido».
               </span>
             )}
+          </span>
+        </label>
+        {profile.controllers.some((c) => c.active) && (
+          <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border-2 border-border/60 p-4">
+            <input
+              type="checkbox"
+              className="mt-1 h-5 w-5"
+              checked={profile.requireBuyerAddress}
+              onChange={(e) => set('requireBuyerAddress', e.target.checked)}
+            />
+            <span>
+              <span className="font-black">Pedir el domicilio del cliente en las facturas con CUIT</span>
+              <span className="block text-xs text-muted-foreground">
+                Sin esta opción el domicilio es opcional y, si no se carga, el comprobante sale con «No informado». Definilo con tu contador.
+              </span>
+            </span>
+          </label>
+        )}
+        <label className="mt-3 block space-y-1 rounded-2xl border-2 border-border/60 p-4">
+          <span className="font-black">Monto a partir del cual identificar al consumidor final ($)</span>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className="block w-full rounded-xl border border-border/60 bg-background px-3 py-2"
+            placeholder="Vacío: valor general ($ 10.000.000)"
+            value={profile.cfIdentificationThresholdCents === null ? '' : profile.cfIdentificationThresholdCents / 100}
+            onChange={(e) => set('cfIdentificationThresholdCents', e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value) * 100)))}
+          />
+          <span className="block text-xs text-muted-foreground">
+            A partir de este monto, una venta a consumidor final pide DNI o CUIT. Definilo con tu contador si la norma cambia.
           </span>
         </label>
         <div className="mt-5 flex justify-end">

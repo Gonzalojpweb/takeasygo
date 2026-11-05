@@ -44,7 +44,7 @@ Los siguientes términos son el glosario estándar usado en toda la plataforma T
 | **CashChannel** | Canal de la venta: `counter` (presencial en mostrador/salón) o `takeasygo` (delivery, takeaway, venta por app). |
 | **surcharge** | Recargo por método de pago (ej. tarjeta de crédito, débito). Configurable por plan. |
 | **Z Report** | Reporte de cierre Z: snapshot inmutable de la caja al final del turno. Generado UNA sola vez. |
-| **fiscal** | Facturación electrónica con ARCA (web service WSFEv1, CAE). El comprobante se imprime en la impresora térmica de caja. No hay soporte de controladores fiscales homologados. |
+| **fiscal** | Facturación electrónica con ARCA (web service WSFEv1, CAE). El comprobante se imprime en la impresora térmica de caja. Una sede también puede facturar con un controlador fiscal homologado: hoy, Epson TM-T900FA con firmware Vesta. |
 
 ## Club de Fidelización
 

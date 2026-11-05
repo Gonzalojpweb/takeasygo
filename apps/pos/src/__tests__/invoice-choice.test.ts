@@ -26,6 +26,13 @@ describe("isInvoiceChoiceValid", () => {
     expect(isInvoiceChoiceValid({ ...final, docNumber: "123456" })).toBe(false)
   })
 
+  it("el domicilio solo es obligatorio si el local lo pide", () => {
+    const company = { ...base, docNumber: VALID }
+    expect(isInvoiceChoiceValid(company, { requireBuyerAddress: false })).toBe(true)
+    expect(isInvoiceChoiceValid(company, { requireBuyerAddress: true })).toBe(false)
+    expect(isInvoiceChoiceValid({ ...company, address: "Calle 1" }, { requireBuyerAddress: true })).toBe(true)
+  })
+
   it("sin factura no valida nada", () => {
     expect(isInvoiceChoiceValid({ ...base, type: "none", docNumber: "123" })).toBe(true)
   })

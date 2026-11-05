@@ -10,3 +10,6 @@ docs*
 /docs*
 # DLL del SDK de Epson: se copia en cada PC, nunca al repo
 *.dll
+
+# Reportes fiscales descargados de cada equipo: nunca al repo
+reportes-fiscales/

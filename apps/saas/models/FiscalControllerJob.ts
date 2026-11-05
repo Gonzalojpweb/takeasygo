@@ -43,7 +43,7 @@ export interface IFiscalControllerJob extends Document {
   locationId: mongoose.Types.ObjectId
   /** Venta que factura. null en los informes (X y Z), que no son de una venta. */
   orderId: mongoose.Types.ObjectId | null
-  operation: 'invoice' | 'credit_note' | 'status' | 'query_last' | 'x_report' | 'z_report'
+  operation: 'invoice' | 'credit_note' | 'status' | 'query_last' | 'x_report' | 'z_report' | 'download_report'
   /** Equipo configurado en el perfil (copia: si se cambia, la operación no se mueve). */
   device: { brand: string; model: string; firmware: string; connection: string; address: string }
   /** Datos de la venta a emitir (sin datos sensibles más allá de lo fiscal). */
@@ -56,6 +56,10 @@ export interface IFiscalControllerJob extends Document {
     issuerIvaCondition?: string | null
     /** Nota de crédito: comprobante que revierte. */
     origin?: { documentType: string | null; pointOfSale: number | null; number: number | null } | null
+    /** Descarga de reportes del equipo. */
+    report?: 'ctd' | 'duplicates' | 'totals'
+    from?: string
+    to?: string
   } | null
   status: ControllerJobStatus
   /** Resultado informado por el equipo. */
@@ -66,6 +70,8 @@ export interface IFiscalControllerJob extends Document {
     issuedAt: Date | null
     totalCents: number | null
     raw: string
+    /** Emitido en modo entrenamiento: sin validez fiscal. */
+    training?: boolean
   }
   attempts: number
   /** Sin tomar pasada esta fecha, no se ejecuta: no sale horas después. */
@@ -88,7 +94,7 @@ const FiscalControllerJobSchema = new Schema<IFiscalControllerJob>(
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order', default: null },
-    operation: { type: String, enum: ['invoice', 'credit_note', 'status', 'query_last', 'x_report', 'z_report'], required: true },
+    operation: { type: String, enum: ['invoice', 'credit_note', 'status', 'query_last', 'x_report', 'z_report', 'download_report'], required: true },
     device: {
       brand: { type: String, required: true, maxlength: 40 },
       model: { type: String, default: '', maxlength: 60 },
@@ -109,6 +115,7 @@ const FiscalControllerJobSchema = new Schema<IFiscalControllerJob>(
       issuedAt: { type: Date, default: null },
       totalCents: { type: Number, default: null },
       raw: { type: String, default: '', maxlength: 2000 },
+      training: { type: Boolean, default: false },
     },
     attempts: { type: Number, default: 0 },
     expiresAt: { type: Date, default: null },

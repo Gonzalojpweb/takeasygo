@@ -25,13 +25,13 @@
 //     async execute(device, operation, payload) { … },
 //   }
 //
-// Operaciones: 'invoice', 'credit_note', 'status' (consultar estado) y
-// 'query_last' (último comprobante emitido: reconciliación de un resultado
-// desconocido). Una operación que el equipo no soporte se informa 'failed'
+// Operaciones: 'invoice', 'credit_note', 'x_report', 'z_report',
+// 'download_report', 'status' (consultar estado) y 'query_last' (último
+// comprobante emitido: reconciliación de un resultado desconocido). Una operación que el equipo no soporte se informa 'failed'
 // con el motivo: NO se inventa.
 //
-// ESTADO (31/10/2026): ningún driver implementado ni validado. Falta, por
-// fabricante: modelo exacto, firmware, manual técnico vigente y SDK oficial.
+// ESTADO (05/11/2026): driver Epson TM-T900FA (Vesta) probado en equipo real.
+// Otras marcas: falta modelo exacto, firmware, manual técnico y SDK oficial.
 // ============================================================================
 
 const path = require('path');

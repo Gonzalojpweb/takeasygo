@@ -73,7 +73,7 @@ function fakeBridge(script) {
     return {
         calls,
         fn: async (_dll, _port, commands) => {
-            calls.push(commands.map((c) => c.split('|')[0]));
+            calls.push(Array.isArray(commands) ? commands.map((c) => c.split('|')[0]) : ['descarga']);
             const next = script.shift();
             if (next instanceof Error) throw next;
             return next(commands);
@@ -208,6 +208,59 @@ test('corte de comunicación y el equipo no responde después: «unknown»', asy
     epson.__setBridgeForTests(b.fn);
     const out = await epson.execute(DEVICE, 'invoice', PAYLOAD);
     assert.equal(out.outcome, 'unknown');
+});
+
+// ── Reportes del equipo ─────────────────────────────────────────────────────
+
+test('reportes: fecha ddmmyy y tipo en la extensión', () => {
+    assert.equal(C.deviceDate('2026-11-05'), '051126');
+    const period = { from: '2026-11-01', to: '2026-11-30' };
+    assert.equal(C.buildFileReportDownload({ report: 'ctd', ...period }).start, '0951|0000|011126|301126');
+    assert.equal(C.buildFileReportDownload({ report: 'totals', ...period }).start, '0951|0004|011126|301126');
+    assert.throws(() => C.buildFileReportDownload({ report: 'otro', ...period }));
+    assert.throws(() => C.deviceDate('05/11/2026'));
+});
+
+test('reportes: el nombre del equipo no puede salir de la carpeta', async () => {
+    const statusOk = () => ({ opened: true, results: [ok('0001', [], 0xc000), counters(10)] });
+    const fs = require('fs');
+    const b = fakeBridge([
+        statusOk,
+        (spec) => { fs.writeFileSync(spec.outFile, 'pem'); return { opened: true, download: { ok: true, fileName: '..\\..\\F8011.pem', bytes: 3 } }; },
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'download_report', { report: 'totals', from: '2026-11-01', to: '2026-11-30' });
+    assert.equal(out.outcome, 'confirmed');
+    assert.equal(out.result.raw, 'reportes-fiscales\\F8011.pem');
+    fs.unlinkSync(require('path').join(__dirname, '..', 'reportes-fiscales', 'F8011.pem'));
+    epson.__setBridgeForTests(null);
+});
+
+test('reportes: si la descarga falla no queda un archivo a medias', async () => {
+    const statusOk = () => ({ opened: true, results: [ok('0001', [], 0xc000), counters(10)] });
+    const b = fakeBridge([statusOk, () => ({ opened: true, download: { ok: false, error: 'Se corto la descarga' } })]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'download_report', { report: 'ctd', from: '2026-11-01', to: '2026-11-30' });
+    assert.deepEqual([out.outcome, out.errorMsg], ['failed', 'Se corto la descarga']);
+    epson.__setBridgeForTests(null);
+});
+
+test('reportes: con el equipo en entrenamiento no se intenta', async () => {
+    const b = fakeBridge([() => ({ opened: true, results: [ok('0001', [], 0x8000), counters(10)] })]);
+    epson.__setBridgeForTests(b.fn);
+    await assert.rejects(epson.execute(DEVICE, 'download_report', { report: 'ctd', from: '2026-11-01', to: '2026-11-30' }), /modo fiscal/);
+    epson.__setBridgeForTests(null);
+});
+
+test('en entrenamiento el comprobante queda marcado', async () => {
+    const b = fakeBridge([
+        () => ({ opened: true, results: [ok('0001', [], 0x8000), counters(10)] }),
+        (cmds) => ({ opened: true, results: cmds.map((c) => (c.startsWith('0A06') ? ok('0A06', ['11', '10000', '0', '0'], 0x8000) : ok(c.split('|')[0], [], 0x8000))) }),
+    ]);
+    epson.__setBridgeForTests(b.fn);
+    const out = await epson.execute(DEVICE, 'invoice', PAYLOAD);
+    assert.equal(out.result.training, true);
+    epson.__setBridgeForTests(null);
 });
 
 // ── Tique Factura y notas de crédito ────────────────────────────────────────

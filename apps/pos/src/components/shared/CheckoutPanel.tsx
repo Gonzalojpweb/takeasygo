@@ -154,7 +154,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
   const confirmDisabled = !complete ||
     busy ||
     (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||
-    (invoice ? !isInvoiceChoiceValid(invoice.value) : false)
+    (invoice ? !isInvoiceChoiceValid(invoice.value, invoice.config) : false)
 
   // 30/10 (obs. UX): el cobro era una columna angosta centrada con todo
   // suelto. Ahora: total arriba, «Cómo paga» a la izquierda, efectivo /

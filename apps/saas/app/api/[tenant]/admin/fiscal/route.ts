@@ -93,6 +93,8 @@ const bodySchema = z.object({
   defaultIvaRate: z.number().refine(isIvaRate, 'Alícuota inválida'),
   invoicingMode: z.enum(['ask', 'always', 'off']),
   onlineInvoicing: z.enum(['off', 'auto']).default('off'),
+  cfIdentificationThresholdCents: z.number().int().min(0).nullable().default(null),
+  requireBuyerAddress: z.boolean().default(false),
   environment: z.enum(['homologation', 'production']),
   pointsOfSale: z
     .array(z.object({ locationId: objectId, number: z.number().int().min(1).max(99998) }))
@@ -198,6 +200,8 @@ export async function PUT(request: NextRequest, { params }: Params) {
       defaultIvaRate: body.defaultIvaRate,
       invoicingMode: body.invoicingMode,
       onlineInvoicing: body.onlineInvoicing,
+      cfIdentificationThresholdCents: body.cfIdentificationThresholdCents,
+      requireBuyerAddress: body.requireBuyerAddress,
       environment: body.environment,
       pointsOfSale: body.pointsOfSale.map((p) => ({ locationId: new mongoose.Types.ObjectId(p.locationId), number: p.number })),
       ...(body.controllers

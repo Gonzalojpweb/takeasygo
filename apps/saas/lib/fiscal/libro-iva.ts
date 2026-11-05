@@ -18,6 +18,9 @@ type Doc = Pick<
   'kind' | 'letter' | 'cbteTipo' | 'pointOfSale' | 'number' | 'issuedAt' | 'receiver' | 'amounts' | 'ivaGroups' | 'cae' | 'caeExpiresAt'
 >
 
+/** `label`: nombre propio del comprobante (Tique, Tique Factura A…). */
+export type LibroIvaDoc = Doc & { label?: string }
+
 const TAXED_RATES = IVA_RATES.filter((r) => r.pct > 0)
 
 function num(cents: number): string {
@@ -58,7 +61,7 @@ export function libroIvaTotals(docs: readonly Doc[]): LibroIvaTotals {
   return totals
 }
 
-export function libroIvaCsv(docs: readonly Doc[]): string {
+export function libroIvaCsv(docs: readonly LibroIvaDoc[]): string {
   const header = [
     'Fecha',
     'Comprobante',
@@ -82,7 +85,7 @@ export function libroIvaCsv(docs: readonly Doc[]): string {
       const byRate = new Map(d.ivaGroups.map((g) => [g.ivaRate, g]))
       return [
         new Date(d.issuedAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' }),
-        `${d.kind === 'invoice' ? 'Factura' : 'Nota de crédito'} ${d.letter}`,
+        d.label ?? `${d.kind === 'invoice' ? 'Factura' : 'Nota de crédito'} ${d.letter}`,
         String(d.cbteTipo).padStart(3, '0'),
         String(d.pointOfSale).padStart(5, '0'),
         String(d.number ?? '').padStart(8, '0'),

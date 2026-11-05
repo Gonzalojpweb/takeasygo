@@ -16,6 +16,8 @@ export interface FiscalConfig {
   letterForFinalConsumer: "A" | "B" | "C" | null
   letterForCompany: "A" | "B" | "C" | null
   modality?: "electronic" | "controller" | "none"
+  /** El local pide el domicilio en las facturas con CUIT (impresora fiscal). */
+  requireBuyerAddress?: boolean
 }
 
 /** Lo que eligió el cajero en el cobro. */
@@ -70,9 +72,13 @@ export function invoiceIntentFor(choice: InvoiceChoice): InvoiceIntent {
 
 // ── Impresora fiscal homologada: informes X y Z ─────────────────────────────
 
+export type ControllerFileReport = "ctd" | "duplicates" | "totals"
+
 export interface ControllerReport {
   id: string
-  kind: "x" | "z"
+  kind: "x" | "z" | ControllerFileReport
+  /** Reportes del equipo: archivo guardado en la PC de caja. */
+  file?: string | null
   status: "pending" | "claimed" | "sending" | "confirmed" | "failed" | "unknown" | "driver_unavailable" | "cancelled"
   number: number | null
   message: string | null
@@ -90,10 +96,10 @@ export async function getControllerReports(tenantId: string): Promise<Controller
 }
 
 /** Pide X o Z. `requestId` hace idempotente el pedido (un reintento no pide otro). */
-export async function requestControllerReport(tenantId: string, kind: "x" | "z", requestId: string): Promise<ControllerReport> {
+export async function requestControllerReport(tenantId: string, kind: ControllerReport["kind"], requestId: string, month?: string): Promise<ControllerReport> {
   const { report } = await posApi<{ report: ControllerReport }>(tenantId, "/fiscal/controller/reports", {
     method: "POST",
-    body: { kind, requestId },
+    body: { kind, requestId, ...(month ? { month } : {}) },
   })
   return report
 }
@@ -107,6 +113,8 @@ export interface ControllerDocument {
   documentType: string | null
   pointOfSale: number | null
   number: number | null
+  /** Emitido en modo entrenamiento: sin validez fiscal. */
+  training: boolean
   totalCents: number
   message: string | null
   createdAt: string
@@ -155,6 +163,20 @@ export async function listControllerDocuments(tenantId: string, range: { from: s
 export async function getControllerDocument(tenantId: string, id: string): Promise<ControllerDocument> {
   const { document } = await posApi<{ document: ControllerDocument }>(tenantId, `/fiscal/controller/documents/${encodeURIComponent(id)}`)
   return document
+}
+
+export interface UnbilledOrder {
+  posId: string
+  orderNumber: string | null
+  totalCents: number
+  createdAt: string
+  failureMessage: string | null
+}
+
+/** Ventas cobradas sin comprobante. Se emiten con `invoiceOrder`. */
+export async function listUnbilledOrders(tenantId: string): Promise<UnbilledOrder[]> {
+  const { orders } = await posApi<{ orders: UnbilledOrder[] }>(tenantId, "/fiscal/unbilled")
+  return orders
 }
 
 export type ControllerDocumentAction = { action: "retry" } | { action: "credit_note" } | { action: "resolve"; emitted: boolean; number?: number }
@@ -222,8 +244,9 @@ export function defaultInvoiceChoice(config: FiscalConfig): InvoiceChoice {
 }
 
 /** ¿El dato del cliente alcanza para la factura elegida? */
-export function isInvoiceChoiceValid(choice: InvoiceChoice): boolean {
+export function isInvoiceChoiceValid(choice: InvoiceChoice, config?: Pick<FiscalConfig, "requireBuyerAddress">): boolean {
   const digits = choice.docNumber.replace(/\D/g, "")
+  if (choice.type === "company" && config?.requireBuyerAddress && !choice.address?.trim()) return false
   // Mismo dígito verificador que valida el server: frena antes de cobrar.
   if (choice.type === "company") return isValidCuit(digits)
   if (choice.type === "final") return digits.length === 0 || (digits.length >= 7 && digits.length <= 8) || isValidCuit(digits)

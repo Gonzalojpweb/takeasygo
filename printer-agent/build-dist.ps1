@@ -17,7 +17,6 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 $files = @(
     'agent.js',
     'setup.js',
-    'config.json',
     'package.json',
     'pnpm-lock.yaml',
     '.npmrc',
@@ -26,6 +25,8 @@ $files = @(
     'SETUP.bat',
     'start.bat',
     'UPDATE.bat',
+    'DIAGNOSTICO.bat',
+    'REPARAR_USB_EPSON.bat',
     'INSTALAR_SERVICIO.bat',
     'install_service.js',
     'uninstall_service.js',
@@ -40,6 +41,29 @@ foreach ($file in $files) {
     } else {
         Write-Host "  ! $file no encontrado, saltando"
     }
+}
+
+# Plantilla limpia: el config.json de esta PC tiene el comercio y el token.
+@{ apiUrl = 'https://www.takeasygo.com'; tenantSlug = 'TU-SLUG-DEL-RESTAURANTE'; locationId = 'TU-OBJECT-ID-DE-LA-SEDE'; pollInterval = 15000 } |
+    ConvertTo-Json | Set-Content -Path (Join-Path $stageDir 'config.json') -Encoding ascii
+Write-Host "  + config.json (plantilla)"
+
+# Sin pruebas ni archivos de cada PC adentro del paquete.
+Get-ChildItem (Join-Path $stageDir 'fiscal-drivers') -Recurse -Include '*.test.js','*.log','*.pem' | Remove-Item -Force
+
+# DLL de Epson: desde esta PC o desde el programa oficial del fabricante.
+$dllTarget = Join-Path $stageDir 'fiscal-drivers\epson'
+$dllSources = @(
+    (Join-Path $agentDir 'fiscal-drivers\epson\EpsonFiscalDriver.dll'),
+    (Join-Path $agentDir '..\EpsonFiscalDriver_03.07.00\examples\C#-DLL\example\target\EpsonFiscalDriver.dll')
+)
+$dll = $dllSources | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if ($dll) {
+    New-Item -ItemType Directory -Path $dllTarget -Force | Out-Null
+    Copy-Item -LiteralPath $dll -Destination $dllTarget -Force
+    Write-Host "  + DLL de Epson"
+} else {
+    Write-Host "  ! DLL de Epson no encontrada: el paquete no va a poder emitir en Epson"
 }
 
 # Daemon excluido: cada tenant lo genera con INSTALAR_SERVICIO.bat
