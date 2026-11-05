@@ -1183,6 +1183,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               cae: null,
               totalCents: order.total,
               message: describePosError(err, "No se pudo facturar"),
+              requestFailed: true,
             })
           }
         }
@@ -2142,8 +2143,10 @@ function InvoiceResults({ invoices }: { invoices?: FiscalDocumentSummary[] }) {
   return (
     <div className="invoice-results">
       {invoices.map((doc) => doc.channel === "controller" ? <ControllerResult key={doc.id} doc={doc} /> : (
-        <div key={doc.id} className={`invoice-result ${doc.status}`}>
-          {doc.status === "authorized"
+        <div key={doc.id} className={`invoice-result ${doc.requestFailed ? "rejected" : doc.status}`} role={doc.requestFailed ? "alert" : undefined}>
+          {doc.requestFailed
+            ? `Comprobante no confirmado: ${doc.message}. La venta quedó cobrada.`
+            : doc.status === "authorized"
             ? `${doc.label} · CAE ${doc.cae}`
             : doc.status === "rejected"
               ? `ARCA rechazó la factura: ${doc.message ?? "revisá los datos"}`

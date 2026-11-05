@@ -109,7 +109,7 @@ export function InvoicePicker({
         />
       )}
       {!valid && <div className="text-sm" style={{ color: "var(--error)", marginTop: "var(--sp-1)" }}>
-        {value.type === "company" ? "El CUIT tiene 11 dígitos." : "El DNI tiene 7 u 8 dígitos."}
+        {value.type === "company" ? "El CUIT no es válido: revisá los 11 números." : "Cargá un DNI de 7 u 8 dígitos o un CUIT válido."}
       </div>}
     </div>
   )

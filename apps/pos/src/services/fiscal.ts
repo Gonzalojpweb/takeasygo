@@ -1,3 +1,4 @@
+import { isValidCuit } from "@takeasygo/business/browser"
 import { posApi, posApiDownload } from "./pos-api"
 
 // ============================================================================
@@ -42,6 +43,8 @@ export interface FiscalDocumentSummary {
   reviewCode?: string | null
   /** Por dónde se emite: ARCA (factura electrónica) o la impresora fiscal de la caja. */
   channel?: "arca" | "controller"
+  /** El pedido de factura falló en el POS: `message` tiene el motivo real. */
+  requestFailed?: boolean
   /** Estado de impresión del ticket: independiente del estado fiscal. */
   printStatus?: "not_requested" | "queued" | "printing" | "printed" | "failed" | "unknown"
   caeaReportStatus?: "not_applicable" | "pending" | "informed" | "rejected"
@@ -221,8 +224,9 @@ export function defaultInvoiceChoice(config: FiscalConfig): InvoiceChoice {
 /** ¿El dato del cliente alcanza para la factura elegida? */
 export function isInvoiceChoiceValid(choice: InvoiceChoice): boolean {
   const digits = choice.docNumber.replace(/\D/g, "")
-  if (choice.type === "company") return digits.length === 11
-  if (choice.type === "final") return digits.length === 0 || (digits.length >= 7 && digits.length <= 8) || digits.length === 11
+  // Mismo dígito verificador que valida el server: frena antes de cobrar.
+  if (choice.type === "company") return isValidCuit(digits)
+  if (choice.type === "final") return digits.length === 0 || (digits.length >= 7 && digits.length <= 8) || isValidCuit(digits)
   return true
 }
 
