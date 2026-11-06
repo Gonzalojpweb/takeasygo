@@ -125,7 +125,7 @@ export function SalesDashboard() {
 
   const flash = useCallback((kind: "success" | "error", text: string) => {
     setNotice({ kind, text })
-    setTimeout(() => setNotice(null), 4000)
+    setTimeout(() => setNotice(null), 6000)
   }, [])
 
   const load = useCallback(async () => {

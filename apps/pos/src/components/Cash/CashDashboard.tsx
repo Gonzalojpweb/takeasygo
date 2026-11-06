@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect, useMemo } from "react"
-import { ExternalLink, Printer, Share2 } from "lucide-react"
+import { ExternalLink, Printer, Share2, Banknote, Receipt, TrendingDown, HandCoins, CreditCard } from "lucide-react"
 import {
   ARS_BILL_DENOMINATIONS,
   CASH_EXPENSE_CATEGORY_LABELS,
   canSeeExpectedCash,
+  isTipMovement,
 } from "@takeasygo/business/browser"
 import type { CashChannel, CashExpenseCategory, CashMovement, CashRegister, ZReport } from "@takeasygo/types"
 import { useLayout } from "../layout/LayoutContext"
@@ -15,7 +16,7 @@ import { fetchFailedCashSaleEvents, retryCashSaleEvent } from "../../services/sy
 import type { FailedCashSaleEvent } from "../../services/sync-api"
 import type { PendingMovementRecord } from "../../db/dexie"
 import { isPosApiError } from "../../services/pos-api"
-import { PAYMENT_METHOD_LABELS, ZReportView } from "./ZReportView"
+import { MethodBars, PAYMENT_METHOD_LABELS, ReportBlock, ReportKpi, ReportRows, ZReportView } from "./ZReportView"
 import { getCashSummary, getShiftsToday, type CashSummary, type ShiftsToday } from "../../services/cash"
 import { localToday, shiftDate } from "../../services/reports"
 import { MANUAL_TYPES, MovementForm, MovementSummary, OpenRegisterForm, movementMissing, type ManualType } from "./CashForms"
@@ -111,12 +112,12 @@ export function CashDashboard({ role }: { role?: string }) {
   const showError = useCallback((msg: string | null) => {
     if (!msg) return
     setError(msg)
-    setTimeout(() => setError(null), 4000)
+    setTimeout(() => setError(null), 7000)
   }, [])
 
   const showSuccess = useCallback((msg: string) => {
     setSuccess(msg)
-    setTimeout(() => setSuccess(null), 3000)
+    setTimeout(() => setSuccess(null), 5000)
   }, [])
 
   const refreshPending = useCallback(() => {
@@ -806,7 +807,7 @@ export function CashDashboard({ role }: { role?: string }) {
         </div>
       )}
       {success && (
-        <div className="toast-container" style={{ bottom: 80 }}>
+        <div className="toast-container">
           <div className="toast success" role="status"><span className="toast-message">{success}</span></div>
         </div>
       )}
@@ -855,42 +856,46 @@ function MovementList({ movements }: { movements: CashMovement[] }) {
 function XReport({ register }: { register: CashRegister }) {
   const byMethod = new Map<string, number>()
   const byCategory = new Map<string, number>()
+  let sales = 0
+  let tips = 0
   for (const m of register.movements) {
-    if (m.type === "sale") byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) + m.amount)
-    if (m.type === "refund") byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) - m.amount)
+    if (m.type === "sale") { byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) + m.amount); sales += m.amount }
+    if (m.type === "refund") { byMethod.set(m.paymentMethod, (byMethod.get(m.paymentMethod) ?? 0) - m.amount); sales -= m.amount }
     if (m.category) byCategory.set(m.category, (byCategory.get(m.category) ?? 0) + m.amount)
+    if (isTipMovement(m)) tips += m.amount
   }
+  const expenses = [...byCategory.values()].reduce((s, v) => s + v, 0)
+  const expected = register.expectedAmount ?? register.initialAmount
   return (
-    <div className="z-report">
-      <div className="z-result ok">
-        <span className="z-result-label">Efectivo esperado ahora</span>
-        <span className="z-result-amount">{formatCurrency(register.expectedAmount ?? register.initialAmount)}</span>
+    <div className="zr">
+      <header className="zr-hero zr-hero--x">
+        <div className="zr-hero-main">
+          <span className="zr-hero-icon" aria-hidden><Banknote size={28} /></span>
+          <div>
+            <span className="zr-hero-label">Efectivo esperado ahora</span>
+            <strong className="zr-hero-amount">{formatCurrency(expected)}</strong>
+          </div>
+        </div>
+        <p className="zr-hero-meta">Reporte X · {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · no es el cierre</p>
+      </header>
+      <div className="zr-kpis">
+        <ReportKpi label="Ventas" value={formatCurrency(sales)} tone="sales" icon={Receipt} />
+        <ReportKpi label="Fondo inicial" value={formatCurrency(register.initialAmount)} tone="cash" icon={Banknote} />
+        <ReportKpi label="Gastos y retiros" value={formatCurrency(expenses)} tone="expense" icon={TrendingDown} />
+        {tips > 0 && <ReportKpi label="Propinas" value={formatCurrency(tips)} tone="tip" icon={HandCoins} hint="Fuera de las ventas" />}
       </div>
-      <div className="z-grid">
-        <section className="z-block">
-          <h3>Ventas por medio de pago</h3>
-          <dl>
-            {[...byMethod].map(([method, total]) => (
-              <div key={method} className="z-count-row">
-                <dt>{PAYMENT_METHOD_LABELS[method as keyof typeof PAYMENT_METHOD_LABELS] ?? method}</dt>
-                <dd>{formatCurrency(total)}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-        <section className="z-block">
-          <h3>Gastos y retiros</h3>
-          <dl>
-            {[...byCategory].map(([c, total]) => (
-              <div key={c} className="z-count-row">
-                <dt>{CASH_EXPENSE_CATEGORY_LABELS[c as CashExpenseCategory] ?? c}</dt>
-                <dd>−{formatCurrency(total)}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
+      <div className="zr-grid">
+        <ReportBlock title="Ventas por medio de pago" tone="sales" icon={CreditCard} wide>
+          <MethodBars methods={[...byMethod]} />
+        </ReportBlock>
+        <ReportBlock title="Gastos y retiros" tone="expense" icon={TrendingDown}>
+          {byCategory.size === 0 ? (
+            <p className="zr-empty">Sin egresos en el turno</p>
+          ) : (
+            <ReportRows negative rows={[...byCategory].map(([c, v]) => ({ label: CASH_EXPENSE_CATEGORY_LABELS[c as CashExpenseCategory] ?? c, value: v }))} />
+          )}
+        </ReportBlock>
       </div>
-      <p className="z-meta">Generado {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })} · no es el cierre</p>
     </div>
   )
 }

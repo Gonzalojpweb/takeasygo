@@ -204,10 +204,12 @@ const COLUMNS: { id: string; label: string; statuses: Order["status"][] }[] = [
   { id: "out", label: "En camino", statuses: ["en_ruta", "arrived"] },
 ]
 
-export function RunBoard({ orders, now, selectedId, onSelect, onAdvance, busyId }: {
+export function RunBoard({ orders, now, selectedId, highlightId = null, onSelect, onAdvance, busyId }: {
   orders: Order[]
   now: number
   selectedId: string | null
+  /** Pedido recién aceptado: se resalta y se lleva a la vista. */
+  highlightId?: string | null
   onSelect: (id: string) => void
   onAdvance: (o: Order) => void
   busyId: string | null
@@ -234,7 +236,8 @@ export function RunBoard({ orders, now, selectedId, onSelect, onAdvance, busyId 
               return (
                 <article
                   key={o.id}
-                  className={`ao-kcard${selectedId === o.id ? " sel" : ""}`}
+                  className={`ao-kcard${selectedId === o.id ? " sel" : ""}${highlightId === o.id ? " ao-kcard--arrived" : ""}`}
+                  ref={highlightId === o.id ? (el) => { el?.scrollIntoView({ block: "nearest", behavior: "smooth" }) } : undefined}
                   tabIndex={0}
                   onClick={() => onSelect(o.id)}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(o.id) } }}

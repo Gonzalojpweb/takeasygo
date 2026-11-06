@@ -242,6 +242,16 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
                         onChange={(e) => updateAmount(part.id, e.target.value)}
                         aria-label={`Monto de la parte ${i + 1}`}
                       />
+                      {remaining !== 0 && part.amount + remaining > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => updateAmount(part.id, centsToPesosInput(part.amount + remaining))}
+                          title="Ajusta esta parte para que el cobro cierre justo"
+                        >
+                          {remaining > 0 ? `Completar ${formatCurrency(part.amount + remaining)}` : `Ajustar a ${formatCurrency(part.amount + remaining)}`}
+                        </button>
+                      )}
                       <button type="button" className="btn btn-secondary btn-sm" onClick={() => removePart(part.id)} aria-label="Quitar parte">
                         ✕
                       </button>
@@ -457,6 +467,32 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
       </div>
 
       <footer className="checkout-foot">
+        {/* Piloto 06/11: nadie suma de cabeza. Siempre a la vista cuánto se
+            cobró y cuánto falta (o sobra), con el detalle por método. */}
+        <div className={`checkout-tally ${statusClass}`} role="status" aria-live="polite">
+          <div className="checkout-tally-cell">
+            <span>Total</span>
+            <strong>{formatCurrency(total)}</strong>
+          </div>
+          <div className="checkout-tally-cell">
+            <span>Cobrado</span>
+            <strong>{formatCurrency(total - remaining)}</strong>
+          </div>
+          <div className="checkout-tally-cell checkout-tally-main">
+            <span>{remaining > 0 || parts.length === 0 ? "Falta cobrar" : remaining < 0 ? "Sobra" : "Cubierto"}</span>
+            <strong>{remaining === 0 && parts.length > 0 ? "✓" : formatCurrency(Math.abs(parts.length === 0 ? total : remaining))}</strong>
+          </div>
+          {parts.length > 1 && (
+            <ul className="checkout-tally-parts" aria-label="Detalle del cobro">
+              {parts.map((p, i) => (
+                <li key={p.id}>
+                  <span>{i + 1}. {formatPaymentMethod(p.method).name}</span>
+                  <b>{formatCurrency(p.amount)}</b>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
         {hasExternal && (
           <span className="checkout-foot-hint">Confirmá solo cuando el terminal / la transferencia esté aprobada.</span>
         )}

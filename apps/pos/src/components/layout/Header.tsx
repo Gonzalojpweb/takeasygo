@@ -7,6 +7,7 @@ import { requestSsoToken } from "../../services/sso"
 import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
 import { CURRENT_BUILD, versionLabel } from "../../services/app-update"
 import { useLayout } from "./LayoutContext"
+import { CalculatorButton } from "../shared/Calculator"
 
 // ============================================================================
 // Header — identidad permanente: ¿dónde estoy? (W0S §2, VLS §3)
@@ -149,6 +150,8 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
       </div>
 
       <div className="header-right">
+        {/* Piloto 06/11: calculadora de apoyo en la terminal de caja. */}
+        {showSaasLink && <CalculatorButton />}
         {showSaasLink && (
           <button
             type="button"

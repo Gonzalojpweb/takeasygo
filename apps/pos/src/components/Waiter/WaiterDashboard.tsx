@@ -118,7 +118,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info") => {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 5000)
   }, [])
 
   // ── Mesa ─────────────────────────────────────────────────────────────────

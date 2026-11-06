@@ -191,12 +191,20 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [selectedKanbanOrderId, setSelectedKanbanOrderId] = useState<string | null>(null)
+  // Piloto 06/11: el pedido recién aceptado se resalta unos segundos en
+  // «En curso» (antes «desaparecía» de Recibir sin que se viera adónde).
+  const [arrivedOrderId, setArrivedOrderId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!arrivedOrderId) return
+    const t = window.setTimeout(() => setArrivedOrderId(null), 4000)
+    return () => window.clearTimeout(t)
+  }, [arrivedOrderId])
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [appOrderBusyId, setAppOrderBusyId] = useState<string | null>(null)
 
   const showToast = useCallback((message: string, type: string) => {
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 5000)
   }, [])
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
@@ -387,7 +395,12 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       if (jwt) notifyStatusToSyncLayer(order.id, "confirmed", jwt).catch(() => {})
       setSelectedOrderId(null)
       setRejectingId(null)
-      showToast(`Pedido ${orderNumberLabel(order)} aceptado · pasó a En curso`, "success")
+      // Se muestra adónde fue y qué sigue: pestaña En curso, pedido elegido
+      // y resaltado, y el próximo paso en el aviso.
+      setEntrantesSubView("kanban")
+      setSelectedKanbanOrderId(order.id)
+      setArrivedOrderId(order.id)
+      showToast(`Pedido ${orderNumberLabel(order)} aceptado. Ahora está en «En curso»: tocá «Empezar» cuando cocina lo tome.`, "success")
     } catch (err) {
       showToast(err instanceof Error ? err.message : "No se pudo aceptar el pedido", "error")
     } finally {
@@ -406,7 +419,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     if (!tenantId) return
     try {
       await advanceExternalOrder(orderId, tenantId, "preparing", state.jwt?.accessToken)
-      showToast("Pedido en preparación", "success")
+      showToast("Pedido en preparación. Cuando esté, tocá «Marcar listo».", "success")
     } catch {
       showToast("Error al iniciar preparación", "error")
     }
@@ -416,7 +429,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     if (!tenantId) return
     try {
       await advanceExternalOrder(orderId, tenantId, "ready", state.jwt?.accessToken)
-      showToast("Pedido listo", "success")
+      showToast("Pedido listo. Entregalo o despachalo y marcá el paso siguiente.", "success")
     } catch {
       showToast("Error al marcar listo", "error")
     }
@@ -426,7 +439,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     if (!tenantId) return
     try {
       await advanceExternalOrder(orderId, tenantId, "delivered", state.jwt?.accessToken)
-      showToast("Pedido entregado", "success")
+      showToast("Pedido entregado: sale de «En curso».", "success")
     } catch {
       showToast("Error al entregar", "error")
     }
@@ -436,7 +449,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     if (!tenantId) return
     try {
       await advanceExternalOrder(orderId, tenantId, "en_ruta", state.jwt?.accessToken)
-      showToast("Pedido en ruta", "success")
+      showToast("El delivery salió. Tocá «Llegó» cuando lo entregue.", "success")
     } catch {
       showToast("Error al marcar en ruta", "error")
     }
@@ -446,7 +459,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     if (!tenantId) return
     try {
       await advanceExternalOrder(orderId, tenantId, "arrived", state.jwt?.accessToken)
-      showToast("Pedido llegó", "success")
+      showToast("El delivery llegó. Tocá «Entregado» para cerrarlo.", "success")
     } catch {
       showToast("Error al marcar llegó", "error")
     }
@@ -463,6 +476,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       else if (step.status === "en_ruta") await handleSetEnRutaExternal(order.id)
       else if (step.status === "arrived") await handleSetArrivedExternal(order.id)
       else await handleDeliverExternal(order.id)
+      // La tarjeta cambia de columna: se resalta para que se vea adónde fue.
+      setArrivedOrderId(order.id)
     } finally {
       setAppOrderBusyId(null)
     }
@@ -992,7 +1007,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 
   const showErrorToast = useCallback((message: string) => {
     setToast({ message, type: "error" })
-    setTimeout(() => setToast(null), 4000)
+    setTimeout(() => setToast(null), 7000)
   }, [])
 
   /** Items del carrito tal como viajan al server (con modifiers y notas). */
@@ -2024,6 +2039,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 orders={kanbanOrders}
                 now={now}
                 selectedId={selectedKanbanOrderId}
+                highlightId={arrivedOrderId}
                 onSelect={setSelectedKanbanOrderId}
                 onAdvance={(o) => { void handleAdvanceAppOrder(o) }}
                 busyId={appOrderBusyId}
@@ -2147,7 +2163,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 
       {toast && (
         <div className="toast-container">
-          <div className={`toast ${toast.type}`}>
+          <div className={`toast ${toast.type}`} role={toast.type === "error" ? "alert" : "status"}>
             <span className="toast-message">{toast.message}</span>
             <button className="toast-close" onClick={() => setToast(null)}>✕</button>
           </div>
