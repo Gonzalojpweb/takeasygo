@@ -161,6 +161,10 @@ export interface ITenant extends Document {
     posEnabled: boolean
     /** Fase 6: comercio que opera solo con el POS (panel web reducido a oficina). */
     posOnly?: boolean
+    /** WhatsApp en el seguimiento: pagos por transferencia (lo habilita el superadmin). Sin dato = habilitado. */
+    whatsappOrderTransfer?: boolean
+    /** WhatsApp en el seguimiento: pagos por Mercado Pago (lo habilita el superadmin). Sin dato = habilitado. */
+    whatsappOrderMercadoPago?: boolean
   }
   /**
    * Feature flags por tenant (clave plana con namespace, ej:
@@ -676,6 +680,10 @@ const TenantSchema = new Schema<ITenant>(
       posLocationGate: { type: Boolean, default: false },
       posEnabled: { type: Boolean, default: false },
       posOnly: { type: Boolean, default: false },
+      // Sin default a propósito: «sin dato» = comportamiento anterior
+      // (habilitado). Ver lib/whatsapp-order-link.ts.
+      whatsappOrderTransfer: { type: Boolean, default: undefined },
+      whatsappOrderMercadoPago: { type: Boolean, default: undefined },
     },
     // Feature flags por tenant (ver lib/feature-flags.ts). Mixed para permitir
     // claves planas con namespace (ej: 'multisede.strictLocationId') sin nesting.

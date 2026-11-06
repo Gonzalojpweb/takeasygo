@@ -15,6 +15,7 @@ const RESERVED_SLUGS = new Set([
 ])
 import crypto from 'crypto'
 import { headers } from 'next/headers'
+import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 
 export async function POST(req: Request) {
   try {
@@ -85,6 +86,8 @@ export async function POST(req: Request) {
       slug: finalSlug,
       plan: 'trial',
       status: 'active', // Required for location endpoints
+      // WhatsApp en el seguimiento: apagado hasta que lo habilite el superadmin.
+      features: { ...NEW_TENANT_WHATSAPP_ORDER_LINK },
       onboarding: {
         status: 'draft',
         step: 1,

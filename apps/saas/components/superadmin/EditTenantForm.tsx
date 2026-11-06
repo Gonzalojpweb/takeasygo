@@ -70,6 +70,9 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     featuresCashPaymentEnabledBySuperadmin: tenant.features?.cashPaymentEnabledBySuperadmin ?? false,
     featuresPosEnabled: tenant.features?.posEnabled ?? false,
     featuresPosOnly: tenant.features?.posOnly ?? false,
+    // Sin dato = habilitado (comportamiento anterior). Ver lib/whatsapp-order-link.ts.
+    featuresWhatsappOrderTransfer: tenant.features?.whatsappOrderTransfer !== false,
+    featuresWhatsappOrderMercadoPago: tenant.features?.whatsappOrderMercadoPago !== false,
     businessEnabled: tenant.business?.enabled ?? false,
     sosMaxLimit: tenant.loyalty?.sosMaxLimit ?? 0,
     // Labels de tipo de promoción
@@ -102,7 +105,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           isActive: form.isActive,
           isOperational: form.isOperational,
           alwaysVisible: form.alwaysVisible,
-          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin, posEnabled: form.featuresPosEnabled, posOnly: form.featuresPosEnabled && form.featuresPosOnly },
+          features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin, posEnabled: form.featuresPosEnabled, posOnly: form.featuresPosEnabled && form.featuresPosOnly, whatsappOrderTransfer: form.featuresWhatsappOrderTransfer, whatsappOrderMercadoPago: form.featuresWhatsappOrderMercadoPago },
           business: { enabled: form.businessEnabled },
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
@@ -499,6 +502,31 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   </button>
                 </div>
               )}
+
+              {([
+                ['featuresWhatsappOrderTransfer', 'WhatsApp · Transferencia', 'En el seguimiento, el cliente que paga por transferencia puede mandar el comprobante por WhatsApp.'],
+                ['featuresWhatsappOrderMercadoPago', 'WhatsApp · Mercado Pago', 'En el seguimiento, el cliente que paga con Mercado Pago puede escribirle al local por WhatsApp.'],
+              ] as const).map(([key, label, hint]) => (
+                <div key={key} className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm" title={hint}>
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-2 h-2 rounded-full", form[key] ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
+                    <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">{label}</span>
+                  </div>
+                  <button type="button"
+                    aria-pressed={form[key]}
+                    aria-label={`${label}: ${form[key] ? 'habilitado' : 'apagado'}`}
+                    onClick={() => setForm(p => ({ ...p, [key]: !p[key] }))}
+                    className={cn(
+                      "w-12 h-6 rounded-full transition-all relative flex items-center",
+                      form[key] ? 'bg-primary' : 'bg-muted-foreground/20'
+                    )}>
+                    <div className={cn(
+                      "w-4 h-4 rounded-full bg-white shadow-sm transition-all absolute",
+                      form[key] ? 'left-[26px]' : 'left-1'
+                    )} />
+                  </button>
+                </div>
+              ))}
 
               <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                 <div className="flex items-center gap-3">

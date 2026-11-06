@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { superadminCreateTenantSchema } from '@/lib/schemas'
+import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 
 export async function GET() {
   try {
@@ -37,7 +38,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'El slug ya está en uso' }, { status: 400 })
     }
 
-    const tenant = await Tenant.create(parsed.data)
+    // Comercio nuevo: WhatsApp en el seguimiento apagado hasta que el
+    // superadmin lo habilite (lib/whatsapp-order-link.ts).
+    const data = parsed.data as Record<string, unknown> & { features?: Record<string, unknown> }
+    const tenant = await Tenant.create({ ...data, features: { ...(data.features ?? {}), ...NEW_TENANT_WHATSAPP_ORDER_LINK } })
     return NextResponse.json({ tenant }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Error al crear el tenant' }, { status: 500 })

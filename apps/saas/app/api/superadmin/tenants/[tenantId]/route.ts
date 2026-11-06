@@ -80,6 +80,13 @@ export async function PUT(
     if (features?.cashPaymentEnabledBySuperadmin !== undefined) {
       updateSet['features.cashPaymentEnabledBySuperadmin'] = !!features.cashPaymentEnabledBySuperadmin
     }
+    // WhatsApp en el seguimiento del pedido, por medio de pago (06/11).
+    if (features?.whatsappOrderTransfer !== undefined) {
+      updateSet['features.whatsappOrderTransfer'] = !!features.whatsappOrderTransfer
+    }
+    if (features?.whatsappOrderMercadoPago !== undefined) {
+      updateSet['features.whatsappOrderMercadoPago'] = !!features.whatsappOrderMercadoPago
+    }
     if (features?.crm !== undefined) {
       updateSet['features.crm.enabled'] = !!features.crm?.enabled
     }

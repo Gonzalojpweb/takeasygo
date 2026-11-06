@@ -11,6 +11,7 @@ import { calculatePointsBreakdown } from '@/lib/loyalty'
 import { safeDecrypt } from '@/lib/crypto'
 import { parseMpReturnOutcome, parseMpStatusDetail } from '@/lib/mp-return'
 import { resolveTransferAccountForLocation } from '@/lib/location-resolvers'
+import { whatsappOrderLinkEnabled } from '@/lib/whatsapp-order-link'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -188,7 +189,9 @@ export default async function TrackingPage({ params, searchParams }: Props) {
           initialSurchargeAmount={order.payment?.surchargeAmount}
           initialTransferConfirmed={order.payment?.transferConfirmed}
           initialCustomerName={safeDecrypt(order.customer?.name) || ''}
-          initialWhatsAppPhone={(location?.settings?.whatsappPhone || tenant.notifications?.whatsappPhone) ?? null}
+          initialWhatsAppPhone={whatsappOrderLinkEnabled(tenant.features, order.payment?.method)
+            ? (location?.settings?.whatsappPhone || tenant.notifications?.whatsappPhone) ?? null
+            : null}
           initialMercadoPagoId={order.payment?.mercadopagoId ?? null}
           initialTransferData={(() => {
             if (order.payment?.method !== 'transfer' || !tenant.transfer?.enabled) return null
