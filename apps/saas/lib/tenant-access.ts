@@ -250,3 +250,83 @@ export async function getAdminSession(tenantSlug?: string | null): Promise<{ use
     ? { user: { id: fresh.id ?? null, email: fresh.email ?? null, name: fresh.name ?? null, role: fresh.role ?? '', tenantId: fresh.tenantId ?? null, tenantSlug: slug, assignedLocations: fresh.assignedLocations ?? [], image: fresh.image ?? null } }
     : null
 }
+
+// ── PR 4: páginas por rol (superadmin, vendedor) y API keys ────────────────
+
+export interface RoleSessionUser {
+  id: string | null
+  email: string | null
+  name: string | null
+  role: string
+  /** Vendedor: comercios asignados (frescos con `enforce`). */
+  assignedTenants: string[]
+}
+
+/**
+ * Sesión de página para un rol de plataforma: misma forma que `auth()`, pero
+ * null si el rol no es el pedido. Con `enforce` el rol (y los comercios del
+ * vendedor) salen de la base: quitar el rol corta en ≤ 30 s (S5).
+ */
+export async function getRoleSession(role: 'superadmin' | 'seller'): Promise<{ user: RoleSessionUser } | null> {
+  const mode = await getAccessMode()
+  const session = await auth()
+  const jwt = session?.user as (JwtUser & { assignedTenants?: string[] | null }) | undefined
+  const oldOk = jwt?.role === role
+  const fromJwt = () => (oldOk && jwt
+    ? { user: { id: jwt.id ?? null, email: jwt.email ?? null, name: jwt.name ?? null, role: jwt.role ?? '', assignedTenants: (jwt.assignedTenants ?? []).map(String) } }
+    : null)
+  if (mode === 'off') return fromJwt()
+
+  const fresh = (await getSessionUser()) as JwtUser | null
+  const newOk = fresh?.role === role
+  if (mode === 'log') {
+    recordShadow({
+      family: `${role}-page`, route: null, userId: jwt?.id ?? fresh?.id ?? null, tenantId: null,
+      oldDecision: oldOk, newDecision: newOk, oldRole: jwt?.role ?? null, newRole: fresh?.role ?? null,
+      hadJwt: Boolean(jwt), freshFound: Boolean(fresh),
+    })
+    return fromJwt()
+  }
+  if (!newOk || !fresh) return null
+  let assignedTenants: string[] = []
+  if (role === 'seller' && fresh.id) {
+    try {
+      const { connectDB } = await import('@/lib/mongoose')
+      await connectDB()
+      const User = (await import('@/models/User')).default
+      const doc = await User.findById(fresh.id).select('assignedTenants').lean<{ assignedTenants?: unknown[] }>()
+      assignedTenants = (doc?.assignedTenants ?? []).map(String)
+    } catch {
+      assignedTenants = []
+    }
+  }
+  return { user: { id: fresh.id ?? null, email: fresh.email ?? null, name: fresh.name ?? null, role: fresh.role ?? '', assignedTenants } }
+}
+
+/**
+ * Decisión por id de comercio para quien llega con sesión de navegador
+ * (requireAuthOrApiKey). `none` = no hay sesión (sigue la API key).
+ */
+export async function sessionTenantDecision(request: NextRequest, tenantId: string, family = 'api-key'): Promise<'none' | 'ok' | 'denied'> {
+  const mode = await getAccessMode()
+  const session = await auth()
+  const jwt = session?.user as JwtUser | undefined
+  const oldDecision: 'none' | 'ok' | 'denied' = !jwt ? 'none' : jwt.role === 'superadmin' || belongsToId(jwt, tenantId) ? 'ok' : 'denied'
+  if (mode === 'off') return oldDecision
+
+  const fresh = (await getSessionUser(request)) as JwtUser | null
+  const newDecision: 'none' | 'ok' | 'denied' = !jwt && !fresh ? 'none' : canOperateTenant(fresh, tenantId) ? 'ok' : 'denied'
+  if (mode === 'log') {
+    recordShadow({
+      family, route: pathOf(request), userId: jwt?.id ?? fresh?.id ?? null, tenantId,
+      oldDecision: oldDecision === 'ok', newDecision: newDecision === 'ok', oldRole: jwt?.role ?? null, newRole: fresh?.role ?? null,
+      hadJwt: Boolean(jwt), freshFound: Boolean(fresh),
+    })
+    return oldDecision
+  }
+  return newDecision
+}
+
+function belongsToId(user: JwtUser, tenantId: string): boolean {
+  return Boolean(user.tenantId) && String(user.tenantId) === String(tenantId)
+}

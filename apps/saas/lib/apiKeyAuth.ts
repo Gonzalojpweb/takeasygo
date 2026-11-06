@@ -14,7 +14,7 @@
  */
 
 import crypto from 'crypto'
-import { auth } from '@/lib/auth'
+import { sessionTenantDecision } from '@/lib/tenant-access'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
@@ -71,13 +71,10 @@ export async function requireAuthOrApiKey(
 ): Promise<NextResponse | null> {
   // ── Intento 1: sesión cookie NextAuth (flujo existente, no rompe nada) ──────
   try {
-    const session = await auth()
-    if (session) {
-      const isSuperAdmin = session.user.role === 'superadmin'
-      const belongsToTenant = session.user.tenantId === tenantId
-      if (isSuperAdmin || belongsToTenant) return null
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    // Multi-marca PR 4: decide lib/tenant-access según access.central.
+    const decision = await sessionTenantDecision(request, tenantId)
+    if (decision === 'ok') return null
+    if (decision === 'denied') return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
   } catch {
     // NextAuth puede fallar en contextos sin cookie — continuamos al siguiente método
   }

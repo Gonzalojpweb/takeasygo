@@ -1,11 +1,11 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import SuperAdminSidebar from '@/components/superadmin/SuperAdminSidebar'
 import MobileNav from '@/components/MobileNav'
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-  if (!session || session.user.role !== 'superadmin') redirect('/login')
+  const session = await getRoleSession('superadmin')
+  if (!session) redirect('/login')
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

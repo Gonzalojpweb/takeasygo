@@ -8,7 +8,7 @@ import AccessShadowEvent from '@/models/AccessShadowEvent'
 import { auth } from '@/lib/auth'
 import { clearFreshUserCache } from '@/lib/apiAuth'
 import { classifyShadow, clearAccessModeCache, getAccessMode } from '@/lib/access-central'
-import { authorizeTenantBySlug, belongsTo, canOperateTenant, getAdminSession, requireSuperAdminCentral } from '@/lib/tenant-access'
+import { authorizeTenantBySlug, belongsTo, canOperateTenant, getAdminSession, getRoleSession, requireSuperAdminCentral, sessionTenantDecision } from '@/lib/tenant-access'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
 
@@ -229,6 +229,35 @@ describe('getAdminSession (PR 3: páginas del admin)', () => {
     await setMode('off')
     jwt({ id: userId, role: 'superadmin', tenantSlug: null })
     expect(await getAdminSession('marca-b')).not.toBeNull()
+  })
+})
+
+describe('PR 4: páginas por rol y API keys', () => {
+  it('getRoleSession: off por el JWT; enforce por la base (vendedor con comercios frescos)', async () => {
+    jwt({ id: userId, role: 'seller', assignedTenants: [] })
+    await setMode('off')
+    expect((await getRoleSession('seller'))?.user.role).toBe('seller')
+    expect(await getRoleSession('superadmin')).toBeNull()
+
+    await setMode('enforce')
+    expect(await getRoleSession('seller')).toBeNull() // en la base es manager
+    clearFreshUserCache()
+    await User.updateOne({ _id: userId }, { role: 'seller', assignedTenants: [tenantA, tenantB] })
+    const s = await getRoleSession('seller')
+    expect(s?.user.assignedTenants.sort()).toEqual([tenantA, tenantB].sort())
+  })
+
+  it('sessionTenantDecision: sin sesión → none (sigue la API key); otro comercio → denied', async () => {
+    const req = new Request('http://localhost/api/x') as never
+    authMock.mockResolvedValue(null)
+    await setMode('off')
+    expect(await sessionTenantDecision(req, tenantA)).toBe('none')
+    jwt({ id: userId, role: 'manager', tenantId: tenantA, tenantSlug: 'marca-a' })
+    expect(await sessionTenantDecision(req, tenantA)).toBe('ok')
+    expect(await sessionTenantDecision(req, tenantB)).toBe('denied')
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { isActive: false })
+    expect(await sessionTenantDecision(req, tenantA)).toBe('denied')
   })
 })
 

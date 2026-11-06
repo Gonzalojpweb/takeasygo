@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -7,8 +7,8 @@ import VisitsPanel from '@/components/superadmin/VisitsPanel'
 import UrlGenerator from '@/components/superadmin/UrlGenerator'
 
 export default async function VisitsPage() {
-  const session = await auth()
-  if (!session || session.user.role !== 'superadmin') redirect('/login')
+  const session = await getRoleSession('superadmin')
+  if (!session) redirect('/login')
 
   await connectDB()
 

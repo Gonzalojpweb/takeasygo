@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { Link2 } from 'lucide-react'
 import FounderLinksGenerator from '@/components/superadmin/FounderLinksGenerator'
@@ -6,8 +6,8 @@ import Tenant from '@/models/Tenant'
 import { connectDB } from '@/lib/mongoose'
 
 export default async function SuperAdminFounderLinksPage() {
-  const session = await auth()
-  if (!session || session.user.role !== 'superadmin') redirect('/login')
+  const session = await getRoleSession('superadmin')
+  if (!session) redirect('/login')
 
   await connectDB()
   const tenants = await Tenant.find({ isActive: true }).select('_id name slug business.enabled').lean()

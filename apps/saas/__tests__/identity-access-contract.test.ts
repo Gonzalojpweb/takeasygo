@@ -63,16 +63,7 @@ const BASELINE: Record<string, Counts & { pr: Pr }> = {
   // ── PR 3: páginas del admin ────────────────────────────────────────────────
 
   // ── PR 4: cierre (seller, superadmin páginas, apiKey, OAuth callback) ───────
-  'app/api/mp-oauth/callback/route.ts': { auth_call: 1, slug_cmp: 1, pr: 'PR4' },
-  'lib/apiKeyAuth.ts': { auth_call: 1, tenant_cmp: 1, pr: 'PR4' },
-  'app/seller/layout.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/seller/page.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/layout.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/founder-links/page.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/marketing-qr/page.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/pos-root/page.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/sellers/page.tsx': { auth_call: 1, pr: 'PR4' },
-  'app/superadmin/visitas/page.tsx': { auth_call: 1, pr: 'PR4' },
+  'app/api/mp-oauth/callback/route.ts': { auth_call: 1, slug_cmp: 1, pr: 'PR4' }, // Mercado Pago: no se toca sin OK expreso del dueño
 }
 
 /** Quita comentarios (bloque y línea) para no contar menciones en texto. */

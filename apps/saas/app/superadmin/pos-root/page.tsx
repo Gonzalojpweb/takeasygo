@@ -2,7 +2,7 @@ import { readFileSync } from "fs"
 import { join } from "path"
 import { redirect } from "next/navigation"
 import { FileText } from "lucide-react"
-import { auth } from "@/lib/auth"
+import { getRoleSession } from "@/lib/tenant-access"
 import { scopePosDocCss, splitPosDocHtml } from "@/lib/posDocCss"
 
 export const dynamic = "force-dynamic"
@@ -19,8 +19,8 @@ function readDocument() {
 }
 
 export default async function PosRootPage() {
-  const session = await auth()
-  if (!session || session.user.role !== "superadmin") redirect("/login")
+  const session = await getRoleSession("superadmin")
+  if (!session) redirect("/login")
 
   const { css, body } = splitPosDocHtml(readDocument())
   const scopedCss = scopePosDocCss(css)

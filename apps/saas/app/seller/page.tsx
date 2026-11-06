@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -6,8 +6,8 @@ import Link from 'next/link'
 import { Store, ExternalLink, Eye } from 'lucide-react'
 
 export default async function SellerDashboard() {
-  const session = await auth()
-  if (!session || session.user.role !== 'seller') redirect('/login')
+  const session = await getRoleSession('seller')
+  if (!session) redirect('/login')
 
   await connectDB()
 

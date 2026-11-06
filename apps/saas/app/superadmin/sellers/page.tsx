@@ -1,12 +1,12 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 import SellersManager from '@/components/superadmin/SellersManager'
 
 export default async function SellersPage() {
-  const session = await auth()
-  if (!session || session.user.role !== 'superadmin') redirect('/login')
+  const session = await getRoleSession('superadmin')
+  if (!session) redirect('/login')
 
   await connectDB()
 

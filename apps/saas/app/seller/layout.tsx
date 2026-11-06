@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Store, LogOut } from 'lucide-react'
@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { signOut } from '@/lib/auth'
 
 export default async function SellerLayout({ children }: { children: React.ReactNode }) {
-  const session = await auth()
-  if (!session || session.user.role !== 'seller') redirect('/login')
+  const session = await getRoleSession('seller')
+  if (!session) redirect('/login')
 
   return (
     <div className="min-h-screen bg-background">

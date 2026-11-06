@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getRoleSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { Gift } from 'lucide-react'
 import SuperadminQrPromoStyles from '@/components/superadmin/SuperadminQrPromoStyles'
@@ -7,8 +7,8 @@ import Tenant from '@/models/Tenant'
 import { connectDB } from '@/lib/mongoose'
 
 export default async function SuperAdminMarketingQrPage() {
-  const session = await auth()
-  if (!session || session.user.role !== 'superadmin') redirect('/login')
+  const session = await getRoleSession('superadmin')
+  if (!session) redirect('/login')
 
   await connectDB()
   const tenants = await Tenant.find({ isActive: true }).select('_id name slug').lean()
