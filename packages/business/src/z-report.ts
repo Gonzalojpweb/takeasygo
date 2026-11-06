@@ -7,6 +7,7 @@ import type {
   ZChannelSummary,
   ZReport,
 } from "@takeasygo/types"
+import { isTipMovement } from "./tip"
 
 // ============================================================================
 // Z Report Generator — Snapshot inmutable de cierre
@@ -58,6 +59,9 @@ export function generateZReport(input: ZReportInput): ZReport {
   const salesTotal = sumByType(movements, ["sale"])
   const refundTotal = sumByType(movements, ["refund"])
   const withdrawalTotal = sumByType(movements, ["withdrawal"])
+  // Propinas (piloto 06/11): ingresos marcados `<orden>:tip`. Siguen dentro
+  // de incomeTotal (entraron a la caja); acá se muestran aparte.
+  const tipTotal = sumAmounts(movements.filter(isTipMovement))
 
   // ── Egresos por categoría (gastos + retiros) ─────────────────────
   const byCategory: Partial<Record<CashExpenseCategory, number>> = {}
@@ -97,6 +101,7 @@ export function generateZReport(input: ZReportInput): ZReport {
     salesTotal,
     refundTotal,
     withdrawalTotal,
+    tipTotal,
     byCategory,
     voidCount,
     closingCount: register.closingCount ?? null,

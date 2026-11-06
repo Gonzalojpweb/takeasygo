@@ -137,6 +137,17 @@ export {
 } from "./fiscal"
 export { generateZReport, type ZReportInput } from "./z-report"
 export {
+  TIP_RELATED_SUFFIX,
+  TIP_METHODS,
+  TIP_PERCENTS,
+  maxTipCents,
+  isTipMethod,
+  tipRelatedOrderId,
+  isTipMovement,
+  suggestedTipCents,
+  isTipValid,
+} from "./tip"
+export {
   flattenMenu,
   flattenMenuSnapshot,
   injectHalfPriceModifiers,

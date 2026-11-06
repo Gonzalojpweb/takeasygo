@@ -40,6 +40,11 @@ export interface CounterSaleInput {
    * paga con varios métodos.
    */
   relatedOrderId: string
+  /**
+   * Piloto 06/11: la propina entra como `income` (no es venta: no suma en
+   * ventas ni se factura) con relatedOrderId `<orden>:tip`. Default `sale`.
+   */
+  type?: Extract<CashMovementType, "sale" | "income">
 }
 
 export type CounterSaleResult =
@@ -55,7 +60,7 @@ async function enqueuePending(
   await db.pendingMovements.add({
     id: pendingId,
     tenantId,
-    type: "sale" as CashMovementType,
+    type: input.type ?? "sale",
     amount: input.amount,
     reason: input.reason,
     userId: "system",
@@ -79,6 +84,7 @@ export async function registerCounterSale(
   input: CounterSaleInput
 ): Promise<CounterSaleResult> {
   const { tenantId, amount, paymentMethod, reason, relatedOrderId } = input
+  const type = input.type ?? "sale"
 
   // Guarda de argumentos (el server repite la regla: monto mínimo 1).
   if (amount <= 0) throw new Error("[counter-sale] El monto debe ser positivo")
@@ -91,7 +97,7 @@ export async function registerCounterSale(
 
   for (const reg of allRegisters) {
     const existing = reg.movements.find(
-      (m) => m.relatedOrderId === relatedOrderId && m.type === "sale"
+      (m) => m.relatedOrderId === relatedOrderId && m.type === type
     )
     if (existing) {
       return { status: "duplicate", existingMovementId: existing.id }
@@ -119,7 +125,7 @@ export async function registerCounterSale(
     const { movement } = await addMovement(
       tenantId,
       targetRegister.id,
-      "sale",
+      type,
       amount,
       reason,
       "system",

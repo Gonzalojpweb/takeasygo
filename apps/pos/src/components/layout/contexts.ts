@@ -29,13 +29,16 @@ export interface RosContext {
   roles: readonly string[]
   /** Estado vacío del Context Panel en este contexto. */
   empty: { title: string; hint: string }
+  /** «account»: Usuario y Configuración, abajo y separados de la operación. */
+  section?: "operation" | "account"
 }
 
 const ALL_HUB_ROLES = ["admin", "manager", "cashier"] as const
 const KNOWN_ROLES = ["admin", "manager", "cashier", "waiter"] as const
 
-// Orden del sidebar (decisión del dueño 31/10): Counter, Resumen, Salón, Caja,
-// Ventas, Facturación, Clientes, Usuario, Configuración.
+// Orden del sidebar (piloto 06/11, por frecuencia de uso en el turno):
+// Counter, Caja, Ventas, Facturación, Clientes, Resumen; abajo y separados,
+// Usuario y Configuración. Salón (vista del mozo) solo para el rol waiter.
 export const ROS_CONTEXTS: readonly RosContext[] = [
   {
     id: "counter",
@@ -46,34 +49,15 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     empty: { title: "Sin mesa seleccionada", hint: "Tocá una mesa del salón o empezá una venta de mostrador." },
   },
   {
-    // Fase H: dashboard del día (KPIs por canal, comensales, tendencias).
-    // El cajero lo ve sin ingresos (el server los oculta).
-    id: "resumen",
-    label: "Resumen",
-    title: "Resumen del día",
-    icon: Gauge,
-    roles: ALL_HUB_ROLES,
-    empty: { title: "Ahora en el local", hint: "Mesas, comensales y pedidos en tiempo real." },
-  },
-  {
     id: "waiter",
     label: "Salón",
     title: "Salón — Mesas",
     icon: Utensils,
-    roles: [...ALL_HUB_ROLES, "waiter"],
+    // Piloto 06/11: solo el mozo. En la terminal de caja el salón ya es
+    // una vista del Counter; tenerlo dos veces confundía al cajero.
+    roles: ["waiter"],
     empty: { title: "Sin mesa seleccionada", hint: "Elegí una mesa para tomar el pedido o ver su estado en cocina." },
   },
-  // Flota oculta por ahora (decisión del dueño 31/10): el contexto y su
-  // widget siguen en el código; para volver a mostrarla, descomentar este
-  // bloque y el ícono Bike en el import de lucide-react.
-  // {
-  //   id: "flota",
-  //   label: "Flota",
-  //   title: "Flota",
-  //   icon: Bike,
-  //   roles: ALL_HUB_ROLES,
-  //   empty: { title: "Sin trabajo seleccionado", hint: "Elegí un pedido listo o un repartidor para ver el detalle." },
-  // },
   {
     id: "caja",
     label: "Caja",
@@ -111,6 +95,27 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     empty: { title: "Sin cliente seleccionado", hint: "Buscá por nombre o celular." },
   },
   {
+    // Fase H: dashboard del día (KPIs por canal, comensales, tendencias).
+    // El cajero lo ve sin ingresos (el server los oculta).
+    id: "resumen",
+    label: "Resumen",
+    title: "Resumen del día",
+    icon: Gauge,
+    roles: ALL_HUB_ROLES,
+    empty: { title: "Ahora en el local", hint: "Mesas, comensales y pedidos en tiempo real." },
+  },
+  // Flota oculta por ahora (decisión del dueño 31/10): el contexto y su
+  // widget siguen en el código; para volver a mostrarla, descomentar este
+  // bloque y el ícono Bike en el import de lucide-react.
+  // {
+  //   id: "flota",
+  //   label: "Flota",
+  //   title: "Flota",
+  //   icon: Bike,
+  //   roles: ALL_HUB_ROLES,
+  //   empty: { title: "Sin trabajo seleccionado", hint: "Elegí un pedido listo o un repartidor para ver el detalle." },
+  // },
+  {
     // Fase 3 (29/10): mi perfil (todos) y equipo de la sede (admin y encargado).
     id: "usuario",
     label: "Usuario",
@@ -118,6 +123,7 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: UserRound,
     roles: KNOWN_ROLES,
     empty: { title: "Usuario", hint: "Tu perfil y, si sos encargado, el equipo de la sede." },
+    section: "account",
   },
   {
     // Fase 1 (29/10): configuración del POS — impresoras, comprobantes y,
@@ -128,6 +134,7 @@ export const ROS_CONTEXTS: readonly RosContext[] = [
     icon: Settings,
     roles: ["admin", "manager"],
     empty: { title: "Configuración", hint: "Elegí una sección y un elemento para editarlo." },
+    section: "account",
   },
 ]
 

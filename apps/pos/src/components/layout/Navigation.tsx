@@ -37,9 +37,12 @@ export function Navigation({ tenantName, locationName, items, activeId, badges =
   const [drawerOpen, setDrawerOpen] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)
 
+  // Piloto 06/11: en escritorio, Usuario y Configuración van abajo y
+  // separados de la operación del turno.
   const { shortcuts, overflow } = compact
     ? splitNav(items, isMobile ? MOBILE_SHORTCUTS : TABLET_SHORTCUTS)
-    : { shortcuts: [...items], overflow: [] as RosContext[] }
+    : { shortcuts: items.filter((c) => c.section !== "account"), overflow: [] as RosContext[] }
+  const accountItems = compact ? [] : items.filter((c) => c.section === "account")
   const hasMore = overflow.length > 0
   const activeInMore = overflow.some((c) => c.id === activeId)
   const moreBadge = overflow.reduce((sum, c) => sum + (badges[c.id] ?? 0), 0)
@@ -134,6 +137,15 @@ export function Navigation({ tenantName, locationName, items, activeId, badges =
         </ul>
 
         <div className="nav-spacer" />
+
+        {accountItems.length > 0 && (
+          <>
+            {!sidebarCollapsed && <div className="nav-label">Cuenta</div>}
+            <ul className="nav-list nav-list--account">
+              {accountItems.map((item) => renderItem(item, sidebarCollapsed ? 22 : 20))}
+            </ul>
+          </>
+        )}
 
         {/* Con «Más», Salir vive en el menú lateral (libera la barra). */}
         {!hasMore && (

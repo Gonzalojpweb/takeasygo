@@ -114,6 +114,17 @@ export {
   type IvaBreakdown,
 } from "./fiscal"
 export { generateZReport, type ZReportInput } from "./z-report"
+export {
+  TIP_RELATED_SUFFIX,
+  TIP_METHODS,
+  TIP_PERCENTS,
+  maxTipCents,
+  isTipMethod,
+  tipRelatedOrderId,
+  isTipMovement,
+  suggestedTipCents,
+  isTipValid,
+} from "./tip"
 export { calculateComboPrice, isComboAvailable, isComboOnSchedule, validateComboSelection } from "./combo"
 export {
   type CheckoutPart,

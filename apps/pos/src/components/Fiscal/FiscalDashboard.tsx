@@ -258,7 +258,7 @@ export function FiscalDashboard() {
             {order.failureMessage && <div className="setup-error" role="note">Falló al cobrar: {order.failureMessage}</div>}
             <InvoicePicker config={pickerConfig} value={unbilledChoice} onChange={setUnbilledChoice} />
             <div className="fiscal-actions">
-              <button className="ctx-action ctx-action--teal" disabled={busy || !isInvoiceChoiceValid(unbilledChoice, config)} onClick={() => { void run(async () => {
+              <button className="ctx-action ctx-action--teal is-primary" disabled={busy || !isInvoiceChoiceValid(unbilledChoice, config)} onClick={() => { void run(async () => {
                 const doc = await invoiceOrder(tenantId!, order.posId, unbilledChoice)
                 setSelectedUnbilledId(null)
                 return doc.channel === "controller" ? "Enviado a la impresora fiscal" : doc.status === "authorized" ? `${doc.label} autorizado` : "Comprobante pendiente"
@@ -269,7 +269,7 @@ export function FiscalDashboard() {
           </div>
         ),
       })
-      setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedUnbilledId(null)}>← Volver</button> })
+      setActionBar({ center: <button className="btn btn-ghost" onClick={() => setSelectedUnbilledId(null)}>← Volver</button> })
       return
     }
 
@@ -315,7 +315,7 @@ export function FiscalDashboard() {
             {(canRetryNow || canCredit) && <div className="sale-section-title">Acciones</div>}
             <div className="fiscal-actions">
               {canRetryNow && (
-                <button className="ctx-action ctx-action--amber" disabled={busy} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "retry" }); return "Enviado de nuevo a la impresora fiscal" }) }}>
+                <button className="ctx-action ctx-action--teal is-primary" disabled={busy} onClick={() => { void run(async () => { await actOnControllerDocument(tenantId!, selectedJob.id, { action: "retry" }); return "Enviado de nuevo a la impresora fiscal" }) }}>
                   <span className="ctx-action-icon"><RotateCcw size={20} aria-hidden /></span><span className="ctx-action-label">Reintentar</span><span className="ctx-action-hint">Se sabe que no salió</span>
                 </button>
               )}
@@ -328,7 +328,7 @@ export function FiscalDashboard() {
           </div>
         ),
       })
-      setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedJobId(null)}>← Volver</button> })
+      setActionBar({ center: <button className="btn btn-ghost" onClick={() => setSelectedJobId(null)}>← Volver</button> })
       return
     }
 
@@ -486,7 +486,7 @@ export function FiscalDashboard() {
           <div className="sale-section-title">Acciones</div>
           <div className="fiscal-actions">
             {canRetry && (
-              <button className="ctx-action ctx-action--amber" disabled={busy} onClick={() => { void run(async () => { const d = await retryFiscalDocument(tenantId!, selected.id); return d.status === "authorized" ? "Comprobante autorizado" : `Sigue ${STATUS_LABEL[d.status]?.toLowerCase()}` }) }}>
+              <button className="ctx-action ctx-action--teal is-primary" disabled={busy} onClick={() => { void run(async () => { const d = await retryFiscalDocument(tenantId!, selected.id); return d.status === "authorized" ? "Comprobante autorizado" : `Sigue ${STATUS_LABEL[d.status]?.toLowerCase()}` }) }}>
                 <span className="ctx-action-icon"><RotateCcw size={20} aria-hidden /></span><span className="ctx-action-label">Reintentar</span>
               </button>
             )}
@@ -520,7 +520,7 @@ export function FiscalDashboard() {
         </div>
       ),
     })
-    setActionBar({ left: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>← Volver</button> })
+    setActionBar({ center: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>← Volver</button> })
   }, [selected, data, config, month, busy, tenantId, run, setContextPanel, setActionBar, health, controller, confirmZ, reportActive, askReport, selectedJob, isPrinter, printerDocs, resolvedNumber, unbilled, selectedUnbilled, unbilledChoice])
 
   return (

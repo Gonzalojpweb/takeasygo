@@ -22,6 +22,11 @@ import type { ComponentType } from "react"
 //   violet = agenda (reservar)
 //   gray   = datos (comensales, soltar)
 //   red    = salida / pérdida (liberar, no vino)
+//
+// Piloto 06/11: el color se ve en el ícono SÓLIDO y en el borde de cada
+// tarjeta (antes era un ícono pálido de 16px sobre blanco: «botones
+// importantes sin color»). `primary` marca LA acción del grupo: tarjeta
+// sólida. Las rojas llevan borde y texto rojos.
 // ============================================================================
 
 export type ActionTone = "teal" | "orange" | "amber" | "green" | "blue" | "violet" | "gray" | "red"
@@ -34,6 +39,8 @@ export interface ContextAction {
   /** Texto corto debajo del label (estado, cantidad). */
   hint?: string
   disabled?: boolean
+  /** La acción principal del grupo: tarjeta sólida (una por grupo, como mucho). */
+  primary?: boolean
   onClick: () => void
 }
 
@@ -56,7 +63,7 @@ export function ContextActionPanel({ groups }: { groups: ContextActionGroup[] })
                 <button
                   key={a.id}
                   type="button"
-                  className={`ctx-action ctx-action--${a.tone}`}
+                  className={`ctx-action ctx-action--${a.tone}${a.primary ? " is-primary" : ""}`}
                   onClick={a.onClick}
                   disabled={a.disabled}
                 >

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import type { ComponentType } from "react"
 import type { ItemCourse, Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
-import { calculateItemTotal, allocatePayments, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
+import { calculateItemTotal, allocatePayments, tipRelatedOrderId, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
@@ -20,7 +20,8 @@ import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { SaleDoneModal } from "../shared/SaleDoneModal"
-import { CheckoutPanel } from "../shared/CheckoutPanel"
+import { CheckoutPanel, type CheckoutMeta, type CheckoutTip } from "../shared/CheckoutPanel"
+import { registerCounterSale } from "../../services/counter-sale"
 import { SalonMap, SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { TableDetail } from "./TableDetail"
 import { ContextActionPanel, type ContextActionGroup } from "../shared/ContextActionPanel"
@@ -50,7 +51,7 @@ import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import {
   UtensilsCrossed, Store, Calendar, Smartphone, Bike, PackageCheck,
-  Plus, Users, Receipt, Unlock, Printer, Wallet, Split, Percent, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
+  Plus, Users, Receipt, Unlock, Printer, Split, Percent, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
@@ -141,10 +142,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Cobro: `paying` bloquea el doble click; `pendingOrderIdRef` fija el posId
   // de la orden ANTES del primer intento para que un reintento no la duplique.
   const [paying, setPaying] = useState(false)
+  // «Dividir cuenta» abre el cobro directo en «Por platos»; se apaga al salir.
+  const [checkoutStartSplit, setCheckoutStartSplit] = useState(false)
+  useEffect(() => {
+    if (scene !== "cobro") setCheckoutStartSplit(false)
+  }, [scene])
   const [sendToKitchen, setSendToKitchen] = useState(true)
   /** Celular del cliente para el club (opcional, se pide al cobrar). */
   const [clubPhone, setClubPhone] = useState("")
-  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean; invoices?: FiscalDocumentSummary[]; parts?: CheckoutPart[]; cashReceivedCents?: number | null } | null>(null)
+  const [lastSale, setLastSale] = useState<{ total: number; sentToKitchen: boolean; invoices?: FiscalDocumentSummary[]; parts?: CheckoutPart[]; cashReceivedCents?: number | null; tip?: CheckoutTip | null } | null>(null)
   // Factura electrónica (Fase 5): config del comercio y elección del cobro actual.
   const [fiscalConfig, setFiscalConfig] = useState<FiscalConfig>(OFF_CONFIG)
   const [invoiceChoice, setInvoiceChoice] = useState<InvoiceChoice>(() => defaultInvoiceChoice(OFF_CONFIG))
@@ -1052,7 +1058,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // 3. Deja un movimiento de caja por parte (cualquier método).
   // 4. Cierra: mesa / venta inmediata → `delivered` por el grafo legal; el
   //    mostrador enviado a cocina queda en Mostrador → «Para entregar».
-  const handlePay = useCallback(async (parts: CheckoutPart[], meta?: { cashReceivedCents: number | null }) => {
+  const handlePay = useCallback(async (parts: CheckoutPart[], meta?: CheckoutMeta) => {
     if (!tenantId || paying) return
     const keepForKitchen = view === "mostrador" && sendToKitchen
     const tableId = selectedTableId ?? `mostrador-${Date.now()}`
@@ -1162,6 +1168,22 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         }
       }
 
+      // Propina (piloto 06/11): ingreso de caja aparte, ligado a la primera
+      // orden cobrada (`<orden>:tip`, reintento sin duplicar). No toca el
+      // total de la orden ni la factura. registerCounterSale no lanza: sin
+      // caja o sin red queda en pendientes, como cualquier venta.
+      const tip = meta?.tip ?? null
+      if (tip && tip.amount > 0 && toCharge[0]) {
+        await registerCounterSale({
+          tenantId,
+          amount: tip.amount,
+          paymentMethod: tip.method,
+          reason: `Propina ${label}`,
+          relatedOrderId: tipRelatedOrderId(toCharge[0].id),
+          type: "income",
+        })
+      }
+
       if (!keepForKitchen) {
         // También se cierran las rondas ya cobradas que seguían abiertas.
         const toClose = [
@@ -1203,7 +1225,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       }
 
       pointPaidRef.current.clear()
-      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices, parts, cashReceivedCents: meta?.cashReceivedCents ?? null })
+      setLastSale({ total: parts.reduce((s, p) => s + p.amount, 0), sentToKitchen: keepForKitchen, invoices, parts, cashReceivedCents: meta?.cashReceivedCents ?? null, tip })
       setInvoiceChoice(defaultInvoiceChoice(fiscalConfig))
       if (clubPhoneFailed) showErrorToast("El cobro quedó registrado, pero no se pudo guardar el celular del club.")
       setClubPhone("")
@@ -1325,8 +1347,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
             title: "Cuenta",
             actions: unpaid > 0
               ? [
-                  { id: "charge", label: "Cobrar", hint: formatCurrency(unpaid), icon: Wallet, tone: "orange" as const, onClick: () => setScene("cobro") },
-                  { id: "split", label: "Dividir cuenta", hint: "Por platos o comensal", icon: Split, tone: "orange" as const, onClick: () => setScene("cobro") },
+                  // Piloto 06/11: «Cobrar» ya es la acción principal del pie
+                  // (sólida); acá no se repite.
+                  { id: "split", label: "Dividir cuenta", hint: "Por platos o comensal", icon: Split, tone: "orange" as const, onClick: () => { setCheckoutStartSplit(true); setScene("cobro") } },
                   { id: "discount", label: "Descuento", hint: "A toda la cuenta", icon: Percent, tone: "green" as const, onClick: () => setDiscountTarget({ scope: "table" }) },
                 ]
               : [],
@@ -1402,7 +1425,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           ),
         })
         setActionBar({
-          left: (
+          center: (
             <button className="btn btn-ghost" onClick={() => setScene("mostrador_rapido")}>
               ← Volver a vender
             </button>
@@ -1497,23 +1520,19 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
             </>
           ),
         })
+        // Piloto 06/11: el espacio «left» es para el total; las acciones
+        // secundarias van en la grilla (center) con borde visible.
         setActionBar({
-          left: isMostrador ? (
-            <button className="btn btn-secondary" onClick={() => setScene("mostrador_entregas")}>
-              <PackageCheck size={18} aria-hidden /> Para entregar{pickupOrders.length > 0 ? ` (${pickupOrders.length})` : ""}
-            </button>
-          ) : undefined,
-          right: (
+          center: (
             <>
-              {customer ? (
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomerSearch(true)}>
-                  👤 {customer.name}
-                </button>
-              ) : (
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowCustomerSearch(true)}>
-                  + Cliente
+              {isMostrador && (
+                <button className="btn btn-secondary" onClick={() => setScene("mostrador_entregas")}>
+                  <PackageCheck size={18} aria-hidden /> Para entregar{pickupOrders.length > 0 ? ` (${pickupOrders.length})` : ""}
                 </button>
               )}
+              <button className="btn btn-secondary" onClick={() => setShowCustomerSearch(true)}>
+                {customer ? `👤 ${customer.name}` : "+ Cliente"}
+              </button>
             </>
           ),
         })
@@ -1540,16 +1559,18 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           ),
         })
         setActionBar({
-          left: (
-            <button className="btn btn-secondary btn-lg" onClick={() => setScene(isMostrador ? "mostrador_rapido" : "productos")}>
-              + Agregar más
-            </button>
+          center: (
+            <>
+              <button className="btn btn-secondary" onClick={() => setScene(isMostrador ? "mostrador_rapido" : "productos")}>
+                + Agregar más
+              </button>
+              {!isMostrador && cart.length > 0 && (
+                <button className="btn btn-secondary" onClick={() => setScene("cobro")} disabled={paying || chargeTotal === 0}>
+                  Cobrar {formatCurrency(chargeTotal)}
+                </button>
+              )}
+            </>
           ),
-          center: !isMostrador && cart.length > 0 ? (
-            <button className="btn btn-secondary" onClick={() => setScene("cobro")} disabled={paying || chargeTotal === 0}>
-              Cobrar {formatCurrency(chargeTotal)}
-            </button>
-          ) : undefined,
           right: !isMostrador && cart.length > 0 ? (
             <button className="btn btn-primary btn-lg" onClick={handleSendToKitchen} disabled={paying}>
               {paying ? "Enviando…" : "Enviar a cocina"}
@@ -1633,7 +1654,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           const state = payStateOf(detail)
           const busy = appOrderBusyId === detail.id
           setActionBar({
-            left: (
+            center: (
               <button className="btn btn-ghost ao-reject" onClick={() => setRejectingId(rejectingId === detail.id ? null : detail.id)}>
                 {rejectingId === detail.id ? "Cancelar rechazo" : "Rechazar"}
               </button>
@@ -1830,10 +1851,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               <div className="checkout-scene-inner">
                 {/* key: si el total cambia (ronda nueva por polling) el cobro arranca de cero */}
                 <CheckoutPanel
-                  key={chargeTotal}
+                  key={`${chargeTotal}-${checkoutStartSplit}`}
                   total={chargeTotal}
                   busy={paying}
                   onConfirm={handlePay}
+                  startSplit={checkoutStartSplit}
                   clubPhone={{ value: clubPhone, onChange: setClubPhone }}
                   invoice={{ config: fiscalConfig, value: invoiceChoice, onChange: setInvoiceChoice }}
                   splitLines={splitLines}

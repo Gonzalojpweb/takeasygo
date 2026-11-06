@@ -128,6 +128,7 @@ export function renderZWeb(zReport: ZReport, options: RenderOptions): string {
       <div class="section-title">Movimientos</div>
       <div class="card">
         <div class="row"><span class="label">Ingresos</span><span class="value positive">+${formatCurrency(zReport.incomeTotal)}</span></div>
+        ${(zReport.tipTotal ?? 0) > 0 ? `<div class="row"><span class="label">· de ellos propinas</span><span class="value">${formatCurrency(zReport.tipTotal ?? 0)}</span></div>` : ""}
         <div class="row"><span class="label">Egresos</span><span class="value negative">-${formatCurrency(zReport.expenseTotal)}</span></div>
         <div class="row"><span class="label">Ventas</span><span class="value">${formatCurrency(zReport.salesTotal)}</span></div>
         <div class="row"><span class="label">Reembolsos</span><span class="value negative">-${formatCurrency(zReport.refundTotal)}</span></div>

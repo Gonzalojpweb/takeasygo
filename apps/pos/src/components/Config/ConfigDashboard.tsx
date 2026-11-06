@@ -392,10 +392,14 @@ export function ConfigDashboard({ role }: { role?: string }) {
         ),
       })
       setActionBar({
-        left: <button className="btn btn-ghost" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button>,
-        center: editing ? (
-          <button className="btn btn-ghost" disabled={busy} onClick={() => { void toggleActive(editing) }}>{editing.isActive ? "Desactivar" : "Activar"}</button>
-        ) : undefined,
+        center: (
+          <>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => setDraft(null)}>Cancelar</button>
+            {editing && (
+              <button className="btn btn-ghost" disabled={busy} onClick={() => { void toggleActive(editing) }}>{editing.isActive ? "Desactivar" : "Activar"}</button>
+            )}
+          </>
+        ),
         right: <button className="btn btn-primary" disabled={busy} onClick={() => { void savePrinter() }}>{draft.id ? "Guardar" : "Agregar"}</button>,
       })
       return

@@ -13,12 +13,12 @@ export const NAV_PRIORITY: readonly ContextId[] = [
   "waiter",
   "caja",
   "ventas",
+  "facturacion",
+  "clientes",
   "resumen",
   "flota",
-  "clientes",
-  "facturacion",
-  "config",
   "usuario",
+  "config",
 ]
 
 /** Celular: 5 atajos + «Más» = 6 botones (con 7 no entran en 360 px). */

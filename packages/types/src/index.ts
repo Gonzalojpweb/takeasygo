@@ -781,6 +781,8 @@ export interface ZReport {
   // ── Control (Fase 1, 2026-10) — opcionales: los Z viejos no los tienen ──
   /** Retiros de efectivo (vales). */
   withdrawalTotal?: number
+  /** Propinas del turno (piloto 06/11): ya incluidas en incomeTotal. */
+  tipTotal?: number
   /** Egresos (gastos + retiros) por categoría. */
   byCategory?: Partial<Record<CashExpenseCategory, number>>
   /** Ventas anuladas en el turno (devoluciones automáticas). */

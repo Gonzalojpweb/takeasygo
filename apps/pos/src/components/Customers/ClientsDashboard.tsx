@@ -146,7 +146,7 @@ export function ClientsDashboard() {
         ),
       })
       setActionBar({
-        left: <button className="btn btn-ghost" disabled={busy} onClick={() => setCreating(false)}>Cancelar</button>,
+        center: <button className="btn btn-ghost" disabled={busy} onClick={() => setCreating(false)}>Cancelar</button>,
         right: <button className="btn btn-primary" disabled={busy} onClick={() => { void submitNew() }}>Crear cliente</button>,
       })
       return
@@ -166,7 +166,7 @@ export function ClientsDashboard() {
           </dl>
         ),
       })
-      setActionBar({ left: <button className="btn btn-ghost" onClick={() => { setSelected(null); setOrders(null) }}>Volver</button> })
+      setActionBar({ center: <button className="btn btn-ghost" onClick={() => { setSelected(null); setOrders(null) }}>Volver</button> })
       return
     }
     setContextPanel({

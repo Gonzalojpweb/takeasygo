@@ -6,8 +6,9 @@ import { MOBILE_SHORTCUTS, TABLET_SHORTCUTS, splitNav } from "../components/layo
 describe("splitNav", () => {
   it("admin en celular: 5 atajos por prioridad, el resto en «Más»", () => {
     const { shortcuts, overflow } = splitNav(contextsForRole("admin"), MOBILE_SHORTCUTS)
-    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "resumen", "waiter", "caja", "ventas"])
-    expect(overflow.map((c) => c.id)).toEqual(["facturacion", "clientes", "usuario", "config"])
+    // Piloto 06/11: orden por frecuencia; el Salón ya no es de la caja.
+    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "caja", "ventas", "facturacion", "clientes"])
+    expect(overflow.map((c) => c.id)).toEqual(["resumen", "usuario", "config"])
   })
 
   it("admin en tablet: 6 atajos", () => {
@@ -18,10 +19,10 @@ describe("splitNav", () => {
     expect(shortcuts.map((c) => c.id)).not.toContain("flota")
   })
 
-  it("cajero: sin Ventas ni Configuración, los atajos siguen siendo los más usados", () => {
+  it("cajero: sin Ventas ni Configuración; con 6 contextos no hace falta «Más»", () => {
     const { shortcuts, overflow } = splitNav(contextsForRole("cashier"), MOBILE_SHORTCUTS)
-    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "resumen", "waiter", "caja", "clientes"])
-    expect(overflow.map((c) => c.id)).toEqual(["facturacion", "usuario"])
+    expect(shortcuts.map((c) => c.id)).toEqual(["counter", "caja", "facturacion", "clientes", "resumen", "usuario"])
+    expect(overflow).toEqual([])
   })
 
   it("mozo (2 contextos): no hace falta «Más»", () => {

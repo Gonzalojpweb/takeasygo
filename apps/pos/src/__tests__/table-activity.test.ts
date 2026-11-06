@@ -88,6 +88,18 @@ describe("contextsForRole (Operational Roles Matrix)", () => {
     expect(contextsForRole("waiter").map((c) => c.id)).toEqual(["waiter", "usuario"])
   })
 
+  it("piloto 06/11: el Salón (vista del mozo) no se duplica en la terminal de caja", () => {
+    for (const role of ["admin", "manager", "cashier"]) {
+      expect(contextsForRole(role).map((c) => c.id)).not.toContain("waiter")
+    }
+  })
+
+  it("piloto 06/11: Usuario y Configuración quedan al final, en el grupo «Cuenta»", () => {
+    const admin = contextsForRole("admin")
+    expect(admin.map((c) => c.id)).toEqual(["counter", "caja", "ventas", "facturacion", "clientes", "resumen", "usuario", "config"])
+    expect(admin.filter((c) => c.section === "account").map((c) => c.id)).toEqual(["usuario", "config"])
+  })
+
   it("Configuración es de admin y encargado", () => {
     expect(contextsForRole("manager").map((c) => c.id)).toContain("config")
     expect(contextsForRole("cashier").map((c) => c.id)).not.toContain("config")

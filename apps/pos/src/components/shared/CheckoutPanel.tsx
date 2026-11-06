@@ -1,10 +1,14 @@
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import type { PaymentMethod } from "@takeasygo/types"
 import {
   cashChange,
   isCheckoutComplete,
   remainingToPay,
   splitEvenly,
+  suggestedTipCents,
+  isTipValid,
+  TIP_METHODS,
+  TIP_PERCENTS,
   type CheckoutPart,
 } from "@takeasygo/business/browser"
 import { PaymentMethodGrid } from "./PaymentMethodGrid"
@@ -33,8 +37,11 @@ interface CheckoutPanelProps {
   /** Total a cobrar, en centavos. */
   total: number
   busy?: boolean
-  /** `meta.cashReceivedCents`: lo que entregó el cliente en efectivo (para mostrar el vuelto al final). */
-  onConfirm: (parts: CheckoutPart[], meta?: { cashReceivedCents: number | null }) => void
+  /**
+   * `meta.cashReceivedCents`: lo que entregó el cliente en efectivo (para el
+   * vuelto). `meta.tip`: propina aparte del total (no se factura).
+   */
+  onConfirm: (parts: CheckoutPart[], meta?: CheckoutMeta) => void
   /** Mostrador: "Enviar a cocina" (la orden nace confirmada e imprime comanda). */
   sendToKitchen?: { value: boolean; onChange: (value: boolean) => void }
   /** Celular del cliente para el club (opcional): suma puntos y cuenta como visita. */
@@ -50,6 +57,26 @@ interface CheckoutPanelProps {
    * muestra la fila; `onEdit` abre el diálogo de descuento.
    */
   discount?: { appliedCents: number; label?: string; onEdit: () => void }
+  /** «Dividir cuenta» desde la mesa: abre directo en «Por platos». */
+  startSplit?: boolean
+  /** Propina (piloto 06/11). Default: visible. */
+  tips?: boolean
+}
+
+export interface CheckoutTip {
+  amount: number
+  method: PaymentMethod
+}
+
+export interface CheckoutMeta {
+  cashReceivedCents: number | null
+  tip?: CheckoutTip | null
+}
+
+/** Efectivo que el cliente tiene que entregar: partes en efectivo + propina en efectivo. */
+export function cashToCollect(parts: readonly CheckoutPart[], tip: CheckoutTip | null): number {
+  const cash = parts.filter((p) => p.method === "cash").reduce((s, p) => s + p.amount, 0)
+  return cash + (tip && tip.method === "cash" ? tip.amount : 0)
 }
 
 /** Billetes de pesos argentinos en circulación (centavos), para el vuelto. */
@@ -72,19 +99,21 @@ export function isClubPhoneValid(phone: string): boolean {
   return digits.length === 0 || (digits.length >= 8 && digits.length <= 15)
 }
 
-export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice, splitLines, guests, discount }: CheckoutPanelProps) {
+export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, clubPhone, invoice, splitLines, guests, discount, startSplit = false, tips = true }: CheckoutPanelProps) {
   const [parts, setParts] = useState<CheckoutPart[]>([])
   const [amountText, setAmountText] = useState<Record<string, string>>({})
   const [received, setReceived] = useState("")
   const [splitCount, setSplitCount] = useState(guests && guests >= 2 ? guests : 2)
-  const [splittingByItems, setSplittingByItems] = useState(false)
+  const [splittingByItems, setSplittingByItems] = useState(Boolean(startSplit && splitLines?.length))
+  const [tipText, setTipText] = useState("")
+  const [tipMethod, setTipMethod] = useState<PaymentMethod>("cash")
 
   const remaining = remainingToPay(total, parts)
   const complete = isCheckoutComplete(total, parts)
-  const cashDue = useMemo(
-    () => parts.filter((p) => p.method === "cash").reduce((s, p) => s + p.amount, 0),
-    [parts]
-  )
+  const tipCents = parsePesosInput(tipText) ?? 0
+  const tip: CheckoutTip | null = tips && tipCents > 0 ? { amount: tipCents, method: tipMethod } : null
+  const tipOk = isTipValid(tip, total)
+  const cashDue = cashToCollect(parts, tip)
   const receivedCents = parsePesosInput(received)
   const hasExternal = parts.some((p) => isExternalPaymentMethod(p.method))
 
@@ -154,7 +183,8 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
   const confirmDisabled = !complete ||
     busy ||
     (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||
-    (invoice ? !isInvoiceChoiceValid(invoice.value, invoice.config) : false)
+    (invoice ? !isInvoiceChoiceValid(invoice.value, invoice.config) : false) ||
+    !tipOk
 
   // 30/10 (obs. UX): el cobro era una columna angosta centrada con todo
   // suelto. Ahora: total arriba, «Cómo paga» a la izquierda, efectivo /
@@ -277,10 +307,67 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
         </section>
 
         <div className="checkout-side">
+          {tips && (
+            <section className="checkout-section" aria-labelledby="tip-title">
+              <h3 id="tip-title" className="checkout-section-title">
+                Propina <span className="checkout-section-hint">opcional · no se factura</span>
+              </h3>
+              <div className="cash-quick" role="group" aria-label="Propina sugerida">
+                <button
+                  type="button"
+                  className={`cash-quick-btn${tipCents === 0 ? " active" : ""}`}
+                  aria-pressed={tipCents === 0}
+                  onClick={() => setTipText("")}
+                >
+                  Sin propina
+                </button>
+                {TIP_PERCENTS.map((pct) => {
+                  const amount = suggestedTipCents(total, pct)
+                  if (amount <= 0) return null
+                  return (
+                    <button
+                      key={pct}
+                      type="button"
+                      className={`cash-quick-btn${tipCents === amount ? " active" : ""}`}
+                      aria-pressed={tipCents === amount}
+                      onClick={() => setTipText(centsToPesosInput(amount))}
+                    >
+                      {pct}% · {formatCurrency(amount)}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="checkout-part-row">
+                <input
+                  className="search-input checkout-part-amount"
+                  inputMode="decimal"
+                  placeholder="Otro monto"
+                  aria-label="Monto de la propina"
+                  value={tipText}
+                  onChange={(e) => setTipText(e.target.value)}
+                  aria-invalid={!tipOk}
+                />
+                <select
+                  className="search-input"
+                  value={tipMethod}
+                  onChange={(e) => setTipMethod(e.target.value as PaymentMethod)}
+                  aria-label="Cómo deja la propina"
+                >
+                  {TIP_METHODS.map((m) => (
+                    <option key={m} value={m}>{formatPaymentMethod(m).name}</option>
+                  ))}
+                </select>
+              </div>
+              {!tipOk && (
+                <span className="checkout-section-hint is-error">La propina no puede superar el total de la cuenta.</span>
+              )}
+            </section>
+          )}
+
           {cashDue > 0 && (
             <section className="checkout-section checkout-section--cash" aria-labelledby="cash-received-title">
               <h3 id="cash-received-title" className="checkout-section-title">
-                Efectivo recibido <span className="checkout-section-hint">a cobrar {formatCurrency(cashDue)}</span>
+                Efectivo recibido <span className="checkout-section-hint">a cobrar {formatCurrency(cashDue)}{tip?.method === "cash" ? " con propina" : ""}</span>
               </h3>
               {/* Fase E: un toque con el billete que entrega el cliente. */}
               <div className="cash-quick" role="group" aria-label="Monto recibido">
@@ -377,9 +464,11 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
           type="button"
           className="btn btn-primary btn-lg checkout-confirm"
           disabled={confirmDisabled}
-          onClick={() => onConfirm(parts, { cashReceivedCents: cashDue > 0 ? receivedCents : null })}
+          onClick={() => onConfirm(parts, { cashReceivedCents: cashDue > 0 ? receivedCents : null, tip })}
         >
-          {busy ? "Registrando cobro…" : `Confirmar cobro ${formatCurrency(total)}`}
+          {busy
+            ? "Registrando cobro…"
+            : `Confirmar cobro ${formatCurrency(total)}${tip ? ` + propina ${formatCurrency(tip.amount)}` : ""}`}
         </button>
       </footer>
     </div>

@@ -4,6 +4,7 @@ import type { CheckoutPart } from "@takeasygo/business/browser"
 import { cashChange } from "@takeasygo/business/browser"
 import { formatCurrency } from "../../utils/format"
 import { formatPaymentMethod } from "../../services/payment"
+import { cashToCollect, type CheckoutTip } from "./CheckoutPanel"
 
 // ============================================================================
 // SaleDoneModal — «Venta completada» / «Mesa cerrada»
@@ -16,7 +17,7 @@ import { formatPaymentMethod } from "../../services/payment"
 interface SaleDoneModalProps {
   title: string
   subtitle?: string
-  sale: { total: number; parts?: CheckoutPart[]; cashReceivedCents?: number | null } | null
+  sale: { total: number; parts?: CheckoutPart[]; cashReceivedCents?: number | null; tip?: CheckoutTip | null } | null
   actionLabel: string
   onDone: () => void
   /** Avisos extra: enviado a cocina, resultado de la factura. */
@@ -36,7 +37,8 @@ export function SaleDoneModal({ title, subtitle, sale, actionLabel, onDone, chil
   }, [onDone])
 
   const parts = sale?.parts ?? []
-  const cashDue = parts.filter((p) => p.method === "cash").reduce((s, p) => s + p.amount, 0)
+  const tip = sale?.tip ?? null
+  const cashDue = cashToCollect(parts, tip)
   const received = sale?.cashReceivedCents ?? null
   const change = cashDue > 0 && received !== null && received >= cashDue ? cashChange(cashDue, received) : null
 
@@ -64,6 +66,13 @@ export function SaleDoneModal({ title, subtitle, sale, actionLabel, onDone, chil
               )
             })}
           </ul>
+        )}
+
+        {tip && (
+          <div className="sale-done-change">
+            <span>Propina ({formatPaymentMethod(tip.method).name})</span>
+            <strong>{formatCurrency(tip.amount)}</strong>
+          </div>
         )}
 
         {change !== null && (

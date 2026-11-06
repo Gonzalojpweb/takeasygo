@@ -381,7 +381,7 @@ export function SalesDashboard() {
     })
     const canVoid = selected.chargedInPos && !selected.voided && Boolean(selected.posId)
     setActionBar({
-      left: (
+      center: (
         <button className="btn btn-ghost" onClick={() => (voiding ? setVoiding(false) : setSelectedId(null))}>
           {voiding ? "Cancelar" : "← Volver al resumen"}
         </button>

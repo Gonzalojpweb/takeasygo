@@ -396,8 +396,13 @@ export function CashDashboard({ role }: { role?: string }) {
           ),
         })
         setActionBar({
-          left: <button className="btn btn-ghost" onClick={() => go("movimiento")}>+ Gasto / retiro</button>,
-          center: seesExpected ? <button className="btn btn-ghost" onClick={() => go("x-report")}>Reporte X</button> : undefined,
+          // Piloto 06/11: gasto/retiro y X son operaciones, no texto suelto.
+          center: (
+            <>
+              <button className="btn btn-secondary" onClick={() => go("movimiento")}>+ Gasto / retiro</button>
+              {seesExpected && <button className="btn btn-secondary" onClick={() => go("x-report")}>Reporte X</button>}
+            </>
+          ),
           right: <button className="btn btn-primary" onClick={() => go("arqueo")}>Cerrar caja</button>,
         })
         break
@@ -410,7 +415,7 @@ export function CashDashboard({ role }: { role?: string }) {
           body: <p className="cash-help">Contá el efectivo del cajón e ingresalo. Es el fondo con el que arranca el turno.</p>,
         })
         setActionBar({
-          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
+          center: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
           right: <button className="btn btn-primary" disabled={busy} onClick={handleOpenRegister}>Abrir caja</button>,
         })
         break
@@ -435,7 +440,7 @@ export function CashDashboard({ role }: { role?: string }) {
           ),
         })
         setActionBar({
-          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
+          center: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
           right: (
             <button
               className={`btn ${missing ? "btn-secondary" : type.direction === "out" ? "btn-danger" : "btn-primary"} cashf-submit`}
@@ -461,7 +466,7 @@ export function CashDashboard({ role }: { role?: string }) {
           ),
         })
         setActionBar({
-          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
+          center: <button className="btn btn-ghost" onClick={() => go("resumen")}>Cancelar</button>,
           right: (
             <button className={`btn ${confirmClose ? "btn-danger" : "btn-primary"}`} disabled={busy} onClick={handleCloseRegister}>
               {confirmClose ? `Confirmar cierre · ${formatCurrency(countedTotal)}` : "Cerrar caja"}
@@ -514,7 +519,7 @@ export function CashDashboard({ role }: { role?: string }) {
           subtitle: "Parcial — no cierra la caja",
           body: <p className="cash-help">Foto del turno en este momento. Solo lo ven encargados y admin.</p>,
         })
-        setActionBar({ left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button> })
+        setActionBar({ center: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button> })
         break
 
       case "historial":
@@ -557,7 +562,7 @@ export function CashDashboard({ role }: { role?: string }) {
           body: <p className="cash-help">Cobros que se hicieron sin caja abierta o que no llegaron. Reasignalos a la caja actual.</p>,
         })
         setActionBar({
-          left: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button>,
+          center: <button className="btn btn-ghost" onClick={() => go("resumen")}>Volver</button>,
           right:
             activeRegister && pendingMovements.length > 0 ? (
               <button

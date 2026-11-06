@@ -145,7 +145,7 @@ export function UserDashboard({ role }: { role?: string }) {
         ),
       })
       setActionBar({
-        left: <button className="btn btn-ghost" disabled={busy} onClick={() => setAdding(false)}>Cancelar</button>,
+        center: <button className="btn btn-ghost" disabled={busy} onClick={() => setAdding(false)}>Cancelar</button>,
         right: <button className="btn btn-primary" disabled={busy} onClick={() => { void submitNewMember() }}>Dar de alta</button>,
       })
       return
@@ -165,14 +165,16 @@ export function UserDashboard({ role }: { role?: string }) {
         ),
       })
       setActionBar(selected.canManage ? {
-        left: <button className="btn btn-ghost" disabled={busy} onClick={() => setSelectedId(null)}>Volver</button>,
         center: (
-          <button className="btn btn-ghost" disabled={busy} onClick={() => run(async () => {
-            if (!tenantId) return
-            await updateMember(tenantId, selected.id, { isActive: !selected.isActive })
-            flash("success", selected.isActive ? "Persona desactivada: ya no puede entrar" : "Persona activada")
-            await loadTeam()
-          }, "No se pudo cambiar el estado")}>{selected.isActive ? "Desactivar" : "Activar"}</button>
+          <>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => setSelectedId(null)}>Volver</button>
+            <button className="btn btn-ghost" disabled={busy} onClick={() => run(async () => {
+              if (!tenantId) return
+              await updateMember(tenantId, selected.id, { isActive: !selected.isActive })
+              flash("success", selected.isActive ? "Persona desactivada: ya no puede entrar" : "Persona activada")
+              await loadTeam()
+            }, "No se pudo cambiar el estado")}>{selected.isActive ? "Desactivar" : "Activar"}</button>
+          </>
         ),
         right: selected.isActive ? (
           <button className="btn btn-primary" disabled={busy} onClick={() => run(async () => {
@@ -182,7 +184,7 @@ export function UserDashboard({ role }: { role?: string }) {
             await loadTeam()
           }, "No se pudo generar el PIN")}><KeyRound size={16} aria-hidden /> PIN nuevo</button>
         ) : undefined,
-      } : { left: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>Volver</button> })
+      } : { center: <button className="btn btn-ghost" onClick={() => setSelectedId(null)}>Volver</button> })
       return
     }
     if (tab === "perfil" && changingPin) {
@@ -198,7 +200,7 @@ export function UserDashboard({ role }: { role?: string }) {
         ) : <p className="cash-help">El sistema genera un PIN de 6 dígitos y te lo muestra una vez.</p>,
       })
       setActionBar({
-        left: <button className="btn btn-ghost" disabled={busy} onClick={() => { setChangingPin(false); setCurrentPin("") }}>Cancelar</button>,
+        center: <button className="btn btn-ghost" disabled={busy} onClick={() => { setChangingPin(false); setCurrentPin("") }}>Cancelar</button>,
         right: <button className="btn btn-primary" disabled={busy || (Boolean(me?.hasPin) && currentPin.length < 4)} onClick={() => { void submitMyPin() }}>Generar PIN nuevo</button>,
       })
       return
