@@ -78,6 +78,14 @@
 - **Consultar reportes básicos** — solo si tiene plan que lo permite (`reports:view` requiere `buy`/`full`). En planes inferiores, le indican que pida al admin.
 - **Ver historial de órdenes** (`orderHistory`): siempre disponible.
 
+### En el POS (pos.takeasygo.com)
+
+- **Menú lateral**: Counter, Caja, Ventas (solo admin y encargado), Facturación, Clientes y Resumen. Abajo, separados: Usuario y Configuración (solo admin y encargado). El salón de mesas está dentro de Counter; el contexto «Salón» aparte es solo del celular del mozo.
+- **Cobrar una mesa**: Counter → tocar la mesa → botón principal **«Cobrar $…»** al pie del panel derecho.
+- **Dividir la cuenta**: en el panel de la mesa, **«Dividir cuenta»** abre el cobro directo en «Por platos». En el cobro también están «Partes iguales» y «Por comensal».
+- **Propina**: en el cobro, sección «Propina» (opcional): «Sin propina», 10 %, 15 % u otro monto, y cómo la deja (efectivo, débito, crédito o transferencia). La propina **no suma al total de la cuenta ni se factura**; queda en la caja como ingreso aparte y el Z la muestra en la línea «de ellos propinas». Si es en efectivo, el vuelto ya la descuenta y suma al arqueo. No se puede dejar propina por Mercado Pago.
+- **Gasto o retiro** y **Reporte X**: Caja → botones al pie del panel derecho.
+
 ### Restricciones por rol
 
 - **NO puede** gestionar usuarios (`user:manage` — solo admin).
