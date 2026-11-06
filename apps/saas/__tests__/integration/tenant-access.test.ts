@@ -1,0 +1,196 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import mongoose from 'mongoose'
+import './setup'
+
+import Tenant from '@/models/Tenant'
+import User from '@/models/User'
+import AccessShadowEvent from '@/models/AccessShadowEvent'
+import { auth } from '@/lib/auth'
+import { clearFreshUserCache } from '@/lib/apiAuth'
+import { classifyShadow, clearAccessModeCache, getAccessMode } from '@/lib/access-central'
+import { authorizeTenantBySlug, belongsTo, canOperateTenant, requireSuperAdminCentral } from '@/lib/tenant-access'
+
+vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
+
+/**
+ * Multi-marca PR 2 — acceso a un comercio por un punto único, con el
+ * interruptor `access.central`:
+ *   off     → decide el JWT (idéntico a antes del PR 2)
+ *   log     → decide el JWT y registra si la base opina distinto
+ *   enforce → decide la base (rol, comercio y estado frescos; cierra S5)
+ */
+
+const authMock = auth as unknown as ReturnType<typeof vi.fn>
+let tenantA: string
+let tenantB: string
+let userId: string
+
+function jwt(user: Record<string, unknown>) {
+  authMock.mockResolvedValue({ user })
+}
+
+async function setMode(mode: 'off' | 'log' | 'enforce') {
+  process.env.ACCESS_CENTRAL_MODE = mode
+  clearAccessModeCache()
+  expect(await getAccessMode()).toBe(mode)
+}
+
+async function waitShadow(n: number) {
+  for (let i = 0; i < 40 && (await AccessShadowEvent.countDocuments()) < n; i++) await new Promise((r) => setTimeout(r, 25))
+}
+
+beforeEach(async () => {
+  clearFreshUserCache()
+  const a = await Tenant.create({ name: 'A', slug: 'marca-a', plan: 'full' })
+  const b = await Tenant.create({ name: 'B', slug: 'marca-b', plan: 'full' })
+  tenantA = a._id.toString()
+  tenantB = b._id.toString()
+  const u = await User.create({ name: 'Encargada', email: `enc-${Math.random().toString(36).slice(2, 8)}@t.test`, password: 'x'.repeat(20), role: 'manager', tenantId: tenantA })
+  userId = u._id.toString()
+  jwt({ id: userId, role: 'manager', tenantId: tenantA, tenantSlug: 'marca-a', email: 'enc@t.test', name: 'Encargada' })
+})
+
+afterEach(() => {
+  delete process.env.ACCESS_CENTRAL_MODE
+  clearAccessModeCache()
+})
+
+describe('pertenencia (funciones puras)', () => {
+  it('belongsTo y canOperateTenant', () => {
+    expect(belongsTo({ tenantId: 'x' }, 'x')).toBe(true)
+    expect(belongsTo({ tenantId: 'x' }, 'y')).toBe(false)
+    expect(belongsTo({ tenantId: null }, 'x')).toBe(false)
+    expect(canOperateTenant({ role: 'superadmin', tenantId: null }, 'x')).toBe(true)
+    expect(canOperateTenant({ role: 'consumer', tenantId: 'x' }, 'x')).toBe(false)
+    expect(canOperateTenant({ role: 'manager', tenantId: 'x' }, 'x')).toBe(true)
+  })
+
+  it('motivo de la divergencia, determinista', () => {
+    const base = { family: 'f', oldDecision: true, newDecision: false, hadJwt: true, freshFound: true }
+    expect(classifyShadow({ ...base, hadJwt: false })).toBe('no_jwt')
+    expect(classifyShadow({ ...base, freshFound: false })).toBe('user_inactive')
+    expect(classifyShadow({ ...base, oldTenantMatches: true, newTenantMatches: false })).toBe('jwt_stale_tenant')
+    expect(classifyShadow({ ...base, oldRole: 'admin', newRole: 'waiter' })).toBe('jwt_stale_role')
+    expect(classifyShadow({ ...base, oldRole: 'admin', newRole: 'admin' })).toBe('unknown')
+  })
+})
+
+describe('authorizeTenantBySlug', () => {
+  it('off: idéntico a antes — el JWT del comercio pasa aunque la base diga otra cosa', async () => {
+    await setMode('off')
+    await User.updateOne({ _id: userId }, { isActive: false })
+    const r = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+    expect(r.ok).toBe(true)
+    const otro = await authorizeTenantBySlug(undefined, 'marca-b', { family: 't' })
+    expect(otro.ok).toBe(false)
+    if (!otro.ok) expect(otro.response.status).toBe(403)
+  })
+
+  it('sin sesión: 401 en cualquier modo', async () => {
+    authMock.mockResolvedValue(null)
+    for (const mode of ['off', 'log', 'enforce'] as const) {
+      await setMode(mode)
+      const r = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+      expect(r.ok).toBe(false)
+      if (!r.ok) expect(r.response.status).toBe(401)
+    }
+  })
+
+  it('log: decide el JWT y registra la divergencia (usuario desactivado)', async () => {
+    await setMode('log')
+    await User.updateOne({ _id: userId }, { isActive: false })
+    const r = await authorizeTenantBySlug(undefined, 'marca-a', { family: 'club-audit' })
+    expect(r.ok).toBe(true)
+    await waitShadow(1)
+    const ev = await AccessShadowEvent.findOne().lean()
+    expect(ev).toMatchObject({ family: 'club-audit', oldDecision: true, newDecision: false, reason: 'user_inactive', tenantId: tenantA })
+  })
+
+  it('enforce: usuario desactivado → 401; movido a otro comercio → 403; con rol → 403', async () => {
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { isActive: false })
+    const inactivo = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+    expect(inactivo.ok).toBe(false)
+    if (!inactivo.ok) expect(inactivo.response.status).toBe(401)
+
+    clearFreshUserCache()
+    await User.updateOne({ _id: userId }, { isActive: true, tenantId: tenantB })
+    const movido = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+    expect(movido.ok).toBe(false)
+    if (!movido.ok) expect(movido.response.status).toBe(403)
+    // …y en el comercio nuevo entra aunque su JWT diga el viejo.
+    const nuevo = await authorizeTenantBySlug(undefined, 'marca-b', { family: 't' })
+    expect(nuevo.ok).toBe(true)
+
+    clearFreshUserCache()
+    await User.updateOne({ _id: userId }, { tenantId: tenantA, role: 'waiter' })
+    const rol = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't', roles: ['admin', 'manager'] })
+    expect(rol.ok).toBe(false)
+    if (!rol.ok) expect(rol.response.status).toBe(403)
+  })
+
+  it('enforce: un consumidor nunca opera un comercio', async () => {
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { role: 'consumer' })
+    const r = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+    expect(r.ok).toBe(false)
+  })
+
+  it('enforce: devuelve el principal con el rol fresco', async () => {
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { role: 'admin' })
+    const r = await authorizeTenantBySlug(undefined, 'marca-a', { family: 't' })
+    expect(r.ok && r.principal.role).toBe('admin')
+    expect(r.ok && r.principal.tenantId).toBe(tenantA)
+  })
+})
+
+describe('requireSuperAdminCentral (S5)', () => {
+  beforeEach(async () => {
+    await User.updateOne({ _id: userId }, { role: 'manager' })
+    jwt({ id: userId, role: 'superadmin', tenantSlug: null })
+  })
+
+  it('off: el rol del JWT manda (como siempre)', async () => {
+    await setMode('off')
+    expect(await requireSuperAdminCentral()).toBeNull()
+  })
+
+  it('log: pasa por el JWT y registra jwt_stale_role', async () => {
+    await setMode('log')
+    expect(await requireSuperAdminCentral('superadmin')).toBeNull()
+    await waitShadow(1)
+    const ev = await AccessShadowEvent.findOne().lean()
+    expect(ev?.reason).toBe('jwt_stale_role')
+  })
+
+  it('enforce: al que le sacaron el superadmin en la base no pasa', async () => {
+    await setMode('enforce')
+    const r = await requireSuperAdminCentral()
+    expect(r?.status).toBe(403)
+  })
+
+  it('enforce: superadmin vigente pasa', async () => {
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null })
+    clearFreshUserCache()
+    expect(await requireSuperAdminCentral()).toBeNull()
+  })
+})
+
+describe('getAccessMode', () => {
+  it('sin variable ni configuración: off', async () => {
+    delete process.env.ACCESS_CENTRAL_MODE
+    clearAccessModeCache()
+    expect(await getAccessMode()).toBe('off')
+  })
+
+  it('lee PlatformConfig.accessCentral cuando no hay variable', async () => {
+    delete process.env.ACCESS_CENTRAL_MODE
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    await PlatformConfig.updateOne({ _id: 'platform' }, { $set: { accessCentral: 'log' } }, { upsert: true })
+    clearAccessModeCache()
+    expect(mongoose.connection.readyState).toBe(1)
+    expect(await getAccessMode()).toBe('log')
+  })
+})

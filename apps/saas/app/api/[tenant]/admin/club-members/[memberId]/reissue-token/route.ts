@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { authorizeTenantBySlug } from '@/lib/tenant-access'
 import { rateLimit } from '@/lib/rateLimit'
 import { logAudit } from '@/lib/audit'
 import LoyaltyMember from '@/models/LoyaltyMember'
@@ -26,18 +26,10 @@ export async function POST(
   { params }: { params: Promise<{ tenant: string; memberId: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug, memberId } = await params
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-token' })
+    if (!access.ok) return access.response
+    const session = { user: access.principal }
 
     // Rate-limit: 10 reissues por admin en 1 hora
     const adminId = (session.user as any).id ?? 'unknown'

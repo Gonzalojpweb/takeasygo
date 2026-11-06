@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import UserLocationRole from '@/models/UserLocationRole'
+import { belongsTo } from '@/lib/tenant-membership'
 
 /**
  * DELETE /api/[tenant]/admin/user-location-roles/[id]
@@ -41,7 +42,7 @@ export async function DELETE(
 
     const user = await getSessionUser(request)
     if (!user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    if (user.role !== 'superadmin' && user.tenantId !== tenant._id.toString()) {
+    if (user.role !== 'superadmin' && !belongsTo(user, tenant._id)) {
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
     }
     const rank = ROLE_RANK[user.role ?? ''] ?? 0

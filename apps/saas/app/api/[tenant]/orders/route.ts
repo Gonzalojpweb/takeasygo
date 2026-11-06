@@ -27,7 +27,7 @@ import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-line
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { getBaseUrl } from '@/lib/site-url'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
 import { isServiceOpen } from '@/lib/availability'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
@@ -2012,7 +2012,7 @@ export async function POST(
         const limit = LOYALTY_MEMBER_LIMIT[tenant.plan as Plan]
         if (limit === null || await LoyaltyMember.countDocuments({ tenantId: tenant._id, status: 'active' }) < limit) {
           let userId: mongoose.Types.ObjectId | null = null
-          const session = await auth()
+          const session = await getIdentitySession()
           if (session?.user?.email) {
             const user = await User.findOne({ email: session.user.email }).select('_id').lean()
             if (user) userId = user._id
@@ -2046,7 +2046,7 @@ export async function POST(
     } else {
       // SI NO ESTÁ UNIÉNDOSE (porque ya es miembro o no quiere),
       // pero está autenticado, intentamos vincular su userId al miembro existente por email o phone.
-      const session = await auth()
+      const session = await getIdentitySession()
       if (session?.user?.email) {
         const user = await User.findOne({ email: session.user.email }).select('_id').lean()
         if (user) {
@@ -2230,7 +2230,7 @@ export async function POST(
       if (encryptedCustomer.phoneHash) {
         const locationDoc = await Location.findById(body.locationId).select('name').lean() as any
         const cuisineTypes = resolvedItems.map((i: any) => i.categoryName).filter(Boolean)
-        const sessionUser = await auth()
+        const sessionUser = await getIdentitySession()
         let userId: mongoose.Types.ObjectId | null = null
         if (sessionUser?.user?.email) {
           const u = await User.findOne({ email: sessionUser.user.email }).select('_id').lean() as any

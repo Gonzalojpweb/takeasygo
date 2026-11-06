@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { sanitizeCommissionRules } from '@/lib/commission-rules'
@@ -85,7 +85,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
   await Tenant.updateOne({ _id: tenantId }, { $set: { commissionRules: rules } }, { runValidators: true })
 
-  const session = await auth()
+  const session = await getIdentitySession()
   await logAudit({
     tenantId,
     action: 'superadmin.commission_rules.update',

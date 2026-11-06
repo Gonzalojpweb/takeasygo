@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { authorizeTenantBySlug } from '@/lib/tenant-access'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import ClubDiscount from '@/models/ClubDiscount'
 import Tenant from '@/models/Tenant'
@@ -14,18 +14,9 @@ export async function GET(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    if (!access.ok) return access.response
 
     await connectDB()
 
@@ -63,18 +54,10 @@ export async function POST(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    if (!access.ok) return access.response
+    const session = { user: access.principal }
 
     await connectDB()
 
@@ -159,18 +142,9 @@ export async function DELETE(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    if (!access.ok) return access.response
 
     await connectDB()
 

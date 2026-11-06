@@ -24,6 +24,7 @@ import type { NextRequest } from 'next/server'
 import { getSessionUser } from '@/lib/apiAuth'
 import { enforcePermission, type Permission } from '@/lib/rbac'
 import type { TenantFlags } from '@/lib/feature-flags'
+import { belongsTo } from '@/lib/tenant-membership'
 
 type ScopedTenant<T> = T & { _id: mongoose.Types.ObjectId; flags?: TenantFlags | null }
 
@@ -70,7 +71,7 @@ export async function resolveDashboardScope<T extends object = object>(
   if (!tenant) return deny(404, 'Tenant no encontrado')
 
   const isSuperadmin = user.role === 'superadmin'
-  if (!isSuperadmin && user.tenantId?.toString() !== tenant._id.toString()) {
+  if (!isSuperadmin && !belongsTo(user, tenant._id)) {
     return deny(403, 'Acceso denegado')
   }
 

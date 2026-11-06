@@ -43,8 +43,8 @@ export async function logAudit(options: AuditOptions): Promise<void> {
     let userRole = options.userRole ?? ''
 
     if (options.userId === undefined) {
-      const { auth } = await import('@/lib/auth')
-      const session = await auth()
+      const { getIdentitySession } = await import('@/lib/tenant-access')
+      const session = await getIdentitySession()
       userId   = (session?.user as any)?.id ?? null
       userName = session?.user?.name ?? session?.user?.email ?? 'Sistema'
       userRole = (session?.user as any)?.role ?? ''

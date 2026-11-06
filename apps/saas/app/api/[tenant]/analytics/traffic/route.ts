@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import MenuVisit from '@/models/MenuVisit'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { authorizeTenantBySlug } from '@/lib/tenant-access'
 import { Types } from 'mongoose'
 
 export async function GET(
@@ -10,21 +10,14 @@ export async function GET(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
     
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
 
     const { tenant: tenantSlug } = await params
     
     // Verificar que el usuario pertenece al tenant o es superadmin
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
     
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'analytics' })
+    if (!access.ok) return access.response
     const { searchParams } = new URL(request.url)
     const days = parseInt(searchParams.get('days') || '30')
     const dateFromParam = searchParams.get('dateFrom')

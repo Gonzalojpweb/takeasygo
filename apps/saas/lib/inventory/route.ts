@@ -35,6 +35,7 @@ import Tenant from '@/models/Tenant'
 import { getSessionUser } from '@/lib/apiAuth'
 import { enforcePermissionForRequest, type Permission } from '@/lib/rbac'
 import { canAccess, type Plan } from '@/lib/plans'
+import { belongsTo } from '@/lib/tenant-membership'
 
 export type InventoryCapability = 'read' | 'capture' | 'recipes' | 'manage'
 
@@ -104,7 +105,7 @@ export function inventoryRoute<T extends RouteParams = RouteParams>(
 
       const user = await getSessionUser(request)
       if (!user?.role) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-      if (user.role !== 'superadmin' && user.tenantId !== tenantId) {
+      if (user.role !== 'superadmin' && !belongsTo(user, tenantId)) {
         return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
       }
 

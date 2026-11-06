@@ -42,6 +42,8 @@ export interface IPlatformConfig {
   }
   /** Maintenance mode — when true, POST /orders returns 503 */
   maintenanceMode: boolean
+  /** Multi-marca PR 2: quién decide el acceso a un comercio (lib/access-central). */
+  accessCentral?: 'off' | 'log' | 'enforce'
   /** Google Contacts sync cron cursor (persisted between runs) */
   gcSyncCursor: {
     lastUserId: string | null
@@ -96,6 +98,8 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
       globalSosLimit: { type: Number, default: 250, min: 0 },
     },
     maintenanceMode: { type: Boolean, default: false },
+    // Multi-marca PR 2 (06/11/2026): off = como siempre (JWT).
+    accessCentral: { type: String, enum: ['off', 'log', 'enforce'], default: 'off' },
     gcSyncCursor: {
       lastUserId: { type: String, default: null },
       lastRunAt:  { type: Date, default: null },

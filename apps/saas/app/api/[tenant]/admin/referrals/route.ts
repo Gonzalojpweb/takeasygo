@@ -9,6 +9,7 @@ import { getSessionUser } from '@/lib/apiAuth'
 import { canAccess, type Plan } from '@/lib/plans'
 import { logAudit } from '@/lib/audit'
 import { averageTicketCents, loadAdminReferralOverview, loadProgram, requiredSpendCents } from '@/lib/referrals'
+import { belongsTo } from '@/lib/tenant-membership'
 
 /**
  * /api/{tenant}/admin/referrals — programa «Invitá y ganá» (admin · manager)
@@ -26,7 +27,7 @@ async function context(request: NextRequest, slug: string) {
   if (!tenant) return { error: NextResponse.json({ error: 'Comercio no encontrado' }, { status: 404 }) }
   const user = await getSessionUser(request)
   if (!user?.role) return { error: NextResponse.json({ error: 'No autorizado' }, { status: 401 }) }
-  if (user.role !== 'superadmin' && (user.tenantId !== String(tenant._id) || !ROLES.includes(user.role))) {
+  if (user.role !== 'superadmin' && (!belongsTo(user, tenant._id) || !ROLES.includes(user.role))) {
     return { error: NextResponse.json({ error: 'El programa de referidos lo gestiona el administrador o el manager' }, { status: 403 }) }
   }
   // Multisede: el programa es del comercio entero y el ranking muestra socios

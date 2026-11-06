@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const session = await import('@/lib/auth').then(m => m.auth())
+    const session = await import('@/lib/tenant-access').then(m => m.getIdentitySession())
     const registeredById = session?.user?.id
 
     const account = await CorporateAccount.create({

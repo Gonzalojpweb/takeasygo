@@ -3,12 +3,11 @@ import PushSubscription from '@/models/PushSubscription'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user || session.user.role !== 'superadmin') {
+    if (await requireSuperAdmin('push-backfill')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
 

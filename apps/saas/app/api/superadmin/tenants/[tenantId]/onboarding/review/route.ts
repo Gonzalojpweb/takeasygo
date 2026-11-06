@@ -3,7 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import { requireSuperAdmin } from '@/lib/apiAuth'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { notifyOnboardingDecision } from '@/lib/onboarding/notify'
 
 export async function POST(
@@ -14,7 +14,7 @@ export async function POST(
     const authError = await requireSuperAdmin()
     if (authError) return authError
 
-    const session = await auth()
+    const session = await getIdentitySession()
     const reviewer = session?.user?.email || 'superadmin'
 
     const { tenantId } = await params

@@ -1,7 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import PlatformConfig from '@/models/PlatformConfig'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function GET() {
   try {
@@ -21,8 +21,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session || session.user.role !== 'superadmin') {
+    if (await requireSuperAdmin('qr-promo-defaults')) {
       return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
     }
 

@@ -4,26 +4,16 @@ import QrPromo from '@/models/QrPromo'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { authorizeTenantBySlug } from '@/lib/tenant-access'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo' })
+    if (!access.ok) return access.response
 
     await connectDB()
 
@@ -61,19 +51,9 @@ export async function POST(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo' })
+    if (!access.ok) return access.response
 
     const body = await request.json()
 

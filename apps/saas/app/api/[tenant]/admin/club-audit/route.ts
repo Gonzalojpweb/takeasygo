@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { authorizeTenantBySlug } from '@/lib/tenant-access'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import QrPromo from '@/models/QrPromo'
@@ -22,18 +22,9 @@ export async function GET(
   { params }: { params: Promise<{ tenant: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    }
-
     const { tenant: tenantSlug } = await params
-    const isSuperAdmin = session.user.role === 'superadmin'
-    const belongsToTenant = session.user.tenantSlug === tenantSlug
-
-    if (!isSuperAdmin && !belongsToTenant) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-audit' })
+    if (!access.ok) return access.response
 
     const { searchParams } = new URL(request.url)
     const promoSlug = searchParams.get('promoSlug') || ''

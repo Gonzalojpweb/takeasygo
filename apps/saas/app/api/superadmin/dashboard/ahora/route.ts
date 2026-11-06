@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
 
 function minutesSince(date: Date): number {
   return (Date.now() - date.getTime()) / 60_000
@@ -43,50 +43,9 @@ function isOpenForTenant(loc: any, checkIsOpenNow: any): boolean {
 export async function GET(request: NextRequest) {
   try {
     // Auth
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-
-    const isSecure = process.env.NODE_ENV === 'production'
-    const token = await getToken({ 
-      req: request as any, 
-      secret, 
-      secureCookie: isSecure 
-    })
-
-    console.log('[dashboard/ahora] Auth debug:', {
-      isSecure,
-      hasToken: !!token,
-      tokenRole: token?.role,
-      tokenId: token?.id,
-    })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado - no token' }, { status: 403 })
-    }
-
-    let isSuperAdmin = token.role === 'superadmin'
-    console.log('[dashboard/ahora] Initial superadmin check:', isSuperAdmin)
-    
-    if (!isSuperAdmin && token.id) {
-      const mongooseMod = await import('mongoose')
-      const mongoose = mongooseMod.default ?? mongooseMod
-      if (mongoose.connection.readyState !== 1) {
-        await mongoose.connect(process.env.MONGODB_URI!)
-      }
-      const UserMod = await import('@/models/User')
-      const User = UserMod.default
-      const dbUser = await User.findById(token.id).select('role').lean<{ role: string }>()
-      console.log('[dashboard/ahora] DB user:', { id: token.id, role: dbUser?.role })
-      isSuperAdmin = dbUser?.role === 'superadmin'
-    }
-
-    console.log('[dashboard/ahora] Final superadmin check:', isSuperAdmin)
-
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Acceso denegado - not superadmin' }, { status: 403 })
-    }
+    // Superadmin por cookie (sin auth(): TDZ de chunks) — lib/superadmin-token-guard
+    const authError = await requireSuperAdminByToken(request, 'dashboard')
+    if (authError) return authError
 
     // Data imports - only Tenant and Location
     const mongooseMod = await import('mongoose')

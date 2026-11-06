@@ -14,6 +14,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
 
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
 
@@ -87,39 +88,9 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
 
 export async function GET(request: NextRequest) {
   try {
-    // ── Auth: getToken avoids the apiAuth→auth→auth-adapter chunk TDZ ──
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      console.error('[superadmin/dashboard GET] AUTH_SECRET not configured')
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-
-    const { getToken } = await import('next-auth/jwt')
-    const isSecure = process.env.NODE_ENV === 'production'
-    const token = await getToken({ req: request as any, secret, secureCookie: isSecure })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    // Token may lack role if issued before jwt callback was updated.
-    // Fall back to DB lookup.
-    let isSuperAdmin = token.role === 'superadmin'
-    if (!isSuperAdmin && token.id) {
-      const mongoose = await import('mongoose')
-      const defaultMongoose = mongoose.default ?? mongoose
-      if (defaultMongoose.connection.readyState !== 1) {
-        await defaultMongoose.connect(process.env.MONGODB_URI!)
-      }
-      const UserMod = await import('@/models/User')
-      const User = UserMod.default
-      const dbUser = await User.findById(token.id).select('role').lean<{ role: string }>()
-      isSuperAdmin = dbUser?.role === 'superadmin'
-    }
-
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    // ── Auth: superadmin por cookie (sin auth(): TDZ de chunks) — lib/superadmin-token-guard ──
+    const authError = await requireSuperAdminByToken(request, 'dashboard')
+    if (authError) return authError
 
     // ── Data imports: sequential to avoid Turbopack chunk TDZ ──
     const mongooseMod = await import('mongoose')

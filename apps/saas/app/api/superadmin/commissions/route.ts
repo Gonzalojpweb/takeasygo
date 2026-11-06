@@ -188,7 +188,7 @@ export async function POST(request: NextRequest) {
   const orderIds = orders.map((o) => o._id.toString())
   const amountCollected = orders.reduce((sum, o) => sum + (o.payment?.platformFeeAmount || 0), 0)
 
-  const session = (await import('@/lib/auth')).auth()
+  const session = (await import('@/lib/tenant-access')).getIdentitySession()
   const collectedBy = (await session)?.user?.email || 'superadmin'
 
   const settlement = await CommissionSettlement.create({

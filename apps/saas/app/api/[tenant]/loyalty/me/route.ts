@@ -10,7 +10,7 @@
 
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import LocationLoyaltyConfig from '@/models/LocationLoyaltyConfig'
@@ -34,7 +34,7 @@ export async function GET(
     }
 
     // Obtener sesión del usuario
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user?.email) {
       return NextResponse.json({
         member: null,

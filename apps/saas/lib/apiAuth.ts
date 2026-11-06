@@ -3,6 +3,7 @@ import { getToken } from 'next-auth/jwt'
 import { NextRequest, NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
 import { extractBearerToken, verifyPosToken } from '@/lib/posJwt'
+import { belongsTo } from '@/lib/tenant-membership'
 
 /**
  * Mapea un payload JWT RS256 emitido por apps/sync al mismo shape que
@@ -160,7 +161,7 @@ export async function requireAuth(request: NextRequest, tenantId: string) {
   }
 
   const isSuperAdmin = user.role === 'superadmin'
-  const belongsToTenant = user.tenantId === tenantId
+  const belongsToTenant = belongsTo(user, tenantId)
 
   if (!isSuperAdmin && !belongsToTenant) {
     return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
@@ -217,14 +218,15 @@ export function isPosBearerPath(pathname: string): boolean {
   return /^\/api\/[^/]+\/pos(\/|$)/.test(pathname) || pathname === '/api/auth/logout'
 }
 
-export async function requireSuperAdmin() {
-  const session = await auth()
-
-  if (!session || !session.user || session.user.role !== 'superadmin') {
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-  }
-
-  return null
+/**
+ * Multi-marca PR 2 (06/11/2026): decide lib/tenant-access según el
+ * interruptor `access.central` (off = rol del JWT como siempre; enforce = rol
+ * fresco de la base, cierra S5). `family` agrupa las divergencias del modo
+ * sombra en el reporte del superadmin.
+ */
+export async function requireSuperAdmin(family = 'superadmin', request?: NextRequest) {
+  const { requireSuperAdminCentral } = await import('@/lib/tenant-access')
+  return requireSuperAdminCentral(family, request)
 }
 
 /**
@@ -265,7 +267,7 @@ export async function requireAdminRole(request: NextRequest, tenantId: string) {
   }
 
   const isSuperAdmin = user.role === 'superadmin'
-  const belongsToTenant = user.tenantId === tenantId
+  const belongsToTenant = belongsTo(user, tenantId)
   const isAdmin = user.role === 'admin'
 
   if (!isSuperAdmin && !(belongsToTenant && isAdmin)) {
@@ -280,7 +282,7 @@ export async function getSessionForTenant(tenantId: string, request?: NextReques
   if (!user || !user.role) return null
 
   const isSuperAdmin = user.role === 'superadmin'
-  const belongsToTenant = user.tenantId === tenantId
+  const belongsToTenant = belongsTo(user, tenantId)
 
   if (!isSuperAdmin && !belongsToTenant) return null
 

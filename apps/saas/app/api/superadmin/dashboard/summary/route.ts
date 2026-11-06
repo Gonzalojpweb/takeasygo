@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,34 +80,9 @@ function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
 export async function GET(request: NextRequest) {
   try {
     // Auth
-    const secret = process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
-    if (!secret) {
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
-    }
-
-    const isSecure = process.env.NODE_ENV === 'production'
-    const token = await getToken({ req: request as any, secret, secureCookie: isSecure })
-
-    if (!token) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
-
-    let isSuperAdmin = token.role === 'superadmin'
-    if (!isSuperAdmin && token.id) {
-      const mongooseMod = await import('mongoose')
-      const mongoose = mongooseMod.default ?? mongooseMod
-      if (mongoose.connection.readyState !== 1) {
-        await mongoose.connect(process.env.MONGODB_URI!)
-      }
-      const UserMod = await import('@/models/User')
-      const User = UserMod.default
-      const dbUser = await User.findById(token.id).select('role').lean<{ role: string }>()
-      isSuperAdmin = dbUser?.role === 'superadmin'
-    }
-
-    if (!isSuperAdmin) {
-      return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-    }
+    // Superadmin por cookie (sin auth(): TDZ de chunks) — lib/superadmin-token-guard
+    const authError = await requireSuperAdminByToken(request, 'dashboard')
+    if (authError) return authError
 
     // Connect once
     const mongooseMod = await import('mongoose')

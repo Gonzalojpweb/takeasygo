@@ -23,8 +23,10 @@ const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 // con el permiso de cada ruta de factura electrónica.
 // resolveAssistantContext (lib/assistant/route-context.ts): requireAuth +
 // getSessionUser para TEO (/assistant/*).
+// Multi-marca PR 2: authorizeTenantBySlug (acceso al comercio) y
+// getIdentitySession (identidad de quien llama) viven en lib/tenant-access.
 const GUARD_RE =
-  /\bresolveAssistantContext\b|\brequireAuth\b|\brequireTenantRole\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b|\bcommissionsTenant\b|\bfiscalAdminContext\b/
+  /\bresolveAssistantContext\b|\brequireAuth\b|\brequireTenantRole\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b|\bcommissionsTenant\b|\bfiscalAdminContext\b|\bauthorizeTenantBySlug\b|\bgetIdentitySession\b/
 
 const OPEN_BY_DESIGN = new Set([
   // PÚBLICO por diseño (carta, cotizaciones, eventos, feedback, promo)

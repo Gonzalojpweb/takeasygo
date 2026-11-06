@@ -1,5 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { NextResponse } from 'next/server'
 import UserPreferences from '@/models/UserPreferences'
 import User from '@/models/User'
@@ -43,7 +43,7 @@ async function countOrdersForUser(
 
 export async function GET() {
   try {
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user?.id) {
       return NextResponse.json({ show: false })
     }
@@ -169,7 +169,7 @@ export async function GET() {
 
 export async function POST() {
   try {
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
     }

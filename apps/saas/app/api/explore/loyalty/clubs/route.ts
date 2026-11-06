@@ -3,7 +3,7 @@ import Tenant from '@/models/Tenant'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import Location from '@/models/Location'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
 import { Types } from 'mongoose'
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const session = await auth()
+    const session = await getIdentitySession()
     let userId: Types.ObjectId | null = null
     let userEmail: string | null = null
 

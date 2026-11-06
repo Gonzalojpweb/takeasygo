@@ -5,6 +5,7 @@ import CommissionSettlement from '@/models/CommissionSettlement'
 import { getSessionUser } from '@/lib/apiAuth'
 import { canViewCommissions } from '@/lib/commission-access'
 import { toPesos } from '@takeasygo/business'
+import { belongsTo } from '@/lib/tenant-membership'
 
 /**
  * GET /api/{tenant}/commissions/settlements
@@ -29,7 +30,7 @@ export async function GET(
 
     const user = await getSessionUser(request)
     if (!user?.role) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    if ((user.role !== 'superadmin' && user.tenantId !== tenant._id.toString()) || !canViewCommissions(user.role)) {
+    if ((user.role !== 'superadmin' && !belongsTo(user, tenant._id)) || !canViewCommissions(user.role)) {
       return NextResponse.json({ error: 'Tu rol no tiene acceso a comisiones' }, { status: 403 })
     }
 

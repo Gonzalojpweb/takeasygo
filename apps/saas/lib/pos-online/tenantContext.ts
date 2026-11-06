@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { getSessionUser } from '@/lib/apiAuth'
 import { PosError } from './errors'
+import { belongsTo } from '@/lib/tenant-membership'
 
 // ============================================================================
 // PosContext — tenant + sesión + sede, resueltos ANTES de leer el body
@@ -106,7 +107,7 @@ export async function resolvePosContext(
   if (!user || !user.role) {
     throw PosError.unauthorized()
   }
-  if (user.role !== 'superadmin' && user.tenantId !== tenantId) {
+  if (user.role !== 'superadmin' && !belongsTo(user, tenantId)) {
     throw PosError.forbidden('Acceso denegado')
   }
 

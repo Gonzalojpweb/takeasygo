@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import SystemAnnouncement from '@/models/SystemAnnouncement'
-import { auth } from '@/lib/auth'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 // Middleware de verificación para asegurar que solo Superadmin acceda
 async function checkSuperadmin() {
-  const session = await auth()
-  if (!session?.user || session.user.role !== 'superadmin') {
+  if (await requireSuperAdmin('announcements')) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
   return null

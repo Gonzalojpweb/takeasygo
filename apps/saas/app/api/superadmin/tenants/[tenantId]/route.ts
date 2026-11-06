@@ -4,7 +4,7 @@ import Location from '@/models/Location'
 import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 
 export async function PUT(
   request: NextRequest,
@@ -51,7 +51,7 @@ export async function PUT(
     }
     if (business !== undefined) {
       if (business.enabled === true && !oldTenant.business?.enabled) {
-        const session = await auth()
+        const session = await getIdentitySession()
         updateSet['business.enabled'] = true
         updateSet['business.activatedAt'] = new Date()
         updateSet['business.activatedBy'] = session?.user?.id ?? null

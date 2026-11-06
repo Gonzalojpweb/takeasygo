@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import ExploreEvent, { type ExploreEventType, type ExploreView } from '@/models/ExploreEvent'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { NextRequest } from 'next/server'
 
 export interface LogExploreEventOptions {
@@ -34,7 +34,7 @@ export async function logExploreEvent(options: LogExploreEventOptions): Promise<
 
     let userId = options.userId ?? null
     if (options.userId === undefined) {
-      const session = await auth()
+      const session = await getIdentitySession()
       userId = (session?.user as any)?.id ?? null
     }
 

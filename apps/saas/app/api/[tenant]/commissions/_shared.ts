@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { getSessionUser } from '@/lib/apiAuth'
 import { canPayCommissions, canViewCommissions } from '@/lib/commission-access'
+import { belongsTo } from '@/lib/tenant-membership'
 
 /**
  * Tenant + control de acceso de las rutas de comisiones del comercio
@@ -19,7 +20,7 @@ export async function commissionsTenant(request: NextRequest, slug: string, acti
 
   const user = await getSessionUser(request)
   if (!user?.role) return { error: NextResponse.json({ error: 'No autorizado' }, { status: 401 }) }
-  if (user.role !== 'superadmin' && user.tenantId !== String(tenant._id)) {
+  if (user.role !== 'superadmin' && !belongsTo(user, tenant._id)) {
     return { error: NextResponse.json({ error: 'Acceso denegado' }, { status: 403 }) }
   }
   const allowed = action === 'pay' ? canPayCommissions(user.role) : canViewCommissions(user.role)

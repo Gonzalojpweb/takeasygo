@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { sendWhatsApp } from '@/lib/whatsapp'
-import { auth } from '@/lib/auth'
+import { requireSuperAdmin } from '@/lib/apiAuth'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user || session.user.role !== 'superadmin') {
+    if (await requireSuperAdmin('commissions')) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 

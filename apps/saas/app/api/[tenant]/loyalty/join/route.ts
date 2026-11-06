@@ -2,7 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import User from '@/models/User'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { requireLocationId } from '@/lib/loyalty-location'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -14,7 +14,7 @@ export async function POST(
     const { tenant: tenantSlug } = await params
     await connectDB()
 
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Necesitás iniciar sesión' }, { status: 401 })
     }

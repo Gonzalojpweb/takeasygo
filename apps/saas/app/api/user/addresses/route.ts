@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
 
@@ -9,7 +9,7 @@ import User from '@/models/User'
  */
 export async function GET() {
   try {
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -34,7 +34,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await auth()
+    const session = await getIdentitySession()
     if (!session?.user) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }

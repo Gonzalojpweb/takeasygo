@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     // Solo con sesión (hotfix S2, 31/10/2026): antes aceptaba ?email= sin
     // sesión y devolvía los pedidos de cualquier email.
-    const session = await auth()
+    const session = await getIdentitySession()
     const email = session?.user?.email ?? null
 
     if (!email) {

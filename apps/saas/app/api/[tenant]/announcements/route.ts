@@ -89,8 +89,8 @@ export async function POST(
     const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
     if (authError) return authError
 
-    const { auth } = await import('@/lib/auth')
-    const session = await auth()
+    const { getIdentitySession } = await import('@/lib/tenant-access')
+    const session = await getIdentitySession()
     if (!session?.user?.id) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const userId = new mongoose.Types.ObjectId(session.user.id)
