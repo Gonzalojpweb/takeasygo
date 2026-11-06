@@ -71,7 +71,10 @@ export async function onOrderConfirmed(order: IOrder): Promise<void> {
       // Sin impresoras BARRA → flujo histórico (todas las impresoras)
     }
 
-    const printJobs = await buildPrintPayload(order, activePrinters as unknown as BuildPrinters)
+    // Pedidos del POS: solo comandas (sin ticket de caja). Ver buildPrintPayload.
+    const printJobs = await buildPrintPayload(order, activePrinters as unknown as BuildPrinters, {
+      skipCashierTicket: order.source === 'pos',
+    })
 
     if (printJobs.length === 0) return
 

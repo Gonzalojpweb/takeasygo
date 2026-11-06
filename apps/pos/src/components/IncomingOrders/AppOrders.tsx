@@ -1,5 +1,5 @@
 import type { Order } from "@takeasygo/types"
-import { Check, Copy, MapPin, Phone, StickyNote } from "lucide-react"
+import { Check, Copy, ExternalLink, MapPin, MessageCircle, Phone, StickyNote } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 
 // ============================================================================
@@ -34,8 +34,25 @@ export function orderNumberLabel(o: Order): string {
   return n ? `#${n.replace(/^#/, "")}` : `#${o.id.slice(-6).toUpperCase()}`
 }
 
+/**
+ * Piloto 06/11: los pedidos anteriores a la corrección llegaron con el dato
+ * cifrado (texto «hex:hex:hex»). Se oculta en vez de mostrar basura.
+ */
+export function readableText(value: string | undefined): string | undefined {
+  const v = value?.trim()
+  if (!v) return undefined
+  if (/^[0-9a-f]{16,}:[0-9a-f]{16,}(:[0-9a-f]+)?$/i.test(v)) return undefined
+  return v
+}
+
 export function customerLabel(o: Order): string {
-  return o.display?.customerName?.trim() || "Cliente de la App"
+  return readableText(o.display?.customerName) || "Cliente de la App"
+}
+
+/** Teléfono para WhatsApp: solo dígitos, con 54 adelante si es un número local. */
+export function whatsappNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "")
+  return digits.startsWith("54") ? digits : `54${digits.replace(/^0/, "")}`
 }
 
 export const isDeliveryOrder = (o: Order) => o.orderMode === "delivery"
@@ -171,8 +188,8 @@ export function ReceiveGrid({ orders, now, selectedId, onSelect, onAccept, onCon
               <span className="ao-name">{customerLabel(o)}</span>
               <ModeBadge order={o} />
             </div>
-            {isDeliveryOrder(o) && o.display?.deliveryAddress && (
-              <div className="ao-addr"><MapPin size={14} aria-hidden /> {o.display.deliveryAddress}</div>
+            {isDeliveryOrder(o) && readableText(o.display?.deliveryAddress) && (
+              <div className="ao-addr"><MapPin size={14} aria-hidden /> {readableText(o.display?.deliveryAddress)}</div>
             )}
             <div className="ao-items"><b>{units(o)} {units(o) === 1 ? "producto" : "productos"}</b> · {first}</div>
             <div className="ao-foot">
@@ -276,7 +293,8 @@ export function AppOrderDetail({ order: o, now, rejecting, onReject }: {
   const m = ageMinutes(o, now)
   const pay = payLabel(o)
   const subtotal = o.baseTotal ?? o.items.reduce((s, i) => s + i.total, 0)
-  const phone = o.display?.customerPhone
+  const phone = readableText(o.display?.customerPhone)
+  const address = readableText(o.display?.deliveryAddress)
   return (
     <div className="ao-detail">
       <div className="ao-detail-head">
@@ -293,13 +311,18 @@ export function AppOrderDetail({ order: o, now, rejecting, onReject }: {
         <h4>Cliente</h4>
         <div className="ao-blk-body">
           <div className="ao-who-big">{customerLabel(o)}</div>
-          {phone && (
-            <div className="ao-row">
-              <span className="ao-phone"><Phone size={14} aria-hidden /> {phone}</span>
-              <button type="button" className="ao-copy" onClick={() => { void navigator.clipboard?.writeText(phone).catch(() => {}) }}>
-                <Copy size={13} aria-hidden /> Copiar
+          {phone ? (
+            <div className="ao-row ao-contact">
+              <a className="ao-phone ao-link" href={`tel:${phone.replace(/[^\d+]/g, "")}`}><Phone size={15} aria-hidden /> {phone}</a>
+              <a className="ao-action" href={`https://wa.me/${whatsappNumber(phone)}`} target="_blank" rel="noreferrer">
+                <MessageCircle size={15} aria-hidden /> WhatsApp
+              </a>
+              <button type="button" className="ao-action" onClick={() => { void navigator.clipboard?.writeText(phone).catch(() => {}) }}>
+                <Copy size={15} aria-hidden /> Copiar
               </button>
             </div>
+          ) : (
+            <div className="ao-muted">Sin teléfono en el pedido.</div>
           )}
         </div>
       </section>
@@ -308,10 +331,22 @@ export function AppOrderDetail({ order: o, now, rejecting, onReject }: {
         <section className="ao-blk">
           <h4>Entrega</h4>
           <div className="ao-blk-body">
-            {o.display?.deliveryAddress
-              ? <div className="ao-addr-big"><MapPin size={15} aria-hidden /> {o.display.deliveryAddress}</div>
-              : <div className="ao-muted">La dirección se ve en el panel web del pedido.</div>}
-            {o.display?.deliveryReference && <div className="ao-muted">{o.display.deliveryReference}</div>}
+            {address ? (
+              <>
+                <div className="ao-addr-big"><MapPin size={15} aria-hidden /> {address}</div>
+                <div className="ao-row ao-contact">
+                  <a className="ao-action" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer">
+                    <ExternalLink size={15} aria-hidden /> Ver en el mapa
+                  </a>
+                  <button type="button" className="ao-action" onClick={() => { void navigator.clipboard?.writeText(address).catch(() => {}) }}>
+                    <Copy size={15} aria-hidden /> Copiar dirección
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="ao-muted">La dirección se ve en el panel web del pedido.</div>
+            )}
+            {readableText(o.display?.deliveryReference) && <div className="ao-delivery-ref">{readableText(o.display?.deliveryReference)}</div>}
           </div>
         </section>
       )}

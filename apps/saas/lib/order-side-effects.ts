@@ -4,6 +4,7 @@ import { pushOrderToSyncLayer, confirmOrderPaymentCore, notifySyncLayerStatus } 
 import type { IOrder } from '@/models/Order'
 import type { ITenant } from '@/models/Tenant'
 import { runAfterResponse } from '@/lib/after-response'
+import { safeDecrypt } from '@/lib/crypto'
 import Location from '@/models/Location'
 
 /**
@@ -71,17 +72,32 @@ export function itemModifiersForPos(item: OrderEffectItem): { name: string; pric
 /**
  * Lo que el POS necesita para ATENDER el pedido en Pedidos App: número,
  * cliente y (si es delivery) la dirección. Datos personales mínimos.
+ *
+ * Piloto 06/11: nombre y teléfono se guardan CIFRADOS en la orden; antes
+ * viajaban así al POS y el cajero veía texto ilegible. Se descifran acá, en
+ * el server (la clave nunca sale del SaaS). Nunca el email.
  */
-export function orderDisplayForPos(order: Pick<IOrder, 'orderNumber' | 'customer' | 'orderMode' | 'deliveryAddress'>) {
+export function orderDisplayForPos(order: Pick<IOrder, 'orderNumber' | 'customer' | 'orderMode' | 'deliveryAddress'> & { deliveryCost?: number; deliveryDistance?: number }) {
   const a = order.deliveryAddress
-  const address = order.orderMode === 'delivery' && a
+  const isDelivery = order.orderMode === 'delivery'
+  const address = isDelivery && a
     ? [[a.street, a.number].filter(Boolean).join(' '), a.apt, a.city].filter(Boolean).join(', ')
     : undefined
+  const name = order.customer?.name ? safeDecrypt(order.customer.name).trim() : ''
+  const phone = order.customer?.phone ? safeDecrypt(order.customer.phone).trim() : ''
+  // Detalle del envío para el que despacha: costo y distancia.
+  const reference = isDelivery
+    ? [
+        typeof order.deliveryCost === 'number' && order.deliveryCost > 0 ? `Envío $${(order.deliveryCost / 100).toLocaleString('es-AR')}` : '',
+        typeof order.deliveryDistance === 'number' && order.deliveryDistance > 0 ? `${order.deliveryDistance.toLocaleString('es-AR', { maximumFractionDigits: 1 })} km` : '',
+      ].filter(Boolean).join(' · ')
+    : ''
   return {
     orderNumber: order.orderNumber || undefined,
-    customerName: order.customer?.name || undefined,
-    customerPhone: order.customer?.phone || undefined,
+    customerName: name || undefined,
+    customerPhone: phone || undefined,
     deliveryAddress: address || undefined,
+    deliveryReference: reference || undefined,
   }
 }
 

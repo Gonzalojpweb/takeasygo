@@ -1,4 +1,5 @@
 import { renderOrderTicket } from './ticket-renderer'
+import { effectiveDocuments } from '@takeasygo/business'
 import { safeDecrypt } from '@/lib/crypto'
 import Location from '@/models/Location'
 import type { IPrintJob } from '@/models/Order'
@@ -26,6 +27,8 @@ interface PrinterDoc {
   name: string
   paperWidth?: number
   roles?: string[]
+  /** Documentos que imprime (Configuración → Impresoras); sin lista, los de su rol. */
+  documents?: string[]
   printSettings?: Record<string, any>
 }
 
@@ -78,9 +81,15 @@ export async function buildPrintPayload(
      * el cajero no puede perder la vista previa del pedido.
      */
     forceAllItems?: boolean
+    /**
+     * Piloto 06/11: sin ticket de caja. Los pedidos del POS (mozo o
+     * mostrador) al confirmarse solo mandan comandas a cocina y barra; el
+     * comprobante sale al cobrar, y solo si se pide.
+     */
+    skipCashierTicket?: boolean
   } = {}
 ): Promise<IPrintJob[]> {
-  const { onlyRole, isReprint = false, forceAllItems = false } = options
+  const { onlyRole, isReprint = false, forceAllItems = false, skipCashierTicket = false } = options
   // Desencriptar PII una sola vez
   const customer: DecryptedCustomer = order.customer
     ? {
@@ -140,6 +149,9 @@ export async function buildPrintPayload(
   for (const printer of activePrinters) {
     for (const role of printer.roles || []) {
       if (onlyRole && role !== onlyRole) continue
+      // Ticket de caja: solo si la impresora tiene el documento «Ticket no
+      // fiscal» (Configuración → Impresoras) y el pedido lo lleva.
+      if (role === 'cashier' && (skipCashierTicket || !effectiveDocuments(printer).includes('ticket'))) continue
       // Verificar si hay items para este rol
       // La línea padre de un combo no es trabajo para ninguna estación.
       const hasItemsForRole = (orderData.items || []).some(

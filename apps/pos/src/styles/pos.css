@@ -4787,3 +4787,10 @@ body.is-resizing-panel .ros-app { transition: none; }
 .zr-warn { margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: 10px; background: var(--warning-light); color: #7A5200; font-weight: var(--font-weight-semibold); }
 .zr-details summary { cursor: pointer; font-weight: var(--font-weight-semibold); color: var(--primary-action); min-height: 44px; display: flex; align-items: center; }
 @media (max-width: 768px) { .zr { padding: var(--sp-3); } .zr-hero-amount { font-size: 28px; } }
+
+/* Piloto 06/11: contacto y entrega del pedido App (llamar, WhatsApp, mapa). */
+.ao-contact { flex-wrap: wrap; gap: var(--sp-2); }
+.ao-link { color: var(--primary-action); font-weight: var(--font-weight-semibold); text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; }
+.ao-action { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--sp-3); border-radius: 10px; border: 1.5px solid var(--control-border); background: var(--surface); color: var(--text-primary); font: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-decoration: none; cursor: pointer; }
+.ao-action:hover { border-color: var(--primary-action); color: var(--primary-action); }
+.ao-delivery-ref { font-weight: var(--font-weight-semibold); color: var(--text-primary); }
