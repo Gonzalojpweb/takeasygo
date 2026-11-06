@@ -28,6 +28,18 @@ const EXCLUDED_PATHS = [
 
 const SLUG_REGEX = /^[a-z0-9-]{2,50}$/
 
+/**
+ * Multi-marca PR 5: `x-tenant-slug` lo pone SOLO este proxy, derivado de la
+ * ruta. El que manda el cliente se borra siempre, en todos los paths
+ * (incluidos /superadmin, /api/auth, /seller y slugs que no pasan el regex):
+ * si no, una página o API podría leer un comercio que no es el de la URL.
+ */
+function stripClientTenantHeader(request: NextRequest): Headers {
+  const headers = new Headers(request.headers)
+  headers.delete('x-tenant-slug')
+  return headers
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -49,9 +61,11 @@ export async function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 204, headers: cors.headers })
   }
   const corsHeaders = cors.kind === 'continue' ? cors.headers : null
+  const requestHeaders = stripClientTenantHeader(request)
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } })
 
   if (EXCLUDED_PATHS.some(path => pathname.startsWith(path))) {
-    return withCors(NextResponse.next(), corsHeaders)
+    return withCors(next(), corsHeaders)
   }
 
   const isApiRoute = pathname.startsWith('/api/')
@@ -73,15 +87,14 @@ export async function proxy(request: NextRequest) {
   const segments = pathname.split('/').filter(Boolean)
   const tenantSlug = isApiRoute ? segments[1] : segments[0]
 
-  if (!tenantSlug) return withCors(NextResponse.next(), corsHeaders)
+  if (!tenantSlug) return withCors(next(), corsHeaders)
 
   // El POS manda el ObjectId del tenant (24 hex), que también matchea el
   // regex de slug: x-tenant-slug lo resuelve resolvePosContext por _id.
   if (!SLUG_REGEX.test(tenantSlug)) {
-    return withCors(NextResponse.next(), corsHeaders)
+    return withCors(next(), corsHeaders)
   }
 
-  const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-tenant-slug', tenantSlug)
 
   const isAdminRoute = pathname.includes('/admin')
@@ -90,9 +103,7 @@ export async function proxy(request: NextRequest) {
       const session = await auth()
 
       if (session?.user?.role === 'superadmin') {
-        return NextResponse.next({
-          request: { headers: requestHeaders },
-        })
+        return next()
       }
 
       if (!session) {
@@ -105,12 +116,7 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return withCors(
-    NextResponse.next({
-      request: { headers: requestHeaders },
-    }),
-    corsHeaders
-  )
+  return withCors(next(), corsHeaders)
 }
 
 export const config = {

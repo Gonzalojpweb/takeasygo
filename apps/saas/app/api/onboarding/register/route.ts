@@ -4,15 +4,11 @@ import User from '@/models/User'
 import Tenant from '@/models/Tenant'
 import { onboardingRegisterSchema } from '@/lib/schemas'
 import { slugifyOrFallback } from '@/lib/slugify'
+import { isReservedSlug } from '@/lib/reserved-slugs'
 import { resolveInitialPlan } from '@/lib/plans'
 import { sendOnboardingVerifyEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rateLimit'
 
-const RESERVED_SLUGS = new Set([
-  'api', 'app', 'auth', 'admin', 'superadmin', 'seller', 'login', 'logout', 'demo', 'empezar', 'invite',
-  'forgot-password', 'reset-password', 'sso-callback', 'privacidad', 'terminos', 'tgo', 'autorizar-mercadopago',
-  'takeasygo', 'soporte', 'support', 'ayuda', 'help', 'www', 'pos', 'sync', 'static', 'assets', 'public', 'explore',
-])
 import crypto from 'crypto'
 import { headers } from 'next/headers'
 import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
@@ -48,7 +44,7 @@ export async function POST(req: Request) {
 
     // 2. Slugs reservados (auditoría 30/10/2026, M5): rutas propias de la app
     // y nombres que suplantarían a la plataforma.
-    if (RESERVED_SLUGS.has(finalSlug)) {
+    if (isReservedSlug(finalSlug)) {
       return NextResponse.json(
         { error: `El enlace "${finalSlug}" está reservado. Probá con otro.` },
         { status: 400 }

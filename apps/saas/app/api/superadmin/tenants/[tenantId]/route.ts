@@ -5,6 +5,7 @@ import User from '@/models/User'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { getIdentitySession } from '@/lib/tenant-access'
+import { tenantSlugError } from '@/lib/reserved-slugs'
 
 export async function PUT(
   request: NextRequest,
@@ -41,6 +42,20 @@ export async function PUT(
         updateSet[key] = flatBody[key]
       } else {
         console.warn(`[superadmin/tenants PUT] Campo no permitido ignorado: ${key}`)
+      }
+    }
+    // Multi-marca PR 5: si el slug cambia, formato + reservados + único.
+    // Un slug viejo que hoy figura como reservado se conserva si no se toca.
+    if ('slug' in updateSet) {
+      const newSlug = typeof updateSet.slug === 'string' ? updateSet.slug.trim().toLowerCase() : updateSet.slug
+      if (newSlug === oldTenant.slug) {
+        delete updateSet.slug
+      } else {
+        const slugError = tenantSlugError(newSlug)
+        if (slugError) return NextResponse.json({ error: slugError }, { status: 400 })
+        const taken = await Tenant.exists({ slug: newSlug, _id: { $ne: oldTenant._id } })
+        if (taken) return NextResponse.json({ error: 'El slug ya está en uso' }, { status: 400 })
+        updateSet.slug = newSlug
       }
     }
     if (transferEnabled !== undefined) {

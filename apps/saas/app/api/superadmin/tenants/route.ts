@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { superadminCreateTenantSchema } from '@/lib/schemas'
 import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
+import { tenantSlugError } from '@/lib/reserved-slugs'
 
 export async function GET() {
   try {
@@ -29,6 +30,12 @@ export async function POST(request: NextRequest) {
         { error: 'Datos inválidos', details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       )
+    }
+
+    // Multi-marca PR 5: misma lista de slugs reservados que el alta pública.
+    const slugError = tenantSlugError(parsed.data.slug)
+    if (slugError) {
+      return NextResponse.json({ error: slugError }, { status: 400 })
     }
 
     await connectDB()
