@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import type { ComponentType } from "react"
 import type { ItemCourse, Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
-import { calculateItemTotal, allocatePayments, tipRelatedOrderId, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
+import { calculateItemTotal, allocatePayments, tipRelatedOrderId, COURSE_SEQUENCE, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
@@ -21,6 +21,7 @@ import { OrderReview } from "../shared/OrderReview"
 import { CustomerSearch } from "../shared/CustomerSearch"
 import { SaleDoneModal } from "../shared/SaleDoneModal"
 import { CheckoutPanel, type CheckoutMeta, type CheckoutTip } from "../shared/CheckoutPanel"
+import { useCourseHolds } from "../shared/Courses"
 import { registerCounterSale } from "../../services/counter-sale"
 import { SalonMap, SalonHeaderBar, useSalonView } from "../shared/SalonMap"
 import { TableDetail } from "./TableDetail"
@@ -41,7 +42,7 @@ import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
+import { fireCourse, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
 import { printPrecuenta } from "../../services/table"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
@@ -51,7 +52,7 @@ import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import {
   UtensilsCrossed, Store, Calendar, Smartphone, Bike, PackageCheck,
-  Plus, Users, Receipt, Unlock, Printer, Split, Percent, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
+  Plus, Users, Receipt, Unlock, Printer, Split, Percent, Flame, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
@@ -142,6 +143,10 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Cobro: `paying` bloquea el doble click; `pendingOrderIdRef` fija el posId
   // de la orden ANTES del primer intento para que un reintento no la duplique.
   const [paying, setPaying] = useState(false)
+  // Piloto 06/11: tiempo de lo que se carga (entrada/principal/postre).
+  const [activeCourse, setActiveCourse] = useState<ItemCourse | undefined>(undefined)
+  const courseHolds = useCourseHolds(cart)
+  const [firingCourse, setFiringCourse] = useState<ItemCourse | null>(null)
   // «Dividir cuenta» abre el cobro directo en «Por platos»; se apaga al salir.
   const [checkoutStartSplit, setCheckoutStartSplit] = useState(false)
   useEffect(() => {
@@ -920,7 +925,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     const isFirstItem = cart.length === 0
     setCart((prev) => {
       // Suma a la línea igual SIN opciones ni nota (una con nota es otro plato).
-      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && !i.course)
+      // Mismo tiempo (piloto 06/11): una milanesa de entrada y otra de
+      // principal son dos líneas.
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && (i.course ?? undefined) === activeCourse)
       if (existing) {
         return prev.map((i) =>
           i === existing
@@ -935,11 +942,12 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         unitPrice: product.price,
         total: product.price,
         product,
+        ...(activeCourse ? { course: activeCourse } : {}),
       }
       return [...prev, item]
     })
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
-  }, [cart.length, selectedTableId, maybeOccupyForLoading, scene])
+  }, [cart.length, selectedTableId, maybeOccupyForLoading, scene, activeCourse])
 
   // Fase B: las líneas del carrito se tocan por POSICIÓN (dos líneas del
   // mismo producto con distinta nota u opciones son independientes).
@@ -988,9 +996,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       return
     }
     const isFirstItem = cart.length === 0
-    setCart((prev) => [...prev, { ...item, product }])
+    setCart((prev) => [...prev, { ...item, product, ...(activeCourse ? { course: activeCourse } : {}) }])
     if (isFirstItem) maybeOccupyForLoading(selectedTableId)
-  }, [configuring, cart.length, selectedTableId, maybeOccupyForLoading])
+  }, [configuring, cart.length, selectedTableId, maybeOccupyForLoading, activeCourse])
 
   const handleEditOptions = useCallback((index: number) => {
     const line = cart[index]
@@ -1044,7 +1052,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       ownOrderIdsRef.current.add(roundId)
       await sendWaiterOrderToKitchen(
         {
-          createOrder: (tableId, items) => createOrder(tableId, items, undefined, undefined, { id: roundId }),
+          createOrder: (tableId, items) => createOrder(tableId, items, undefined, undefined, { id: roundId, holdCourses: courseHolds.held }),
           readTable: (tableId) => db.diningTable.get(tableId),
           occupyTable,
           bindTableOrder,
@@ -1054,7 +1062,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         { tableId: selectedTableId, items: cartToOrderItems(), serverId: "counter" }
       )
       setCart([])
-      showToast("✓ Ronda enviada a cocina", "success")
+      const heldNow = courseHolds.held
+      courseHolds.reset()
+      setActiveCourse(undefined)
+      showToast(
+        heldNow.length > 0
+          ? `Ronda enviada. ${heldNow.map((c) => c[0].toUpperCase() + c.slice(1)).join(" y ")} en espera: marchalo desde la mesa cuando corresponda.`
+          : "Ronda enviada a cocina",
+        "success"
+      )
       setScene("productos")
     } catch (err) {
       console.error("[Counter] sendToKitchen failed:", err)
@@ -1062,7 +1078,25 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     } finally {
       setPaying(false)
     }
-  }, [tenantId, selectedTableId, cart.length, paying, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, cartToOrderItems, showToast, showErrorToast])
+  }, [tenantId, selectedTableId, cart.length, paying, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, cartToOrderItems, showToast, showErrorToast, courseHolds])
+
+  // ── Marcha (piloto 06/11): saca de la espera un tiempo de la mesa ──────
+  // Cada ronda que tenga ese tiempo en espera marcha (la cocina imprime
+  // «MARCHA PRINCIPAL» + mesa, sin repetir los platos).
+  const handleFireCourse = useCallback(async (course: ItemCourse) => {
+    if (!tenantId || firingCourse) return
+    const rounds = tableOrders.filter((o) => (o.heldCourses ?? []).includes(course))
+    if (rounds.length === 0) return
+    setFiringCourse(course)
+    try {
+      for (const o of rounds) await fireCourse(tenantId, o.id, course)
+      showToast(`Marcha ${course} enviada a cocina · Mesa ${selectedTable?.number ?? ""}`, "success")
+    } catch (err) {
+      showErrorToast(describePosError(err, "No se pudo marchar"))
+    } finally {
+      setFiringCourse(null)
+    }
+  }, [tenantId, firingCourse, tableOrders, selectedTable, showToast, showErrorToast])
 
   // ── Cobro ────────────────────────────────────────────────────────────────
   // 1. Si hay carrito, crea su orden (posId fijo → reintento idempotente).
@@ -1336,7 +1370,25 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // Mesa reservada por una reserva: se suelta desde la reserva (no «Liberar»).
         const canRelease = !activity && !tableReservation && (selectedTable.status === "reserved" || occupied)
         const resBusy = tableReservation ? reservationBusyId === tableReservation.id : false
+        // Piloto 06/11: tiempos en espera de la mesa ⇒ «Marcha» arriba de todo.
+        const heldOnTable = COURSE_SEQUENCE.filter((c) => tableOrders.some((o) => (o.heldCourses ?? []).includes(c)))
+        const platesHeld = (c: ItemCourse) => tableOrders
+          .filter((o) => (o.heldCourses ?? []).includes(c))
+          .reduce((s, o) => s + o.items.filter((i) => i.course === c && !(i.comboInstanceId && !i.comboComponent)).reduce((n, i) => n + i.quantity, 0), 0)
         const actionGroups: ContextActionGroup[] = [
+          {
+            title: "Cocina",
+            actions: heldOnTable.map((c, i) => ({
+              id: `fire-${c}`,
+              label: `Marcha ${c}`,
+              hint: firingCourse === c ? "Marchando…" : `${platesHeld(c)} en espera`,
+              icon: Flame,
+              tone: "orange" as const,
+              primary: i === 0,
+              disabled: firingCourse !== null,
+              onClick: () => { void handleFireCourse(c) },
+            })),
+          },
           {
             title: "Servicio",
             actions: [
@@ -1520,6 +1572,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               <OrderPanel
                 title={tableOrders.length > 0 && !isMostrador ? "Nueva ronda" : title}
                 items={cart}
+                activeCourse={isMostrador ? undefined : activeCourse}
+                onActiveCourse={isMostrador ? undefined : setActiveCourse}
+                heldCourses={courseHolds.held}
                 onUpdateQuantity={handleUpdateQuantity}
                 onRemoveItem={handleRemoveItem}
                 onEditNote={handleEditNote}
@@ -1738,7 +1793,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder, activeCourse, courseHolds.held, firingCourse, handleFireCourse])
 
   // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
   // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
@@ -1858,6 +1913,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
               onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}
               onCharge={() => setScene("cobro")}
+              courseHold={isMostradorView ? undefined : { holdable: courseHolds.holdable, held: courseHolds.held, onToggle: courseHolds.toggle }}
+              onSetCourse={isMostradorView ? undefined : (idx, course) => handleEditNote(idx, cart[idx]?.notes ?? "", course)}
             />
           )}
 
@@ -1964,6 +2021,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
               onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}
               onCharge={() => setScene("cobro")}
+              courseHold={isMostradorView ? undefined : { holdable: courseHolds.holdable, held: courseHolds.held, onToggle: courseHolds.toggle }}
+              onSetCourse={isMostradorView ? undefined : (idx, course) => handleEditNote(idx, cart[idx]?.notes ?? "", course)}
             />
           )}
 

@@ -5,7 +5,7 @@ import type {
   OrderStatus as PosOrderStatus,
   PaymentMethod,
 } from '@takeasygo/types'
-import { calculateOrderTotal, validateOrderItems } from '@takeasygo/business'
+import { calculateOrderTotal, sanitizeHeldCourses, validateOrderItems } from '@takeasygo/business'
 import { generateOrderNumber } from '@/lib/orderNumber'
 import { PosError } from './errors'
 
@@ -61,6 +61,8 @@ export interface PosOrderInput {
   status?: PosOrderStatusValue
   paymentMethod?: PaymentMethod
   items: PosOrderItemInput[]
+  /** Piloto 06/11: tiempos que esperan la marcha del mozo (lista explícita). */
+  holdCourses?: ItemCourse[]
 }
 
 export interface PosOrderWriteContext {
@@ -93,6 +95,10 @@ export interface SaasOrderDraft {
   discountAmount: number
   menuVersion: number
   posTableId: string | null
+  /** Número de la mesa (la ruta lo copia de la mesa). */
+  posTableNumber?: number
+  /** Tiempos en espera de la marcha (piloto 06/11). */
+  heldCourses?: ItemCourse[]
   /** Comensales (Fase G): la ruta los copia de la mesa a su primera ronda. */
   guests?: number
   notes: string
@@ -336,6 +342,13 @@ export function toSaasOrder(input: PosOrderInput, ctx: PosOrderWriteContext): Sa
 
   const tableId = input.tableId ?? null
 
+  // Tiempos en espera: solo los presentes en la ronda; sin lista, ninguno
+  // (un POS viejo nunca deja platos en espera que no sabe marchar).
+  const heldCourses = sanitizeHeldCourses(input.holdCourses, items)
+  if (heldCourses === null) {
+    throw PosError.validation('holdCourses inválido: solo tiempos presentes en la ronda')
+  }
+
   return {
     posId: input.id,
     tenantId: new mongoose.Types.ObjectId(ctx.tenantId),
@@ -352,6 +365,7 @@ export function toSaasOrder(input: PosOrderInput, ctx: PosOrderWriteContext): Sa
     discountAmount: 0,
     menuVersion: input.menuVersion ?? 1,
     posTableId: tableId,
+    ...(heldCourses.length > 0 ? { heldCourses } : {}),
     notes: input.notes ?? '',
     customer: {
       name: DEFAULT_CUSTOMER_NAME,
@@ -380,6 +394,11 @@ export interface PosOrderContract {
   source: string
   status: string
   tableId?: string
+  /** Número de la mesa al comandar (piloto 06/11). */
+  tableNumber?: number
+  /** Tiempos en espera de la marcha (piloto 06/11). */
+  heldCourses?: ItemCourse[]
+  courseFires?: { course: ItemCourse; firedAt: Date }[]
   items: PosOrderItem[]
   total: number
   menuVersion: number
@@ -418,6 +437,9 @@ export function toPosOrder(doc: {
   source?: string | null
   status: string
   posTableId?: string | null
+  posTableNumber?: number | null
+  heldCourses?: ItemCourse[] | null
+  courseFires?: { course: ItemCourse; firedAt: Date }[] | null
   items: SaasOrderItemDraft[]
   total: number
   menuVersion?: number
@@ -448,6 +470,9 @@ export function toPosOrder(doc: {
     source: doc.source ?? 'pos',
     status: doc.status,
     tableId: doc.posTableId ?? undefined,
+    ...(typeof doc.posTableNumber === 'number' ? { tableNumber: doc.posTableNumber } : {}),
+    ...(doc.heldCourses?.length ? { heldCourses: [...doc.heldCourses] } : {}),
+    ...(doc.courseFires?.length ? { courseFires: doc.courseFires.map((f) => ({ course: f.course, firedAt: f.firedAt })) } : {}),
     items: (doc.items ?? []).map((i) => ({
       ...(i._id ? { lineId: String(i._id) } : {}),
       ...(i.course ? { course: i.course } : {}),

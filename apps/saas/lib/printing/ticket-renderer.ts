@@ -105,6 +105,10 @@ interface OrderDoc {
   }
   location?: { locationName?: string; timezone?: string }
   payment?: { method?: string }
+  /** Mesa del POS (piloto 06/11). */
+  posTableNumber?: number | null
+  /** Tiempos en espera de la marcha del mozo (piloto 06/11). */
+  heldCourses?: string[] | null
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -234,6 +238,9 @@ export function renderOrderTicket(
     t.text('TICKET DE PAGO', { align: 'center' })
   } else {
     t.text(`ORDEN: ${order.orderNumber}`, { bold: true, size: 'triple', align: 'center' })
+    if (typeof order.posTableNumber === 'number') {
+      t.text(`MESA ${order.posTableNumber}`, { bold: true, size: 'triple', align: 'center' })
+    }
     const sectorName = role === 'bar' ? 'BARRA / BEBIDAS' : 'COCINA'
     t.text(`*** ${sectorName} ***`, { align: 'center' })
   }
@@ -341,7 +348,14 @@ export function renderOrderTicket(
 
       if (hasCourses && (item.course ?? null) !== lastCourse) {
         lastCourse = item.course ?? null
-        t.text(`--- ${COURSE_LABEL[lastCourse ?? '']} ---`, { align: 'center', bold: true })
+        // Piloto 06/11: el tiempo en espera se arma pero no sale hasta la
+        // marcha del mozo. Recuadro para que no se confunda en la cocina.
+        if (lastCourse && (order.heldCourses ?? []).includes(lastCourse)) {
+          t.box(`${COURSE_LABEL[lastCourse]} - EN ESPERA`, { align: 'center' })
+          t.text('Esperar la MARCHA del mozo', { align: 'center', bold: true })
+        } else {
+          t.text(`--- ${COURSE_LABEL[lastCourse ?? '']} ---`, { align: 'center', bold: true })
+        }
         lastCategory = null
       }
 

@@ -125,6 +125,15 @@ export {
   suggestedTipCents,
   isTipValid,
 } from "./tip"
+export {
+  COURSE_SEQUENCE,
+  COURSE_LABELS,
+  isItemCourse,
+  coursesPresent,
+  coursesToHold,
+  sanitizeHeldCourses,
+  nextCourseToFire,
+} from "./courses"
 export { calculateComboPrice, isComboAvailable, isComboOnSchedule, validateComboSelection } from "./combo"
 export {
   type CheckoutPart,

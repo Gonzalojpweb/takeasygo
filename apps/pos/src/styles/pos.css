@@ -4794,3 +4794,41 @@ body.is-resizing-panel .ros-app { transition: none; }
 .ao-action { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 var(--sp-3); border-radius: 10px; border: 1.5px solid var(--control-border); background: var(--surface); color: var(--text-primary); font: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); text-decoration: none; cursor: pointer; }
 .ao-action:hover { border-color: var(--primary-action); color: var(--primary-action); }
 .ao-delivery-ref { font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+
+/* ========================================================================
+   PILOTO 06/11 — Tiempos de cocina (entrada → principal → postre)
+   Color + texto por tiempo (nunca solo color). Sin tiempo: gris.
+   ======================================================================== */
+:root {
+  --course-entrada: #1F6F43; --course-entrada-bg: #E4F3EA;
+  --course-principal: #9A3412; --course-principal-bg: #FDEBDD;
+  --course-postre: #6B3FA0; --course-postre-bg: #F1E9FA;
+  --course-none: #5B6370; --course-none-bg: #F1F2F4;
+}
+.course-chip { display: inline-flex; align-items: center; margin-right: 6px; padding: 1px 8px; border-radius: 999px; font-size: var(--font-size-xs); font-weight: var(--font-weight-bold); vertical-align: 1px; border: 1.5px solid currentColor; }
+.course-chip.is-button { min-height: 28px; cursor: pointer; }
+.course-chip--entrada { color: var(--course-entrada); background: var(--course-entrada-bg); }
+.course-chip--principal { color: var(--course-principal); background: var(--course-principal-bg); }
+.course-chip--postre { color: var(--course-postre); background: var(--course-postre-bg); }
+.course-chip--none { color: var(--course-none); background: var(--course-none-bg); border-style: dashed; }
+.course-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; padding: 6px var(--sp-3); font-size: var(--font-size-sm); font-weight: var(--font-weight-bold); text-transform: uppercase; letter-spacing: .4px; border-left: 5px solid var(--course-none); background: var(--course-none-bg); color: var(--course-none); }
+.course-head--entrada { border-left-color: var(--course-entrada); background: var(--course-entrada-bg); color: var(--course-entrada); }
+.course-head--principal { border-left-color: var(--course-principal); background: var(--course-principal-bg); color: var(--course-principal); }
+.course-head--postre { border-left-color: var(--course-postre); background: var(--course-postre-bg); color: var(--course-postre); }
+.course-held { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 2px 8px; border-radius: 999px; background: #7A5200; color: #fff; font-size: var(--font-size-xs); text-transform: none; letter-spacing: 0; }
+.course-fired { margin-left: auto; padding: 2px 8px; border-radius: 999px; background: var(--success); color: #fff; font-size: var(--font-size-xs); text-transform: none; letter-spacing: 0; }
+.tdetail-line.is-held { background: repeating-linear-gradient(135deg, transparent 0 10px, rgba(122, 82, 0, .05) 10px 20px); }
+.order-course-group + .order-course-group, .review-course-group + .review-course-group { margin-top: var(--sp-2); }
+.course-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border); background: var(--surface); }
+.course-picker-label { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--text-secondary); margin-right: 2px; }
+.course-picker-opt { min-height: 40px; padding: 0 12px; border-radius: 999px; border: 1.5px solid currentColor; font: inherit; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); cursor: pointer; opacity: .75; }
+.course-picker-opt.is-on { opacity: 1; box-shadow: 0 0 0 3px currentColor inset; }
+@media (pointer: coarse) { .course-picker-opt { min-height: 44px; } }
+.course-hold { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); border-radius: 14px; border: 2px solid #7A5200; background: var(--warning-light); }
+.course-hold-title { display: flex; align-items: center; gap: 6px; font-weight: var(--font-weight-bold); color: #7A5200; }
+.course-hold-row { display: flex; gap: var(--sp-2); align-items: flex-start; cursor: pointer; }
+.course-hold-row input { width: 22px; height: 22px; margin-top: 2px; accent-color: #7A5200; }
+.course-hold-row strong { display: block; }
+.course-hold-hint { display: block; font-size: var(--font-size-sm); color: var(--text-secondary); }
+.course-fire-btn { gap: 8px; }
+.course-fire-count { min-width: 24px; padding: 0 6px; border-radius: 999px; background: rgba(255, 255, 255, .25); }

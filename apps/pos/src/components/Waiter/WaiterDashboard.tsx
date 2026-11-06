@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
-import { calculateItemTotal, canSeeSharedSurfaces } from "@takeasygo/business/browser"
+import { calculateItemTotal, canSeeSharedSurfaces, COURSE_SEQUENCE } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
-import { ChefHat, Users, BellRing, ReceiptText } from "lucide-react"
+import { ChefHat, Users, BellRing, ReceiptText, Flame } from "lucide-react"
 import { db } from "../../db/dexie"
 import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
@@ -24,6 +24,8 @@ import { ComboBuilderSheet } from "../shared/ComboBuilderSheet"
 import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/combo"
 import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
+import { CourseHoldControl, useCourseHolds } from "../shared/Courses"
+import { fireCourse } from "../../services/order"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
 import { SalonHeaderBar, useSalonView } from "../shared/SalonMap"
@@ -76,6 +78,10 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const [scene, setScene] = useState<Scene>("mesas")
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
+  // Piloto 06/11: tiempos de cocina (qué se carga y qué espera la marcha).
+  const [activeCourse, setActiveCourse] = useState<ItemCourse | undefined>(undefined)
+  const courseHolds = useCourseHolds(cart)
+  const [firingCourse, setFiringCourse] = useState<ItemCourse | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   // Obs. UX 30/10: la hoja de personalización flota sobre la grilla del
   // pedido; index ≠ null ⇒ edita esa línea del carrito.
@@ -163,15 +169,15 @@ export function WaiterDashboard({ role }: { role?: string }) {
       return
     }
     setCart((prev) => {
-      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && !i.course)
+      const existing = prev.find((i) => i.productId === product.id && !i.modifiers?.length && !i.notes && (i.course ?? undefined) === activeCourse)
       if (existing) {
         return prev.map((i) =>
           i === existing ? { ...i, quantity: i.quantity + 1, total: calculateItemTotal({ ...i, quantity: i.quantity + 1 }) } : i
         )
       }
-      return [...prev, { productId: product.id, name: product.name, quantity: 1, unitPrice: product.price, total: product.price, product }]
+      return [...prev, { productId: product.id, name: product.name, quantity: 1, unitPrice: product.price, total: product.price, product, ...(activeCourse ? { course: activeCourse } : {}) }]
     })
-  }, [])
+  }, [activeCourse])
 
   // Fase B: líneas por POSICIÓN (misma línea de producto con distinta nota
   // u opciones = líneas independientes).
@@ -198,8 +204,8 @@ export function WaiterDashboard({ role }: { role?: string }) {
     setConfiguring(null)
     setCart((prev) => index !== null
       ? prev.map((line, i) => (i === index ? { ...item, course: line.course, product } : line))
-      : [...prev, { ...item, product }])
-  }, [configuring])
+      : [...prev, { ...item, product, ...(activeCourse ? { course: activeCourse } : {}) }])
+  }, [configuring, activeCourse])
 
   const handleEditOptions = useCallback((index: number) => {
     const line = cart[index]
@@ -220,7 +226,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
     try {
       await sendWaiterOrderToKitchen(
         {
-          createOrder,
+          createOrder: (tableId, items) => createOrder(tableId, items, undefined, undefined, { holdCourses: courseHolds.held }),
           readTable: (tableId) => db.diningTable.get(tableId),
           occupyTable,
           bindTableOrder,
@@ -244,14 +250,38 @@ export function WaiterDashboard({ role }: { role?: string }) {
       )
       setCart([])
       setScene("mesa")
-      showToast("Pedido enviado a cocina", "success")
+      const heldNow = courseHolds.held
+      courseHolds.reset()
+      setActiveCourse(undefined)
+      showToast(
+        heldNow.length > 0
+          ? `Enviado. ${heldNow.map((c) => c[0].toUpperCase() + c.slice(1)).join(" y ")} en espera: tocá «Marcha» cuando corresponda.`
+          : "Pedido enviado a cocina",
+        "success"
+      )
     } catch (err) {
       console.error("[Waiter] sendToKitchen failed:", err)
       showToast(describeError(err, "No se pudo enviar a cocina. Reintentá."), "error")
     } finally {
       setSending(false)
     }
-  }, [sending, selectedTableId, cart, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, showToast])
+  }, [sending, selectedTableId, cart, createOrder, occupyTable, bindTableOrder, confirmOrder, confirmAndSendToKitchen, showToast, courseHolds])
+
+  // Marcha (piloto 06/11): la cocina imprime «MARCHA PRINCIPAL» + mesa.
+  const handleFireCourse = useCallback(async (course: ItemCourse) => {
+    if (!tenantId || firingCourse) return
+    const rounds = tableOrders.filter((o) => (o.heldCourses ?? []).includes(course))
+    if (rounds.length === 0) return
+    setFiringCourse(course)
+    try {
+      for (const o of rounds) await fireCourse(tenantId, o.id, course)
+      showToast(`Marcha ${course} enviada a cocina`, "success")
+    } catch (err) {
+      showToast(describeError(err, "No se pudo marchar. Reintentá."), "error")
+    } finally {
+      setFiringCourse(null)
+    }
+  }, [tenantId, firingCourse, tableOrders, showToast])
 
   const handleRequestBill = useCallback(async () => {
     if (!selectedTableId) return
@@ -333,6 +363,12 @@ export function WaiterDashboard({ role }: { role?: string }) {
           ),
           center: (
             <>
+              {/* Piloto 06/11: tiempos en espera ⇒ «Marcha» primero y en color. */}
+              {COURSE_SEQUENCE.filter((c) => tableOrders.some((o) => (o.heldCourses ?? []).includes(c))).map((c) => (
+                <button key={c} className="btn btn-brand" disabled={firingCourse !== null} onClick={() => { void handleFireCourse(c) }}>
+                  <Flame size={18} aria-hidden /> {firingCourse === c ? "Marchando…" : `Marcha ${c}`}
+                </button>
+              ))}
               {selectedTable.status === "occupied" && (
                 <button className="btn btn-secondary" onClick={() => setGuestsPrompt({ tableId: selectedTable.id, mode: "edit" })} title="Comensales" aria-label={`Comensales: ${selectedTable.guests ?? "sin cargar"}`}>
                   <Users size={18} aria-hidden /> {selectedTable.guests ?? "—"}
@@ -374,6 +410,10 @@ export function WaiterDashboard({ role }: { role?: string }) {
               onEditOptions={handleEditOptions}
               isConfigurable={isConfigurableLine}
               total={cartTotal}
+              activeCourse={activeCourse}
+              onActiveCourse={setActiveCourse}
+              heldCourses={courseHolds.held}
+              footerContent={<CourseHoldControl holdable={courseHolds.holdable} held={courseHolds.held} onToggle={courseHolds.toggle} />}
             />
           ),
         })
@@ -393,7 +433,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
         break
 
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, activeCourse, courseHolds, firingCourse, handleFireCourse])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.

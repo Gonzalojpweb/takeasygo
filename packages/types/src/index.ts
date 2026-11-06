@@ -378,6 +378,12 @@ export interface Order {
   total: number
   menuVersion: number
   notes?: string
+  /** Número de la mesa (lo informa el server; para comanda y marcha). */
+  tableNumber?: number
+  /** Tiempos en espera de la marcha del mozo (piloto 06/11). */
+  heldCourses?: ItemCourse[]
+  /** Marchas hechas: qué tiempo y cuándo. */
+  courseFires?: { course: ItemCourse; firedAt: Date | string }[]
   /** Cuándo se comandó (mandó a cocina). Lo informa el servidor (30/10). */
   sentToKitchenAt?: Date | string
   createdAt: Date

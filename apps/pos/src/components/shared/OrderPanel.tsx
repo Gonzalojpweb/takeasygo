@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import type { ItemCourse, OrderItem } from "@takeasygo/types"
 import { MessageSquare, SlidersHorizontal } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
+import { CourseChip, CourseGroupHeader, CoursePicker, groupByCourse, hasCourses } from "./Courses"
 
 // ============================================================================
 // Carrito de la ronda
@@ -21,7 +22,6 @@ const COURSES: { id: ItemCourse; label: string }[] = [
   { id: "principal", label: "Principal" },
   { id: "postre", label: "Postre" },
 ]
-const COURSE_LABEL: Record<ItemCourse, string> = { entrada: "Entrada", principal: "Principal", postre: "Postre" }
 export const QUICK_NOTES = ["Sin sal", "Sin cebolla", "Sin TACC", "Bien cocido", "Jugoso", "Sin hielo", "Para compartir", "Sale después"]
 
 interface OrderPanelProps {
@@ -41,6 +41,11 @@ interface OrderPanelProps {
   total: number
   primaryAction?: { label: string; onClick: () => void; disabled?: boolean }
   footerContent?: React.ReactNode
+  /** Piloto 06/11: tiempo de lo que se agrega (selector arriba del carrito). */
+  activeCourse?: ItemCourse
+  onActiveCourse?: (course: ItemCourse | undefined) => void
+  /** Tiempos que van a esperar la marcha (encabezado «Espera la marcha»). */
+  heldCourses?: ItemCourse[]
 }
 
 function NoteEditor({ initial, initialCourse, onSave, onCancel }: {
@@ -113,6 +118,9 @@ export function OrderPanel({
   total,
   primaryAction,
   footerContent,
+  activeCourse,
+  onActiveCourse,
+  heldCourses = [],
 }: OrderPanelProps) {
   const [editing, setEditing] = useState<number | null>(null)
   // Obs. UX 30/10 (táctil): al agregar, respuesta inmediata acá — sin modal.
@@ -131,7 +139,7 @@ export function OrderPanel({
   }
   useEffect(() => {
     if (!flash) return
-    listRef.current?.querySelectorAll<HTMLElement>(".order-item-card")[flash.idx]?.scrollIntoView({ block: "nearest" })
+    listRef.current?.querySelector<HTMLElement>(`.order-item-card[data-idx="${flash.idx}"]`)?.scrollIntoView({ block: "nearest" })
     const id = window.setTimeout(() => setFlash(null), 900)
     return () => window.clearTimeout(id)
   }, [flash])
@@ -143,6 +151,8 @@ export function OrderPanel({
         <span className="status-badge pending">{items.reduce((n, i) => n + i.quantity, 0)} u.</span>
       </div>
 
+      {onActiveCourse && <CoursePicker value={activeCourse} onChange={onActiveCourse} />}
+
       <div className="order-panel-items" ref={listRef}>
         {items.length === 0 ? (
           <div className="empty-state" style={{ padding: "32px 16px" }}>
@@ -151,12 +161,19 @@ export function OrderPanel({
           </div>
         ) : (
           <div className="order-items">
-            {items.map((item, idx) => (
-              <div key={`${item.productId}-${idx}`} className={`order-item-card${item.comboComponent ? " is-combo-unit" : ""}${flash?.idx === idx ? " is-added" : ""}`}>
+            {/* Piloto 06/11: con tiempos, agrupado en orden de salida. */}
+            {(hasCourses(items) ? groupByCourse(items) : [{ course: null, entries: items.map((item, idx) => ({ item, idx })) }]).map((group) => (
+              <div key={group.course ?? "none"} className="order-course-group">
+                {hasCourses(items) && <CourseGroupHeader course={group.course} held={group.course ? heldCourses.includes(group.course) : false} />}
+                {group.entries.map(({ item, idx }) => (
+              <div key={`${item.productId}-${idx}`} data-idx={idx} className={`order-item-card${item.comboComponent ? " is-combo-unit" : ""}${flash?.idx === idx ? " is-added" : ""}`}>
                 <div className="order-item-main">
                   <div className="order-item-top">
                     <span className="order-item-name">
-                      {item.course && <span className="order-item-course">{COURSE_LABEL[item.course]}</span>}
+                      <CourseChip
+                        course={item.course}
+                        onChange={onEditNote && (!item.comboInstanceId || item.comboComponent) ? (next) => onEditNote(idx, item.notes ?? "", next) : undefined}
+                      />
                       {item.name}
                     </span>
                     <span className="order-item-total">
@@ -232,6 +249,8 @@ export function OrderPanel({
                     </button>
                   )}
                 </div>
+              </div>
+                ))}
               </div>
             ))}
           </div>

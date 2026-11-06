@@ -103,7 +103,7 @@ async function assertTableExists(
   posTableId: string,
   tenantId: string,
   locationId: string
-): Promise<{ needsBill: boolean; guests: number | null }> {
+): Promise<{ needsBill: boolean; guests: number | null; number: number | null }> {
   // `tableId` es el `posId` de la mesa: un UUID que genera el POS, NO un
   // ObjectId. Se exige string acotado para que no llegue un operador de
   // query ($ne, objeto, etc.) al filtro.
@@ -111,12 +111,12 @@ async function assertTableExists(
     throw PosError.validation('tableId inválido')
   }
   const table = await Table.findOne({ tenantId, locationId, posId: posTableId })
-    .select('_id needsBill guests')
+    .select('_id needsBill guests number')
     .lean()
   if (!table) {
     throw PosError.notFound('Mesa no encontrada en esta sede')
   }
-  return { needsBill: Boolean(table.needsBill), guests: table.guests ?? null }
+  return { needsBill: Boolean(table.needsBill), guests: table.guests ?? null, number: typeof table.number === 'number' ? table.number : null }
 }
 
 function findExisting(tenantId: string, posId: string): Promise<PosOrderDoc | null> {
@@ -209,6 +209,9 @@ export const POST = posRoute('orders.write', async (ctx) => {
     })
     if (!counted) draft.guests = table.guests
   }
+
+  // Piloto 06/11: la comanda y la marcha imprimen «MESA 5».
+  if (table?.number !== null && table?.number !== undefined) draft.posTableNumber = table.number
 
   // Cocina o barra por ítem (sin esto la comanda no llegaba a las estaciones).
   withPrintRoles(draft.items, await printRolesForLocation(ctx.tenantId, ctx.locationId))

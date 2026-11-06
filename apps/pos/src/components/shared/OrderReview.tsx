@@ -1,6 +1,7 @@
-import type { OrderItem } from "@takeasygo/types"
+import type { ItemCourse, OrderItem } from "@takeasygo/types"
 import { Plus, Send, Wallet } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
+import { CourseChip, CourseGroupHeader, CourseHoldControl, groupByCourse, hasCourses } from "./Courses"
 
 // ============================================================================
 // Revisión del pedido (observación UI/UX 24/10)
@@ -11,8 +12,6 @@ import { formatCurrency } from "../../utils/format"
 // grandes. «+ Agregar más» es un botón grande y visible: en pleno servicio
 // el operador no tiene que buscarlo.
 // ============================================================================
-
-const COURSE_LABEL: Record<string, string> = { entrada: "Entrada", principal: "Principal", postre: "Postre" }
 
 interface OrderReviewProps {
   title: string
@@ -26,9 +25,13 @@ interface OrderReviewProps {
   /** Salón: mandar la ronda a cocina sin cobrar (acción principal). */
   onSendToKitchen?: () => void
   onCharge: () => void
+  /** Piloto 06/11: tiempos que esperan la marcha (solo salón). */
+  courseHold?: { holdable: ItemCourse[]; held: ItemCourse[]; onToggle: (c: ItemCourse) => void }
+  /** Cambiar el tiempo de una línea con un toque. */
+  onSetCourse?: (index: number, course: ItemCourse | undefined) => void
 }
 
-export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge }: OrderReviewProps) {
+export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge, courseHold, onSetCourse }: OrderReviewProps) {
   const units = items.reduce((n, i) => n + i.quantity, 0)
   const chargeTotal = cartTotal + sentTotal
 
@@ -39,13 +42,16 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
           <span>Nueva ronda</span>
           <span className="text-muted">{units} {units === 1 ? "producto" : "productos"}</span>
         </header>
+        {(hasCourses(items) ? groupByCourse(items) : [{ course: null, entries: items.map((item, idx) => ({ item, idx })) }]).map((group) => (
+        <div key={group.course ?? "none"} className="review-course-group">
+        {hasCourses(items) && <CourseGroupHeader course={group.course} held={group.course ? Boolean(courseHold?.held.includes(group.course)) : false} />}
         <ul className="review-list">
-          {items.map((item, idx) => (
+          {group.entries.map(({ item, idx }) => (
             <li key={`${item.productId}-${idx}`} className="review-line">
               <span className="review-qty">{item.quantity}</span>
               <div className="review-line-main">
                 <span className="review-name">
-                  {item.course && <span className="order-item-course">{COURSE_LABEL[item.course]}</span>}
+                  <CourseChip course={item.course} onChange={onSetCourse && (!item.comboInstanceId || item.comboComponent) ? (next) => onSetCourse(idx, next) : undefined} />
                   {item.name}
                 </span>
                 {item.modifiers && item.modifiers.length > 0 && (
@@ -57,6 +63,8 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
             </li>
           ))}
         </ul>
+        </div>
+        ))}
       </section>
 
       <aside className="review-summary" aria-label="Resumen">
@@ -69,6 +77,8 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
           {sentTotal > 0 && <div><dt>Ya enviado a cocina</dt><dd>{formatCurrency(sentTotal)}</dd></div>}
           <div className="review-grand"><dt>Total de la cuenta</dt><dd>{formatCurrency(chargeTotal)}</dd></div>
         </dl>
+
+        {courseHold && onSendToKitchen && <CourseHoldControl holdable={courseHold.holdable} held={courseHold.held} onToggle={courseHold.onToggle} />}
 
         <button type="button" className="btn review-add" onClick={onAddMore} disabled={busy}>
           <Plus size={22} aria-hidden /> Agregar más

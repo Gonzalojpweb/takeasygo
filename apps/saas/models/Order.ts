@@ -369,6 +369,12 @@ export interface IOrder extends Document {
    * rehidratar Dexie y el UI mostraría "Mesa -".
    */
   posTableId?: string | null
+  /** Número de la mesa al comandar (piloto 06/11): «MESA 5» en comanda y marcha. */
+  posTableNumber?: number
+  /** Tiempos en espera de la marcha del mozo (piloto 06/11). */
+  heldCourses?: ('entrada' | 'principal' | 'postre')[]
+  /** Marchas hechas (auditoría y reportes de tiempos). */
+  courseFires?: { course: 'entrada' | 'principal' | 'postre'; firedAt: Date; userId: string }[]
   /**
    * Versión del menú con la que se armó la orden. El POS la guarda en cada
    * orden (hoy siempre 1); se persiste para que el round-trip no la pierda.
@@ -927,6 +933,19 @@ const OrderSchema = new Schema(
     // documento, o el índice unique de abajo colisionaría entre nulls.
     posId: { type: String },
     posTableId: { type: String, default: null },
+    // Piloto 06/11 — tiempos de cocina. Sin default: los pedidos que no los
+    // usan no cargan los campos (aditivo, sin migración).
+    posTableNumber: { type: Number, default: undefined, min: 0 },
+    heldCourses: { type: [{ type: String, enum: ['entrada', 'principal', 'postre'] }], default: undefined },
+    courseFires: {
+      type: [{
+        _id: false,
+        course: { type: String, enum: ['entrada', 'principal', 'postre'], required: true },
+        firedAt: { type: Date, required: true },
+        userId: { type: String, required: true },
+      }],
+      default: undefined,
+    },
     menuVersion: { type: Number, default: 1, min: 1 },
     // Array acotado (≤ 10 partes, lo valida la ruta): embebido y no colección
     // aparte porque se lee y escribe siempre junto con la orden.

@@ -148,6 +148,15 @@ export {
   isTipValid,
 } from "./tip"
 export {
+  COURSE_SEQUENCE,
+  COURSE_LABELS,
+  isItemCourse,
+  coursesPresent,
+  coursesToHold,
+  sanitizeHeldCourses,
+  nextCourseToFire,
+} from "./courses"
+export {
   flattenMenu,
   flattenMenuSnapshot,
   injectHalfPriceModifiers,

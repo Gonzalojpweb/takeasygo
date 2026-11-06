@@ -3,6 +3,7 @@ import { Clock, Users, LayoutGrid, Receipt, Percent, X, CalendarClock, Plus } fr
 import { formatCurrency } from "../../utils/format"
 import { formatElapsed, type TableActivity } from "../../hooks/useTableActivity"
 import { MESA_STATUS_LABEL } from "../shared/MesaCard"
+import { CourseChip, groupByCourse, hasCourses, COURSE_NAME } from "../shared/Courses"
 
 // ============================================================================
 // Contexto «Mesa» — detalle en el workspace (observación 24/10)
@@ -23,7 +24,6 @@ const ROUND_STATUS: Record<string, string> = {
   delivered: "Entregada",
   cancelled: "Cancelada",
 }
-const COURSE_LABEL: Record<string, string> = { entrada: "Entrada", principal: "Principal", postre: "Postre" }
 
 interface TableDetailProps {
   table: Table
@@ -102,13 +102,26 @@ export function TableDetail({ table, activity, orders, now, reservation, onVoidI
                   {paidRound && <span className="tdetail-round-status tdetail-round-status--paid">Cobrada</span>}
                   <span className="tdetail-round-total">{formatCurrency(order.total)}</span>
                 </div>
+                {/* Piloto 06/11: por tiempo, con «En espera» / «Marchó HH:MM». */}
+                {(hasCourses(order.items) ? groupByCourse(order.items) : [{ course: null, entries: order.items.map((item, i) => ({ item, idx: i })) }]).map((group) => {
+                  const held = group.course ? (order.heldCourses ?? []).includes(group.course) : false
+                  const fired = group.course ? (order.courseFires ?? []).find((f) => f.course === group.course) : undefined
+                  return (
+                <div key={group.course ?? "none"}>
+                  {hasCourses(order.items) && (
+                    <div className={`course-head course-head--${group.course ?? "none"}`}>
+                      <span>{group.course ? COURSE_NAME[group.course] : "Sin tiempo"}</span>
+                      {held && <span className="course-held">En espera de la marcha</span>}
+                      {fired && <span className="course-fired">Marchó {new Date(fired.firedAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</span>}
+                    </div>
+                  )}
                 <ul className="tdetail-lines">
-                  {order.items.map((item, i) => (
-                    <li key={item.lineId ?? `${order.id}-${i}`} className="tdetail-line">
+                  {group.entries.map(({ item, idx: i }) => (
+                    <li key={item.lineId ?? `${order.id}-${i}`} className={`tdetail-line${held ? " is-held" : ""}`}>
                       <span className="review-qty">{item.quantity}</span>
                       <div className="review-line-main">
                         <span className="tdetail-line-name">
-                          {item.course && <span className="order-item-course">{COURSE_LABEL[item.course]}</span>}
+                          <CourseChip course={item.course} />
                           {item.name}
                         </span>
                         {item.modifiers && item.modifiers.length > 0 && <span className="review-mods">{item.modifiers.map((m) => m.name).join(" · ")}</span>}
@@ -135,6 +148,9 @@ export function TableDetail({ table, activity, orders, now, reservation, onVoidI
                     </li>
                   ))}
                 </ul>
+                </div>
+                  )
+                })}
               </section>
             )
           })

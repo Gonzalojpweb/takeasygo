@@ -1,4 +1,4 @@
-import type { Order, OrderItem, OrderStatus } from "@takeasygo/types"
+import type { ItemCourse, Order, OrderItem, OrderStatus } from "@takeasygo/types"
 import { pathToDelivered, type AllocatedPayment } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { posApi, isPosApiError } from "./pos-api"
@@ -127,6 +127,8 @@ export interface CreateOrderOptions {
   id?: string
   /** `confirmed` = nace enviada a cocina (el server genera la comanda). */
   status?: "pending" | "confirmed"
+  /** Piloto 06/11: tiempos que esperan la marcha del mozo. */
+  holdCourses?: ItemCourse[]
 }
 
 export async function createOrder(
@@ -158,6 +160,7 @@ export async function createOrder(
         ...(isRealTable ? { tableId } : {}),
         ...(notes ? { notes } : {}),
         ...(options.status ? { status: options.status } : {}),
+        ...(options.holdCourses?.length ? { holdCourses: options.holdCourses } : {}),
       },
       id
     )
@@ -204,6 +207,17 @@ export async function recordPayments(
     )
     return saveOrder(order)
   })
+}
+
+/**
+ * «Marcha» de un tiempo en espera (piloto 06/11): la cocina imprime
+ * «MARCHA PRINCIPAL» + mesa, sin repetir los platos. Idempotente en el
+ * server: un doble toque no saca dos marchas.
+ */
+export async function fireCourse(tenantId: string, orderId: string, course: ItemCourse): Promise<Order> {
+  return runMutation(async () =>
+    saveOrder(await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/courses`, { course }))
+  )
 }
 
 /**
