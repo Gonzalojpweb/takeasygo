@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { computeComboMetrics } from '@/lib/metrics/sales'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -357,6 +358,31 @@ export async function GET(
         })
       }
     })
+
+    // ── Hoja de combos: solo si hubo. Los platos suman cantidad, sin dinero propio.
+    const comboStats = computeComboMetrics(orders.filter((o: any) => o.status !== 'cancelled') as any)
+    if (comboStats.length > 0) {
+      const wsCombos = workbook.addWorksheet('Combos')
+      wsCombos.columns = [
+        { header: 'Combo', key: 'name', width: 34 },
+        { header: 'Cantidad vendida', key: 'quantity', width: 18 },
+        { header: 'Ingresos', key: 'revenue', width: 18 },
+        { header: 'Ticket promedio', key: 'avg', width: 18 },
+        { header: 'Platos dentro del combo', key: 'components', width: 60 },
+      ]
+      wsCombos.getRow(1).eachCell(cell => styleHeader(cell))
+      for (const c of comboStats) {
+        const row = wsCombos.addRow({
+          name: c.name,
+          quantity: c.quantity,
+          revenue: c.revenue / 100,
+          avg: c.avgTicket / 100,
+          components: c.components.map(p => `${p.quantity}x ${p.name}`).join(' | '),
+        })
+        row.getCell('revenue').numFmt = '"$"#,##0.00'
+        row.getCell('avg').numFmt = '"$"#,##0.00'
+      }
+    }
 
     // ── Sheet 4: VENTAS POR DÍA ──────────────────────────────────────────────
     const ws4 = workbook.addWorksheet('Por día')

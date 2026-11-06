@@ -39,7 +39,12 @@ export interface PosOrderItemInput {
   unitPrice: number
   /** (unitPrice + sum(modifiers.price)) * quantity, en centavos. */
   total: number
-  modifiers?: { name: string; price: number }[]
+  modifiers?: { name: string; price: number; listPrice?: number }[]
+  /** Combos: une las líneas de un combo vendido. */
+  comboId?: string
+  comboInstanceId?: string
+  comboName?: string
+  comboComponent?: boolean
   /** Nota de cocina. El POS manda string, nunca null. */
   notes?: string
   /** Curso (Fase C): entrada / principal / postre. */
@@ -104,7 +109,11 @@ export interface SaasOrderDraft {
 
 export interface SaasOrderItemDraft {
   menuItemId: mongoose.Types.ObjectId | null
-  itemType: 'menuItem'
+  itemType: 'menuItem' | 'combo'
+  comboId?: string
+  comboInstanceId?: string
+  comboName?: string
+  comboComponent?: boolean
   categoryName: string
   name: string
   description: string
@@ -245,9 +254,18 @@ export function toSaasOrderItem(item: PosOrderItemInput): SaasOrderItemDraft {
   }
   const course = item.course ?? null
 
+  const isComboParent = Boolean(item.comboInstanceId) && !item.comboComponent
   return {
-    menuItemId: toMenuItemId(item.productId),
-    itemType: 'menuItem',
+    menuItemId: isComboParent ? null : toMenuItemId(item.productId),
+    itemType: isComboParent ? 'combo' : 'menuItem',
+    ...(item.comboInstanceId
+      ? {
+          comboId: String(item.comboId ?? ''),
+          comboInstanceId: String(item.comboInstanceId).slice(0, 64),
+          comboName: String(item.comboName ?? '').slice(0, 200),
+          comboComponent: Boolean(item.comboComponent),
+        }
+      : {}),
     categoryName: '',
     name: item.name,
     description: '',
@@ -444,7 +462,10 @@ export function toPosOrder(doc: {
             },
           }
         : {}),
-      productId: i.menuItemId?.toString() ?? '',
+      productId: i.menuItemId?.toString() ?? i.comboId ?? '',
+      ...(i.comboInstanceId
+        ? { comboId: i.comboId, comboInstanceId: i.comboInstanceId, comboName: i.comboName, ...(i.comboComponent ? { comboComponent: true } : {}) }
+        : {}),
       name: i.name,
       quantity: i.quantity,
       unitPrice: i.basePrice,

@@ -67,6 +67,9 @@ interface OrderItem {
   itemType?: string
   printRole?: string
   promotionTitle?: string
+  comboInstanceId?: string | null
+  comboName?: string | null
+  comboComponent?: boolean
   selectedVariant?: { name: string; price: number }
   customizations?: CustomizationGroup[]
   hasCategoryDiscount?: boolean
@@ -190,9 +193,10 @@ export function renderOrderTicket(
   } else if (role === 'cashier') {
     itemsToPrint = allItems
   } else if (role === 'kitchen') {
-    itemsToPrint = allItems.filter(i => !i.printRole || i.printRole === 'kitchen' || i.printRole === 'both')
+    // La línea padre del combo es el precio: la estación recibe solo los platos.
+    itemsToPrint = allItems.filter(i => i.itemType !== 'combo' && (!i.printRole || i.printRole === 'kitchen' || i.printRole === 'both'))
   } else if (role === 'bar') {
-    itemsToPrint = allItems.filter(i => i.printRole === 'bar' || i.printRole === 'both')
+    itemsToPrint = allItems.filter(i => i.itemType !== 'combo' && (i.printRole === 'bar' || i.printRole === 'both'))
   } else {
     itemsToPrint = allItems
   }
@@ -289,17 +293,34 @@ export function renderOrderTicket(
   let lastCategory: string | null = null
   let lastCourse: string | null | undefined = undefined
 
-  // Agrupar promos consecutivas
-  const promoGroups: Array<{
-    promotionTitle?: string
-    totalQuantity: number
-    items: OrderItem[]
-  } | { single: OrderItem }> = []
+  // Agrupar promos consecutivas y combos: cada estación ve el nombre del combo
+  // con los platos que le tocan; la caja ve además el precio del combo.
+  type ItemGroup = { promotionTitle?: string; totalQuantity: number; items: OrderItem[]; comboInstanceId?: string; comboPrice?: number }
+  const promoGroups: Array<ItemGroup | { single: OrderItem }> = []
 
-  let currentGroup: { promotionTitle?: string; totalQuantity: number; items: OrderItem[] } | null = null
+  let currentGroup: ItemGroup | null = null
+  const comboPrices = new Map(
+    allItems.filter(i => i.itemType === 'combo' && i.comboInstanceId).map(i => [i.comboInstanceId as string, i.subtotal])
+  )
 
   for (const item of itemsToPrint) {
-    if (item.itemType === 'promotion' && item.promotionTitle) {
+    if (item.itemType === 'combo' && item.comboInstanceId) {
+      currentGroup = null
+    } else if (item.comboInstanceId) {
+      const open = currentGroup as ItemGroup | null
+      if (open && open.comboInstanceId === item.comboInstanceId) {
+        open.items.push(item)
+      } else {
+        currentGroup = {
+          promotionTitle: item.comboName || 'COMBO',
+          totalQuantity: 1,
+          items: [item],
+          comboInstanceId: item.comboInstanceId,
+          comboPrice: comboPrices.get(item.comboInstanceId),
+        }
+        promoGroups.push(currentGroup)
+      }
+    } else if (item.itemType === 'promotion' && item.promotionTitle) {
       if (currentGroup && currentGroup.promotionTitle === item.promotionTitle) {
         currentGroup.items.push(item)
         currentGroup.totalQuantity += item.quantity
@@ -389,7 +410,7 @@ export function renderOrderTicket(
       t.blank()
     } else {
       // ── Grupo de promo ──
-      const promoGroup = group as { promotionTitle?: string; totalQuantity: number; items: OrderItem[] }
+      const promoGroup = group as ItemGroup
       const promoTitle = (promoGroup.promotionTitle || '').toUpperCase()
       const totalQty = promoGroup.totalQuantity
 
@@ -397,7 +418,7 @@ export function renderOrderTicket(
 
       const promoHeader = `${totalQty}x ${promoTitle}`
       if (settings.showPrices) {
-        const promoPrice = money(promoGroup.items.reduce((s, i) => s + i.price * i.quantity, 0))
+        const promoPrice = money(promoGroup.comboPrice ?? promoGroup.items.reduce((s, i) => s + i.price * i.quantity, 0))
         t.row(promoHeader, promoPrice, { bold: true })
       } else {
         t.text(promoHeader, { bold: true })

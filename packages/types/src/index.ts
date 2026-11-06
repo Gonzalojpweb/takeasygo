@@ -157,6 +157,57 @@ export interface PairingResponse {
 // 6. PRODUCT — Menú y productos
 // ============================================================================
 
+export type ComboPriceMode = "fixed" | "sumItems"
+export type ComboVisibility = "dine-in" | "takeaway" | "both"
+export type ComboCarouselPosition =
+  | "afterBestsellers"
+  | "afterFeatured"
+  | "beforeCategories"
+  | "afterCategories"
+
+export interface ComboStyle {
+  bgColor?: string
+  textColor?: string
+  badgeLabel?: string
+  urgencyLabel?: string
+  imageUrl?: string
+}
+
+export interface Combo {
+  id: string
+  tenantId: string
+  locationId?: string | null
+  name: string
+  description?: string
+  priceMode: ComboPriceMode
+  fixedPrice?: number
+  itemPool: string[]
+  minItems: number
+  maxItems: number
+  allowRepeat: boolean
+  chargeCustomizationExtras: boolean
+  style?: ComboStyle
+  isActive: boolean
+  /** Días (0 = domingo) y franja horaria. null = siempre. */
+  availabilitySchedule?: { days?: number[]; from?: string; to?: string } | null
+  sortOrder: number
+  visibility: ComboVisibility
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export interface CombosCarouselConfig {
+  showSection?: boolean
+  sectionTitle?: string
+  position?: ComboCarouselPosition
+  style?: {
+    backgroundColor?: string
+    textColor?: string
+    badgeColor?: string
+    accentColor?: string
+  }
+}
+
 export interface Product {
   id: string
   tenantId: string
@@ -183,6 +234,9 @@ export interface Product {
   disabledOptionIds?: string[]
   imageUrl?: string
   sortOrder?: number
+  isCombo?: boolean
+  comboId?: string
+  comboData?: Combo
 }
 
 export type ModifierGroupType = "single" | "multiple" | "fixed"
@@ -391,6 +445,12 @@ export interface OrderItem {
    * descuento; `amount` es lo descontado en centavos.
    */
   discount?: OrderItemDiscount
+  comboId?: string
+  comboComponent?: boolean
+  comboName?: string
+  /** Une las líneas de UN combo vendido: dos combos iguales son dos instancias. */
+  comboInstanceId?: string
+  itemType?: "menuItem" | "promotion" | "reward" | "combo"
 }
 
 export interface OrderItemDiscount {
@@ -404,6 +464,8 @@ export interface OrderItemDiscount {
 }
 
 export interface OrderItemModifier {
+  /** Combos: precio de carta del agregado (la línea va en cero; lo paga el padre). */
+  listPrice?: number
   name: string
   price: number
 }

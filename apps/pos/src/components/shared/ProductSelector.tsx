@@ -40,6 +40,9 @@ interface ProductSelectorProps {
   selectedCategory: string | null
   onSelectCategory: (category: string | null) => void
   onSelectProduct: (product: Product) => void
+  /** Carrusel de combos, entre las categorías y la grilla. */
+  combos?: Product[]
+  onSelectCombo?: (combo: Product) => void
   /** ids de los más pedidos (usePopularProducts). Vacío ⇒ sin «Frecuentes». */
   popularIds?: string[]
   /**
@@ -113,6 +116,8 @@ export function ProductSelector({
   selectedCategory,
   onSelectCategory,
   onSelectProduct,
+  combos,
+  onSelectCombo,
   popularIds = [],
   onToggleAvailability,
   back,
@@ -386,6 +391,26 @@ export function ProductSelector({
       </div>
 
       <section className="psel-main" aria-label="Productos">
+        {!query && !pauseMode && onSelectCombo && combos && combos.length > 0 && (
+          <div className="psel-combos" role="group" aria-label="Combos">
+            {combos.map((combo) => {
+              const data = combo.comboData
+              return (
+                <button key={combo.id} type="button" className="psel-combo" disabled={!combo.isAvailable} onClick={() => onSelectCombo(combo)}>
+                  {data?.style?.badgeLabel && <small className="psel-combo-badge">{data.style.badgeLabel}</small>}
+                  <strong>{combo.name}</strong>
+                  <span>
+                    {!combo.isAvailable
+                      ? "No disponible"
+                      : data?.priceMode === "fixed"
+                        ? formatCurrency(data.fixedPrice ?? 0)
+                        : `${data?.maxItems ?? 2} platos · según lo elegido`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
         <div
           id="psel-grid"
           ref={gridRef}

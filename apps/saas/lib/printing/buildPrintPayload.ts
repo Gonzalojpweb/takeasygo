@@ -141,8 +141,9 @@ export async function buildPrintPayload(
     for (const role of printer.roles || []) {
       if (onlyRole && role !== onlyRole) continue
       // Verificar si hay items para este rol
+      // La línea padre de un combo no es trabajo para ninguna estación.
       const hasItemsForRole = (orderData.items || []).some(
-        (it: any) => it.printRole === role || it.printRole === 'both' || role === 'cashier'
+        (it: any) => role === 'cashier' || (it.itemType !== 'combo' && (it.printRole === role || it.printRole === 'both'))
       )
       if (!hasItemsForRole) continue
 

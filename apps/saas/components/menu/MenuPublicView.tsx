@@ -26,6 +26,8 @@ import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
+import { calculateComboPrice } from '@takeasygo/business/browser'
 import LikeBadge from '@/components/menu/LikeBadge'
 import { getSuggestions, type UpsellSource } from '@/lib/upsell-menu'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -204,6 +206,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   const [isAdminCorp, setIsAdminCorp] = useState(false)
   const [promotions, setPromotions] = useState<any[]>([])
+  const [combos, setCombos] = useState<PublicCombo[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [memberPoints, setMemberPoints] = useState(0)
   // Canje en checkout (store.maxRewardsPerOrder / store.enableCheckoutRedemption)
@@ -243,6 +246,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       setIsAdminCorp(role === 'company_admin')
     }
   }, [mode, groupSessionToken])
+
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/menu/${location._id}/combos?mode=${mode}`)
+      .then(r => r.ok ? r.json() : { combos: [] })
+      .then(data => setCombos(data.combos || []))
+      .catch(() => setCombos([]))
+  }, [tenant.slug, location._id, mode])
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=${mode}`)
@@ -386,6 +396,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const rewardLimitReached = rewardLines.length >= checkoutRedemption.maxPerOrder
   const rewardPointsAvailable = Math.max(0, memberPoints - rewardPointsInCart)
   const rewardCheckoutActive = checkoutRedemption.enabled && clubMembership.isMember
+
+  /** El carrusel de combos, en la posición que eligió el comercio. */
+  const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
+  const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
+    (comboSettings?.position ?? 'afterBestsellers') === position && !groupSessionToken && !isAdminCorp ? (
+      <ComboCarousel combos={combos} settings={comboSettings} primary={primary} textColor={text} onSelect={openComboPicker} />
+    ) : null
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
@@ -639,6 +656,72 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     }
   }
 
+  /** El combo usa el mismo selector de platos que las promociones por pasos. */
+  function openComboPicker(combo: PublicCombo) {
+    const items = combo.items.map((i: any) => ({ ...i, _id: String(i._id) }))
+    setPromoSlotSelection({
+      promo: {
+        _id: combo._id,
+        _isCombo: true,
+        type: 'sale',
+        title: combo.name,
+        shortDescription: combo.description ?? '',
+        price: combo.fixedPrice ?? 0,
+        priceMode: combo.priceMode,
+        allowRepeat: combo.allowRepeat,
+        chargeCustomizationExtras: combo.chargeCustomizationExtras,
+        allowCustomization: true,
+        slots: [{ name: 'Elegí tus platos', requiredQuantity: combo.maxItems, resolvedItems: items }],
+      },
+      slotStates: { 0: { selectedItems: [], completed: false } },
+      currentSlotIndex: 0,
+    })
+  }
+
+  function comboUnitBasePrice(item: any, variantName?: string): number {
+    const variant = (item?.variants ?? []).find((v: any) => v.name === variantName)
+    const source = variant ?? item
+    const value = mode === 'takeaway' ? (source?.takeawayPrice ?? source?.price) : mode === 'business' ? (source?.businessPrice ?? source?.price) : source?.price
+    return Number(value) || 0
+  }
+
+  function confirmComboPicker() {
+    if (!promoSlotSelection) return
+    const { promo, slotStates } = promoSlotSelection
+    const selected: any[] = slotStates[0]?.selectedItems ?? []
+    const pool: any[] = promo.slots[0].resolvedItems ?? []
+    const price = calculateComboPrice({
+      priceMode: promo.priceMode,
+      fixedPrice: promo.price,
+      chargeCustomizationExtras: promo.chargeCustomizationExtras,
+      items: selected.map((u) => ({
+        price: comboUnitBasePrice(pool.find((i) => i._id === u.itemId), u.selectedVariant?.name),
+        extraPrice: u.extraPrice || 0,
+      })),
+    })
+    setCart(prev => [...prev, {
+      cartItemId: `combo:${promo._id}:${Date.now()}`,
+      comboId: promo._id,
+      name: promo.title,
+      basePrice: price.basePrice,
+      extraPrice: price.extraPrice,
+      price: price.totalPrice,
+      quantity: 1,
+      customizations: [],
+      customizationSummary: selected.map((u) => (u.customizationSummary ? `${u.itemName} · ${u.customizationSummary}` : u.itemName)).join(' · '),
+      addedFrom: 'menu' as const,
+      type: 'combo' as const,
+      _comboUnits: selected.map((u) => ({
+        menuItemId: String(u.itemId),
+        itemName: u.itemName,
+        ...(u.selectedVariant ? { selectedVariant: u.selectedVariant } : {}),
+        ...(u.customizations?.length ? { customizations: u.customizations } : {}),
+      })),
+    }])
+    toast.success(`${promo.title} agregado al pedido`)
+    setPromoSlotSelection(null)
+  }
+
   function addPromotionToCart(promotion: any) {
     if (promotion.type !== 'sale' || !promotion.slots?.length) return
 
@@ -771,6 +854,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
    */
   function confirmPromoBundle() {
     if (!promoSlotSelection) return
+    if (promoSlotSelection.promo._isCombo) {
+      confirmComboPicker()
+      return
+    }
     const { promo, slotStates } = promoSlotSelection
     const bundle: PromoBundleSlot[] = promo.slots.map((slot: any, idx: number) => ({
       slotName: slot.name || `Slot ${idx + 1}`,
@@ -1385,6 +1472,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         )}
 
         {/* Promotions Section — hidden for company admin in business mode */}
+        {comboSection('afterFeatured')}
+
         {promotions.length > 0 && !isAdminCorp && (
           <section className="mb-8 px-1">
             <div className="flex items-center gap-2 mb-4">
@@ -1448,6 +1537,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             }}
           />
         )}
+
+        {comboSection('afterBestsellers')}
+        {comboSection('beforeCategories')}
 
         {/* All categories */}
         {categories.map((category: any) => {
@@ -1877,6 +1969,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             </section>
           )
         })}
+
+        {comboSection('afterCategories')}
       </main>
 
       {/* ── End of Menu: Club + TGO Network ── */}
@@ -2103,7 +2197,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
                       {item.type !== 'reward' && item.customizations.length === 0 && (item.type !== 'promotion' || !!(item as any)._bundle) && (
                         <button onClick={() => {
-                          if (item.type === 'promotion') {
+                          if (item.type === 'promotion' || item.type === 'combo') {
                             // Bundle de promo: "+" = otro combo completo (price ya es promotion.price)
                             setCart(prev => prev.map(i => i.cartItemId === item.cartItemId ? { ...i, quantity: i.quantity + 1 } : i))
                             trackCartAdd({ promotionId: item.promotionId, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
@@ -2119,6 +2213,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
+                        {item.type === 'combo' && (
+                          <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none"
+                            style={{ backgroundColor: primary + '20', color: primary }}>
+                            Combo
+                          </span>
+                        )}
                         {item.type === 'promotion' && (
                           <span className="text-[9px] font-black uppercase tracking-wider px-1 py-0.5 rounded leading-none"
                             style={{ backgroundColor: primary + '20', color: primary }}>
@@ -2238,9 +2338,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                   <div className="space-y-1.5">
                     {(currentSlot.resolvedItems ?? []).map((item: any) => {
                       const isSelected = currentState.selectedItems.some((si: any) => si.itemId === item._id)
-                      const isDisabled = !isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity
+                      const comboBySum = promo._isCombo && promo.priceMode === 'sumItems'
+                      const unitShownPrice = comboBySum ? getItemPrice(item) : promo.price
+                      const isDisabled = (!isSelected && currentState.selectedItems.length >= currentSlot.requiredQuantity) || (promo._isCombo && promo.allowRepeat === false && isSelected)
                       const slotMode: SlotCustomizationMode = resolveSlotCustomizationMode(currentSlot, promo.allowCustomization)
                       let effectiveSlotMode = slotMode
+                      if (promo._isCombo) effectiveSlotMode = (item.customizationGroups ?? []).length > 0 ? 'full' : (item.variants ?? []).length > 0 ? 'variant' : 'none'
                       if (effectiveSlotMode === 'none') {
                         const hasVariants = (item.variants ?? []).length > 0
                         const hasRequiredGroups = (item.customizationGroups ?? []).filter((g: any) => g.required).length > 0
@@ -2253,7 +2356,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                           const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
                           return { _id: i._id, name: i.name, grandePrice: grande.price as number }
                         })
-                      const isHalfSlot = slotHpItems.length >= 2
+                      const isHalfSlot = !promo._isCombo && slotHpItems.length >= 2
                       const halfCtx = isHalfSlot
                         ? { isHalfAndHalf: true, halfPriceItems: slotHpItems }
                         : undefined
@@ -2270,23 +2373,23 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 _promotionTitle: promo.title,
                                 _itemName: item.name,
                                 _slotName: currentSlot.name,
-                                price: promo.price,
-                                basePrice: promo.price,
+                                price: unitShownPrice,
+                                basePrice: unitShownPrice,
                                 isPromotion: true,
                                 hideQuantity: true,
                                 unitLabel: currentSlot.name,
                                 variants: (item.variants ?? []).map((v: any) => ({
                                   ...v,
-                                  price: promo.price,
-                                  takeawayPrice: promo.price,
+                                  ...(comboBySum ? {} : { price: unitShownPrice,
+                                  takeawayPrice: unitShownPrice }),
                                 })),
                                 customizationGroups: item.customizationGroups ?? [],
                               }, undefined, halfCtx)
                             } else if (effectiveSlotMode === 'variant') {
                               const availableVariants = (item.variants ?? []).map((v: any) => ({
                                 ...v,
-                                price: promo.price,
-                                takeawayPrice: promo.price,
+                                ...(comboBySum ? {} : { price: unitShownPrice,
+                                takeawayPrice: unitShownPrice }),
                               }))
                               if (availableVariants.length <= 1) {
                                 const v = availableVariants[0]
@@ -2297,7 +2400,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   customizationSummary: v?.name || '',
                                 })
                                 if (accepted) {
-                                  trackCartAdd({ menuItemId: item._id, name: v ? `${item.name} - ${v.name}` : item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+                                  trackCartAdd({ menuItemId: item._id, name: v ? `${item.name} - ${v.name}` : item.name, price: unitShownPrice, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
                                   toast.success(`${item.name} seleccionado`)
                                 } else {
                                   toast.info('Este paso ya está completo')
@@ -2309,8 +2412,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                   _promotionTitle: promo.title,
                                   _itemName: item.name,
                                   _slotName: currentSlot.name,
-                                  price: promo.price,
-                                  basePrice: promo.price,
+                                  price: unitShownPrice,
+                                  basePrice: unitShownPrice,
                                   isPromotion: true,
                                   hideQuantity: true,
                                   unitLabel: currentSlot.name,
@@ -2324,7 +2427,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                                 itemName: item.name,
                               })
                               if (accepted) {
-                                trackCartAdd({ menuItemId: item._id, name: item.name, price: promo.price, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
+                                trackCartAdd({ menuItemId: item._id, name: item.name, price: unitShownPrice, quantity: 1, hasCustomizations: false, source: 'menu', locationId: location._id })
                                 toast.success(`${item.name} seleccionado`)
                               } else {
                                 toast.info('Este paso ya está completo')

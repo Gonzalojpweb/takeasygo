@@ -4579,3 +4579,20 @@ body.is-resizing-panel .ros-app { transition: none; }
   .ao-body { padding: var(--sp-3); }
   .ao-bar-main { min-width: 0; }
 }
+
+/* ── Combos: carrusel, armado y líneas del carrito ── */
+.psel-combos { display: flex; gap: var(--sp-2); overflow-x: auto; padding: var(--sp-2) var(--sp-3); scrollbar-width: none; flex-shrink: 0; }
+.psel-combo { flex: 0 0 200px; display: flex; flex-direction: column; gap: 2px; text-align: left; padding: var(--sp-3); min-height: 72px; border-radius: 12px; border: 1px solid var(--primary-action); background: var(--primary-action-light); color: var(--text-primary); cursor: pointer; }
+.psel-combo:disabled { opacity: .5; cursor: not-allowed; }
+.psel-combo span { font-size: var(--font-size-sm); color: var(--text-secondary); }
+.psel-combo-badge { align-self: flex-start; font-size: 10px; font-weight: 800; text-transform: uppercase; padding: 1px 6px; border-radius: 6px; background: var(--primary-action); color: #fff; }
+.combo-sheet { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; background: var(--surface); }
+.combo-sheet-head, .combo-sheet-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3); border-bottom: 1px solid var(--border); }
+.combo-sheet-foot { border-bottom: 0; border-top: 1px solid var(--border); margin-top: auto; }
+.combo-sheet-foot .btn { width: 100%; min-height: 48px; }
+.combo-sheet-units { list-style: none; margin: 0; padding: var(--sp-2) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); border-bottom: 1px solid var(--border); }
+.combo-sheet-units li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); font-size: var(--font-size-sm); }
+.combo-sheet-pool { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); padding: var(--sp-3); align-content: start; }
+.combo-sheet-item { display: flex; flex-direction: column; gap: 2px; min-height: 64px; text-align: left; padding: var(--sp-3); border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+.combo-sheet-item:disabled { opacity: .45; cursor: not-allowed; }
+.order-item-card.is-combo-unit { margin-left: var(--sp-4); border-left: 3px solid var(--primary-action); }

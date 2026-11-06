@@ -4,6 +4,7 @@ import type { Product, MenuCategory } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
 import { syncMenu } from "../services/menu"
 import { db } from "../db/dexie"
+import { splitCombos } from "../utils/combo"
 
 // ============================================================================
 // useMenu — lee el menú de Dexie (useLiveQuery) y lo refresca contra el SaaS
@@ -58,7 +59,8 @@ export function useMenu() {
   // Fase J (decisión 24/10): un artículo pausado u oculto NO desaparece del
   // POS: se muestra como «Faltante» / «Sin inventario» en el mismo selector
   // (no se puede agregar). Así el mozo y la caja saben que no hay.
-  const availableProducts = products
+  // Los combos viajan en el mismo snapshot; la grilla no los muestra.
+  const { regular: availableProducts, combos } = useMemo(() => splitCombos(products), [products])
 
   const visibleCategories = useMemo(
     () => categories.filter((c) => c.isVisible).sort((a, b) => a.sortOrder - b.sortOrder),
@@ -70,6 +72,7 @@ export function useMenu() {
 
   return {
     products: availableProducts,
+    combos,
     categories: visibleCategories,
     getProductsByCategory,
     loading: !cached && !fetched && Boolean(tenantId && jwt),

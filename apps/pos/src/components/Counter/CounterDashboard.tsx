@@ -13,6 +13,8 @@ import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
+import { ComboBuilderSheet, type ComboUnit } from "../shared/ComboBuilderSheet"
+import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/combo"
 import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
 import { OrderReview } from "../shared/OrderReview"
@@ -216,7 +218,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [guestsBusy, setGuestsBusy] = useState(false)
   const tableActivity = useTableActivity(tenantId)
   const now = useNow()
-  const { products, categories } = useMenu()
+  const { products, combos, categories } = useMenu()
+  const [buildingCombo, setBuildingCombo] = useState<{ combo: Product; scene: string } | null>(null)
   const { processPayment } = usePayments()
   const { createOrder, confirmOrder } = useOrders()
   const { confirmAndSendToKitchen } = useKitchenCommands()
@@ -921,8 +924,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // mismo producto con distinta nota u opciones son independientes).
   const handleUpdateQuantity = useCallback((index: number, quantity: number) => {
     if (quantity <= 0) {
-      const isEmptying = cart.length === 1
-      setCart((prev) => prev.filter((_, i) => i !== index))
+      const isEmptying = removeCartLine(cart, index).length === 0
+      setCart((prev) => removeCartLine(prev, index))
       if (isEmptying) maybeFreeDraft(selectedTableId)
       return
     }
@@ -933,13 +936,22 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           : item
       )
     )
-  }, [cart.length, selectedTableId, maybeFreeDraft])
+  }, [cart, selectedTableId, maybeFreeDraft])
 
+  // Borrar una línea de un combo borra el combo entero.
   const handleRemoveItem = useCallback((index: number) => {
-    const isEmptying = cart.length === 1
-    setCart((prev) => prev.filter((_, i) => i !== index))
+    const isEmptying = removeCartLine(cart, index).length === 0
+    setCart((prev) => removeCartLine(prev, index))
     if (isEmptying) maybeFreeDraft(selectedTableId)
-  }, [cart.length, selectedTableId, maybeFreeDraft])
+  }, [cart, selectedTableId, maybeFreeDraft])
+
+  const handleComboConfirm = useCallback((combo: Product, units: ComboUnit[]) => {
+    setBuildingCombo(null)
+    const isFirstItem = cart.length === 0
+    const lines = buildComboLines(combo, units, crypto.randomUUID()).map((line) => ({ product: combo, ...line }) as CartItem)
+    setCart((prev) => [...prev, ...lines])
+    if (isFirstItem) maybeOccupyForLoading(selectedTableId)
+  }, [cart.length, selectedTableId, maybeOccupyForLoading])
 
   const handleEditNote = useCallback((index: number, note: string, course: ItemCourse | undefined) => {
     setCart((prev) => prev.map((item, i) => (i === index ? { ...item, notes: note || undefined, course } : item)))
@@ -970,7 +982,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     })
   }, [cart, scene])
 
-  const isConfigurableLine = useCallback((index: number) => Boolean(cart[index]?.product?.modifiers?.length), [cart])
+  const isConfigurableLine = useCallback((index: number) => !cart[index]?.comboInstanceId && Boolean(cart[index]?.product?.modifiers?.length), [cart])
 
   const showErrorToast = useCallback((message: string) => {
     setToast({ message, type: "error" })
@@ -989,6 +1001,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // Auditoría §4.3: antes handlePay descartaba modifiers y notas → el
         // server rechazaba por descuadre o la comanda salía sin detalle.
         ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
+        ...comboWireFields(item),
         ...(item.notes ? { notes: item.notes } : {}),
         ...(item.course ? { course: item.course } : {}),
       })),
@@ -1693,7 +1706,18 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 
   // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
   // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
-  const sheet = configuring && configuring.scene === scene ? (
+  const comboSheet = buildingCombo && buildingCombo.scene === scene ? (
+    <ComboBuilderSheet
+      key={buildingCombo.combo.id}
+      combo={buildingCombo.combo}
+      products={products}
+      showImage={showProductImages}
+      onConfirm={(units) => handleComboConfirm(buildingCombo.combo, units)}
+      onCancel={() => setBuildingCombo(null)}
+    />
+  ) : null
+
+  const sheet = comboSheet ?? (configuring && configuring.scene === scene ? (
     <ProductConfigSheet
       key={`${configuring.product.id}-${configuring.index ?? "new"}`}
       product={configuring.product}
@@ -1702,7 +1726,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       onConfirm={handleConfigConfirm}
       onCancel={() => setConfiguring(null)}
     />
-  ) : null
+  ) : null)
 
   // ============================================================================
   // RENDER
@@ -1771,6 +1795,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
+                combos={combos}
+                onSelectCombo={(combo) => setBuildingCombo({ combo, scene })}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
                 overlay={sheet}
@@ -1878,6 +1904,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 selectedCategory={selectedCategory}
                 onSelectCategory={setSelectedCategory}
                 onSelectProduct={handleAddProduct}
+                combos={combos}
+                onSelectCombo={(combo) => setBuildingCombo({ combo, scene })}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
                 overlay={sheet}

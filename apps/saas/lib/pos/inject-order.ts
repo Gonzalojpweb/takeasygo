@@ -93,15 +93,18 @@ function buildPOSPayload(order: any, tenant: ITenant): BuildResult {
   for (const item of order.items) {
     // Resolver clave de mapping según el tipo de item
     const isPromotion = item.itemType === 'promotion' || !!item.promotionId
-    const itemId = isPromotion
-      ? (item.promotionId?.toString() ?? '')
-      : (item.menuItemId?.toString() ?? '')
+    const isComboParent = item.itemType === 'combo'
+    const itemId = isComboParent
+      ? (item.comboId?.toString() ?? '')
+      : isPromotion
+        ? (item.promotionId?.toString() ?? '')
+        : (item.menuItemId?.toString() ?? '')
 
     const mapped = mapping.get(itemId)
 
     if (!mapped) {
       // Rastrear items sin mapeo para alertar al admin
-      unmappedNames.push(`${item.name} (${isPromotion ? 'promoción' : 'menú'})`)
+      unmappedNames.push(`${item.name} (${isComboParent ? 'combo' : isPromotion ? 'promoción' : 'menú'})`)
     }
 
     const variantModifier = item.selectedVariant

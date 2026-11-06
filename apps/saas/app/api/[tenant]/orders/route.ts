@@ -21,6 +21,9 @@ import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import Combo from '@/models/Combo'
+import { DEFAULT_TIMEZONE as COMBO_DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
+import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-lines'
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { getBaseUrl } from '@/lib/site-url'
@@ -952,6 +955,17 @@ export async function POST(
     }
 
     // Validar cada item del pedido y calcular precios desde la DB
+    const comboIds = body.items.filter((i: any) => i.type === 'combo').map((i: any) => i.comboId)
+    const combosById = new Map<string, any>()
+    if (comboIds.length > 0) {
+      const combos = await Combo.find({
+        _id: { $in: comboIds },
+        tenantId: (tenant as any)._id,
+        $or: [{ locationId: null }, { locationId: body.locationId }],
+      }).lean()
+      for (const combo of combos) combosById.set(String((combo as any)._id), combo)
+    }
+
     const resolvedItems: any[] = []
     for (const clientItem of body.items) {
       // La línea de premio que el cliente trae en el carrito (Opción 2) es solo
@@ -959,6 +973,26 @@ export async function POST(
       // validados contra la DB. Si se procesara acá daría 400 por falta de
       // menuItemId y duplicaría la línea $0.
       if (clientItem.type === 'reward') continue
+      if (clientItem.type === 'combo') {
+        try {
+          resolvedItems.push(
+            ...buildOnlineComboLines({
+              combo: combosById.get(String(clientItem.comboId)),
+              units: (clientItem as any)._comboUnits ?? [],
+              quantity: clientItem.quantity,
+              mode: body.mode ?? 'takeaway',
+              menuItemMap,
+              timezone: (location as any)?.timezone || COMBO_DEFAULT_TIMEZONE,
+              addedFrom: clientItem.addedFrom ?? null,
+              resolveCustomizations,
+            })
+          )
+        } catch (err) {
+          if (err instanceof ComboOrderError) return NextResponse.json({ error: err.message }, { status: 400 })
+          throw err
+        }
+        continue
+      }
       const itemType = clientItem.type === 'promotion' ? 'promotion' : 'menuItem'
 
       if (itemType === 'promotion') {
@@ -1476,17 +1510,17 @@ export async function POST(
       let eligibleSubtotal = 0
       if (activeQrPromo.clubScope === 'all') {
         eligibleSubtotal = resolvedItems
-          .filter(item => item.itemType !== 'promotion')
+          .filter(item => !['promotion', 'combo'].includes(item.itemType))
           .reduce((sum, item) => sum + item.subtotal, 0)
       } else if (activeQrPromo.clubScope === 'category' && activeQrPromo.clubScopeCategoryIds?.length) {
         const eligibleCategoryIds = new Set(activeQrPromo.clubScopeCategoryIds.map(id => id.toString()))
         eligibleSubtotal = resolvedItems
-          .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleCategoryIds.has(item.categoryId.toString()))
+          .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.categoryId && eligibleCategoryIds.has(item.categoryId.toString()))
           .reduce((sum, item) => sum + item.subtotal, 0)
       } else if (activeQrPromo.clubScope === 'item' && activeQrPromo.clubScopeItemIds?.length) {
         const eligibleItemIds = new Set(activeQrPromo.clubScopeItemIds.map(id => id.toString()))
         eligibleSubtotal = resolvedItems
-          .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleItemIds.has(item.menuItemId.toString()))
+          .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.menuItemId && eligibleItemIds.has(item.menuItemId.toString()))
           .reduce((sum, item) => sum + item.subtotal, 0)
       }
 
@@ -1555,22 +1589,22 @@ export async function POST(
             let eligibleSubtotal = 0
             if (clubDiscount.scope === 'all') {
               eligibleSubtotal = resolvedItems
-                .filter(item => item.itemType !== 'promotion')
+                .filter(item => !['promotion', 'combo'].includes(item.itemType))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
               const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => item.itemType !== 'promotion' && item.categoryId && eligibleIds.has(item.categoryId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.categoryId && eligibleIds.has(item.categoryId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
               const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => item.itemType !== 'promotion' && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
               const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => item.itemType !== 'promotion' && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             }
 
@@ -1601,7 +1635,7 @@ export async function POST(
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems
-        .filter(item => item.itemType !== 'promotion')
+        .filter(item => !['promotion', 'combo'].includes(item.itemType))
         .reduce((sum, item) => sum + item.subtotal, 0)
       discountAmount = Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true

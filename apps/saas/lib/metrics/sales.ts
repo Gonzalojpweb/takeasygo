@@ -56,6 +56,10 @@ export interface MetricOrder {
     quantity: number
     subtotal: number
     posDiscount?: { amountCents?: number } | null
+    itemType?: string | null
+    comboId?: string | null
+    comboInstanceId?: string | null
+    comboComponent?: boolean | null
   }[]
   itemVoids?: { quantity: number; unitPrice: number; wasted: boolean }[] | null
 }
@@ -79,6 +83,56 @@ export interface SalesMetrics {
   byCategory: { category: string; quantity: number; revenue: number }[]
   byHour: { hour: number; sales: number; revenue: number }[]
   topProducts: { name: string; quantity: number; revenue: number }[]
+  byCombo: ComboMetric[]
+}
+
+export interface ComboMetric {
+  comboId: string
+  name: string
+  quantity: number
+  revenue: number
+  avgTicket: number
+  components: { name: string; quantity: number }[]
+}
+
+/**
+ * Ventas por combo. El dinero vive en la línea padre; los platos solo suman
+ * cantidad (no hay reparto proporcional del precio).
+ */
+export function computeComboMetrics(orders: Pick<MetricOrder, 'items'>[]): ComboMetric[] {
+  const combos = new Map<string, { name: string; quantity: number; revenue: number; components: Map<string, number> }>()
+  const entry = (id: string, name: string) => {
+    let c = combos.get(id)
+    if (!c) {
+      c = { name, quantity: 0, revenue: 0, components: new Map() }
+      combos.set(id, c)
+    }
+    return c
+  }
+  for (const order of orders) {
+    for (const item of order.items ?? []) {
+      if (!item.comboId) continue
+      if (item.comboComponent) {
+        const c = entry(item.comboId, item.name)
+        c.components.set(item.name, (c.components.get(item.name) ?? 0) + item.quantity)
+      } else if (item.itemType === 'combo') {
+        const c = entry(item.comboId, item.name)
+        c.name = item.name
+        c.quantity += item.quantity
+        c.revenue += item.subtotal
+      }
+    }
+  }
+  return [...combos.entries()]
+    .map(([comboId, c]) => ({
+      comboId,
+      name: c.name,
+      quantity: c.quantity,
+      revenue: c.revenue,
+      avgTicket: c.quantity > 0 ? Math.round(c.revenue / c.quantity) : 0,
+      components: [...c.components.entries()].map(([name, quantity]) => ({ name, quantity })).sort((a, b) => b.quantity - a.quantity),
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
 }
 
 export function saleChannelOf(order: Pick<MetricOrder, 'source' | 'posTableId' | 'channel'>): SaleChannel {
@@ -189,6 +243,7 @@ export function computeSalesMetrics(
     byPayment: [...payments.entries()].map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount),
     byCategory: [...categories.entries()].map(([category, v]) => ({ category, ...v })).sort((a, b) => b.revenue - a.revenue),
     byHour: hours,
+    byCombo: computeComboMetrics(orders.filter(isBilledSale)),
     topProducts: [...products.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
   }
 }
@@ -219,7 +274,7 @@ function nextDay(date: string): string {
 
 const METRIC_FIELDS =
   'source posTableId channel status total discountAmount guests createdAt payment.method payment.status posPayments voided ' +
-  'items.menuItemId items.name items.categoryName items.quantity items.subtotal items.posDiscount.amountCents itemVoids'
+  'items.menuItemId items.name items.categoryName items.quantity items.subtotal items.posDiscount.amountCents items.itemType items.comboId items.comboComponent itemVoids'
 
 /**
  * Carga y calcula las métricas de una sede para un rango de días (zona de la

@@ -186,3 +186,15 @@ export {
   type TableLayout,
   type PlacedTable,
 } from "./floor-plan"
+
+export {
+  calculateComboPrice,
+  isComboAvailable,
+  isComboOnSchedule,
+  validateComboSelection,
+  type ComboPricingInputItem,
+  type CalculateComboPriceParams,
+  type ComboPriceResult,
+  type CatalogItemAvailability,
+  type ValidateComboSelectionParams,
+} from "./combo"

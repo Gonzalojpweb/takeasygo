@@ -120,6 +120,17 @@ export interface ITenant extends Document {
       cardBgColor?: string
       badgeBgColor?: string
     }
+    combosCarousel?: {
+      showSection?: boolean
+      sectionTitle?: string
+      position?: 'afterBestsellers' | 'afterFeatured' | 'beforeCategories' | 'afterCategories'
+      style?: {
+        backgroundColor?: string
+        textColor?: string
+        badgeColor?: string
+        accentColor?: string
+      }
+    }
     /** Color de fondo para contenedores de sección (Destacados, Club) - estilo nativo tipo PedidosYa */
     sectionContainerColor?: string
   }
@@ -613,6 +624,34 @@ const TenantSchema = new Schema<ITenant>(
           accentColor: '',
           cardBgColor: '#ffffff',
           badgeBgColor: '#ef4444',
+        }),
+      },
+      combosCarousel: {
+        type: {
+          showSection: { type: Boolean, default: true },
+          sectionTitle: { type: String, default: 'COMBOS' },
+          position: {
+            type: String,
+            enum: ['afterBestsellers', 'afterFeatured', 'beforeCategories', 'afterCategories'],
+            default: 'afterBestsellers',
+          },
+          style: {
+            backgroundColor: { type: String, default: '' },
+            textColor: { type: String, default: '' },
+            badgeColor: { type: String, default: '' },
+            accentColor: { type: String, default: '' },
+          },
+        },
+        default: () => ({
+          showSection: true,
+          sectionTitle: 'COMBOS',
+          position: 'afterBestsellers',
+          style: {
+            backgroundColor: '',
+            textColor: '',
+            badgeColor: '',
+            accentColor: '',
+          },
         }),
       },
       sectionContainerColor: { type: String, default: '' },

@@ -114,6 +114,7 @@ export {
   type IvaBreakdown,
 } from "./fiscal"
 export { generateZReport, type ZReportInput } from "./z-report"
+export { calculateComboPrice, isComboAvailable, isComboOnSchedule, validateComboSelection } from "./combo"
 export {
   type CheckoutPart,
   type AllocatedPayment,

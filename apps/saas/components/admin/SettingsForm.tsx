@@ -1120,6 +1120,63 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           </div>
                   </section>
 
+                  {/* ── Carrusel de Combos ── */}
+                  <section className="space-y-4 p-5 rounded-3xl border border-border bg-card">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Carrusel de combos</p>
+                      <p className="text-[10px] text-muted-foreground/60">Separado de Promociones. Los combos se cargan en Marketing → Combos.</p>
+                    </div>
+                    <label className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-border">
+                      <span className="text-xs font-bold text-foreground">Mostrar el carrusel en el menú</span>
+                      <input
+                        type="checkbox"
+                        checked={branding.combosCarousel?.showSection !== false}
+                        onChange={e => setBranding((p: any) => ({ ...p, combosCarousel: { ...p.combosCarousel, showSection: e.target.checked } }))}
+                      />
+                    </label>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Título</Label>
+                        <input
+                          type="text"
+                          maxLength={40}
+                          value={branding.combosCarousel?.sectionTitle ?? 'COMBOS'}
+                          onChange={e => setBranding((p: any) => ({ ...p, combosCarousel: { ...p.combosCarousel, sectionTitle: e.target.value } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Posición</Label>
+                        <select
+                          value={branding.combosCarousel?.position ?? 'afterBestsellers'}
+                          onChange={e => setBranding((p: any) => ({ ...p, combosCarousel: { ...p.combosCarousel, position: e.target.value } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="afterFeatured">Después de destacados</option>
+                          <option value="afterBestsellers">Después de los más vendidos</option>
+                          <option value="beforeCategories">Antes de las categorías</option>
+                          <option value="afterCategories">Después de las categorías</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                      {([['backgroundColor', 'Fondo', '#ffffff'], ['textColor', 'Texto', '#111111'], ['badgeColor', 'Etiqueta', '#ef4444'], ['accentColor', 'Acento', '#ef4444']] as const).map(([key, label, fallback]) => (
+                        <label key={key} className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
+                          <input
+                            type="color"
+                            value={branding.combosCarousel?.style?.[key] || fallback}
+                            onChange={e => setBranding((p: any) => ({
+                              ...p,
+                              combosCarousel: { ...p.combosCarousel, style: { ...p.combosCarousel?.style, [key]: e.target.value } },
+                            }))}
+                            className="block h-11 w-full rounded-xl border border-border bg-background px-1"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+
                   {/* ── Mejores Vendidos ─────────────────────────── */}
                   <section className="space-y-5 p-5 rounded-3xl border border-border bg-card">
                     <div className="flex items-center gap-2">

@@ -7,6 +7,7 @@ export { ZReportRecordModel, type ZReportRecordDocument } from "./models/z-repor
 export { UserModel } from "./models/user"
 export { ConsumerModel } from "./models/consumer"
 export { TenantModel } from "./models/tenant"
+export { ComboModel, type IComboDocument } from "./models/combo"
 
 // Inventory: los modelos viven SOLO en apps/saas/models (DECISIONES_VIGENTES D-15).
 

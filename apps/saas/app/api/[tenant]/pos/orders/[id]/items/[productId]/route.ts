@@ -45,6 +45,12 @@ function matchesLine(item: SaasOrderItemDraft, productId: string, lineId: string
   return item.menuItemId?.toString() === productId
 }
 
+/** Un combo se quita entero: nunca queda un plato suelto ni el precio sin platos. */
+function withWholeCombos(before: SaasOrderItemDraft[], matches: SaasOrderItemDraft[]): SaasOrderItemDraft[] {
+  const instances = new Set(matches.map((m) => m.comboInstanceId).filter(Boolean))
+  return instances.size === 0 ? matches : before.filter((i) => matches.includes(i) || (i.comboInstanceId && instances.has(i.comboInstanceId)))
+}
+
 function assertProductId(productId: unknown): string {
   if (typeof productId !== 'string' || productId.length === 0 || productId.length > 100) {
     throw PosError.validation('productId inválido')
@@ -189,9 +195,12 @@ export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => 
   }
 
   const before = (current.items ?? []) as SaasOrderItemDraft[]
-  const matches = before.filter((i) => matchesLine(i, pid, lineId))
+  const matches = withWholeCombos(before, before.filter((i) => matchesLine(i, pid, lineId)))
   if (matches.length === 0) {
     throw PosError.notFound('Producto no encontrado en la orden')
+  }
+  if (quantity > 0 && matches.some((m) => m.comboInstanceId)) {
+    throw PosError.conflict('Un combo no cambia de cantidad: se quita entero')
   }
 
   const auditDetails: Record<string, unknown> = { productId: pid, lineId, quantity }
@@ -237,7 +246,7 @@ export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) =>
   const lineId = optionalLineId(params.get('lineId'))
 
   const before = (current.items ?? []) as SaasOrderItemDraft[]
-  const matches = before.filter((i) => matchesLine(i, pid, lineId))
+  const matches = withWholeCombos(before, before.filter((i) => matchesLine(i, pid, lineId)))
   if (matches.length === 0) {
     throw PosError.notFound('Producto no encontrado en la orden')
   }

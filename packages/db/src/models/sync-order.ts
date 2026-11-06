@@ -77,6 +77,10 @@ export const SyncOrderSchema = new Schema<SyncOrderDocument>(
         quantity: { type: Number, required: true },
         unitPrice: { type: Number, required: true },
         total: { type: Number, required: true },
+        comboId: { type: String },
+        comboComponent: { type: Boolean, default: false },
+        comboName: { type: String },
+        comboInstanceId: { type: String },
         modifiers: [
           {
             name: { type: String, required: true },

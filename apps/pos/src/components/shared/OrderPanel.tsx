@@ -152,7 +152,7 @@ export function OrderPanel({
         ) : (
           <div className="order-items">
             {items.map((item, idx) => (
-              <div key={`${item.productId}-${idx}`} className={`order-item-card${flash?.idx === idx ? " is-added" : ""}`}>
+              <div key={`${item.productId}-${idx}`} className={`order-item-card${item.comboComponent ? " is-combo-unit" : ""}${flash?.idx === idx ? " is-added" : ""}`}>
                 <div className="order-item-main">
                   <div className="order-item-top">
                     <span className="order-item-name">
@@ -160,7 +160,7 @@ export function OrderPanel({
                       {item.name}
                     </span>
                     <span className="order-item-total">
-                      {formatCurrency(item.total)}
+                      {item.comboComponent ? "Incluido" : formatCurrency(item.total)}
                     </span>
                   </div>
                   {item.modifiers && item.modifiers.length > 0 && (
@@ -185,7 +185,7 @@ export function OrderPanel({
                   )}
                 </div>
                 <div className="order-item-actions">
-                  {onEditOptions && editing !== idx && (isConfigurable ? isConfigurable(idx) : Boolean(item.modifiers?.length)) && (
+                  {onEditOptions && !item.comboInstanceId && editing !== idx && (isConfigurable ? isConfigurable(idx) : Boolean(item.modifiers?.length)) && (
                     <button
                       type="button"
                       className="order-item-options-btn"
@@ -195,7 +195,7 @@ export function OrderPanel({
                       <SlidersHorizontal size={14} aria-hidden /> Opciones
                     </button>
                   )}
-                  {onEditNote && editing !== idx && (
+                  {onEditNote && editing !== idx && (!item.comboInstanceId || item.comboComponent) && (
                     <button
                       type="button"
                       className={`order-item-note-btn${item.notes || item.course ? " has-note" : ""}`}
@@ -206,7 +206,7 @@ export function OrderPanel({
                       <MessageSquare size={16} aria-hidden />
                     </button>
                   )}
-                  {onUpdateQuantity && (
+                  {onUpdateQuantity && !item.comboInstanceId && (
                     <div className="order-item-qty">
                       <button type="button" onClick={() => onUpdateQuantity(idx, item.quantity - 1)} aria-label={`Uno menos de ${item.name}`}>
                         −
@@ -219,7 +219,7 @@ export function OrderPanel({
                       </button>
                     </div>
                   )}
-                  {!onUpdateQuantity && <span className="order-item-qty">{item.quantity}×</span>}
+                  {(!onUpdateQuantity || item.comboInstanceId) && <span className="order-item-qty">{item.quantity}×</span>}
                   {onRemoveItem && (
                     <button
                       type="button"

@@ -60,6 +60,15 @@ El producto seguirá en el sistema pero no aparecerá en el catálogo del client
 2. Arrastrar y soltar los productos para cambiar su orden.
 3. Guardar cambios automáticamente al soltar.
 
+### Crear un combo (admin/manager)
+1. Ir a **Menú lateral → Marketing → Combos** y elegir la sede.
+2. Tocar **Nuevo combo**: nombre, precio fijo o suma de los productos elegidos, cantidad de platos y productos elegibles.
+3. Opcional: si se puede repetir el mismo plato, si se cobran los extras de personalización, horario, dónde se ofrece (salón, para llevar o ambos), etiqueta, imagen y colores.
+4. El combo aparece en su propio carrusel, separado de Promociones, en el menú online, en la carta del salón (solo para ver) y en el POS. El título, la posición y los colores del carrusel se eligen en **Ajustes → Identidad → Carrusel de combos**.
+5. El combo no tiene stock propio: si uno de sus productos se pausa o se queda sin stock, el combo se pausa solo hasta que vuelva.
+6. En el POS se toca el combo en el carrusel, se elige cada plato y se personaliza por separado. Si se borra una línea del combo del pedido, se borra el combo entero.
+7. En la cocina y la barra, cada estación recibe el nombre del combo con los platos que le tocan; la caja ve también el precio. En los reportes, el dinero del combo queda en el combo y los platos solo suman cantidad.
+
 ## Configuración y opciones disponibles
 
 | Opción | Qué hace |

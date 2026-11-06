@@ -46,8 +46,17 @@ const promoBundleSlotSchema = z.object({
   units: z.array(promoBundleUnitSchema).min(1).max(50),
 })
 
+// Combo (colección propia): el server recalcula precio y platos contra la carta.
+const comboUnitSchema = z.object({
+  menuItemId: z.string().regex(/^[a-f\d]{24}$/i, 'ID de item inválido'),
+  customizations: z.array(customizationGroupSchema).max(10).default([]),
+  selectedVariant: selectedVariantSchema.optional(),
+})
+
 const orderItemSchema = z.object({
-  type: z.enum(['menuItem', 'promotion', 'reward']).optional().default('menuItem'),
+  type: z.enum(['menuItem', 'promotion', 'reward', 'combo']).optional().default('menuItem'),
+  comboId: z.string().regex(/^[a-f\d]{24}$/i, 'ID de combo inválido').optional(),
+  _comboUnits: z.array(comboUnitSchema).max(10).optional(),
   menuItemId: z.string().optional(),
   promotionId: z.string().optional(),
   quantity: z.number().int().min(1).max(99),

@@ -9,7 +9,7 @@ export interface SelectedCustomization {
   selectedOptions: SelectedCustomizationOption[]
 }
 
-export type CartItemType = 'menuItem' | 'promotion' | 'reward'
+export type CartItemType = 'menuItem' | 'promotion' | 'reward' | 'combo'
 
 export interface SelectedVariant {
   name: string
@@ -42,6 +42,9 @@ export interface CartItem {
   _slotName?: string           // Nombre del slot, para subtítulo en carrito
   _itemName?: string           // Ítem elegido dentro de la promo (líneas legacy)
   _promotionShortDescription?: string
+  /** Solo type === 'combo': combo de la colección propia, con sus platos. */
+  comboId?: string
+  _comboUnits?: { menuItemId: string; itemName?: string; customizations?: SelectedCustomization[]; selectedVariant?: SelectedVariant; customizationSummary?: string }[]
   /** Solo type === 'promotion': bundle completo (1 línea = 1 combo entero). */
   _bundle?: PromoBundleSlot[]
   name: string

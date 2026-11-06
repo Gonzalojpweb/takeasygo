@@ -19,6 +19,7 @@ import LocationBar from '@/components/menu/LocationBar'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
 import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import { menuHref } from '@/lib/menu/location-ref'
@@ -111,6 +112,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [modalItem, setModalItem] = useState<any | null>(null)
   const [promotions, setPromotions] = useState<any[]>([])
+  const [combos, setCombos] = useState<PublicCombo[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
   const [showCartPopup, setShowCartPopup] = useState(false)
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -147,6 +149,13 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   } | null>(null)
 
   const [promoQtyValue, setPromoQtyValue] = useState(1)
+
+  useEffect(() => {
+    fetch(`/api/${tenant.slug}/menu/${location._id}/combos?mode=dine-in`)
+      .then(r => r.ok ? r.json() : { combos: [] })
+      .then(data => setCombos(data.combos || []))
+      .catch(() => setCombos([]))
+  }, [tenant.slug, location._id])
 
   useEffect(() => {
     fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
@@ -195,6 +204,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
     })
   }
 
+  const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
+  const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
+    (comboSettings?.position ?? 'afterBestsellers') === position ? (
+      <ComboCarousel combos={combos} settings={comboSettings} primary={branding.primaryColor} textColor={text} />
+    ) : null
+
   const featuredPromotions = promotions.filter(p => p.isFeatured)
   const regularPromotions = promotions.filter(p => !p.isFeatured)
 
@@ -221,6 +236,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   }
 
   function addPromotionToCart(promotion: any) {
+    // Solo las promociones de venta van al carrito: el server rechaza las demás.
+    if (promotion.type !== 'sale') return
     const linkedItems = promotion.linkedItems || (promotion.linkedItem ? [promotion.linkedItem] : [])
 
     // Edge case: overrideCustomizationGroups without linked items
@@ -602,6 +619,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           </button>
 </div>
 
+        {comboSection('afterFeatured')}
+
         {/* Promotions Section */}
         {promotions.length > 0 && (
           <section className="mb-8 px-1">
@@ -628,6 +647,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       </div>
       {/* ── Menu sections ─────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 py-8">
+        {comboSection('beforeCategories')}
         {categories.map((cat: any) => {
           const hasSubcategories = (cat.subcategories ?? []).length > 0
           return (
@@ -888,6 +908,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
             </section>
           )
         })}
+
+        {comboSection('afterCategories')}
       </main>
 
       {/* ── End of Menu: Club + TGO Network ── */}
@@ -919,6 +941,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           }}
         />
       )}
+
+      <div className="max-w-4xl mx-auto px-4">{comboSection('afterBestsellers')}</div>
 
       {/* ── Footer ────────────────────────────────────────── */}
       <footer style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>

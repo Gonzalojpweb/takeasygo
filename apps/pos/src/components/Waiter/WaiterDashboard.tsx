@@ -20,6 +20,8 @@ import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
 import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
+import { ComboBuilderSheet } from "../shared/ComboBuilderSheet"
+import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/combo"
 import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
 import { GuestsDialog } from "../shared/GuestsDialog"
@@ -92,7 +94,8 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
   const { createOrder, confirmOrder } = useOrders()
-  const { products, categories } = useMenu()
+  const { products, combos, categories } = useMenu()
+  const [buildingCombo, setBuildingCombo] = useState<Product | null>(null)
   const { confirmAndSendToKitchen } = useKitchenCommands()
   const tableActivity = useTableActivity(tenantId)
   const now = useNow()
@@ -175,13 +178,14 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const handleUpdateQuantity = useCallback((index: number, quantity: number) => {
     setCart((prev) =>
       quantity <= 0
-        ? prev.filter((_, i) => i !== index)
+        ? removeCartLine(prev, index)
         : prev.map((item, i) => (i === index ? { ...item, quantity, total: scaleLineTotal(item, quantity) } : item))
     )
   }, [])
 
+  // Borrar una línea de un combo borra el combo entero.
   const handleRemoveItem = useCallback((index: number) => {
-    setCart((prev) => prev.filter((_, i) => i !== index))
+    setCart((prev) => removeCartLine(prev, index))
   }, [])
 
   const handleEditNote = useCallback((index: number, note: string, course: ItemCourse | undefined) => {
@@ -207,7 +211,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
     })
   }, [cart])
 
-  const isConfigurableLine = useCallback((index: number) => Boolean(cart[index]?.product?.modifiers?.length), [cart])
+  const isConfigurableLine = useCallback((index: number) => !cart[index]?.comboInstanceId && Boolean(cart[index]?.product?.modifiers?.length), [cart])
 
   // ── Operaciones (todas server-first) ─────────────────────────────────────
   const handleSendToKitchen = useCallback(async () => {
@@ -232,6 +236,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
             unitPrice: item.unitPrice,
             total: item.total,
             ...(item.modifiers?.length ? { modifiers: item.modifiers } : {}),
+            ...comboWireFields(item),
             ...(item.notes ? { notes: item.notes } : {}),
             ...(item.course ? { course: item.course } : {}),
           })),
@@ -453,9 +458,24 @@ export function WaiterDashboard({ role }: { role?: string }) {
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
             onSelectProduct={handleAddProduct}
+            combos={combos}
+            onSelectCombo={setBuildingCombo}
             popularIds={popularIds}
             back={{ label: `Mesa ${selectedTable?.number ?? ""}`, onClick: () => setScene("mesa"), disabled: sending }}
-            overlay={configuring && (
+            overlay={buildingCombo ? (
+              <ComboBuilderSheet
+                key={buildingCombo.id}
+                combo={buildingCombo}
+                products={products}
+                onConfirm={(units) => {
+                  const combo = buildingCombo
+                  setBuildingCombo(null)
+                  const lines = buildComboLines(combo, units, crypto.randomUUID()).map((line) => ({ product: combo, ...line }) as CartItem)
+                  setCart((prev) => [...prev, ...lines])
+                }}
+                onCancel={() => setBuildingCombo(null)}
+              />
+            ) : configuring && (
               <ProductConfigSheet
                 key={`${configuring.product.id}-${configuring.index ?? "new"}`}
                 product={configuring.product}

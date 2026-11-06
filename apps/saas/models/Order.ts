@@ -34,7 +34,12 @@ export interface IOrderItem {
   menuItemId?: mongoose.Types.ObjectId
   promotionId?: string
   storeItemId?: mongoose.Types.ObjectId
-  itemType: 'menuItem' | 'promotion' | 'reward'
+  comboId?: string
+  comboComponent?: boolean
+  comboName?: string
+  /** Une las líneas de UN combo vendido. */
+  comboInstanceId?: string
+  itemType: 'menuItem' | 'promotion' | 'reward' | 'combo'
   categoryName: string
   name: string
   description: string
@@ -503,9 +508,25 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: Schema.Types.ObjectId,
     default: null,
   },
+  comboId: {
+    type: String,
+    default: null,
+  },
+  comboComponent: {
+    type: Boolean,
+    default: false,
+  },
+  comboName: {
+    type: String,
+    default: null,
+  },
+  comboInstanceId: {
+    type: String,
+    default: null,
+  },
   itemType: {
     type: String,
-    enum: ['menuItem', 'promotion', 'reward'],
+    enum: ['menuItem', 'promotion', 'reward', 'combo'],
     default: 'menuItem',
   },
   categoryName: { type: String, default: '' },

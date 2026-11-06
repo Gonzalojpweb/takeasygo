@@ -1,5 +1,8 @@
 import Menu from '@/models/Menu'
-import { flattenMenuSnapshot, type RawMenu } from '@takeasygo/business'
+import Combo from '@/models/Combo'
+import { calculateComboPrice, flattenMenuSnapshot, isComboAvailable, isComboOnSchedule, validateComboSelection, type RawMenu } from '@takeasygo/business'
+import Location from '@/models/Location'
+import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import type { Product, ProductModifier } from '@takeasygo/types'
 import { PosError } from './errors'
 import type { PosOrderItemInput } from './orderMapper'
@@ -177,6 +180,86 @@ export function assertItemMatchesCatalog(
   }
 }
 
+interface ComboForCatalog {
+  _id: unknown
+  name: string
+  isActive: boolean
+  priceMode: 'fixed' | 'sumItems'
+  fixedPrice?: number | null
+  itemPool: string[]
+  minItems: number
+  maxItems: number
+  allowRepeat: boolean
+  chargeCustomizationExtras: boolean
+  availabilitySchedule?: { days?: number[]; from?: string; to?: string } | null
+}
+
+/**
+ * Valida UN combo vendido (padre + platos). Puro, sin DB. El precio de cada
+ * agregado se confirma contra la carta: en la línea viaja en cero (lo paga el
+ * padre) y en `listPrice` su precio de lista.
+ */
+export function assertComboLinesMatchCatalog(
+  lines: PosOrderItemInput[],
+  combo: ComboForCatalog | undefined,
+  products: ReadonlyMap<string, Product>,
+  now: Date,
+  timezone: string
+): void {
+  const parents = lines.filter((l) => !l.comboComponent)
+  const units = lines.filter((l) => l.comboComponent)
+  const parent = parents[0]
+  if (parents.length !== 1 || units.length === 0) {
+    throw PosError.conflict('Combo incompleto: volvé a armarlo', `instancia=${lines[0]?.comboInstanceId}`)
+  }
+  if (!combo || !combo.isActive || parent.productId !== String(combo._id)) {
+    throw PosError.conflict(`El combo «${parent.name}» ya no está disponible`, `comboId=${parent.comboId}`)
+  }
+  if (!isComboOnSchedule(combo.availabilitySchedule, now, timezone)) {
+    throw PosError.conflict(`El combo «${combo.name}» no está disponible en este horario`)
+  }
+  // Un producto pausado o sin stock pausa el combo entero.
+  if (!isComboAvailable(combo, products as Map<string, Product>)) {
+    throw PosError.conflict(`El combo «${combo.name}» está pausado: falta alguno de sus productos`)
+  }
+  const selection = validateComboSelection({
+    itemPool: combo.itemPool,
+    minItems: combo.minItems,
+    maxItems: combo.maxItems,
+    allowRepeat: combo.allowRepeat,
+    selectedItemIds: units.map((u) => u.productId),
+  })
+  if (!selection.valid) throw PosError.conflict(selection.error ?? 'Selección de combo inválida')
+
+  const priced = units.map((unit) => {
+    const product = products.get(unit.productId) as Product
+    if (unit.quantity !== 1 || unit.unitPrice !== 0 || unit.total !== 0) {
+      throw PosError.conflict(`«${unit.name}» dentro de un combo va sin precio propio`, `unit=${unit.unitPrice} total=${unit.total}`)
+    }
+    const valid = new Map<string, Set<number>>()
+    collectModifierPrices(product.modifiers, valid)
+    let extra = 0
+    for (const m of unit.modifiers ?? []) {
+      const prices = valid.get(m.name)
+      if (isHalfLabel(m.name) || !prices || m.price !== 0 || m.listPrice === undefined || !prices.has(m.listPrice)) {
+        throw PosError.conflict(`Modificador "${m.name}" fuera del catálogo vigente en "${product.name}"`, `listPrice=${m.listPrice}`)
+      }
+      extra += m.listPrice
+    }
+    return { price: product.price, extraPrice: extra }
+  })
+
+  const price = calculateComboPrice({
+    priceMode: combo.priceMode,
+    fixedPrice: combo.fixedPrice ?? 0,
+    chargeCustomizationExtras: combo.chargeCustomizationExtras,
+    items: priced,
+  })
+  if (parent.quantity !== 1 || parent.unitPrice !== price.totalPrice || parent.total !== price.totalPrice || parent.modifiers?.length) {
+    throw PosError.conflict(`Precio del combo «${combo.name}» fuera del catálogo vigente`, `unitPrice=${parent.unitPrice} catalogo=${price.totalPrice}`)
+  }
+}
+
 /** Para POST /pos/orders/[id]/items — un solo item. */
 export async function assertItemAgainstCatalog(
   item: PosOrderItemInput,
@@ -193,7 +276,25 @@ export async function assertOrderAgainstCatalog(
   locationId: string
 ): Promise<void> {
   const products = await loadPosCatalog(tenantId, locationId)
+  const groups = new Map<string, PosOrderItemInput[]>()
   for (const item of items) {
-    assertItemMatchesCatalog(item, products)
+    if (item.comboInstanceId) {
+      const group = groups.get(item.comboInstanceId) ?? []
+      group.push(item)
+      groups.set(item.comboInstanceId, group)
+    } else {
+      assertItemMatchesCatalog(item, products)
+    }
+  }
+  if (groups.size === 0) return
+
+  const [combos, location] = await Promise.all([
+    Combo.find({ tenantId, $or: [{ locationId: null }, { locationId }] }).lean<(ComboForCatalog & { _id: unknown })[]>(),
+    Location.findOne({ _id: locationId, tenantId }).select('timezone').lean<{ timezone?: string }>(),
+  ])
+  const byId = new Map(combos.map((c) => [String(c._id), c]))
+  const now = new Date()
+  for (const lines of groups.values()) {
+    assertComboLinesMatchCatalog(lines, byId.get(String(lines[0].comboId)), products, now, location?.timezone || DEFAULT_TIMEZONE)
   }
 }
