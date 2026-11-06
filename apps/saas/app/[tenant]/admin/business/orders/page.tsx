@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { headers } from 'next/headers'
+import { getAdminSession } from '@/lib/tenant-access'
 import { notFound } from 'next/navigation'
 import type { Types } from 'mongoose'
 import type { Plan } from '@/lib/plans'
@@ -9,6 +10,9 @@ import { Lock, ClipboardList } from 'lucide-react'
 import BusinessOrdersClient from '@/components/admin/business/BusinessOrdersClient'
 
 export default async function BusinessOrdersPage() {
+  // PR 3 multi-marca (S4): cada página se protege sola, sin confiar en el layout.
+  const session = await getAdminSession()
+  if (!session?.user) notFound()
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 

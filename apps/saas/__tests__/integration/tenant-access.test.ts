@@ -8,7 +8,7 @@ import AccessShadowEvent from '@/models/AccessShadowEvent'
 import { auth } from '@/lib/auth'
 import { clearFreshUserCache } from '@/lib/apiAuth'
 import { classifyShadow, clearAccessModeCache, getAccessMode } from '@/lib/access-central'
-import { authorizeTenantBySlug, belongsTo, canOperateTenant, requireSuperAdminCentral } from '@/lib/tenant-access'
+import { authorizeTenantBySlug, belongsTo, canOperateTenant, getAdminSession, requireSuperAdminCentral } from '@/lib/tenant-access'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
 
@@ -194,3 +194,41 @@ describe('getAccessMode', () => {
     expect(await getAccessMode()).toBe('log')
   })
 })
+
+describe('getAdminSession (PR 3: páginas del admin)', () => {
+  it('off: sesión para su comercio, null para otro (S4: la página se protege sola)', async () => {
+    await setMode('off')
+    expect((await getAdminSession('marca-a'))?.user.role).toBe('manager')
+    expect(await getAdminSession('marca-b')).toBeNull()
+  })
+
+  it('sin slug ni sesión: null', async () => {
+    await setMode('off')
+    authMock.mockResolvedValue(null)
+    expect(await getAdminSession('marca-a')).toBeNull()
+  })
+
+  it('enforce: desactivado → null; rol fresco en la sesión', async () => {
+    await setMode('enforce')
+    await User.updateOne({ _id: userId }, { role: 'admin' })
+    expect((await getAdminSession('marca-a'))?.user.role).toBe('admin')
+    clearFreshUserCache()
+    await User.updateOne({ _id: userId }, { isActive: false })
+    expect(await getAdminSession('marca-a')).toBeNull()
+  })
+
+  it('log: devuelve la del JWT y registra la divergencia', async () => {
+    await setMode('log')
+    await User.updateOne({ _id: userId }, { isActive: false })
+    expect(await getAdminSession('marca-a')).not.toBeNull()
+    await waitShadow(1)
+    expect((await AccessShadowEvent.findOne().lean())?.family).toBe('admin-page')
+  })
+
+  it('superadmin entra a cualquier comercio', async () => {
+    await setMode('off')
+    jwt({ id: userId, role: 'superadmin', tenantSlug: null })
+    expect(await getAdminSession('marca-b')).not.toBeNull()
+  })
+})
+

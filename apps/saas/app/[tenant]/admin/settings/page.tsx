@@ -4,7 +4,7 @@ import Location from '@/models/Location'
 import PlatformConfig from '@/models/PlatformConfig'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import SettingsForm from '@/components/admin/SettingsForm'
 import type { Types } from 'mongoose'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
@@ -16,7 +16,7 @@ interface LeanTenant {
 }
 
 export default async function SettingsPage() {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   if (role !== 'admin' && role !== 'superadmin' && role !== 'manager') {
     redirect('/')

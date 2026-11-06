@@ -61,26 +61,6 @@ const BASELINE: Record<string, Counts & { pr: Pr }> = {
   'app/api/superadmin/tenants/[tenantId]/mp-split/route.ts': { auth_call: 1, pr: 'PR4' }, // Mercado Pago: no se toca sin OK expreso del dueño
 
   // ── PR 3: páginas del admin ────────────────────────────────────────────────
-  'app/[tenant]/admin/layout.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/analytics/page.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/audit/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/billing/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/club/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/commissions/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/commissions/semana/[key]/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/delivery/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/go-plus/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/intelligence/page.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/marketing-qr/page.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/orders/history/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/orders/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/promotions/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/reviews/page.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/settings/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/special-dates/page.tsx': { auth_call: 1, slug_cmp: 1, pr: 'PR3' },
-  'app/[tenant]/admin/store/page.tsx': { auth_call: 1, pr: 'PR3' },
-  'app/[tenant]/admin/wallet/page.tsx': { auth_call: 1, pr: 'PR3' },
 
   // ── PR 4: cierre (seller, superadmin páginas, apiKey, OAuth callback) ───────
   'app/api/mp-oauth/callback/route.ts': { auth_call: 1, slug_cmp: 1, pr: 'PR4' },

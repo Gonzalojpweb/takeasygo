@@ -2,14 +2,14 @@ import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { ClipboardList, Lock } from 'lucide-react'
 import OrderHistory from '@/components/admin/OrderHistory'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 
 export default async function OrderHistoryPage() {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   if (!role || role === 'staff') redirect('/')
 
@@ -17,11 +17,7 @@ export default async function OrderHistoryPage() {
   const tenantSlug = headersList.get('x-tenant-slug')
   if (!tenantSlug) notFound()
 
-  // Verificar que el usuario pertenece al tenant correcto
-  const sessionTenantSlug = session?.user?.tenantSlug
-  if (sessionTenantSlug && sessionTenantSlug !== tenantSlug && role !== 'superadmin') {
-    redirect('/')
-  }
+  // PR 3 multi-marca: el comercio ya lo verificó getAdminSession (null ⇒ sin rol ⇒ redirect arriba).
 
   await connectDB()
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any

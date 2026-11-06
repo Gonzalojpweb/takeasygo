@@ -1,4 +1,4 @@
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
@@ -14,7 +14,7 @@ export default async function ReviewsPage({
   params: Promise<{ tenant: string }>
 }) {
   const { tenant: tenantSlug } = await params
-  const session = await auth()
+  const session = await getAdminSession(tenantSlug)
 
   if (!session?.user) redirect('/login')
 
@@ -26,10 +26,7 @@ export default async function ReviewsPage({
 
   if (!tenant) redirect('/login')
 
-  const isOwner = session.user.tenantSlug === tenantSlug
-  const isSuperadmin = session.user.role === 'superadmin'
-
-  if (!isOwner && !isSuperadmin) redirect('/login')
+  // PR 3 multi-marca: getAdminSession ya verificó que pueda operar este comercio.
 
   // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
   // recibe datos de sus sedes.

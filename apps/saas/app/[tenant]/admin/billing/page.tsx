@@ -2,13 +2,13 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import BillingPanel from '@/components/admin/BillingPanel'
 import { CreditCard } from 'lucide-react'
 import type { Plan } from '@/lib/plans'
 
 export default async function BillingPage() {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   if (role !== 'admin' && role !== 'superadmin') redirect('/')
 

@@ -4,13 +4,13 @@ import Location from '@/models/Location'
 import Promotion from '@/models/Promotion'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import PromotionsManager from '@/components/admin/PromotionsManager'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import { getPageScope } from '@/lib/page-scope'
 
 export default async function PromotionsPage() {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   if (role !== 'admin' && role !== 'superadmin') {
     redirect('/')

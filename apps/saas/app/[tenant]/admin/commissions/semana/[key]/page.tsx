@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { canPayCommissions, canViewCommissions } from '@/lib/commission-access'
 import CommissionWeekDetail from '@/components/admin/commissions/CommissionWeekDetail'
 
 // Tickets de la semana (admin, manager y cajero). La API valida todo de nuevo.
 export default async function CommissionWeekPage({ params }: { params: Promise<{ tenant: string; key: string }> }) {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   const { tenant: tenantSlug, key } = await params
   if (!canViewCommissions(role)) redirect(`/${tenantSlug}/admin`)

@@ -3,13 +3,15 @@ import Tenant from '@/models/Tenant'
 import DeliveryPerson from '@/models/DeliveryPerson'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import DeliveryFleetManager from '@/components/admin/DeliveryFleetManager'
 
 export default async function AdminDeliveryPage() {
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
-  const session = await auth()
+  const session = await getAdminSession()
+  // PR 3 multi-marca (S4): cada página se protege sola, sin confiar en el layout.
+  if (!session?.user) notFound()
 
   await connectDB()
 

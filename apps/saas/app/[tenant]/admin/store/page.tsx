@@ -1,6 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import { canAccess } from '@/lib/plans'
 import StoreManager from '@/components/admin/StoreManager'
@@ -19,7 +19,7 @@ interface PageProps {
 
 export default async function StorePage({ params }: PageProps) {
   const { tenant: tenantSlug } = await params
-  const session = await auth()
+  const session = await getAdminSession(tenantSlug)
 
   if (!session?.user) {
     redirect('/login')

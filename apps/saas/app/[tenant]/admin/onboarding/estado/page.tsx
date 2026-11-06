@@ -1,9 +1,13 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import { redirect } from 'next/navigation'
+import { redirect, notFound } from 'next/navigation'
+import { getAdminSession } from '@/lib/tenant-access'
 import OnboardingEstadoView from './OnboardingEstadoView'
 
 export default async function OnboardingEstadoPage({ params }: { params: Promise<{ tenant: string }> }) {
+  // PR 3 multi-marca (S4): cada página se protege sola, sin confiar en el layout.
+  const session = await getAdminSession()
+  if (!session?.user) notFound()
   await connectDB()
   const { tenant: tenantSlug } = await params
   const tenant = await Tenant.findOne({ slug: tenantSlug })

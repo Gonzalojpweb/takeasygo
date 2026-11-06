@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import DeliveryPerson from '@/models/DeliveryPerson'
+import { getAdminSession } from '@/lib/tenant-access'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import DeliveryTripHistory from '@/components/admin/DeliveryTripHistory'
@@ -25,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function DeliveryPersonTripsPage({ params }: Props) {
   const { tenant: tenantSlug, id } = await params
+  // PR 3 multi-marca (S4): cada página se protege sola, sin confiar en el layout.
+  const session = await getAdminSession(tenantSlug)
+  if (!session?.user) notFound()
   const headersList = await headers()
   const tenantSlugFromHeader = headersList.get('x-tenant-slug') || tenantSlug
 

@@ -183,3 +183,70 @@ export async function requireSuperAdminCentral(family = 'superadmin', request?: 
   }
   return newOk ? null : denied
 }
+
+// ── Páginas del admin (PR 3) ────────────────────────────────────────────────
+
+export interface AdminSessionUser {
+  id: string | null
+  email: string | null
+  name: string | null
+  role: string
+  tenantId: string | null
+  tenantSlug: string | null
+  assignedLocations: string[]
+  image?: string | null
+}
+
+/**
+ * Sesión para las páginas del panel de un comercio: misma forma que `auth()`
+ * (`session?.user?.role`), pero devuelve null si la persona NO puede operar
+ * ese comercio (S4: cada página se protege sola, sin confiar en el layout).
+ * El slug sale del parámetro o, si no viene, del encabezado `x-tenant-slug`
+ * (en las rutas del comercio lo escribe el proxy; el del cliente se pisa).
+ * Respeta `access.central`: off/log deciden con el JWT, enforce con la base.
+ */
+export async function getAdminSession(tenantSlug?: string | null): Promise<{ user: AdminSessionUser } | null> {
+  let slug = tenantSlug ?? null
+  if (!slug) {
+    try {
+      const { headers } = await import('next/headers')
+      slug = (await headers()).get('x-tenant-slug')
+    } catch {
+      slug = null
+    }
+  }
+  if (!slug) return null
+
+  const mode = await getAccessMode()
+  const session = await auth()
+  const jwt = session?.user as (JwtUser & { image?: string | null }) | undefined
+  const oldOk = Boolean(jwt) && (jwt!.role === 'superadmin' || jwt!.tenantSlug === slug)
+  const fromJwt = () => (oldOk && jwt
+    ? { user: { id: jwt.id ?? null, email: jwt.email ?? null, name: jwt.name ?? null, role: jwt.role ?? '', tenantId: jwt.tenantId ?? null, tenantSlug: jwt.tenantSlug ?? null, assignedLocations: jwt.assignedLocations ?? [], image: jwt.image ?? null } }
+    : null)
+  if (mode === 'off') return fromJwt()
+
+  const fresh = (await getSessionUser()) as (JwtUser & { image?: string | null }) | null
+  let tenantId: string | null = null
+  try {
+    const { connectDB } = await import('@/lib/mongoose')
+    await connectDB()
+    const Tenant = (await import('@/models/Tenant')).default
+    const t = await Tenant.findOne({ slug }).select('_id').lean<{ _id: unknown }>()
+    tenantId = t ? String(t._id) : null
+  } catch {
+    tenantId = null
+  }
+  const newOk = Boolean(fresh) && canOperateTenant(fresh, tenantId)
+  if (mode === 'log') {
+    recordShadow({
+      family: 'admin-page', route: null, userId: jwt?.id ?? fresh?.id ?? null, tenantId,
+      oldDecision: oldOk, newDecision: newOk, oldRole: jwt?.role ?? null, newRole: fresh?.role ?? null,
+      hadJwt: Boolean(jwt), freshFound: Boolean(fresh), oldTenantMatches: oldOk, newTenantMatches: newOk,
+    })
+    return fromJwt()
+  }
+  return newOk && fresh
+    ? { user: { id: fresh.id ?? null, email: fresh.email ?? null, name: fresh.name ?? null, role: fresh.role ?? '', tenantId: fresh.tenantId ?? null, tenantSlug: slug, assignedLocations: fresh.assignedLocations ?? [], image: fresh.image ?? null } }
+    : null
+}

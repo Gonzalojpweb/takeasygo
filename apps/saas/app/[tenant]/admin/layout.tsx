@@ -3,7 +3,7 @@ import { loadCommissionWeeks, summarizeAlerts, type CommissionAlerts } from '@/l
 import { canPayCommissions, canViewCommissions } from '@/lib/commission-access'
 import { Toaster } from '@/components/ui/sonner'
 import PoweredByTakeasy from '@/components/PoweredByTakeasy'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import DesktopSidebar from '@/components/admin/DesktopSidebar'
@@ -67,18 +67,14 @@ export default async function AdminLayout({
   params,
 }: AdminLayoutProps) {
   const { tenant } = await params
-  const session = await auth()
+  const session = await getAdminSession(tenant)
 
   if (!session?.user) {
     redirect(`/${tenant}/admin/login`)
   }
 
+  // PR 3 multi-marca: getAdminSession ya verificó que pueda operar este comercio.
   const isSuperadmin = session.user.role === 'superadmin'
-  const isOwnerOfTenant = session.user.tenantSlug === tenant
-
-  if (!isSuperadmin && !isOwnerOfTenant) {
-    redirect(`/${tenant}/admin/login`)
-  }
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })

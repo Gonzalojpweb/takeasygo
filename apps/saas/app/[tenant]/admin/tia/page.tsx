@@ -1,11 +1,15 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { getAdminSession } from '@/lib/tenant-access'
 import { notFound } from 'next/navigation'
 import { headers } from 'next/headers'
 import TiaDashboard from '@/components/admin/tia/TiaDashboard'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
 
 export default async function TiaPage() {
+  // PR 3 multi-marca (S4): cada página se protege sola, sin confiar en el layout.
+  const session = await getAdminSession()
+  if (!session?.user) notFound()
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 

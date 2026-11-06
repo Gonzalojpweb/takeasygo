@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getAdminSession } from '@/lib/tenant-access'
 import { Shield, Lock } from 'lucide-react'
 import AuditLogViewer from '@/components/admin/AuditLogViewer'
 import { connectDB } from '@/lib/mongoose'
@@ -9,7 +9,7 @@ import type { Plan } from '@/lib/plans'
 import { PLAN_LABELS, canAccess, requiredPlanFor } from '@/lib/plans'
 
 export default async function AuditPage() {
-  const session = await auth()
+  const session = await getAdminSession()
   const role = session?.user?.role
   if (role !== 'admin' && role !== 'superadmin') {
     redirect('/')

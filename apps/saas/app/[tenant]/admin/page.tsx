@@ -99,13 +99,21 @@ export default async function AdminDashboard() {
   // Get userName from auth session for ICOWidget personalization
   let userName = ''
   let role: string | undefined
+  let noAccess = false
   try {
-    const { auth } = await import('@/lib/auth')
-    const session = await auth()
+    const { getAdminSession } = await import('@/lib/tenant-access')
+    const session = await getAdminSession()
     userName = session?.user?.name ?? session?.user?.email ?? ''
     role = session?.user?.role
+    noAccess = !session
   } catch {
     // auth may fail in some contexts, fallback to empty
+  }
+  // PR 3 multi-marca (S4): sin acceso a este comercio no se muestra el tablero
+  // (antes dependía solo del layout).
+  if (noAccess) {
+    const { redirect } = await import('next/navigation')
+    redirect(`/${tenantSlug}/admin/login`)
   }
 
   // El jefe de cocina no opera ventas: su inicio es Inventario.
