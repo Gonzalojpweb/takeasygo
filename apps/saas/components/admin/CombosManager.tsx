@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ArrowDown, ArrowUp, Loader2, Pause, Pencil, Play, Plus, Trash2, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, Loader2, Pause, Pencil, Play, Plus, Trash2, Upload, X } from 'lucide-react'
 
 export interface ComboMenuItem {
   id: string
@@ -71,7 +71,8 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
   const [draft, setDraft] = useState<Draft | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const items = useMemo(() => itemsByLocation[locationId] ?? [], [itemsByLocation, locationId])
+  const [uploading, setUploading] = useState(false)
+  const items =useMemo(() => itemsByLocation[locationId] ?? [], [itemsByLocation, locationId])
   const nameOf = useMemo(() => new Map(items.map((i) => [i.id, i.name])), [items])
   const visible = useMemo(() => combos.filter((c) => c.locationId === locationId).sort((a, b) => a.sortOrder - b.sortOrder), [combos, locationId])
   const api = `/api/${tenantSlug}/combos`
@@ -81,6 +82,30 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(data.error ?? 'No se pudo completar la operación')
     return data
+  }
+
+  // Misma subida que las fotos del menú: Cloudinary, carpeta de la sede, URL https.
+  async function uploadImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file || !draft) return
+    if (!file.type.startsWith('image/')) { toast.error('Elegí un archivo de imagen'); return }
+    if (file.size > 8 * 1024 * 1024) { toast.error('La imagen supera los 8 MB'); return }
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (draft.locationId) formData.append('locationId', draft.locationId)
+      const res = await fetch(`/api/${tenantSlug}/upload`, { method: 'POST', body: formData })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || typeof data.url !== 'string') throw new Error('No se pudo subir la imagen')
+      setDraft((d) => (d ? { ...d, imageUrl: data.url } : d))
+      toast.success('Imagen subida')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo subir la imagen')
+    } finally {
+      setUploading(false)
+    }
   }
 
   function edit(combo: ComboDoc) {
@@ -251,7 +276,24 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
           <div className="grid gap-3 md:grid-cols-3">
             <label className="space-y-1"><span className="text-xs font-bold">Etiqueta</span><input className={input} maxLength={40} value={draft.badgeLabel} onChange={(e) => set({ badgeLabel: e.target.value })} placeholder="NUEVO" /></label>
             <label className="space-y-1"><span className="text-xs font-bold">Urgencia</span><input className={input} maxLength={40} value={draft.urgencyLabel} onChange={(e) => set({ urgencyLabel: e.target.value })} placeholder="Solo hoy" /></label>
-            <label className="space-y-1"><span className="text-xs font-bold">Imagen (URL https)</span><input className={input} value={draft.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} /></label>
+            <div className="space-y-1">
+              <span className="text-xs font-bold">Imagen</span>
+              <div className="flex gap-2">
+                <input aria-label="URL de la imagen" className={input} value={draft.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="https://… o subí un archivo" />
+                <label className={`inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-xl border px-3 text-sm font-bold ${uploading ? 'pointer-events-none opacity-50' : ''}`}>
+                  {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  {uploading ? 'Subiendo' : 'Subir'}
+                  <input type="file" accept="image/*" className="hidden" onChange={uploadImage} disabled={uploading} />
+                </label>
+              </div>
+              {draft.imageUrl && (
+                <div className="relative mt-1 w-fit">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={draft.imageUrl} alt="Vista previa" className="h-20 w-28 rounded-lg border object-cover" />
+                  <button type="button" aria-label="Quitar imagen" onClick={() => set({ imageUrl: '' })} className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground"><X size={12} /></button>
+                </div>
+              )}
+            </div>
             <label className="space-y-1"><span className="text-xs font-bold">Color de fondo</span><input className={`${input} h-10`} type="color" value={draft.bgColor || '#ffffff'} onChange={(e) => set({ bgColor: e.target.value })} /></label>
             <label className="space-y-1"><span className="text-xs font-bold">Color de texto</span><input className={`${input} h-10`} type="color" value={draft.textColor || '#111111'} onChange={(e) => set({ textColor: e.target.value })} /></label>
           </div>
