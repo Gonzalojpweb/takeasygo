@@ -6,13 +6,15 @@ import Combo from '@/models/Combo'
 import Menu from '@/models/Menu'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getSessionUser } from '@/lib/apiAuth'
 import CombosManager, { type ComboMenuItem } from '@/components/admin/CombosManager'
 import { getPageScope } from '@/lib/page-scope'
 
 export default async function CombosPage() {
-  const session = await auth()
-  const role = session?.user?.role
+  // Identidad por el helper autorizado (relee el rol de la base): contrato
+  // __tests__/identity-access-contract.test.ts.
+  const user = await getSessionUser()
+  const role = user?.role
   if (role !== 'admin' && role !== 'manager' && role !== 'superadmin') redirect('/')
 
   const tenantSlug = (await headers()).get('x-tenant-slug')
