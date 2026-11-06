@@ -40,6 +40,8 @@ const VALID_EVENT_TYPES = new Set([
   'tia_insight_shown', 'tia_insight_dismissed', 'tia_insight_resolved',
   'rating_submitted', 'feedback_submitted',
   'qr_promo_applied', 'order_status_changed',
+  // Combos (piloto 06/11): embudo del carrusel. Solo comboId: sin datos personales.
+  'combo_impression', 'combo_opened', 'combo_add',
 ])
 
 const VALID_SOURCES = new Set([
@@ -54,6 +56,7 @@ const eventSchema = z.object({
   type: z.string().refine(v => VALID_EVENT_TYPES.has(v), { message: 'Invalid event type' }),
   phoneHash: z.string().optional().default(''),
   data: z.object({
+    comboId: z.string().regex(/^[a-f0-9]{24}$/i).optional(),
     orderId: z.string().optional(),
     itemName: z.string().optional(),
     itemCategory: z.string().optional(),
@@ -116,6 +119,10 @@ function persistEvent(tenantId: mongoose.Types.ObjectId, body: EventBody): void 
   const menuItemId = toObjectId(body.data.menuItemId)
   if (menuItemId) data.menuItemId = menuItemId
   else delete data.menuItemId
+
+  const comboId = toObjectId(body.data.comboId)
+  if (comboId) data.comboId = comboId
+  else delete data.comboId
 
   const promotionId = toObjectId(body.data.promotionId)
   if (promotionId) data.promotionId = promotionId

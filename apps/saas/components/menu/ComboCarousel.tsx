@@ -1,6 +1,8 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Image from 'next/image'
+import { trackComboImpression } from '@/lib/track'
 import { Layers } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
@@ -38,12 +40,32 @@ interface Props {
   primary: string
   textColor?: string
   onSelect?: (combo: PublicCombo) => void
+  /** Sede (para el reporte de combos). */
+  locationId?: string
 }
 
 const money = (cents: number) => `$${toPesos(cents).toLocaleString('es-AR')}`
 
-export default function ComboCarousel({ combos, settings, primary, textColor, onSelect }: Props) {
-  if (combos.length === 0 || settings?.showSection === false) return null
+export default function ComboCarousel({ combos, settings, primary, textColor, onSelect, locationId }: Props) {
+  // Piloto 06/11: «vista» = la tarjeta estuvo a la vista al menos a la mitad
+  // (no alcanza con que el carrusel exista). 1 por combo y sesión.
+  const rootRef = useRef<HTMLDivElement>(null)
+  const hidden = combos.length === 0 || settings?.showSection === false
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root || hidden || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue
+        const id = (e.target as HTMLElement).dataset.comboId
+        if (id) trackComboImpression(id, locationId)
+        observer.unobserve(e.target)
+      }
+    }, { threshold: 0.5 })
+    root.querySelectorAll('[data-combo-id]').forEach((el) => observer.observe(el))
+    return () => observer.disconnect()
+  }, [hidden, combos, locationId])
+  if (hidden) return null
   const accent = settings?.style?.accentColor || primary
   const title = settings?.sectionTitle || 'COMBOS'
 
@@ -53,7 +75,7 @@ export default function ComboCarousel({ combos, settings, primary, textColor, on
         <Layers size={18} style={{ color: accent }} strokeWidth={2.5} aria-hidden />
         <h2 className="text-base font-bold tracking-tight" style={{ color: settings?.style?.textColor || textColor }}>{title}</h2>
       </div>
-      <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none]">
+      <div ref={rootRef} className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 [scrollbar-width:none]">
         {combos.map((combo) => {
           const cardText = combo.style?.textColor || settings?.style?.textColor || textColor
           const content = (
@@ -79,9 +101,9 @@ export default function ComboCarousel({ combos, settings, primary, textColor, on
           const cardClass = 'w-60 flex-shrink-0 snap-start overflow-hidden rounded-2xl border text-left shadow-sm'
           const cardStyle = { backgroundColor: combo.style?.bgColor || undefined, color: cardText, borderColor: accent + '30' }
           return onSelect ? (
-            <button key={combo._id} type="button" className={cardClass} style={cardStyle} onClick={() => onSelect(combo)}>{content}</button>
+            <button key={combo._id} data-combo-id={combo._id} type="button" className={cardClass} style={cardStyle} onClick={() => onSelect(combo)}>{content}</button>
           ) : (
-            <article key={combo._id} className={cardClass} style={cardStyle}>{content}</article>
+            <article key={combo._id} data-combo-id={combo._id} className={cardClass} style={cardStyle}>{content}</article>
           )
         })}
       </div>

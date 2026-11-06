@@ -67,6 +67,10 @@ export type CustomerEventType =
   | 'feedback_submitted'
   | 'qr_promo_applied'
   | 'order_status_changed'
+  // Combos (piloto 06/11): embudo del carrusel del menú online
+  | 'combo_impression'
+  | 'combo_opened'
+  | 'combo_add'
 
 // ── Severidad (igual que TIA para consistencia) ─────────────────────────────
 export type CustomerInsightSeverity = 'info' | 'warning' | 'critical'

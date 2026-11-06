@@ -23,6 +23,8 @@ export interface ICustomerEvent extends Document {
   tenantId: mongoose.Types.ObjectId
   type: CustomerEventType
   data: {
+    /** Combo del carrusel (combo_impression / combo_opened / combo_add). */
+    comboId?: mongoose.Types.ObjectId
     orderId?: mongoose.Types.ObjectId
     itemName?: string
     itemCategory?: string
@@ -89,10 +91,12 @@ const CustomerEventSchema = new Schema<ICustomerEvent>(
         'tia_insight_shown', 'tia_insight_dismissed', 'tia_insight_resolved',
         'rating_submitted', 'feedback_submitted',
         'qr_promo_applied', 'order_status_changed',
+        'combo_impression', 'combo_opened', 'combo_add',
       ],
       required: true,
     },
     data: {
+      comboId: { type: Schema.Types.ObjectId, default: undefined },
       orderId: { type: Schema.Types.ObjectId, default: undefined },
       itemName: { type: String, default: undefined },
       itemCategory: { type: String, default: undefined },
@@ -143,6 +147,8 @@ CustomerEventSchema.index({ phoneHash: 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, type: 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, createdAt: -1 })
 CustomerEventSchema.index({ tenantId: 1, 'data.menuItemId': 1, createdAt: -1 })
+// Reporte de combos (piloto 06/11): embudo por combo en un rango de fechas.
+CustomerEventSchema.index({ tenantId: 1, 'data.comboId': 1, type: 1, createdAt: -1 }, { partialFilterExpression: { 'data.comboId': { $exists: true } } })
 CustomerEventSchema.index({ tenantId: 1, 'metadata.sessionId': 1 })
 
 // Dedup atómico de checkout_completed: un solo evento por orden y tenant,

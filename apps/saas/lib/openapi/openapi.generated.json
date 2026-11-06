@@ -5989,6 +5989,93 @@
     }
    }
   },
+  "/api/{tenant}/pos/orders/{id}/courses": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_courses",
+    "summary": "«Marcha» de un tiempo",
+    "description": "POST /api/[tenant]/pos/orders/[id]/courses — «Marcha» de un tiempo\nBody: { course: 'principal' | 'postre' | 'entrada' }\nPiloto 06/11/2026. El mozo (o la caja) marcha el tiempo que estaba en\nespera: sale de `heldCourses`, queda registrado en `courseFires` y cada\nestación con platos de ese tiempo imprime «MARCHA PRINCIPAL» + mesa, SIN\nrepetir los platos (ya los tiene de la comanda).\n\nIdempotente: si el tiempo ya marchó, responde 200 con la orden y no vuelve\na imprimir (un doble toque no saca dos marchas). Si nunca estuvo en\nespera, 409. Orden cancelada o cerrada, 409.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/courses/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.write",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/orders/{id}/discounts": {
    "post": {
     "tags": [

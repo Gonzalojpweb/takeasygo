@@ -207,7 +207,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
   const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
     (comboSettings?.position ?? 'afterBestsellers') === position ? (
-      <ComboCarousel combos={combos} settings={comboSettings} primary={branding.primaryColor} textColor={text} />
+      <ComboCarousel combos={combos} settings={comboSettings} primary={branding.primaryColor} textColor={text} locationId={location._id} />
     ) : null
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, Loader2, Pause, Pencil, Play, Plus, Trash2, Upload, X } from 'lucide-react'
+import ComboReportPanel from './ComboReportPanel'
 
 export interface ComboMenuItem {
   id: string
@@ -324,6 +325,9 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
           </div>
         ))}
       </section>
+
+      {/* Piloto 06/11: embudo y ventas por combo de la sede elegida. */}
+      {locationId && <ComboReportPanel tenantSlug={tenantSlug} locationId={locationId} />}
     </div>
   )
 }

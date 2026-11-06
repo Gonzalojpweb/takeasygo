@@ -85,6 +85,11 @@
 - **Dividir la cuenta**: en el panel de la mesa, **«Dividir cuenta»** abre el cobro directo en «Por platos». En el cobro también están «Partes iguales» y «Por comensal».
 - **Propina**: en el cobro, sección «Propina» (opcional): «Sin propina», 10 %, 15 % u otro monto, y cómo la deja (efectivo, débito, crédito o transferencia). La propina **no suma al total de la cuenta ni se factura**; queda en la caja como ingreso aparte y el Z la muestra en la línea «de ellos propinas». Si es en efectivo, el vuelto ya la descuenta y suma al arqueo. No se puede dejar propina por Mercado Pago.
 - **Gasto o retiro** y **Reporte X**: Caja → botones al pie del panel derecho.
+- **Cuánto falta cobrar**: en el cobro, la barra de abajo muestra siempre Total · Cobrado · Falta (o Sobra), con el detalle por medio de pago. Cada parte tiene «Completar $…» para que el cobro cierre justo.
+- **Calculadora**: botón «Calculadora» arriba a la derecha (terminal de caja). Suma, resta, multiplica, divide y saca porcentajes como una calculadora de caja; se usa con el teclado o con toques y no tapa el cobro.
+- **Tiempos de cocina (entrada, principal, postre)**: al cargar, arriba del pedido se elige «Cargando: Sin tiempo · Entrada · Principal · Postre» y lo que se agrega toma ese tiempo (un toque en el chip de cada plato lo cambia). Si la ronda tiene entrada y principal, al enviar el principal queda **en espera**: la cocina lo recibe para ir armándolo, bajo «EN ESPERA — esperar la MARCHA». Cuando corresponde, en la mesa se toca **«Marcha principal»** y la cocina imprime solo «MARCHA PRINCIPAL» con la mesa, sin repetir los platos. Se puede destildar la espera antes de enviar.
+- **Qué imprime cada uno**: lo que comanda el mozo (o la caja sin cobrar) sale solo como comanda en cocina y barra (según la estación de cada categoría de la carta), nunca como ticket o factura. La factura sale al cobrar y solo si se elige. La comanda imprime el número de mesa.
+- **Pedidos App**: al aceptar un pedido, el POS pasa solo a «En curso» y lo resalta; cada paso dice qué sigue. El detalle muestra nombre, teléfono (llamar, WhatsApp, copiar) y, si es delivery, la dirección con «Ver en el mapa» y costo y distancia del envío.
 
 ### Restricciones por rol
 

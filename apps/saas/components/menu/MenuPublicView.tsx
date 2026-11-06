@@ -34,7 +34,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useClubMembership } from '@/hooks/useClubMembership'
 import { captureHiddenRewardDiscovered, captureHiddenRewardRevealed, captureBestSellerAdded } from '@/lib/tia/events'
 import { captureUpsellImpression } from '@/lib/events'
-import { trackMenuOpened, trackCartAdd, trackCartRemove, trackRewardInteraction } from '@/lib/track'
+import { trackMenuOpened, trackCartAdd, trackCartRemove, trackRewardInteraction, trackComboOpened, trackComboAdd } from '@/lib/track'
 import {
   normalizeStoredCart,
   getRewardLines,
@@ -401,7 +401,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
   const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
     (comboSettings?.position ?? 'afterBestsellers') === position && !groupSessionToken && !isAdminCorp ? (
-      <ComboCarousel combos={combos} settings={comboSettings} primary={primary} textColor={text} onSelect={openComboPicker} />
+      <ComboCarousel combos={combos} settings={comboSettings} primary={primary} textColor={text} onSelect={openComboPicker} locationId={location._id} />
     ) : null
 
   const featuredPromotions = promotions.filter(p => p.isFeatured)
@@ -658,6 +658,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   /** El combo usa el mismo selector de platos que las promociones por pasos. */
   function openComboPicker(combo: PublicCombo) {
+    trackComboOpened(combo._id, location._id)
     const items = combo.items.map((i: any) => ({ ...i, _id: String(i._id) }))
     setPromoSlotSelection({
       promo: {
@@ -699,6 +700,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         extraPrice: u.extraPrice || 0,
       })),
     })
+    trackComboAdd(promo._id, price.totalPrice, location._id)
     setCart(prev => [...prev, {
       cartItemId: `combo:${promo._id}:${Date.now()}`,
       comboId: promo._id,

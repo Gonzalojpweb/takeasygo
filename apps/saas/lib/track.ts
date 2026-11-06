@@ -399,3 +399,23 @@ export function trackRewardInteraction(params: RewardInteractionParams): void {
     metadata: { source: 'client_side', locationId: params.locationId },
   }, params.tenantSlug)
 }
+
+// ── Combos (piloto 06/11/2026) ───────────────────────────────────────────────
+// Embudo del carrusel: vista (1 por combo y sesión) → apertura → agregado.
+// Solo el comboId y la sesión anónima: sin datos personales. El reporte está
+// en lib/combos/report.ts (GET /api/[tenant]/combos/report).
+
+export function trackComboImpression(comboId: string, locationId?: string): void {
+  if (!comboId || !shouldTrackOncePerSession(`tgo_combo_seen_${comboId}`)) return
+  enqueue({ type: 'combo_impression', data: { comboId }, metadata: { source: 'client_side', ...(locationId ? { locationId } : {}) } })
+}
+
+export function trackComboOpened(comboId: string, locationId?: string): void {
+  if (!comboId) return
+  enqueue({ type: 'combo_opened', data: { comboId }, metadata: { source: 'client_side', ...(locationId ? { locationId } : {}) } })
+}
+
+export function trackComboAdd(comboId: string, amountCents: number, locationId?: string): void {
+  if (!comboId) return
+  enqueue({ type: 'combo_add', data: { comboId, amount: amountCents, quantity: 1 }, metadata: { source: 'client_side', ...(locationId ? { locationId } : {}) } })
+}

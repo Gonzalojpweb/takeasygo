@@ -68,6 +68,7 @@ El producto seguirá en el sistema pero no aparecerá en el catálogo del client
 5. El combo no tiene stock propio: si uno de sus productos se pausa o se queda sin stock, el combo se pausa solo hasta que vuelva.
 6. En el POS se toca el combo en el carrusel, se elige cada plato y se personaliza por separado. Si se borra una línea del combo del pedido, se borra el combo entero.
 7. En la cocina y la barra, cada estación recibe el nombre del combo con los platos que le tocan; la caja ve también el precio. En los reportes, el dinero del combo queda en el combo y los platos solo suman cantidad.
+8. **Rendimiento**: abajo de la lista, en **Marketing → Combos**, se ve por combo y por período (7, 30 o 90 días): vistas (la tarjeta estuvo a la vista en el menú online, una por sesión), aperturas, agregados al carrito, vendidos, facturación, ticket promedio y conversión (compras online sobre vistas únicas). Al abrir un combo: ventas por canal (salón, mostrador, online, delivery), platos más elegidos y vendidos por día. Vistas, aperturas y carrito miden solo el menú online y no guardan datos personales; vendidos y facturación suman todos los canales, incluido el POS.
 
 ## Configuración y opciones disponibles
 
