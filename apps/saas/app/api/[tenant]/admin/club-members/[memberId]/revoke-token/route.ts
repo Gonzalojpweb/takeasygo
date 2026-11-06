@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeTenantBySlug } from '@/lib/tenant-access'
+// S9 (06/11/2026): además del comercio, solo admin y encargado.
+import { MANAGE_ROLES } from '@/lib/apiAuth'
 import { rateLimit } from '@/lib/rateLimit'
 import { logAudit } from '@/lib/audit'
 import LoyaltyMember from '@/models/LoyaltyMember'
@@ -18,7 +20,7 @@ export async function POST(
 ) {
   try {
     const { tenant: tenantSlug, memberId } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-token' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-token', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
     const session = { user: access.principal }
 

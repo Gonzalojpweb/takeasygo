@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeTenantBySlug } from '@/lib/tenant-access'
+// S9 (06/11/2026): además del comercio, solo admin y encargado.
+import { MANAGE_ROLES } from '@/lib/apiAuth'
 import Order from '@/models/Order'
 import LoyaltyMember from '@/models/LoyaltyMember'
 import QrPromo from '@/models/QrPromo'
@@ -23,7 +25,7 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-audit' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-audit', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
 
     const { searchParams } = new URL(request.url)

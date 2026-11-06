@@ -3,6 +3,8 @@ import MenuVisit from '@/models/MenuVisit'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeTenantBySlug } from '@/lib/tenant-access'
+// S9 (06/11/2026): además del comercio, solo admin y encargado.
+import { MANAGE_ROLES } from '@/lib/apiAuth'
 import { Types } from 'mongoose'
 
 export async function GET(
@@ -16,7 +18,7 @@ export async function GET(
     
     // Verificar que el usuario pertenece al tenant o es superadmin
     
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'analytics' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'analytics', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
     const { searchParams } = new URL(request.url)
     const days = parseInt(searchParams.get('days') || '30')

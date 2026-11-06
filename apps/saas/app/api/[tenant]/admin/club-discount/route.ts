@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeTenantBySlug } from '@/lib/tenant-access'
+// S9 (06/11/2026): además del comercio, solo admin y encargado.
+import { MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import ClubDiscount from '@/models/ClubDiscount'
 import Tenant from '@/models/Tenant'
@@ -15,7 +17,7 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
 
     await connectDB()
@@ -55,7 +57,7 @@ export async function POST(
 ) {
   try {
     const { tenant: tenantSlug } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
     const session = { user: access.principal }
 
@@ -143,7 +145,7 @@ export async function DELETE(
 ) {
   try {
     const { tenant: tenantSlug } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'club-discount', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
 
     await connectDB()

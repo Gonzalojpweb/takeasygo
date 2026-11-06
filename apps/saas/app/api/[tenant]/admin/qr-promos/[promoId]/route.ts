@@ -5,6 +5,8 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { authorizeTenantBySlug } from '@/lib/tenant-access'
+// S9 (06/11/2026): además del comercio, solo admin y encargado.
+import { MANAGE_ROLES } from '@/lib/apiAuth'
 
 export async function PUT(
   request: NextRequest,
@@ -12,7 +14,7 @@ export async function PUT(
 ) {
   try {
     const { tenant: tenantSlug, promoId } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
 
     await connectDB()
@@ -96,7 +98,7 @@ export async function DELETE(
 ) {
   try {
     const { tenant: tenantSlug, promoId } = await params
-    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo' })
+    const access = await authorizeTenantBySlug(request, tenantSlug, { family: 'qr-promo', roles: MANAGE_ROLES })
     if (!access.ok) return access.response
 
     await connectDB()
