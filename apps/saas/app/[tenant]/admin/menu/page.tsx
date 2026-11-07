@@ -12,6 +12,7 @@ import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import { ExternalLink, Calendar, Star } from 'lucide-react'
 import type { Types } from 'mongoose'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
+import { getAdminSession } from '@/lib/tenant-access'
 
 export default async function MenuPage() {
   const headersList = await headers()
@@ -28,6 +29,7 @@ export default async function MenuPage() {
   // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
   // recibe datos de sus sedes.
   const pageScope = await getPageScope()
+  const session = await getAdminSession(tenantSlug)
   const locations = await Location.find({ tenantId, isActive: true, ...pageScope.sedeFilter }).lean<Array<{ _id: { toString(): string }; name: string; slug?: string }>>()
   const menus = await Menu.find({ tenantId, isActive: true, ...pageScope.locationFilter }).lean()
 
@@ -96,6 +98,7 @@ export default async function MenuPage() {
             locations={JSON.parse(JSON.stringify(locations))}
             menus={JSON.parse(JSON.stringify(menus))}
             tenantSlug={tenantSlug || ''}
+            userRole={session?.user?.role}
           />
         </>
       )}

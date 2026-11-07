@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { nextListPrice } from '@/lib/menu/list-price'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
@@ -153,18 +154,16 @@ export async function PUT(
       item.description = description
       item.descriptionTranslations = { en: description ? await translateToEnglish(description) : '' }
     }
+    // Precio de lista: acompaña al precio salvo que haya un descuento visible
+    // (lib/menu/list-price). Antes quedaba congelado en el valor viejo y
+    // podía mostrar un tachado falso después de un aumento.
     if (price !== undefined) {
-      // Si no tiene originalPrice guardado, guardarlo antes de cambiar el precio
-      if (!item.originalPrice) {
-        item.originalPrice = item.price
-      }
+      item.originalPrice = nextListPrice(item.price, item.originalPrice, price)
       item.price = price
     }
     if (takeawayPrice !== undefined) {
-      // Si no tiene takeawayOriginalPrice guardado, guardarlo antes de cambiar
-      if (!item.takeawayOriginalPrice) {
-        item.takeawayOriginalPrice = item.takeawayPrice || item.price
-      }
+      const oldTakeaway = item.takeawayPrice || item.price
+      if (takeawayPrice) item.takeawayOriginalPrice = nextListPrice(oldTakeaway, item.takeawayOriginalPrice, takeawayPrice)
       item.takeawayPrice = takeawayPrice
     }
     if (isAvailable !== undefined) {

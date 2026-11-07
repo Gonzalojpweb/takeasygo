@@ -514,3 +514,25 @@ export async function loadConsumptionCost(ctx: InventoryContext, requestedLocati
     .sort((a, b) => b.costCents - a.costCents)
   return { lines, totalCostCents: lines.reduce((s, l) => s + l.costCents, 0), unmappedPortions: unmapped[0]?.portions ?? 0 }
 }
+
+/**
+ * Costo teórico por plato de la sede (receta base vigente, sin variante), en
+ * centavos: para mostrar el margen en «Actualizar precios». Solo lectura;
+ * platos sin receta no aparecen.
+ */
+export async function dishCostsForLocation(tenantId: string, locationId: string): Promise<Map<string, number>> {
+  if (!mongoose.Types.ObjectId.isValid(tenantId) || !mongoose.Types.ObjectId.isValid(locationId)) return new Map()
+  const tid = new mongoose.Types.ObjectId(tenantId)
+  const locOid = new mongoose.Types.ObjectId(locationId)
+  const [recipes, costs] = await Promise.all([
+    loadCurrentRecipes(tid, { kind: 'dish', locationId: locOid }),
+    costMap({ tenantObjectId: tid } as InventoryContext, locOid),
+  ])
+  const out = new Map<string, number>()
+  for (const r of recipes.values()) {
+    if (r.variantName || !r.menuItemId) continue
+    const { costCents } = recipeCostCents(r.items, costs)
+    if (costCents > 0) out.set(String(r.menuItemId), costCents)
+  }
+  return out
+}

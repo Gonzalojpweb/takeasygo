@@ -5,6 +5,7 @@ import { isPosOnlyAdminPath } from '@takeasygo/business/browser'
 import { usePathname } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import {
+  BadgeDollarSign,
   LayoutDashboard,
   ShoppingBag,
   UtensilsCrossed,
@@ -184,6 +185,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       section: 'Catálogo',
       items: [
         { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
+        { href: `${base}/precios`, label: 'Precios', icon: BadgeDollarSign, roles: ['admin', 'manager', 'cashier'] },
         { href: `${base}/paused-items`, label: 'Artículos Pausados', icon: EyeOff, roles: ['admin', 'manager', 'cashier'] },
         { href: `${base}/special-dates`, label: 'Fechas Especiales', icon: Calendar, roles: ['admin'] },
       ],

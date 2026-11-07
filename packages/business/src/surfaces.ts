@@ -116,6 +116,7 @@ export function canSeeSharedSurfaces(posRole: string | null | undefined): boolea
 export const POS_ONLY_ADMIN_PATHS: readonly string[] = [
   "",
   "menu",
+  "precios",
   "paused-items",
   "printers",
   "caja-pos",

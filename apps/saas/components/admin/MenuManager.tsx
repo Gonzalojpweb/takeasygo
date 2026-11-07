@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import PriceUpdater from '@/components/admin/prices/PriceUpdater'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,8 @@ interface Props {
   locations: any[]
   menus: any[]
   tenantSlug: string
+  /** Rol del usuario: Administrador y Manager aplican precios (PriceUpdater). */
+  userRole?: string
 }
 
 type CustomizationOptionForm = {
@@ -167,7 +170,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
   }))
 }
 
-export default function MenuManager({ locations, menus, tenantSlug }: Props) {
+export default function MenuManager({ locations, menus, tenantSlug, userRole }: Props) {
   const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
   const selectedLocation = activeLocationId ?? locations[0]?._id ?? ''
   const [expandedCategories, setExpandedCategories] = useState<string[]>([])
@@ -192,8 +195,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
   const [showImport, setShowImport] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
   const [showSubstituteModal, setShowSubstituteModal] = useState<{ item: any; categoryId: string } | null>(null)
-  const [bulkPercentage, setBulkPercentage] = useState('')
-  const [bulkTarget, setBulkTarget] = useState<'dine-in' | 'takeaway' | 'both'>('takeaway')
   const router = useRouter()
   const [uploadingOptKey, setUploadingOptKey] = useState<string | null>(null)
   const optFileRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -220,6 +221,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
       const reg = menu.optionImageRegistry instanceof Map
         ? Object.fromEntries(menu.optionImageRegistry)
         : menu.optionImageRegistry
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- copia la carta del servidor al estado local al cambiar de sede (patrón previo; ver Actualizar precios 07/11)
       setOptionImageRegistry(reg)
     } else {
       setOptionImageRegistry({})
@@ -298,6 +300,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
 
   useEffect(() => {
     if (currentMenu?.categories) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- copia la carta del servidor al estado local al cambiar de sede (patrón previo; ver Actualizar precios 07/11)
       setLocalCategories(
         [...currentMenu.categories]
           .map((c: any) => ({
@@ -334,6 +337,7 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         matchingIds.push(cat._id)
       }
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- abre las categorías que coinciden con la búsqueda (patrón previo)
     setExpandedCategories(matchingIds)
   }, [globalSearch, localCategories])
 
@@ -796,85 +800,6 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
     }
   }
 
-  async function handleBulkPriceUpdate(categoryId: string, percentage: string, target: 'dine-in' | 'takeaway' | 'both') {
-    const perc = parseFloat(percentage)
-    if (isNaN(perc)) return toast.error('Ingrese un número válido')
-    if (!selectedLocation) return toast.error('Seleccioná una ubicación primero')
-
-    setLoading(true)
-    let updatedCount = 0
-    let errorCount = 0
-    
-    try {
-      const category = localCategories.find(c => c._id === categoryId)
-      if (!category) return
-
-      // Collect all items: direct category items + subcategory items
-      const allItemsToProcess: { item: any; subcategoryId?: string }[] = []
-      for (const item of category.items) {
-        allItemsToProcess.push({ item })
-      }
-      for (const subcat of (category.subcategories || [])) {
-        for (const item of (subcat.items || [])) {
-          allItemsToProcess.push({ item, subcategoryId: subcat._id })
-        }
-      }
-
-      // Bucle SECUENCIAL para evitar conflictos de concurrencia en la DB (Error 500)
-      for (const { item } of allItemsToProcess) {
-        const updateBody: any = {
-          locationId: selectedLocation,
-          itemId: item._id,
-        }
-
-        if (target === 'dine-in' || target === 'both') {
-          // Guardar precio original de lista una sola vez (antes de modificar)
-          if (!item.originalPrice) {
-            updateBody.originalPrice = item.price
-          }
-          updateBody.price = Math.ceil(item.price * (1 + perc / 100))
-        }
-
-        if (target === 'takeaway' || target === 'both') {
-          // Si tiene precio takeaway, calculamos sobre ese. Si no, calculamos sobre el base.
-          const currentTakeaway = item.takeawayPrice || item.price
-          // Guardar precio takeaway original una sola vez
-          if (!item.takeawayOriginalPrice) {
-            updateBody.takeawayOriginalPrice = currentTakeaway
-          }
-          updateBody.takeawayPrice = Math.ceil(currentTakeaway * (1 + perc / 100))
-        }
-
-        const res = await fetch(`/api/${tenantSlug}/menu/categories/${categoryId}/items`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updateBody),
-        })
-        
-        if (res.ok) {
-          updatedCount++
-        } else {
-          errorCount++
-          const errorData = await res.json().catch(() => ({}))
-          console.error(`Error actualizando item ${item._id}:`, errorData)
-        }
-      }
-
-      if (errorCount > 0) {
-        toast.error(`Actualizados ${updatedCount} items. ${errorCount} fallaron. Revisá la consola.`)
-      } else {
-        toast.success(`${updatedCount} precios actualizados (+${perc}%)`)
-      }
-      
-      setShowBulkModal(null)
-      setBulkPercentage('')
-      router.refresh()
-    } catch (err: any) {
-      toast.error(`Error: ${err.message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function handleAddSubcategory(categoryId: string) {
     if (!newSubcategoryName.trim()) return
@@ -1017,6 +942,13 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowBulkModal('__all__')}
+            variant="outline"
+            className="border-2 border-border/80 rounded-xl font-bold text-xs px-3 sm:px-5 hover:bg-muted transition-all"
+          >
+            <Sparkles size={14} className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Actualizar precios</span><span className="sm:hidden">Precios</span>
+          </Button>
           <Button
             onClick={() => setShowImport(true)}
             variant="outline"
@@ -2368,107 +2300,23 @@ export default function MenuManager({ locations, menus, tenantSlug }: Props) {
         </Card>
       )}
 
-      {/* Modal Ajuste de Precios Masivo */}
-      <AnimatePresence>
-        {showBulkModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowBulkModal(null)}
-              className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+      {/* «Actualizar precios»: asistente nuevo (components/admin/prices/PriceUpdater) */}
+      {showBulkModal && (
+        <div className="fixed inset-0 z-[100] flex items-stretch justify-center bg-black/60 p-0 sm:p-6">
+          <div className="h-full w-full max-w-5xl overflow-hidden bg-background sm:rounded-2xl sm:border sm:border-border">
+            <PriceUpdater
+              tenantSlug={tenantSlug}
+              userRole={userRole ?? "admin"}
+              locations={locations.map((l: any) => ({ _id: String(l._id), name: l.name }))}
+              menus={menus.map((m: any) => ({ locationId: String(m.locationId), categories: m.categories ?? [] }))}
+              initialLocationId={selectedLocation}
+              initialCategory={showBulkModal === "__all__" ? null : localCategories.find((c: any) => c._id === showBulkModal)?.name ?? null}
+              onClose={() => setShowBulkModal(null)}
+              onApplied={() => router.refresh()}
             />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-card border-2 border-border shadow-2xl rounded-[2.5rem] overflow-hidden"
-            >
-              <div className="p-8">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
-                    <Sparkles size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-black tracking-tight">Ajustar Precios</h3>
-                    <p className="text-sm text-muted-foreground font-medium">Actualización masiva por categoría</p>
-                  </div>
-                </div>
-
-                <div className="space-y-6">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-3 block">
-                      Porcentaje de aumento
-                    </label>
-                    <div className="relative">
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-black text-xl">%</span>
-                      <input
-                        type="number"
-                        className="w-full bg-muted/30 border-2 border-border/80 focus:border-primary/40 focus:bg-white text-foreground text-2xl font-black rounded-2xl px-6 py-4 outline-none transition-all shadow-sm"
-                        placeholder="0"
-                        value={bulkPercentage}
-                        onChange={(e) => setBulkPercentage(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] uppercase font-bold tracking-[0.2em] text-muted-foreground/60 mb-3 block">
-                      Aplicar a:
-                    </label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {[
-                        { id: 'dine-in', label: 'Comer acá (Dine-in)', icon: Eye },
-                        { id: 'takeaway', label: 'Para llevar (Takeaway)', icon: Clock },
-                        { id: 'both', label: 'Ambos Menús', icon: Sparkles }
-                      ].map((opt) => (
-                        <button
-                          key={opt.id}
-                          onClick={() => setBulkTarget(opt.id as any)}
-                          className={cn(
-                            "flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left",
-                            bulkTarget === opt.id 
-                              ? "border-primary bg-primary/5 text-primary shadow-sm" 
-                              : "border-border/60 hover:border-border text-muted-foreground hover:bg-muted/30"
-                          )}
-                        >
-                          <div className={cn(
-                            "w-10 h-10 rounded-xl flex items-center justify-center",
-                            bulkTarget === opt.id ? "bg-primary/10" : "bg-muted"
-                          )}>
-                            <opt.icon size={20} />
-                          </div>
-                          <span className="font-bold text-sm">{opt.label}</span>
-                          {bulkTarget === opt.id && <Check className="ml-auto" size={20} />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-8">
-                  <Button
-                    variant="outline"
-                    className="rounded-2xl h-14 font-bold border-2"
-                    onClick={() => setShowBulkModal(null)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    className="rounded-2xl h-14 font-black text-lg shadow-lg shadow-primary/20"
-                    disabled={loading || !bulkPercentage}
-                    onClick={() => handleBulkPriceUpdate(showBulkModal, bulkPercentage, bulkTarget)}
-                  >
-                    {loading ? 'Procesando...' : 'Aplicar'}
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {/* ── Quick Substitute Modal ── */}
       {showSubstituteModal && (
