@@ -38,12 +38,17 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // Build en Vercel (2026-10-25): el worker de webpack moría por memoria
-  // (SIGKILL) al crecer la app. Esto baja el pico de memoria del build SIN
-  // saltear ninguna validación (TypeScript y lint siguen corriendo):
+  // (SIGKILL) al crecer la app. Esto baja el pico de memoria del build
+  // (ver la nota del 07/11 sobre TypeScript):
   //   · webpackMemoryOptimizations: menos memoria en la compilación.
   //   · memoryBasedWorkersCount + cpus: menos workers en paralelo según la
   //     memoria disponible (más lento, pero no se queda sin RAM).
   // 02/11: volvió a morir con cpus: 2, ahora compila de a un worker.
+  // 07/11: volvió a morir (OOM) al sumar multimarca. La revisión de tipos sale
+  // del build de Vercel: la hace el paso «Typecheck» de GitHub Actions
+  // (.github/workflows/ci.yml) sobre el mismo código. Mirá ese check antes de
+  // dar por bueno un deploy.
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     webpackMemoryOptimizations: true,
     memoryBasedWorkersCount: true,

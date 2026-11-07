@@ -31,7 +31,11 @@ describe('memberToken - sign and verify', () => {
 
   it('rejects token with wrong signature', async () => {
     const token = await signMemberToken(memberId, tenantId, phone, version)
-    const tampered = token.slice(0, -1) + (token.slice(-1) === 'A' ? 'B' : 'A')
+    // Se cambia un carácter del MEDIO de la firma: el último de base64url puede
+    // tener bits de relleno y cambiarlo a veces no altera la firma (test intermitente).
+    const sigStart = token.lastIndexOf('.') + 1
+    const i = sigStart + Math.floor((token.length - sigStart) / 2)
+    const tampered = token.slice(0, i) + (token[i] === 'A' ? 'B' : 'A') + token.slice(i + 1)
     const result = await verifyMemberToken(tampered)
     expect(result.valid).toBe(false)
     if (!result.valid) {
