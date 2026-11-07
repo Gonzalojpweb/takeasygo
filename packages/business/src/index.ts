@@ -218,3 +218,4 @@ export {
   type CatalogItemAvailability,
   type ValidateComboSelectionParams,
 } from "./combo"
+export { effectiveGrant, effectiveLocationRole, type MembershipForGrant, type OrgGrant, type OrgGrantRole, type GrantLocationRole } from "./org-grant"

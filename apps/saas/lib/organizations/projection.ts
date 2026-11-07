@@ -25,7 +25,7 @@
  */
 import type { NextRequest } from 'next/server'
 import type { OrgRole } from '@/models/OrgMembership'
-import { effectiveLocationRole } from './membership-rules'
+import { effectiveGrant as sharedEffectiveGrant } from '@takeasygo/business'
 
 // ── Parte pura ────────────────────────────────────────────────────────────────
 
@@ -45,28 +45,8 @@ export interface Grant {
 
 /** Qué da una membresía en un comercio de su organización (pura, tabla §4). */
 export function effectiveGrant(m: MembershipLite, tenantId: string): Grant | null {
-  if (m.status !== 'active') return null
-  const covers = m.scope.allTenants || m.scope.tenantIds.includes(tenantId)
-  switch (m.orgRole) {
-    case 'owner':
-      return { role: effectiveLocationRole('owner'), locationIds: [] }
-    case 'org_admin':
-    case 'accountant':
-      return covers ? { role: effectiveLocationRole(m.orgRole), locationIds: [] } : null
-    case 'brand_manager':
-      // Nunca por allTenants: el gerente de marca es por marca concreta.
-      return m.scope.tenantIds.includes(tenantId)
-        ? { role: effectiveLocationRole('brand_manager', m.tenantRole), locationIds: [] }
-        : null
-    case 'location_manager':
-    case 'operations': {
-      const locs = [...new Set(m.scope.locations.filter(l => l.tenantId === tenantId).map(l => l.locationId))]
-      if (locs.length === 0) return null // nunca [] = «todas» por accidente
-      return { role: effectiveLocationRole(m.orgRole), locationIds: locs }
-    }
-    default:
-      return null
-  }
+  // Regla única compartida con el Sync (packages/business/src/org-grant.ts).
+  return sharedEffectiveGrant(m, tenantId)
 }
 
 /** Segmentos de /api/* que NO son un comercio (carpetas fijas de app/api). */

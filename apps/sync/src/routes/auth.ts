@@ -18,7 +18,9 @@ import {
 } from "../middleware/rate-limiter"
 import { denyJti } from "../auth/jtiDenylist"
 import { disconnectSocketsByJti } from "../socket/registry"
-import { UserModel, LocationModel, TenantModel } from "@takeasygo/db"
+import { UserModel, LocationModel, TenantModel, PosCredentialModel } from "@takeasygo/db"
+import { grantLocation, membershipGrant, posMultiBrandEnabled } from "../auth/org-pos-access"
+import type { OrgGrant } from "@takeasygo/business"
 import type { Role } from "@takeasygo/types"
 
 export const authRouter = Router()
@@ -199,6 +201,9 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
       const pin = String(data.employeePin)
       const pepper = resolvePosPinPepper(process.env)
       let user: InstanceType<typeof UserModel> | null = null
+      // POS multimarca (D6): PIN de un miembro de la organización en esta
+      // marca. El rol y las sedes salen de su membresía, re-validada acá.
+      let viaGrant: OrgGrant | null = null
 
       if (pepper) {
         const lookup = posPinLookup(pepper, tenantId, pin)
@@ -208,6 +213,18 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
           isActive: true,
         }).select("+pin")
         if (candidate && (await candidate.comparePin(pin))) user = candidate
+
+        if (!user && (await posMultiBrandEnabled())) {
+          const cred = await PosCredentialModel.findOne({ tenantId, posPinLookup: lookup }).select("+pin")
+          if (cred && (await cred.comparePin(pin))) {
+            const member = await UserModel.findOne({ _id: cred.userId, isActive: true })
+            const grant = member ? await membershipGrant(String(member._id), tenantId) : null
+            if (member && grant) {
+              user = member
+              viaGrant = grant
+            }
+          }
+        }
       }
 
       if (!user) {
@@ -240,14 +257,20 @@ authRouter.post("/login", loginRateLimiter, validate(loginSchema), async (req, r
         return
       }
 
-      const posRole = SAAS_TO_POS_ROLE[user.role]
+      const posRole = SAAS_TO_POS_ROLE[viaGrant ? viaGrant.role : user.role]
       const deviceType = posRole ? deviceTypeForPosRole(posRole) : null
       if (!posRole || !deviceType) {
         res.status(403).json({ error: "Access denied", code: "ROLE_NOT_ALLOWED" })
         return
       }
 
-      const locationId = await resolveLocationId(tenantId, data.locationId, res)
+      // Miembro con rol de sede: solo en sus sedes.
+      const requestedLocation = viaGrant ? grantLocation(viaGrant, data.locationId) : data.locationId
+      if (requestedLocation === undefined && viaGrant) {
+        res.status(403).json({ error: "Location not allowed", code: "LOCATION_NOT_ALLOWED" })
+        return
+      }
+      const locationId = await resolveLocationId(tenantId, requestedLocation ?? undefined, res)
       if (locationId === null) return
       clearLoginFailures(req)
       await clearAccountFailures(tenantKey)
@@ -364,19 +387,34 @@ logoutRouter.post("/refresh", async (req, res) => {
       res.status(401).json({ error: "Invalid session", code: "invalid_session" })
       return
     }
-    const user = await UserModel.findOne({
+    let user = await UserModel.findOne({
       _id: auth.sub,
       tenantId: auth.tenantId,
       isActive: true,
     })
       .select("_id name role tenantId")
       .lean()
+    // POS multimarca (D6): miembro de la organización en esta marca. Sigue
+    // renovando solo mientras tenga PIN en la marca y la membresía la alcance.
+    let refreshGrant: OrgGrant | null = null
+    if (!user && (await posMultiBrandEnabled())) {
+      const hasCredential = await PosCredentialModel.exists({ tenantId: auth.tenantId, userId: auth.sub })
+      const member = hasCredential
+        ? await UserModel.findOne({ _id: auth.sub, isActive: true }).select("_id name role tenantId").lean()
+        : null
+      refreshGrant = member ? await membershipGrant(auth.sub, auth.tenantId) : null
+      if (member && refreshGrant && (refreshGrant.locationIds.length === 0 || (auth.locationId && refreshGrant.locationIds.includes(auth.locationId)))) {
+        user = member
+      } else {
+        refreshGrant = null
+      }
+    }
     if (!user) {
       res.status(401).json({ error: "Invalid session", code: "invalid_session" })
       return
     }
 
-    const posRole = SAAS_TO_POS_ROLE[user.role]
+    const posRole = SAAS_TO_POS_ROLE[refreshGrant ? refreshGrant.role : user.role]
     // El rol actual tiene que seguir siendo válido para ESTE dispositivo: un
     // cajero degradado a mozo no conserva un token de hub por refresh.
     if (!posRole || !VALID_DEVICE_ROLES[auth.deviceType]?.includes(posRole)) {

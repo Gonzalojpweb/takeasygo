@@ -267,6 +267,10 @@ export async function unlinkTenant(orgId: string, tenantId: string, actor: Audit
     { organizationId: org._id },
     { $pull: { 'scope.tenantIds': toId(tenantId), 'scope.locations': { tenantId: toId(tenantId) } } },
   )
+  // POS multimarca (D6): los PIN de miembros en esa marca dejan de existir
+  // (solo los hay por membresía; los empleados de la marca usan su User).
+  const PosCredential = (await import('@/models/PosCredential')).default
+  await PosCredential.deleteMany({ tenantId: toId(tenantId) })
   await bumpVersion(org._id)
   await audit(org._id, actor, 'org.tenant.unlinked', 'tenant', tenantId, { affectedMemberships })
   return { unlinked: tenantId, affectedMemberships }
@@ -389,6 +393,10 @@ export async function revokeMember(orgId: string, membershipId: string, reason: 
     $set: { status: 'revoked', revokedAt: new Date(), revokedBy: idOrNull(actor.userId), revokeReason: typeof reason === 'string' ? reason.slice(0, 300) : null },
   })
   if (m.orgRole === 'owner') await syncOwnerField(org._id)
+  // POS multimarca (D6): sus PIN en las marcas del grupo dejan de existir.
+  const orgTenants = await Tenant.find({ organizationId: org._id }).select('_id').lean<{ _id: Types.ObjectId }[]>()
+  const PosCredential = (await import('@/models/PosCredential')).default
+  await PosCredential.deleteMany({ userId: m.userId, tenantId: { $in: orgTenants.map(t => t._id) } })
   await bumpVersion(org._id)
   await audit(org._id, actor, 'org.membership.revoked', 'membership', String(m._id), { userId: String(m.userId), orgRole: m.orgRole })
   return OrgMembership.findById(m._id)

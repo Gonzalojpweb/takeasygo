@@ -56,15 +56,15 @@ const card = 'rounded-2xl border border-border bg-card p-5'
 // ── Interruptores ─────────────────────────────────────────────────────────────
 
 function Switches() {
-  const [modes, setModes] = useState<{ mode: Mode; orgMode: Mode; dashboard?: 'off' | 'on'; forcedByEnv?: boolean; orgForcedByEnv?: boolean; dashboardForcedByEnv?: boolean } | null>(null)
+  const [modes, setModes] = useState<{ mode: Mode; orgMode: Mode; dashboard?: 'off' | 'on'; posMultiBrand?: 'off' | 'on'; forcedByEnv?: boolean; orgForcedByEnv?: boolean; dashboardForcedByEnv?: boolean; posMultiBrandForcedByEnv?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const load = useCallback(() => {
-    api<{ mode: Mode; orgMode: Mode; dashboard: 'off' | 'on'; forcedByEnv: boolean; orgForcedByEnv: boolean; dashboardForcedByEnv: boolean }>('/api/superadmin/access-central')
+    api<{ mode: Mode; orgMode: Mode; dashboard: 'off' | 'on'; posMultiBrand: 'off' | 'on'; forcedByEnv: boolean; orgForcedByEnv: boolean; dashboardForcedByEnv: boolean; posMultiBrandForcedByEnv: boolean }>('/api/superadmin/access-central')
       .then(setModes).catch(e => toast.error(e.message))
   }, [])
   useEffect(load, [load])
 
-  async function change(key: 'mode' | 'orgMode' | 'dashboard', value: string) {
+  async function change(key: 'mode' | 'orgMode' | 'dashboard' | 'posMultiBrand', value: string) {
     setBusy(true)
     try {
       await api('/api/superadmin/access-central', { method: 'PATCH', body: JSON.stringify({ [key]: value }) })
@@ -111,6 +111,24 @@ function Switches() {
           disabled={busy || modes.dashboardForcedByEnv}
           value={modes.dashboard ?? 'off'}
           onChange={e => void change('dashboard', e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="off">Apagado</option>
+          <option value="on">Activo</option>
+        </select>
+      </div>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-medium text-foreground">POS multimarca (pos.multiBrand)</p>
+          <p className="text-xs text-muted-foreground">
+            Los miembros del grupo sacan su PIN en /grupo y entran al POS de las marcas que les da su rol. Requiere «Acceso por organización» en Activo y el Sync actualizado.
+            {modes.posMultiBrandForcedByEnv ? ' · forzado por variable de entorno' : ''}
+          </p>
+        </div>
+        <select
+          disabled={busy || modes.posMultiBrandForcedByEnv}
+          value={modes.posMultiBrand ?? 'off'}
+          onChange={e => void change('posMultiBrand', e.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
         >
           <option value="off">Apagado</option>

@@ -52,6 +52,8 @@ export interface IPlatformConfig {
   fiscalPosClaims?: 'off' | 'enforce'
   /** Multi-marca PR 6 (S6): alias de CSR por marca cuando el CUIT es compartido. */
   fiscalCsrAliasShared?: 'off' | 'on'
+  /** Multi-marca D6: miembros de organización con PIN en el POS de otra marca (Sync). */
+  posMultiBrand?: 'off' | 'on'
   /** Google Contacts sync cron cursor (persisted between runs) */
   gcSyncCursor: {
     lastUserId: string | null
@@ -115,6 +117,8 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     // Multi-marca PR 6: apagados = guardado fiscal y certificados como hoy.
     fiscalPosClaims: { type: String, enum: ['off', 'enforce'], default: 'off' },
     fiscalCsrAliasShared: { type: String, enum: ['off', 'on'], default: 'off' },
+    // Multi-marca D6: off = solo los empleados de cada marca entran a su POS.
+    posMultiBrand: { type: String, enum: ['off', 'on'], default: 'off' },
     gcSyncCursor: {
       lastUserId: { type: String, default: null },
       lastRunAt:  { type: Date, default: null },

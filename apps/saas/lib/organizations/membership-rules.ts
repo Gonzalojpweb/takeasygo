@@ -11,6 +11,7 @@
  */
 import type { LocationRole } from '@/models/UserLocationRole'
 import type { OrgRole } from '@/models/OrgMembership'
+import { effectiveLocationRole as sharedEffectiveLocationRole } from '@takeasygo/business'
 
 export interface RuleError {
   code:
@@ -45,19 +46,8 @@ export interface ScopeInput {
  * `tenantRole` (D2: 'manager' por defecto).
  */
 export function effectiveLocationRole(orgRole: OrgRole, tenantRole?: 'admin' | 'manager' | null): LocationRole {
-  switch (orgRole) {
-    case 'owner':
-    case 'org_admin':
-      return 'admin'
-    case 'brand_manager':
-      return tenantRole === 'admin' ? 'admin' : 'manager'
-    case 'location_manager':
-      return 'manager'
-    case 'operations':
-      return 'operations_manager'
-    case 'accountant':
-      return 'auditor'
-  }
+  // Regla única compartida con el Sync (login del POS en otra marca).
+  return sharedEffectiveLocationRole(orgRole, tenantRole)
 }
 
 /** Rango para la regla de privilegios: más alto = más poder. */

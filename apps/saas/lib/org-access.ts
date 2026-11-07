@@ -81,3 +81,33 @@ export async function getOrgDashboardMode(): Promise<DashboardMode> {
   dashCached = { at: Date.now(), mode }
   return mode
 }
+
+// ============================================================================
+// Interruptor pos.multiBrand (multi-marca D6): miembros de una organización
+// con PIN propio en el POS de otra marca del grupo. Lo lee también el Sync
+// (apps/sync/src/auth/org-pos-access.ts), que además exige org.access en
+// enforce. Fuente: POS_MULTIBRAND_MODE (manda) o PlatformConfig.posMultiBrand.
+// ============================================================================
+
+let posCached: { at: number; mode: DashboardMode } | null = null
+
+export function clearPosMultiBrandCache(): void {
+  posCached = null
+}
+
+export async function getPosMultiBrandMode(): Promise<DashboardMode> {
+  const env = process.env.POS_MULTIBRAND_MODE?.trim().toLowerCase()
+  if (isDashboardMode(env)) return env
+  if (posCached && Date.now() - posCached.at < TTL_MS) return posCached.mode
+  let mode: DashboardMode = 'off'
+  try {
+    if (mongoose.connection.readyState !== 1) return 'off'
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    const doc = await PlatformConfig.findById('platform').select('posMultiBrand').lean<{ posMultiBrand?: string }>()
+    if (isDashboardMode(doc?.posMultiBrand)) mode = doc.posMultiBrand
+  } catch {
+    return 'off'
+  }
+  posCached = { at: Date.now(), mode }
+  return mode
+}

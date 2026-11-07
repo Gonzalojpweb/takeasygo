@@ -3,7 +3,11 @@ import { redirect } from 'next/navigation'
 import { Building2, Store, ArrowRight, Info, BarChart3, Users } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
 import { getMyOrganizations, lastBrandFor } from '@/lib/organizations/me'
-import { getOrgAccessMode, getOrgDashboardMode } from '@/lib/org-access'
+import { getOrgAccessMode, getOrgDashboardMode, getPosMultiBrandMode } from '@/lib/org-access'
+import { SAAS_TO_POS_ROLE } from '@takeasygo/business'
+import mongoose from 'mongoose'
+import PosCredential from '@/models/PosCredential'
+import MemberPosPin from '@/components/organizations/MemberPosPin'
 import { DASHBOARD_ROLES } from '@/lib/organizations/dashboard'
 import { TEAM_MANAGER_ROLES } from '@/lib/organizations/team'
 import { getAccessMode } from '@/lib/access-central'
@@ -33,8 +37,16 @@ export default async function GrupoPage({ searchParams }: { searchParams: Promis
   const user = await getSessionUser()
   if (!user?.id) redirect('/login?callbackUrl=/grupo')
 
-  const [orgs, orgMode, accessMode, dashboardMode] = await Promise.all([getMyOrganizations(user.id), getOrgAccessMode(), getAccessMode(), getOrgDashboardMode()])
+  const [orgs, orgMode, accessMode, dashboardMode, posMode] = await Promise.all([getMyOrganizations(user.id), getOrgAccessMode(), getAccessMode(), getOrgDashboardMode(), getPosMultiBrandMode()])
   const panelsEnabled = orgMode === 'enforce' && accessMode === 'enforce'
+  // POS multimarca (D6): PIN propio en las marcas del grupo que no son su comercio.
+  const posPinsEnabled = posMode === 'on' && orgMode === 'enforce'
+  const homeTenantId = user.tenantId ? String(user.tenantId) : null
+  const withPin = new Set(
+    posPinsEnabled && /^[a-f0-9]{24}$/i.test(String(user.id))
+      ? (await PosCredential.find({ userId: new mongoose.Types.ObjectId(String(user.id)) }).select('tenantId').lean<{ tenantId: unknown }[]>()).map(c => String(c.tenantId))
+      : [],
+  )
 
   // Recién iniciada la sesión: directo a la última marca, si sigue siendo suya.
   if ((await searchParams).inicio === '1' && panelsEnabled) {
@@ -112,16 +124,21 @@ export default async function GrupoPage({ searchParams }: { searchParams: Promis
                           </p>
                         </div>
                       </div>
-                      {panelsEnabled ? (
-                        <Link
-                          href={`/${b.slug}/admin`}
-                          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline shrink-0"
-                        >
-                          Entrar <ArrowRight size={14} />
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground shrink-0">Próximamente</span>
-                      )}
+                      <div className="flex flex-wrap items-center justify-end gap-3 shrink-0">
+                        {posPinsEnabled && SAAS_TO_POS_ROLE[b.role] && b.tenantId !== homeTenantId && (
+                          <MemberPosPin slug={b.slug} brandName={b.name} hasPin={withPin.has(b.tenantId)} />
+                        )}
+                        {panelsEnabled ? (
+                          <Link
+                            href={`/${b.slug}/admin`}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                          >
+                            Entrar <ArrowRight size={14} />
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Próximamente</span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>

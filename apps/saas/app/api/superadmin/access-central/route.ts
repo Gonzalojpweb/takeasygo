@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { clearAccessModeCache, getAccessMode, isAccessMode } from '@/lib/access-central'
-import { clearOrgAccessModeCache, clearOrgDashboardModeCache, getOrgAccessMode, getOrgDashboardMode, isDashboardMode } from '@/lib/org-access'
+import { clearOrgAccessModeCache, clearOrgDashboardModeCache, clearPosMultiBrandCache, getOrgAccessMode, getOrgDashboardMode, getPosMultiBrandMode, isDashboardMode } from '@/lib/org-access'
 import { clearProjectionCaches } from '@/lib/organizations/projection'
 import PlatformConfig from '@/models/PlatformConfig'
 import AccessShadowEvent from '@/models/AccessShadowEvent'
@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     orgForcedByEnv: Boolean(process.env.ORG_ACCESS_MODE?.trim()),
     dashboard: await getOrgDashboardMode(),
     dashboardForcedByEnv: Boolean(process.env.ORG_DASHBOARD_MODE?.trim()),
+    posMultiBrand: await getPosMultiBrandMode(),
+    posMultiBrandForcedByEnv: Boolean(process.env.POS_MULTIBRAND_MODE?.trim()),
     days,
     totalMismatches: total,
     unknown: byFamily.filter((r) => r._id.reason === 'unknown').reduce((s, r) => s + r.count, 0),
@@ -52,10 +54,11 @@ export async function PATCH(request: NextRequest) {
   const authError = await requireSuperAdmin('access-central', request)
   if (authError) return authError
   const body = await request.json().catch(() => ({}))
-  const { mode, orgMode, dashboard } = body as { mode?: unknown; orgMode?: unknown; dashboard?: unknown }
-  if (mode === undefined && orgMode === undefined && dashboard === undefined) {
-    return NextResponse.json({ error: 'Falta mode, orgMode o dashboard' }, { status: 400 })
+  const { mode, orgMode, dashboard, posMultiBrand } = body as { mode?: unknown; orgMode?: unknown; dashboard?: unknown; posMultiBrand?: unknown }
+  if (mode === undefined && orgMode === undefined && dashboard === undefined && posMultiBrand === undefined) {
+    return NextResponse.json({ error: 'Falta mode, orgMode, dashboard o posMultiBrand' }, { status: 400 })
   }
+  if (posMultiBrand !== undefined && !isDashboardMode(posMultiBrand)) return NextResponse.json({ error: 'posMultiBrand debe ser off u on' }, { status: 400 })
   if (dashboard !== undefined && !isDashboardMode(dashboard)) return NextResponse.json({ error: 'dashboard debe ser off u on' }, { status: 400 })
   if (mode !== undefined && !isAccessMode(mode)) return NextResponse.json({ error: 'mode debe ser off, log o enforce' }, { status: 400 })
   if (orgMode !== undefined && !isAccessMode(orgMode)) return NextResponse.json({ error: 'orgMode debe ser off, log o enforce' }, { status: 400 })
@@ -63,16 +66,19 @@ export async function PATCH(request: NextRequest) {
   if (mode !== undefined) set.accessCentral = mode
   if (orgMode !== undefined) set.orgAccess = orgMode
   if (dashboard !== undefined) set.orgDashboard = dashboard
+  if (posMultiBrand !== undefined) set.posMultiBrand = posMultiBrand
   await connectDB()
   await PlatformConfig.updateOne({ _id: 'platform' }, { $set: set }, { upsert: true })
   clearAccessModeCache()
   clearOrgAccessModeCache()
   clearOrgDashboardModeCache()
+  clearPosMultiBrandCache()
   clearProjectionCaches()
   return NextResponse.json({
     mode: mode ?? await getAccessMode(),
     orgMode: orgMode ?? await getOrgAccessMode(),
     dashboard: dashboard ?? await getOrgDashboardMode(),
+    posMultiBrand: posMultiBrand ?? await getPosMultiBrandMode(),
     note: 'Llega a todas las instancias en hasta 15 s.',
   })
 }
