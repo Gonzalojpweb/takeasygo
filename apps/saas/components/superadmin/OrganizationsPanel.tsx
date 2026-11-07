@@ -4,20 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Building2, Plus, Store, Users, Mail, Loader2, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { slugify } from '@/lib/slugify'
+import OrgInviteForm, { ORG_ROLE_LABEL, scopeLabel, type InvitePayload } from '@/components/organizations/OrgInviteForm'
 
 // ============================================================================
 // Panel de organizaciones del superadmin (multi-marca PR 9b)
 // ============================================================================
 // Usa /api/superadmin/organizations/* (PR 9a). Crear organización, vincular y
-// desvincular marcas, invitar y revocar miembros, suspender. Los roles de sede
-// (gerente de sede, encargado operativo) se asignan por API en esta fase.
+// desvincular marcas, invitar (los 6 roles, con sedes para gerente de sede y
+// encargado operativo) y revocar miembros, suspender.
 // Arriba, los interruptores access.central y org.access (sin redeploy).
 // ============================================================================
 
 type Mode = 'off' | 'log' | 'enforce'
 
 interface OrgRow { _id: string; name: string; slug: string; status: string; tenants: number; members: number }
-interface TenantLite { _id: string; name: string; slug: string; status?: string; organizationId?: string | null }
+interface TenantLite { _id: string; name: string; slug: string; status?: string; organizationId?: string | null; locations?: { _id: string; name: string }[] }
 interface MemberRow {
   _id: string
   orgRole: string
@@ -34,15 +35,8 @@ interface Detail {
   invitations: InvitationRow[]
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'Propietario',
-  org_admin: 'Administrador general',
-  brand_manager: 'Gerente de marca',
-  location_manager: 'Gerente de sede',
-  operations: 'Encargado operativo',
-  accountant: 'Contador',
-}
-const INVITABLE_ROLES = ['owner', 'org_admin', 'brand_manager', 'accountant'] as const
+const ROLE_LABEL = ORG_ROLE_LABEL
+const INVITABLE_ROLES = ['owner', 'org_admin', 'brand_manager', 'location_manager', 'operations', 'accountant'] as const
 const MODE_LABEL: Record<Mode, string> = { off: 'Apagado', log: 'Registrar', enforce: 'Activo' }
 
 async function api<T = Record<string, unknown>>(url: string, init?: RequestInit): Promise<T> {
@@ -145,7 +139,6 @@ function OrgDetail({ orgId, onBack }: { orgId: string; onBack: () => void }) {
   const [toLink, setToLink] = useState<string>('')
   const [confirmUnlink, setConfirmUnlink] = useState<{ tenantId: string; affected: number } | null>(null)
   const [busy, setBusy] = useState(false)
-  const [inv, setInv] = useState({ email: '', orgRole: 'owner', allTenants: true, tenantIds: [] as string[], tenantRole: 'manager' })
 
   const load = useCallback(() => {
     api<Detail>(`/api/superadmin/organizations/${orgId}`).then(setDetail).catch(e => toast.error(e.message))
@@ -159,7 +152,6 @@ function OrgDetail({ orgId, onBack }: { orgId: string; onBack: () => void }) {
     () => allTenants.filter(t => !t.organizationId && t.status !== 'deleted').sort((a, b) => a.name.localeCompare(b.name, 'es')),
     [allTenants],
   )
-  const tenantName = useMemo(() => new Map((detail?.tenants ?? []).map(t => [String(t._id), t.name])), [detail])
 
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true)
@@ -197,25 +189,25 @@ function OrgDetail({ orgId, onBack }: { orgId: string; onBack: () => void }) {
     }
   }
 
-  async function invite(e: React.FormEvent) {
-    e.preventDefault()
-    const scope = inv.orgRole === 'owner' || ((inv.orgRole === 'org_admin' || inv.orgRole === 'accountant') && inv.allTenants)
-      ? { allTenants: true }
-      : { tenantIds: inv.tenantIds }
-    await run(async () => {
-      const r = await api<{ emailSent: boolean }>(`/api/superadmin/organizations/${orgId}/invitations`, {
-        method: 'POST',
-        body: JSON.stringify({ email: inv.email, orgRole: inv.orgRole, scope, tenantRole: inv.orgRole === 'brand_manager' ? inv.tenantRole : undefined }),
-      })
+  async function invite(payload: InvitePayload): Promise<boolean> {
+    setBusy(true)
+    try {
+      const r = await api<{ emailSent: boolean }>(`/api/superadmin/organizations/${orgId}/invitations`, { method: 'POST', body: JSON.stringify(payload) })
+      toast.success('Invitación creada')
       if (!r.emailSent) toast.warning('La invitación se creó pero el email no salió. Cancelala y volvé a invitar.')
-      setInv(v => ({ ...v, email: '' }))
-    }, 'Invitación creada')
+      load()
+      return true
+    } catch (e) {
+      toast.error((e as Error).message)
+      return false
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!detail) return <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="animate-spin" size={16} /> Cargando…</div>
   const { organization, tenants, memberships, invitations } = detail
   const suspended = organization.status === 'suspended'
-  const needsTenants = inv.orgRole === 'brand_manager' || ((inv.orgRole === 'org_admin' || inv.orgRole === 'accountant') && !inv.allTenants)
 
   return (
     <div className="space-y-6">
@@ -274,11 +266,7 @@ function OrgDetail({ orgId, onBack }: { orgId: string; onBack: () => void }) {
         {memberships.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay miembros. Invitá al propietario.</p>}
         <ul className="divide-y divide-border">
           {memberships.map(m => {
-            const scope = m.scope.allTenants
-              ? 'Todas las marcas'
-              : m.scope.tenantIds.length
-                ? m.scope.tenantIds.map(id => tenantName.get(String(id)) ?? 'marca').join(', ')
-                : `${m.scope.locations.length} sede(s)`
+            const scope = scopeLabel(m.scope, tenants)
             return (
               <li key={m._id} className="flex items-center justify-between gap-3 py-2.5 flex-wrap">
                 <div className="min-w-0">
@@ -313,42 +301,7 @@ function OrgDetail({ orgId, onBack }: { orgId: string; onBack: () => void }) {
             ))}
           </ul>
         )}
-        <form onSubmit={invite} className="space-y-3">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <input type="email" required placeholder="email@ejemplo.com" value={inv.email} onChange={e => setInv(v => ({ ...v, email: e.target.value }))} className={input} />
-            <select value={inv.orgRole} onChange={e => setInv(v => ({ ...v, orgRole: e.target.value, tenantIds: [] }))} className={input}>
-              {INVITABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-            </select>
-          </div>
-          {(inv.orgRole === 'org_admin' || inv.orgRole === 'accountant') && (
-            <label className="flex items-center gap-2 text-sm text-foreground">
-              <input type="checkbox" checked={inv.allTenants} onChange={e => setInv(v => ({ ...v, allTenants: e.target.checked }))} />
-              Todas las marcas (incluidas las que se sumen)
-            </label>
-          )}
-          {needsTenants && (
-            <div className="flex flex-wrap gap-3">
-              {tenants.length === 0 && <p className="text-xs text-muted-foreground">Primero vinculá marcas.</p>}
-              {tenants.map(t => (
-                <label key={t._id} className="flex items-center gap-2 text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={inv.tenantIds.includes(t._id)}
-                    onChange={e => setInv(v => ({ ...v, tenantIds: e.target.checked ? [...v.tenantIds, t._id] : v.tenantIds.filter(x => x !== t._id) }))}
-                  />
-                  {t.name}
-                </label>
-              ))}
-            </div>
-          )}
-          {inv.orgRole === 'brand_manager' && (
-            <select value={inv.tenantRole} onChange={e => setInv(v => ({ ...v, tenantRole: e.target.value }))} className={`${input} sm:max-w-xs`}>
-              <option value="manager">Encargado en la marca (sin dinero, usuarios ni fiscal)</option>
-              <option value="admin">Administrador en la marca</option>
-            </select>
-          )}
-          <button type="submit" disabled={busy || suspended} className={btnPrimary}><Mail size={14} /> Invitar</button>
-        </form>
+        <OrgInviteForm tenants={tenants} roles={INVITABLE_ROLES} disabled={busy || suspended} onSubmit={invite} />
       </section>
     </div>
   )

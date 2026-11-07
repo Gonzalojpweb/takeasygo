@@ -46,8 +46,9 @@ export default function LoginPage() {
             } else if (role === 'seller') {
                 router.push('/seller')
             } else if (role === 'member') {
-                // Multi-marca PR 9b: sin comercio de origen → sus organizaciones.
-                router.push('/grupo')
+                // Multi-marca: sin comercio de origen → su última marca (si
+                // sigue teniendo acceso) o sus organizaciones (/grupo decide).
+                router.push('/grupo?inicio=1')
             } else if (tenantSlug) {
                 router.push(`/${tenantSlug}/admin`)
             } else {

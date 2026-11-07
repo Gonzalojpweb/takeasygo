@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Building2, Store, ArrowRight, Info, BarChart3 } from 'lucide-react'
+import { Building2, Store, ArrowRight, Info, BarChart3, Users } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
-import { getMyOrganizations } from '@/lib/organizations/me'
+import { getMyOrganizations, lastBrandFor } from '@/lib/organizations/me'
 import { getOrgAccessMode, getOrgDashboardMode } from '@/lib/org-access'
 import { DASHBOARD_ROLES } from '@/lib/organizations/dashboard'
+import { TEAM_MANAGER_ROLES } from '@/lib/organizations/team'
 import { getAccessMode } from '@/lib/access-central'
 
 // Multi-marca PR 9b — /grupo: las organizaciones de la persona y sus marcas.
@@ -28,12 +29,18 @@ const BRAND_ROLE_LABEL: Record<string, string> = {
   auditor: 'Solo lectura',
 }
 
-export default async function GrupoPage() {
+export default async function GrupoPage({ searchParams }: { searchParams: Promise<{ inicio?: string }> }) {
   const user = await getSessionUser()
   if (!user?.id) redirect('/login?callbackUrl=/grupo')
 
   const [orgs, orgMode, accessMode, dashboardMode] = await Promise.all([getMyOrganizations(user.id), getOrgAccessMode(), getAccessMode(), getOrgDashboardMode()])
   const panelsEnabled = orgMode === 'enforce' && accessMode === 'enforce'
+
+  // Recién iniciada la sesión: directo a la última marca, si sigue siendo suya.
+  if ((await searchParams).inicio === '1' && panelsEnabled) {
+    const last = await lastBrandFor(user.id, orgs)
+    if (last) redirect(`/${last}/admin`)
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -71,14 +78,24 @@ export default async function GrupoPage() {
                   {ORG_ROLE_LABEL[orgRole] ?? orgRole}
                 </span>
               </div>
-              {dashboardMode === 'on' && DASHBOARD_ROLES.has(orgRole) && brands.length > 0 && (
-                <Link
-                  href={`/grupo/${organization.slug}`}
-                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-                >
-                  <BarChart3 size={16} /> Ver números del grupo
-                </Link>
-              )}
+              <div className="flex flex-wrap gap-4">
+                {dashboardMode === 'on' && DASHBOARD_ROLES.has(orgRole) && brands.length > 0 && (
+                  <Link
+                    href={`/grupo/${organization.slug}`}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    <BarChart3 size={16} /> Ver números del grupo
+                  </Link>
+                )}
+                {TEAM_MANAGER_ROLES.has(orgRole) && (
+                  <Link
+                    href={`/grupo/${organization.slug}/equipo`}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                  >
+                    <Users size={16} /> Equipo
+                  </Link>
+                )}
+              </div>
               {brands.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Tu rol no incluye ninguna marca todavía.</p>
               ) : (

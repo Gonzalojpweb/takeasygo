@@ -77,3 +77,45 @@ export async function getMyOrganizations(userId: string): Promise<MyOrganization
   }
   return result.sort((a, b) => a.organization.name.localeCompare(b.organization.name, 'es'))
 }
+
+// ── Última marca y selector de marca ────────────────────────────────────────
+
+/**
+ * Guarda la última marca en la que operó un miembro (multi-marca, diseño 1-c).
+ * Lee antes de escribir: una escritura solo cuando cambia de marca.
+ */
+export async function rememberLastBrand(userId: string, slug: string): Promise<void> {
+  if (!isId(userId) || !/^[a-z0-9-]{2,60}$/.test(slug)) return
+  await connectDB()
+  const UserPreferences = (await import('@/models/UserPreferences')).default
+  const uid = new Types.ObjectId(userId)
+  const cur = await UserPreferences.findOne({ userId: uid }).select('lastTenantSlug').lean<{ lastTenantSlug?: string | null }>()
+  if (cur?.lastTenantSlug === slug) return
+  await UserPreferences.updateOne({ userId: uid }, { $set: { lastTenantSlug: slug } }, { upsert: true })
+}
+
+/** Última marca guardada, solo si todavía es una de las suyas (si no, null). */
+export async function lastBrandFor(userId: string, orgs: MyOrganization[]): Promise<string | null> {
+  if (!isId(userId)) return null
+  await connectDB()
+  const UserPreferences = (await import('@/models/UserPreferences')).default
+  const pref = await UserPreferences.findOne({ userId: new Types.ObjectId(userId) }).select('lastTenantSlug').lean<{ lastTenantSlug?: string | null }>()
+  const slug = pref?.lastTenantSlug
+  return slug && orgs.some(o => o.brands.some(b => b.slug === slug)) ? slug : null
+}
+
+export interface SwitcherBrand { slug: string; name: string; orgName: string }
+
+/** Marcas a las que puede saltar desde el panel (todas sus organizaciones). */
+export function switcherBrands(orgs: MyOrganization[]): SwitcherBrand[] {
+  const seen = new Set<string>()
+  const out: SwitcherBrand[] = []
+  for (const o of orgs) {
+    for (const b of o.brands) {
+      if (seen.has(b.slug)) continue
+      seen.add(b.slug)
+      out.push({ slug: b.slug, name: b.name, orgName: o.organization.name })
+    }
+  }
+  return out
+}

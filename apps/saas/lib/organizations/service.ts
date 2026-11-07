@@ -41,7 +41,15 @@ export interface AuditActor {
   userId: string | null
   name: string
   role: string
+  /**
+   * Con qué permisos opera (lib/organizations/membership-rules → checkPrivilege).
+   * Sin indicar: superadmin (panel del superadmin). Desde /grupo: el miembro
+   * con su rol y alcance en la organización.
+   */
+  privilege?: Actor
 }
+
+const privilegeOf = (actor: AuditActor): Actor => actor.privilege ?? { kind: 'superadmin' }
 
 const isId = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{24}$/i.test(v)
 const toId = (v: string) => new Types.ObjectId(v)
@@ -117,7 +125,6 @@ async function assertValidGrant(orgId: string, orgRole: OrgRole, scope: ScopeInp
   if (scopeErr) throw new OrgError(400, scopeErr.code, scopeErr.message, scopeErr)
 }
 
-const SUPERADMIN: Actor = { kind: 'superadmin' }
 
 function toScopeDoc(scope: ScopeInput) {
   return {
@@ -309,7 +316,7 @@ export async function addMember(orgId: string, input: { email?: unknown; orgRole
   const eligible = checkEligibleUser(user)
   if (eligible) throw new OrgError(400, eligible.code, eligible.message)
   await assertCanSignIn(user)
-  const priv = checkPrivilege(SUPERADMIN, { userId: String(user._id), orgRole, scope })
+  const priv = checkPrivilege(privilegeOf(actor), { userId: String(user._id), orgRole, scope })
   if (priv) throw new OrgError(403, priv.code, priv.message)
 
   const existing = await OrgMembership.findOne({ organizationId: org._id, userId: user._id })
@@ -354,7 +361,7 @@ export async function updateMember(orgId: string, membershipId: string, input: {
   await assertValidGrant(String(org._id), nextRole, nextScope, nextTenantRole)
   const lastOwner = checkLastOwner(current, { orgRole: nextRole, status: nextStatus }, await activeOwners(org._id))
   if (lastOwner) throw new OrgError(409, lastOwner.code, lastOwner.message)
-  const priv = checkPrivilege(SUPERADMIN, { userId: String(m.userId), orgRole: nextRole, scope: nextScope, current })
+  const priv = checkPrivilege(privilegeOf(actor), { userId: String(m.userId), orgRole: nextRole, scope: nextScope, current })
   if (priv) throw new OrgError(403, priv.code, priv.message)
 
   const after = { orgRole: nextRole, scope: toScopeDoc(nextScope), tenantRole: nextTenantRole, status: nextStatus }
@@ -373,6 +380,9 @@ export async function revokeMember(orgId: string, membershipId: string, reason: 
   const m = await OrgMembership.findOne({ _id: membershipId, organizationId: org._id })
   if (!m) throw new OrgError(404, 'membership_not_found', 'Membresía no encontrada')
   if (m.status === 'revoked') return m // idempotente
+  const revokeScope = scopeFromDoc(m.scope)
+  const privR = checkPrivilege(privilegeOf(actor), { userId: String(m.userId), orgRole: m.orgRole as OrgRole, scope: revokeScope, current: { orgRole: m.orgRole as OrgRole, scope: revokeScope } })
+  if (privR) throw new OrgError(403, privR.code, privR.message)
   const lastOwner = checkLastOwner({ orgRole: m.orgRole as OrgRole, status: m.status }, { orgRole: m.orgRole as OrgRole, status: 'revoked' }, await activeOwners(org._id))
   if (lastOwner) throw new OrgError(409, lastOwner.code, lastOwner.message)
   await OrgMembership.updateOne({ _id: m._id, status: { $ne: 'revoked' } }, {
@@ -404,6 +414,9 @@ export async function createInvitation(
   await assertValidGrant(String(org._id), orgRole, scope, tenantRole)
 
   const user = await User.findOne({ email }).select('_id role isActive tenantId').lean<{ _id: Types.ObjectId; role: string; isActive?: boolean; tenantId?: Types.ObjectId | null }>()
+  // Quien invita no puede dar un rol o alcance que no podría gestionar.
+  const privI = checkPrivilege(privilegeOf(actor), { userId: user ? String(user._id) : '', orgRole, scope })
+  if (privI) throw new OrgError(403, privI.code, privI.message)
   if (user) {
     const eligible = checkEligibleUser(user)
     if (eligible) throw new OrgError(400, eligible.code, eligible.message)
@@ -438,6 +451,12 @@ export async function createInvitation(
 export async function cancelInvitation(orgId: string, invitationId: string, actor: AuditActor) {
   const org = await loadOrg(orgId)
   if (!isId(invitationId)) throw new OrgError(404, 'invitation_not_found', 'Invitación no encontrada')
+  if (actor.privilege && actor.privilege.kind !== 'superadmin') {
+    const inv = await OrgInvitation.findOne({ _id: invitationId, organizationId: org._id }).select('orgRole scope').lean<{ orgRole: OrgRole; scope?: Parameters<typeof scopeFromDoc>[0] }>()
+    if (!inv) throw new OrgError(404, 'invitation_not_found', 'No hay una invitación pendiente con ese id.')
+    const privC = checkPrivilege(actor.privilege, { userId: '', orgRole: inv.orgRole, scope: scopeFromDoc(inv.scope) })
+    if (privC) throw new OrgError(403, privC.code, privC.message)
+  }
   const res = await OrgInvitation.updateOne({ _id: invitationId, organizationId: org._id, status: 'pending' }, { $set: { status: 'cancelled' } })
   if (res.matchedCount === 0) throw new OrgError(404, 'invitation_not_found', 'No hay una invitación pendiente con ese id.')
   await audit(org._id, actor, 'org.invitation.cancelled', 'invitation', invitationId, {})
@@ -571,12 +590,20 @@ export async function listOrganizations() {
 
 export async function getOrganizationDetail(orgId: string) {
   const org = await loadOrg(orgId)
-  const [tenants, memberships, invitations] = await Promise.all([
+  const [tenantsRaw, memberships, invitations] = await Promise.all([
     Tenant.find({ organizationId: org._id }).select('_id name slug status plan').lean(),
     OrgMembership.find({ organizationId: org._id, status: { $in: MEMBERSHIP_STATUSES.filter(s => s !== 'revoked') } })
       .populate('userId', 'name email role isActive').lean(),
     OrgInvitation.find({ organizationId: org._id, status: 'pending' }).select('-tokenHash').lean(),
   ])
+  // Sedes activas de cada marca: para elegir el alcance de gerente de sede y encargado.
+  const Location = (await import('@/models/Location')).default
+  const locs = await Location.find({ tenantId: { $in: tenantsRaw.map(t => t._id) }, isActive: true })
+    .select('_id name tenantId').sort({ name: 1 }).lean<{ _id: Types.ObjectId; name: string; tenantId: Types.ObjectId }[]>()
+  const tenants = tenantsRaw.map(t => ({
+    ...t,
+    locations: locs.filter(l => String(l.tenantId) === String(t._id)).map(l => ({ _id: String(l._id), name: l.name })),
+  }))
   return { organization: org.toObject(), tenants, memberships, invitations }
 }
 

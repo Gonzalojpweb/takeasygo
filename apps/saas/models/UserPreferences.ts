@@ -10,6 +10,8 @@ export interface IUserPreferences extends Document {
   onboardingCompleted: boolean
   hasSeenNetworkOnboarding: boolean
   notificationPermission: 'granted' | 'denied' | 'default'
+  /** Multi-marca: última marca en la que operó un miembro de organización. */
+  lastTenantSlug?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -58,6 +60,7 @@ const UserPreferencesSchema = new Schema<IUserPreferences>(
       enum: ['granted', 'denied', 'default'],
       default: 'default',
     },
+    lastTenantSlug: { type: String, default: null, maxlength: 60 },
   },
   {
     timestamps: true,

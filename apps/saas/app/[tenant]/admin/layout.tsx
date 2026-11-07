@@ -8,6 +8,10 @@ import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import DesktopSidebar from '@/components/admin/DesktopSidebar'
 import AdminTopBar from '@/components/admin/AdminTopBar'
+import BrandSwitcher from '@/components/admin/BrandSwitcher'
+import { getMyOrganizations, rememberLastBrand, switcherBrands, type SwitcherBrand } from '@/lib/organizations/me'
+import { getOrgAccessMode } from '@/lib/org-access'
+import { getAccessMode } from '@/lib/access-central'
 import AdminPWAProvider from '@/components/admin/AdminPWAProvider'
 import AdminPushBanner from '@/components/admin/AdminPushBanner'
 import { SystemAnnouncementBanner } from '@/components/admin/SystemAnnouncementBanner'
@@ -78,9 +82,10 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('plan business.enabled features.crm.enabled features.posEnabled features.posOnly branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
+    .select('name plan business.enabled features.crm.enabled features.posEnabled features.posOnly branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
     .lean<{
       _id: mongoose.Types.ObjectId
+      name?: string
       plan?: Plan
       business?: { enabled?: boolean }
       features?: { crm?: { enabled?: boolean }; posEnabled?: boolean; posOnly?: boolean }
@@ -177,6 +182,22 @@ export default async function AdminLayout({
 
   const rbacSedeScope = isFlagEnabled(tenantDoc, FLAGS.RBAC_SEDE_SCOPE)
 
+  // Multi-marca: selector de marca y última marca usada, solo con el acceso
+  // por organización activo (si no, las membresías no dan acceso a marcas).
+  let switcher: SwitcherBrand[] | null = null
+  if (!isSuperadmin && session.user.id) {
+    try {
+      const [orgMode, accessMode] = await Promise.all([getOrgAccessMode(), getAccessMode()])
+      if (orgMode === 'enforce' && accessMode === 'enforce') {
+        const brands = switcherBrands(await getMyOrganizations(session.user.id))
+        if (brands.some(b => b.slug !== tenant)) switcher = brands
+        if (session.user.membershipRole) await rememberLastBrand(session.user.id, tenant)
+      }
+    } catch (err) {
+      console.error('[admin/layout] selector de marca', err)
+    }
+  }
+
   const sidebarProps = {
     tenantSlug: tenant,
     userRole: session.user.role ?? 'staff',
@@ -214,6 +235,8 @@ export default async function AdminLayout({
           <MobileNav>
             <AdminSidebar {...sidebarProps} isExpanded={true} />
           </MobileNav>
+
+          {switcher && <BrandSwitcher current={tenant} currentName={tenantDoc?.name ?? tenant} brands={switcher} />}
 
           {/* Top Bar — sede selector + section title */}
           <AdminTopBar />
