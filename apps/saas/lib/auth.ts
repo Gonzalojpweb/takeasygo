@@ -21,12 +21,10 @@ class TenantMissingSignin extends CredentialsSignin {
  * - Cuenta con tenantId nulo/inexistente (p.ej. huérfana tras borrar un
  *   tenant) no puede entrar; el formulario muestra un mensaje a soporte.
  */
-async function assertTenantUsable(user: { role?: string; tenantId?: unknown }) {
-  if (user.role === 'superadmin') return
-  if (!user.tenantId) throw new TenantMissingSignin()
-  const { default: Tenant } = await import('@/models/Tenant')
-  const tenant = await Tenant.findById(user.tenantId).select('_id status').lean<{ status?: string }>()
-  if (!tenant || tenant.status === 'deleted') throw new TenantMissingSignin()
+async function assertTenantUsable(user: { _id?: unknown; role?: string; tenantId?: unknown }) {
+  // Reglas en lib/signin-guard.ts (multi-marca PR 9b: `member` entra por membresía).
+  const { isSignInAllowed } = await import('@/lib/signin-guard')
+  if (!(await isSignInAllowed(user))) throw new TenantMissingSignin()
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({

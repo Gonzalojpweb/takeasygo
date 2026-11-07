@@ -94,6 +94,7 @@ export default function SuperAdminSidebar() {
       section: 'Gestión',
       items: [
         { href: '/superadmin/tenants', label: 'Tenants', icon: Store },
+        { href: '/superadmin/organizaciones', label: 'Organizaciones', icon: Building2 },
         { href: '/superadmin/usuarios', label: 'Usuarios', icon: Users },
         { href: '/superadmin/business/companies', label: 'Empresas Business', icon: Building2 },
         { href: '/superadmin/sellers', label: 'Vendedores', icon: UserCheck },

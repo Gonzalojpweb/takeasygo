@@ -34,6 +34,9 @@ describe('proxy: x-tenant-slug del cliente', () => {
     '/login',
     '/',
     '/Mayusculas/admin', // no pasa el regex de slug
+    '/grupo', // panel de organización (PR 9b)
+    '/grupo/aceptar',
+    '/api/grupo/invitations',
   ])('se borra en %s', async (path) => {
     expect(await forwardedSlug(path)).toBeNull()
   })

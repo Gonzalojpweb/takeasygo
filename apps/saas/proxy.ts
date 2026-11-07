@@ -24,6 +24,9 @@ const EXCLUDED_PATHS = [
   '/sso-callback',
   '/seller',
   '/api/seller',
+  // Multi-marca PR 9b: panel de organización (no es un comercio).
+  '/grupo',
+  '/api/grupo',
 ]
 
 const SLUG_REGEX = /^[a-z0-9-]{2,50}$/

@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Eye, EyeOff, ArrowRight } from 'lucide-react'
+import { safeCallbackUrl } from '@/lib/safe-callback'
 
 export default function LoginPage() {
     const router = useRouter()
@@ -34,11 +35,19 @@ export default function LoginPage() {
             const session = await getSession()
             const role = session?.user?.role
             const tenantSlug = session?.user?.tenantSlug
+            // Vuelta a la página de origen (p. ej. aceptar una invitación):
+            // solo rutas internas, nunca otro dominio.
+            const safeCallback = safeCallbackUrl(new URLSearchParams(window.location.search).get('callbackUrl'))
 
-            if (role === 'superadmin') {
+            if (safeCallback) {
+                router.push(safeCallback)
+            } else if (role === 'superadmin') {
                 router.push('/superadmin')
             } else if (role === 'seller') {
                 router.push('/seller')
+            } else if (role === 'member') {
+                // Multi-marca PR 9b: sin comercio de origen → sus organizaciones.
+                router.push('/grupo')
             } else if (tenantSlug) {
                 router.push(`/${tenantSlug}/admin`)
             } else {
