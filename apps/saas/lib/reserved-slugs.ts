@@ -19,6 +19,10 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'api', 'app', 'auth', 'admin', 'superadmin', 'seller', 'login', 'logout', 'demo', 'empezar', 'invite',
   'forgot-password', 'reset-password', 'sso-callback', 'privacidad', 'terminos', 'tgo', 'autorizar-mercadopago',
   'explore', 'pos', 'sync', 'static', 'assets', 'public', 'favicon', 'manifest', 'robots', 'sitemap',
+  // Carpetas fijas de app/api: un comercio con ese slug tendría sus APIs
+  // (/api/{slug}/…) tapadas por la carpeta (multi-marca PR 8)
+  'agent', 'app-stories', 'business', 'cis', 'crm', 'cron', 'delivery', 'directory', 'internal', 'leads',
+  'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'push', 'tia', 'user', 'visits', 'wallet', 'webhooks',
   // Panel de organización (multi-marca)
   'grupo', 'grupos', 'org', 'orgs', 'organizacion', 'organizaciones',
   // Plataforma

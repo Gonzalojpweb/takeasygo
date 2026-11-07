@@ -10,7 +10,9 @@ import mongoose, { Schema } from 'mongoose'
 // No guarda datos personales: ids, rol y motivo. Se borra sola a los 30 días.
 // ============================================================================
 
-export type ShadowReason = 'jwt_stale_role' | 'jwt_stale_tenant' | 'user_inactive' | 'no_jwt' | 'unknown'
+// org_membership (PR 8): con org.access en `log`, una membresía habría dado
+// acceso a un comercio que el usuario no tiene por origen.
+export type ShadowReason = 'jwt_stale_role' | 'jwt_stale_tenant' | 'user_inactive' | 'no_jwt' | 'org_membership' | 'unknown'
 
 export interface IAccessShadowEvent {
   family: string
@@ -35,7 +37,7 @@ const AccessShadowEventSchema = new Schema<IAccessShadowEvent>(
     newDecision: { type: Boolean, required: true },
     oldRole: { type: String, default: null },
     newRole: { type: String, default: null },
-    reason: { type: String, enum: ['jwt_stale_role', 'jwt_stale_tenant', 'user_inactive', 'no_jwt', 'unknown'], required: true },
+    reason: { type: String, enum: ['jwt_stale_role', 'jwt_stale_tenant', 'user_inactive', 'no_jwt', 'org_membership', 'unknown'], required: true },
   },
   { timestamps: { createdAt: true, updatedAt: false }, collection: 'access_shadow_events' }
 )

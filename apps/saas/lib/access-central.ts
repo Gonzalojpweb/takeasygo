@@ -63,6 +63,8 @@ export interface ShadowInput {
   freshFound: boolean
   oldTenantMatches?: boolean
   newTenantMatches?: boolean
+  /** Motivo ya conocido por quien registra (p. ej. org_membership); salta la clasificación. */
+  reason?: ShadowReason
 }
 
 /**
@@ -80,7 +82,7 @@ export function classifyShadow(i: ShadowInput): ShadowReason {
 /** Registra una divergencia. Nunca lanza ni demora la respuesta. */
 export function recordShadow(i: ShadowInput): void {
   if (i.oldDecision === i.newDecision) return
-  const reason = classifyShadow(i)
+  const reason = i.reason ?? classifyShadow(i)
   void (async () => {
     try {
       if (mongoose.connection.readyState !== 1) return

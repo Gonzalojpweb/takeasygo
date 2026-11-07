@@ -112,6 +112,8 @@ export const authConfig = {
         session.user.assignedTenants = token.assignedTenants as string[]
         session.user.image = token.image as string | null
         session.user.name = token.name as string | null
+        // Multi-marca PR 8: emisión del JWT, para el corte sessionsValidAfter.
+        ;(session.user as { issuedAt?: number | null }).issuedAt = typeof token.iat === 'number' ? token.iat : null
       }
       return session
     },

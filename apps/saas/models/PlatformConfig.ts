@@ -44,6 +44,8 @@ export interface IPlatformConfig {
   maintenanceMode: boolean
   /** Multi-marca PR 2: quién decide el acceso a un comercio (lib/access-central). */
   accessCentral?: 'off' | 'log' | 'enforce'
+  /** Multi-marca PR 8: proyección de membresías de organización (lib/org-access). */
+  orgAccess?: 'off' | 'log' | 'enforce'
   /** Google Contacts sync cron cursor (persisted between runs) */
   gcSyncCursor: {
     lastUserId: string | null
@@ -100,6 +102,8 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     maintenanceMode: { type: Boolean, default: false },
     // Multi-marca PR 2 (06/11/2026): off = como siempre (JWT).
     accessCentral: { type: String, enum: ['off', 'log', 'enforce'], default: 'off' },
+    // Multi-marca PR 8: off = las membresías no dan acceso (como hoy).
+    orgAccess: { type: String, enum: ['off', 'log', 'enforce'], default: 'off' },
     gcSyncCursor: {
       lastUserId: { type: String, default: null },
       lastRunAt:  { type: Date, default: null },

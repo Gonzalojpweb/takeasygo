@@ -198,7 +198,10 @@ export function checkPrivilege(
 
 /**
  * Usuario activo y que no sea superadmin. El cliente de la app (`consumer`)
- * es elegible: al aceptar pasa a `member` (D3, se implementa en el PR 8).
+ * es elegible y su rol NO cambia (D3, opción B aprobada): la membresía le da
+ * acceso solo a las marcas de su alcance vía la proyección; en cualquier otro
+ * contexto sigue siendo cliente. Los usuarios nuevos creados por una
+ * invitación nacen como `member` (PR 9).
  */
 export function checkEligibleUser(user: { isActive?: boolean | null; role?: string | null }): RuleError | null {
   if (user.isActive === false) return { code: 'user_inactive', message: 'El usuario está desactivado.' }

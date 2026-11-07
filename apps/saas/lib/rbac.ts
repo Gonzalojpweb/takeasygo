@@ -272,6 +272,9 @@ export interface RbacUser {
   assignedLocations?: Array<string | unknown> | null
   name?: string | null
   email?: string | null
+  /** Multi-marca PR 8: usuario proyectado por una membresía de organización. */
+  via?: string | null
+  membershipRole?: string | null
 }
 
 function userIdString(user: RbacUser | null | undefined): string | null {
@@ -315,7 +318,31 @@ export interface PermissionDecision {
   /** Rol efectivo que determinó la decisión (fila ULR; o rol de sesión en legacy). */
   effectiveRole: string | null
   /** Cómo se resolvió (para diagnóstico del reporte de sombra). */
-  via: 'superadmin' | 'ulr' | 'sin-fila-legacy' | 'sin-usuario'
+  via: 'superadmin' | 'ulr' | 'sin-fila-legacy' | 'sin-usuario' | 'membership'
+}
+
+/**
+ * Multi-marca PR 8 (diseño §5.4): para un miembro proyectado se calculan
+ * filas «virtuales» desde su rol y sedes efectivas, nunca persistidas (si se
+ * materializaran en user_location_roles, revocar a medias dejaría filas
+ * huérfanas con acceso). Misma lógica que las filas reales.
+ */
+function decideMembership(user: RbacUser, locationId: string | null | undefined, permission: Permission): PermissionDecision {
+  const role = user.role ?? null
+  const locs = locationIds(user)
+  const tenantWide = locs.length === 0
+  // Consolidado: solo con fila tenant-wide (sin respaldo legacy).
+  if (TENANT_WIDE_PERMISSIONS.has(permission)) {
+    return { allowed: tenantWide && roleHasPermission(role, permission), effectiveRole: role, via: 'membership' }
+  }
+  // Filas que matchean: tenant-wide, o la de la sede pedida.
+  const matches = tenantWide || (locationId ? locs.includes(String(locationId)) : false)
+  if (matches) return { allowed: roleHasPermission(role, permission), effectiveRole: role, via: 'membership' }
+  // Sin fila que matchee: mismo respaldo legacy que las filas reales.
+  let allowed = true
+  if (locationId && locs.length > 0 && !locs.includes(String(locationId))) allowed = false
+  if (allowed) allowed = legacyHasPermission(user, permission)
+  return { allowed, effectiveRole: role, via: 'membership' }
 }
 
 /**
@@ -338,6 +365,12 @@ export async function resolvePermission(args: {
   if (!user) return { allowed: false, effectiveRole: null, via: 'sin-usuario' }
   if (user.role === 'superadmin') return { allowed: true, effectiveRole: 'superadmin', via: 'superadmin' }
 
+  // Multi-marca PR 8: el contador (auditor por membresía) no entra a las
+  // salas en vivo de la operación, con cualquier modo del flag.
+  if (user.membershipRole === 'accountant' && permission === 'rooms.access') {
+    return { allowed: false, effectiveRole: user.role ?? null, via: 'membership' }
+  }
+
   const flagOn = getRbacScopeMode(tenant) !== 'off'
   if (!flagOn) {
     // Fallback legacy + alcance de sede de la Oleada 1.
@@ -352,6 +385,8 @@ export async function resolvePermission(args: {
 
   const uid = userIdString(user)
   if (!uid) return { allowed: false, effectiveRole: null, via: 'sin-usuario' }
+
+  if (user.via === 'membership') return decideMembership(user, locationId, permission)
 
   // Permisos de ámbito tenant (consolidado): requieren fila ULR tenant-wide.
   // Una fila de sede específica no los concede y no hay fallback legacy.

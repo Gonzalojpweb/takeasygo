@@ -40,14 +40,17 @@ function toSessionFromPosToken(payload: {
 // El JWT de NextAuth vive 8 h y congela role/tenantId/assignedLocations del
 // login. Para que quitar una sede, cambiar el rol o desactivar un usuario
 // tenga efecto en las APIs sin esperar a que expire, se releen de la DB con
-// un caché por instancia de 30 s.
-const FRESH_TTL_MS = 30_000
+// un caché por instancia de 20 s (multi-marca PR 8: antes 30 s). Las
+// escrituras (método ≠ GET/HEAD) releen siempre de la base.
+const FRESH_TTL_MS = 20_000
 const OBJECT_ID_RE = /^[a-f0-9]{24}$/i
 
 interface FreshUser {
   role: string
   tenantId: string | null
   assignedLocations: string[]
+  /** Multi-marca PR 8: sesiones emitidas antes de esta fecha no valen. */
+  sessionsValidAfter: number | null
 }
 
 const freshCache = new Map<string, { at: number; data: FreshUser | null }>()
@@ -62,50 +65,70 @@ export function clearFreshUserCache() {
  * tests/sistema) → se usan los claims del token. null = usuario borrado o
  * desactivado → sin sesión.
  */
-async function loadFreshUser(id: string | null | undefined): Promise<FreshUser | null | undefined> {
+async function loadFreshUser(id: string | null | undefined, noCache = false): Promise<FreshUser | null | undefined> {
   if (!id || !OBJECT_ID_RE.test(id)) return undefined
-  const cached = freshCache.get(id)
+  const cached = noCache ? undefined : freshCache.get(id)
   if (cached && Date.now() - cached.at < FRESH_TTL_MS) return cached.data
 
   const { connectDB } = await import('@/lib/mongoose')
   await connectDB()
   const User = (await import('@/models/User')).default
   const doc = await User.findById(id)
-    .select('role tenantId assignedLocations isActive')
-    .lean<{ role: string; tenantId?: unknown; assignedLocations?: unknown[]; isActive?: boolean }>()
+    .select('role tenantId assignedLocations isActive sessionsValidAfter')
+    .lean<{ role: string; tenantId?: unknown; assignedLocations?: unknown[]; isActive?: boolean; sessionsValidAfter?: Date | null }>()
   const data: FreshUser | null = !doc || doc.isActive === false
     ? null
     : {
         role: doc.role,
         tenantId: doc.tenantId ? String(doc.tenantId) : null,
         assignedLocations: (doc.assignedLocations ?? []).map(String),
+        sessionsValidAfter: doc.sessionsValidAfter ? new Date(doc.sessionsValidAfter).getTime() : null,
       }
   freshCache.set(id, { at: Date.now(), data })
   return data
+}
+
+/**
+ * ¿La sesión se emitió antes del corte `sessionsValidAfter`? `issuedAtSec` es
+ * el `iat` del JWT (segundos). Sin iat y con corte: se corta (falla cerrado).
+ */
+export function sessionCutOff(issuedAtSec: number | null | undefined, sessionsValidAfterMs: number | null): boolean {
+  if (!sessionsValidAfterMs) return false
+  if (typeof issuedAtSec !== 'number' || !Number.isFinite(issuedAtSec)) return true
+  return issuedAtSec * 1000 < sessionsValidAfterMs
 }
 
 async function withFreshPermissions<T extends {
   id?: string | null
   role?: string | null
   tenantId?: string | null
+  tenantSlug?: string | null
   assignedLocation?: string | null
   assignedLocations?: string[] | null
-}>(user: T): Promise<T | null> {
-  const fresh = await loadFreshUser(user.id)
+}>(user: T, request?: NextRequest, issuedAtSec?: number | null) {
+  const { isWriteRequest, projectSessionUser } = await import('@/lib/organizations/projection')
+  const fresh = await loadFreshUser(user.id, isWriteRequest(request))
   if (fresh === undefined) return user
   if (fresh === null) return null
-  return {
+  if (sessionCutOff(issuedAtSec, fresh.sessionsValidAfter)) return null
+  const base: T = {
     ...user,
     role: fresh.role,
     tenantId: fresh.tenantId,
     assignedLocations: fresh.assignedLocations,
     assignedLocation: fresh.assignedLocations[0] ?? null,
   }
+  // Multi-marca PR 8: membresías de organización sobre el comercio del contexto
+  // (lib/organizations/projection.ts; interruptor org.access, apagado = base).
+  return projectSessionUser(base, request)
 }
 
 export async function getSessionUser(request?: NextRequest) {
   const session = await auth()
-  if (session?.user) return withFreshPermissions(session.user)
+  if (session?.user) {
+    const issuedAt = (session.user as { issuedAt?: number | null }).issuedAt ?? null
+    return withFreshPermissions(session.user, request, issuedAt)
+  }
 
   if (!request) return null
 
@@ -124,7 +147,7 @@ export async function getSessionUser(request?: NextRequest) {
         assignedLocations: token.assignedLocations as string[],
         assignedTenants: token.assignedTenants as string[],
         image: token.image as string | null,
-      })
+      }, request, typeof token.iat === 'number' ? token.iat : null)
     }
   }
 

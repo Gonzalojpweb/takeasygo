@@ -25,3 +25,14 @@ describe('lib/reserved-slugs', () => {
     expect(tenantSlugError('mi-local')).toBeNull()
   })
 })
+
+describe('carpetas fijas de app/api', () => {
+  const apiDir = path.join(__dirname, '..', '..', 'app', 'api')
+  const apiTop = fs.readdirSync(apiDir, { withFileTypes: true })
+    .filter(d => d.isDirectory() && !d.name.startsWith('['))
+    .map(d => d.name)
+
+  it('están todas reservadas para comercios', () => {
+    expect(apiTop.filter(n => !RESERVED_SLUGS.has(n))).toEqual([])
+  })
+})

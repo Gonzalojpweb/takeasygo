@@ -143,7 +143,7 @@ describe('privilegios', () => {
 describe('usuario elegible', () => {
   it('casos', () => {
     expect(checkEligibleUser({ isActive: true, role: 'admin' })).toBeNull()
-    expect(checkEligibleUser({ isActive: true, role: 'consumer' })).toBeNull() // D3: pasa a member al aceptar (PR 8)
+    expect(checkEligibleUser({ isActive: true, role: 'consumer' })).toBeNull() // D3 opción B: elegible y sin cambiar su rol
     expect(checkEligibleUser({ isActive: false, role: 'admin' })?.code).toBe('user_inactive')
     expect(checkEligibleUser({ isActive: true, role: 'superadmin' })?.code).toBe('user_superadmin')
   })
