@@ -37,13 +37,14 @@ export async function getAccessMode(): Promise<AccessMode> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.mode
   let mode: AccessMode = 'off'
   try {
-    if (mongoose.connection.readyState === 1) {
-      const PlatformConfig = (await import('@/models/PlatformConfig')).default
-      const doc = await PlatformConfig.findById('platform').select('accessCentral').lean<{ accessCentral?: string }>()
-      if (isAccessMode(doc?.accessCentral)) mode = doc.accessCentral
-    }
+    // Sin base conectada todavía (instancia recién arrancada): `off` sin
+    // guardarlo, para no quedar 15 s apagado cuando la base conecta enseguida.
+    if (mongoose.connection.readyState !== 1) return 'off'
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    const doc = await PlatformConfig.findById('platform').select('accessCentral').lean<{ accessCentral?: string }>()
+    if (isAccessMode(doc?.accessCentral)) mode = doc.accessCentral
   } catch {
-    mode = 'off'
+    return 'off' // falla cerrado, sin guardar: se reintenta en la próxima lectura
   }
   cached = { at: Date.now(), mode }
   return mode

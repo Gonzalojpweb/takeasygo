@@ -105,6 +105,16 @@ function Switches() {
       <p className="text-sm font-semibold text-foreground flex items-center gap-2"><ShieldCheck size={16} className="text-primary" /> Interruptores</p>
       {row('Acceso central (access.central)', 'Rol y comercio leídos de la base. Necesario para que un miembro vea las páginas del panel.', 'mode', modes.mode, modes.forcedByEnv)}
       {row('Acceso por organización (org.access)', 'Las membresías dan acceso a las marcas de la organización.', 'orgMode', modes.orgMode, modes.orgForcedByEnv)}
+      {modes.mode === 'enforce' && modes.orgMode === 'enforce' ? (
+        <p className="text-xs rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-2">
+          Los miembros ya pueden entrar a las marcas de su organización desde /grupo.
+        </p>
+      ) : (
+        <p className="text-xs rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 px-3 py-2">
+          Para que los miembros entren a sus marcas, <strong>los dos</strong> tienen que estar en «Activo». Falta:{' '}
+          {[modes.mode !== 'enforce' && 'Acceso central', modes.orgMode !== 'enforce' && 'Acceso por organización'].filter(Boolean).join(' y ')}.
+        </p>
+      )}
     </div>
   )
 }

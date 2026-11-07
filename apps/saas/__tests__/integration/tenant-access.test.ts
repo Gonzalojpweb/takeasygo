@@ -193,6 +193,21 @@ describe('getAccessMode', () => {
     expect(mongoose.connection.readyState).toBe(1)
     expect(await getAccessMode()).toBe('log')
   })
+
+  it('sin base conectada da off pero no lo guarda: al conectar lee el valor real', async () => {
+    delete process.env.ACCESS_CENTRAL_MODE
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    await PlatformConfig.updateOne({ _id: 'platform' }, { $set: { accessCentral: 'enforce', orgAccess: 'enforce' } }, { upsert: true })
+    const { getOrgAccessMode, clearOrgAccessModeCache } = await import('@/lib/org-access')
+    clearAccessModeCache()
+    clearOrgAccessModeCache()
+    const state = vi.spyOn(mongoose.connection, 'readyState', 'get').mockReturnValue(0 as never)
+    expect(await getAccessMode()).toBe('off')
+    expect(await getOrgAccessMode()).toBe('off')
+    state.mockRestore()
+    expect(await getAccessMode()).toBe('enforce')
+    expect(await getOrgAccessMode()).toBe('enforce')
+  })
 })
 
 describe('getAdminSession (PR 3: páginas del admin)', () => {
