@@ -53,7 +53,7 @@ function loginAs(u: { _id: unknown; role: string; tenantId?: unknown; email?: st
 }
 
 async function mkUser(email: string, role: string, tenantId: string | null = null) {
-  return User.create({ name: email, email, password: 'Pass-123456!', role, tenantId })
+  return User.create({ name: email, email, password: 'Pass-123456!', role, tenantId, phone: `+54911${Math.floor(Math.random() * 1e8)}` })
 }
 
 async function grant(userId: unknown, organizationId: mongoose.Types.ObjectId, orgRole: string, scope: Record<string, unknown>, extra: Record<string, unknown> = {}) {
@@ -266,12 +266,85 @@ describe('org.access = log', () => {
   })
 })
 
-describe('Mercado Pago queda fuera de la proyección (sin tocar las rutas)', () => {
-  it('«Conectar Mercado Pago» rechaza a un owner de la org que no es admin de origen de esa marca', async () => {
+describe('Mercado Pago: conectar y volver de MP con membresía (OK del dueño 07/11)', () => {
+  const AUTH_SECRET = 'test-auth-secret-org-mp'
+  const connect = (slug: string) => mpConnect(req(`/api/${slug}/admin/mp-oauth/connect`), { params: Promise.resolve({ tenant: slug }) })
+
+  beforeEach(async () => {
+    process.env.AUTH_SECRET = AUTH_SECRET
+    process.env.NEXTAUTH_URL = 'http://localhost'
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    await PlatformConfig.updateOne({ _id: 'platform' }, { $set: { mpOAuth: { appId: 'app-123', appSecret: 'x', redirectUri: null, platformFeePercent: 5 } } }, { upsert: true })
+  })
+  afterEach(async () => {
+    delete process.env.ACCESS_CENTRAL_MODE
+    const { clearAccessModeCache } = await import('@/lib/access-central')
+    clearAccessModeCache()
+    vi.unstubAllGlobals()
+  })
+  async function setCentral(mode: 'off' | 'log' | 'enforce') {
+    process.env.ACCESS_CENTRAL_MODE = mode
+    const { clearAccessModeCache } = await import('@/lib/access-central')
+    clearAccessModeCache()
+  }
+
+  it('acceso central apagado: el owner de la org sigue sin poder conectar (igual que antes)', async () => {
+    await setCentral('off')
     const u = await mkUser('mp@test', 'member')
     await grant(u._id, orgA, 'owner', { allTenants: true })
     loginAs(u)
-    const res = await mpConnect(req('/api/a-uno/admin/mp-oauth/connect'), { params: Promise.resolve({ tenant: 'a-uno' }) })
-    expect(res.status).toBe(403)
+    expect((await connect('a-uno')).status).toBe(403)
+  })
+
+  it('en enforce: el owner conecta su marca; no la de otra organización; el gerente de marca (manager) no', async () => {
+    await setCentral('enforce')
+    const owner = await mkUser('mp-owner@test', 'member')
+    await grant(owner._id, orgA, 'owner', { allTenants: true })
+    loginAs(owner)
+    const ok = await connect('a-uno')
+    expect(ok.status).toBe(307)
+    expect(new URL(ok.headers.get('location')!).hostname).toBe('auth.mercadopago.com')
+    expect((await connect('b-uno')).status).toBe(403)
+    expect((await connect('indep')).status).toBe(403)
+
+    const bm = await mkUser('mp-bm@test', 'member')
+    await grant(bm._id, orgA, 'brand_manager', { tenantIds: [tA1] })
+    loginAs(bm)
+    expect((await connect('a-uno')).status).toBe(403)
+  })
+
+  it('en enforce: el admin de origen sigue conectando su comercio como siempre', async () => {
+    await setCentral('enforce')
+    const admin = await mkUser('mp-admin@test', 'admin', tA1)
+    loginAs(admin)
+    expect((await connect('a-uno')).status).toBe(307)
+    expect((await connect('a-dos')).status).toBe(403)
+  })
+
+  it('callback en enforce: canjea el código para el owner de la org; con otra org, no', async () => {
+    await setCentral('enforce')
+    const { signMpOauthState } = await import('@/lib/mp-oauth-state')
+    const { GET: callback } = await import('@/app/api/mp-oauth/callback/route')
+    const fetchSpy = vi.fn().mockRejectedValue(new Error('sin red en el test'))
+    vi.stubGlobal('fetch', fetchSpy)
+    const cb = (slug: string) => callback(new NextRequest(`http://localhost/api/mp-oauth/callback?code=c1&state=${encodeURIComponent(signMpOauthState({ tenantSlug: slug }, AUTH_SECRET))}`) as never)
+
+    const ownerB = await mkUser('mp-ownerb@test', 'member')
+    await grant(ownerB._id, orgB, 'owner', { allTenants: true })
+    loginAs(ownerB)
+    const denied = await cb('a-uno')
+    expect(denied.headers.get('location')).toContain('reason=tenant_mismatch')
+    expect(fetchSpy).not.toHaveBeenCalled()
+
+    const owner = await mkUser('mp-owner2@test', 'member')
+    await grant(owner._id, orgA, 'owner', { allTenants: true })
+    loginAs(owner)
+    const r = await cb('a-uno')
+    // Pasó la verificación de sesión y siguió al canje (acá frena por las
+    // credenciales de prueba, que no están cifradas): no es un rechazo de sesión.
+    const loc = r.headers.get('location') ?? ''
+    expect(loc).not.toContain('reason=tenant_mismatch')
+    expect(loc).not.toContain('reason=no_session')
+    expect(loc).toContain('reason=no_credentials')
   })
 })

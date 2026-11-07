@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { mpAccessDecision } from '@/lib/tenant-access'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import PlatformConfig from '@/models/PlatformConfig'
@@ -15,7 +15,8 @@ import { isAccountConnectedNow, isSplitRequired } from '@/lib/mp-split-guard'
  * The tenant will be asked to authorize TakeasyGO to act as a marketplace.
  * Uses OAuth credentials from PlatformConfig (configured by superadmin).
  *
- * Requiere sesión de admin (o superadmin) PERTENECIENTE al tenant de la URL.
+ * Requiere sesión de admin (o superadmin) PERTENECIENTE al tenant de la URL
+ * (o, con access.central en enforce, miembro de su organización con rol admin).
  * El state va firmado (HMAC + exp) y el callback valida firma + sesión + tenant.
  */
 export async function GET(
@@ -24,19 +25,17 @@ export async function GET(
 ) {
   const { tenant: tenantSlug } = await params
 
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  // Quién puede conectar: admin del comercio o superadmin. Con access.central
+  // en enforce también el miembro de una organización con rol admin en esta
+  // marca (lib/tenant-access → mpAccessDecision). Apagado: igual que antes.
+  const access = await mpAccessDecision(request, tenantSlug, { requireAdmin: true, family: 'mp-oauth-connect' })
+  if (!access.ok) {
+    const error = access.reason === 'no_session' ? 'No autorizado'
+      : access.reason === 'not_admin' ? 'Acceso denegado. Se requiere rol de administrador.'
+      : 'Acceso denegado'
+    return NextResponse.json({ error }, { status: access.status })
   }
-
-  const role = session.user.role
-  const isSuperAdmin = role === 'superadmin'
-  if (!isSuperAdmin && role !== 'admin') {
-    return NextResponse.json({ error: 'Acceso denegado. Se requiere rol de administrador.' }, { status: 403 })
-  }
-  if (!isSuperAdmin && session.user.tenantSlug !== tenantSlug) {
-    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
-  }
+  const isSuperAdmin = access.isSuperAdmin
 
   await connectDB()
 

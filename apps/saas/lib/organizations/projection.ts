@@ -243,7 +243,7 @@ export async function resolveMembershipAccess(userId: string, slugOrId: string, 
  * Proyecta al usuario fresco sobre el comercio de contexto según `org.access`.
  * Devuelve el mismo objeto si no corresponde proyectar.
  */
-export async function projectSessionUser<T extends ProjectableUser>(base: T, request?: NextRequest): Promise<T | (T & ProjectedFields)> {
+export async function projectSessionUser<T extends ProjectableUser>(base: T, request?: NextRequest, explicitSlug?: string | null): Promise<T | (T & ProjectedFields)> {
   if (!base?.id || !OBJECT_ID_RE.test(base.id) || base.role === 'superadmin') return base
 
   const { getOrgAccessMode } = await import('@/lib/org-access')
@@ -251,7 +251,9 @@ export async function projectSessionUser<T extends ProjectableUser>(base: T, req
   if (mode === 'off') return base
 
   try {
-    const slug = await contextTenantSlug(request)
+    // explicitSlug: comercio que el servidor ya validó (p. ej. el del state
+    // firmado del callback de Mercado Pago); nunca algo que mande el cliente.
+    const slug = explicitSlug || (await contextTenantSlug(request))
     if (!slug) return base
     const noCache = isWriteRequest(request)
     const tenant = await tenantMeta(slug, noCache)

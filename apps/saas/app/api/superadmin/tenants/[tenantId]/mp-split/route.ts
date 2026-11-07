@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import MpSplitLink from '@/models/MpSplitLink'
 import { requireSuperAdmin } from '@/lib/apiAuth'
-import { auth } from '@/lib/auth'
+import { getIdentitySession } from '@/lib/tenant-access'
 import { getBaseUrl } from '@/lib/site-url'
 import { SPLIT_LINK_TTL_MS, checkSplitHealth, newSplitLinkToken, setSplitLock, splitOverview, type TenantMpLike } from '@/lib/mp-split-guard'
 
@@ -64,7 +64,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (!tenant) return NextResponse.json({ error: 'Comercio no encontrado' }, { status: 404 })
   const parsed = bodySchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
-  const session = await auth()
+  // Solo para anotar quién creó el link; el acceso ya lo exigió requireSuperAdmin.
+  const session = await getIdentitySession()
   const by = session?.user?.email ?? 'superadmin'
   const body = parsed.data
 

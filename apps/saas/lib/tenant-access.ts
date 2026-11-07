@@ -332,3 +332,71 @@ export async function sessionTenantDecision(request: NextRequest, tenantId: stri
 function belongsToId(user: JwtUser, tenantId: string): boolean {
   return Boolean(user.tenantId) && String(user.tenantId) === String(tenantId)
 }
+
+// ── Mercado Pago: quién puede conectar la cuenta de un comercio ────────────
+// Rutas /api/[tenant]/admin/mp-oauth/connect y /api/mp-oauth/callback
+// (OK del dueño 07/11). Solo decide QUIÉN inicia o completa la conexión:
+// no toca cuentas, tokens ni el candado del split (lib/mp-split-guard).
+//   off     → token de sesión, exactamente como antes.
+//   log     → decide el token; se registra si la base decidiría distinto.
+//   enforce → usuario de la base, con su membresía de organización
+//             proyectada sobre el comercio (lib/organizations/projection).
+// requireAdmin: «conectar» exige rol admin del comercio (o superadmin);
+// el callback, como antes, exige solo que la sesión sea de ese comercio
+// (el state ya viene firmado por «conectar»).
+
+export type MpAccessDecision =
+  | { ok: true; isSuperAdmin: boolean }
+  | { ok: false; status: 401 | 403; reason: 'no_session' | 'not_admin' | 'tenant_mismatch' }
+
+export async function mpAccessDecision(
+  request: NextRequest,
+  tenantSlug: string,
+  opts: { requireAdmin: boolean; family: string },
+): Promise<MpAccessDecision> {
+  const decide = (u: { role?: string | null; tenantSlug?: string | null } | null, tenantMatches: boolean): MpAccessDecision => {
+    if (!u?.role) return { ok: false, status: 401, reason: 'no_session' }
+    if (u.role === 'superadmin') return { ok: true, isSuperAdmin: true }
+    if (opts.requireAdmin && u.role !== 'admin') return { ok: false, status: 403, reason: 'not_admin' }
+    if (!tenantMatches) return { ok: false, status: 403, reason: 'tenant_mismatch' }
+    return { ok: true, isSuperAdmin: false }
+  }
+
+  const mode = await getAccessMode()
+  const session = await auth()
+  const jwt = session?.user as JwtUser | undefined
+  const oldDecision = decide(jwt ?? null, Boolean(jwt) && jwt!.tenantSlug === tenantSlug)
+  if (mode === 'off') return oldDecision
+
+  let newDecision: MpAccessDecision = { ok: false, status: 401, reason: 'no_session' }
+  let tenantId: string | null = null
+  let freshRole: string | null = null
+  try {
+    const { connectDB } = await import('@/lib/mongoose')
+    await connectDB()
+    const Tenant = (await import('@/models/Tenant')).default
+    const t = await Tenant.findOne({ slug: tenantSlug }).select('_id').lean<{ _id: unknown }>()
+    tenantId = t ? String(t._id) : null
+    const fresh = (await getSessionUser(request)) as JwtUser | null
+    if (fresh) {
+      const { projectSessionUser } = await import('@/lib/organizations/projection')
+      const projected = (fresh.role === 'superadmin' ? fresh : await projectSessionUser(fresh, request, tenantSlug)) as JwtUser
+      freshRole = projected.role ?? null
+      newDecision = decide(projected, Boolean(tenantId) && canOperateTenant(projected, tenantId))
+    }
+  } catch (err) {
+    // Ante un error de base: nunca abre de más.
+    console.warn('[mp-access] sin decisión de base:', (err as Error)?.message)
+    newDecision = { ok: false, status: 403, reason: 'tenant_mismatch' }
+  }
+
+  if (mode === 'log') {
+    recordShadow({
+      family: opts.family, route: pathOf(request), userId: jwt?.id ?? null, tenantId,
+      oldDecision: oldDecision.ok, newDecision: newDecision.ok, oldRole: jwt?.role ?? null, newRole: freshRole,
+      hadJwt: Boolean(jwt), freshFound: freshRole !== null,
+    })
+    return oldDecision
+  }
+  return newDecision
+}

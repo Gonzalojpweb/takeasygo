@@ -55,15 +55,15 @@ const PERMANENT: Record<string, string> = {
 type Pr = 'PR2' | 'PR3' | 'PR4'
 const BASELINE: Record<string, Counts & { pr: Pr }> = {
   // ── PR 2: API con tenant, identidad de cliente y superadmin API ────────────
-  'app/api/[tenant]/admin/mp-oauth/connect/route.ts': { auth_call: 1, slug_cmp: 1, pr: 'PR4' }, // Mercado Pago: no se toca sin OK expreso del dueño
   // identidad de cliente (id/email) → getSessionIdentity
   // superadmin API (rol del JWT) → rol fresco
-  'app/api/superadmin/tenants/[tenantId]/mp-split/route.ts': { auth_call: 1, pr: 'PR4' }, // Mercado Pago: no se toca sin OK expreso del dueño
 
   // ── PR 3: páginas del admin ────────────────────────────────────────────────
 
   // ── PR 4: cierre (seller, superadmin páginas, apiKey, OAuth callback) ───────
-  'app/api/mp-oauth/callback/route.ts': { auth_call: 1, slug_cmp: 1, pr: 'PR4' }, // Mercado Pago: no se toca sin OK expreso del dueño
+  // Mercado Pago (OK del dueño 07/11): la autorización va por mpAccessDecision;
+  // auth() queda solo para el destino de los redirects y el email del candado.
+  'app/api/mp-oauth/callback/route.ts': { auth_call: 1, pr: 'PR4' },
 }
 
 /** Quita comentarios (bloque y línea) para no contar menciones en texto. */

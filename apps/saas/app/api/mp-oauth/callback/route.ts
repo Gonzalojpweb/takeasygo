@@ -7,6 +7,7 @@ import { encrypt, decrypt } from '@/lib/crypto'
 import { verifyMpOauthState } from '@/lib/mp-oauth-state'
 import MpSplitLink from '@/models/MpSplitLink'
 import { setSplitLock } from '@/lib/mp-split-guard'
+import { mpAccessDecision } from '@/lib/tenant-access'
 
 /**
  * GET /api/mp-oauth/callback
@@ -55,9 +56,10 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get('state')
     const error = searchParams.get('error')
 
+    // auth() solo para el destino de los redirects y el email del candado: la
+    // autorización la decide mpAccessDecision más abajo.
     const session = await auth()
     const sessionUser = session?.user ?? null
-    const isSuperAdmin = sessionUser?.role === 'superadmin'
 
     // Link de autorización del superadmin (lib/mp-split-guard): el dueño del
     // restaurante lo abre sin sesión del panel. El resultado se muestra en
@@ -126,13 +128,14 @@ export async function GET(request: NextRequest) {
       }
       claimedLinkId = String(stateObj.linkId)
     } else {
-      if (!sessionUser) {
-        console.error('[MP OAuth callback] sin sesión')
-        return failRedirect('no_session', tenantSlug)
-      }
-      if (!isSuperAdmin && sessionUser.tenantSlug !== tenantSlug) {
-        console.error('[MP OAuth callback] sesión pertenece a otro tenant')
-        return failRedirect('tenant_mismatch', tenantSlug)
+      // Sesión de ese comercio (o superadmin). Con access.central en enforce
+      // cuenta también la membresía de organización sobre el comercio del
+      // state firmado (lib/tenant-access → mpAccessDecision). Apagado: igual
+      // que antes.
+      const access = await mpAccessDecision(request, tenantSlug, { requireAdmin: false, family: 'mp-oauth-callback' })
+      if (!access.ok) {
+        console.error(`[MP OAuth callback] ${access.reason === 'no_session' ? 'sin sesión' : 'sesión de otro comercio'}`)
+        return failRedirect(access.reason === 'no_session' ? 'no_session' : 'tenant_mismatch', tenantSlug)
       }
     }
     // Libera el link si la conexión no se completa (para poder reintentar).
