@@ -6,6 +6,7 @@ import { fiscalAdminContext } from '@/lib/fiscal/admin-context'
 import { loadFiscalProfile } from '@/lib/fiscal/profile'
 import { generateKeyAndCsr } from '@/lib/fiscal/arca/crypto'
 import { isValidCuit } from '@takeasygo/business'
+import { csrAlias, cuitSharedWithOtherTenant, getCsrAliasMode } from '@/lib/fiscal/pos-claims'
 
 // ============================================================================
 // POST /api/[tenant]/admin/fiscal/csr — genera el pedido de certificado
@@ -25,7 +26,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Primero guardá el CUIT y la razón social' }, { status: 409 })
     }
 
-    const { privateKeyPem, csrPem } = generateKeyAndCsr({ cuit: profile.cuit, legalName: profile.legalName })
+    // S6 / PR 6 (fiscal.csrAliasShared): si otra marca ya tiene este CUIT, el
+    // certificado lleva un nombre propio por marca. Apagado: igual que siempre.
+    const shared = (await getCsrAliasMode()) === 'on' && (await cuitSharedWithOtherTenant(ctx.tenantId, profile.cuit))
+    const alias = csrAlias(profile.cuit, ctx.tenant.slug, shared)
+    const { privateKeyPem, csrPem } = generateKeyAndCsr({ cuit: profile.cuit, legalName: profile.legalName, ...(alias ? { alias } : {}) })
     const now = new Date()
     await FiscalProfile.updateOne(
       { tenantId: ctx.tenant._id },
@@ -43,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       action: 'fiscal.csr.generate',
       entity: 'FiscalProfile',
       entityId: ctx.tenantId,
-      details: { environment: profile.environment },
+      details: { environment: profile.environment, ...(alias ? { alias } : {}) },
       request,
       userId: ctx.user?.id,
       userRole: ctx.user?.role,

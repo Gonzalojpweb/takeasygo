@@ -260,3 +260,80 @@ describe('conexión con ARCA (Fase 4)', () => {
     expect((await FiscalProfile.findOne({ tenantId }).lean())?.connection.ok).toBe(false)
   })
 })
+
+describe('multi-marca PR 6: CUIT + punto de venta únicos (fiscal.posClaims)', () => {
+  // Otra marca con el mismo CUIT ya usa el punto de venta 3.
+  async function otherBrandUsesPos(number: number) {
+    const other = await Tenant.create({ name: 'Otra marca', slug: 'otra-marca', plan: 'full' })
+    const loc = await Location.create({ tenantId: other._id, name: 'Sede', slug: 'sede-otra', address: 'Calle 2', isActive: true })
+    await FiscalProfile.create({ tenantId: other._id, cuit: CUIT, environment: 'homologation', pointsOfSale: [{ locationId: loc._id, number }] })
+    const { syncPosClaims } = await import('@/lib/fiscal/pos-claims')
+    expect(await syncPosClaims({ tenantId: String(other._id), cuit: CUIT, environment: 'homologation', regular: [{ number, locationId: String(loc._id) }], contingency: [] })).toMatchObject({ ok: true, taken: 1 })
+  }
+
+  afterEach(async () => {
+    delete process.env.FISCAL_POS_CLAIMS_MODE
+    delete process.env.FISCAL_CSR_ALIAS_SHARED
+    const { clearFiscalFlagsCache } = await import('@/lib/fiscal/pos-claims')
+    clearFiscalFlagsCache()
+  })
+
+  it('apagado: se guarda igual que hoy aunque otra marca use el mismo punto de venta', async () => {
+    await otherBrandUsesPos(3)
+    const res = await PUT(req(profileBody()), P)
+    expect(res.status).toBe(200)
+    const FiscalPosClaim = (await import('@/models/FiscalPosClaim')).default
+    expect(await FiscalPosClaim.countDocuments({ tenantId })).toBe(0)
+  })
+
+  it('enforce: mismo CUIT y punto de venta → 409 y no se guarda nada; otro punto de venta → OK', async () => {
+    process.env.FISCAL_POS_CLAIMS_MODE = 'enforce'
+    await otherBrandUsesPos(3)
+    const res = await PUT(req(profileBody()), P)
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ code: 'pos_taken', pointOfSale: 3 })
+    expect(await FiscalProfile.findOne({ tenantId }).lean()).toBeNull()
+
+    const ok = await PUT(req(profileBody({ pointsOfSale: [{ locationId, number: 4 }] })), P)
+    expect(ok.status).toBe(200)
+    const FiscalPosClaim = (await import('@/models/FiscalPosClaim')).default
+    expect((await FiscalPosClaim.find({ tenantId }).lean()).map(c => c.pointOfSale)).toEqual([4])
+  })
+
+  it('enforce: contingencia cuenta; cambiar de punto de venta o de ambiente suelta el anterior', async () => {
+    process.env.FISCAL_POS_CLAIMS_MODE = 'enforce'
+    const FiscalPosClaim = (await import('@/models/FiscalPosClaim')).default
+    expect((await PUT(req(profileBody({ contingency: { enabled: true, automatic: false, pointsOfSale: [{ locationId, number: 9 }] } })), P)).status).toBe(200)
+    expect((await FiscalPosClaim.find({ tenantId }).sort({ pointOfSale: 1 }).lean()).map(c => [c.pointOfSale, c.kind])).toEqual([[3, 'regular'], [9, 'contingency']])
+
+    expect((await PUT(req(profileBody({ pointsOfSale: [{ locationId, number: 5 }] })), P)).status).toBe(200)
+    expect((await FiscalPosClaim.find({ tenantId }).lean()).map(c => c.pointOfSale)).toEqual([5])
+
+    expect((await PUT(req(profileBody({ pointsOfSale: [{ locationId, number: 5 }], environment: 'production' })), P)).status).toBe(200)
+    expect((await FiscalPosClaim.find({ tenantId }).lean()).map(c => c.environment)).toEqual(['production'])
+  })
+
+  it('dos marcas guardan el mismo punto de venta a la vez: gana una sola', async () => {
+    const { syncPosClaims } = await import('@/lib/fiscal/pos-claims')
+    const a = new mongoose.Types.ObjectId(), b = new mongoose.Types.ObjectId(), loc = String(new mongoose.Types.ObjectId())
+    const FiscalPosClaim = (await import('@/models/FiscalPosClaim')).default
+    await FiscalPosClaim.syncIndexes()
+    const results = await Promise.all([a, b].map(t => syncPosClaims({ tenantId: String(t), cuit: CUIT, environment: 'production', regular: [{ number: 7, locationId: loc }], contingency: [] })))
+    expect(results.filter(r => r.ok)).toHaveLength(1)
+    expect(await FiscalPosClaim.countDocuments({ cuit: CUIT, environment: 'production', pointOfSale: 7 })).toBe(1)
+  })
+
+  it('alias del pedido de certificado: solo con el interruptor y el CUIT compartido', async () => {
+    await PUT(req(profileBody()), P)
+    const cn = async () => {
+      const csr = (await (await CSR(req(undefined, 'POST'), P)).json()).csr as string
+      const forge = (await import('node-forge')).default
+      return forge.pki.certificationRequestFromPem(csr).subject.getField('CN').value as string
+    }
+    expect(await cn()).toBe(`takeasygo-${CUIT}`)
+    process.env.FISCAL_CSR_ALIAS_SHARED = 'on'
+    expect(await cn()).toBe(`takeasygo-${CUIT}`) // CUIT no compartido todavía
+    await otherBrandUsesPos(8)
+    expect(await cn()).toBe(`takeasygo-${CUIT}-${SLUG}`)
+  })
+})

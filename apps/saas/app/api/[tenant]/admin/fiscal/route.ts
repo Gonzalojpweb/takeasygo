@@ -8,6 +8,7 @@ import Menu from '@/models/Menu'
 import { logAudit } from '@/lib/audit'
 import { fiscalAdminContext } from '@/lib/fiscal/admin-context'
 import { fiscalReadiness, hasCertificate, loadFiscalProfile, toPublicProfile } from '@/lib/fiscal/profile'
+import { getPosClaimsMode, syncPosClaims } from '@/lib/fiscal/pos-claims'
 import { isIvaRate, isValidCuit, normalizeCuit } from '@takeasygo/business'
 
 // ============================================================================
@@ -230,11 +231,49 @@ export async function PUT(request: NextRequest, { params }: Params) {
       )
     }
 
-    await FiscalProfile.updateOne(
-      { tenantId: ctx.tenant._id },
-      { $set: { ...update, enabled: body.enabled } },
-      { upsert: true, runValidators: true }
-    )
+    // Multi-marca PR 6 (fiscal.posClaims): un punto de venta de un CUIT lo
+    // usa un solo comercio. Con el interruptor apagado no cambia nada.
+    const claimsOn = (await getPosClaimsMode()) === 'enforce'
+    if (claimsOn) {
+      const claim = await syncPosClaims({
+        tenantId: ctx.tenantId,
+        cuit: body.cuit,
+        environment: body.environment,
+        regular: body.pointsOfSale,
+        contingency: body.contingency.pointsOfSale,
+      })
+      if (!claim.ok) {
+        return NextResponse.json(
+          {
+            error: `El punto de venta ${claim.pointOfSale} de este CUIT ya lo usa otra marca. Cada marca necesita su propio punto de venta dado de alta en ARCA.`,
+            code: 'pos_taken',
+            pointOfSale: claim.pointOfSale,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    try {
+      await FiscalProfile.updateOne(
+        { tenantId: ctx.tenant._id },
+        { $set: { ...update, enabled: body.enabled } },
+        { upsert: true, runValidators: true }
+      )
+    } catch (err) {
+      // No se guardó: los puntos de venta vuelven a quedar como el perfil anterior.
+      if (claimsOn) {
+        const ids = (list?: { locationId: unknown; number: number }[]) => (list ?? []).map((p) => ({ number: p.number, locationId: String(p.locationId) }))
+        await syncPosClaims({
+          tenantId: ctx.tenantId,
+          cuit: current?.cuit ?? '',
+          environment: (current?.environment ?? 'homologation') as 'homologation' | 'production',
+          regular: ids(current?.pointsOfSale as { locationId: unknown; number: number }[] | undefined),
+          contingency: ids((current as { contingency?: { pointsOfSale?: { locationId: unknown; number: number }[] } } | null)?.contingency?.pointsOfSale),
+        }).catch((e) => console.error('[admin/fiscal PUT] no se pudieron restaurar los puntos de venta', e))
+      }
+      throw err
+    }
 
     await logAudit({
       tenantId: ctx.tenantId,
