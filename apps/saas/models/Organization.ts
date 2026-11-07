@@ -19,11 +19,12 @@ export interface IOrganization {
   /** Namespace propio: /grupo/{slug}. Independiente del slug de los comercios. */
   slug: string
   status: OrgStatus
-  /** Propietario vigente (desnormalizado; la verdad es OrgMembership.orgRole = 'owner'). */
-  ownerUserId: Types.ObjectId
+  /** Propietario vigente (desnormalizado; la verdad es OrgMembership.orgRole = 'owner').
+   *  null hasta que el primer propietario acepta su invitación (PR 9). */
+  ownerUserId: Types.ObjectId | null
   /** Dato interno libre. No fiscal (FiscalEntity es Fase 3). */
   legalNote: string | null
-  createdBy: Types.ObjectId
+  createdBy: Types.ObjectId | null
   // Reservados para fases siguientes (se declaran ahora para no migrar después)
   billing: { mode: 'per_tenant' | 'organization'; plan: string | null }
   policies: Record<string, unknown>
@@ -42,9 +43,9 @@ const OrganizationSchema = new Schema<IOrganization>(
       match: [/^[a-z0-9-]{2,50}$/, 'Slug inválido — solo minúsculas, números y guiones'],
     },
     status: { type: String, enum: ORG_STATUSES, default: 'active' },
-    ownerUserId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    ownerUserId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     legalNote: { type: String, default: null, maxlength: 500 },
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     billing: {
       mode: { type: String, enum: ['per_tenant', 'organization'], default: 'per_tenant' },
       plan: { type: String, default: null },

@@ -24,7 +24,7 @@ export interface IOrgInvitation {
   tokenHash: string
   expiresAt: Date
   status: InvitationStatus
-  invitedBy: Types.ObjectId
+  invitedBy: Types.ObjectId | null
   acceptedBy: Types.ObjectId | null
   acceptedAt: Date | null
   createdAt: Date
@@ -52,7 +52,7 @@ const OrgInvitationSchema = new Schema<IOrgInvitation>(
     tokenHash: { type: String, required: true, match: /^[a-f0-9]{64}$/ },
     expiresAt: { type: Date, required: true, default: () => new Date(Date.now() + INVITATION_TTL_MS) },
     status: { type: String, enum: INVITATION_STATUSES, default: 'pending' },
-    invitedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    invitedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     acceptedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     acceptedAt: { type: Date, default: null },
   },

@@ -36,7 +36,8 @@ export interface IOrgMembership {
   tenantRole: 'admin' | 'manager' | null
   /** Módulos visibles en el panel de grupo (Fase 2+). */
   modules: string[]
-  grantedBy: Types.ObjectId
+  /** Quién otorgó (null: proceso del sistema). */
+  grantedBy: Types.ObjectId | null
   grantedAt: Date
   revokedAt: Date | null
   revokedBy: Types.ObjectId | null
@@ -70,7 +71,7 @@ const OrgMembershipSchema = new Schema<IOrgMembership>(
     scope: { type: ScopeSchema, default: () => ({}) },
     tenantRole: { type: String, enum: ['admin', 'manager', null], default: null },
     modules: { type: [String], default: [] },
-    grantedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    grantedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     grantedAt: { type: Date, default: () => new Date() },
     revokedAt: { type: Date, default: null },
     revokedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },

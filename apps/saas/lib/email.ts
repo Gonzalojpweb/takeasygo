@@ -206,3 +206,30 @@ export async function sendOnboardingRejectedEmail(to: string, reason: string, es
     `,
   })
 }
+
+/** Multi-marca PR 9: invitación a una organización. El link lleva el token (7 días). */
+export async function sendOrgInvitationEmail(to: string, orgName: string, acceptUrl: string) {
+  const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+  const name = esc(orgName)
+  const url = esc(acceptUrl)
+  await sendEmail(
+    to,
+    `Te invitaron a ${orgName} en Takeasygo`,
+    `
+      <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 32px; background: #ffffff; border-radius: 16px; border: 1px solid #ede9e5;">
+        <h1 style="font-size:22px;font-weight:400;color:#0d0b0a;margin:0 0 8px;">Te invitaron a ${name}</h1>
+        <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 28px;">
+          Te sumaron al equipo de <strong>${name}</strong> en Takeasygo. El enlace vale <strong>7 días</strong>
+          y solo funciona con este email.
+        </p>
+        <a href="${url}"
+           style="display:inline-block;background:#0d0b0a;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:14px 28px;border-radius:100px;">
+          Aceptar invitación
+        </a>
+        <p style="font-size:12px;color:#b0aaa6;margin:28px 0 0;line-height:1.6;">
+          Si no esperabas esta invitación, ignorá este email.
+        </p>
+      </div>
+    `,
+  )
+}

@@ -1,7 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose'
 
 export interface IAuditLog extends Document {
-  tenantId: mongoose.Types.ObjectId
+  /** null solo en acciones de organización (multi-marca PR 9: organizationId lleva el contexto). */
+  tenantId: mongoose.Types.ObjectId | null
   userId: mongoose.Types.ObjectId | null
   userName: string
   userRole: string
@@ -18,7 +19,11 @@ export interface IAuditLog extends Document {
 
 const AuditLogSchema = new Schema<IAuditLog>(
   {
-    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    tenantId: {
+      type: Schema.Types.ObjectId, ref: 'Tenant', default: null, index: true,
+      // Multi-marca PR 9: sin comercio solo si es una acción de organización.
+      required: [function (this: { organizationId?: unknown }) { return !this.organizationId }, 'tenantId es obligatorio'],
+    },
     userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     userName: { type: String, default: '' },
     userRole: { type: String, default: '' },
