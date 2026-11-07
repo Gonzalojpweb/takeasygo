@@ -23,6 +23,8 @@ type Phase = 'hidden' | 'collapsed' | 'open'
 
 interface Status {
   available: boolean
+  /** Plan sin TEO (es de High Ticket): se muestra con candado. */
+  locked?: boolean
   maxMessageChars: number
   supportWhatsapp: string | null
 }
@@ -98,7 +100,10 @@ export default function TeoAssistant({ tenantSlug }: { tenantSlug: string }) {
     fetch(`/api/${tenantSlug}/assistant/chat`)
       .then((r) => (r.ok ? r.json() : null))
       .then((s: Status | null) => {
-        if (alive) setStatus(s ?? { available: false, maxMessageChars: 1000, supportWhatsapp: null })
+        if (!alive) return
+        setStatus(s ?? { available: false, maxMessageChars: 1000, supportWhatsapp: null })
+        // Con candado no se abre solo: queda el avatar para quien quiera conocerlo.
+        if (s?.locked) setPhase(p => (p === 'open' ? 'collapsed' : p))
       })
       .catch(() => alive && setStatus({ available: false, maxMessageChars: 1000, supportWhatsapp: null }))
     return () => {
@@ -199,6 +204,32 @@ export default function TeoAssistant({ tenantSlug }: { tenantSlug: string }) {
           </div>
         </div>
       </button>
+    )
+  }
+
+  // ── Plan sin TEO: candado + invitación a High Ticket ──────────────────────
+  if (status?.locked) {
+    return (
+      <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="relative flex items-end gap-3">
+          <div className="relative bg-white dark:bg-slate-900 rounded-2xl rounded-br-md border border-border shadow-xl shadow-black/10 p-4 pr-8 max-w-[300px]">
+            <button onClick={handleDismiss} className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted transition-colors" aria-label="Cerrar">
+              <X size={14} className="text-muted-foreground" />
+            </button>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">TEO · Tu asistente</span>
+            <div className="mt-2 space-y-2 text-sm">
+              <p className="font-semibold text-foreground">TEO es parte del plan High Ticket</p>
+              <p className="text-muted-foreground leading-relaxed">Te responde cómo usar TakeasyGO, configuraciones y dudas del día a día, cuando lo necesites.</p>
+              <a href={`/${tenantSlug}/admin/billing`} className="inline-block mt-1 rounded-full bg-fuchsia-600 px-3 py-1 text-xs font-semibold text-white hover:bg-fuchsia-700">Conocé High Ticket</a>
+            </div>
+          </div>
+          <button onClick={handleDismiss} className="relative shrink-0 group" aria-label="Cerrar TEO">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-primary/20 shadow-lg bg-white opacity-80">
+              <Avatar size={80} />
+            </div>
+          </button>
+        </div>
+      </div>
     )
   }
 

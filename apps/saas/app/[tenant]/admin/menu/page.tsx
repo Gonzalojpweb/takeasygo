@@ -13,6 +13,7 @@ import { ExternalLink, Calendar, Star } from 'lucide-react'
 import type { Types } from 'mongoose'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 import { getAdminSession } from '@/lib/tenant-access'
+import { canAccess, type Plan } from '@/lib/plans'
 
 export default async function MenuPage() {
   const headersList = await headers()
@@ -21,7 +22,7 @@ export default async function MenuPage() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId }>()
+    .lean<{ _id: Types.ObjectId; plan?: Plan }>()
   if (!tenant) notFound()
 
   const tenantId = tenant._id
@@ -99,6 +100,7 @@ export default async function MenuPage() {
             menus={JSON.parse(JSON.stringify(menus))}
             tenantSlug={tenantSlug || ''}
             userRole={session?.user?.role}
+            canImportPrices={canAccess(tenant.plan ?? 'trial', 'priceImport')}
           />
         </>
       )}

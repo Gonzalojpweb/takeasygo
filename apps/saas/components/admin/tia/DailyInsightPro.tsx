@@ -3,6 +3,7 @@
 import { Copy, Check, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import InfoTooltip from './InfoTooltip'
+import { isPremiumPlan } from '@/lib/plans'
 
 interface Props {
   plan: string
@@ -12,7 +13,7 @@ interface Props {
 export default function DailyInsightPro({ plan, whatsapp }: Props) {
   const [copied, setCopied] = useState(false)
 
-  const isPremium = plan === 'full'
+  const isPremium = isPremiumPlan(plan)
 
   async function handleCopy() {
     try {

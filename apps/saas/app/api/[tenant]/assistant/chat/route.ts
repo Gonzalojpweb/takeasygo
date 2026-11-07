@@ -3,6 +3,7 @@ import { runAssistant } from '@/lib/assistant/harness'
 import { isLlmConfigured } from '@/lib/assistant/llm'
 import { ASSISTANT_LIMITS, supportWhatsapp } from '@/lib/assistant/config'
 import { CONVERSATION_ID_RE, resolveAssistantContext } from '@/lib/assistant/route-context'
+import { canAccess } from '@/lib/plans'
 
 // ============================================================================
 // /api/[tenant]/assistant/chat — TEO, asistente de soporte (v1, solo lectura)
@@ -21,6 +22,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { tenant } = await params
   const resolved = await resolveAssistantContext(request, tenant)
   if ('error' in resolved) return resolved.error
+  // TEO es del plan High Ticket (PLAN_ACCESS.assistant): los demás lo ven con candado.
+  if (!canAccess(resolved.ctx.plan, 'assistant')) {
+    return NextResponse.json({ available: false, locked: true, maxMessageChars: ASSISTANT_LIMITS.maxMessageChars, supportWhatsapp: supportWhatsapp() })
+  }
   return NextResponse.json({
     available: isLlmConfigured(),
     maxMessageChars: ASSISTANT_LIMITS.maxMessageChars,
@@ -32,6 +37,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { tenant } = await params
   const resolved = await resolveAssistantContext(request, tenant)
   if ('error' in resolved) return resolved.error
+  if (!canAccess(resolved.ctx.plan, 'assistant')) {
+    return NextResponse.json({ error: 'TEO es parte del plan High Ticket.', code: 'plan_required', requiredPlan: 'high' }, { status: 403 })
+  }
 
   let body: unknown
   try {

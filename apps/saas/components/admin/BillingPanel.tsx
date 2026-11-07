@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { PLAN_LABELS, PLAN_FEATURES_LANDING, type Plan } from '@/lib/plans'
 import { BILLING_CONFIG, type BillablePlan } from '@/lib/billing-config'
 import DowngradeWarningModal from './DowngradeWarningModal'
+import { isPremiumPlan } from '@/lib/plans'
 
 interface SubscriptionInfo {
   status: string | null
@@ -17,6 +18,8 @@ interface Props {
   currentPlan: Plan
   tenantSlug: string
   subscription: SubscriptionInfo
+  /** WhatsApp de TakeasyGO para pedir High Ticket (solo dígitos). */
+  supportWhatsapp?: string | null
 }
 
 const PLAN_ICONS: Record<BillablePlan, React.FC<{ size?: number; className?: string }>> = {
@@ -46,7 +49,11 @@ const PLAN_BTN: Record<BillablePlan, string> = {
 const BILLABLE: BillablePlan[] = ['try', 'buy', 'full']
 const BILLABLE_ORDER: Record<string, number> = { try: 0, buy: 1, full: 2, trial: -1, anfitrion: -1 }
 
-export default function BillingPanel({ currentPlan, tenantSlug, subscription }: Props) {
+// High Ticket no se contrata con la suscripción de Mercado Pago: lo activa el
+// equipo de TakeasyGO desde el superadmin (07/11/2026).
+
+export default function BillingPanel({ currentPlan, tenantSlug, subscription, supportWhatsapp }: Props) {
+  const isHigh = currentPlan === 'high'
   const [loading, setLoading] = useState<BillablePlan | null>(null)
   const [cancelLoading, setCancelLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -147,7 +154,32 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
         </div>
       )}
 
+      {/* High Ticket: lo activa TakeasyGO (sin suscripción de Mercado Pago) */}
+      <div className={cn('rounded-3xl border-2 p-6 flex flex-col gap-4 md:flex-row md:items-center', isHigh ? 'border-fuchsia-500/40 bg-fuchsia-500/5 ring-2 ring-fuchsia-500/40 ring-offset-2 ring-offset-background' : 'border-fuchsia-500/30 bg-fuchsia-500/5')}>
+        <div className="flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-fuchsia-600">
+            <Rocket size={18} />
+            <span className="font-black text-sm uppercase tracking-wide">{PLAN_LABELS.high}</span>
+            {isHigh && <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-fuchsia-500/10">Activo</span>}
+          </div>
+          <p className="text-2xl font-black text-fuchsia-600">$100.000<span className="text-sm font-medium text-muted-foreground"> ARS/mes</span></p>
+          <ul className="grid gap-1.5 sm:grid-cols-2">
+            {[...PLAN_FEATURES_LANDING.high.featured, ...PLAN_FEATURES_LANDING.high.extra].map((f) => (
+              <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground"><CheckCircle2 size={14} className="mt-0.5 shrink-0 text-fuchsia-600" />{f}</li>
+            ))}
+          </ul>
+        </div>
+        {isHigh ? (
+          <p className="text-xs text-muted-foreground md:max-w-[200px]">Tu plan lo administra el equipo de TakeasyGO. Para cualquier cambio, escribinos.</p>
+        ) : supportWhatsapp ? (
+          <a href={`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(`Hola, quiero el plan High Ticket para ${tenantSlug}`)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-xl bg-fuchsia-600 px-5 py-3 text-center text-sm font-bold text-white hover:bg-fuchsia-700">Quiero High Ticket</a>
+        ) : (
+          <p className="text-xs text-muted-foreground md:max-w-[200px]">Lo activa el equipo de TakeasyGO: escribinos para pasarte a High Ticket.</p>
+        )}
+      </div>
+
       {/* Cards de planes */}
+      {!isHigh && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {BILLABLE.map((plan) => {
           const config = BILLING_CONFIG[plan]
@@ -168,7 +200,7 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
                   : 'border-border/60 bg-card hover:border-border',
                 isCurrent && plan === 'try' && 'ring-emerald-500/50',
                 isCurrent && plan === 'buy' && 'ring-blue-500/50',
-                isCurrent && plan === 'full' && 'ring-primary/50',
+                isCurrent && isPremiumPlan(plan) && 'ring-primary/50',
               )}
             >
               {/* Header */}
@@ -238,6 +270,7 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription }: 
           )
         })}
       </div>
+      )}
 
       <p className="text-xs text-muted-foreground text-center">
         El pago se procesa de forma segura a través de MercadoPago. Podés cancelar en cualquier momento.

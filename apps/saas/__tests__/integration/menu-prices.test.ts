@@ -66,7 +66,7 @@ const priceOf = async (loc: string, cat: number, item: number) => {
 
 beforeEach(async () => {
   await mongoose.connection.dropDatabase()
-  tenantId = String((await Tenant.create({ name: 'Precios', slug: SLUG, plan: 'full' }))._id)
+  tenantId = String((await Tenant.create({ name: 'Precios', slug: SLUG, plan: 'high' }))._id)
   loc1 = String((await Location.create({ tenantId, name: 'Centro', slug: 'centro', address: 'a', isActive: true }))._id)
   loc2 = String((await Location.create({ tenantId, name: 'Norte', slug: 'norte', address: 'b', isActive: true }))._id)
   await Menu.create({ tenantId, locationId: loc1, isActive: true, categories: carta() })
@@ -187,6 +187,32 @@ describe('planilla Excel', () => {
     const data = await imp.json()
     expect(data.rows).toBe(1)
     expect(data.overrides[itemKeyOf('Bebidas', 'Coca-Cola')]).toEqual({ price: $(6200) })
+
+    // Aplicar lo que vino de la planilla: cambian SOLO los precios; fotos y nombres intactos.
+    const before = await Menu.findOne({ locationId: loc1 }).lean()
+    const apply = await batchesPOST(req('/batches', 'POST', { locationIds: [loc1], rules: [], overrides: data.overrides, targets: { dineIn: true, takeaway: true, variants: true, options: true }, mode: 'apply' }), P)
+    expect(apply.status).toBe(201)
+    const after = await Menu.findOne({ locationId: loc1 }).lean()
+    const strip = (m: unknown) => JSON.parse(JSON.stringify(m, (k, v) => (/price|Price|updatedAt|__v/.test(k) ? undefined : v)))
+    expect(strip(after)).toEqual(strip(before)) // todo lo que no es precio quedó igual (fotos incluidas)
+    expect((await priceOf(loc1, 0, 0)).price).toBe($(6200))
+    expect((await priceOf(loc1, 0, 0)).imageUrl).toBe('https://img/coca.jpg')
+  })
+})
+
+describe('planilla y foto/PDF: solo High Ticket', () => {
+  it('Premium ve la herramienta pero el servidor bloquea descargar, subir planilla y leer foto', async () => {
+    await Tenant.updateOne({ _id: tenantId }, { $set: { plan: 'full' } })
+    await signIn('admin')
+    const exp = await exportGET(req(`/export?locationId=${loc1}`), P)
+    expect(exp.status).toBe(403)
+    expect((await exp.json()).requiredPlan).toBe('high')
+    const form = new FormData()
+    form.set('locationId', loc1)
+    expect((await importPOST(new NextRequest(`http://localhost/api/${SLUG}/menu/prices/import`, { method: 'POST', body: form }), P)).status).toBe(403)
+    expect((await imagePOST(new NextRequest(`http://localhost/api/${SLUG}/menu/prices/from-image`, { method: 'POST', body: form }), P)).status).toBe(403)
+    // Las reglas a mano siguen en todos los planes
+    expect((await batchesPOST(req('/batches', 'POST', { ...bebidas10(), mode: 'apply' }), P)).status).toBe(201)
   })
 })
 

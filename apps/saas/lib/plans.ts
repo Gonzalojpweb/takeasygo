@@ -5,6 +5,7 @@ export {
   type Feature,
   canAccess,
   requiredPlanFor,
+  isPremiumPlan,
   PLAN_ACCESS,
   PLAN_LABELS,
   PLAN_TAGLINES,

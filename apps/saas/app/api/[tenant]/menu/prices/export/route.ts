@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
-import { guardLocations, priceContext, priceErrorResponse } from '@/lib/menu/price-http'
+import { guardLocations, priceContext, priceErrorResponse, priceImportDenied } from '@/lib/menu/price-http'
 import { buildPriceSheet } from '@/lib/menu/price-sheet'
 
 // GET /api/[tenant]/menu/prices/export?locationId=… — planilla Excel con los
@@ -10,6 +10,8 @@ import { buildPriceSheet } from '@/lib/menu/price-sheet'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const c = await priceContext(request, (await params).tenant)
   if (!c.ok) return c.response
+  const planDenied = priceImportDenied(c.ctx)
+  if (planDenied) return planDenied
   const locationId = request.nextUrl.searchParams.get('locationId') ?? ''
   if (!mongoose.Types.ObjectId.isValid(locationId)) return NextResponse.json({ error: 'Elegí una sede' }, { status: 400 })
   const denied = await guardLocations(request, [locationId])

@@ -37,6 +37,7 @@ export default async function BillingPage() {
       <BillingPanel
         currentPlan={(tenant.plan ?? 'trial') as Plan}
         tenantSlug={tenantSlug}
+        supportWhatsapp={(process.env.ASSISTANT_SUPPORT_WHATSAPP ?? '').replace(/\D/g, '') || null}
         subscription={{
           status: sub.status ?? null,
           plan: sub.plan ?? null,

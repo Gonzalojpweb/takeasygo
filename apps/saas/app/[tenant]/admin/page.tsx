@@ -13,9 +13,10 @@ import Link from 'next/link'
 // Widgets del dashboard: reciben el /summary prefetcheado y siguen al selector de sede
 import DashboardWidgets from '@/components/admin/dashboard/DashboardWidgets'
 import TodayByChannel from '@/components/admin/dashboard/TodayByChannel'
+import { isPremiumPlan } from '@/lib/plans'
 
 function PlanBanner({ plan, trialOrderCount, tenantSlug }: { plan: Plan; trialOrderCount?: number; tenantSlug: string }) {
-  if (plan === 'full' || plan === 'anfitrion') return null
+  if (isPremiumPlan(plan) || plan === 'anfitrion') return null
 
   if (plan === 'trial') {
     const count = trialOrderCount ?? 0

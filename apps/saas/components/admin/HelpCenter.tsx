@@ -883,33 +883,33 @@ type SectionVisibility = 'full' | 'hook' | 'hidden'
 // 'hook'   → show marketing teaser only (gancho de atracción, no detalles internos)
 // 'hidden' → don't render at all
 const VISIBILITY: Record<string, Record<Plan, SectionVisibility>> = {
-  dashboard:    { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  pedidos:      { anfitrion: 'hook',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  'pedidos-programados': { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  menu:         { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  upselling:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  usuarios:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
-  reportes:     { anfitrion: 'hidden', trial: 'hook',   try: 'hook',   buy: 'full', full: 'full' },
-  ico:          { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
-  reservas:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
-  impresoras:   { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  historial:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  auditoria:    { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
-  configuracion:{ anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  facturacion:  { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full' },
-  'integracion-pos': { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full' },
-  'club-miembros': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
-  'go-plus':       { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
-  'wallet-digital':{ anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
-  tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full' },
-  trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full' },
-  'marketing-qr': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
-  promociones:    { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full' },
-  delivery: { anfitrion: 'hidden', trial: 'full',   try: 'hook',  buy: 'hook', full: 'full' },
-  demora:   { anfitrion: 'hidden', trial: 'full',   try: 'full', buy: 'full', full: 'full' },
-  tia:      { anfitrion: 'hidden', trial: 'hidden', try: 'hook', buy: 'full', full: 'full' },
-  compliance: { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full' },
-  nudges:     { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full' },
+  dashboard:    { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  pedidos:      { anfitrion: 'hook',   trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  'pedidos-programados': { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  menu:         { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  upselling:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  usuarios:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full', high: 'full' },
+  reportes:     { anfitrion: 'hidden', trial: 'hook',   try: 'hook',   buy: 'full', full: 'full', high: 'full' },
+  ico:          { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full', high: 'full' },
+  reservas:     { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full', high: 'full' },
+  impresoras:   { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  historial:    { anfitrion: 'hidden', trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  auditoria:    { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full', high: 'full' },
+  configuracion:{ anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  facturacion:  { anfitrion: 'full',   trial: 'full',   try: 'full',   buy: 'full', full: 'full', high: 'full' },
+  'integracion-pos': { anfitrion: 'hidden', trial: 'hidden', try: 'hidden', buy: 'full', full: 'full', high: 'full' },
+  'club-miembros': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full', high: 'full' },
+  'go-plus':       { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full', high: 'full' },
+  'wallet-digital':{ anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full', high: 'full' },
+  tienda:  { anfitrion: 'hidden', trial: 'hidden', try: 'hook',  buy: 'full', full: 'full', high: 'full' },
+  trafico: { anfitrion: 'hidden', trial: 'hook',   try: 'hook',  buy: 'full', full: 'full', high: 'full' },
+  'marketing-qr': { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full', high: 'full' },
+  promociones:    { anfitrion: 'hidden', trial: 'full',   try: 'full',  buy: 'full', full: 'full', high: 'full' },
+  delivery: { anfitrion: 'hidden', trial: 'full',   try: 'hook',  buy: 'hook', full: 'full', high: 'full' },
+  demora:   { anfitrion: 'hidden', trial: 'full',   try: 'full', buy: 'full', full: 'full', high: 'full' },
+  tia:      { anfitrion: 'hidden', trial: 'hidden', try: 'hook', buy: 'full', full: 'full', high: 'full' },
+  compliance: { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full', high: 'full' },
+  nudges:     { anfitrion: 'hidden', trial: 'full', try: 'full', buy: 'full', full: 'full', high: 'full' },
 }
 
 function getVisibility(plan: Plan, sectionId: string): SectionVisibility {
@@ -1100,7 +1100,7 @@ export default function HelpCenter({ plan }: { plan: Plan }) {
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3 text-center">
               <Search size={32} className="text-muted-foreground/30" />
-              <p className="font-bold text-muted-foreground">Sin resultados para "{query}"</p>
+              <p className="font-bold text-muted-foreground">Sin resultados para «{query}»</p>
               <button onClick={() => setQuery('')} className="text-sm text-primary hover:underline">
                 Limpiar búsqueda
               </button>

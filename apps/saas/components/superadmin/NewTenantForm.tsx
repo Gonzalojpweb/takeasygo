@@ -15,6 +15,7 @@ const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
   buy:       ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
   full:      ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
   anfitrion: ['Dashboard + Menú digital', 'Configuración del restaurante', 'Facturación y suscripción'],
+  high:      ['Todo Premium incluido', 'TEO, asistente del panel', 'Precios desde planilla o foto de la carta'],
 }
 
 export default function NewTenantForm() {
@@ -108,7 +109,7 @@ export default function NewTenantForm() {
           <div>
             <label className="text-zinc-400 text-sm block mb-2">Plan</label>
             <div className="flex flex-col gap-2">
-              {(['anfitrion', 'trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
+              {(['anfitrion', 'trial', 'try', 'buy', 'full', 'high'] as Plan[]).map(p => (
                 <button
                   key={p}
                   type="button"

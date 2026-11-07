@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import { fetchDashboardMetrics } from '@/lib/tia/metrics'
 import { runSilAnalysis } from '@/lib/tia/sil/engine'
 import TiaInsight from '@/models/TiaInsight'
+import { isPremiumPlan } from '@/lib/plans'
 
 const CRON_SECRET = process.env.CRON_SECRET
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Plan gating: Growth gets 3 regular insights max
-        const isPremium = tenant.plan === 'full'
+        const isPremium = isPremiumPlan(tenant.plan)
         let toPersist = allInsights
         if (!isPremium) {
           const regular = allInsights.filter(i => i.type !== 'anomaly').slice(0, 3)

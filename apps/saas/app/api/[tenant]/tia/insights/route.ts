@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import TiaInsight from '@/models/TiaInsight'
 import { generateRecommendations } from '@/lib/tia/recommendations'
 import { requireAuth, requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
+import { isPremiumPlan } from '@/lib/plans'
 
 async function getTenant(tenantSlug: string) {
   const Tenant = (await import('@/models/Tenant')).default
@@ -83,7 +84,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
 
-  const isPremium = tenant.plan === 'full'
+  const isPremium = isPremiumPlan(tenant.plan)
   const status = request.nextUrl.searchParams.get('status') ?? 'active'
 
   try {

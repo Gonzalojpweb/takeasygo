@@ -4,6 +4,7 @@ import { fetchDashboardMetrics } from '@/lib/tia/metrics'
 import { runSilAnalysis } from '@/lib/tia/sil/engine'
 import TiaInsight from '@/models/TiaInsight'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
+import { isPremiumPlan } from '@/lib/plans'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: tenantSlug } = await params
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
 
-  const isPremium = tenant.plan === 'full'
+  const isPremium = isPremiumPlan(tenant.plan)
 
   try {
     const metrics = await fetchDashboardMetrics(tenant._id.toString())

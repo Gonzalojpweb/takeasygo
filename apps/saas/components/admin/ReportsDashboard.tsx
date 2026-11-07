@@ -18,6 +18,7 @@ import UpsellAnalytics from '@/components/admin/UpsellAnalytics'
 import type { NavigationStats } from '@/lib/reports/navigation'
 import type { ReportStats, ReportOrderLike } from '@/lib/report-stats'
 import type { PeriodCommissions } from '@/lib/commissions'
+import { isPremiumPlan } from '@/lib/plans'
 
 type PdfOrder = ReportOrderLike & {
     orderNumber: string
@@ -761,7 +762,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             <TransferCommissionCard stats={stats} />
 
             {/* ── KPIs Operativos ─────────────────────────────────────── */}
-            {plan !== 'full' && (
+            {!isPremiumPlan(plan) && (
                 <div className="flex items-start gap-4 p-6 rounded-2xl border-2 border-dashed border-border/60 bg-muted/20">
                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                         <Zap size={18} className="text-muted-foreground" />
@@ -774,7 +775,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                     </div>
                 </div>
             )}
-            {plan === 'full' && (
+            {isPremiumPlan(plan) && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
                 <div className="mb-4">
                     <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Inteligencia operativa</p>
@@ -836,7 +837,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
                 </div>
             </motion.div>
 
-            )} {/* end plan === 'full' KPIs block */}
+            )} {/* end isPremiumPlan(plan) KPIs block */}
 
             {/* ── Ventas por Método de Pago ─────────────────────────────── */}
             {stats.paymentMethodBreakdown.length > 0 && (
@@ -861,7 +862,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Distribución Horaria ─────────────────────────────────────── */}
-            {plan === 'full' && stats.hourlyDistribution.length > 0 && (
+            {isPremiumPlan(plan) && stats.hourlyDistribution.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.38 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -892,7 +893,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Tendencia Diaria ─────────────────────────────────────── */}
-            {plan === 'full' && !stats.isCustomRange && stats.dailyTrend.some(d => d.orders > 0) && (
+            {isPremiumPlan(plan) && !stats.isCustomRange && stats.dailyTrend.some(d => d.orders > 0) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.40 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -928,7 +929,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Revenue por Categoría + Revenue por Sede ──────────────── */}
-            {plan === 'full' && (stats.revenueByCategory.length > 0 || stats.revenueByLocation.length > 1) && (
+            {isPremiumPlan(plan) && (stats.revenueByCategory.length > 0 || stats.revenueByLocation.length > 1) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.42 }}>
                     <div className={stats.revenueByCategory.length > 0 && stats.revenueByLocation.length > 1
                         ? 'grid grid-cols-1 lg:grid-cols-2 gap-8'
@@ -978,7 +979,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Upselling Overview ───────────────────────────────────── */}
-            {plan === 'full' && (
+            {isPremiumPlan(plan) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.43 }}>
                     <Card className="bg-card border-border/60 shadow-sm rounded-2xl overflow-hidden">
                         <CardHeader className="p-5 border-b border-border/40 bg-muted/10">
@@ -1035,7 +1036,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Upselling Analytics ──────────────────────────────────── */}
-            {plan === 'full' && (
+            {isPremiumPlan(plan) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
                     <div className="mb-4">
                         <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -1058,7 +1059,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Upsell vs Menú Común ───────────────────────────────── */}
-            {plan === 'full' && (
+            {isPremiumPlan(plan) && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.48 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">
@@ -1107,7 +1108,7 @@ export default function ReportsDashboard({ stats, topItems, recentOrders, tenant
             )}
 
             {/* ── Tendencia Mensual ────────────────────────────────────── */}
-            {plan === 'full' && stats.monthlyTrend.length > 0 && (
+            {isPremiumPlan(plan) && stats.monthlyTrend.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
                     <Card className="bg-card border-border/60 shadow-xl rounded-[2.5rem] overflow-hidden">
                         <CardHeader className="p-8 border-b border-border/40 bg-muted/10">

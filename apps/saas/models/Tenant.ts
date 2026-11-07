@@ -46,7 +46,7 @@ export interface ITenant extends Document {
   slug: string
   /** Multi-marca PR 7: organización a la que pertenece (null = comercio independiente). */
   organizationId?: Types.ObjectId | null
-  plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
+  plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion' | 'high'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
   isOperational: boolean // Si el local ya está aceptando pedidos o está en modo catálogo
@@ -464,7 +464,7 @@ const TenantSchema = new Schema<ITenant>(
     },
     plan: {
       type: String,
-      enum: ['trial', 'try', 'buy', 'full', 'anfitrion'],
+      enum: ['trial', 'try', 'buy', 'full', 'anfitrion', 'high'],
       default: 'trial',
     },
     status: {

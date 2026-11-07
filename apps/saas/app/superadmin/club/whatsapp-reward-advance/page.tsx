@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { MessageCircle, Building2, Loader2, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import WhatsappRewardAdvanceDialog from '@/components/WhatsappRewardAdvanceDialog'
+import { isPremiumPlan } from '@/lib/plans'
 
 interface EligibleTenant {
   tenantId: string
@@ -21,6 +22,7 @@ export default function SuperadminWhatsappRewardAdvancePage() {
   const [dialogOpen, setDialogOpen] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability, react-hooks/set-state-in-effect -- carga inicial (patrón previo)
     fetchTenants()
   }, [])
 
@@ -101,11 +103,11 @@ export default function SuperadminWhatsappRewardAdvancePage() {
                   </td>
                   <td className="px-6 py-4">
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      t.plan === 'full'
+                      isPremiumPlan(t.plan)
                         ? 'bg-purple-100 text-purple-700'
                         : 'bg-emerald-100 text-emerald-700'
                     }`}>
-                      {t.plan === 'full' ? 'Premium' : 'Crecimiento'}
+                      {isPremiumPlan(t.plan) ? 'Premium' : 'Crecimiento'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-zinc-600 text-xs">{t.clubName}</td>

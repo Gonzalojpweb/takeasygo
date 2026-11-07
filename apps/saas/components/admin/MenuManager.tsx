@@ -59,6 +59,8 @@ interface Props {
   tenantSlug: string
   /** Rol del usuario: Administrador y Manager aplican precios (PriceUpdater). */
   userRole?: string
+  /** Planilla y foto/PDF en «Actualizar precios»: solo High Ticket. */
+  canImportPrices?: boolean
 }
 
 type CustomizationOptionForm = {
@@ -170,7 +172,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
   }))
 }
 
-export default function MenuManager({ locations, menus, tenantSlug, userRole }: Props) {
+export default function MenuManager({ locations, menus, tenantSlug, userRole, canImportPrices }: Props) {
   const { activeLocationId, locations: contextLocations, setActiveLocation } = useAdminLocation()
   const selectedLocation = activeLocationId ?? locations[0]?._id ?? ''
   const [expandedCategories, setExpandedCategories] = useState<string[]>([])
@@ -2307,6 +2309,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole }: 
             <PriceUpdater
               tenantSlug={tenantSlug}
               userRole={userRole ?? "admin"}
+              canImport={Boolean(canImportPrices)}
               locations={locations.map((l: any) => ({ _id: String(l._id), name: l.name }))}
               menus={menus.map((m: any) => ({ locationId: String(m.locationId), categories: m.categories ?? [] }))}
               initialLocationId={selectedLocation}

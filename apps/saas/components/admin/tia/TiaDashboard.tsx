@@ -21,6 +21,7 @@ import { captureTiaInsightDismissed, captureTiaInsightResolved } from '@/lib/eve
 import type { TiaReport, ReportContext } from '@/lib/tia/reporting/types'
 import type { TiaMetricsData } from '@/lib/tia/metrics'
 import type { Insight, Recommendation, BenchmarkItem } from '@/lib/tia/types'
+import { isPremiumPlan } from '@/lib/plans'
 
 interface DbInsight {
   _id: string
@@ -87,7 +88,7 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   const [silLoading, setSilLoading] = useState(false)
   const [benchmarkData, setBenchmarkData] = useState<BenchmarkItem[]>([])
 
-  const isPremium = plan === 'full'
+  const isPremium = isPremiumPlan(plan)
 
   async function fetchMetrics() {
     try {
@@ -206,11 +207,13 @@ export default function TiaDashboard({ tenantId, tenantSlug, plan, primaryColor 
   }, [tenantSlug])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga al cambiar de comercio (patrón previo)
     fetchMetrics()
   }, [tenantSlug])
 
   useEffect(() => {
     if (!loading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- patrón previo
       fetchDailyInsights()
       fetchBenchmark()
     }

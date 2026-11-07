@@ -3,7 +3,7 @@
 // Compartido entre SaaS, Sync Layer y POS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type Plan = 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
+export type Plan = 'trial' | 'try' | 'buy' | 'full' | 'anfitrion' | 'high'
 
 // ── Labels comerciales ────────────────────────────────────────────────────────
 export const PLAN_LABELS: Record<Plan, string> = {
@@ -12,6 +12,7 @@ export const PLAN_LABELS: Record<Plan, string> = {
   buy:     'Crecimiento',
   full:    'Premium',
   anfitrion: 'Anfitriones',
+  high:    'High Ticket',
 }
 
 export const PLAN_TAGLINES: Record<Plan, string> = {
@@ -20,6 +21,7 @@ export const PLAN_TAGLINES: Record<Plan, string> = {
   buy:     'Para restaurantes que quieren mejorar su operación',
   full:    'Para restaurantes que quieren optimizar su negocio con datos',
   anfitrion: 'Acceso exclusivo de lanzamiento — para los primeros en sumarse a la plataforma',
+  high:    'Todo Premium más asistente TEO y actualización de precios desde planilla o carta',
 }
 
 // ── Colores por plan (clases Tailwind) ────────────────────────────────────────
@@ -29,6 +31,7 @@ export const PLAN_COLORS: Record<Plan, string> = {
   buy:     'text-blue-600 bg-blue-500/10 border-blue-500/20',
   full:    'text-primary bg-primary/10 border-primary/20',
   anfitrion: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+  high:    'text-fuchsia-600 bg-fuchsia-500/10 border-fuchsia-500/20',
 }
 
 // ── Precios de referencia ─────────────────────────────────────────────────────
@@ -38,6 +41,7 @@ export const PLAN_PRICE: Record<Plan, string> = {
   buy:     '$45.000 ARS/mes',
   full:    '$60.000 ARS/mes',
   anfitrion: '$7.500/mes',
+  high:    '$100.000 ARS/mes',
 }
 
 // ── Matriz de acceso por feature ──────────────────────────────────────────────
@@ -45,81 +49,90 @@ export const PLAN_PRICE: Record<Plan, string> = {
 export const PLAN_ACCESS = {
   // Siempre disponibles (trial con límites: 1 sede, 1 impresora)
   // anfitrion: solo menu y settings — pedidos/impresoras/historial bloqueados
-  menu:          ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
-  orders:        ['trial', 'try', 'buy', 'full'] as const,
-  orderHistory:  ['trial', 'try', 'buy', 'full'] as const,
-  printers:      ['trial', 'try', 'buy', 'full'] as const, // cantidad por sede: PRINTER_LIMIT
-  settings:      ['trial', 'try', 'buy', 'full', 'anfitrion'] as const, // trial/try = máximo 1 ubicación
+  menu:          ['trial', 'try', 'buy', 'full', 'high', 'anfitrion'] as const,
+  orders:        ['trial', 'try', 'buy', 'full', 'high'] as const,
+  orderHistory:  ['trial', 'try', 'buy', 'full', 'high'] as const,
+  printers:      ['trial', 'try', 'buy', 'full', 'high'] as const, // cantidad por sede: PRINTER_LIMIT
+  settings:      ['trial', 'try', 'buy', 'full', 'high', 'anfitrion'] as const, // trial/try = máximo 1 ubicación
 
   // Plan Crecimiento y superior
-  reports:       ['buy', 'full'] as const,
-  users:         ['buy', 'full'] as const,
-  audit:         ['buy', 'full'] as const,
-  multiLocation: ['buy', 'full'] as const,
-  multiPrinter:  ['buy', 'full'] as const,
-  ico:           ['buy', 'full'] as const, // buy = simplificado, full = avanzado
+  reports:       ['buy', 'full', 'high'] as const,
+  users:         ['buy', 'full', 'high'] as const,
+  audit:         ['buy', 'full', 'high'] as const,
+  multiLocation: ['buy', 'full', 'high'] as const,
+  multiPrinter:  ['buy', 'full', 'high'] as const,
+  ico:           ['buy', 'full', 'high'] as const, // buy = simplificado, full = avanzado
 
   // Solo para plan Trial (informe de contexto operativo al llegar a 30 pedidos)
   icoTrial:      ['trial'] as const,
 
   // Solo Plan Premium
-  analyticsAdv:  ['full'] as const,  // performance + menú + horarios inteligentes
-  icoAdvanced:   ['full'] as const,  // diagnóstico completo con factores
-  store:         ['full'] as const,  // Tienda de canje de puntos
-  sos:           ['buy', 'full'] as const,  // Reward Advance (préstamo de puntos en checkout)
-  dineIn:        ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+  analyticsAdv:  ['full', 'high'] as const,  // performance + menú + horarios inteligentes
+  icoAdvanced:   ['full', 'high'] as const,  // diagnóstico completo con factores
+  store:         ['full', 'high'] as const,  // Tienda de canje de puntos
+  sos:           ['buy', 'full', 'high'] as const,  // Reward Advance (préstamo de puntos en checkout)
+  dineIn:        ['trial', 'try', 'buy', 'full', 'high', 'anfitrion'] as const,
 
   // Plan Crecimiento y superior
-  reservations:  ['buy', 'full'] as const,
+  reservations:  ['buy', 'full', 'high'] as const,
 
   // TGO Inventory (insumos, recetas, consumo por venta, verificación selectiva)
-  inventory:     ['buy', 'full'] as const,
+  inventory:     ['buy', 'full', 'high'] as const,
 
   // Módulo Business (precios corporativos) — Crecimiento y Premium
-  business:      ['buy', 'full'] as const,
+  business:      ['buy', 'full', 'high'] as const,
 
   // Club de Fidelización — disponible en todos los planes con límites distintos
   // Límites de miembros: trial=30, try=150, buy/full=ilimitado
   // Exportación de lista: solo desde buy/full
-  loyaltyClub:       ['trial', 'try', 'buy', 'full'] as const,
-  loyaltyExport:     ['buy', 'full'] as const,
-  loyaltyAnalytics:  ['full'] as const,  // Fase 2: métricas avanzadas del club
+  loyaltyClub:       ['trial', 'try', 'buy', 'full', 'high'] as const,
+  loyaltyExport:     ['buy', 'full', 'high'] as const,
+  loyaltyAnalytics:  ['full', 'high'] as const,  // Fase 2: métricas avanzadas del club
 
   // Integración POS — disponible en Crecimiento y Premium
-  posIntegration:    ['buy', 'full'] as const,
+  posIntegration:    ['buy', 'full', 'high'] as const,
 
   // Delivery — Trial, Crecimiento y Premium (Crecimiento agregado 29/10)
-  delivery:          ['trial', 'buy', 'full'] as const,
+  delivery:          ['trial', 'buy', 'full', 'high'] as const,
 
   // Notificaciones push al admin cuando llega un pedido nuevo
   // Disponible en Trial, Crecimiento y Premium
-  adminPushNotifications: ['trial', 'buy', 'full'] as const,
+  adminPushNotifications: ['trial', 'buy', 'full', 'high'] as const,
 
   // TIA — Inteligencia TakeasyGO
   // All features: 'buy' (Growth), 'full' (Premium)
   // Premium sub-features (SIL, anomalies, recommendations) gated inside UI
-  tia: ['buy', 'full'] as const,
+  tia: ['buy', 'full', 'high'] as const,
 
   // CRM — Base de Datos de Consumidores (Crecimiento y Premium)
-  crm: ['buy', 'full'] as const,
+  crm: ['buy', 'full', 'high'] as const,
 
   // CIS — Customer Intelligence System (Crecimiento y Premium)
   // Incluye: métricas, segmentación, health score, insights, señales
-  cis: ['buy', 'full'] as const,
+  cis: ['buy', 'full', 'high'] as const,
 
   // Transferencia bancaria — disponible en todos los planes
-  transferPayment: ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+  transferPayment: ['trial', 'try', 'buy', 'full', 'high', 'anfitrion'] as const,
 
   // Configuración de recargos por método de pago — disponible en todos los planes
-  paymentSurcharges: ['trial', 'try', 'buy', 'full', 'anfitrion'] as const,
+  paymentSurcharges: ['trial', 'try', 'buy', 'full', 'high', 'anfitrion'] as const,
 
   // Hidden Rewards — Recompensas Escondidas (Crecimiento y Premium)
   // Growth: hasta 20 premios por sede. Premium: ilimitado.
-  hiddenRewards: ['buy', 'full'] as const,
+  hiddenRewards: ['buy', 'full', 'high'] as const,
 
   // Pago en efectivo — Solo Premium
   // Habilita la opción de cobro en efectivo en el checkout del cliente.
-  cashPayment: ['full'] as const,
+  cashPayment: ['full', 'high'] as const,
+
+  // ── High Ticket (07/11/2026): exclusivas ───────────────────────────────────
+  // Actualizar precios desde planilla Excel o desde foto/PDF de la carta: se
+  // muestran en los demás planes con candado (Lock + CTA) y el servidor los
+  // bloquea. Las reglas a mano del asistente siguen en todos los planes.
+  priceImport: ['high'] as const,
+
+  // TEO — asistente del panel.
+  assistant: ['high'] as const,
 }
 
 export type Feature = keyof typeof PLAN_ACCESS
@@ -133,10 +146,15 @@ export function canAccess(plan: Plan, feature: Feature): boolean {
 
 /** Devuelve el plan mínimo requerido para una feature */
 export function requiredPlanFor(feature: Feature): Plan {
-  const order: Plan[] = ['try', 'buy', 'full']
+  const order: Plan[] = ['try', 'buy', 'full', 'high']
   return order.find(p =>
     (PLAN_ACCESS[feature] as readonly string[]).includes(p)
-  ) ?? 'full'
+  ) ?? 'high'
+}
+
+/** Premium o superior (High Ticket hereda todo lo de Premium). */
+export function isPremiumPlan(plan: string | null | undefined): boolean {
+  return plan === 'full' || plan === 'high'
 }
 
 /** Límite de miembros del club por plan. null = sin límite */
@@ -146,6 +164,7 @@ export const LOYALTY_MEMBER_LIMIT: Record<Plan, number | null> = {
   buy:      null,
   full:     null,
   anfitrion: 0,  // el plan anfitrion no incluye pedidos ni club activo
+  high:     null,
 }
 
 /**
@@ -160,6 +179,7 @@ export const PRINTER_LIMIT: Record<Plan, number> = {
   buy:      3,
   full:     4,
   anfitrion: 0,
+  high:     4,
 }
 
 /** Límite de premios ocultos por sede en plan Crecimiento. null = sin límite */
@@ -170,6 +190,7 @@ export const HIDDEN_REWARDS_LIMIT: Record<Plan, number | null> = {
   buy:      HIDDEN_REWARDS_GROWTH_LIMIT,
   full:     null,
   anfitrion: 0,
+  high:     null,
 }
 
 // ── Feature lists para la landing ────────────────────────────────────────────
@@ -237,6 +258,18 @@ export const PLAN_FEATURES_LANDING: Record<Plan, { featured: string[]; extra: st
       'Delivery con costo variable por zona',
       'Conversión de pagos MercadoPago',
       'Loyalty Analytics detallado',
+    ],
+  },
+  high: {
+    featured: [
+      'Todo el plan Premium incluido',
+      'TEO: asistente que responde cómo usar TakeasyGO',
+      'Actualizar precios desde planilla Excel',
+      'Actualizar precios desde una foto o PDF de la carta',
+    ],
+    extra: [
+      'WhatsApp del cliente al pagar con Mercado Pago (lo activa TakeasyGO)',
+      'Soporte prioritario',
     ],
   },
   anfitrion: {

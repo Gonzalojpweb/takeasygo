@@ -17,6 +17,7 @@ import { Lock } from 'lucide-react'
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires'
 import { UPSELL_SOURCES } from '@/lib/constants/upsell'
 import { getPageScope } from '@/lib/page-scope'
+import { isPremiumPlan } from '@/lib/plans'
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ from?: string | string[]; to?: string | string[] }> }) {
   const sp = await searchParams
@@ -58,7 +59,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   }
 
   const tenantId = tenant._id
-  const isFullPlan = plan === 'full'
+  const isFullPlan = isPremiumPlan(plan)
 
   // Alcance de sede del usuario (permisos frescos): un usuario de sede solo
   // recibe datos de sus sedes.

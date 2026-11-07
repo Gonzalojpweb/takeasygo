@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import Menu from '@/models/Menu'
-import { guardLocations, priceContext, priceErrorResponse } from '@/lib/menu/price-http'
+import { guardLocations, priceContext, priceErrorResponse, priceImportDenied } from '@/lib/menu/price-http'
 import { ALLOWED_MEDIA, PriceImageError, pricesFromImage, type AllowedMedia } from '@/lib/menu/price-image'
 import { rateLimit } from '@/lib/rateLimit'
 
@@ -16,6 +16,8 @@ export const maxDuration = 120
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const c = await priceContext(request, (await params).tenant, { applyOnly: true })
   if (!c.ok) return c.response
+  const planDenied = priceImportDenied(c.ctx)
+  if (planDenied) return planDenied
   try {
     const limit = await rateLimit(`price-image:${c.ctx.tenantId}`, 10, 3_600_000)
     if (!limit.success) return NextResponse.json({ error: 'Llegaste al límite de lecturas por hora. Probá más tarde.' }, { status: 429 })

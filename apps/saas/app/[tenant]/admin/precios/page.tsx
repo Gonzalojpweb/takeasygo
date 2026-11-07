@@ -8,6 +8,7 @@ import Menu from '@/models/Menu'
 import { getAdminSession } from '@/lib/tenant-access'
 import { getPageScope } from '@/lib/page-scope'
 import PriceUpdater from '@/components/admin/prices/PriceUpdater'
+import { canAccess, type Plan } from '@/lib/plans'
 
 // «Actualizar precios» como página: Administrador y Manager aplican; el
 // Cajero prepara cambios para que ellos los aprueben (no tiene acceso al
@@ -24,7 +25,7 @@ export default async function PreciosPage() {
   if (!ROLES.includes(session.user.role)) redirect(`/${slug}/admin`)
 
   await connectDB()
-  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id').lean<{ _id: Types.ObjectId }>()
+  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id plan').lean<{ _id: Types.ObjectId; plan?: Plan }>()
   if (!tenant) notFound()
   const scope = await getPageScope()
   const [locations, menus] = await Promise.all([
@@ -37,6 +38,7 @@ export default async function PreciosPage() {
       <PriceUpdater
         tenantSlug={slug ?? ''}
         userRole={session.user.role}
+        canImport={canAccess(tenant.plan ?? 'trial', 'priceImport')}
         locations={locations.map(l => ({ _id: String(l._id), name: l.name }))}
         menus={JSON.parse(JSON.stringify(menus))}
       />

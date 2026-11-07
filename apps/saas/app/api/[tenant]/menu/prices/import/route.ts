@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import Menu from '@/models/Menu'
-import { guardLocations, priceContext, priceErrorResponse } from '@/lib/menu/price-http'
+import { guardLocations, priceContext, priceErrorResponse, priceImportDenied } from '@/lib/menu/price-http'
 import { readPriceSheet } from '@/lib/menu/price-sheet'
 import { flattenMenus } from '@/lib/menu/price-engine'
 
@@ -13,6 +13,8 @@ const MAX_BYTES = 5 * 1024 * 1024
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const c = await priceContext(request, (await params).tenant)
   if (!c.ok) return c.response
+  const planDenied = priceImportDenied(c.ctx)
+  if (planDenied) return planDenied
   try {
     const form = await request.formData()
     const file = form.get('file')

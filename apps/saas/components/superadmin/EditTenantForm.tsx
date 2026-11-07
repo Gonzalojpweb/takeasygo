@@ -10,6 +10,7 @@ import { cn, fmt } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
+import { isPremiumPlan } from '@/lib/plans'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
   trial:     ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
@@ -17,6 +18,7 @@ const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
   buy:       ['Todo Inicial incluido', 'Reportes, múltiples sedes y usuarios', 'ICO — Fiabilidad Operativa'],
   full:      ['Todo Crecimiento incluido', 'Analytics avanzados + TPP + horarios', 'ICO diagnóstico completo'],
   anfitrion: ['Dashboard + Menú digital', 'Configuración del restaurante', 'Facturación y suscripción'],
+  high:      ['Todo Premium incluido', 'TEO, asistente del panel', 'Precios desde planilla o foto de la carta'],
 }
 
 interface Props {
@@ -210,7 +212,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
             <div className="space-y-2">
               <label className={labelCls}>Plan de Servicio</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {(['anfitrion', 'trial', 'try', 'buy', 'full'] as Plan[]).map(p => (
+                {(['anfitrion', 'trial', 'try', 'buy', 'full', 'high'] as Plan[]).map(p => (
                   <button
                     key={p}
                     type="button"
@@ -218,13 +220,13 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                       setForm(prev => {
                         const newForm = { ...prev, plan: p }
                         // Sincronizar Reservaciones
-                        if (p === 'buy' || p === 'full') {
+                        if (p === 'buy' || p === 'full' || p === 'high') {
                           newForm.featuresReservations = true
                         } else if (p === 'try' || p === 'trial' || p === 'anfitrion') {
                           newForm.featuresReservations = false
                         }
                         // Si baja de plan, deshabilitar Business
-                        if (p !== 'buy' && p !== 'full') {
+                        if (p !== 'buy' && p !== 'full' && p !== 'high') {
                           newForm.businessEnabled = false
                         }
                         return newForm
@@ -256,7 +258,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 ))}
               </div>
               {(() => {
-                const planOrder: Plan[] = ['anfitrion', 'trial', 'try', 'buy', 'full']
+                const planOrder: Plan[] = ['anfitrion', 'trial', 'try', 'buy', 'full', 'high']
                 const origIdx = planOrder.indexOf(tenant.plan as Plan)
                 const newIdx  = planOrder.indexOf(form.plan as Plan)
                 if (tenant.plan === 'trial' && newIdx > origIdx) {
@@ -400,7 +402,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
               </div>
               {!form.isOperational && (
                 <p className="text-[10px] text-amber-600 font-bold px-5">
-                  ⚠️ El local se mostrará como "Próximamente". Se podrá ver el menú pero no comprar.
+                  ⚠️ El local se mostrará como «Próximamente». Se podrá ver el menú pero no comprar.
                 </p>
               )}
 
@@ -463,7 +465,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 </button>
               </div>
 
-              {(form.plan === 'buy' || form.plan === 'full') && (
+              {(form.plan === 'buy' || isPremiumPlan(form.plan)) && (
                 <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-2 h-2 rounded-full", form.featuresTgoGrowthPushEnabled ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
@@ -483,7 +485,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 </div>
               )}
 
-              {form.plan === 'full' && (
+              {isPremiumPlan(form.plan) && (
                 <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-2 h-2 rounded-full", form.featuresCashPaymentEnabledBySuperadmin ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
@@ -567,7 +569,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                 </div>
               )}
 
-              {form.plan === 'buy' || form.plan === 'full' ? (
+              {form.plan === 'buy' || isPremiumPlan(form.plan) ? (
                 <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem] h-[58px] max-w-sm">
                   <div className="flex items-center gap-3">
                     <div className={cn("w-2 h-2 rounded-full", form.businessEnabled ? "bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" : "bg-muted-foreground/30")} />
@@ -598,7 +600,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
             </div>
 
             {/* SOS Max Limit (solo aplica si el plan es Premium) */}
-            <div className={cn("space-y-3", form.plan === 'full' ? '' : 'opacity-30 pointer-events-none')}>
+            <div className={cn("space-y-3", isPremiumPlan(form.plan) ? '' : 'opacity-30 pointer-events-none')}>
               <div className="p-5 rounded-2xl border-2 border-border/60 bg-muted/20">
                 <div className="flex items-center justify-between mb-3">
                   <div>
@@ -630,7 +632,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     SOS desactivado para este tenant.
                   </p>
                 )}
-                {form.plan !== 'full' && (
+                {!isPremiumPlan(form.plan) && (
                   <p className="text-xs text-muted-foreground font-medium mt-2">
                     Solo disponible para plan Premium.
                   </p>
@@ -837,7 +839,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
 
           <div className="p-6 bg-destructive/5 border-2 border-destructive/10 rounded-3xl mb-8">
             <p className="text-sm text-destructive font-bold leading-relaxed">
-              Atención: Al eliminar "{tenant.name}", se borrarán menús, pedidos, configuraciones y accesos de personal.
+              Atención: Al eliminar «{tenant.name}», se borrarán menús, pedidos, configuraciones y accesos de personal.
               No hay forma de revertir esta operación.
             </p>
           </div>

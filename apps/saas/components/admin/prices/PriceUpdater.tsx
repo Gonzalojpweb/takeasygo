@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   ArrowRight, ArrowLeft, Check, ChevronDown, ChevronRight, Download, FileSpreadsheet, ImageUp, Loader2, Plus, Trash2,
-  Undo2, CalendarClock, Send, X, AlertTriangle, History, Sparkles, Search,
+  Undo2, CalendarClock, Send, X, AlertTriangle, History, Sparkles, Search, Lock,
 } from 'lucide-react'
 import { itemKeyOf } from '@/lib/menu/price-engine'
 
@@ -38,6 +38,8 @@ export interface PriceUpdaterProps {
   initialLocationId?: string
   /** Abre con una categoría ya elegida (botón «Ajustar precios» de la carta). */
   initialCategory?: string | null
+  /** Planilla y foto/PDF: solo High Ticket. En los demás planes se ven con candado. */
+  canImport?: boolean
   /** Modo ventana (desde la carta): muestra el botón de cerrar. */
   onClose?: () => void
   onApplied?: () => void
@@ -373,22 +375,34 @@ export default function PriceUpdater(props: PriceUpdaterProps) {
                   </div>
                 )}
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-xl border border-border p-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet size={15} /> Desde una planilla</p>
+                <div className="relative grid gap-3 sm:grid-cols-2">
+                  <div className={`rounded-xl border border-border p-3 ${props.canImport ? '' : 'opacity-60'}`}>
+                    <p className="flex items-center gap-2 text-sm font-semibold"><FileSpreadsheet size={15} /> Desde una planilla {!props.canImport && <Lock size={13} className="text-fuchsia-600" />}</p>
                     <p className="mt-1 text-xs text-muted-foreground">Descargá la carta en Excel, completá «Precio nuevo» y subila.</p>
-                    <div className="mt-2 flex gap-2">
-                      <a href={`${base}/export?locationId=${locIds[0]}`} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><Download size={12} /> Descargar</a>
-                      <button onClick={() => excelRef.current?.click()} disabled={loading} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><FileSpreadsheet size={12} /> Subir planilla</button>
-                      <input ref={excelRef} type="file" accept=".xlsx" className="hidden" onChange={e => e.target.files?.[0] && void uploadExcel(e.target.files[0])} />
-                    </div>
+                    {props.canImport ? (
+                      <div className="mt-2 flex gap-2">
+                        <a href={`${base}/export?locationId=${locIds[0]}`} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><Download size={12} /> Descargar</a>
+                        <button onClick={() => excelRef.current?.click()} disabled={loading} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><FileSpreadsheet size={12} /> Subir planilla</button>
+                        <input ref={excelRef} type="file" accept=".xlsx" className="hidden" onChange={e => e.target.files?.[0] && void uploadExcel(e.target.files[0])} />
+                      </div>
+                    ) : null}
                   </div>
                   {canApply && (
-                    <div className="rounded-xl border border-border p-3">
-                      <p className="flex items-center gap-2 text-sm font-semibold"><ImageUp size={15} /> Desde una foto o PDF</p>
+                    <div className={`rounded-xl border border-border p-3 ${props.canImport ? '' : 'opacity-60'}`}>
+                      <p className="flex items-center gap-2 text-sm font-semibold"><ImageUp size={15} /> Desde una foto o PDF {!props.canImport && <Lock size={13} className="text-fuchsia-600" />}</p>
                       <p className="mt-1 text-xs text-muted-foreground">Subí la carta nueva: la leemos y te proponemos cada precio para revisar.</p>
-                      <button onClick={() => imageRef.current?.click()} disabled={loading} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><ImageUp size={12} /> Subir foto o PDF</button>
-                      <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={e => e.target.files?.[0] && void uploadImage(e.target.files[0])} />
+                      {props.canImport ? (
+                        <>
+                          <button onClick={() => imageRef.current?.click()} disabled={loading} className="mt-2 inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted"><ImageUp size={12} /> Subir foto o PDF</button>
+                          <input ref={imageRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf" className="hidden" onChange={e => e.target.files?.[0] && void uploadImage(e.target.files[0])} />
+                        </>
+                      ) : null}
+                    </div>
+                  )}
+                  {!props.canImport && (
+                    <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5 px-3 py-2 text-xs">
+                      <span className="flex items-center gap-1.5 font-medium text-fuchsia-700 dark:text-fuchsia-400"><Lock size={12} /> Actualizar desde planilla o desde la foto de tu carta es del plan High Ticket.</span>
+                      <a href={`/${tenantSlug}/admin/billing`} className="rounded-full bg-fuchsia-600 px-3 py-1 font-semibold text-white hover:bg-fuchsia-700">Conocé High Ticket</a>
                     </div>
                   )}
                 </div>
