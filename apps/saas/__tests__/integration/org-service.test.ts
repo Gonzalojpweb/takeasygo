@@ -223,6 +223,16 @@ describe('invitaciones', () => {
     await expectOrgError(acceptInvitation(token, String(ana._id)), 409, 'invitation_used')
   })
 
+  it('cuenta de staff de un comercio borrado: no se invita ni se suma (no podría iniciar sesión)', async () => {
+    const borrado = await Tenant.create({ name: 'Borrado', slug: 'borrado-x', plan: 'full', status: 'deleted' })
+    await User.create({ name: 'Huérfano', email: 'huerfano@t.test', password: 'Pass-123456!', role: 'admin', tenantId: borrado._id })
+    await User.create({ name: 'Sin comercio', email: 'sincomercio@t.test', password: 'Pass-123456!', role: 'admin', tenantId: new mongoose.Types.ObjectId() })
+    await expectOrgError(inviteAndGetToken(orgId, { email: 'huerfano@t.test', orgRole: 'owner', scope: { allTenants: true } }), 409, 'orphan_account')
+    await expectOrgError(inviteAndGetToken(orgId, { email: 'sincomercio@t.test', orgRole: 'owner', scope: { allTenants: true } }), 409, 'orphan_account')
+    await expectOrgError(addMember(orgId, { email: 'huerfano@t.test', orgRole: 'owner', scope: { allTenants: true } }, SA), 409, 'orphan_account')
+    expect(await OrgInvitation.countDocuments({ organizationId: orgId })).toBe(0)
+  })
+
   it('doble aceptación en paralelo: una sola membresía', async () => {
     const ana = await User.create({ name: 'Ana', email: 'ana2@t.test', password: 'Pass-123456!', role: 'member' })
     const token = await inviteAndGetToken(orgId, { email: 'ana2@t.test', orgRole: 'accountant', scope: { allTenants: true } })

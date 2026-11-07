@@ -277,6 +277,24 @@ async function syncOwnerField(orgId: Types.ObjectId | string) {
 }
 
 /** Alta directa de un usuario existente (por email). Para cuentas nuevas: invitación. */
+/**
+ * Una cuenta de staff cuyo comercio fue borrado no puede iniciar sesión
+ * (lib/signin-guard.ts). Si se la invita o se la suma, la persona acepta y
+ * después no puede entrar: se avisa antes. Los `member` no tienen comercio.
+ */
+const STAFF_ROLES = new Set(['admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier', 'waiter', 'host', 'auditor'])
+
+async function assertCanSignIn(user: { _id: Types.ObjectId; role: string; tenantId?: unknown }) {
+  // Solo staff: depende de su comercio de origen para entrar. member,
+  // superadmin, consumer y seller no se evalúan acá.
+  if (!STAFF_ROLES.has(user.role)) return
+  const { isSignInAllowed } = await import('@/lib/signin-guard')
+  if (!(await isSignInAllowed(user))) {
+    throw new OrgError(409, 'orphan_account',
+      'Ese email es de una cuenta de un comercio dado de baja y no puede iniciar sesión. Invitá otro email o pedí a soporte que libere esa cuenta.')
+  }
+}
+
 export async function addMember(orgId: string, input: { email?: unknown; orgRole?: unknown; scope?: ScopeBody; tenantRole?: unknown }, actor: AuditActor) {
   const org = await loadOrg(orgId)
   const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
@@ -286,10 +304,11 @@ export async function addMember(orgId: string, input: { email?: unknown; orgRole
   const tenantRole = parseTenantRole(input.tenantRole)
   await assertValidGrant(String(org._id), orgRole, scope, tenantRole)
 
-  const user = await User.findOne({ email }).select('_id role isActive').lean<{ _id: Types.ObjectId; role: string; isActive?: boolean }>()
+  const user = await User.findOne({ email }).select('_id role isActive tenantId').lean<{ _id: Types.ObjectId; role: string; isActive?: boolean; tenantId?: Types.ObjectId | null }>()
   if (!user) throw new OrgError(404, 'user_not_found', 'No hay una cuenta con ese email. Mandale una invitación.')
   const eligible = checkEligibleUser(user)
   if (eligible) throw new OrgError(400, eligible.code, eligible.message)
+  await assertCanSignIn(user)
   const priv = checkPrivilege(SUPERADMIN, { userId: String(user._id), orgRole, scope })
   if (priv) throw new OrgError(403, priv.code, priv.message)
 
@@ -384,10 +403,11 @@ export async function createInvitation(
   const tenantRole = parseTenantRole(input.tenantRole)
   await assertValidGrant(String(org._id), orgRole, scope, tenantRole)
 
-  const user = await User.findOne({ email }).select('_id role isActive').lean<{ _id: Types.ObjectId; role: string; isActive?: boolean }>()
+  const user = await User.findOne({ email }).select('_id role isActive tenantId').lean<{ _id: Types.ObjectId; role: string; isActive?: boolean; tenantId?: Types.ObjectId | null }>()
   if (user) {
     const eligible = checkEligibleUser(user)
     if (eligible) throw new OrgError(400, eligible.code, eligible.message)
+    await assertCanSignIn(user)
     if (await OrgMembership.exists({ organizationId: org._id, userId: user._id, status: 'active' })) {
       throw new OrgError(409, 'already_member', 'Esa persona ya es miembro de la organización.')
     }
