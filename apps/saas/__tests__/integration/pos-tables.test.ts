@@ -93,9 +93,12 @@ async function createOrder(tableId?: string): Promise<string> {
   return body.order.id
 }
 
-beforeAll(() => {
+beforeAll(async () => {
   process.env.POS_JWT_PUBLIC_KEY = publicKey.export({ type: 'spki', format: 'pem' }) as string
   __resetPosJwtKeyCacheForTests()
+  // Los índices únicos (número de mesa por sede, posId) se crean en segundo
+  // plano: sin esperarlos, «número repetido → 409» fallaba a veces en CI (201).
+  await Table.init()
 })
 
 beforeEach(async () => {
