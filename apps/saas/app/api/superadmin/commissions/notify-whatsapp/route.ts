@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { tenantId } = body
 
-    let query: any = { 'commissionBalance.transfer': { $gt: 0 } }
+    const query: any = { 'commissionBalance.transfer': { $gt: 0 } }
     if (tenantId) {
       query._id = tenantId
     }

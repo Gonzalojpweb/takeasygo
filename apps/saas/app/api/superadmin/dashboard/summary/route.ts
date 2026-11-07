@@ -355,7 +355,7 @@ export async function GET(request: NextRequest) {
       .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
     // ── Process tendencia ──
-    let tendencia7Dias: Array<{ date: string; pedidos: number; ingresosCents: number }> = []
+    const tendencia7Dias: Array<{ date: string; pedidos: number; ingresosCents: number }> = []
     for (let i = 6; i >= 0; i--) {
       const d = daysAgo(i)
       const key = d.toISOString().split('T')[0]

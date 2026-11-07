@@ -47,6 +47,16 @@ import { POST as CLOSE } from '@/app/api/[tenant]/pos/cash/registers/[id]/close/
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
 
+// El trabajo «después de responder» (p. ej. reintentar facturas pendientes) se
+// junta y se espera al final de cada test: si quedaba suelto, terminaba durante
+// el test siguiente y le sumaba pedidos de CAE (caeRequests 3 ≠ 1, intermitente).
+const afterWork = vi.hoisted(() => ({ pending: [] as Promise<unknown>[] }))
+vi.mock('@/lib/after-response', () => ({
+  runAfterResponse: (_label: string, fn: () => Promise<unknown>) => {
+    afterWork.pending.push(fn().catch(() => undefined))
+  },
+}))
+
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
 const PRIVATE_PEM = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string
 const SLUG = 'factura-tenant'
@@ -224,7 +234,10 @@ beforeEach(async () => {
   })
 })
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(async () => {
+  while (afterWork.pending.length) await Promise.allSettled(afterWork.pending.splice(0))
+  vi.unstubAllGlobals()
+})
 
 describe('factura desde el POS', () => {
   it('el POS sabe cómo facturar esta sede', async () => {

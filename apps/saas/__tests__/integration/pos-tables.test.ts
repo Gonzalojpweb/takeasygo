@@ -672,8 +672,14 @@ describe('Fase I — listado de ventas y reportes descargables', () => {
     const onlyCounter = await (await list('?channel=mostrador', manager())).json()
     expect(onlyCounter.rows.map((r: { channel: string }) => r.channel)).toEqual(['mostrador'])
 
+    // «12» también busca en posId (UUID al azar) y número de pedido: la venta de
+    // mostrador puede coincidir por casualidad (~1 de cada 8 corridas). Se exige
+    // la de la mesa 12 y que cualquier otra coincida por texto, no por mesa.
     const byTable = await (await list('?q=12', manager())).json()
-    expect(byTable.total).toBe(1)
+    expect(byTable.rows.some((r: { channel: string }) => r.channel === 'salon')).toBe(true)
+    for (const r of byTable.rows as { channel: string; posId: string | null; orderNumber: string | null }[]) {
+      if (r.channel !== 'salon') expect(`${r.posId ?? ''} ${r.orderNumber ?? ''}`).toContain('12')
+    }
   }, 30_000) // muchas requests en serie: con la suite completa en paralelo supera los 5 s por defecto
 
   it('el cajero recibe el listado sin montos', async () => {

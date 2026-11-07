@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Building2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 
 // Multi-marca PR 9b — /grupo/aceptar?token=… (link del email de invitación).
@@ -33,28 +33,34 @@ type State =
   | { kind: 'done'; orgName: string }
 
 export default function AceptarInvitacionPage() {
+  // useSearchParams pide un Suspense alrededor para el armado de la página.
+  return (
+    <Suspense fallback={null}>
+      <AceptarInvitacion />
+    </Suspense>
+  )
+}
+
+function AceptarInvitacion() {
   const router = useRouter()
-  const [token, setToken] = useState('')
-  const [state, setState] = useState<State>({ kind: 'loading' })
+  const token = useSearchParams().get('token') ?? ''
+  const [state, setState] = useState<State>(() =>
+    token ? { kind: 'loading' } : { kind: 'error', message: 'El enlace no es válido.' }
+  )
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState('')
   const [needsLogin, setNeedsLogin] = useState(false)
 
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('token') ?? ''
-    setToken(t)
-    if (!t) {
-      setState({ kind: 'error', message: 'El enlace no es válido.' })
-      return
-    }
-    fetch(`/api/grupo/invitations?token=${encodeURIComponent(t)}`)
+    if (!token) return
+    fetch(`/api/grupo/invitations?token=${encodeURIComponent(token)}`)
       .then(async r => {
         const data = await r.json().catch(() => ({}))
         if (!r.ok) setState({ kind: 'error', message: data.error ?? 'No pudimos abrir la invitación.' })
         else setState({ kind: 'ready', preview: data as Preview })
       })
       .catch(() => setState({ kind: 'error', message: 'No pudimos abrir la invitación. Revisá tu conexión.' }))
-  }, [])
+  }, [token])
 
   const loginHref = `/login?callbackUrl=${encodeURIComponent(`/grupo/aceptar?token=${token}`)}`
 

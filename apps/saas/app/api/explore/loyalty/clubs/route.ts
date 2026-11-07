@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       orderedTenants.forEach((id: any) => suggestedTenantIds.add(id.toString()))
     }
 
-    let suggestedQuery: any = {
+    const suggestedQuery: any = {
       _id: { $nin: myClubIds },
       isActive: true,
       'loyalty.enabled': true,
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Distancia (si hay coordenadas)
-    let distanceMap = new Map<string, number | null>()
+    const distanceMap = new Map<string, number | null>()
     if (hasCoords && suggestedTenants.length > 0) {
       const tenantObjectIds = suggestedTenants.map(t => t._id)
       const nearbyLocations = await Location.aggregate([
