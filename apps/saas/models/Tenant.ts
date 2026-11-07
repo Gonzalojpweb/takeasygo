@@ -44,6 +44,8 @@ export interface IPaymentMethodsVisibility {
 export interface ITenant extends Document {
   name: string
   slug: string
+  /** Multi-marca PR 7: organización a la que pertenece (null = comercio independiente). */
+  organizationId?: Types.ObjectId | null
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
@@ -445,6 +447,8 @@ export interface ITenant extends Document {
 
 const TenantSchema = new Schema<ITenant>(
   {
+    // Multi-marca PR 7: 0 o 1 organización (campo escalar). Ausente = independiente.
+    organizationId: { type: Schema.Types.ObjectId, ref: 'Organization', default: undefined },
     name: {
       type: String,
       required: [true, 'El nombre es obligatorio'],
@@ -995,6 +999,12 @@ const TenantSchema = new Schema<ITenant>(
   {
     timestamps: true,
   }
+)
+
+// Multi-marca PR 7: solo indexa los comercios que pertenecen a una organización.
+TenantSchema.index(
+  { organizationId: 1 },
+  { partialFilterExpression: { organizationId: { $type: 'objectId' } } }
 )
 
 // Virtual para isActive basado en status (para compatibilidad)

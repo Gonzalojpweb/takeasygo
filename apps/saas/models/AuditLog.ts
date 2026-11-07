@@ -9,6 +9,8 @@ export interface IAuditLog extends Document {
   entity: string
   entityId: string | null
   locationId: mongoose.Types.ObjectId | null
+  /** Multi-marca PR 7: organización desde la que se actuó (null = acción del comercio). */
+  organizationId: mongoose.Types.ObjectId | null
   details: Record<string, any>
   ip: string
   createdAt: Date
@@ -25,6 +27,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
     entityId: { type: String, default: null },
     // B1 sede en auditoría: opcional (backfill por fases detrás de flag).
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
+    organizationId: { type: Schema.Types.ObjectId, ref: 'Organization', default: null },
     details: { type: Schema.Types.Mixed, default: {} },
     ip: { type: String, default: '' },
   },
@@ -32,6 +35,10 @@ const AuditLogSchema = new Schema<IAuditLog>(
 )
 
 AuditLogSchema.index({ tenantId: 1, createdAt: -1 })
+AuditLogSchema.index(
+  { organizationId: 1, createdAt: -1 },
+  { partialFilterExpression: { organizationId: { $type: 'objectId' } } }
+)
 
 const AuditLog =
   mongoose.models.AuditLog || mongoose.model<IAuditLog>('AuditLog', AuditLogSchema)

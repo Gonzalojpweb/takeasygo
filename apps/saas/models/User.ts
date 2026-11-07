@@ -3,7 +3,10 @@ import bcrypt from 'bcryptjs'
 
 // operations_manager (Gerente de operaciones) y kitchen_lead (Jefe de cocina):
 // roles operativos de back-office (inventario, recetas). No operan el POS.
-export type UserRole = 'superadmin' | 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'consumer' | 'seller'
+// member (multi-marca PR 7): usuario SIN comercio de origen que solo accede por
+// membresías de organización. Fuera de un comercio no tiene ningún privilegio:
+// no figura en ninguna lista de roles, así que falla cerrado.
+export type UserRole = 'superadmin' | 'admin' | 'manager' | 'operations_manager' | 'kitchen_lead' | 'staff' | 'cashier' | 'waiter' | 'host' | 'auditor' | 'consumer' | 'seller' | 'member'
 
 export interface IUser extends Document {
   name: string
@@ -16,6 +19,8 @@ export interface IUser extends Document {
   assignedLocations: mongoose.Types.ObjectId[]
   assignedTenants: mongoose.Types.ObjectId[]
   isActive: boolean
+  /** Multi-marca PR 7: sesiones emitidas antes de esta fecha dejan de valer (lo aplica el PR 8). */
+  sessionsValidAfter?: Date | null
   savedAddresses: {
     label: string
     address: string
@@ -83,7 +88,7 @@ const UserSchema = new Schema<IUser>(
     },
     role: {
       type: String,
-      enum: ['superadmin', 'admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier', 'waiter', 'host', 'auditor', 'consumer', 'seller'],
+      enum: ['superadmin', 'admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff', 'cashier', 'waiter', 'host', 'auditor', 'consumer', 'seller', 'member'],
       required: true,
       default: 'consumer',
     },
@@ -105,6 +110,10 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    sessionsValidAfter: {
+      type: Date,
+      default: null,
     },
     savedAddresses: [
       {

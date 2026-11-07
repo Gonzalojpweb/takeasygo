@@ -40,3 +40,12 @@ export function tenantSlugError(slug: unknown): string | null {
   if (isReservedSlug(slug)) return `El enlace "${slug}" está reservado. Probá con otro.`
   return null
 }
+
+/**
+ * Slug de organización (multi-marca PR 7): vive en otro namespace
+ * (`/grupo/{slug}`), así que puede coincidir con el de un comercio, pero
+ * tampoco puede ser una palabra reservada. La unicidad la da el índice.
+ */
+export function orgSlugError(slug: unknown): string | null {
+  return tenantSlugError(slug)
+}
