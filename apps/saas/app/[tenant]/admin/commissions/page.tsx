@@ -12,7 +12,7 @@ export default async function CommissionsPage({ params }: { params: Promise<{ te
   const session = await getAdminSession()
   const role = session?.user?.role
   const { tenant: tenantSlug } = await params
-  if (!canViewCommissions(role)) redirect(`/${tenantSlug}/admin`)
+  if (!canViewCommissions(role, session?.user?.membershipRole)) redirect(`/${tenantSlug}/admin`)
 
   return (
     <div className="space-y-8 pb-10">

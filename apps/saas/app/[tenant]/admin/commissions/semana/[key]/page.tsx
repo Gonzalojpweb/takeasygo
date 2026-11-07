@@ -8,6 +8,6 @@ export default async function CommissionWeekPage({ params }: { params: Promise<{
   const session = await getAdminSession()
   const role = session?.user?.role
   const { tenant: tenantSlug, key } = await params
-  if (!canViewCommissions(role)) redirect(`/${tenantSlug}/admin`)
+  if (!canViewCommissions(role, session?.user?.membershipRole)) redirect(`/${tenantSlug}/admin`)
   return <CommissionWeekDetail tenantSlug={tenantSlug} weekKey={key} canPay={canPayCommissions(role)} />
 }

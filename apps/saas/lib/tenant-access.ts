@@ -195,6 +195,8 @@ export interface AdminSessionUser {
   tenantSlug: string | null
   assignedLocations: string[]
   image?: string | null
+  /** Multi-marca: rol en la organización si entra por membresía (enforce). */
+  membershipRole?: string | null
 }
 
 /**
@@ -247,7 +249,7 @@ export async function getAdminSession(tenantSlug?: string | null): Promise<{ use
     return fromJwt()
   }
   return newOk && fresh
-    ? { user: { id: fresh.id ?? null, email: fresh.email ?? null, name: fresh.name ?? null, role: fresh.role ?? '', tenantId: fresh.tenantId ?? null, tenantSlug: slug, assignedLocations: fresh.assignedLocations ?? [], image: fresh.image ?? null } }
+    ? { user: { id: fresh.id ?? null, email: fresh.email ?? null, name: fresh.name ?? null, role: fresh.role ?? '', tenantId: fresh.tenantId ?? null, tenantSlug: slug, assignedLocations: fresh.assignedLocations ?? [], image: fresh.image ?? null, membershipRole: (fresh as { membershipRole?: string | null }).membershipRole ?? null } }
     : null
 }
 

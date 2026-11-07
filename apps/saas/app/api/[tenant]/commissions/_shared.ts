@@ -23,7 +23,7 @@ export async function commissionsTenant(request: NextRequest, slug: string, acti
   if (user.role !== 'superadmin' && !belongsTo(user, tenant._id)) {
     return { error: NextResponse.json({ error: 'Acceso denegado' }, { status: 403 }) }
   }
-  const allowed = action === 'pay' ? canPayCommissions(user.role) : canViewCommissions(user.role)
+  const allowed = action === 'pay' ? canPayCommissions(user.role) : canViewCommissions(user.role, (user as { membershipRole?: string | null }).membershipRole)
   if (!allowed) {
     return {
       error: NextResponse.json(

@@ -1,9 +1,10 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Building2, Store, ArrowRight, Info } from 'lucide-react'
+import { Building2, Store, ArrowRight, Info, BarChart3 } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
 import { getMyOrganizations } from '@/lib/organizations/me'
-import { getOrgAccessMode } from '@/lib/org-access'
+import { getOrgAccessMode, getOrgDashboardMode } from '@/lib/org-access'
+import { DASHBOARD_ROLES } from '@/lib/organizations/dashboard'
 import { getAccessMode } from '@/lib/access-central'
 
 // Multi-marca PR 9b — /grupo: las organizaciones de la persona y sus marcas.
@@ -31,7 +32,7 @@ export default async function GrupoPage() {
   const user = await getSessionUser()
   if (!user?.id) redirect('/login?callbackUrl=/grupo')
 
-  const [orgs, orgMode, accessMode] = await Promise.all([getMyOrganizations(user.id), getOrgAccessMode(), getAccessMode()])
+  const [orgs, orgMode, accessMode, dashboardMode] = await Promise.all([getMyOrganizations(user.id), getOrgAccessMode(), getAccessMode(), getOrgDashboardMode()])
   const panelsEnabled = orgMode === 'enforce' && accessMode === 'enforce'
 
   return (
@@ -70,6 +71,14 @@ export default async function GrupoPage() {
                   {ORG_ROLE_LABEL[orgRole] ?? orgRole}
                 </span>
               </div>
+              {dashboardMode === 'on' && DASHBOARD_ROLES.has(orgRole) && brands.length > 0 && (
+                <Link
+                  href={`/grupo/${organization.slug}`}
+                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                >
+                  <BarChart3 size={16} /> Ver números del grupo
+                </Link>
+              )}
               {brands.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Tu rol no incluye ninguna marca todavía.</p>
               ) : (

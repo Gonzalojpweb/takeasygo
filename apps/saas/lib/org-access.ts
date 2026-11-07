@@ -46,3 +46,38 @@ export async function getOrgAccessMode(): Promise<AccessMode> {
   cached = { at: Date.now(), mode }
   return mode
 }
+
+// ============================================================================
+// Interruptor `org.dashboard` (multi-marca PR 10): panel de solo lectura con
+// los números del grupo en /grupo/[slug]. off por defecto (la página da 404).
+// Fuente: ORG_DASHBOARD_MODE (manda) o PlatformConfig.orgDashboard. Caché de
+// 15 s; sin base o ante un error: off, sin guardarlo.
+// ============================================================================
+
+export type DashboardMode = 'off' | 'on'
+let dashCached: { at: number; mode: DashboardMode } | null = null
+
+export function clearOrgDashboardModeCache(): void {
+  dashCached = null
+}
+
+export function isDashboardMode(value: unknown): value is DashboardMode {
+  return value === 'off' || value === 'on'
+}
+
+export async function getOrgDashboardMode(): Promise<DashboardMode> {
+  const env = process.env.ORG_DASHBOARD_MODE?.trim().toLowerCase()
+  if (isDashboardMode(env)) return env
+  if (dashCached && Date.now() - dashCached.at < TTL_MS) return dashCached.mode
+  let mode: DashboardMode = 'off'
+  try {
+    if (mongoose.connection.readyState !== 1) return 'off'
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    const doc = await PlatformConfig.findById('platform').select('orgDashboard').lean<{ orgDashboard?: string }>()
+    if (isDashboardMode(doc?.orgDashboard)) mode = doc.orgDashboard
+  } catch {
+    return 'off'
+  }
+  dashCached = { at: Date.now(), mode }
+  return mode
+}

@@ -13,6 +13,7 @@ interface DesktopSidebarProps {
   dineInOnly?: boolean
   unreadAnnouncements?: number
   commissionBadge?: number
+  canViewCommissions?: boolean
   pendingRedemptions?: number
   businessEnabled?: boolean
   crmEnabled?: boolean

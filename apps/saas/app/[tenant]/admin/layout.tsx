@@ -141,7 +141,7 @@ export default async function AdminLayout({
   // global. Fuente única: lib/commission-weeks.
   let commissionBadge = 0
   let commissionAlerts: CommissionAlerts | null = null
-  if (canViewCommissions(session.user.role) && tenantDoc) {
+  if (canViewCommissions(session.user.role, session.user.membershipRole) && tenantDoc) {
     try {
       commissionAlerts = summarizeAlerts(await loadCommissionWeeks(tenantDoc._id))
       commissionBadge = commissionAlerts.overdue.weeks + commissionAlerts.pending.weeks
@@ -185,6 +185,7 @@ export default async function AdminLayout({
     dineInOnly,
     unreadAnnouncements,
     commissionBadge,
+    canViewCommissions: canViewCommissions(session.user.role, session.user.membershipRole),
     pendingRedemptions,
     newReservations,
     businessEnabled,

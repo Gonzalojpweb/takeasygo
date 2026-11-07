@@ -30,7 +30,7 @@ export async function GET(
 
     const user = await getSessionUser(request)
     if (!user?.role) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    if ((user.role !== 'superadmin' && !belongsTo(user, tenant._id)) || !canViewCommissions(user.role)) {
+    if ((user.role !== 'superadmin' && !belongsTo(user, tenant._id)) || !canViewCommissions(user.role, (user as { membershipRole?: string | null }).membershipRole)) {
       return NextResponse.json({ error: 'Tu rol no tiene acceso a comisiones' }, { status: 403 })
     }
 

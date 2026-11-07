@@ -53,13 +53,13 @@ describe('mis organizaciones', () => {
     const orgs = await getMyOrganizations(String(userId))
     expect(orgs).toHaveLength(1)
     expect(orgs[0]).toMatchObject({ organization: { slug: 'grupo-a' }, orgRole: 'brand_manager' })
-    expect(orgs[0].brands).toEqual([{ slug: 'alfa', name: 'Alfa', role: 'manager', locationIds: [] }])
+    expect(orgs[0].brands).toEqual([{ tenantId: tA1, slug: 'alfa', name: 'Alfa', role: 'manager', locationIds: [] }])
   })
 
   it('gerente de sede: la marca con sus sedes; organización suspendida: nada', async () => {
     const userId = oid()
     await OrgMembership.create({ organizationId: orgA, userId, orgRole: 'location_manager', scope: { locations: [{ tenantId: tA1, locationId: lA1 }] } })
-    expect((await getMyOrganizations(String(userId)))[0].brands).toEqual([{ slug: 'alfa', name: 'Alfa', role: 'manager', locationIds: [lA1] }])
+    expect((await getMyOrganizations(String(userId)))[0].brands).toEqual([{ tenantId: tA1, slug: 'alfa', name: 'Alfa', role: 'manager', locationIds: [lA1] }])
     await Organization.updateOne({ _id: orgA }, { status: 'suspended' })
     expect(await getMyOrganizations(String(userId))).toEqual([])
   })

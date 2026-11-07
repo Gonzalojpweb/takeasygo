@@ -25,6 +25,7 @@ export async function hasUsableMembership(userId: string): Promise<boolean> {
 }
 
 export interface MyBrand {
+  tenantId: string
   slug: string
   name: string
   /** Rol efectivo en la marca (admin, manager, …). */
@@ -70,7 +71,7 @@ export async function getMyOrganizations(userId: string): Promise<MyOrganization
     for (const t of tenants) {
       if (String(t.organizationId) !== String(org._id)) continue
       const g = effectiveGrant(lite, String(t._id))
-      if (g) brands.push({ slug: t.slug, name: t.name, role: g.role, locationIds: g.locationIds })
+      if (g) brands.push({ tenantId: String(t._id), slug: t.slug, name: t.name, role: g.role, locationIds: g.locationIds })
     }
     result.push({ organization: { id: String(org._id), name: org.name, slug: org.slug }, orgRole: m.orgRole, brands })
   }

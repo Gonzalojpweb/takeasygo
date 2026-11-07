@@ -46,6 +46,12 @@ export interface IPlatformConfig {
   accessCentral?: 'off' | 'log' | 'enforce'
   /** Multi-marca PR 8: proyección de membresías de organización (lib/org-access). */
   orgAccess?: 'off' | 'log' | 'enforce'
+  /** Multi-marca PR 10: panel con los números del grupo en /grupo/[slug] (lib/org-access). */
+  orgDashboard?: 'off' | 'on'
+  /** Multi-marca PR 6: CUIT + punto de venta únicos entre comercios (lib/fiscal/pos-claims). */
+  fiscalPosClaims?: 'off' | 'enforce'
+  /** Multi-marca PR 6 (S6): alias de CSR por marca cuando el CUIT es compartido. */
+  fiscalCsrAliasShared?: 'off' | 'on'
   /** Google Contacts sync cron cursor (persisted between runs) */
   gcSyncCursor: {
     lastUserId: string | null
@@ -104,6 +110,11 @@ const PlatformConfigSchema = new Schema<IPlatformConfig>(
     accessCentral: { type: String, enum: ['off', 'log', 'enforce'], default: 'off' },
     // Multi-marca PR 8: off = las membresías no dan acceso (como hoy).
     orgAccess: { type: String, enum: ['off', 'log', 'enforce'], default: 'off' },
+    // Multi-marca PR 10: off = /grupo/[slug] no existe (404).
+    orgDashboard: { type: String, enum: ['off', 'on'], default: 'off' },
+    // Multi-marca PR 6: apagados = guardado fiscal y certificados como hoy.
+    fiscalPosClaims: { type: String, enum: ['off', 'enforce'], default: 'off' },
+    fiscalCsrAliasShared: { type: String, enum: ['off', 'on'], default: 'off' },
     gcSyncCursor: {
       lastUserId: { type: String, default: null },
       lastRunAt:  { type: Date, default: null },

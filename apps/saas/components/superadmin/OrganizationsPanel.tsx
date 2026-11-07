@@ -62,15 +62,15 @@ const card = 'rounded-2xl border border-border bg-card p-5'
 // ── Interruptores ─────────────────────────────────────────────────────────────
 
 function Switches() {
-  const [modes, setModes] = useState<{ mode: Mode; orgMode: Mode; forcedByEnv?: boolean; orgForcedByEnv?: boolean } | null>(null)
+  const [modes, setModes] = useState<{ mode: Mode; orgMode: Mode; dashboard?: 'off' | 'on'; forcedByEnv?: boolean; orgForcedByEnv?: boolean; dashboardForcedByEnv?: boolean } | null>(null)
   const [busy, setBusy] = useState(false)
   const load = useCallback(() => {
-    api<{ mode: Mode; orgMode: Mode; forcedByEnv: boolean; orgForcedByEnv: boolean }>('/api/superadmin/access-central')
+    api<{ mode: Mode; orgMode: Mode; dashboard: 'off' | 'on'; forcedByEnv: boolean; orgForcedByEnv: boolean; dashboardForcedByEnv: boolean }>('/api/superadmin/access-central')
       .then(setModes).catch(e => toast.error(e.message))
   }, [])
   useEffect(load, [load])
 
-  async function change(key: 'mode' | 'orgMode', value: Mode) {
+  async function change(key: 'mode' | 'orgMode' | 'dashboard', value: string) {
     setBusy(true)
     try {
       await api('/api/superadmin/access-central', { method: 'PATCH', body: JSON.stringify({ [key]: value }) })
@@ -105,6 +105,24 @@ function Switches() {
       <p className="text-sm font-semibold text-foreground flex items-center gap-2"><ShieldCheck size={16} className="text-primary" /> Interruptores</p>
       {row('Acceso central (access.central)', 'Rol y comercio leídos de la base. Necesario para que un miembro vea las páginas del panel.', 'mode', modes.mode, modes.forcedByEnv)}
       {row('Acceso por organización (org.access)', 'Las membresías dan acceso a las marcas de la organización.', 'orgMode', modes.orgMode, modes.orgForcedByEnv)}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-sm font-medium text-foreground">Panel del grupo (org.dashboard)</p>
+          <p className="text-xs text-muted-foreground">
+            Números de todas las marcas juntas en /grupo para propietario, administrador general, gerente de marca y contador. Solo lectura; no depende de los otros dos.
+            {modes.dashboardForcedByEnv ? ' · forzado por variable de entorno' : ''}
+          </p>
+        </div>
+        <select
+          disabled={busy || modes.dashboardForcedByEnv}
+          value={modes.dashboard ?? 'off'}
+          onChange={e => void change('dashboard', e.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="off">Apagado</option>
+          <option value="on">Activo</option>
+        </select>
+      </div>
       {modes.mode === 'enforce' && modes.orgMode === 'enforce' ? (
         <p className="text-xs rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-3 py-2">
           Los miembros ya pueden entrar a las marcas de su organización desde /grupo.

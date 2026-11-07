@@ -61,6 +61,8 @@ interface Props {
   dineInOnly?: boolean
   unreadAnnouncements?: number
   commissionBadge?: number
+  /** Ve «Comisiones» aunque su rol no esté en la lista (contador de una organización, D4). */
+  canViewCommissions?: boolean
   pendingRedemptions?: number
   /** Reservas nuevas sin ver (obs. 24/10): badge vivo en «Reservaciones». */
   newReservations?: number
@@ -133,7 +135,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, canViewCommissions = false, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -148,6 +150,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
   function isItemVisible(item: NavItem, effectiveRole: string): boolean {
     // Solo POS: fuera todo lo de venta online, club y marketing (business/surfaces).
     if (posOnly && !isPosOnlyAdminPath(item.href === base ? '' : item.href.replace(`${base}/`, ''))) return false
+    if (canViewCommissions && item.href === `${base}/commissions`) return true
     if (rbacSedeScope) {
       const suffix = item.href === base ? '' : item.href.replace(`${base}/`, '')
       const requiredPerm = MENU_PERMISSIONS[suffix]
