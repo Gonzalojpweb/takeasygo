@@ -4,9 +4,8 @@ import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallbac
 import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
 import { DineInItemCard } from '@/components/menu/items/DineInItemCard'
 import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
+import { Moon, Sun, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { isAvailableNow } from '@/lib/availability'
@@ -23,8 +22,7 @@ import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
 import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
-import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
-import PoweredByTakeasy from '@/components/PoweredByTakeasy'
+import MenuClosing from '@/components/menu/MenuClosing'
 import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
@@ -742,14 +740,6 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       </main>
 
       {/* ── End of Menu: Club + TGO Network ── */}
-      <EndOfMenuSection
-        tenantSlug={tenant.slug}
-        tenantName={tenant.name}
-        primaryColor={branding.primaryColor}
-        bgDark={dark ? '#020617' : '#1e293b'}
-        clubMembership={clubMembership}
-        showClub={true}
-      />
 
       {/* Best Sellers */}
       {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -773,114 +763,26 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
       <div className="max-w-4xl mx-auto px-4">{comboSection('afterBestsellers')}</div>
 
-      {/* ── Footer ────────────────────────────────────────── */}
-      <footer style={{ backgroundColor: dark ? '#020617' : '#1e293b' }}>
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.contact}</h4>
-              <div className="space-y-3">
-                {location.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin size={14} style={{ color: branding.primaryColor, marginTop: 2, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.address}</p>
-                  </div>
-                )}
-                {location.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone size={14} style={{ color: branding.primaryColor, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.phone}</p>
-                  </div>
-                )}
-                {location.hours && (
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} style={{ color: branding.primaryColor, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.hours}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            {profile.about && (
-              <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.ourStory}</h4>
-                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{profile.about}</p>
-              </div>
-            )}
-            {(profile.social?.instagram || profile.social?.facebook || profile.social?.twitter) && (
-              <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: branding.primaryColor }}>{t.followUs}</h4>
-                <div className="space-y-3">
-                  {profile.social?.instagram && (
-                    <a href={`https://instagram.com/${profile.social.instagram.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
-                        <Instagram size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followIG}</p>
-                      </div>
-                    </a>
-                  )}
-                  {profile.social?.facebook && (
-                    <a href={`https://facebook.com/${profile.social.facebook.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
-                        <Facebook size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followFB}</p>
-                      </div>
-                    </a>
-                  )}
-                  {profile.social?.twitter && (
-                    <a href={`https://twitter.com/${profile.social.twitter.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: branding.primaryColor }}>
-                        <Twitter size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: branding.primaryColor }}>{t.followTW}</p>
-                      </div>
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t px-4 py-4 max-w-4xl mx-auto flex items-center justify-between"
-          style={{ borderColor: branding.primaryColor + '20' }}>
-          <p className="text-xs" style={{ color: '#475569' }}>
-            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setActiveLegal('terminos')}
-              className="text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
-              style={{ color: '#334155' }}
-            >
-              {t.terms}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveLegal('privacidad')}
-              className="text-xs underline underline-offset-2 hover:opacity-80 transition-opacity"
-              style={{ color: '#334155' }}
-            >
-              {t.privacy}
-            </button>
-            <PoweredByTakeasy variant="dark" label="network" tenantSlug={tenant.slug} />
-            <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
-              <Settings size={14} style={{ color: '#94a3b8' }} />
-            </Link>
-          </div>
-        </div>
-      </footer>
+      {/* ── Cierre del menú: club, datos del local, red TakeasyGO y pie (con la marca del local) ── */}
+      <MenuClosing
+        tenantSlug={tenant.slug}
+        tenantName={tenant.name}
+        logoUrl={branding.logoUrl}
+        clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
+        primary={branding.primaryColor}
+        bg={bg}
+        text={text}
+        locale={locale}
+        location={{
+          address: location.address,
+          phone: location.phone,
+          hours: location.hours,
+          mapsUrl: location.mapsUrl,
+        }}
+        about={profile.about}
+        social={profile.social}
+        club={{ show: true, isMember: clubMembership.isMember, name: clubMembership.name, walletEnabled: clubMembership.walletEnabled }}
+      />
 
       {/* ── Dish detail modal (solo lectura — dine-in no se compra) ── */}
       {modalItem && (() => {

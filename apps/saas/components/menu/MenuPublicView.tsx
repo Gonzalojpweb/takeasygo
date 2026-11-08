@@ -1,21 +1,15 @@
 'use client'
 
 import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
-import Link from 'next/link'
 import Image from 'next/image'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { evaluateRewardRedemption } from '@takeasygo/business'
-import {
-  ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed,
-  Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter,
-  Award, Wallet, Tag, Heart, UserPlus,
-} from 'lucide-react'
+import { ShoppingCart, X, Plus, Minus, Leaf, UtensilsCrossed, Award, Wallet, Tag, Heart, UserPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import type { CartItem, PromoBundleSlot, SelectedVariant } from '@/types/cart'
 import type { ICoOccurrencePair } from '@/models/MenuInsights'
-import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
@@ -47,7 +41,7 @@ import {
   resolveMaxRewardsPerOrder,
 } from '@/lib/cart-items'
 import { motion } from 'framer-motion'
-import EndOfMenuSection from '@/components/menu/EndOfMenuSection'
+import MenuClosing from '@/components/menu/MenuClosing'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
@@ -1685,107 +1679,26 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       </main>
 
       {/* ── End of Menu: Club + TGO Network ── */}
-      <EndOfMenuSection
+      {/* ── Cierre del menú: club, datos del local, red TakeasyGO y pie (con la marca del local) ── */}
+      <MenuClosing
         tenantSlug={tenant.slug}
         tenantName={tenant.name}
-        primaryColor={primary}
-        bgDark="#1e293b"
-        clubMembership={clubMembership}
-        showClub={mounted && !isAdminCorp}
+        logoUrl={branding.logoUrl}
+        clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
+        primary={primary}
+        bg={bg}
+        text={text}
+        locale={locale}
+        location={{
+          address: location.address,
+          phone: location.phone,
+          hours: location.hours,
+          mapsUrl: location.mapsUrl,
+        }}
+        about={profile.about}
+        social={profile.social}
+        club={{ show: mounted && !isAdminCorp, isMember: clubMembership.isMember, name: clubMembership.name, walletEnabled: clubMembership.walletEnabled }}
       />
-
-      {/* ── Footer ── */}
-      <footer style={{ backgroundColor: '#1e293b' }}>
-        <div className="max-w-2xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h4 className="font-bold text-base mb-4" style={{ color: primary }}>{t.contact}</h4>
-              <div className="space-y-3">
-                {location.address && (
-                  <div className="flex items-start gap-2">
-                    <MapPin size={14} style={{ color: primary, marginTop: 2, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.address}</p>
-                  </div>
-                )}
-                {location.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone size={14} style={{ color: primary, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.phone}</p>
-                  </div>
-                )}
-                {location.hours && (
-                  <div className="flex items-center gap-2">
-                    <Clock size={14} style={{ color: primary, flexShrink: 0 }} />
-                    <p className="text-sm" style={{ color: '#94a3b8' }}>{location.hours}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            {profile.about && (
-              <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: primary }}>{t.ourStory}</h4>
-                <p className="text-sm leading-relaxed" style={{ color: '#94a3b8' }}>{profile.about}</p>
-              </div>
-            )}
-            {(profile.social?.instagram || profile.social?.facebook || profile.social?.twitter) && (
-              <div>
-                <h4 className="font-bold text-base mb-4" style={{ color: primary }}>{t.followUs}</h4>
-                <div className="space-y-3">
-                  {profile.social?.instagram && (
-                    <a href={`https://instagram.com/${profile.social.instagram.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: primary }}>
-                        <Instagram size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: primary }}>{t.followIG}</p>
-                      </div>
-                    </a>
-                  )}
-                  {profile.social?.facebook && (
-                    <a href={`https://facebook.com/${profile.social.facebook.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: primary }}>
-                        <Facebook size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: primary }}>{t.followFB}</p>
-                      </div>
-                    </a>
-                  )}
-                  {profile.social?.twitter && (
-                    <a href={`https://twitter.com/${profile.social.twitter.replace('@', '')}`}
-                      target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: primary }}>
-                        <Twitter size={18} className="text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-white">{tenant.name}</p>
-                        <p className="text-xs" style={{ color: primary }}>{t.followTW}</p>
-                      </div>
-                    </a>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="border-t px-4 py-4 max-w-2xl mx-auto flex items-center justify-between gap-4"
-          style={{ borderColor: primary + '20' }}>
-          <p className="text-xs" style={{ color: '#475569' }}>
-            © <span suppressHydrationWarning>{new Date().getFullYear()}</span> {tenant.name}. {t.rights}
-          </p>
-          <div className="flex items-center gap-3">
-            <PoweredByTakeasy variant="dark" label="network" />
-            <Link href={`/${tenant.slug}/admin`} className="opacity-20 hover:opacity-60 transition-opacity" title="Acceso administrador">
-              <Settings size={14} style={{ color: '#94a3b8' }} />
-            </Link>
-          </div>
-        </div>
-      </footer>
 
       {/* ── Floating cart card ── */}
       {totalItems > 0 && !showCart && !likesOrderId && !customizingItem && upsellSuggestions.length === 0 && !promoSlotSelection && !translating && (

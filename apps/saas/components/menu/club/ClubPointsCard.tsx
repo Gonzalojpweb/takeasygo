@@ -1,14 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { NumberTicker } from '@/components/ui/number-ticker'
 import { useStoreItems, type PublicStoreItem } from '@/hooks/useStoreItems'
 import { computeClubProgress, clubProgressMessage } from '@/lib/club-progress'
-import { isLightColor } from '@/lib/color-utils'
 import { trackRewardViewed } from '@/lib/track'
+import { menuCardTheme } from '@/lib/menu-theme'
 import { FloatingCoins, CoinStack } from './ClubCoins'
 import { PointsProgress } from './PointsProgress'
 import { PhoneIdentify, type IdentifiedMember } from './PhoneIdentify'
@@ -46,28 +46,6 @@ interface Props {
   onPassedChange?: (passed: boolean) => void
 }
 
-/** Variables --club-* derivadas de la marca: la tarjeta funciona en menús claros y oscuros. */
-function clubTheme(primary: string, bg: string, text: string): CSSProperties {
-  const safe = (hex: string, fallback: string) => (/^#[0-9a-f]{3,8}$/i.test(hex || '') ? hex : fallback)
-  const brand = safe(primary, '#E8590C')
-  const ground = safe(bg, '#FFFFFF')
-  const fg = safe(text, '#1A1A1A')
-  const lightGround = isLightColor(ground)
-  return {
-    '--club-brand': brand,
-    '--club-deep': `color-mix(in oklab, ${brand} 62%, #2a0010)`,
-    '--club-glow': `color-mix(in oklab, ${brand} 55%, #FFD43B)`,
-    '--club-on-brand': isLightColor(brand) ? '#1A1A1A' : '#FFFFFF',
-    '--club-card': lightGround ? `color-mix(in oklab, ${ground} 35%, #FFFFFF)` : `color-mix(in oklab, ${ground} 88%, #FFFFFF)`,
-    '--club-soft': `color-mix(in oklab, ${brand} 12%, var(--club-card))`,
-    '--club-track': `color-mix(in oklab, var(--club-glow) 18%, var(--club-card))`,
-    '--club-fg': fg,
-    '--club-muted': `color-mix(in oklab, ${fg} 62%, transparent)`,
-    '--club-line': `color-mix(in oklab, ${fg} 12%, transparent)`,
-    '--club-chip': `color-mix(in oklab, ${fg} 6%, transparent)`,
-  } as CSSProperties
-}
-
 /**
  * Tarjeta del Club del menú público. Tres estados:
  * - identify: celular para encontrar los puntos (con canje habilitado).
@@ -91,7 +69,7 @@ export default function ClubPointsCard(props: Props) {
   const mode: RailMode = identifyEnabled ? 'identify' : isMember ? 'member' : 'browse'
   const progress = useMemo(() => computeClubProgress(memberPoints, items), [memberPoints, items])
   const message = clubProgressMessage(progress)
-  const theme = useMemo(() => clubTheme(primary, bg, text), [primary, bg, text])
+  const theme = useMemo(() => menuCardTheme(primary, bg, text), [primary, bg, text])
   const storeUrl = `/app/profile/club/${tenantSlug}?tab=store&origin=menu${locationId ? `&locationId=${locationId}` : ''}`
   const hasItems = !loading && items.length > 0
 
