@@ -233,3 +233,47 @@ export async function sendOrgInvitationEmail(to: string, orgName: string, accept
     `,
   )
 }
+
+/**
+ * Invitación al dueño de un comercio creado por Superadmin (alta rápida).
+ * El link lleva a definir su contraseña; vence a los 7 días.
+ */
+export async function sendTenantInviteEmail(to: string, tenantName: string, inviteUrl: string) {
+  const from = process.env.SMTP_FROM ?? process.env.SMTP_USER
+  const transporter = createTransport()
+  const safeName = tenantName.replace(/[<>&"]/g, '')
+
+  await transporter.sendMail({
+    from: `Takeasygo <${from}>`,
+    to,
+    subject: `Tu menú de ${safeName} ya está listo — Takeasygo`,
+    text: `Hola. Ya creamos ${safeName} en Takeasygo.\n\nDefiní tu contraseña y entrá a tu panel con este enlace (válido por 7 días):\n${inviteUrl}\n\nSi no esperabas este email, ignoralo.`,
+    html: `
+      <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 32px; background: #ffffff; border-radius: 16px; border: 1px solid #ede9e5;">
+        <div style="margin-bottom: 32px;">
+          <div style="display:inline-flex; align-items:center; gap:10px;">
+            <div style="width:32px;height:32px;background:#0d0b0a;border-radius:8px;display:flex;align-items:center;justify-content:center;">
+              <span style="color:#fff;font-size:18px;font-style:italic;">T</span>
+            </div>
+            <span style="font-size:16px;font-weight:600;color:#0d0b0a;">Takeasygo</span>
+          </div>
+        </div>
+
+        <h1 style="font-size:24px;font-weight:400;color:#0d0b0a;margin:0 0 8px;">Tu menú de ${safeName} ya está listo</h1>
+        <p style="font-size:14px;color:#6b6460;line-height:1.6;margin:0 0 28px;">
+          Definí tu contraseña para entrar a tu panel, completar tu carta y empezar a recibir pedidos.<br>
+          Este enlace es válido por <strong>7 días</strong> y sirve una sola vez.
+        </p>
+
+        <a href="${inviteUrl}"
+           style="display:inline-block;background:#0d0b0a;color:#ffffff;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;text-decoration:none;padding:14px 28px;border-radius:100px;">
+          Activar mi cuenta
+        </a>
+
+        <p style="font-size:12px;color:#b0aaa6;margin:28px 0 0;line-height:1.6;">
+          Si no esperabas este email, podés ignorarlo.
+        </p>
+      </div>
+    `,
+  })
+}

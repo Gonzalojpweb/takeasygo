@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { X, Upload, FileJson, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { MENU_JSON_PROMPT } from '@/lib/provisioning/menu-json'
 
 interface Props {
   tenantSlug: string
@@ -19,6 +20,7 @@ interface ParsedCategory {
 }
 
 const EXAMPLE_JSON = `{
+  "version": 1,
   "categories": [
     {
       "name": "Entradas",
@@ -32,7 +34,7 @@ const EXAMPLE_JSON = `{
           "required": true,
           "options": [
             { "name": "Pico de gallo", "extraPrice": 0 },
-            { "name": "Ají criollo", "extraPrice": 100 }
+            { "name": "Ají criollo", "extraPrice": 500 }
           ]
         }
       ],
@@ -40,15 +42,15 @@ const EXAMPLE_JSON = `{
         {
           "name": "Empanadas de carne",
           "description": "Masa casera, jugosas",
-          "price": 1500,
+          "price": 2500,
           "takeawayPrice": 1700,
           "imageUrl": "",
           "tags": ["Popular"],
           "isFeatured": true,
           "isAvailable": true,
           "variants": [
-            { "name": "3 unidades", "price": 1500, "takeawayPrice": 1700 },
-            { "name": "6 unidades", "price": 2800, "takeawayPrice": 3100 }
+            { "name": "3 unidades", "price": 4500, "takeawayPrice": 4900 },
+            { "name": "6 unidades", "price": 28000, "takeawayPrice": 9200 }
           ],
           "customizationGroups": [
             {
@@ -67,7 +69,7 @@ const EXAMPLE_JSON = `{
                       "required": true,
                       "options": [
                         { "name": "Coca-Cola", "extraPrice": 0 },
-                        { "name": "Jugo de naranja", "extraPrice": 200 }
+                        { "name": "Jugo de naranja", "extraPrice": 1500 }
                       ]
                     }
                   ]
@@ -80,7 +82,7 @@ const EXAMPLE_JSON = `{
         {
           "name": "Tabla de fiambres",
           "description": "",
-          "price": 3200,
+          "price": 9500,
           "imageUrl": "",
           "tags": [],
           "isFeatured": false,
@@ -101,7 +103,7 @@ const EXAMPLE_JSON = `{
         {
           "name": "Asado mixto",
           "description": "Para 2 personas",
-          "price": 8500,
+          "price": 28000,
           "imageUrl": "",
           "tags": ["Para compartir"],
           "isFeatured": true,
@@ -113,7 +115,7 @@ const EXAMPLE_JSON = `{
               "required": true,
               "options": [
                 { "name": "Papas fritas", "extraPrice": 0 },
-                { "name": "Ensalada mixta", "extraPrice": 200 }
+                { "name": "Ensalada mixta", "extraPrice": 1500 }
               ]
             }
           ],
@@ -216,7 +218,8 @@ export default function ImportMenuModal({ tenantSlug, locationId, locationName, 
       const res = await fetch(`/api/${tenantSlug}/menu/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locationId, categories, mode }),
+        // "version": 1 → precios en pesos; sin version → centavos (formato anterior).
+        body: JSON.stringify({ locationId, categories, mode, version: parsed.version === 1 ? 1 : undefined }),
       })
 
       const data = await res.json()
@@ -319,6 +322,16 @@ export default function ImportMenuModal({ tenantSlug, locationId, locationName, 
                 </button>
               </div>
               <pre className="text-zinc-300 text-xs overflow-x-auto">{EXAMPLE_JSON}</pre>
+              <p className="text-zinc-400 text-xs mt-3 leading-relaxed">
+                Con <code className="text-zinc-200">{'"version": 1'}</code> los precios van en pesos (12000 = $12.000). Sin <code className="text-zinc-200">version</code> se toman en centavos (formato anterior).
+              </p>
+              <button
+                type="button"
+                onClick={() => { navigator.clipboard?.writeText(MENU_JSON_PROMPT).then(() => toast.success('Instrucción copiada')).catch(() => toast.error('No se pudo copiar')) }}
+                className="mt-2 text-xs font-semibold text-zinc-200 underline underline-offset-2"
+              >
+                Copiar instrucción para obtener este JSON desde una foto con IA
+              </button>
             </div>
           )}
 

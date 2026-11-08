@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import PriceUpdater from '@/components/admin/prices/PriceUpdater'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
+import MenuFromPhotoModal from '@/components/menu/MenuFromPhotoModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { CategoryDisplaySettings, categoryDisplayFrom, type CategoryDisplayValue } from '@/components/admin/menu/CategoryDisplaySettings'
@@ -197,6 +198,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
   const [loading, setLoading] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [showPhotoImport, setShowPhotoImport] = useState(false)
   const [showBulkModal, setShowBulkModal] = useState<string | null>(null)
   const [showSubstituteModal, setShowSubstituteModal] = useState<{ item: any; categoryId: string } | null>(null)
   const router = useRouter()
@@ -966,6 +968,14 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
             className="border-2 border-border/80 rounded-xl font-bold text-xs px-3 sm:px-5 hover:bg-muted transition-all"
           >
             <Upload size={14} className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Importar</span>
+          </Button>
+          <Button
+            onClick={() => setShowPhotoImport(true)}
+            variant="outline"
+            className="border-2 border-border/80 rounded-xl font-bold text-xs px-3 sm:px-5 hover:bg-muted transition-all"
+            title={canImportPrices ? 'Leer la carta de una foto con IA' : 'Plan Élite'}
+          >
+            <Camera size={14} className="mr-1 sm:mr-2" /> <span className="hidden sm:inline">Carta desde foto</span>
           </Button>
           <Button
             onClick={() => setShowAddCategory(true)}
@@ -2371,6 +2381,17 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
           tenantSlug={tenantSlug}
           onClose={() => setShowSubstituteModal(null)}
           onSaved={() => { setShowSubstituteModal(null); router.refresh() }}
+        />
+      )}
+
+      {showPhotoImport && currentLocation && (
+        <MenuFromPhotoModal
+          tenantSlug={tenantSlug}
+          locationId={selectedLocation}
+          locationName={currentLocation.name}
+          enabled={Boolean(canImportPrices)}
+          onSuccess={() => router.refresh()}
+          onClose={() => setShowPhotoImport(false)}
         />
       )}
 

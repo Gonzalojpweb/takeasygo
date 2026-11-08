@@ -46,6 +46,15 @@ export interface ITenant extends Document {
   slug: string
   /** Multi-marca PR 7: organización a la que pertenece (null = comercio independiente). */
   organizationId?: Types.ObjectId | null
+  /** Alta rápida de Superadmin: quién, cuándo, con qué plantilla y la clave anti-duplicados. */
+  provisioning?: {
+    idempotencyKey?: string
+    by?: string
+    at?: Date
+    rubro?: string
+    menuSource?: string
+    clonedFromTenantId?: Types.ObjectId | null
+  }
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion' | 'high'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
@@ -449,6 +458,17 @@ const TenantSchema = new Schema<ITenant>(
   {
     // Multi-marca PR 7: 0 o 1 organización (campo escalar). Ausente = independiente.
     organizationId: { type: Schema.Types.ObjectId, ref: 'Organization', default: undefined },
+    provisioning: {
+      type: {
+        idempotencyKey: { type: String },
+        by: { type: String },
+        at: { type: Date },
+        rubro: { type: String },
+        menuSource: { type: String },
+        clonedFromTenantId: { type: Schema.Types.ObjectId, default: null },
+      },
+      default: undefined,
+    },
     name: {
       type: String,
       required: [true, 'El nombre es obligatorio'],
@@ -1005,6 +1025,11 @@ const TenantSchema = new Schema<ITenant>(
 TenantSchema.index(
   { organizationId: 1 },
   { partialFilterExpression: { organizationId: { $type: 'objectId' } } }
+)
+// Alta rápida: una misma clave (doble toque, reintento con mala señal) no crea dos comercios.
+TenantSchema.index(
+  { 'provisioning.idempotencyKey': 1 },
+  { unique: true, partialFilterExpression: { 'provisioning.idempotencyKey': { $type: 'string' } } }
 )
 
 // Virtual para isActive basado en status (para compatibilidad)

@@ -23,6 +23,7 @@ import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
 import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
 import MenuClosing from '@/components/menu/MenuClosing'
+import { categoryHasItems } from '@/lib/menu/has-items'
 import { menuHref } from '@/lib/menu/location-ref'
 
 interface Props {
@@ -185,7 +186,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const t = UI[locale]
 
   const categories = (menuData.categories ?? [])
-    .filter((c: any) => c.isAvailable && (!mounted || isAvailableNow(c.availabilityMode, c.availabilitySchedule)))
+    // Sin productos para mostrar (p. ej. categorías vacías de la plantilla del rubro): no se muestra.
+    .filter((c: any) => categoryHasItems(c) && c.isAvailable && (!mounted || isAvailableNow(c.availabilityMode, c.availabilitySchedule)))
     .sort((a: any, b: any) => {
       const diff = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
       return diff !== 0 ? diff : String(a._id).localeCompare(String(b._id))

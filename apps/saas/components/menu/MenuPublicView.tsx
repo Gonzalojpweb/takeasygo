@@ -42,6 +42,7 @@ import {
 } from '@/lib/cart-items'
 import { motion } from 'framer-motion'
 import MenuClosing from '@/components/menu/MenuClosing'
+import { categoryHasItems } from '@/lib/menu/has-items'
 import { Confetti, type ConfettiRef } from '@/registry/magicui/confetti'
 import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
@@ -411,6 +412,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const categories = menuData.categories
     .filter((cat: any) => {
       if (mode === 'business' && !cat.isBusinessAvailable) return false
+      // Sin productos para mostrar (p. ej. categorías vacías de la plantilla del rubro): no se muestra.
+      if (!categoryHasItems(cat)) return false
       return cat.isAvailable && (!mounted || isAvailableNow(cat.availabilityMode, cat.availabilitySchedule))
     })
     .sort((a: any, b: any) => {

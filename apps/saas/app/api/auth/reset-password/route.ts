@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
     user.password = await bcrypt.hash(password, 12)
     user.resetToken = null
     user.resetTokenExpiry = null
+    // Abrir el link del email prueba que el email es suyo (invitación del alta rápida).
+    if (!user.emailVerified) user.emailVerified = new Date()
     await user.save()
 
     return NextResponse.json({ ok: true })

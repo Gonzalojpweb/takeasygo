@@ -5,123 +5,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
+import { buildImportCategories, toCentsCategories, validateImportCategories } from '@/lib/menu/import-format'
 
-// ─── Interfaces ───────────────────────────────────────────────────────────────
-
-interface ImportOption {
-  name: string
-  extraPrice?: number
-  subGroups?: ImportGroup[]
-}
-
-interface ImportGroup {
-  name: string
-  type?: 'single' | 'multiple'
-  required?: boolean
-  options: ImportOption[]
-}
-
-interface ImportVariant {
-  name: string
-  price: number
-  takeawayPrice?: number
-  businessPrice?: number
-  originalPrice?: number
-  takeawayOriginalPrice?: number
-  nameTranslations?: { en: string }
-}
-
-interface ImportAvailabilitySlot {
-  days: number[]
-  timeStart: string
-  timeEnd: string
-}
-
-interface ImportItem {
-  name: string
-  description?: string
-  price: number
-  takeawayPrice?: number
-  businessPrice?: number
-  originalPrice?: number
-  takeawayOriginalPrice?: number
-  tags?: string[]
-  isFeatured?: boolean
-  isAvailable?: boolean
-  isTakeawayAvailable?: boolean
-  isBusinessAvailable?: boolean
-  imageUrl?: string
-  printRole?: string
-  suggestWith?: string[]
-  variants?: ImportVariant[]
-  customizationGroups?: ImportGroup[]
-  availabilityMode?: 'always' | 'scheduled'
-  availabilitySchedule?: ImportAvailabilitySlot[]
-}
-
-interface ImportCategory {
-  name: string
-  description?: string
-  imageUrl?: string
-  isAvailable?: boolean
-  isBusinessAvailable?: boolean
-  sortOrder?: number
-  printRole?: string
-  customizationGroups?: ImportGroup[]
-  availabilityMode?: 'always' | 'scheduled'
-  availabilitySchedule?: ImportAvailabilitySlot[]
-  items: ImportItem[]
-  subcategories?: ImportSubCategory[]
-}
-
-interface ImportSubCategory {
-  name: string
-  description?: string
-  imageUrl?: string
-  items: ImportItem[]
-  customizationGroups?: ImportGroup[]
-  availabilityMode?: 'always' | 'scheduled'
-  availabilitySchedule?: ImportAvailabilitySlot[]
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Construye customizationGroups de forma recursiva (resuelve subGroups) */
-function buildGroups(groups: ImportGroup[] = []): any[] {
-  return groups.map(g => ({
-    name: g.name,
-    type: g.type ?? 'single',
-    required: g.required ?? false,
-    options: (g.options ?? []).map(o => ({
-      name: o.name,
-      extraPrice: o.extraPrice ?? 0,
-      subGroups: buildGroups(o.subGroups),
-    })),
-  }))
-}
-
-function validatePayload(categories: unknown): categories is ImportCategory[] {
-  if (!Array.isArray(categories) || categories.length === 0) return false
-  for (const cat of categories) {
-    if (typeof cat.name !== 'string' || !cat.name.trim()) return false
-    if (!Array.isArray(cat.items)) return false
-    for (const item of cat.items) {
-      if (typeof item.name !== 'string' || !item.name.trim()) return false
-      if (typeof item.price !== 'number' || item.price < 0) return false
-    }
-    if (cat.subcategories) {
-      for (const sub of cat.subcategories) {
-        if (typeof sub.name !== 'string' || !sub.name.trim()) return false
-        if (!Array.isArray(sub.items)) return false
-        for (const item of sub.items) {
-          if (typeof item.name !== 'string' || !item.name.trim()) return false
-          if (typeof item.price !== 'number' || item.price < 0) return false
-        }
-      }
-    }
-  }
-  return true
-}
+// Formato, armado y unidades de precio: lib/menu/import-format.ts (formato único).
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
@@ -147,13 +33,13 @@ export async function POST(
     if (permError) return permError
 
     const body = await request.json()
-    const { locationId, categories, mode = 'replace' } = body
+    const { locationId, categories, mode = 'replace', version } = body
 
     if (!locationId) {
       return NextResponse.json({ error: 'locationId es requerido' }, { status: 400 })
     }
 
-    if (!validatePayload(categories)) {
+    if (!validateImportCategories(categories)) {
       return NextResponse.json(
         { error: 'JSON inválido. Cada categoría debe tener "name" y "items", y cada ítem debe tener "name" y "price" (número).' },
         { status: 400 }
@@ -169,85 +55,10 @@ export async function POST(
     const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
     if (sedeError) return sedeError
 
-    const builtCategories = categories.map((cat: ImportCategory, catIndex: number) => ({
-      name: cat.name.trim(),
-      description: cat.description?.trim() ?? '',
-      imageUrl: cat.imageUrl ?? '',
-      isAvailable: cat.isAvailable ?? true,
-      isBusinessAvailable: cat.isBusinessAvailable ?? true,
-      sortOrder: cat.sortOrder ?? catIndex,
-      printRole: cat.printRole ?? 'kitchen',
-      customizationGroups: buildGroups(cat.customizationGroups),
-      availabilityMode: cat.availabilityMode ?? 'always',
-      availabilitySchedule: cat.availabilityMode === 'scheduled' ? (cat.availabilitySchedule ?? []) : [],
-      items: cat.items.map((item: ImportItem) => ({
-        name: item.name.trim(),
-        description: item.description?.trim() ?? '',
-        price: item.price,
-        takeawayPrice: item.takeawayPrice,
-        businessPrice: item.businessPrice,
-        originalPrice: item.originalPrice,
-        takeawayOriginalPrice: item.takeawayOriginalPrice,
-        tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
-        isFeatured: item.isFeatured ?? false,
-        isAvailable: item.isAvailable ?? true,
-        isTakeawayAvailable: item.isTakeawayAvailable ?? true,
-        isBusinessAvailable: item.isBusinessAvailable ?? true,
-        imageUrl: item.imageUrl ?? '',
-        printRole: item.printRole ?? 'kitchen',
-        suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
-        variants: (item.variants ?? []).map((v: ImportVariant) => ({
-          name: v.name,
-          price: v.price,
-          takeawayPrice: v.takeawayPrice,
-          businessPrice: v.businessPrice,
-          originalPrice: v.originalPrice,
-          takeawayOriginalPrice: v.takeawayOriginalPrice,
-          nameTranslations: v.nameTranslations,
-        })),
-        customizationGroups: buildGroups(item.customizationGroups),
-        availabilityMode: item.availabilityMode ?? 'always',
-        availabilitySchedule: item.availabilityMode === 'scheduled' ? (item.availabilitySchedule ?? []) : [],
-      })),
-      subcategories: cat.subcategories?.map((sub: ImportSubCategory, subIndex: number) => ({
-        name: sub.name.trim(),
-        description: sub.description?.trim() ?? '',
-        imageUrl: sub.imageUrl ?? '',
-        sortOrder: subIndex,
-        items: sub.items.map((item: ImportItem) => ({
-          name: item.name.trim(),
-          description: item.description?.trim() ?? '',
-          price: item.price,
-          takeawayPrice: item.takeawayPrice,
-          businessPrice: item.businessPrice,
-          originalPrice: item.originalPrice,
-          takeawayOriginalPrice: item.takeawayOriginalPrice,
-          tags: Array.isArray(item.tags) ? item.tags.map((t: string) => t.trim()).filter(Boolean) : [],
-          isFeatured: item.isFeatured ?? false,
-          isAvailable: item.isAvailable ?? true,
-          isTakeawayAvailable: item.isTakeawayAvailable ?? true,
-          isBusinessAvailable: item.isBusinessAvailable ?? true,
-          imageUrl: item.imageUrl ?? '',
-          printRole: item.printRole ?? 'kitchen',
-          suggestWith: Array.isArray(item.suggestWith) ? item.suggestWith : [],
-          variants: (item.variants ?? []).map((v: ImportVariant) => ({
-            name: v.name,
-            price: v.price,
-            takeawayPrice: v.takeawayPrice,
-            businessPrice: v.businessPrice,
-            originalPrice: v.originalPrice,
-            takeawayOriginalPrice: v.takeawayOriginalPrice,
-            nameTranslations: v.nameTranslations,
-          })),
-          customizationGroups: buildGroups(item.customizationGroups),
-          availabilityMode: item.availabilityMode ?? 'always',
-          availabilitySchedule: item.availabilityMode === 'scheduled' ? (item.availabilitySchedule ?? []) : [],
-        })),
-        customizationGroups: buildGroups(sub.customizationGroups),
-        availabilityMode: sub.availabilityMode ?? 'always',
-        availabilitySchedule: sub.availabilityMode === 'scheduled' ? (sub.availabilitySchedule ?? []) : [],
-      })) ?? [],
-    }))
+    // "version": 1 → precios en pesos; sin version → centavos (JSON viejos).
+    // El armado devuelve objetos planos; se tipan como el subdocumento del menú al asignarlos.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mismo tipo laxo que tenía el armado inline
+    const builtCategories: any[] = buildImportCategories(toCentsCategories(categories, version === 1 ? 1 : undefined))
 
     if (mode === 'replace') {
       menu.categories = builtCategories

@@ -9,6 +9,8 @@ function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token') ?? ''
+  // Invitación del alta rápida (Superadmin): mismo flujo, otro texto.
+  const welcome = searchParams.get('bienvenida') === '1'
 
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -51,7 +53,7 @@ function ResetPasswordForm() {
           Enlace inválido
         </h2>
         <p className="login-subtitle" style={{ marginBottom: 0 }}>
-          Este enlace de recuperación no es válido.<br />Solicitá uno nuevo desde el inicio de sesión.
+          {welcome ? <>Este enlace de invitación no es válido.<br />Pedile a TakeasyGO uno nuevo.</> : <>Este enlace de recuperación no es válido.<br />Solicitá uno nuevo desde el inicio de sesión.</>}
         </p>
       </div>
     )
@@ -62,10 +64,10 @@ function ResetPasswordForm() {
       <div style={{ textAlign: 'center', padding: '16px 0' }}>
         <CheckCircle2 size={40} style={{ color: '#22c55e', margin: '0 auto 16px' }} />
         <h2 className="login-title" style={{ fontSize: '22px', marginBottom: '12px' }}>
-          ¡Contraseña actualizada!
+          {welcome ? '¡Tu cuenta está activa!' : '¡Contraseña actualizada!'}
         </h2>
         <p className="login-subtitle" style={{ marginBottom: 0 }}>
-          Tu contraseña fue restablecida correctamente.<br />Serás redirigido al inicio de sesión en unos segundos.
+          {welcome ? 'Ya podés entrar a tu panel con tu email y la contraseña que elegiste.' : 'Tu contraseña fue restablecida correctamente.'}<br />Serás redirigido al inicio de sesión en unos segundos.
         </p>
       </div>
     )
@@ -75,16 +77,16 @@ function ResetPasswordForm() {
     <>
       <div className="login-eyebrow">
         <span className="login-eyebrow-dot" />
-        Nueva contraseña
+        {welcome ? 'Bienvenida' : 'Nueva contraseña'}
       </div>
-      <h1 className="login-title">Restablecé tu contraseña</h1>
+      <h1 className="login-title">{welcome ? 'Activá tu cuenta' : 'Restablecé tu contraseña'}</h1>
       <p className="login-subtitle">
-        Ingresá tu nueva contraseña. Debe tener al menos 8 caracteres.
+        {welcome ? 'Elegí la contraseña con la que vas a entrar a tu panel. Debe tener al menos 8 caracteres.' : 'Ingresá tu nueva contraseña. Debe tener al menos 8 caracteres.'}
       </p>
 
       <form onSubmit={handleSubmit} noValidate>
         <div className="login-field">
-          <label htmlFor="rp-password" className="login-label">Nueva contraseña</label>
+          <label htmlFor="rp-password" className="login-label">{welcome ? 'Contraseña' : 'Nueva contraseña'}</label>
           <div className="login-input-wrap">
             <input
               id="rp-password"
@@ -110,7 +112,7 @@ function ResetPasswordForm() {
         {error && <div className="login-error">{error}</div>}
 
         <button type="submit" disabled={loading} className="login-submit">
-          {loading ? 'Guardando…' : 'Guardar nueva contraseña'}
+          {loading ? 'Guardando…' : welcome ? 'Activar mi cuenta' : 'Guardar nueva contraseña'}
         </button>
       </form>
     </>

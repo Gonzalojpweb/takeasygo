@@ -5,6 +5,7 @@ import { requireSuperAdmin } from '@/lib/apiAuth'
 import { superadminCreateTenantSchema } from '@/lib/schemas'
 import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 import { tenantSlugError } from '@/lib/reserved-slugs'
+import { logAudit } from '@/lib/audit'
 
 export async function GET() {
   try {
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
     // superadmin lo habilite (lib/whatsapp-order-link.ts).
     const data = parsed.data as Record<string, unknown> & { features?: Record<string, unknown> }
     const tenant = await Tenant.create({ ...data, features: { ...(data.features ?? {}), ...NEW_TENANT_WHATSAPP_ORDER_LINK } })
+    // El alta queda en la auditoría (antes no se registraba). Para altas nuevas usar /provision.
+    await logAudit({ tenantId: String(tenant._id), action: 'tenant.created', entity: 'tenant', entityId: String(tenant._id), userRole: 'superadmin', details: { slug: tenant.slug, plan: tenant.plan, via: 'legacy' }, request })
     return NextResponse.json({ tenant }, { status: 201 })
   } catch (error) {
     return NextResponse.json({ error: 'Error al crear el tenant' }, { status: 500 })
