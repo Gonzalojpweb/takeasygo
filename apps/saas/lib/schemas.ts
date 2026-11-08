@@ -65,6 +65,9 @@ const orderItemSchema = z.object({
   addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group', 'best_sellers', 'store']).optional(),
   // Display/legacy: nombre y slot de la unidad (líneas de promo por unidad)
   _itemName: z.string().max(200).optional(),
+  // Solo para mostrar: el nombre que ve el cliente en el carrito. Nunca se usa
+  // para precios; sirve para avisar qué plato ya no está si se borró de la carta.
+  name: z.string().optional().transform(v => v?.slice(0, 200)),
   _slotName: z.string().max(100).optional(),
   // Bundle de promo: selección completa de slots (modelo nuevo)
   _bundle: z.array(promoBundleSlotSchema).max(20).optional(),

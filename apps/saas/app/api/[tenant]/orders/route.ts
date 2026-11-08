@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongoose'
+import { menuItemNamesOf, unavailableItemMessage } from '@/lib/orders/unavailable-item'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -842,6 +843,9 @@ export async function POST(
       }
     }
 
+    // Nombres de TODOS los platos (también pausados): para avisar cuál no está sin mostrar el id.
+    const allItemNames = menuItemNamesOf(menu)
+
     // Validar pedido programado si corresponde
     let scheduledPickupAt: Date | null = null
     let scheduledStatus: 'pending_schedule' | 'active' | null = null
@@ -999,7 +1003,7 @@ export async function POST(
         const promotion = promotionsById.get(String(clientItem.promotionId))
         if (!promotion) {
           return NextResponse.json(
-            { error: `Promoción no disponible o no existe: ${clientItem.promotionId}` },
+            { error: unavailableItemMessage(null, (clientItem as { name?: string }).name, 'promotion'), unavailablePromotionId: String(clientItem.promotionId ?? '') },
             { status: 400 }
           )
         }
@@ -1330,7 +1334,7 @@ export async function POST(
         const menuItem = menuItemMap.get(clientItem.menuItemId.toString())
         if (!menuItem) {
           return NextResponse.json(
-            { error: `Item no disponible o no existe: ${clientItem.menuItemId}` },
+            { error: unavailableItemMessage(allItemNames.get(clientItem.menuItemId.toString()), (clientItem as { name?: string }).name), unavailableMenuItemId: clientItem.menuItemId.toString() },
             { status: 400 }
           )
         }

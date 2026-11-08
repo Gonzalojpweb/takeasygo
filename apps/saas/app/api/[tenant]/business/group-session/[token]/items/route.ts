@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { unavailableItemMessage } from '@/lib/orders/unavailable-item'
 import Order from '@/models/Order'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
@@ -87,7 +88,7 @@ export async function POST(
       const menuItem = menuItemMap.get(clientItem.menuItemId.toString())
       if (!menuItem) {
         return NextResponse.json(
-          { error: `Item no disponible en menú Business: ${clientItem.menuItemId}` },
+          { error: unavailableItemMessage(null, (clientItem as { name?: string }).name) },
           { status: 400 }
         )
       }

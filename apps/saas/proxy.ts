@@ -40,6 +40,9 @@ const SLUG_REGEX = /^[a-z0-9-]{2,50}$/
 function stripClientTenantHeader(request: NextRequest): Headers {
   const headers = new Headers(request.headers)
   headers.delete('x-tenant-slug')
+  // La 404 oficial (app/not-found.tsx) usa la dirección pedida para elegir
+  // marca y botón de vuelta. Solo para mostrar: nunca para permisos.
+  headers.set('x-pathname', request.nextUrl.pathname)
   return headers
 }
 
