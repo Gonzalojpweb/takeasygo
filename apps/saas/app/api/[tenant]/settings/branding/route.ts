@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
+import { revalidateTenantPublicPages } from '@/lib/revalidate-tenant'
 
 export async function PUT(
   request: NextRequest,
@@ -36,7 +37,15 @@ export async function PUT(
     }
 
     // Only allow updating known branding fields
-    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'menuLayoutApplyTo', 'darkMode', 'fonts', 'bestSellers', 'combosCarousel']
+    // sectionContainerColor faltaba acá: el formulario lo enviaba y se descartaba en silencio.
+    if ('sectionContainerColor' in branding) {
+      const c = branding.sectionContainerColor
+      if (c !== '' && (typeof c !== 'string' || !/^#[0-9a-f]{3,8}$/i.test(c))) {
+        return NextResponse.json({ error: 'Color de contenedor inválido' }, { status: 400 })
+      }
+    }
+
+    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'sectionContainerColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'menuLayoutApplyTo', 'darkMode', 'fonts', 'bestSellers', 'combosCarousel']
     const update: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in branding) {
@@ -50,6 +59,7 @@ export async function PUT(
       { new: true }
     )
 
+    revalidateTenantPublicPages(tenant.slug)
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.branding.updated', entity: 'tenant', details: { fields: Object.keys(update) }, request })
     return NextResponse.json({ branding: updated?.branding })
   } catch (error) {

@@ -8,6 +8,7 @@ import { guardRequestLocation } from '@/lib/location-scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
+import { revalidateTenantPublicPages } from '@/lib/revalidate-tenant'
 
 export async function PUT(
   request: NextRequest,
@@ -83,6 +84,7 @@ export async function PUT(
 
     menu.markModified('categories')
     await menu.save()
+    revalidateTenantPublicPages(tenant.slug)
     logAudit({ tenantId: tenant._id.toString(), action: 'menu.category.updated', entity: 'category', entityId: categoryId, details: { name, locationId }, request })
     return NextResponse.json({ menu })
   } catch (error) {
