@@ -3,7 +3,7 @@ import { LogOut, MapPin, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-r
 import { useLayout } from "./LayoutContext"
 import type { RosContext } from "./contexts"
 import { MOBILE_SHORTCUTS, TABLET_SHORTCUTS, splitNav } from "./navShortcuts"
-import { useMediaQuery } from "../../hooks/useMediaQuery"
+import { useLayoutMaxWidth } from "../../hooks/useMediaQuery"
 
 // ============================================================================
 // Navigation — cambia de CONTEXTO, nunca ejecuta acciones (W0S §3)
@@ -31,8 +31,9 @@ interface NavigationProps {
 
 export function Navigation({ tenantName, locationName, items, activeId, badges = {}, alerts = {}, onSelect, onLogout }: NavigationProps) {
   const { sidebarCollapsed, toggleSidebar } = useLayout()
-  const isMobile = useMediaQuery("(max-width: 768px)")
-  const isTablet = useMediaQuery("(max-width: 1100px)") && !isMobile
+  // Mismos cortes que el CSS (@container app): ancho real = pantalla ÷ zoom.
+  const isMobile = useLayoutMaxWidth(768)
+  const isTablet = useLayoutMaxWidth(1100) && !isMobile
   const compact = isMobile || isTablet
   const [drawerOpen, setDrawerOpen] = useState(false)
   const moreRef = useRef<HTMLButtonElement>(null)

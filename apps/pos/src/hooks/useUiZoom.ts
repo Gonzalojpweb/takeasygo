@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import { UI_ZOOM_EVENT } from "./useMediaQuery"
 
 // ============================================================================
 // Zoom de la interfaz del POS (observación UI/UX 24/10)
@@ -26,6 +27,8 @@ function readZoom(): number {
 
 function applyZoom(level: number) {
   document.documentElement.style.setProperty("--ui-zoom", String(level))
+  // El menú lateral y otros cálculos en JS dependen del ancho real (pantalla ÷ zoom).
+  window.dispatchEvent(new Event(UI_ZOOM_EVENT))
 }
 
 /** Aplica el zoom guardado lo antes posible (main.tsx), sin esperar a React. */

@@ -47,6 +47,20 @@ export interface FloorPlanProps {
   onLayoutChange?: (tableId: string, layout: TableLayout) => Promise<void>
 }
 
+/**
+ * Medidas del visor en px de layout. El zoom de la interfaz (.ros-frame)
+ * escala getBoundingClientRect y los clientX/Y, pero el plano se dibuja en px
+ * de layout: sin esta conversión, con zoom 125 % el plano no entraba (se
+ * cortaban mesas) y arrastrar movía de más. `zoom` = px de pantalla por px.
+ */
+function viewportBox(vp: HTMLElement) {
+  const r = vp.getBoundingClientRect()
+  const width = vp.clientWidth || r.width
+  const height = vp.clientHeight || r.height
+  const zoom = width > 0 && r.width > 0 ? r.width / width : 1
+  return { left: r.left, top: r.top, width, height, zoom }
+}
+
 const MIN_ZOOM = 0.35
 const MAX_ZOOM = 2.4
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v))
@@ -105,7 +119,7 @@ export function FloorPlan({
     const vp = vpRef.current
     const world = worldRef.current
     if (!vp || !world) return
-    const r = vp.getBoundingClientRect()
+    const r = viewportBox(vp)
     const v = view.current
     v.tx = clamp(v.tx, 120 - FLOOR_WIDTH * v.s, r.width - 120)
     v.ty = clamp(v.ty, 120 - FLOOR_HEIGHT * v.s, r.height - 120)
@@ -116,7 +130,7 @@ export function FloorPlan({
   const fit = useCallback(() => {
     const vp = vpRef.current
     if (!vp) return
-    const r = vp.getBoundingClientRect()
+    const r = viewportBox(vp)
     if (r.width === 0 || r.height === 0) return
     const v = view.current
     v.s = clamp(Math.min((r.width - 32) / FLOOR_WIDTH, (r.height - 32) / FLOOR_HEIGHT), MIN_ZOOM, MAX_ZOOM)
@@ -130,10 +144,11 @@ export function FloorPlan({
     (clientX: number, clientY: number, next: number) => {
       const vp = vpRef.current
       if (!vp) return
-      const r = vp.getBoundingClientRect()
+      const r = viewportBox(vp)
       const v = view.current
-      const px = clientX - r.left
-      const py = clientY - r.top
+      // clientX/Y vienen en px de pantalla: se pasan a px del plano.
+      const px = (clientX - r.left) / r.zoom
+      const py = (clientY - r.top) / r.zoom
       const s = clamp(next, MIN_ZOOM, MAX_ZOOM)
       const wx = (px - v.tx) / v.s
       const wy = (py - v.ty) / v.s
@@ -200,8 +215,9 @@ export function FloorPlan({
       zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, (g.pinch.s * Math.hypot(a.x - b.x, a.y - b.y)) / g.pinch.d)
       g.moved = true
     } else if (g.pan && pointers.current.size === 1) {
-      const dx = e.clientX - g.pan.x
-      const dy = e.clientY - g.pan.y
+      const z = vpRef.current ? viewportBox(vpRef.current).zoom : 1
+      const dx = (e.clientX - g.pan.x) / z
+      const dy = (e.clientY - g.pan.y) / z
       if (Math.hypot(dx, dy) > 3) g.moved = true
       view.current.tx += dx
       view.current.ty += dy
@@ -271,8 +287,9 @@ export function FloorPlan({
     const d = drag.current
     if (!d || e.pointerId !== d.pointer) return
     const s = view.current.s
-    const dx = (e.clientX - d.sx) / s
-    const dy = (e.clientY - d.sy) / s
+    const z = vpRef.current ? viewportBox(vpRef.current).zoom : 1
+    const dx = (e.clientX - d.sx) / (s * z)
+    const dy = (e.clientY - d.sy) / (s * z)
     if (!d.moved && Math.hypot(dx, dy) * s < 4) return
     d.moved = true
     const p = placedById.get(d.id)

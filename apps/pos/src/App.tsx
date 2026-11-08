@@ -410,6 +410,10 @@ function AppShell({
   }
 
   return (
+    // .ros-frame lleva el zoom de la interfaz y es el contenedor `app` de las
+    // container queries: los breakpoints miden el espacio real del POS (pantalla
+    // ÷ zoom), no el ancho físico. Auditoría responsive 08/11.
+    <div className="ros-frame">
     <div
       className={`ros-app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
       style={panelWidth.width !== null ? ({ "--context-panel-width": `${panelWidth.width}px` } as CSSProperties) : undefined}
@@ -458,6 +462,7 @@ function AppShell({
       <ManagerApprovalDialog />
       {/* Cobro en el posnet MercadoPago Point (Fase 6). */}
       <PointWaitingDialog />
+    </div>
     </div>
   )
 }
