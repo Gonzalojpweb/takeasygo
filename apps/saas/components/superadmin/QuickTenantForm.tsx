@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import { Check, Copy, ExternalLink, ImagePlus, Loader2, MessageCircle, Plus, Trash2, X } from 'lucide-react'
+import { Camera, Check, Copy, ExternalLink, ImagePlus, Images, Loader2, MessageCircle, Plus, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PLAN_LABELS, PLAN_PRICE, type Plan } from '@/lib/plans'
 import { slugifyOrFallback } from '@/lib/slugify'
@@ -123,7 +123,10 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Result | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  // Dos entradas: galería (sin capture) y cámara (capture). Con capture el celular
+  // abre solo la cámara y no deja elegir un archivo ya guardado.
+  const galleryRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   const template = getRubroTemplate(rubro)
   const color = primaryColor ?? template.primaryColor
@@ -298,16 +301,25 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
       <section className={card} aria-labelledby="qt-identidad">
         <h2 id="qt-identidad" className="text-base font-extrabold">Identidad</h2>
         <div className="flex items-center gap-3">
-          <button type="button" onClick={() => fileRef.current?.click()} className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted" aria-label="Elegir logo">
+          <button type="button" onClick={() => galleryRef.current?.click()} className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-dashed border-border bg-muted" aria-label="Elegir logo">
             {/* eslint-disable-next-line @next/next/no-img-element -- vista previa local del archivo */}
             {logoPreview ? <img src={logoPreview} alt="" className="h-full w-full object-contain" /> : <ImagePlus size={22} className="text-muted-foreground" />}
           </button>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold">{logoFile ? logoFile.name : 'Logo (opcional)'}</p>
-            <p className="text-xs text-muted-foreground">Sacale una foto o elegilo de la galería. Tomamos sus colores.</p>
+            <p className="text-xs text-muted-foreground">Subilo desde la galería o sacale una foto. Tomamos sus colores.</p>
             {logoFile && <button type="button" onClick={() => onLogo(null)} className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-muted-foreground"><X size={12} /> Quitar</button>}
           </div>
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" capture="environment" className="hidden" onChange={e => onLogo(e.target.files?.[0] ?? null)} />
+          <input ref={galleryRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { void onLogo(e.target.files?.[0] ?? null); e.target.value = '' }} />
+          <input ref={cameraRef} type="file" accept="image/png,image/jpeg,image/webp" capture="environment" className="hidden" onChange={e => { void onLogo(e.target.files?.[0] ?? null); e.target.value = '' }} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => galleryRef.current?.click()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border text-sm font-bold">
+            <Images size={17} /> Subir desde la galería
+          </button>
+          <button type="button" onClick={() => cameraRef.current?.click()} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border text-sm font-bold">
+            <Camera size={17} /> Sacar foto
+          </button>
         </div>
         <div>
           <span className={label}>Color principal</span>
