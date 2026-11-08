@@ -37,9 +37,7 @@ export const POST = posRoute('config.manage', async (ctx) => {
     assignedLocations: [new mongoose.Types.ObjectId(ctx.locationId)],
     isActive: true,
   })
-  // Sin teléfono: el campo NO se guarda (el modelo pone `phone: null` por
-  // defecto y el índice único sparse de phone no admite dos null).
-  created.set('phone', undefined)
+  // Sin teléfono el campo no se guarda (models/User: nunca null).
   await created.save()
 
   const issued = await issuePosPin(ctx.tenantId, created._id)

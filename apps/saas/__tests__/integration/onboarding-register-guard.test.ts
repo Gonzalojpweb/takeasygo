@@ -29,10 +29,6 @@ const realRateLimit = await vi.importActual<typeof import('@/lib/rateLimit')>('@
 
 let ipCounter = 0
 beforeEach(async () => {
-  // User.phone es único+sparse con default null: dos usuarios sin teléfono
-  // chocan (E11000, pendiente conocido que requiere decisión). Este test mide
-  // la protección del alta, así que se aísla quitando ese índice en la base de prueba.
-  await User.collection.dropIndex('phone_1').catch(() => {})
   realRateLimit.__resetRateLimitForTests()
   vi.mocked(rateLimit).mockImplementation(realRateLimit.rateLimit)
   headerStore.clear()

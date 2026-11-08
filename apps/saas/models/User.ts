@@ -79,12 +79,17 @@ const UserSchema = new Schema<IUser>(
       type: String,
       default: null,
     },
+    // Sin teléfono = campo AUSENTE, nunca null ni ''. Antes: default null +
+    // índice único sparse → «sparse» solo ignora documentos sin el campo, así
+    // que el segundo usuario sin teléfono daba E11000 (error 500 en altas).
     phone: {
       type: String,
-      default: null,
-      unique: true,
-      sparse: true,
       trim: true,
+      set: (v: unknown) => {
+        if (v === null || v === undefined) return undefined
+        const s = String(v).trim()
+        return s === '' ? undefined : s
+      },
     },
     role: {
       type: String,
@@ -177,7 +182,25 @@ const UserSchema = new Schema<IUser>(
 
 // Índices para queries frecuentes
 UserSchema.index({ email: 1 })
-UserSchema.index({ phone: 1 }, { sparse: true })
+// Único solo entre teléfonos con texto (como posPinLookup): null, '' o el
+// campo ausente nunca chocan. Reemplaza al índice viejo phone_1 (unique +
+// sparse); para borrarlo en una base existente: scripts/fix-user-phone-index.mjs.
+UserSchema.index({ phone: 1 }, { name: 'phone_unique_text', unique: true, partialFilterExpression: { phone: { $gt: '' } } })
+
+// En updates, «teléfono vacío» (null, '' o espacios) = quitar el campo. El
+// setter devuelve undefined y Mongoose descartaría el cambio (el teléfono viejo
+// quedaba guardado): se pasa a $unset antes de castear.
+UserSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate'], function () {
+  const update = this.getUpdate() as Record<string, unknown> | null
+  if (!update || Array.isArray(update)) return
+  const isBlank = (v: unknown) => v === null || v === undefined || String(v).trim() === ''
+  for (const container of [update, update.$set as Record<string, unknown> | undefined]) {
+    if (container && 'phone' in container && isBlank(container.phone)) {
+      delete container.phone
+      update.$unset = { ...(update.$unset as Record<string, unknown> | undefined), phone: '' }
+    }
+  }
+})
 UserSchema.index({ tenantId: 1, role: 1 })
 // Login por PIN: lookup O(1) y un PIN no se repite dentro del tenant.
 UserSchema.index(
