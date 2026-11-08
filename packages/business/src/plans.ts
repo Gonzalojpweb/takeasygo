@@ -12,7 +12,7 @@ export const PLAN_LABELS: Record<Plan, string> = {
   buy:     'Crecimiento',
   full:    'Premium',
   anfitrion: 'Anfitriones',
-  high:    'High Ticket',
+  high:    'Élite',
 }
 
 export const PLAN_TAGLINES: Record<Plan, string> = {

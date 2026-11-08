@@ -67,7 +67,7 @@ export async function readBody(request: NextRequest): Promise<Record<string, unk
 export function priceImportDenied(ctx: PriceContext): NextResponse | null {
   if (canAccess(ctx.plan, 'priceImport')) return null
   return NextResponse.json(
-    { error: 'Actualizar precios desde planilla o foto de la carta es del plan High Ticket.', code: 'plan_required', requiredPlan: 'high' },
+    { error: 'Actualizar precios desde planilla o foto de la carta es del plan Élite.', code: 'plan_required', requiredPlan: 'high' },
     { status: 403 },
   )
 }

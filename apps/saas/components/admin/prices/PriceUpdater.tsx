@@ -401,8 +401,8 @@ export default function PriceUpdater(props: PriceUpdaterProps) {
                   )}
                   {!props.canImport && (
                     <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5 px-3 py-2 text-xs">
-                      <span className="flex items-center gap-1.5 font-medium text-fuchsia-700 dark:text-fuchsia-400"><Lock size={12} /> Actualizar desde planilla o desde la foto de tu carta es del plan High Ticket.</span>
-                      <a href={`/${tenantSlug}/admin/billing`} className="rounded-full bg-fuchsia-600 px-3 py-1 font-semibold text-white hover:bg-fuchsia-700">Conocé High Ticket</a>
+                      <span className="flex items-center gap-1.5 font-medium text-fuchsia-700 dark:text-fuchsia-400"><Lock size={12} /> Actualizar desde planilla o desde la foto de tu carta es del plan Élite.</span>
+                      <a href={`/${tenantSlug}/admin/billing`} className="rounded-full bg-fuchsia-600 px-3 py-1 font-semibold text-white hover:bg-fuchsia-700">Conocé Élite</a>
                     </div>
                   )}
                 </div>

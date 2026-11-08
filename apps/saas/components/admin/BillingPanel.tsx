@@ -172,9 +172,9 @@ export default function BillingPanel({ currentPlan, tenantSlug, subscription, su
         {isHigh ? (
           <p className="text-xs text-muted-foreground md:max-w-[200px]">Tu plan lo administra el equipo de TakeasyGO. Para cualquier cambio, escribinos.</p>
         ) : supportWhatsapp ? (
-          <a href={`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(`Hola, quiero el plan High Ticket para ${tenantSlug}`)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-xl bg-fuchsia-600 px-5 py-3 text-center text-sm font-bold text-white hover:bg-fuchsia-700">Quiero High Ticket</a>
+          <a href={`https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(`Hola, quiero el plan Élite para ${tenantSlug}`)}`} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-xl bg-fuchsia-600 px-5 py-3 text-center text-sm font-bold text-white hover:bg-fuchsia-700">Quiero Élite</a>
         ) : (
-          <p className="text-xs text-muted-foreground md:max-w-[200px]">Lo activa el equipo de TakeasyGO: escribinos para pasarte a High Ticket.</p>
+          <p className="text-xs text-muted-foreground md:max-w-[200px]">Lo activa el equipo de TakeasyGO: escribinos para pasarte a Élite.</p>
         )}
       </div>
 

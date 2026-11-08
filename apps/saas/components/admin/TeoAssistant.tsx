@@ -218,9 +218,9 @@ export default function TeoAssistant({ tenantSlug }: { tenantSlug: string }) {
             </button>
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">TEO · Tu asistente</span>
             <div className="mt-2 space-y-2 text-sm">
-              <p className="font-semibold text-foreground">TEO es parte del plan High Ticket</p>
+              <p className="font-semibold text-foreground">TEO es parte del plan Élite</p>
               <p className="text-muted-foreground leading-relaxed">Te responde cómo usar TakeasyGO, configuraciones y dudas del día a día, cuando lo necesites.</p>
-              <a href={`/${tenantSlug}/admin/billing`} className="inline-block mt-1 rounded-full bg-fuchsia-600 px-3 py-1 text-xs font-semibold text-white hover:bg-fuchsia-700">Conocé High Ticket</a>
+              <a href={`/${tenantSlug}/admin/billing`} className="inline-block mt-1 rounded-full bg-fuchsia-600 px-3 py-1 text-xs font-semibold text-white hover:bg-fuchsia-700">Conocé Élite</a>
             </div>
           </div>
           <button onClick={handleDismiss} className="relative shrink-0 group" aria-label="Cerrar TEO">

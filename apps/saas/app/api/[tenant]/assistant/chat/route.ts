@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const resolved = await resolveAssistantContext(request, tenant)
   if ('error' in resolved) return resolved.error
   if (!canAccess(resolved.ctx.plan, 'assistant')) {
-    return NextResponse.json({ error: 'TEO es parte del plan High Ticket.', code: 'plan_required', requiredPlan: 'high' }, { status: 403 })
+    return NextResponse.json({ error: 'TEO es parte del plan Élite.', code: 'plan_required', requiredPlan: 'high' }, { status: 403 })
   }
 
   let body: unknown
