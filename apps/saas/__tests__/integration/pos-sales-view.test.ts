@@ -152,6 +152,10 @@ describe('vista de ventas filtrada', () => {
     expect(body.metrics.totals.sales).toBe(4)
     expect(body.metrics.totals.revenue).toBeNull()
     expect(body.cost.cmvCents).toBeNull()
+    // Campos nuevos del tablero del grupo: tampoco muestran plata al cajero.
+    expect(body.metrics.byDay.every((d: { revenue: unknown }) => d.revenue === null)).toBe(true)
+    expect(body.metrics.byWeekdayHour).toBeNull()
+    expect(body.metrics.cost).toBeNull()
     expect(body.invoicing.invoiced.amount).toBeNull()
     expect(body.rows[0].total).toBeNull()
     expect(body.rows[0].costCents).toBeNull()

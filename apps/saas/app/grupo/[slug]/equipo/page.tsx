@@ -22,7 +22,7 @@ export default async function GrupoEquipoPage({ params }: { params: Promise<{ sl
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
-        <Link href="/grupo" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link href="/grupo?lista=1" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft size={14} /> Mis organizaciones
         </Link>
         <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">

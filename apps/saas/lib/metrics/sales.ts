@@ -84,6 +84,12 @@ export interface SalesMetrics {
   byHour: { hour: number; sales: number; revenue: number }[]
   topProducts: { name: string; quantity: number; revenue: number }[]
   byCombo: ComboMetric[]
+  /** Facturación por día (YYYY-MM-DD en la zona de la sede). Tablero del grupo. */
+  byDay: { date: string; sales: number; revenue: number }[]
+  /** Facturación por día de semana (0 = domingo) × hora. Mapa de horas pico. */
+  byWeekdayHour: number[][]
+  /** Margen: ventas de platos con receta y su costo teórico (centavos). */
+  cost: { costedRevenue: number; cogs: number }
 }
 
 export interface ComboMetric {
@@ -153,6 +159,15 @@ function emptyChannel(): ChannelMetrics {
   return { sales: 0, revenue: 0, avgTicket: 0, guests: 0 }
 }
 
+function dayIn(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: timezone }).format(date)
+}
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+function weekdayIn(date: Date, timezone: string): number {
+  return WEEKDAYS.indexOf(new Intl.DateTimeFormat('en-US', { weekday: 'short', timeZone: timezone }).format(date))
+}
+
 function hourIn(date: Date, timezone: string): number {
   const h = new Intl.DateTimeFormat('es-AR', { hour: '2-digit', hour12: false, timeZone: timezone }).format(date)
   return Number(h) % 24
@@ -161,7 +176,7 @@ function hourIn(date: Date, timezone: string): number {
 /** Cálculo puro sobre órdenes ya filtradas por sede y fecha. */
 export function computeSalesMetrics(
   orders: MetricOrder[],
-  opts: { timezone?: string; categoryByItem?: Map<string, string> } = {}
+  opts: { timezone?: string; categoryByItem?: Map<string, string>; productLimit?: number; costByItem?: Map<string, number> } = {}
 ): SalesMetrics {
   const tz = opts.timezone || DEFAULT_TIMEZONE
   const byChannel = Object.fromEntries(SALE_CHANNELS.map((c) => [c, emptyChannel()])) as Record<SaleChannel, ChannelMetrics>
@@ -169,6 +184,9 @@ export function computeSalesMetrics(
   const categories = new Map<string, { quantity: number; revenue: number }>()
   const products = new Map<string, { quantity: number; revenue: number }>()
   const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, sales: 0, revenue: 0 }))
+  const days = new Map<string, { sales: number; revenue: number }>()
+  const weekdayHour = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0))
+  const cost = { costedRevenue: 0, cogs: 0 }
   let discounts = 0
   const voided = { count: 0, amount: 0 }
   const itemVoids = { count: 0, amount: 0, wasteAmount: 0 }
@@ -216,11 +234,25 @@ export function computeSalesMetrics(
       prod.quantity += item.quantity
       prod.revenue += item.subtotal
       products.set(item.name, prod)
+      const unitCost = item.menuItemId ? opts.costByItem?.get(String(item.menuItemId)) : undefined
+      if (unitCost && item.subtotal > 0) {
+        cost.costedRevenue += item.subtotal
+        cost.cogs += unitCost * item.quantity
+      }
     }
 
-    const h = hours[hourIn(new Date(order.createdAt), tz)]
+    const at = new Date(order.createdAt)
+    const hourOf = hourIn(at, tz)
+    const h = hours[hourOf]
     h.sales++
     h.revenue += order.total
+    const dayKey = dayIn(at, tz)
+    const d = days.get(dayKey) ?? { sales: 0, revenue: 0 }
+    d.sales++
+    d.revenue += order.total
+    days.set(dayKey, d)
+    const wd = weekdayIn(at, tz)
+    if (wd >= 0) weekdayHour[wd][hourOf] += order.total
   }
 
   for (const c of Object.values(byChannel)) c.avgTicket = c.sales ? Math.round(c.revenue / c.sales) : 0
@@ -244,7 +276,10 @@ export function computeSalesMetrics(
     byCategory: [...categories.entries()].map(([category, v]) => ({ category, ...v })).sort((a, b) => b.revenue - a.revenue),
     byHour: hours,
     byCombo: computeComboMetrics(orders.filter(isBilledSale)),
-    topProducts: [...products.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.quantity - a.quantity).slice(0, 10),
+    topProducts: [...products.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.quantity - a.quantity).slice(0, opts.productLimit ?? 10),
+    byDay: [...days.entries()].map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date)),
+    byWeekdayHour: weekdayHour,
+    cost,
   }
 }
 
@@ -283,13 +318,20 @@ const METRIC_FIELDS =
 export async function loadSalesMetrics(
   tenantId: string,
   locationId: string,
-  range: Partial<SalesRange>
+  range: Partial<SalesRange>,
+  opts: {
+    /** Corta el último día a esta hora (comparar «hoy hasta ahora» con la semana pasada). */
+    endAt?: Date
+    productLimit?: number
+    costByItem?: Map<string, number>
+  } = {}
 ): Promise<{ range: SalesRange; timezone: string; metrics: SalesMetrics }> {
   const location = await Location.findOne({ _id: locationId, tenantId }).select('timezone').lean<{ timezone?: string }>()
   const timezone = location?.timezone || DEFAULT_TIMEZONE
   const r = assertRange(range, timezone)
   const start = getDayAndMidnightInTimezone(r.from, timezone).date
-  const end = getDayAndMidnightInTimezone(nextDay(r.to), timezone).date
+  const dayEnd = getDayAndMidnightInTimezone(nextDay(r.to), timezone).date
+  const end = opts.endAt && opts.endAt < dayEnd ? opts.endAt : dayEnd
 
   const [orders, menus] = await Promise.all([
     Order.find({
@@ -316,7 +358,7 @@ export async function loadSalesMetrics(
     }
   }
 
-  return { range: r, timezone, metrics: computeSalesMetrics(orders, { timezone, categoryByItem }) }
+  return { range: r, timezone, metrics: computeSalesMetrics(orders, { timezone, categoryByItem, productLimit: opts.productLimit, costByItem: opts.costByItem }) }
 }
 
 /**

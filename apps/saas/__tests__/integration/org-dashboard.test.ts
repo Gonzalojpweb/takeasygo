@@ -4,7 +4,7 @@ import './setup'
 
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
 
-import { loadOrgDashboard, periodRange, parsePeriod } from '@/lib/organizations/dashboard'
+import { loadOrgDashboard, periodRange, parsePeriod, compareRange, parseCustomRange, datesOf } from '@/lib/organizations/dashboard'
 import { canViewCommissions, canPayCommissions } from '@/lib/commission-access'
 import { clearOrgDashboardModeCache, getOrgDashboardMode } from '@/lib/org-access'
 import { getTodayStrInTimezone, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
@@ -69,7 +69,7 @@ describe('loadOrgDashboard', () => {
     expect(r.data.totals).toMatchObject({ sales: 3, revenue: 170_000 })
     expect(r.data.brands.map(b => [b.slug, b.totals.revenue])).toEqual([['alfa', 150_000], ['beta', 20_000]])
     expect(r.data.brands[0].locations.map(l => [l.name, l.totals.revenue])).toEqual([['Centro', 100_000], ['Norte', 50_000]])
-    expect(r.data.byPayment).toEqual([{ method: 'cash', amount: 170_000, count: 3 }])
+    expect(r.data.byPayment).toEqual([{ method: 'cash', amount: 170_000, count: 3, prevAmount: 0 }])
   })
 
   it('gerente de marca: solo su marca', async () => {
@@ -102,6 +102,68 @@ describe('loadOrgDashboard', () => {
     const ownerB = oid()
     await OrgMembership.create({ organizationId: otherOrg._id, userId: ownerB, orgRole: 'owner', scope: { allTenants: true } })
     expect(await loadOrgDashboard(String(ownerB), 'grupo-a', 'today')).toEqual({ ok: false, reason: 'not_member' })
+  })
+})
+
+describe('vista 360: comparación, fechas a elección y filtros', () => {
+  it('con qué se compara cada período', () => {
+    const now = new Date('2026-11-08T15:00:00Z')
+    const hoy = compareRange('today', { from: '2026-11-08', to: '2026-11-08' }, now)
+    expect(hoy.range).toEqual({ from: '2026-11-01', to: '2026-11-01' })
+    expect(hoy.endAt?.toISOString()).toBe('2026-11-01T15:00:00.000Z') // hasta la misma hora
+    expect(compareRange('7d', { from: '2026-11-02', to: '2026-11-08' }).range).toEqual({ from: '2026-10-26', to: '2026-11-01' })
+    expect(compareRange('month', { from: '2026-03-01', to: '2026-03-31' }).range).toEqual({ from: '2026-02-01', to: '2026-02-28' })
+    expect(compareRange('custom', { from: '2026-10-10', to: '2026-10-12' }).range).toEqual({ from: '2026-10-07', to: '2026-10-09' })
+    expect(datesOf({ from: '2026-10-30', to: '2026-11-02' })).toEqual(['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
+  })
+
+  it('fechas a elección: no al revés, no más de un año, el futuro se corta en hoy', () => {
+    expect(parseCustomRange('2026-11-01', '2026-11-05', '2026-11-08')).toEqual({ from: '2026-11-01', to: '2026-11-05' })
+    expect(parseCustomRange('2026-11-05', '2026-11-01', '2026-11-08')).toBeNull()
+    expect(parseCustomRange('2024-01-01', '2026-11-01', '2026-11-08')).toBeNull()
+    expect(parseCustomRange('2026-11-01', '2026-12-31', '2026-11-08')).toEqual({ from: '2026-11-01', to: '2026-11-08' })
+    expect(parseCustomRange('x', '2026-11-01', '2026-11-08')).toBeNull()
+    expect(parsePeriod('custom')).toBe('custom')
+  })
+
+  it('compara con la semana pasada, rankea sedes y suma productos del grupo', async () => {
+    const userId = oid()
+    await OrgMembership.create({ organizationId: orgA, userId, orgRole: 'owner', scope: { allTenants: true } })
+    const locs = await mongoose.connection.db!.collection('locations').find({ tenantId: tA1 }).toArray()
+    const centro = locs.find(l => l.name === 'Centro')!._id
+    // Mismo día de la semana pasada, más temprano: entra en la comparación.
+    const lastWeek = new Date(Date.now() - 7 * 86_400_000 - 60_000)
+    await sale(tA1, centro, 40_000, { createdAt: lastWeek, items: [{ name: 'Milanesa', quantity: 1, subtotal: 40_000 }] })
+    await sale(tA1, centro, 1, { items: [{ name: 'Milanesa', quantity: 2, subtotal: 60_000 }], total: 60_000 })
+
+    const r = await loadOrgDashboard(String(userId), 'grupo-a', 'today')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data.totals.revenue).toBe(230_000)
+    expect(r.data.compare.totals.revenue).toBe(40_000)
+    expect(r.data.locations.map(l => [l.name, l.revenue, l.prevRevenue])).toEqual([['Centro', 160_000, 40_000], ['Norte', 50_000, 0], ['Única', 20_000, 0]])
+    expect(r.data.products.find(p => p.name === 'Milanesa')).toMatchObject({ revenue: 60_000, prevRevenue: 40_000, quantity: 2, brands: ['Alfa'] })
+    expect(r.data.series.unit).toBe('hour')
+    expect(r.data.series.total.reduce((a, b) => a + b, 0)).toBe(230_000)
+    expect(r.data.heatmap.flat().reduce((a, b) => a + b, 0)).toBe(230_000)
+    expect(r.data.filters.available.map(b => b.slug).sort()).toEqual(['alfa', 'beta'])
+  })
+
+  it('los filtros solo achican: una marca ajena en la dirección se ignora', async () => {
+    const userId = oid()
+    await OrgMembership.create({ organizationId: orgA, userId, orgRole: 'brand_manager', scope: { tenantIds: [tA2] } })
+    const r = await loadOrgDashboard(String(userId), 'grupo-a', 'today', { brands: ['alfa', 'ajena'] })
+    expect(r.ok && r.data.totals.revenue).toBe(20_000) // sigue viendo solo Beta
+    expect(r.ok && r.data.filters.brands).toEqual([])
+
+    const owner = oid()
+    await OrgMembership.create({ organizationId: orgA, userId: owner, orgRole: 'owner', scope: { allTenants: true } })
+    const onlyBeta = await loadOrgDashboard(String(owner), 'grupo-a', 'today', { brands: ['beta'] })
+    expect(onlyBeta.ok && onlyBeta.data.totals.revenue).toBe(20_000)
+    const norte = (await mongoose.connection.db!.collection('locations').findOne({ name: 'Norte' }))!._id
+    const onlyNorte = await loadOrgDashboard(String(owner), 'grupo-a', '7d', { locations: [String(norte)] })
+    expect(onlyNorte.ok && [onlyNorte.data.totals.revenue, onlyNorte.data.brands.map(b => b.slug)]).toEqual([50_000, ['alfa']])
+    expect(onlyNorte.ok && onlyNorte.data.series.unit).toBe('day')
   })
 })
 

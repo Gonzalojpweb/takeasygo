@@ -33,7 +33,10 @@ const BRAND_ROLE_LABEL: Record<string, string> = {
   auditor: 'Solo lectura',
 }
 
-export default async function GrupoPage({ searchParams }: { searchParams: Promise<{ inicio?: string }> }) {
+// Quienes miran el grupo entero: su portada es la vista 360 (/grupo/[slug]).
+const HOME_360_ROLES = new Set(['owner', 'org_admin', 'accountant'])
+
+export default async function GrupoPage({ searchParams }: { searchParams: Promise<{ inicio?: string; lista?: string }> }) {
   const user = await getSessionUser()
   if (!user?.id) redirect('/login?callbackUrl=/grupo')
 
@@ -48,8 +51,15 @@ export default async function GrupoPage({ searchParams }: { searchParams: Promis
       : [],
   )
 
+  const sp = await searchParams
+  // Dueño, administrador general o contador de UNA organización: su portada son
+  // los números del grupo. «Mis organizaciones» sigue en /grupo?lista=1.
+  if (sp.lista !== '1' && dashboardMode === 'on' && orgs.length === 1 && HOME_360_ROLES.has(orgs[0].orgRole)) {
+    redirect(`/grupo/${orgs[0].organization.slug}`)
+  }
+
   // Recién iniciada la sesión: directo a la última marca, si sigue siendo suya.
-  if ((await searchParams).inicio === '1' && panelsEnabled) {
+  if (sp.inicio === '1' && panelsEnabled) {
     const last = await lastBrandFor(user.id, orgs)
     if (last) redirect(`/${last}/admin`)
   }

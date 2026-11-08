@@ -368,6 +368,10 @@ export function redactSalesView(v: SalesViewResult): unknown {
       byCategory: v.metrics.byCategory.map((c) => ({ ...c, revenue: null })),
       byHour: v.metrics.byHour.map((h) => ({ ...h, revenue: null })),
       topProducts: v.metrics.topProducts.map((p) => ({ ...p, revenue: null })),
+      // Campos del tablero del grupo: también son montos.
+      byDay: v.metrics.byDay.map((d) => ({ ...d, revenue: null })),
+      byWeekdayHour: null,
+      cost: null,
     },
     invoicing: Object.fromEntries(Object.entries(v.invoicing).map(([k, b]) => [k, { ...b, amount: null }])),
     byMode: v.byMode.map((m) => ({ ...m, revenue: null })),
