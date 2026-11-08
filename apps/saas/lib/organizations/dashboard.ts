@@ -386,3 +386,12 @@ export async function loadOrgDashboard(userId: string, orgSlug: string, period: 
 }
 
 export { SALE_CHANNELS }
+
+/** Lee período, fechas, marcas y sedes de la dirección (pantalla, descarga y email usan lo mismo). */
+export function parseDashboardQuery(get: (key: string) => string | null | undefined): { period: DashboardPeriod; options: DashboardOptions } {
+  const list = (v: string | null | undefined) => (v ?? '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
+  let period = parsePeriod(get('periodo'))
+  const custom = period === 'custom' ? parseCustomRange(get('desde'), get('hasta')) : null
+  if (period === 'custom' && !custom) period = 'today'
+  return { period, options: { range: custom ?? undefined, brands: list(get('marcas')), locations: list(get('sedes')) } }
+}

@@ -42,6 +42,12 @@ export interface IOrgMembership {
   revokedAt: Date | null
   revokedBy: Types.ObjectId | null
   revokeReason: string | null
+  /**
+   * Resumen semanal del grupo por email (lunes, vista 360). Sin dato = prendido
+   * para quien ve los números. lastSentWeek = lunes de la semana enviada
+   * (YYYY-MM-DD), para no mandarlo dos veces.
+   */
+  weeklySummary?: { enabled?: boolean | null; lastSentWeek?: string | null } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -76,6 +82,10 @@ const OrgMembershipSchema = new Schema<IOrgMembership>(
     revokedAt: { type: Date, default: null },
     revokedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     revokeReason: { type: String, default: null, maxlength: 300 },
+    weeklySummary: {
+      type: new Schema({ enabled: { type: Boolean, default: undefined }, lastSentWeek: { type: String, default: null } }, { _id: false }),
+      default: undefined,
+    },
   },
   { timestamps: true, collection: 'org_memberships' }
 )

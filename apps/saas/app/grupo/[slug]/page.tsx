@@ -3,9 +3,15 @@ import { notFound, redirect } from 'next/navigation'
 import { ArrowLeft, BarChart3, Store, TrendingDown, TrendingUp, Flame, Wallet, ShoppingBag, Receipt, Users, Percent, Ban } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
 import { getOrgDashboardMode } from '@/lib/org-access'
-import { DASHBOARD_PERIODS, loadOrgDashboard, parseCustomRange, parsePeriod, SALE_CHANNELS, type OrgDashboard } from '@/lib/organizations/dashboard'
+import { DASHBOARD_PERIODS, loadOrgDashboard, parseDashboardQuery, SALE_CHANNELS, type OrgDashboard } from '@/lib/organizations/dashboard'
 import Delta from '@/components/grupo/Delta'
 import DashboardFilters from '@/components/grupo/DashboardFilters'
+import DashboardActions from '@/components/grupo/DashboardActions'
+import { Suspense } from 'react'
+import { Types } from 'mongoose'
+import OrgMembership from '@/models/OrgMembership'
+import Organization from '@/models/Organization'
+import { weeklySummaryEnabled } from '@/lib/organizations/weekly-summary'
 import SalesTrendChart from '@/components/grupo/SalesTrendChart'
 import { BRAND_COLORS, CHANNEL_LABEL, METHOD_LABEL, fmtDate, money, moneyShort } from '@/components/grupo/format'
 
@@ -15,7 +21,6 @@ import { BRAND_COLORS, CHANNEL_LABEL, METHOD_LABEL, fmtDate, money, moneyShort }
 
 export const dynamic = 'force-dynamic'
 
-const list = (v: string | undefined) => (v ?? '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 100)
 const WEEKDAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
@@ -130,12 +135,18 @@ export default async function GrupoDashboardPage({
   if (!user?.id) redirect(`/login?callbackUrl=${encodeURIComponent(`/grupo/${slug}`)}`)
 
   const sp = await searchParams
-  let period = parsePeriod(sp.periodo)
-  const custom = period === 'custom' ? parseCustomRange(sp.desde, sp.hasta) : null
-  if (period === 'custom' && !custom) period = 'today'
-  const result = await loadOrgDashboard(user.id, slug, period, { range: custom ?? undefined, brands: list(sp.marcas), locations: list(sp.sedes) })
+  const { period, options } = parseDashboardQuery(k => (sp as Record<string, string | undefined>)[k])
+  const result = await loadOrgDashboard(user.id, slug, period, options)
   // No confirma si la organización existe para quien no es miembro.
   if (!result.ok && result.reason === 'not_member') notFound()
+
+  // Resumen de los lunes: estado de la membresía de quien mira.
+  let summaryOn = true
+  if (result.ok && Types.ObjectId.isValid(String(user.id))) {
+    const org = await Organization.findOne({ slug }).select('_id').lean<{ _id: Types.ObjectId }>()
+    const m = org ? await OrgMembership.findOne({ organizationId: org._id, userId: new Types.ObjectId(String(user.id)), status: 'active' }).select('weeklySummary').lean<{ weeklySummary?: { enabled?: boolean | null } | null }>() : null
+    summaryOn = m ? weeklySummaryEnabled(m) : false
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -167,6 +178,7 @@ export default async function GrupoDashboardPage({
                   </h1>
                   <p className="mt-1 text-sm text-muted-foreground">{rangeText} · {d.compare.label} ({d.compare.range.from === d.compare.range.to ? fmtDate(d.compare.range.from) : `${fmtDate(d.compare.range.from)} al ${fmtDate(d.compare.range.to)}`})</p>
                 </div>
+                <Suspense fallback={null}><DashboardActions slug={slug} summaryEnabled={summaryOn} /></Suspense>
                 <DashboardFilters periods={DASHBOARD_PERIODS} period={d.period} range={d.range} available={d.filters.available} brands={d.filters.brands} locations={d.filters.locations} />
               </header>
 
