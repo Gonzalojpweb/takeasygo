@@ -2,6 +2,13 @@
 
 import Link from 'next/link'
 import { Award, UserPlus, Wallet, Smartphone, Store } from 'lucide-react'
+import { trackNetworkCta } from '@/lib/track'
+
+/** Alta de comercios desde el menú: origen = menu-<comercio> para atribuir la tracción. */
+function registerUrl(tenantSlug: string): string {
+  const origen = `menu-${tenantSlug}`.replace(/[^a-z0-9-]/gi, '').slice(0, 40)
+  return `https://takeasygo.com/empezar?origen=${encodeURIComponent(origen)}`
+}
 
 interface ClubMembership {
   isMember: boolean
@@ -95,6 +102,7 @@ export default function EndOfMenuSection({
                 href="https://takeasygo.com/app"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => trackNetworkCta('app', tenantSlug)}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-bold text-white transition-opacity hover:opacity-80"
                 style={{ backgroundColor: '#f74211' }}
               >
@@ -104,9 +112,10 @@ export default function EndOfMenuSection({
             </div>
 
             <a
-              href="https://takeasygo.com/sumar"
+              href={registerUrl(tenantSlug)}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackNetworkCta('register', tenantSlug)}
               className="inline-flex items-center gap-1.5 text-xs font-medium transition-opacity hover:opacity-80"
               style={{ color: '#64748b' }}
             >

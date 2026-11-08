@@ -36,6 +36,7 @@ import {
   Contact,
   Layers,
   FileText,
+  MousePointerClick,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -117,6 +118,7 @@ export default function SuperAdminSidebar() {
       section: 'Tracción TGO',
       items: [
         { href: '/superadmin/founder-links', label: 'Founder Links', icon: Link2 },
+        { href: '/superadmin/traccion-red', label: 'CTA de la red', icon: MousePointerClick },
       ],
     },
     {

@@ -8,6 +8,7 @@ import { isReservedSlug } from '@/lib/reserved-slugs'
 import { resolveInitialPlan } from '@/lib/plans'
 import { sendOnboardingVerifyEmail } from '@/lib/email'
 import { rateLimit } from '@/lib/rateLimit'
+import { checkFormToken, consumeFormToken, takeGlobalSignupSlot, clientIp } from '@/lib/onboarding-guard'
 
 import crypto from 'crypto'
 import { headers } from 'next/headers'
@@ -16,13 +17,33 @@ import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 export async function POST(req: Request) {
   try {
     const requestHeaders = await headers()
-    const ip = requestHeaders.get('x-forwarded-for') || 'unknown'
+    const ip = clientIp(requestHeaders)
     const limitReg = await rateLimit(`onb:reg:ip:${ip}`, 3, 10 * 60_000) // 3 per 10 min
     if (!limitReg.success) {
       return NextResponse.json({ error: 'Demasiados intentos. Intentá más tarde.' }, { status: 429 })
     }
 
-    const body = await req.json()
+    const body = await req.json().catch(() => null)
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Solicitud inválida' }, { status: 400 })
+    }
+
+    // Campo trampa: una persona no lo ve; si viene completo, es un bot.
+    // Respuesta genérica para no darle pistas al script.
+    const honeypot = (body as { website?: unknown }).website // HONEYPOT_FIELD
+    if (typeof honeypot === 'string' && honeypot.trim() !== '') {
+      return NextResponse.json({ error: 'No pudimos procesar la solicitud.' }, { status: 400 })
+    }
+
+    // Token del formulario: firmado al abrir /empezar, ≥ 3 s y de un solo uso.
+    const formCheck = checkFormToken(body.formToken)
+    if (!formCheck.ok) {
+      const message = formCheck.reason === 'expired' || formCheck.reason === 'missing'
+        ? 'La página venció. Recargala y volvé a intentarlo.'
+        : 'No pudimos procesar la solicitud. Recargá la página y volvé a intentarlo.'
+      return NextResponse.json({ error: message, code: 'form_token' }, { status: 400 })
+    }
+
     const parsed = onboardingRegisterSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
@@ -65,6 +86,16 @@ export async function POST(req: Request) {
     const limitMail = await rateLimit(`onb:reg:mail:${emailHash}`, 3, 60 * 60_000) // 3 per hour
     if (!limitMail.success) {
       return NextResponse.json({ error: 'Demasiados intentos para este email.' }, { status: 429 })
+    }
+
+    // 3b. Token de un solo uso y tope global (ataque distribuido). Al final,
+    // para que solo cuenten altas que pasaron todas las validaciones.
+    if (!(await consumeFormToken(formCheck.signature))) {
+      return NextResponse.json({ error: 'Este formulario ya se envió. Recargá la página.', code: 'form_token' }, { status: 400 })
+    }
+    if (!(await takeGlobalSignupSlot())) {
+      console.warn('[onboarding/register] tope global de altas alcanzado')
+      return NextResponse.json({ error: 'Estamos recibiendo muchas solicitudes. Probá de nuevo en unos minutos.' }, { status: 429 })
     }
 
     // 4. Create token and ticket

@@ -42,7 +42,11 @@ const VALID_EVENT_TYPES = new Set([
   'qr_promo_applied', 'order_status_changed',
   // Combos (piloto 06/11): embudo del carrusel. Solo comboId: sin datos personales.
   'combo_impression', 'combo_opened', 'combo_add',
+  // Sección TakeasyGO del menú: data.source = 'app' | 'register' (sin datos personales).
+  'network_cta_click',
 ])
+
+const NETWORK_CTA_TARGETS = new Set(['app', 'register'])
 
 const VALID_SOURCES = new Set([
   'order', 'posthog', 'posthog_sync', 'explore', 'loyalty', 'cron', 'manual', 'client_side',
@@ -101,6 +105,12 @@ const eventSchema = z.object({
 const batchSchema = z.object({
   events: z.array(eventSchema).min(1).max(10),
 })
+
+/** network_cta_click solo con un destino conocido; el resto se descarta. */
+function isAcceptable(body: EventBody): boolean {
+  if (body.type === 'network_cta_click') return NETWORK_CTA_TARGETS.has(String(body.data.source ?? ''))
+  return true
+}
 
 type EventBody = z.infer<typeof eventSchema>
 
@@ -183,6 +193,7 @@ export async function POST(
     }
 
     for (const body of bodies) {
+      if (!isAcceptable(body)) continue
       persistEvent(tenant._id as mongoose.Types.ObjectId, body)
     }
 

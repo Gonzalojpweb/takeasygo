@@ -71,6 +71,8 @@ export type CustomerEventType =
   | 'combo_impression'
   | 'combo_opened'
   | 'combo_add'
+  // Sección TakeasyGO al final del menú: clic en «Descargá la App» o «Sumá tu comercio».
+  | 'network_cta_click'
 
 // ── Severidad (igual que TIA para consistencia) ─────────────────────────────
 export type CustomerInsightSeverity = 'info' | 'warning' | 'critical'

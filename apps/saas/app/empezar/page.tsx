@@ -1,12 +1,20 @@
 import { Metadata } from 'next'
 import OnboardingWizard from './OnboardingWizard'
+import { issueFormToken } from '@/lib/onboarding-guard'
+
+// Token de formulario por visita (no se cachea).
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Comenzar — Takeasygo',
   description: 'Creá tu cuenta y empezá a vender con Takeasygo',
 }
 
-export default function EmpezarPage() {
+export default async function EmpezarPage({ searchParams }: { searchParams: Promise<{ origen?: string }> }) {
+  const { origen } = await searchParams
+  // Solo letras, números y guiones: es una etiqueta de origen, no texto libre.
+  const safeOrigen = typeof origen === 'string' ? origen.replace(/[^a-z0-9-]/gi, '').slice(0, 40) : ''
+  const formToken = issueFormToken()
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -25,7 +33,7 @@ export default function EmpezarPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-          <OnboardingWizard />
+          <OnboardingWizard formToken={formToken} origen={safeOrigen} />
         </div>
       </div>
     </main>

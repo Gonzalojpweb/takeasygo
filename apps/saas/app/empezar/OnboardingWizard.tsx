@@ -9,7 +9,9 @@ import { Eye, EyeOff, Check, X } from 'lucide-react'
 import { useCelebrate } from '@/hooks/useCelebrate'
 import { JourneyProgress } from '@/components/onboarding/JourneyProgress'
 
-export default function OnboardingWizard() {
+export default function OnboardingWizard({ formToken, origen = '' }: { formToken: string; origen?: string }) {
+  // Campo trampa: invisible para personas (ver lib/onboarding-guard).
+  const [website, setWebsite] = useState('')
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [ticket, setTicket] = useState<string | null>(null)
@@ -88,7 +90,7 @@ export default function OnboardingWizard() {
       const res = await fetch('/api/onboarding/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, slug: finalSlug, email })
+        body: JSON.stringify({ name, slug: finalSlug, email, origen, formToken, website })
       })
       const data = await res.json()
       
@@ -161,6 +163,12 @@ export default function OnboardingWizard() {
   if (step === 1) {
     return (
       <form onSubmit={handleRegister} className="space-y-4">
+        {/* Campo trampa: fuera de la vista, sin foco ni autocompletado. Una persona
+            nunca lo completa; los bots sí (lib/onboarding-guard). */}
+        <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', width: 1, height: 1, overflow: 'hidden' }}>
+          <label htmlFor="onb-website">Sitio web</label>
+          <input id="onb-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={e => setWebsite(e.target.value)} />
+        </div>
         <JourneyProgress mode="A" current={step} saved={saved} />
         {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-md">{error}</div>}
         

@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
+import { purgeAbandonedSignups } from '@/lib/onboarding-guard'
 
 const CRON_SECRET = process.env.CRON_SECRET
 const PURGE_AFTER_DAYS = 90
@@ -20,9 +21,13 @@ export async function GET(request: NextRequest) {
       deletedAt: { $lt: cutoff },
     })
 
+    // Altas de /empezar abandonadas (borrador sin verificar, > 7 días, sin sedes).
+    const abandonedSignups = await purgeAbandonedSignups()
+
     return NextResponse.json({
       success: true,
       purgedCount: result.deletedCount,
+      abandonedSignups,
       cutoff: cutoff.toISOString(),
     })
   } catch (error) {

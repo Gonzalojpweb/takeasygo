@@ -419,3 +419,16 @@ export function trackComboAdd(comboId: string, amountCents: number, locationId?:
   if (!comboId) return
   enqueue({ type: 'combo_add', data: { comboId, amount: amountCents, quantity: 1 }, metadata: { source: 'client_side', ...(locationId ? { locationId } : {}) } })
 }
+
+// ── Sección TakeasyGO del menú (red) ────────────────────────────────────────
+// Superadmin › Tracción de la red: qué comercios llevan gente a la app y a
+// /empezar. Solo el destino y la sesión anónima: sin datos personales.
+
+export type NetworkCtaTarget = 'app' | 'register'
+
+export function trackNetworkCta(target: NetworkCtaTarget, tenantSlug: string): void {
+  if (!tenantSlug) return
+  enqueue({ type: 'network_cta_click', data: { source: target }, metadata: { source: 'client_side' } }, tenantSlug)
+  // El enlace abre otra pestaña: se envía ya, sin esperar el lote.
+  flush()
+}

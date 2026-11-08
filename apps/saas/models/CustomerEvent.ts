@@ -92,6 +92,8 @@ const CustomerEventSchema = new Schema<ICustomerEvent>(
         'rating_submitted', 'feedback_submitted',
         'qr_promo_applied', 'order_status_changed',
         'combo_impression', 'combo_opened', 'combo_add',
+        // Sección TakeasyGO del menú (data.source: 'app' | 'register').
+        'network_cta_click',
       ],
       required: true,
     },
@@ -160,6 +162,10 @@ CustomerEventSchema.index(
     partialFilterExpression: { type: 'checkout_completed', 'data.orderId': { $exists: true } },
   }
 )
+
+// Superadmin › Tracción de la red: clics de los CTA de TakeasyGO de todos los
+// comercios en un rango (la consulta empieza por type, no por tenant).
+CustomerEventSchema.index({ type: 1, createdAt: -1 }, { partialFilterExpression: { type: 'network_cta_click' }, name: 'network_cta_by_date' })
 
 // TTL index: purgar eventos después de 2 años
 CustomerEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 63072000 }) // 2 años
