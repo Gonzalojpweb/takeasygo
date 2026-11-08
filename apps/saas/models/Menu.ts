@@ -157,6 +157,14 @@ export interface IMenuCategory {
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: IAvailabilitySlot[]
+  /** Cómo se muestran los productos de la categoría en el menú público. 'inherit' = layout general. */
+  displayLayout?: 'inherit' | 'list' | 'grid' | 'carousel'
+  /** En qué menús aplica displayLayout (en el resto se usa el layout general). */
+  displayLayoutApplyTo?: 'both' | 'takeaway' | 'dine-in'
+  /** El carrusel de combos se muestra después de esta categoría (prioridad sobre la posición general). */
+  combosAfter?: boolean
+  /** La Tarjeta del Club se muestra después de esta categoría (menú takeaway). */
+  clubCardAfter?: boolean
 }
 
 export interface IMenu extends Document {
@@ -438,6 +446,10 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
     }],
     default: [],
   },
+  displayLayout: { type: String, enum: ['inherit', 'list', 'grid', 'carousel'], default: 'inherit' },
+  displayLayoutApplyTo: { type: String, enum: ['both', 'takeaway', 'dine-in'], default: 'both' },
+  combosAfter: { type: Boolean, default: false },
+  clubCardAfter: { type: Boolean, default: false },
 })
 
 const MenuSchema = new Schema<IMenu>(

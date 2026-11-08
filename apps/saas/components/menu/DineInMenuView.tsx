@@ -1,6 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
+import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
+import { DineInItemCard } from '@/components/menu/items/DineInItemCard'
+import { resolveCategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
@@ -205,8 +208,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   }
 
   const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
-  const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
-    (comboSettings?.position ?? 'afterBestsellers') === position ? (
+  // Si una categoría visible tiene «Mostrar combos después», esa ubicación pisa la posición general.
+  const comboSection = (position: NonNullable<ComboCarouselSettings['position']> | 'afterCategory') =>
+    (position === 'afterCategory' ? Boolean(combosAnchorId) : !combosAnchorId && (comboSettings?.position ?? 'afterBestsellers') === position) ? (
       <ComboCarousel combos={combos} settings={comboSettings} primary={branding.primaryColor} textColor={text} locationId={location._id} />
     ) : null
 
@@ -463,6 +467,33 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   const cardBg = dark ? '#1e293b' : '#ffffff'
   const cardBorder = dark ? branding.primaryColor + '25' : branding.primaryColor + '20'
   const mutedText = dark ? '#94a3b8' : text + '99'
+
+  const isDineInItemVisible = (i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule))
+  // Combos anclados a una categoría visible (si la marcada está oculta, vuelven a su lugar).
+  const combosAnchorId = findAnchorCategoryId(categories, (c: any) => c.combosAfter)
+
+  function renderDineInItem(item: any, cat: any, layout: CategoryLayout) {
+    return (
+      <DineInItemCard
+        layout={layout}
+        name={tn(item, 'name', locale)}
+        description={item.description ? tn(item, 'description', locale) : ''}
+        imageUrl={item.imageUrl}
+        tags={item.tags ?? []}
+        price={item.price}
+        variantPrices={(item.variants ?? []).map((v: any) => v.price)}
+        customizable={(item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0}
+        primary={branding.primaryColor}
+        text={text}
+        mutedText={mutedText}
+        cardBg={cardBg}
+        cardBorder={cardBorder}
+        logoUrl={branding.logoUrl}
+        onOpen={() => openDishInfo(item, cat.customizationGroups)}
+      />
+    )
+  }
+
   const navBg = dark ? '#0f172a' : branding.backgroundColor
   const navBorder = dark ? branding.primaryColor + '30' : branding.primaryColor + '20'
 
@@ -649,263 +680,61 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       <main className="max-w-4xl mx-auto px-4 py-8">
         {comboSection('beforeCategories')}
         {categories.map((cat: any) => {
-          const hasSubcategories = (cat.subcategories ?? []).length > 0
+          const layout = resolveCategoryLayout(cat, 'dine-in', isGrid)
+          const directItems = (cat.items ?? []).filter(isDineInItemVisible)
+          const subcategories = [...(cat.subcategories ?? [])].sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+          const categoryId = String(cat._id)
           return (
-            <section
-              key={cat._id}
-              ref={el => { sectionRefs.current[cat._id] = el }}
-              className="mb-12 scroll-mt-20">
-              <div className="text-center mb-8">
-                <h3 className="text-xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
-                  {tn(cat, 'name', locale)}
-                </h3>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
-                  <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor + '80' }} />
-                  <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+            <Fragment key={categoryId}>
+              <section
+                ref={el => { sectionRefs.current[cat._id] = el }}
+                className="mb-12 scroll-mt-20">
+                <div className="text-center mb-8">
+                  <h3 className="text-xl font-bold mb-2" style={{ color: branding.primaryColor, fontFamily: 'var(--font-heading)' }}>
+                    {tn(cat, 'name', locale)}
+                  </h3>
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+                    <div className="w-1 h-1 rounded-full" style={{ backgroundColor: branding.primaryColor + '80' }} />
+                    <div className="h-px w-12" style={{ backgroundColor: branding.primaryColor + '50' }} />
+                  </div>
                 </div>
-              </div>
 
-              <div className={isGrid ? 'grid grid-cols-2 gap-3' : 'space-y-3'}>
-                {hasSubcategories ? (
-                  <>
-                    {(cat.items ?? [])
-                      .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
-                      .length > 0 && (
-                      <>
-                        {(cat.items ?? [])
-                          .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
-                          .map((item: any) => (
-                            <div
-                              key={item._id}
-                              className={cn(
-                                'rounded-xl border transition-all overflow-hidden',
-                                isGrid ? 'flex flex-col' : 'flex items-start gap-3',
-                              )}
-                              style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                              onClick={() => openDishInfo(item, cat.customizationGroups)}
-                            >
-                              {item.imageUrl ? (
-                                <div
-                                  className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
-                                  style={{ cursor: 'pointer' }}
-                                >
-                                  <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
-                                  {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
-                                    <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                                      style={{ backgroundColor: branding.primaryColor }}>
-                                      <Plus size={12} className="text-white" />
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (
-                                <div
-                                  className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
-                                  style={{ backgroundColor: branding.primaryColor + '18' }}
-                                />
-                              )}
+                <CategoryItemsLayout
+                  items={directItems}
+                  layout={layout}
+                  getKey={(item: any) => String(item._id)}
+                  renderItem={(item: any, l) => renderDineInItem(item, cat, l)}
+                  primary={branding.primaryColor}
+                  listClassName="space-y-3"
+                />
 
-                              <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
-                                <div className="flex items-start justify-between gap-2">
-                                  <p className="font-bold text-base tracking-wide" style={{ color: text }}>
-                                    {tn(item, 'name', locale)}
-                                  </p>
-                                  <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                                    {(() => {
-                                      const hasVariants = (item.variants ?? []).length > 0
-                                      if (hasVariants) {
-                                        const prices = item.variants.map((v: any) => v.price)
-                                        const minP = Math.min(...prices)
-                                        const maxP = Math.max(...prices)
-                                        return minP !== maxP
-                                          ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
-                                          : `$${toPesos(minP).toLocaleString('es-AR')}`
-                                      }
-                                      return `$${toPesos(item.price).toLocaleString('es-AR')}`
-                                    })()}
-                                  </p>
-                                </div>
-                                {item.description && (
-                                  <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
-                                    {tn(item, 'description', locale)}
-                                  </p>
-                                )}
-                                {item.tags?.length > 0 && (
-                                  <div className="flex gap-1.5 mt-2 flex-wrap">
-                                    {item.tags.map((tag: string) => (
-                                      <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
-                                        style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                                        {tag}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                      </>
-                    )}
-
-                    {(cat.subcategories ?? [])
-                      .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
-                      .map((sub: any) => {
-                        const subItems = (sub.items ?? []).filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
-                        if (subItems.length === 0) return null
-                        return (
-                          <div key={sub._id} className={isGrid ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
-                            <div className={isGrid ? 'col-span-full flex items-center gap-3 my-4' : 'flex items-center gap-3 my-4'}>
-                              <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
-                              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
-                                {tn(sub, 'name', locale)}
-                              </span>
-                              <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
-                            </div>
-                            {subItems.map((item: any) => (
-                              <div
-                                key={item._id}
-                                className={cn(
-                                  'rounded-xl border transition-all overflow-hidden',
-                                  isGrid ? 'flex flex-col' : 'flex items-start gap-3',
-                                )}
-                                style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                                onClick={() => openDishInfo(item, cat.customizationGroups)}
-                              >
-                                {item.imageUrl ? (
-                                  <div
-                                    className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
-                                    style={{ cursor: 'pointer' }}
-                                  >
-                                    <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
-                                    {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
-                                      <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                                        style={{ backgroundColor: branding.primaryColor }}>
-                                        <Plus size={12} className="text-white" />
-                                      </div>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <div
-                                    className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
-                                    style={{ backgroundColor: branding.primaryColor + '18' }}
-                                  />
-                                )}
-
-                                <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="font-bold text-base tracking-wide" style={{ color: text }}>
-                                      {tn(item, 'name', locale)}
-                                    </p>
-                                    <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                                      {(() => {
-                                        const hasVariants = (item.variants ?? []).length > 0
-                                        if (hasVariants) {
-                                          const prices = item.variants.map((v: any) => v.price)
-                                          const minP = Math.min(...prices)
-                                          const maxP = Math.max(...prices)
-                                          return minP !== maxP
-                                            ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
-                                            : `$${toPesos(minP).toLocaleString('es-AR')}`
-                                        }
-                                        return `$${toPesos(item.price).toLocaleString('es-AR')}`
-                                      })()}
-                                    </p>
-                                  </div>
-                                  {item.description && (
-                                    <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
-                                      {tn(item, 'description', locale)}
-                                    </p>
-                                  )}
-                                  {item.tags?.length > 0 && (
-                                    <div className="flex gap-1.5 mt-2 flex-wrap">
-                                      {item.tags.map((tag: string) => (
-                                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
-                                          style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                                          {tag}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      })}
-                  </>
-                ) : (
-                  (cat.items ?? [])
-                    .filter((i: any) => i.isAvailable && (!mounted || isAvailableNow(i.availabilityMode, i.availabilitySchedule)))
-                    .map((item: any) => (
-                      <div
-                        key={item._id}
-                        className={cn(
-                          'rounded-xl border transition-all overflow-hidden',
-                          isGrid ? 'flex flex-col' : 'flex items-start gap-3',
-                        )}
-                        style={{ backgroundColor: cardBg, borderColor: cardBorder }}
-                        onClick={() => openDishInfo(item, cat.customizationGroups)}
-                      >
-                        {item.imageUrl ? (
-                          <div
-                            className={cn('relative', isGrid ? 'w-full h-28' : 'flex-shrink-0 w-[88px] h-[88px]')}
-                            style={{ cursor: 'pointer' }}
-                          >
-                            <img src={item.imageUrl} alt={tn(item, 'name', locale)} className="w-full h-full object-cover" />
-                            {((item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0) && (
-                              <div className="absolute bottom-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
-                                style={{ backgroundColor: branding.primaryColor }}>
-                                <Plus size={12} className="text-white" />
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className={cn(isGrid ? 'h-2 w-full' : 'flex-shrink-0 w-3 self-stretch')}
-                            style={{ backgroundColor: branding.primaryColor + '18' }}
-                          />
-                        )}
-
-                        <div className={cn('min-w-0', isGrid ? 'p-3' : 'flex-1 py-3 pr-3')}>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-bold text-base tracking-wide" style={{ color: text }}>
-                              {tn(item, 'name', locale)}
-                            </p>
-                            <p className="font-bold text-base flex-shrink-0" style={{ color: branding.primaryColor }}>
-                              {(() => {
-                                const hasVariants = (item.variants ?? []).length > 0
-                                if (hasVariants) {
-                                  const prices = item.variants.map((v: any) => v.price)
-                                  const minP = Math.min(...prices)
-                                  const maxP = Math.max(...prices)
-                                  return minP !== maxP
-                                    ? `Desde $${toPesos(minP).toLocaleString('es-AR')}`
-                                    : `$${toPesos(minP).toLocaleString('es-AR')}`
-                                }
-                                return `$${toPesos(item.price).toLocaleString('es-AR')}`
-                              })()}
-                            </p>
-                          </div>
-                          {item.description && (
-                            <p className={cn('leading-relaxed', isGrid ? 'text-sm mt-1 line-clamp-2' : 'text-sm mt-1')} style={{ color: mutedText }}>
-                              {tn(item, 'description', locale)}
-                            </p>
-                          )}
-                          {item.tags?.length > 0 && (
-                            <div className="flex gap-1.5 mt-2 flex-wrap">
-                              {item.tags.map((tag: string) => (
-                                <span key={tag} className="text-xs px-2 py-0.5 rounded-full border"
-                                  style={{ borderColor: branding.primaryColor + '50', color: branding.primaryColor }}>
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                {subcategories.map((sub: any) => {
+                  const subItems = (sub.items ?? []).filter(isDineInItemVisible)
+                  if (subItems.length === 0) return null
+                  return (
+                    <div key={sub._id}>
+                      <div className="flex items-center gap-3 my-4">
+                        <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
+                        <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: branding.primaryColor }}>
+                          {tn(sub, 'name', locale)}
+                        </span>
+                        <div className="h-px flex-1" style={{ backgroundColor: branding.primaryColor + '25' }} />
                       </div>
-                    ))
-                )}
-              </div>
-            </section>
+                      <CategoryItemsLayout
+                        items={subItems}
+                        layout={layout}
+                        getKey={(item: any) => String(item._id)}
+                        renderItem={(item: any, l) => renderDineInItem(item, cat, l)}
+                        primary={branding.primaryColor}
+                        listClassName="space-y-3"
+                      />
+                    </div>
+                  )
+                })}
+              </section>
+              {combosAnchorId === categoryId && comboSection('afterCategory')}
+            </Fragment>
           )
         })}
 

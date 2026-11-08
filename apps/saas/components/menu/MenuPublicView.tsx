@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
@@ -21,6 +21,9 @@ import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/promotion-helpers'
 import ClubPointsCard, { type IdentifiedMember } from '@/components/menu/club/ClubPointsCard'
+import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
+import { TakeawayItemCard } from '@/components/menu/items/TakeawayItemCard'
+import { resolveCategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
 import PointsStickyBar from '@/components/menu/PointsStickyBar'
 import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
@@ -402,8 +405,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
   /** El carrusel de combos, en la posición que eligió el comercio. */
   const comboSettings: ComboCarouselSettings | undefined = tenant.branding?.combosCarousel
-  const comboSection = (position: NonNullable<ComboCarouselSettings['position']>) =>
-    (comboSettings?.position ?? 'afterBestsellers') === position && !groupSessionToken && !isAdminCorp ? (
+  // Si una categoría visible tiene «Mostrar combos después», esa ubicación pisa la posición general.
+  const comboSection = (position: NonNullable<ComboCarouselSettings['position']> | 'afterCategory') =>
+    (position === 'afterCategory' ? Boolean(combosAnchorId) : !combosAnchorId && (comboSettings?.position ?? 'afterBestsellers') === position) && !groupSessionToken && !isAdminCorp ? (
       <ComboCarousel combos={combos} settings={comboSettings} primary={primary} textColor={text} onSelect={openComboPicker} locationId={location._id} />
     ) : null
 
@@ -1239,6 +1243,79 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const borderStyle = branding.borderRadius === 'sharp' ? '0px'
     : branding.borderRadius === 'pill' ? '16px' : '10px'
 
+  /** Producto visible en esta vista (disponible, del canal y en horario). */
+  const isItemVisible = (item: any) => {
+    if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+    return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
+  }
+
+  // Secciones ancladas a una categoría visible (si la marcada está oculta, vuelven a su lugar).
+  const combosAnchorId = findAnchorCategoryId(categories, (c: any) => c.combosAfter)
+  const clubAnchorId = findAnchorCategoryId(categories, (c: any) => c.clubCardAfter)
+
+  function renderTakeawayItem(item: any, category: any, subcategoryId: string | undefined, layout: CategoryLayout) {
+    const catGroups = category.customizationGroups ?? []
+    const compact = layout !== 'list'
+    const action = likesOrderId ? (
+      <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
+    ) : isOperational ? (
+      <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={itemTotalQty(item._id)} primary={primary} bg={bg} compact={compact} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
+    ) : compact ? (
+      <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
+    ) : (
+      <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
+        CATÁLOGO
+      </div>
+    )
+    return (
+      <TakeawayItemCard
+        layout={layout}
+        name={tn(item, 'name', locale)}
+        description={item.description ? tn(item, 'description', locale) : ''}
+        imageUrl={item.imageUrl}
+        isVeg={isVegetarian(item.tags || [])}
+        tags={item.tags || []}
+        likesCount={item.likesCount ?? 0}
+        price={getItemPrice(item)}
+        clubPrice={getClubDiscountedPrice(item, category._id, subcategoryId)}
+        primary={primary}
+        borderStyle={borderStyle}
+        logoUrl={branding.logoUrl}
+        onOpen={() => openCustomizationModal(item, catGroups)}
+        action={action}
+      />
+    )
+  }
+
+  /** Tarjeta del Club — oculta para el admin corporativo en modo business. */
+  const clubCard = !isAdminCorp ? (
+    <div className="-mx-4">
+      <ClubPointsCard
+        tenantSlug={tenant.slug}
+        locationId={location._id}
+        clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
+        primary={primary}
+        bg={bg}
+        text={text}
+        isMember={clubMembership.isMember}
+        memberName={clubMembership.name}
+        memberPoints={memberPoints}
+        identifyEnabled={
+          checkoutRedemption.enabled &&
+          (!clubMembership.isMember || !clubMembership.phone) &&
+          !clubMembership.loading
+        }
+        onMemberIdentified={handleMemberIdentified}
+        rewardEnabled={rewardCheckoutActive}
+        rewardPointsAvailable={rewardPointsAvailable}
+        rewardLimitReached={rewardLimitReached}
+        cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
+        onAddReward={addRewardToCart}
+        onPassedChange={setClubCardPassed}
+      />
+    </div>
+  ) : null
+
   function getAllCategoryItems(category: any): any[] {
     return [
       ...(category.items ?? []),
@@ -1516,34 +1593,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           </section>
         )}
 
-        {/* Tarjeta del Club (canje de puntos) — oculta para el admin corporativo en modo business */}
-        {!isAdminCorp && (
-          <div className="-mx-4">
-            <ClubPointsCard
-              tenantSlug={tenant.slug}
-              locationId={location._id}
-              clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
-              primary={primary}
-              bg={bg}
-              text={text}
-              isMember={clubMembership.isMember}
-              memberName={clubMembership.name}
-              memberPoints={memberPoints}
-              identifyEnabled={
-                checkoutRedemption.enabled &&
-                (!clubMembership.isMember || !clubMembership.phone) &&
-                !clubMembership.loading
-              }
-              onMemberIdentified={handleMemberIdentified}
-              rewardEnabled={rewardCheckoutActive}
-              rewardPointsAvailable={rewardPointsAvailable}
-              rewardLimitReached={rewardLimitReached}
-              cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
-              onAddReward={addRewardToCart}
-              onPassedChange={setClubCardPassed}
-            />
-          </div>
-        )}
+        {/* Tarjeta del Club (canje de puntos): acá, salvo que una categoría la ancle */}
+        {!clubAnchorId && clubCard}
 
         {/* Best Sellers */}
         {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -1569,432 +1620,64 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         {comboSection('afterBestsellers')}
         {comboSection('beforeCategories')}
 
-        {/* All categories */}
+        {/* All categories — cada una con su formato (lista, grilla o carrusel) */}
         {categories.map((category: any) => {
-          const hasSubcategories = (category.subcategories ?? []).length > 0
+          const layout = resolveCategoryLayout(category, 'takeaway', isGridForTakeaway)
+          const directItems = (category.items ?? []).filter(isItemVisible)
+          const subcategories = [...(category.subcategories ?? [])].sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+          const categoryId = String(category._id)
           return (
-            <section
-              key={category._id}
-              ref={el => { sectionRefs.current[category._id] = el }}
-              className="mb-8 scroll-mt-44">
-              <div className="mb-3 pb-2 border-b" style={{ borderColor: primary + '30' }}>
-                <h2 className="text-xl font-bold tracking-widest uppercase" style={{ color: primary }}>
-                  {tn(category, 'name', locale)}
-                </h2>
-                {tn(category, 'description', locale) && (
-                  <p className="text-sm mt-1 italic" style={{ color: primary + 'aa' }}>
-                    {tn(category, 'description', locale)}
-                  </p>
-                )}
-              </div>
+            <Fragment key={categoryId}>
+              <section
+                ref={el => { sectionRefs.current[category._id] = el }}
+                className="mb-8 scroll-mt-44">
+                <div className="mb-3 pb-2 border-b" style={{ borderColor: primary + '30' }}>
+                  <h2 className="text-xl font-bold tracking-widest uppercase" style={{ color: primary }}>
+                    {tn(category, 'name', locale)}
+                  </h2>
+                  {tn(category, 'description', locale) && (
+                    <p className="text-sm mt-1 italic" style={{ color: primary + 'aa' }}>
+                      {tn(category, 'description', locale)}
+                    </p>
+                  )}
+                </div>
 
-              <div className={isGridForTakeaway ? 'grid grid-cols-2 gap-3' : 'flex flex-col gap-0'}>
-                {hasSubcategories ? (
-                  <>
-                    {category.items
-                      .filter((item: any) => {
-                        if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                        return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                      })
-                      .length > 0 && (
-                      <>
-                        <div className="col-span-full flex items-center gap-2 mb-2 mt-1">
-                          <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
-                        </div>
-                        {category.items
-                          .filter((item: any) => {
-                            if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                            return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                          })
-                          .map((item: any) => {
-                            const veg = isVegetarian(item.tags || [])
-                            const qty = itemTotalQty(item._id)
-                            const catGroups = category.customizationGroups ?? []
+                <CategoryItemsLayout
+                  items={directItems}
+                  layout={layout}
+                  getKey={(item: any) => String(item._id)}
+                  renderItem={(item: any, l) => renderTakeawayItem(item, category, undefined, l)}
+                  primary={primary}
+                  listClassName="flex flex-col gap-0"
+                />
 
-                            if (isGridForTakeaway) {
-                              return (
-                                <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-                                  style={{ borderColor: primary + '20', borderRadius: borderStyle }}
-                                   onClick={() => openCustomizationModal(item, catGroups)}>
-                                   {item.imageUrl && (
-                                     <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                                   )}
-                                   <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
-                                   <div className="p-3">
-                                     <div className="flex items-center gap-1.5 mb-1">
-                                       {veg
-                                         ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
-                                         : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                       <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
-                                     </div>
-                                     {item.description && (
-                                       <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
-                                     )}
-                                     <div className="flex items-center justify-between">
-                                       <p className="font-bold text-sm" style={{ color: primary }}>
-                                         ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                       </p>
-                                       {likesOrderId ? (
-                                         <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                       ) : isOperational ? (
-                                         <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                       ) : (
-                                         <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
-                                       )}
-                                     </div>
-                                   </div>
-                                 </div>
-                              )
-                            }
-
-                            return (
-                              <div key={item._id}
-                                className="flex items-center gap-3 py-3 border-b cursor-pointer active:scale-[0.99] transition-transform"
-                                style={{ borderColor: primary + '12' }}
-                                onClick={() => openCustomizationModal(item, catGroups)}>
-                                {item.imageUrl
-                                  ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                                  : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                                      style={{ backgroundColor: primary + '10' }}>
-                                      {veg
-                                        ? <Leaf size={14} style={{ color: '#22c55e' }} />
-                                        : <UtensilsCrossed size={13} style={{ color: primary + '60' }} />}
-                                    </div>
-                                }
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
-                                  {item.description && (
-                                    <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
-                                  )}
-                                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    {(() => {
-                                      const clubPrice = getClubDiscountedPrice(item, category._id)
-                                      if (clubPrice) {
-                                        return (
-                                          <>
-                                            <span className="text-xs line-through opacity-50 text-zinc-400">
-                                              ${toPesos(clubPrice.original).toLocaleString('es-AR')}
-                                            </span>
-                                            <span className="font-bold text-sm text-green-600">
-                                              ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
-                                            </span>
-                                          </>
-                                        )
-                                      }
-                                      return (
-                                        <span className="font-bold text-sm" style={{ color: primary }}>
-                                          ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                        </span>
-                                      )
-                                    })()}
-                                    {(item.tags || []).map((tag: string) => (
-                                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
-                                        style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
-                                        {tag}
-                                      </span>
-                                    ))}
-                                    <LikeBadge count={item.likesCount ?? 0} variant="inline" />
-                                    {(item.likesCount ?? 0) >= 5 && (
-                                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                                        Popular
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                {likesOrderId ? (
-                                  <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                ) : isOperational ? (
-                                  <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                ) : (
-                                  <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
-                                    CATÁLOGO
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                      </>
-                    )}
-
-                    {(category.subcategories ?? [])
-                      .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
-                      .map((subcategory: any) => {
-                        const subItems = subcategory.items.filter((item: any) => {
-                          if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                          return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                        })
-                        if (subItems.length === 0) return null
-                        return (
-                          <div key={subcategory._id} className={isGridForTakeaway ? 'col-span-2 grid grid-cols-2 gap-3' : ''}>
-                            <div className={isGridForTakeaway ? 'col-span-full flex items-center gap-2 mb-2 mt-4' : 'flex items-center gap-2 mb-2 mt-4'}>
-                              <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
-                              <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: primary + 'cc' }}>
-                                {tn(subcategory, 'name', locale)}
-                              </span>
-                              <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
-                            </div>
-
-                            {subItems.map((item: any) => {
-                              const veg = isVegetarian(item.tags || [])
-                              const qty = itemTotalQty(item._id)
-                              const catGroups = category.customizationGroups ?? []
-
-                              if (isGridForTakeaway) {
-                                return (
-                                  <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-                                    style={{ borderColor: primary + '20', borderRadius: borderStyle }}
-                                    onClick={() => openCustomizationModal(item, catGroups)}>
-                                    {item.imageUrl && (
-                                      <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                                    )}
-                                    <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
-                                    <div className="p-3">
-                                      <div className="flex items-center gap-1.5 mb-1">
-                                        {veg
-                                          ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
-                                          : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                        <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
-                                      </div>
-                                      {item.description && (
-                                        <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
-                                      )}
-                                      <div className="flex items-center justify-between">
-                                        {(() => {
-                                          const clubPrice = getClubDiscountedPrice(item, category._id, subcategory._id)
-                                          if (clubPrice) {
-                                            return (
-                                              <div className="flex items-center gap-1.5">
-                                                <span className="text-xs line-through opacity-50 text-zinc-400">
-                                                  ${toPesos(clubPrice.original).toLocaleString('es-AR')}
-                                                </span>
-                                                <span className="font-bold text-sm text-green-600">
-                                                  ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
-                                                </span>
-                                              </div>
-                                            )
-                                          }
-                                          return (
-                                            <p className="font-bold text-sm" style={{ color: primary }}>
-                                              ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                            </p>
-                                          )
-                                        })()}
-                                        {likesOrderId ? (
-                                          <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                        ) : isOperational ? (
-                                          <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                        ) : (
-                                          <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )
-                              }
-
-                              return (
-                                <div key={item._id}
-                                  className="flex items-center gap-3 py-3 border-b cursor-pointer active:scale-[0.99] transition-transform"
-                                  style={{ borderColor: primary + '12' }}
-                                  onClick={() => openCustomizationModal(item, catGroups)}>
-                                  {item.imageUrl
-                                    ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                                    : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                                        style={{ backgroundColor: primary + '10' }}>
-                                        {veg
-                                          ? <Leaf size={14} style={{ color: '#22c55e' }} />
-                                          : <UtensilsCrossed size={13} style={{ color: primary + '60' }} />}
-                                      </div>
-                                  }
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
-                                    {item.description && (
-                                      <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
-                                    )}
-                                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                      {(() => {
-                                        const clubPrice = getClubDiscountedPrice(item, category._id, subcategory._id)
-                                        if (clubPrice) {
-                                          return (
-                                            <>
-                                              <span className="text-xs line-through opacity-50 text-zinc-400">
-                                                ${toPesos(clubPrice.original).toLocaleString('es-AR')}
-                                              </span>
-                                              <span className="font-bold text-sm text-green-600">
-                                                ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
-                                              </span>
-                                            </>
-                                          )
-                                        }
-                                        return (
-                                          <span className="font-bold text-sm" style={{ color: primary }}>
-                                            ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                          </span>
-                                        )
-                                      })()}
-                                      {(item.tags || []).map((tag: string) => (
-                                        <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
-                                          style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
-                                          {tag}
-                                        </span>
-                                      ))}
-                                      <LikeBadge count={item.likesCount ?? 0} variant="inline" />
-                                      {(item.likesCount ?? 0) >= 5 && (
-                                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                                          Popular
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  {likesOrderId ? (
-                                    <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                  ) : isOperational ? (
-                                    <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                  ) : (
-                                    <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
-                                      CATÁLOGO
-                                    </div>
-                                  )}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )
-                      })}
-                  </>
-                ) : (
-                  category.items
-                    .filter((item: any) => {
-                      if (mode === 'business') return item.isAvailable && item.isBusinessAvailable && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                      return item.isAvailable && item.isTakeawayAvailable !== false && (!mounted || isAvailableNow(item.availabilityMode, item.availabilitySchedule))
-                    })
-                    .map((item: any) => {
-                      const veg = isVegetarian(item.tags || [])
-                      const qty = itemTotalQty(item._id)
-                      const catGroups = category.customizationGroups ?? []
-
-                      if (isGridForTakeaway) {
-                        return (
-                          <div key={item._id} className="relative border overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
-                            style={{ borderColor: primary + '20', borderRadius: borderStyle }}
-                            onClick={() => openCustomizationModal(item, catGroups)}>
-                            {item.imageUrl && (
-                              <Image src={cloudinaryUrl(item.imageUrl, { w: 500 })} alt={tn(item, 'name', locale)} width={500} height={200} className="w-full h-36 object-cover food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                            )}
-                            <LikeBadge count={item.likesCount ?? 0} variant="overlay" />
-                            <div className="p-3">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                {veg
-                                  ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
-                                  : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
-                                <p className="font-semibold text-base leading-tight">{tn(item, 'name', locale)}</p>
-                              </div>
-                              {item.description && (
-                                <p className="text-sm opacity-70 line-clamp-2 mb-1.5">{tn(item, 'description', locale)}</p>
-                              )}
-                              <div className="flex items-center justify-between">
-                                {(() => {
-                                  const clubPrice = getClubDiscountedPrice(item, category._id)
-                                  if (clubPrice) {
-                                    return (
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-xs line-through opacity-50 text-zinc-400">
-                                          ${toPesos(clubPrice.original).toLocaleString('es-AR')}
-                                        </span>
-                                        <span className="font-bold text-sm text-green-600">
-                                          ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
-                                        </span>
-                                      </div>
-                                    )
-                                  }
-                                  return (
-                                    <p className="font-bold text-sm" style={{ color: primary }}>
-                                      ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                    </p>
-                                  )
-                                })()}
-                                {likesOrderId ? (
-                                  <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                                ) : isOperational ? (
-                                  <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} compact categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                                ) : (
-                                  <span className="text-[9px] font-bold opacity-30">CATÁLOGO</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      }
-
-                      return (
-                        <div key={item._id}
-                          className="flex items-center gap-3 py-3 border-b cursor-pointer active:scale-[0.99] transition-transform"
-                          style={{ borderColor: primary + '12' }}
-                          onClick={() => openCustomizationModal(item, catGroups)}>
-                          {item.imageUrl
-                            ? <Image src={cloudinaryUrl(item.imageUrl, { w: 200 })} alt={tn(item, 'name', locale)} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(item.imageUrl)} />
-                            : <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                                style={{ backgroundColor: primary + '10' }}>
-                                {veg
-                                  ? <Leaf size={14} style={{ color: '#22c55e' }} />
-                                  : <UtensilsCrossed size={13} style={{ color: primary + '60' }} />}
-                              </div>
-                          }
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-base">{tn(item, 'name', locale)}</p>
-                            {item.description && (
-                              <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{tn(item, 'description', locale)}</p>
-                            )}
-                            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                              {(() => {
-                                const clubPrice = getClubDiscountedPrice(item, category._id)
-                                if (clubPrice) {
-                                  return (
-                                    <>
-                                      <span className="text-xs line-through opacity-50 text-zinc-400">
-                                        ${toPesos(clubPrice.original).toLocaleString('es-AR')}
-                                      </span>
-                                      <span className="font-bold text-sm text-green-600">
-                                        ${toPesos(clubPrice.discounted).toLocaleString('es-AR')}
-                                      </span>
-                                    </>
-                                  )
-                                }
-                                return (
-                                  <span className="font-bold text-sm" style={{ color: primary }}>
-                                    ${toPesos(getItemPrice(item)).toLocaleString('es-AR')}
-                                  </span>
-                                )
-                              })()}
-                              {(item.tags || []).map((tag: string) => (
-                                <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full"
-                                  style={{ backgroundColor: primary + '10', color: primary + 'cc' }}>
-                                  {tag}
-                                </span>
-                              ))}
-                              <LikeBadge count={item.likesCount ?? 0} variant="inline" />
-                              {(item.likesCount ?? 0) >= 5 && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600">
-                                  Popular
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {likesOrderId ? (
-                            <LikeButton itemId={item._id} likesCount={item.likesCount ?? 0} liked={likedItems.has(item._id)} loading={likesLoading.has(item._id)} onToggle={handleLikeToggle} primary={primary} />
-                          ) : isOperational ? (
-                            <CartControl item={item} cart={cart} onAdd={addPlainToCart} onOpenModal={(i) => openCustomizationModal(i, catGroups)} onRemove={removeFromCart} totalQty={qty} primary={primary} bg={bg} categoryGroups={catGroups} onFlyToCart={handleFlyToCart} />
-                          ) : (
-                            <div className="px-3 py-1.5 rounded-lg border border-dashed text-[10px] font-bold opacity-40" style={{ borderColor: primary }}>
-                              CATÁLOGO
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })
-                )}
-              </div>
-            </section>
+                {subcategories.map((subcategory: any) => {
+                  const subItems = (subcategory.items ?? []).filter(isItemVisible)
+                  if (subItems.length === 0) return null
+                  return (
+                    <div key={subcategory._id}>
+                      <div className="flex items-center gap-2 mb-2 mt-4">
+                        <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
+                        <span className="text-sm font-semibold uppercase tracking-wider" style={{ color: primary + 'cc' }}>
+                          {tn(subcategory, 'name', locale)}
+                        </span>
+                        <div className="h-px flex-1" style={{ backgroundColor: primary + '15' }} />
+                      </div>
+                      <CategoryItemsLayout
+                        items={subItems}
+                        layout={layout}
+                        getKey={(item: any) => String(item._id)}
+                        renderItem={(item: any, l) => renderTakeawayItem(item, category, subcategory._id, l)}
+                        primary={primary}
+                        listClassName="flex flex-col gap-0"
+                      />
+                    </div>
+                  )
+                })}
+              </section>
+              {combosAnchorId === categoryId && comboSection('afterCategory')}
+              {clubAnchorId === categoryId && clubCard}
+            </Fragment>
           )
         })}
 

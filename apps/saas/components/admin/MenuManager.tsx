@@ -24,6 +24,7 @@ import PriceUpdater from '@/components/admin/prices/PriceUpdater'
 import ImportMenuModal from '@/components/menu/ImportMenuModal'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
+import { CategoryDisplaySettings, categoryDisplayFrom, type CategoryDisplayValue } from '@/components/admin/menu/CategoryDisplaySettings'
 import { toCents, toPesos } from '@takeasygo/business/browser'
 import ScheduleEditor, { type ScheduleSlot } from '@/components/admin/ScheduleEditor'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
@@ -190,6 +191,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
   const [editingCategoryAvailSchedule, setEditingCategoryAvailSchedule] = useState<ScheduleSlot[]>([])
   const [editingCategoryBusinessAvail, setEditingCategoryBusinessAvail] = useState(false)
+  const [editingCategoryDisplay, setEditingCategoryDisplay] = useState<CategoryDisplayValue>(categoryDisplayFrom(null))
   const [editingCategoryPrintRole, setEditingCategoryPrintRole] = useState<'kitchen' | 'bar' | 'both'>('kitchen')
   const [editingItem, setEditingItem] = useState<string | null>(null)
   const [editingItemData, setEditingItemData] = useState<ItemFormData>(EMPTY_ITEM)
@@ -505,6 +507,10 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
           disabledOptionIds: editingCategoryDisabledOptionIds,
           availabilityMode: editingCategoryAvailMode,
           availabilitySchedule: editingCategoryAvailMode === 'scheduled' ? editingCategoryAvailSchedule : [],
+          displayLayout: editingCategoryDisplay.layout,
+          displayLayoutApplyTo: editingCategoryDisplay.applyTo,
+          combosAfter: editingCategoryDisplay.combosAfter,
+          clubCardAfter: editingCategoryDisplay.clubCardAfter,
         }),
       })
       if (!res.ok) throw new Error()
@@ -1255,6 +1261,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                   setEditingCategoryAvailMode(category.availabilityMode ?? 'always')
                                   setEditingCategoryAvailSchedule(category.availabilitySchedule ?? [])
                                   setEditingCategoryBusinessAvail(category.isBusinessAvailable ?? false)
+                                  setEditingCategoryDisplay(categoryDisplayFrom(category))
                                   // Expand to show availability editor
                                   if (!expandedCategories.includes(category._id)) {
                                     setExpandedCategories(prev => [...prev, category._id])
@@ -1351,6 +1358,22 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                   onChange={e => setEditingCategoryDescription(e.target.value)}
                                 />
                               </div>
+                              {(() => {
+                                const allItems = [
+                                  ...(category.items ?? []),
+                                  ...(category.subcategories ?? []).flatMap((sub: any) => sub.items ?? []),
+                                ]
+                                return (
+                                  <div className="pb-3 border-b border-border/60">
+                                    <CategoryDisplaySettings
+                                      value={editingCategoryDisplay}
+                                      onChange={setEditingCategoryDisplay}
+                                      totalItems={allItems.length}
+                                      itemsWithoutPhoto={allItems.filter((i: any) => !i.imageUrl).length}
+                                    />
+                                  </div>
+                                )
+                              })()}
                               <div className="flex items-center gap-2">
                                 <Clock size={14} className="text-primary" />
                                 <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">Disponibilidad de la categoría</span>

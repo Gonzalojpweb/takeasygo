@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
+import { CATEGORY_LAYOUTS, LAYOUT_APPLY_TO } from '@/lib/menu-layout'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { NextRequest, NextResponse } from 'next/server'
@@ -29,7 +30,17 @@ export async function PUT(
     })
     if (permError) return permError
 
-    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole, disabledGroupIds, disabledOptionIds } = await request.json()
+    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole, disabledGroupIds, disabledOptionIds, displayLayout, displayLayoutApplyTo, combosAfter, clubCardAfter } = await request.json()
+
+    if (displayLayout !== undefined && !CATEGORY_LAYOUTS.includes(displayLayout)) {
+      return NextResponse.json({ error: 'Formato de categoría inválido' }, { status: 400 })
+    }
+    if (displayLayoutApplyTo !== undefined && !LAYOUT_APPLY_TO.includes(displayLayoutApplyTo)) {
+      return NextResponse.json({ error: 'Menú de aplicación inválido' }, { status: 400 })
+    }
+    if ((combosAfter !== undefined && typeof combosAfter !== 'boolean') || (clubCardAfter !== undefined && typeof clubCardAfter !== 'boolean')) {
+      return NextResponse.json({ error: 'Ubicación de sección inválida' }, { status: 400 })
+    }
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -58,6 +69,17 @@ export async function PUT(
     if (disabledGroupIds !== undefined) category.disabledGroupIds = disabledGroupIds
     if (disabledOptionIds !== undefined) category.disabledOptionIds = disabledOptionIds
     if (printRole !== undefined) category.printRole = printRole
+    if (displayLayout !== undefined) category.displayLayout = displayLayout
+    if (displayLayoutApplyTo !== undefined) category.displayLayoutApplyTo = displayLayoutApplyTo
+    // Combos y Tarjeta del Club se anclan a una sola categoría por menú.
+    if (combosAfter !== undefined) {
+      if (combosAfter) for (const c of menu.categories) c.combosAfter = false
+      category.combosAfter = combosAfter
+    }
+    if (clubCardAfter !== undefined) {
+      if (clubCardAfter) for (const c of menu.categories) c.clubCardAfter = false
+      category.clubCardAfter = clubCardAfter
+    }
 
     menu.markModified('categories')
     await menu.save()

@@ -1157,6 +1157,9 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                           <option value="beforeCategories">Antes de las categorías</option>
                           <option value="afterCategories">Después de las categorías</option>
                         </select>
+                        <p className="text-[11px] text-muted-foreground leading-snug">
+                          ¿Lo querés entre categorías? En Menú, editá la categoría y activá «Carrusel de combos» en «Después de esta categoría mostrar». Esa ubicación tiene prioridad en ese local.
+                        </p>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
