@@ -950,3 +950,39 @@ main div:has(> .is-admin-orders-page) {
     transform: scale(1.06);
   }
 }
+
+/* ── Tarjeta del Club (menú público) + BorderBeam / ShineBorder (Magic UI) ── */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes beam-spin {
+  to { --beam-angle: 360deg; }
+}
+@keyframes shine-border {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+@keyframes club-coin-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -7px; }
+}
+@keyframes club-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.25) rotate(12deg); }
+}
+/* Recorta un fondo al borde del elemento (técnica de Magic UI). */
+.mask-border {
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.animate-beam-spin { animation: beam-spin var(--beam-duration, 1.4s) linear infinite; }
+.animate-shine-border { animation: shine-border var(--shine-duration, 6s) linear infinite; }
+.animate-club-coin { animation: club-coin-float 4.2s ease-in-out infinite; }
+.animate-club-twinkle { animation: club-twinkle 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-beam-spin, .animate-shine-border, .animate-club-coin, .animate-club-twinkle { animation: none; }
+}

@@ -20,7 +20,7 @@ import CustomizationSheet from '@/components/menu/CustomizationSheet'
 import UpsellSheet from '@/components/menu/UpsellSheet'
 import { PromotionCard, PromotionCarousel } from '@/components/menu/PromotionCard'
 import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/promotion-helpers'
-import StoreCarousel, { type IdentifiedMember } from '@/components/menu/StoreCarousel'
+import ClubPointsCard, { type IdentifiedMember } from '@/components/menu/club/ClubPointsCard'
 import PointsStickyBar from '@/components/menu/PointsStickyBar'
 import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
@@ -180,6 +180,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   } | null>(null)
   const cartBtnRef = useRef<HTMLButtonElement>(null)
   const confettiRef = useRef<ConfettiRef>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  // La Tarjeta del Club quedó arriba: recién ahí aparece la barra fija de puntos.
+  const [clubCardPassed, setClubCardPassed] = useState(false)
   const navigatingRef = useRef(false)
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
@@ -349,7 +352,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     return { original: price, discounted }
   }, [clubDiscount, clubEligible, mode])
 
-  // Sincronizar memberPoints desde el hook para StoreCarousel
+  // Sincronizar memberPoints desde el hook para la Tarjeta del Club
   useEffect(() => {
     if (clubMembership.isMember) {
       setMemberPoints(clubMembership.points)
@@ -1057,7 +1060,16 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       phone: m.phoneDigits,
       name: m.name,
     })
-    toast.success(m.name ? `¡Hola ${m.name}! Ya podés canjear tus puntos` : '¡Identificado! Ya podés canjear tus puntos')
+    // La tarjeta pasa al saldo (contador + barra); el festejo reemplaza al toast.
+    confettiRef.current?.fire({
+      particleCount: 70,
+      spread: 70,
+      startVelocity: 32,
+      scalar: 0.8,
+      origin: { x: 0.5, y: 0.45 },
+      colors: [branding.primaryColor || '#E8590C', '#FAB005', '#FFFFFF'],
+      disableForReducedMotion: true,
+    })
   }
 
   /**
@@ -1259,7 +1271,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       )}
 
       {/* ── Sticky Header ── */}
-      <header className="sticky top-0 z-40 backdrop-blur-md border-b"
+      <header ref={headerRef} className="sticky top-0 z-40 backdrop-blur-md border-b"
         style={{ backgroundColor: bg + 'ee', borderColor: primary + '20', paddingTop: 'env(safe-area-inset-top, 0px)' }}>
 
         {/* Top bar: logo + language toggle + cart button */}
@@ -1393,6 +1405,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           tenantSlug={tenant.slug}
           memberPoints={memberPoints}
           locationId={location._id}
+          visible={clubCardPassed && clubMembership.isMember}
+          anchorRef={headerRef}
+          primary={primary}
+          bg={bg}
+          text={text}
         />
       )}
 
@@ -1499,24 +1516,33 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           </section>
         )}
 
-        {/* Store Points Carousel — hidden for company admin in business mode */}
+        {/* Tarjeta del Club (canje de puntos) — oculta para el admin corporativo en modo business */}
         {!isAdminCorp && (
-          <StoreCarousel
-            tenantSlug={tenant.slug}
-            memberPoints={memberPoints}
-            locationId={location._id}
-            rewardEnabled={rewardCheckoutActive}
-            rewardPointsAvailable={rewardPointsAvailable}
-            rewardLimitReached={rewardLimitReached}
-            cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
-            onAddReward={addRewardToCart}
-            identifyEnabled={
-              checkoutRedemption.enabled &&
-              (!clubMembership.isMember || !clubMembership.phone) &&
-              !clubMembership.loading
-            }
-            onMemberIdentified={handleMemberIdentified}
-          />
+          <div className="-mx-4">
+            <ClubPointsCard
+              tenantSlug={tenant.slug}
+              locationId={location._id}
+              clubName={tenant.loyalty?.clubName || `Club ${tenant.name}`}
+              primary={primary}
+              bg={bg}
+              text={text}
+              isMember={clubMembership.isMember}
+              memberName={clubMembership.name}
+              memberPoints={memberPoints}
+              identifyEnabled={
+                checkoutRedemption.enabled &&
+                (!clubMembership.isMember || !clubMembership.phone) &&
+                !clubMembership.loading
+              }
+              onMemberIdentified={handleMemberIdentified}
+              rewardEnabled={rewardCheckoutActive}
+              rewardPointsAvailable={rewardPointsAvailable}
+              rewardLimitReached={rewardLimitReached}
+              cartRewardIds={rewardLines.map(r => r.storeItemId).filter((id): id is string => Boolean(id))}
+              onAddReward={addRewardToCart}
+              onPassedChange={setClubCardPassed}
+            />
+          </div>
         )}
 
         {/* Best Sellers */}

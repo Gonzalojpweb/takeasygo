@@ -108,7 +108,7 @@ describe('GET /loyalty/lookup?scope=identify', () => {
     expect(res.status).toBe(200)
 
     const body = await res.json()
-    // Shape que consumen CheckoutContext/CheckoutForm/StoreCarousel/club lookup
+    // Shape que consumen CheckoutContext/CheckoutForm/ClubPointsCard/club lookup
     expect(body.member).toMatchObject({
       name: 'Juan Carlos Pérez',
       points: 320,
