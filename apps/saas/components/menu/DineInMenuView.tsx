@@ -3,7 +3,7 @@
 import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
 import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
 import { DineInItemCard } from '@/components/menu/items/DineInItemCard'
-import { resolveCategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
+import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Moon, Sun, Settings, MapPin, Phone, Clock, Instagram, Facebook, Twitter, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
@@ -723,7 +723,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
                       </div>
                       <CategoryItemsLayout
                         items={subItems}
-                        layout={layout}
+                        layout={resolveSubcategoryLayout(sub, 'dine-in', layout)}
                         getKey={(item: any) => String(item._id)}
                         renderItem={(item: any, l) => renderDineInItem(item, cat, l)}
                         primary={branding.primaryColor}

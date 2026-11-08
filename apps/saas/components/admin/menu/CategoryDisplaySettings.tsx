@@ -47,22 +47,30 @@ interface Props {
   onChange: (value: CategoryDisplayValue) => void
   totalItems: number
   itemsWithoutPhoto: number
+  /** Subcategoría: hereda de su categoría y no ancla combos ni club. */
+  scope?: 'category' | 'subcategory'
 }
 
 /** «Cómo se muestra» la categoría en el menú público + secciones que se ubican después de ella. */
-export function CategoryDisplaySettings({ value, onChange, totalItems, itemsWithoutPhoto }: Props) {
+export function CategoryDisplaySettings({ value, onChange, totalItems, itemsWithoutPhoto, scope = 'category' }: Props) {
   const set = (patch: Partial<CategoryDisplayValue>) => onChange({ ...value, ...patch })
+  const isSub = scope === 'subcategory'
+  const options = isSub
+    ? LAYOUT_OPTIONS.map(o => (o.value === 'inherit' ? { ...o, label: 'Igual que la categoría', hint: 'Usa el formato de la categoría' } : o))
+    : LAYOUT_OPTIONS
   const showsPhotos = value.layout === 'grid' || value.layout === 'carousel'
 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <LayoutGrid size={14} className="text-primary" />
-        <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">Cómo se muestra en el menú</span>
+        <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/70">
+          {isSub ? 'Cómo se muestra esta subcategoría' : 'Cómo se muestra en el menú'}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Formato de la categoría">
-        {LAYOUT_OPTIONS.map(opt => {
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={isSub ? 'Formato de la subcategoría' : 'Formato de la categoría'}>
+        {options.map(opt => {
           const Icon = opt.icon
           const active = value.layout === opt.value
           return (
@@ -106,14 +114,16 @@ export function CategoryDisplaySettings({ value, onChange, totalItems, itemsWith
             ))}
           </div>
           {value.applyTo !== 'both' && (
-            <p className="text-[11px] text-muted-foreground">En el otro menú la categoría usa el diseño general.</p>
+            <p className="text-[11px] text-muted-foreground">
+              {isSub ? 'En el otro menú la subcategoría usa el formato de su categoría.' : 'En el otro menú la categoría usa el diseño general.'}
+            </p>
           )}
         </div>
       )}
 
       {value.layout === 'carousel' && totalItems > 8 && (
         <p className="text-[11px] text-muted-foreground">
-          El carrusel muestra los primeros 8 productos y una tarjeta «Ver todos ({totalItems})» que despliega la categoría en grilla.
+          El carrusel muestra los primeros 8 productos y una tarjeta «Ver todos ({totalItems})» que despliega {isSub ? 'la subcategoría' : 'la categoría'} en grilla.
         </p>
       )}
 
@@ -126,6 +136,7 @@ export function CategoryDisplaySettings({ value, onChange, totalItems, itemsWith
         </div>
       )}
 
+      {!isSub && (
       <div className="space-y-2 pt-1">
         <span className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Después de esta categoría mostrar</span>
         <ToggleRow
@@ -143,6 +154,7 @@ export function CategoryDisplaySettings({ value, onChange, totalItems, itemsWith
           onChange={v => set({ clubCardAfter: v })}
         />
       </div>
+      )}
     </div>
   )
 }

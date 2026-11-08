@@ -21,6 +21,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import { PUT as updateCategory } from '@/app/api/[tenant]/menu/categories/[categoryId]/route'
+import { PUT as updateSubcategory } from '@/app/api/[tenant]/menu/categories/[categoryId]/subcategories/route'
 import { auth } from '@/lib/auth'
 
 const SLUG = 'layout-test'
@@ -28,6 +29,7 @@ let tenant: any
 let loc: any
 let entradasId: string
 let principalesId: string
+let pastasId: string
 
 beforeEach(async () => {
   vi.clearAllMocks()
@@ -38,11 +40,12 @@ beforeEach(async () => {
     locationId: loc._id,
     categories: [
       { name: 'Entradas', sortOrder: 0, items: [] },
-      { name: 'Principales', sortOrder: 1, items: [] },
+      { name: 'Principales', sortOrder: 1, items: [], subcategories: [{ name: 'Pastas', sortOrder: 0, items: [] }] },
     ],
   })
   entradasId = String(menu.categories[0]._id)
   principalesId = String(menu.categories[1]._id)
+  pastasId = String(menu.categories[1].subcategories![0]._id)
   vi.mocked(auth).mockResolvedValue({
     user: { id: 'a1', role: 'admin', tenantId: tenant._id.toString(), assignedLocations: [] },
     expires: '',
@@ -107,5 +110,37 @@ describe('secciones ancladas a una categoría', () => {
     const [entradas, principales] = await categories()
     expect(entradas.combosAfter).toBe(false)
     expect(principales.combosAfter).toBe(true)
+  })
+})
+
+const putSub = (body: Record<string, unknown>) =>
+  updateSubcategory(
+    new NextRequest(`http://localhost/api/${SLUG}/menu/categories/${principalesId}/subcategories`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ locationId: loc._id.toString(), subcategoryId: pastasId, ...body }),
+    }),
+    { params: Promise.resolve({ tenant: SLUG, categoryId: principalesId }) },
+  )
+
+describe('formato por subcategoría', () => {
+  it('por defecto hereda el formato de su categoría', async () => {
+    const [, principales] = await categories()
+    expect(principales.subcategories[0].displayLayout).toBe('inherit')
+  })
+
+  it('guarda su propio formato y menú de aplicación', async () => {
+    const res = await putSub({ displayLayout: 'carousel', displayLayoutApplyTo: 'dine-in' })
+    expect(res.status).toBe(200)
+    const [, principales] = await categories()
+    expect(principales.subcategories[0].displayLayout).toBe('carousel')
+    expect(principales.subcategories[0].displayLayoutApplyTo).toBe('dine-in')
+    // La categoría no cambia.
+    expect(principales.displayLayout).toBe('inherit')
+  })
+
+  it('rechaza valores desconocidos', async () => {
+    expect((await putSub({ displayLayout: 'mosaico' })).status).toBe(400)
+    expect((await putSub({ displayLayoutApplyTo: 'delivery' })).status).toBe(400)
   })
 })

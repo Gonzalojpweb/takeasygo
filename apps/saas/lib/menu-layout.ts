@@ -22,17 +22,31 @@ export const LAYOUT_APPLY_TO: readonly LayoutApplyTo[] = ['both', 'takeaway', 'd
 /** Carrusel: cuántos productos se muestran antes de la tarjeta «Ver todos». */
 export const CAROUSEL_PREVIEW_LIMIT = 8
 
+/** Formato propio si está definido y aplica a este menú; si no, el heredado. */
+function resolveOwnLayout(fields: CategoryLayoutFields, surface: MenuSurface, inherited: CategoryLayout): CategoryLayout {
+  const layout = fields.displayLayout
+  if (layout !== 'list' && layout !== 'grid' && layout !== 'carousel') return inherited
+  const applyTo = fields.displayLayoutApplyTo || 'both'
+  if (applyTo !== 'both' && applyTo !== surface) return inherited
+  return layout
+}
+
+/** Categoría: su formato o, si hereda, el layout general del menú. */
 export function resolveCategoryLayout(
   category: CategoryLayoutFields,
   surface: MenuSurface,
   globalIsGrid: boolean,
 ): CategoryLayout {
-  const fallback: CategoryLayout = globalIsGrid ? 'grid' : 'list'
-  const layout = category.displayLayout
-  if (layout !== 'list' && layout !== 'grid' && layout !== 'carousel') return fallback
-  const applyTo = category.displayLayoutApplyTo || 'both'
-  if (applyTo !== 'both' && applyTo !== surface) return fallback
-  return layout
+  return resolveOwnLayout(category, surface, globalIsGrid ? 'grid' : 'list')
+}
+
+/** Subcategoría: su formato o, si hereda, el ya resuelto de su categoría. */
+export function resolveSubcategoryLayout(
+  subcategory: CategoryLayoutFields,
+  surface: MenuSurface,
+  categoryLayout: CategoryLayout,
+): CategoryLayout {
+  return resolveOwnLayout(subcategory, surface, categoryLayout)
 }
 
 /**

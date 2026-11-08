@@ -133,6 +133,10 @@ export interface IMenuSubCategory {
   customizationGroups?: ICustomizationGroup[]
   availabilityMode?: 'always' | 'scheduled'
   availabilitySchedule?: IAvailabilitySlot[]
+  /** Formato propio de la subcategoría. 'inherit' = el de su categoría. */
+  displayLayout?: 'inherit' | 'list' | 'grid' | 'carousel'
+  /** En qué menús aplica displayLayout (en el resto usa el de la categoría). */
+  displayLayoutApplyTo?: 'both' | 'takeaway' | 'dine-in'
 }
 
 export interface IMenuCategory {
@@ -390,6 +394,8 @@ const MenuSubCategorySchema = new Schema<IMenuSubCategory>({
     }],
     default: [],
   },
+  displayLayout: { type: String, enum: ['inherit', 'list', 'grid', 'carousel'], default: 'inherit' },
+  displayLayoutApplyTo: { type: String, enum: ['both', 'takeaway', 'dine-in'], default: 'both' },
 })
 
 const MenuCategorySchema = new Schema<IMenuCategory>({

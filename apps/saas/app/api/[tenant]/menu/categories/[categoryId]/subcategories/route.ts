@@ -7,6 +7,8 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
+import { CATEGORY_LAYOUTS, LAYOUT_APPLY_TO } from '@/lib/menu-layout'
+import { revalidateTenantPublicPages } from '@/lib/revalidate-tenant'
 
 export async function POST(
   request: NextRequest,
@@ -89,7 +91,14 @@ export async function PUT(
     if (permError) return permError
 
     const body = await request.json()
-    const { locationId, subcategoryId, name, description, imageUrl, sortOrder, printRole, customizationGroups, availabilityMode, availabilitySchedule } = body
+    const { locationId, subcategoryId, name, description, imageUrl, sortOrder, printRole, customizationGroups, availabilityMode, availabilitySchedule, displayLayout, displayLayoutApplyTo } = body
+
+    if (displayLayout !== undefined && !CATEGORY_LAYOUTS.includes(displayLayout)) {
+      return NextResponse.json({ error: 'Formato de subcategoría inválido' }, { status: 400 })
+    }
+    if (displayLayoutApplyTo !== undefined && !LAYOUT_APPLY_TO.includes(displayLayoutApplyTo)) {
+      return NextResponse.json({ error: 'Menú de aplicación inválido' }, { status: 400 })
+    }
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) return NextResponse.json({ error: 'Menú no encontrado' }, { status: 404 })
@@ -115,9 +124,12 @@ export async function PUT(
     if (customizationGroups !== undefined) subcategory.customizationGroups = customizationGroups
     if (availabilityMode !== undefined) subcategory.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) subcategory.availabilitySchedule = availabilitySchedule
+    if (displayLayout !== undefined) subcategory.displayLayout = displayLayout
+    if (displayLayoutApplyTo !== undefined) subcategory.displayLayoutApplyTo = displayLayoutApplyTo
 
     menu.markModified('categories')
     await menu.save()
+    revalidateTenantPublicPages(tenant.slug)
     logAudit({ tenantId: tenant._id.toString(), action: 'menu.subcategory.updated', entity: 'subcategory', entityId: subcategoryId, details: { name, categoryId, locationId }, request })
     return NextResponse.json({ menu })
   } catch (error) {

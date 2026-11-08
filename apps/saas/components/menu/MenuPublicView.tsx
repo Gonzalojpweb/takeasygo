@@ -23,7 +23,7 @@ import { resolveSlotCustomizationMode, type SlotCustomizationMode } from '@/lib/
 import ClubPointsCard, { type IdentifiedMember } from '@/components/menu/club/ClubPointsCard'
 import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
 import { TakeawayItemCard } from '@/components/menu/items/TakeawayItemCard'
-import { resolveCategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
+import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
 import PointsStickyBar from '@/components/menu/PointsStickyBar'
 import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
@@ -1665,7 +1665,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                       </div>
                       <CategoryItemsLayout
                         items={subItems}
-                        layout={layout}
+                        layout={resolveSubcategoryLayout(subcategory, 'takeaway', layout)}
                         getKey={(item: any) => String(item._id)}
                         renderItem={(item: any, l) => renderTakeawayItem(item, category, subcategory._id, l)}
                         primary={primary}

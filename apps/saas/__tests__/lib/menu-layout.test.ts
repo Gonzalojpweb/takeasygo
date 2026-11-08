@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveCategoryLayout, findAnchorCategoryId, itemInitial } from '@/lib/menu-layout'
+import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, itemInitial } from '@/lib/menu-layout'
 
 describe('resolveCategoryLayout', () => {
   it('sin formato propio usa el layout general', () => {
@@ -46,5 +46,22 @@ describe('itemInitial', () => {
     expect(itemInitial('  ¡Ñoquis!')).toBe('Ñ')
     expect(itemInitial('7 quesos')).toBe('7')
     expect(itemInitial('')).toBe('·')
+  })
+})
+
+describe('resolveSubcategoryLayout', () => {
+  it('sin formato propio hereda el ya resuelto de su categoría', () => {
+    expect(resolveSubcategoryLayout({}, 'takeaway', 'carousel')).toBe('carousel')
+    expect(resolveSubcategoryLayout({ displayLayout: 'inherit' }, 'dine-in', 'grid')).toBe('grid')
+  })
+
+  it('su formato pisa al de la categoría', () => {
+    expect(resolveSubcategoryLayout({ displayLayout: 'list' }, 'takeaway', 'carousel')).toBe('list')
+  })
+
+  it('en el menú donde no aplica usa el de la categoría', () => {
+    const sub = { displayLayout: 'carousel', displayLayoutApplyTo: 'takeaway' }
+    expect(resolveSubcategoryLayout(sub, 'takeaway', 'grid')).toBe('carousel')
+    expect(resolveSubcategoryLayout(sub, 'dine-in', 'grid')).toBe('grid')
   })
 })

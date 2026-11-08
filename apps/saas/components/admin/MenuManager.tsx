@@ -214,6 +214,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
   const [editingSubcategory, setEditingSubcategory] = useState<{ categoryId: string; subcategoryId: string } | null>(null)
   const [editingSubcategoryName, setEditingSubcategoryName] = useState('')
   const [editingSubcategoryDescription, setEditingSubcategoryDescription] = useState('')
+  const [editingSubcategoryDisplay, setEditingSubcategoryDisplay] = useState<CategoryDisplayValue>(categoryDisplayFrom(null))
   const [showAddItemInSubcategory, setShowAddItemInSubcategory] = useState<string | null>(null)
   const [globalSearch, setGlobalSearch] = useState('')
   const expandedBeforeSearchRef = useRef<string[]>([])
@@ -844,6 +845,8 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
           subcategoryId,
           name: editingSubcategoryName,
           description: editingSubcategoryDescription,
+          displayLayout: editingSubcategoryDisplay.layout,
+          displayLayoutApplyTo: editingSubcategoryDisplay.applyTo,
         }),
       })
       if (!res.ok) throw new Error()
@@ -1759,6 +1762,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                                         setEditingSubcategory({ categoryId: category._id, subcategoryId: subcategory._id })
                                                         setEditingSubcategoryName(subcategory.name)
                                                         setEditingSubcategoryDescription(subcategory.description || '')
+                                                        setEditingSubcategoryDisplay(categoryDisplayFrom(subcategory))
                                                         if (!isSubExpanded) toggleSubcategory(category._id, subcategory._id)
                                                       }}
                                                     >
@@ -1786,6 +1790,21 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
 
                                             {isSubExpanded && (
                                               <div className="p-3 pt-0 border-t border-border/40">
+                                                {editingSubcategory?.categoryId === category._id && editingSubcategory?.subcategoryId === subcategory._id && (
+                                                  <div className="mt-3 mb-2 p-4 bg-white rounded-2xl border-2 border-primary/20 space-y-3" onClick={e => e.stopPropagation()}>
+                                                    <CategoryDisplaySettings
+                                                      scope="subcategory"
+                                                      value={editingSubcategoryDisplay}
+                                                      onChange={setEditingSubcategoryDisplay}
+                                                      totalItems={(subcategory.items || []).length}
+                                                      itemsWithoutPhoto={(subcategory.items || []).filter((i: any) => !i.imageUrl).length}
+                                                    />
+                                                    <div className="flex justify-end gap-2">
+                                                      <Button size="sm" variant="ghost" className="rounded-xl" onClick={() => setEditingSubcategory(null)}>Cancelar</Button>
+                                                      <Button size="sm" className="rounded-xl font-bold" disabled={loading} onClick={() => handleEditSubcategory(category._id, subcategory._id)}>Guardar</Button>
+                                                    </div>
+                                                  </div>
+                                                )}
                                                 {/* Subcategory items with drag and drop */}
                                                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(e) => handleDragEndSubcategoryItem(category._id, subcategory._id, e)}>
                                                   <SortableContext items={(subcategory.items || []).map((i: any) => i._id)} strategy={verticalListSortingStrategy}>
