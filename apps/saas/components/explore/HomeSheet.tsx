@@ -15,6 +15,7 @@ import type { RestaurantCardData } from '@/types/restaurant-card'
 import { useHaptic } from '@/components/tgo/useHaptic'
 import PuntoTGO, { type LcsFaceExpression } from '@/components/tgo/PuntoTGO'
 import { Clock, ArrowUp, Check } from 'lucide-react'
+import { formatDeliveryTimeShort } from '@/lib/delivery-time'
 
 interface Props {
   userLat: number
@@ -148,7 +149,7 @@ function SheetItem({
               className="text-[10px]"
               style={{ color: 'var(--tgo-text-muted)' }}
             >
-              ~{r.estimatedPickupTime}min
+              {formatDeliveryTimeShort(r.estimatedPickupTime)}
             </span>
           </div>
         )}

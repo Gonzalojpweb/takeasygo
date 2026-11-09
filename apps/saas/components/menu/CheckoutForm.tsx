@@ -27,6 +27,7 @@ import {
   buildRewardPayloadFromCart,
 } from '@/lib/cart-items'
 import { evaluateRewardRedemption } from '@takeasygo/business'
+import { formatDeliveryTimeRange } from '@/lib/delivery-time'
 
 const RETRY_SECONDS = 180
 
@@ -1024,41 +1025,45 @@ async function handleSubmit(e: React.FormEvent) {
         </div>
 
         {/* Estimated time + Delay announcement */}
-        {estimatedTimeInfo && !scheduleOrder && (
-          <div className={cn(
-            'mb-6 rounded-2xl p-4 border transition-all',
-            delayEnabled
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-zinc-50 border-zinc-100'
-          )}>
-            <div className="flex items-center gap-2">
-              <Clock size={16} className={delayEnabled ? 'text-amber-600' : 'text-zinc-500'} />
-              <span className={cn(
-                'text-sm font-semibold',
-                delayEnabled ? 'text-amber-900' : 'text-zinc-700'
-              )}>
-                ⏱ Listo en ~{effectiveTime} min
-              </span>
-            </div>
-            {delayEnabled && (
-              <div className="mt-2 space-y-1">
-                <div className="flex items-start gap-2 text-xs text-amber-700">
-                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-                  <span>
-                    El restaurante está experimentando demoras
-                    {delayMessage ? `: "${delayMessage}"` : ''}
+        {estimatedTimeInfo && !scheduleOrder && (() => {
+          const timeRange = formatDeliveryTimeRange(effectiveTime)
+          const toneStyles = {
+            green:  { bg: 'bg-emerald-50',  border: 'border-emerald-200', label: 'text-emerald-800', sub: 'text-emerald-600', badgeBg: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+            yellow: { bg: 'bg-zinc-50',     border: 'border-zinc-100',    label: 'text-zinc-700',    sub: 'text-zinc-500',    badgeBg: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
+            amber:  { bg: 'bg-amber-50',    border: 'border-amber-200',   label: 'text-amber-900',   sub: 'text-amber-700',   badgeBg: 'bg-amber-100 text-amber-700 border-amber-200' },
+          }
+          const activeTone = delayEnabled ? 'amber' : timeRange.tone
+          const st = toneStyles[activeTone]
+
+          return (
+            <div className={cn('mb-6 rounded-2xl p-4 border transition-all', st.bg, st.border)}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Clock size={16} className={st.sub} />
+                  <span className={cn('text-xl font-bold tracking-tight tabular-nums', st.label)}>
+                    {timeRange.label}
                   </span>
                 </div>
-                <p className="text-[11px] text-amber-600 pl-5">
-                  Tiempo estimado base: ~{estimatedTimeInfo.baseTime} min
-                  {extraMinutes > 0 && (
-                    <> · Demora informada: +{extraMinutes} min</>
-                  )}
-                </p>
+                <span className={cn('shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border', st.badgeBg)}>
+                  {timeRange.emoji} {timeRange.badge}
+                </span>
               </div>
-            )}
-          </div>
-        )}
+              <p className={cn('mt-1 text-xs pl-6', st.sub)}>
+                {delayEnabled ? 'El restaurante está con mucha demanda' : timeRange.subtitle}
+              </p>
+              {delayEnabled && (
+                <div className="mt-2.5 flex items-start gap-2 text-xs text-amber-700 bg-amber-100/60 rounded-xl px-3 py-2">
+                  <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+                  <span>
+                    {delayMessage ? `"${delayMessage}"` : 'El local informó demoras en este momento.'}
+                    {' '}
+                    <span className="opacity-70">(base {estimatedTimeInfo.baseTime} min{extraMinutes > 0 ? ` + ${extraMinutes} min extra` : ''})</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Pre-checkout upsell */}
         {upsellHints.length > 0 && (

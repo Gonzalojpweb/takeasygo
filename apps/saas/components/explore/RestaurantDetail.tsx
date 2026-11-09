@@ -17,6 +17,7 @@ import WeeklySchedule from './WeeklySchedule'
 import { getClosingTime, getNextOpenTime } from '@/lib/service-hours'
 import 'leaflet/dist/leaflet.css'
 import { useHaptic } from '@/components/tgo/useHaptic'
+import { formatDeliveryTimeShort } from '@/lib/delivery-time'
 import { microcopy } from '@/components/tgo/microcopy'
 import PuntoTGO, { type LcsFaceExpression, type LcsRingScale } from '@/components/tgo/PuntoTGO'
 import { HorizontalScroller } from '@/components/tgo'
@@ -540,7 +541,7 @@ export default function RestaurantDetail({
                 iconColor="var(--tgo-brand)"
               >
                 <span style={{ fontWeight: 600, color: 'var(--tgo-brand)' }}>
-                  Listo en ~{r.estimatedPickupTime} min
+                  {r.estimatedPickupTime <= 25 ? `Listo en ~${r.estimatedPickupTime} min` : `Llega ${formatDeliveryTimeShort(r.estimatedPickupTime)}`}
                 </span>
               </InfoRow>
             )}

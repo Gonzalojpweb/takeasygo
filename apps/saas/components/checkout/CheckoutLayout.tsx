@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { Clock, AlertTriangle, Star, Gift, X } from 'lucide-react'
+import { formatDeliveryTimeRange } from '@/lib/delivery-time'
 import { terminos, privacidad } from '@/lib/legal-content'
 import { trackCheckoutStarted } from '@/lib/track'
 import { toast } from 'sonner'
@@ -231,32 +232,50 @@ function CheckoutLayoutInner() {
 function EstimatedTimeDisplay({ effectiveTime, delayEnabled, delayMessage, extraMinutes, baseTime }: {
   effectiveTime: number; delayEnabled: boolean; delayMessage: string; extraMinutes: number; baseTime: number
 }) {
+  const timeRange = formatDeliveryTimeRange(effectiveTime)
+
+  const toneStyles = {
+    green:  { bg: 'bg-emerald-50',  border: 'border-emerald-200', label: 'text-emerald-800', sub: 'text-emerald-600', badgeBg: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    yellow: { bg: 'bg-zinc-50',     border: 'border-zinc-100',    label: 'text-zinc-700',    sub: 'text-zinc-500',    badgeBg: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
+    amber:  { bg: 'bg-amber-50',    border: 'border-amber-200',   label: 'text-amber-900',   sub: 'text-amber-700',   badgeBg: 'bg-amber-100 text-amber-700 border-amber-200' },
+  }
+  const activeTone = delayEnabled ? 'amber' : timeRange.tone
+  const st = toneStyles[activeTone]
+
   return (
-    <div className={cn(
-      'rounded-2xl p-4 border transition-all',
-      delayEnabled ? 'bg-amber-50 border-amber-200' : 'bg-zinc-50 border-zinc-100'
-    )}>
-      <div className="flex items-center gap-2">
-        <Clock size={16} className={delayEnabled ? 'text-amber-600' : 'text-zinc-500'} />
-        <span className={cn('text-sm font-semibold', delayEnabled ? 'text-amber-900' : 'text-zinc-700')}>
-          ⏱ Listo en ~{effectiveTime} min
+    <div className={cn('rounded-2xl p-4 border transition-all', st.bg, st.border)}>
+      {/* Fila principal: rango horario */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock size={16} className={st.sub} />
+          <span className={cn('text-xl font-bold tracking-tight tabular-nums', st.label)}>
+            {timeRange.label}
+          </span>
+        </div>
+        <span className={cn('shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border', st.badgeBg)}>
+          {timeRange.emoji} {timeRange.badge}
         </span>
       </div>
+
+      {/* Subtítulo contextual */}
+      <p className={cn('mt-1 text-xs pl-6', st.sub)}>
+        {delayEnabled ? 'El restaurante está con mucha demanda' : timeRange.subtitle}
+      </p>
+
+      {/* Aviso de demora (solo si está activo) */}
       {delayEnabled && (
-        <div className="mt-2 space-y-1">
-          <div className="flex items-start gap-2 text-xs text-amber-700">
-            <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-            <span>El restaurante está experimentando demoras{delayMessage ? `: "${delayMessage}"` : ''}</span>
-          </div>
-          <p className="text-[11px] text-amber-600 pl-5">
-            Tiempo estimado base: ~{baseTime} min{extraMinutes > 0 && <> · Demora informada: +{extraMinutes} min</>}
-          </p>
+        <div className="mt-2.5 flex items-start gap-2 text-xs text-amber-700 bg-amber-100/60 rounded-xl px-3 py-2">
+          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
+          <span>
+            {delayMessage ? `"${delayMessage}"` : 'El local informó demoras en este momento.'}
+            {' '}
+            <span className="opacity-70">(base {baseTime} min{extraMinutes > 0 ? ` + ${extraMinutes} min extra` : ''})</span>
+          </span>
         </div>
       )}
     </div>
   )
 }
-
 function LoyaltySection(props: {
   loyaltyMember: any; loyaltyConfig: any; joinClub: boolean; walletEnabled: boolean
   storeItems: any[]; rewardLines: CartItem[]; rewardPointsTotal: number; maxRewardsPerOrder: number

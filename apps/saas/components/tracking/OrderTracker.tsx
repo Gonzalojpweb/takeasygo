@@ -5,7 +5,9 @@ import ConfirmPickupButton from './ConfirmPickupButton'
 import ClientConfirmButton from './ClientConfirmButton'
 import DeliveryCodeDisplay from './DeliveryCodeDisplay'
 import LiveTrackingBadge from './LiveTrackingBadge'
-import { Calendar, Lock, Copy, Check, Banknote, Loader2, ArrowUpDown } from 'lucide-react'
+import { Calendar, Lock, Copy, Check, Banknote, Loader2, ArrowUpDown, Clock } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { formatTargetTimeRange } from '@/lib/delivery-time'
 import { toPesos } from '@takeasygo/business/browser'
 import LoyaltySharePrompt from '@/components/menu/LoyaltySharePrompt'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -759,12 +761,46 @@ export default function OrderTracker({
           </>
         )}
 
-        {/* Tiempo estimado */}
-        {effectiveEstimatedReadyAt && ['confirmed', 'preparing'].includes(status) && (
-          <p className="mt-3 text-sm font-semibold" style={{ color: primaryColor }}>
-            ⏱ Listo {countdown}
-          </p>
-        )}
+        {/* Tiempo estimado - Rango horario estilo PedidosYa / time.jpeg */}
+        {effectiveEstimatedReadyAt && ['confirmed', 'preparing', 'en_ruta'].includes(status) && (() => {
+          const timeRange = formatTargetTimeRange(effectiveEstimatedReadyAt)
+          return (
+            <div className="mt-4 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md rounded-2xl p-4 border border-zinc-200/80 dark:border-zinc-800 shadow-sm text-left">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  <Clock size={14} className="stroke-[2.5]" />
+                  <span>{timeRange.badge}</span>
+                </div>
+                <div className="text-xl">
+                  {orderMode === 'delivery' ? '🛵' : '🛍️'}
+                </div>
+              </div>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-black tracking-tight tabular-nums text-zinc-900 dark:text-zinc-100">
+                  {timeRange.label}
+                </span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-1.5 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-zinc-900 dark:bg-zinc-100 rounded-full" />
+                <div className={cn(
+                  "rounded-full transition-all duration-500",
+                  ['preparing', 'en_ruta'].includes(status) ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-200 dark:bg-zinc-800'
+                )} />
+                <div className={cn(
+                  "rounded-full transition-all duration-500",
+                  status === 'en_ruta' ? 'bg-zinc-900 dark:bg-zinc-100' : 'bg-zinc-200 dark:bg-zinc-800'
+                )} />
+              </div>
+              <p className="mt-2.5 text-xs text-zinc-600 dark:text-zinc-400 font-medium">
+                {status === 'en_ruta' && deliveryPersonName
+                  ? `¡Así de rápido! ${deliveryPersonName} ya está cerca`
+                  : status === 'en_ruta'
+                  ? '¡Así de rápido! El repartidor ya está en camino'
+                  : timeRange.subtitle}
+              </p>
+            </div>
+          )
+        })()}
 
         {/* Indicador de actualización en vivo */}
         {!['delivered', 'cancelled'].includes(status) && lastChecked && (
