@@ -4,7 +4,7 @@ import Menu from '@/models/Menu'
 import Location from '@/models/Location'
 import mongoose from 'mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { isPromoActiveToday, isPromoInTimeWindow } from '@/lib/promo-schedule'
+import { isPromoActiveToday, isPromoInTimeWindow, isPromoWithinDates, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
 export async function GET(
   request: NextRequest,
@@ -30,14 +30,14 @@ export async function GET(
         $or: [
           { scheduledStart: null },
           { scheduledStart: { $exists: false } },
-          { scheduledStart: { $lte: now } }
+          { scheduledStart: { $lte: new Date(now.getTime() + SCHEDULE_QUERY_SLACK_MS) } }
         ]
       },
       {
         $or: [
           { scheduledEnd: null },
           { scheduledEnd: { $exists: false } },
-          { scheduledEnd: { $gte: now } }
+          { scheduledEnd: { $gte: new Date(now.getTime() - SCHEDULE_QUERY_SLACK_MS) } }
         ]
       }
     ]
@@ -203,6 +203,8 @@ export async function GET(
       : null
     const timeZone = loc?.timezone || (tenant as { timezone?: string }).timezone || undefined
     const filteredPromotions = promotionsWithSlots.filter((p: any) => {
+      return isPromoWithinDates(p, timeZone, now)
+    }).filter((p: any) => {
       return isPromoActiveToday(p.activeDays, timeZone, now)
     }).filter((p: any) => {
       return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now, timeZone)

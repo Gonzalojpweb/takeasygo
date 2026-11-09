@@ -36,6 +36,65 @@ export function localDayMinutes(now: Date = new Date(), timeZone: string | null 
   }
 }
 
+/** Desfase (minutos) de la zona respecto de UTC en ese instante. AR = −180. */
+function zoneOffsetMinutes(at: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(at)
+  const n = (t: string) => Number(parts.find(p => p.type === t)?.value)
+  const asUtc = Date.UTC(n('year'), n('month') - 1, n('day'), n('hour'), n('minute'), n('second'))
+  return Math.round((asUtc - at.getTime()) / 60000)
+}
+
+/** Medianoche local (en UTC) del día calendario y/m/d en la zona. */
+function zonedMidnight(y: number, m: number, d: number, timeZone: string): Date {
+  const guess = new Date(Date.UTC(y, m, d))
+  return new Date(guess.getTime() - zoneOffsetMinutes(guess, timeZone) * 60000)
+}
+
+/**
+ * Ventana real de las fechas «desde/hasta» de una promo.
+ * El panel carga fechas sin hora («2026-11-08») y se guardaban como medianoche
+ * UTC: «hasta el 08/11» vencía el 7 a las 21 h de Argentina. Una fecha sin hora
+ * (exactamente 00:00:00.000 UTC) vale todo ese día calendario en la sede:
+ * desde → 00:00 local; hasta → 23:59:59.999 local. Con hora, se respeta tal cual.
+ */
+export function effectiveScheduleWindow(
+  scheduledStart: Date | string | null | undefined,
+  scheduledEnd: Date | string | null | undefined,
+  timeZone: string | null | undefined = DEFAULT_PROMO_TIMEZONE,
+): { start: Date | null; end: Date | null } {
+  let tz = timeZone || DEFAULT_PROMO_TIMEZONE
+  try { new Intl.DateTimeFormat('en-US', { timeZone: tz }) } catch { tz = DEFAULT_PROMO_TIMEZONE }
+  const dateOnly = (d: Date) => d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0 && d.getUTCMilliseconds() === 0
+  const toDate = (v: Date | string | null | undefined) => (v ? new Date(v) : null)
+  const s = toDate(scheduledStart)
+  const e = toDate(scheduledEnd)
+  const start = s && !Number.isNaN(s.getTime())
+    ? (dateOnly(s) ? zonedMidnight(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate(), tz) : s)
+    : null
+  const end = e && !Number.isNaN(e.getTime())
+    ? (dateOnly(e) ? new Date(zonedMidnight(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate() + 1, tz).getTime() - 1) : e)
+    : null
+  return { start, end }
+}
+
+/** ¿Ahora está dentro de las fechas «desde/hasta» de la promo (en la sede)? */
+export function isPromoWithinDates(
+  promo: { scheduledStart?: Date | string | null; scheduledEnd?: Date | string | null },
+  timeZone: string | null | undefined = DEFAULT_PROMO_TIMEZONE,
+  now: Date = new Date(),
+): boolean {
+  const { start, end } = effectiveScheduleWindow(promo.scheduledStart, promo.scheduledEnd, timeZone)
+  if (start && now < start) return false
+  if (end && now > end) return false
+  return true
+}
+
+/**
+ * Margen para el filtro grueso de la base (fechas sin hora pueden extenderse
+ * hasta ~1 día + desfase). El filtro exacto lo hace isPromoWithinDates.
+ */
+export const SCHEDULE_QUERY_SLACK_MS = 2 * 24 * 60 * 60_000
+
 /**
  * ¿La promo está activa el día de la semana indicado?
  * Si activeDays es null, undefined o vacío → se considera activa todos los días.
@@ -97,9 +156,8 @@ export function isPromoScheduledNow(
   timeZone: string | null | undefined = DEFAULT_PROMO_TIMEZONE,
   now: Date = new Date(),
 ): boolean {
-  // Rango de fechas (instantes absolutos: no dependen de la zona)
-  if (promo.scheduledStart && now < new Date(promo.scheduledStart)) return false
-  if (promo.scheduledEnd && now > new Date(promo.scheduledEnd)) return false
+  // Rango de fechas: una fecha sin hora vale todo ese día en la sede.
+  if (!isPromoWithinDates(promo, timeZone, now)) return false
 
   // Día de la semana
   if (!isPromoActiveToday(promo.activeDays, timeZone, now)) return false
