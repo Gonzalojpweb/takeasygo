@@ -257,22 +257,10 @@ function EstimatedTimeDisplay({ effectiveTime, delayEnabled, delayMessage, extra
         </span>
       </div>
 
-      {/* Subtítulo contextual */}
+      {/* Subtítulo contextual limpio */}
       <p className={cn('mt-1 text-xs pl-6', st.sub)}>
-        {delayEnabled ? 'El restaurante está con mucha demanda' : timeRange.subtitle}
+        {delayMessage ? `"${delayMessage}"` : (delayEnabled ? 'El restaurante está con alta demanda' : timeRange.subtitle)}
       </p>
-
-      {/* Aviso de demora (solo si está activo) */}
-      {delayEnabled && (
-        <div className="mt-2.5 flex items-start gap-2 text-xs text-amber-700 bg-amber-100/60 rounded-xl px-3 py-2">
-          <AlertTriangle size={13} className="shrink-0 mt-0.5" />
-          <span>
-            {delayMessage ? `"${delayMessage}"` : 'El local informó demoras en este momento.'}
-            {' '}
-            <span className="opacity-70">(base {baseTime} min{extraMinutes > 0 ? ` + ${extraMinutes} min extra` : ''})</span>
-          </span>
-        </div>
-      )}
     </div>
   )
 }

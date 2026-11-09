@@ -445,7 +445,7 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
           dispatch({ type: 'SET_SERVICE_HOURS', serviceHours: data.location.serviceHours, timezone: data.location.timezone, deliveryConfig: data.location.deliveryConfig })
           const settings = data.location.settings || {}
           dispatch({ type: 'SET_ESTIMATED_TIME', info: {
-            baseTime: settings.estimatedPickupTime ?? 20,
+            baseTime: Math.min(settings.estimatedPickupTime ?? 20, 25),
             delayAnnouncement: settings.delayAnnouncement ?? {},
           } })
         } else {
