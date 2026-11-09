@@ -1,6 +1,8 @@
 import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
 import Menu from '@/models/Menu'
+import Location from '@/models/Location'
+import mongoose from 'mongoose'
 import { NextRequest, NextResponse } from 'next/server'
 import { isPromoActiveToday, isPromoInTimeWindow } from '@/lib/promo-schedule'
 
@@ -195,10 +197,15 @@ export async function GET(
       return promo
     })
 
+    // Día y horario en la zona horaria de la sede (el servidor corre en UTC).
+    const loc = mongoose.Types.ObjectId.isValid(locationId)
+      ? await Location.findOne({ _id: locationId, tenantId: tenant._id }).select('timezone').lean<{ timezone?: string }>()
+      : null
+    const timeZone = loc?.timezone || (tenant as { timezone?: string }).timezone || undefined
     const filteredPromotions = promotionsWithSlots.filter((p: any) => {
-      return isPromoActiveToday(p.activeDays)
+      return isPromoActiveToday(p.activeDays, timeZone, now)
     }).filter((p: any) => {
-      return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now)
+      return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now, timeZone)
     })
 
     return NextResponse.json({ promotions: filteredPromotions })
