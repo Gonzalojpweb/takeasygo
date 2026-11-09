@@ -268,6 +268,10 @@ const LocationSchema = new Schema<ILocation>(
     },
 settings: {
         acceptsOrders: { type: Boolean, default: true },
+        // Impresión automática de los pedidos que llegan por la app / menú
+        // online (no los del POS). false → no salen solos: el equipo los
+        // imprime con «Reimprimir» desde Pedidos. Por sede (08/11/2026).
+        autoPrintAppOrders: { type: Boolean, default: true },
         orderModes: {
           type: [String],
           enum: ['takeaway', 'dine-in', 'business', 'delivery'] as const,

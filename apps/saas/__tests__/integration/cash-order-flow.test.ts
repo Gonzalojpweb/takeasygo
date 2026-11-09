@@ -445,6 +445,35 @@ describe('onOrderConfirmed — pase BARRA-first para efectivo', () => {
     const printerIds = order.printJobs.map((j) => j.printerId.toString())
     expect(printerIds).toContain(kitchenPrinterId.toString())
   })
+  it('sede con impresión automática apagada: los pedidos de la app no generan jobs', async () => {
+    await Location.updateOne({ _id: location._id }, { $set: { 'settings.autoPrintAppOrders': false } })
+    const order = await makeOrder({
+      payment: { method: 'transfer', status: 'pending', baseTotal: 8000, surchargeAmount: 0 },
+      kitchenPrintDeferred: false,
+      printJobs: [],
+    })
+
+    await onOrderConfirmed(order)
+    await order.save()
+
+    expect(order.printJobs.length).toBe(0)
+    expect(order.kitchenPrintDeferred).toBe(false)
+  })
+
+  it('impresión automática apagada no afecta a los pedidos del POS', async () => {
+    await Location.updateOne({ _id: location._id }, { $set: { 'settings.autoPrintAppOrders': false } })
+    const order = await makeOrder({
+      source: 'pos',
+      payment: { method: 'transfer', status: 'pending', baseTotal: 8000, surchargeAmount: 0 },
+      kitchenPrintDeferred: false,
+      printJobs: [],
+    })
+
+    await onOrderConfirmed(order)
+    await order.save()
+
+    expect(order.printJobs.length).toBeGreaterThan(0)
+  })
 })
 
 /* ══════════════════════════════════════════════════════════════════════════

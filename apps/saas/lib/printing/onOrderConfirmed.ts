@@ -1,4 +1,5 @@
 import Printer from '@/models/Printer'
+import Location from '@/models/Location'
 import { buildPrintPayload } from './buildPrintPayload'
 import { isBarraPrinter } from './barra'
 import type { IOrder } from '@/models/Order'
@@ -38,6 +39,15 @@ export async function onOrderConfirmed(order: IOrder): Promise<void> {
   // pasan por acá). Idempotente y sin bloquear: nunca frena la impresión.
   await syncOrderConsumptionSafe(order as unknown as Parameters<typeof syncOrderConsumptionSafe>[0])
   try {
+    // Sede con impresión automática apagada: los pedidos de la app no generan
+    // jobs (se imprimen a mano con «Reimprimir»). El POS no se toca.
+    if (order.source !== 'pos') {
+      const loc = await Location.findOne({ _id: order.locationId, tenantId: order.tenantId })
+        .select('settings.autoPrintAppOrders')
+        .lean<{ settings?: { autoPrintAppOrders?: boolean } }>()
+      if (loc?.settings?.autoPrintAppOrders === false) return
+    }
+
     const activePrinters = await Printer.find({
       tenantId: order.tenantId,
       locationId: order.locationId,

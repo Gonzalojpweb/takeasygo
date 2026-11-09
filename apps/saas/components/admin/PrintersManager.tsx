@@ -59,6 +59,8 @@ interface Location {
   _id: string
   name: string
   agent?: AgentStatus
+  /** Pedidos de la app / menú online: se imprimen solos (true) o a mano. */
+  autoPrintAppOrders?: boolean
 }
 
 interface Props {
@@ -145,6 +147,32 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
       l.agent ?? { hasToken: false, lastSeenAt: null, version: null, tokenPresent: false },
     ]))
   )
+  const [autoPrint, setAutoPrint] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(locations.map(l => [l._id, l.autoPrintAppOrders !== false]))
+  )
+  const [savingAutoPrint, setSavingAutoPrint] = useState(false)
+
+  const toggleAutoPrint = async () => {
+    if (!selectedLocation || savingAutoPrint) return
+    const next = !(autoPrint[selectedLocation] ?? true)
+    setSavingAutoPrint(true)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/locations/${selectedLocation}/print-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoPrintAppOrders: next }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'No se pudo guardar')
+      setAutoPrint(prev => ({ ...prev, [selectedLocation]: next }))
+      toast.success(next ? 'Los pedidos de la app se imprimen solos' : 'Los pedidos de la app se imprimen a mano (Reimprimir)')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
+    } finally {
+      setSavingAutoPrint(false)
+    }
+  }
+
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -398,6 +426,39 @@ export default function PrintersManager({ tenantSlug, printers: initial, locatio
           status={agentStatuses[selectedLocation]}
           onChange={status => setAgentStatuses(prev => ({ ...prev, [selectedLocation]: status }))}
         />
+      )}
+
+      {/* Impresión automática de los pedidos de la app (por sede) */}
+      {selectedLocation && (
+        <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl border border-border bg-card">
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-foreground">Imprimir automáticamente los pedidos de la app</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {(autoPrint[selectedLocation] ?? true)
+                ? 'Cada pedido online confirmado sale solo por las impresoras de la sede.'
+                : 'Los pedidos online no salen solos: imprimilos desde Pedidos con «Reimprimir». Los del POS no cambian.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={autoPrint[selectedLocation] ?? true}
+            aria-label="Imprimir automáticamente los pedidos de la app"
+            disabled={savingAutoPrint}
+            onClick={toggleAutoPrint}
+            className={cn(
+              'relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors disabled:opacity-50',
+              (autoPrint[selectedLocation] ?? true) ? 'bg-primary' : 'bg-muted'
+            )}
+          >
+            <span
+              className={cn(
+                'inline-block h-5 w-5 rounded-full bg-white shadow transition-transform',
+                (autoPrint[selectedLocation] ?? true) ? 'translate-x-6' : 'translate-x-1'
+              )}
+            />
+          </button>
+        </div>
       )}
 
       {/* Form */}

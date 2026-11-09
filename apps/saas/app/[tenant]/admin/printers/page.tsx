@@ -83,6 +83,7 @@ export default async function PrintersPage() {
             version: l.printerAgent?.version ?? null,
             tokenPresent: Boolean(l.printerAgent?.tokenPresent),
           },
+          autoPrintAppOrders: l.settings?.autoPrintAppOrders !== false,
         }))}
         plan={plan}
         printerLimit={printerLimit}
