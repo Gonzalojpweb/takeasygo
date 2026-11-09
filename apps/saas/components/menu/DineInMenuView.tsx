@@ -677,7 +677,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
 
       </div>
       {/* ── Menu sections ─────────────────────────────────── */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 pt-8 pb-0">
         {comboSection('beforeCategories')}
         {categories.map((cat: any) => {
           const layout = resolveCategoryLayout(cat, 'dine-in', isGrid)

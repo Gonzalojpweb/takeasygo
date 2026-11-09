@@ -1321,7 +1321,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }
 
   return (
-    <div style={{ backgroundColor: bg, color: text }} className="min-h-screen">
+    <div style={{ backgroundColor: bg, color: text, paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }} className="min-h-screen">
       <Confetti ref={confettiRef} className="fixed top-0 left-0 z-50 pointer-events-none size-full" />
       {!isOperational && (
         <div className="sticky top-0 z-[100] w-full px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] shadow-lg animate-in slide-in-from-top duration-500"
@@ -1493,8 +1493,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       </div>
 
       {/* ── Main menu content ── */}
-      <main className="max-w-2xl mx-auto px-4 pt-6"
-        style={{ paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))' }}>
+      {/* El espacio del carrito flotante va en el contenedor (después del cierre):
+          al final de <main> separaba ~170 px las categorías del club y la gente
+          no veía que había más (08/11). */}
+      <main className="max-w-2xl mx-auto px-4 pt-6 pb-0">
 
         {likesOrderId && (
           <div className="mb-6 p-4 rounded-2xl text-center" style={{ backgroundColor: primary + '12' }}>

@@ -12,6 +12,7 @@ import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
+import { PaymentProcessingOverlay, type ChargingSnapshot } from "../shared/PaymentProcessingOverlay"
 import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
 import { ComboBuilderSheet, type ComboUnit } from "../shared/ComboBuilderSheet"
 import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/combo"
@@ -143,6 +144,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Cobro: `paying` bloquea el doble click; `pendingOrderIdRef` fija el posId
   // de la orden ANTES del primer intento para que un reintento no la duplique.
   const [paying, setPaying] = useState(false)
+  // Cobro en curso: lo que ve el cajero en la capa de «Procesando cobro»
+  // (la mesa se vacía por detrás mientras tanto).
+  const [charging, setCharging] = useState<ChargingSnapshot | null>(null)
   // Piloto 06/11: tiempo de lo que se carga (entrada/principal/postre).
   const [activeCourse, setActiveCourse] = useState<ItemCourse | undefined>(undefined)
   const courseHolds = useCourseHolds(cart)
@@ -1112,6 +1116,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     const keepForKitchen = view === "mostrador" && sendToKitchen
     const tableId = selectedTableId ?? `mostrador-${Date.now()}`
     setPaying(true)
+    setCharging({
+      totalCents: parts.reduce((acc, p) => acc + p.amount, 0) + (meta?.tip?.amount ?? 0),
+      parts: parts.map((p) => ({ method: p.method, amount: p.amount })),
+      label: view === "mostrador" || !selectedTable ? "Mostrador" : `Mesa ${selectedTable.number}`,
+    })
     try {
       // Espera las mutaciones de mesa en vuelo (draft-occupy del primer
       // item): sin esto la ocupación real llegaría antes que el draft, el
@@ -1291,6 +1300,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       showErrorToast(describePosError(err, "Error al procesar el pago. Intente nuevamente."))
     } finally {
       setPaying(false)
+      setCharging(null)
     }
   }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled, mostradorDiscount])
 
@@ -1825,6 +1835,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
 
   return (
     <>
+      {charging && <PaymentProcessingOverlay snapshot={charging} />}
       {/* View Bar */}
 
       {/* ================================================ */}

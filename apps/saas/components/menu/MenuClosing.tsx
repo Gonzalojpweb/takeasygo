@@ -18,13 +18,13 @@ const TEXT = {
   es: {
     hello: 'Hola', memberOf: 'Sos socio de', myCard: 'Mi tarjeta', invite: 'Invitá y ganá', wallet: 'Agregar a la billetera del celular',
     hours: 'Horario de atención', directions: 'Cómo llegar', ourStory: 'Nuestra historia',
-    networkOf: 'es parte de la red TakeasyGO', discover: 'Descubrí lugares y beneficios cerca tuyo', getApp: 'Descargá la App',
+    moreFrom: 'Más de', networkOf: 'es parte de la red TakeasyGO', discover: 'Descubrí lugares y beneficios cerca tuyo', getApp: 'Descargá la App',
     haveBusiness: '¿Tenés un comercio?', joinNetwork: 'Sumalo a la red', admin: 'Acceso administrador',
   },
   en: {
     hello: 'Hi', memberOf: 'You are a member of', myCard: 'My card', invite: 'Invite & earn', wallet: 'Add to your phone wallet',
     hours: 'Opening hours', directions: 'Directions', ourStory: 'Our story',
-    networkOf: 'is part of the TakeasyGO network', discover: 'Discover places and perks near you', getApp: 'Get the App',
+    moreFrom: 'More from', networkOf: 'is part of the TakeasyGO network', discover: 'Discover places and perks near you', getApp: 'Get the App',
     haveBusiness: 'Own a business?', joinNetwork: 'Join the network', admin: 'Admin access',
   },
 } as const
@@ -78,8 +78,15 @@ export default function MenuClosing({
   const muted = { color: 'var(--club-muted)' }
 
   return (
-    <footer style={theme} className="mx-auto w-full max-w-2xl px-4 pb-6 pt-7" aria-label={tenantName}>
+    <footer style={theme} className="mx-auto w-full max-w-2xl px-4 pb-6 pt-1" aria-label={tenantName}>
       <div className="grid gap-3.5" style={{ color: 'var(--club-fg)' }}>
+        {/* Rótulo de transición: al terminar las categorías se ve que sigue
+            (club, datos del local y la app), en vez de un espacio vacío. */}
+        <div className="flex items-center gap-3 pb-0.5" aria-hidden>
+          <span className="h-px flex-1" style={{ background: 'var(--club-line)' }} />
+          <span className="text-[11.5px] font-bold uppercase tracking-[0.12em]" style={muted}>{t.moreFrom} {tenantName}</span>
+          <span className="h-px flex-1" style={{ background: 'var(--club-line)' }} />
+        </div>
         {/* Club: solo socios */}
         {club.show && club.isMember && (
           <section

@@ -4943,3 +4943,41 @@ html {
 .ros-app [role="tablist"]::-webkit-scrollbar { display: none; }
 .ros-app [role="tab"] { white-space: nowrap; flex-shrink: 0; }
 .sales-tabs .sales-search { flex: 1 0 12rem; }
+
+/* ── Cobro en proceso (08/11/2026) ───────────────────────────────────────
+   Cubre todo el POS mientras se registra el cobro: el importe a la vista,
+   los toques bloqueados y un aviso si tarda. */
+.paying-overlay {
+  position: fixed; inset: 0; z-index: 150;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-4);
+  background: color-mix(in srgb, var(--primary-action) 22%, rgba(0, 0, 0, 0.55));
+  backdrop-filter: blur(3px);
+  animation: paying-in 0.15s ease-out;
+}
+.paying-card {
+  width: min(420px, 100%);
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-5);
+  background: var(--surface); border-radius: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+.paying-spinner {
+  width: 64px; height: 64px; margin-bottom: var(--sp-2);
+  border: 6px solid color-mix(in srgb, var(--primary-action) 18%, transparent);
+  border-top-color: var(--primary-action);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.paying-title { font-size: 1.5rem; font-weight: 800; color: var(--text-primary, inherit); }
+.paying-sub { font-size: 0.95rem; color: var(--text-secondary, inherit); }
+.paying-amount { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--primary-action); line-height: 1.1; }
+.paying-parts { list-style: none; margin: var(--sp-1) 0 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.paying-parts li { display: flex; justify-content: space-between; gap: var(--sp-3); padding: 6px 12px; border-radius: 10px; background: color-mix(in srgb, var(--primary-action) 8%, transparent); font-variant-numeric: tabular-nums; }
+.paying-hint { margin: var(--sp-2) 0 0; font-size: 0.95rem; color: var(--text-secondary, inherit); }
+@keyframes paying-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .paying-overlay { animation: none; }
+  .paying-spinner { animation-duration: 2.4s; }
+}
