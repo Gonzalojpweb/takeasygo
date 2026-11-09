@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import FiscalProfile from '@/models/FiscalProfile'
 import FiscalDocument, { type IFiscalDocument } from '@/models/FiscalDocument'
+import Order from '@/models/Order'
 import { ISSUER_IVA_CONDITION_LABELS, RECEIVER_IVA_CONDITION_LABELS, formatCuit, toPesos, type IssuerIvaCondition } from '@takeasygo/business'
 
 // ============================================================================
@@ -59,12 +60,34 @@ export interface IssuerForTicket {
 
 const TYPE_LABEL: Record<string, string> = { invoice: 'FACTURA', credit_note: 'NOTA DE CREDITO' }
 
+/**
+ * Datos de la venta que acompañan al comprobante (08/11/2026, pedido de Que
+ * Cachapa: su ticket anterior los traía). No son fiscales: medio de pago,
+ * «Su pago / Su vuelto», mesa y número de orden.
+ */
+export interface TicketSaleInfo {
+  orderNumber?: string | null
+  tableNumber?: number | null
+  payments?: { method: string; amountCents: number }[]
+}
+
+const PAYMENT_LABEL: Record<string, string> = {
+  cash: 'Efectivo',
+  mercadopago: 'Mercado Pago',
+  posnet_debit: 'Debito',
+  posnet_credit: 'Credito',
+  transfer: 'Transferencia',
+  card: 'Tarjeta',
+}
+
 /** Líneas de texto del ticket (sin control): base del buffer y de los tests. */
-export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket, columns: number, options: { reprint?: number } = {}): string[] {
+export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket, columns: number, options: { reprint?: number; sale?: TicketSaleInfo | null } = {}): string[] {
   const row = (label: string, value: string) => `${label} ${'.'.repeat(Math.max(1, columns - label.length - value.length - 1))}${value}`
   const rule = '-'.repeat(columns)
   const nro = `${String(doc.pointOfSale).padStart(5, '0')}-${String(doc.number ?? 0).padStart(8, '0')}`
   const date = new Date(doc.issuedAt).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+  const time = new Date(doc.issuedAt).toLocaleTimeString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const sale = options.sale ?? null
   const out: string[] = [
     issuer.legalName,
     `CUIT ${formatCuit(issuer.cuit)}`,
@@ -78,11 +101,14 @@ export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket,
   out.push(
     rule,
     `${TYPE_LABEL[doc.kind]} ${doc.letter}  Cod. ${String(doc.cbteTipo).padStart(3, '0')}`,
-    `Nro ${nro}   ${date}`,
+    `Nro ${nro}`,
+    `Fecha ${date}  Hora ${time}`,
     rule,
     `Cliente: ${doc.receiver.name || RECEIVER_IVA_CONDITION_LABELS[doc.receiver.condition]}`,
     `${RECEIVER_IVA_CONDITION_LABELS[doc.receiver.condition]}${doc.receiver.docType === 99 ? '' : ` · ${doc.receiver.docType === 80 ? 'CUIT ' + formatCuit(doc.receiver.docNumber) : 'DNI ' + doc.receiver.docNumber}`}`
   )
+  const saleRef = [sale?.orderNumber ? `Orden ${sale.orderNumber}` : '', sale?.tableNumber ? `Mesa ${sale.tableNumber}` : ''].filter(Boolean).join('  ')
+  if (saleRef) out.push(saleRef)
   if (doc.associated) {
     out.push(`Asociada a ${String(doc.associated.pointOfSale).padStart(5, '0')}-${String(doc.associated.number).padStart(8, '0')}`)
   }
@@ -97,8 +123,23 @@ export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket,
     if (doc.amounts.exemptCents > 0) out.push(row('Exento', money(doc.amounts.exemptCents)))
   }
   out.push(row('TOTAL', money(doc.amounts.totalCents)))
+  // Medio de pago (solo factura: en una nota de crédito no aplica).
+  const payments = (sale?.payments ?? []).filter((p) => p.amountCents > 0)
+  if (doc.kind === 'invoice' && payments.length > 0) {
+    const paid = payments.reduce((acc, p) => acc + p.amountCents, 0)
+    for (const p of payments) out.push(row(`Medio: ${PAYMENT_LABEL[p.method] ?? p.method}`, money(p.amountCents)))
+    out.push(row('Su pago', money(paid)), row('Su vuelto', money(Math.max(0, paid - doc.amounts.totalCents))))
+  }
+  // RG 5614 (Ley 27.743): a consumidor final se informan el IVA contenido y
+  // los otros impuestos nacionales indirectos (en gastronomía, $0).
   if (doc.letter === 'B' && doc.amounts.ivaCents > 0) {
-    out.push(rule, 'Regimen de Transparencia Fiscal al', 'Consumidor (Ley 27.743)', row('IVA contenido', money(doc.amounts.ivaCents)))
+    out.push(
+      rule,
+      'Regimen de Transparencia Fiscal al',
+      'Consumidor (Ley 27.743)',
+      row('IVA contenido', money(doc.amounts.ivaCents)),
+      row('Otros Imp. Nac. Indirectos', money(0))
+    )
   }
   out.push(
     rule,
@@ -111,7 +152,7 @@ export function fiscalTicketLines(doc: IFiscalDocument, issuer: IssuerForTicket,
   return out
 }
 
-export function buildFiscalTicketBuffer(doc: IFiscalDocument, issuer: IssuerForTicket, columns: number, options: { reprint?: number } = {}): string {
+export function buildFiscalTicketBuffer(doc: IFiscalDocument, issuer: IssuerForTicket, columns: number, options: { reprint?: number; sale?: TicketSaleInfo | null } = {}): string {
   const lines = fiscalTicketLines(doc, issuer, columns, options)
   const chunks: Buffer[] = [ESC.INIT, ESC.CODE_PAGE, ESC.CENTER, ESC.BOLD_ON]
   // Encabezado del emisor centrado; la letra en grande.
@@ -126,6 +167,21 @@ export function buildFiscalTicketBuffer(doc: IFiscalDocument, issuer: IssuerForT
   if (doc.qrUrl) chunks.push(ESC.CENTER, enc('\n'), escposQr(doc.qrUrl), enc('\n'))
   chunks.push(enc('\n\n'), ESC.CUT)
   return Buffer.concat(chunks).toString('base64')
+}
+
+/** Medio de pago, mesa y número de la orden del comprobante (no fiscal; si falla, el ticket sale igual). */
+async function loadSaleInfo(doc: IFiscalDocument): Promise<TicketSaleInfo | null> {
+  if (!doc.orderId) return null
+  const order = await Order.findOne({ _id: doc.orderId, tenantId: doc.tenantId })
+    .select('orderNumber posTableNumber posPayments payment.method total')
+    .lean<{ orderNumber?: string; posTableNumber?: number; posPayments?: { method: string; amount: number }[]; payment?: { method?: string }; total?: number }>()
+  if (!order) return null
+  const payments = (order.posPayments ?? []).length > 0
+    ? (order.posPayments ?? []).map((p) => ({ method: p.method, amountCents: p.amount }))
+    : order.payment?.method && order.payment.method !== 'mixed'
+      ? [{ method: order.payment.method, amountCents: doc.amounts.totalCents }]
+      : []
+  return { orderNumber: order.orderNumber ?? null, tableNumber: order.posTableNumber ?? null, payments }
 }
 
 export type EnqueueTicketResult = {
@@ -164,6 +220,7 @@ export async function enqueueFiscalTicket(
   ])
   if (!printer) return { ok: false, reason: 'no_printer' }
   if (!profile?.ivaCondition) return { ok: false, reason: 'no_profile' }
+  const sale = await loadSaleInfo(doc).catch(() => null)
   const wide = printer.paperWidth === 80
 
   let reprint = 0
@@ -190,7 +247,7 @@ export async function enqueueFiscalTicket(
       ip: printer.ip,
       port: printer.port,
       paperWidth: wide ? 80 : 58,
-      data: buildFiscalTicketBuffer(doc, profile, wide ? 48 : 32, { reprint: reprint || undefined }),
+      data: buildFiscalTicketBuffer(doc, profile, wide ? 48 : 32, { reprint: reprint || undefined, sale }),
       status: 'pending',
       kind: doc.kind === 'credit_note' ? 'fiscal_credit_note' : 'fiscal_invoice',
       fiscalDocumentId: doc._id,

@@ -185,6 +185,27 @@ describe('ticket fiscal', () => {
     expect(text).toContain('Asociada a 00003-00000041')
   })
 
+  it('58 mm con datos de la venta: hora, medio de pago, su pago/vuelto, mesa y otros impuestos', () => {
+    const lines = fiscalTicketLines(doc(), issuer, 32, {
+      sale: { orderNumber: '321083', tableNumber: 5, payments: [{ method: 'posnet_debit', amountCents: 1210000 }] },
+    })
+    const text = lines.join('\n')
+    // Las filas con puntos ocupan exactamente el ancho de 58 mm (32 columnas).
+    for (const l of lines.filter((x) => x.includes(' ..'))) expect(l.length).toBe(32)
+    expect(text).toMatch(/Fecha \S+  Hora \d{2}:\d{2}/)
+    expect(text).toContain('Orden 321083  Mesa 5')
+    expect(text).toMatch(/Medio: Debito \.+\$12\.100,00/)
+    expect(text).toMatch(/Su pago \.+\$12\.100,00/)
+    expect(text).toMatch(/Su vuelto \.+\$0,00/)
+    expect(text).toMatch(/Otros Imp\. Nac\. Indirectos \.+\$0,00/)
+  })
+
+  it('sin datos de la venta el ticket sale igual (sin medio de pago)', () => {
+    const text = fiscalTicketLines(doc(), issuer, 32).join('\n')
+    expect(text).not.toContain('Su pago')
+    expect(text).toContain('CAE 76543210987654')
+  })
+
   it('QR ESC/POS: guarda el largo exacto del dato', () => {
     const qr = escposQr('abc')
     const store = qr.indexOf(Buffer.from([0x31, 0x50, 0x30]))
