@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
 import { revalidateTenantPublicPages } from '@/lib/revalidate-tenant'
+import { withoutKeys, isStringList } from '@/lib/menu/paused-customizations'
 
 export async function PUT(
   request: NextRequest,
@@ -31,7 +32,14 @@ export async function PUT(
     })
     if (permError) return permError
 
-    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole, disabledGroupIds, disabledOptionIds, displayLayout, displayLayoutApplyTo, combosAfter, clubCardAfter } = await request.json()
+    const { locationId, name, description, isAvailable, isBusinessAvailable, imageUrl, availabilityMode, availabilitySchedule, customizationGroups, printRole, disabledGroupIds, disabledOptionIds, displayLayout, displayLayoutApplyTo, combosAfter, clubCardAfter, enableGroupIds, enableOptionIds } = await request.json()
+
+    // Reactivar personalizaciones puntuales (vista «Artículos pausados»).
+    for (const list of [enableGroupIds, enableOptionIds]) {
+      if (list !== undefined && !isStringList(list)) {
+        return NextResponse.json({ error: 'Lista de personalizaciones inválida' }, { status: 400 })
+      }
+    }
 
     if (displayLayout !== undefined && !CATEGORY_LAYOUTS.includes(displayLayout)) {
       return NextResponse.json({ error: 'Formato de categoría inválido' }, { status: 400 })
@@ -69,6 +77,8 @@ export async function PUT(
     if (customizationGroups !== undefined) category.customizationGroups = customizationGroups
     if (disabledGroupIds !== undefined) category.disabledGroupIds = disabledGroupIds
     if (disabledOptionIds !== undefined) category.disabledOptionIds = disabledOptionIds
+    if (enableGroupIds !== undefined) category.disabledGroupIds = withoutKeys(category.disabledGroupIds, enableGroupIds)
+    if (enableOptionIds !== undefined) category.disabledOptionIds = withoutKeys(category.disabledOptionIds, enableOptionIds)
     if (printRole !== undefined) category.printRole = printRole
     if (displayLayout !== undefined) category.displayLayout = displayLayout
     if (displayLayoutApplyTo !== undefined) category.displayLayoutApplyTo = displayLayoutApplyTo

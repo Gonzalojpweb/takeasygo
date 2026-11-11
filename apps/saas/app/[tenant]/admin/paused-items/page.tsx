@@ -7,6 +7,7 @@ import { notFound } from 'next/navigation'
 import PausedMenuItems from '@/components/admin/PausedMenuItems'
 import type { Types } from 'mongoose'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
+import { collectPausedCustomizations, type PausedCustomizationData } from '@/lib/menu/paused-customizations'
 
 export default async function PausedItemsPage() {
   const headersList = await headers()
@@ -51,10 +52,15 @@ export default async function PausedItemsPage() {
 
   const pausedItems: PausedItemData[] = []
   const pausedCategories: PausedCategoryData[] = []
+  const pausedCustomizations: PausedCustomizationData[] = []
 
   for (const menu of menus) {
     const locId = (menu as any).locationId?.toString?.() ?? ''
     const locName = locations.find((l) => l._id.toString() === locId)?.name ?? locId
+
+    // Grupos, opciones y variantes ocultos (categoría, subcategoría e ítem).
+    const menuCategories = (menu as { categories?: Parameters<typeof collectPausedCustomizations>[0] }).categories ?? []
+    pausedCustomizations.push(...collectPausedCustomizations(menuCategories, { id: locId, name: locName }))
 
     for (const cat of ((menu as any).categories ?? [])) {
       const catId = cat._id?.toString?.() ?? ''
@@ -115,6 +121,7 @@ export default async function PausedItemsPage() {
     <PausedMenuItems
       pausedItems={JSON.parse(JSON.stringify(pausedItems))}
       pausedCategories={JSON.parse(JSON.stringify(pausedCategories))}
+      pausedCustomizations={JSON.parse(JSON.stringify(pausedCustomizations))}
       locations={JSON.parse(JSON.stringify(locations))}
       tenantSlug={tenantSlug || ''}
     />

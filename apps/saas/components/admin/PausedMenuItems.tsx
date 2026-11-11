@@ -5,7 +5,8 @@ import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Eye, EyeOff, Search, MapPin, Package, FolderClosed } from 'lucide-react'
+import { Eye, EyeOff, Search, MapPin, Package, FolderClosed, SlidersHorizontal } from 'lucide-react'
+import type { PausedCustomizationData } from '@/lib/menu/paused-customizations'
 
 interface PausedItemData {
   itemId: string
@@ -32,6 +33,8 @@ interface PausedCategoryData {
 interface Props {
   pausedItems: PausedItemData[]
   pausedCategories: PausedCategoryData[]
+  /** Grupos, opciones y variantes ocultos (categoría, subcategoría e ítem). */
+  pausedCustomizations?: PausedCustomizationData[]
   locations: Array<{ _id: string; name: string }>
   tenantSlug: string
 }
@@ -39,11 +42,13 @@ interface Props {
 export default function PausedMenuItems({
   pausedItems,
   pausedCategories,
+  pausedCustomizations = [],
   locations,
   tenantSlug,
 }: Props) {
   const [items, setItems] = useState(pausedItems)
   const [categories, setCategories] = useState(pausedCategories)
+  const [customizations, setCustomizations] = useState(pausedCustomizations)
   const [search, setSearch] = useState('')
   const [locationFilter, setLocationFilter] = useState<string>('all')
   const [toggling, setToggling] = useState<string | null>(null)
@@ -65,6 +70,43 @@ export default function PausedMenuItems({
       locationFilter === 'all' || cat.locationId === locationFilter
     return matchesSearch && matchesLocation
   })
+
+  const filteredCustomizations = customizations.filter((c) => {
+    const q = search.toLowerCase()
+    const matchesSearch =
+      !q ||
+      [c.label, c.categoryName, c.itemName ?? '', c.subcategoryName ?? '', ...c.parentGroups]
+        .some((text) => text.toLowerCase().includes(q))
+    const matchesLocation = locationFilter === 'all' || c.locationId === locationFilter
+    return matchesSearch && matchesLocation
+  })
+
+  async function reactivateCustomization(c: PausedCustomizationData) {
+    const toggleKey = customizationKey(c)
+    setToggling(toggleKey)
+    const field = c.kind === 'variant' ? 'enableVariantNames' : c.kind === 'group' ? 'enableGroupIds' : 'enableOptionIds'
+    const url = c.owner === 'item'
+      ? `/api/${tenantSlug}/menu/categories/${c.categoryId}/items`
+      : `/api/${tenantSlug}/menu/categories/${c.categoryId}`
+    try {
+      const res = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: c.locationId,
+          ...(c.owner === 'item' ? { itemId: c.itemId } : {}),
+          [field]: [c.key],
+        }),
+      })
+      if (!res.ok) throw new Error()
+      setCustomizations((prev) => prev.filter((x) => customizationKey(x) !== toggleKey))
+      toast.success(`"${c.label}" reactivad${c.kind === 'option' ? 'a' : 'o'}`)
+    } catch {
+      toast.error('Error al reactivar la personalización')
+    } finally {
+      setToggling(null)
+    }
+  }
 
   async function reactivateItem(item: PausedItemData) {
     setToggling(item.itemId)
@@ -115,7 +157,7 @@ export default function PausedMenuItems({
     }
   }
 
-  const totalPaused = filteredItems.length + filteredCategories.length
+  const totalPaused = filteredItems.length + filteredCategories.length + filteredCustomizations.length
 
   return (
     <div className="space-y-6">
@@ -123,9 +165,9 @@ export default function PausedMenuItems({
         <div>
           <h1 className="text-white text-2xl font-bold">Artículos Pausados</h1>
           <p className="text-zinc-400 text-sm mt-1">
-            {items.length + categories.length === 0
+            {items.length + categories.length + customizations.length === 0
               ? 'No hay artículos pausados'
-              : `${items.length} artículo${items.length !== 1 ? 's' : ''} y ${categories.length} categoría${categories.length !== 1 ? 's' : ''} oculta${categories.length !== 1 ? 's' : ''}`}
+              : `${items.length} artículo${items.length !== 1 ? 's' : ''}, ${categories.length} categoría${categories.length !== 1 ? 's' : ''} oculta${categories.length !== 1 ? 's' : ''} y ${customizations.length} personalizaci${customizations.length !== 1 ? 'ones ocultas' : 'ón oculta'}`}
           </p>
         </div>
       </div>
@@ -134,7 +176,7 @@ export default function PausedMenuItems({
         <div className="relative flex-1 min-w-[200px]">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <Input
-            placeholder="Buscar por nombre o categoría..."
+            placeholder="Buscar por nombre, categoría o personalización..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-zinc-800 border-zinc-700 text-white"
@@ -274,8 +316,85 @@ export default function PausedMenuItems({
               </div>
             </div>
           )}
+
+          {filteredCustomizations.length > 0 && (
+            <div>
+              <h2 className="text-white text-lg font-semibold mb-1 flex items-center gap-2">
+                <SlidersHorizontal size={18} className="text-orange-400" />
+                Personalizaciones Ocultas ({filteredCustomizations.length})
+              </h2>
+              <p className="text-zinc-500 text-xs mb-3">
+                Grupos, opciones y variantes que no se muestran en el menú. Las ocultas en una categoría alcanzan también a sus subcategorías.
+              </p>
+              <div className="space-y-2">
+                {filteredCustomizations.map((c) => {
+                  const key = customizationKey(c)
+                  return (
+                    <Card
+                      key={key}
+                      className="bg-zinc-800 border-zinc-700 hover:border-zinc-600 transition-colors"
+                    >
+                      <CardContent className="flex items-center justify-between gap-3 py-3 px-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <EyeOff size={18} className="text-orange-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-white font-medium break-words">
+                              {c.label}
+                              <span className="ml-2 align-middle rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-zinc-700 text-zinc-300">
+                                {KIND_LABEL[c.kind]}
+                              </span>
+                              {c.foundIn.length === 0 && (
+                                <span
+                                  className="ml-2 align-middle rounded px-1.5 py-0.5 text-[10px] font-bold uppercase bg-amber-500/20 text-amber-300"
+                                  title="Ya no existe en el menú: reactivarla solo limpia la lista de ocultos."
+                                >
+                                  No encontrada
+                                </span>
+                              )}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-zinc-500 text-xs mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <MapPin size={11} />
+                                {c.locationName}
+                              </span>
+                              <span>
+                                {c.owner === 'item'
+                                  ? <>Ítem: {c.categoryName}{c.subcategoryName && ` › ${c.subcategoryName}`} › <span className="text-zinc-300">{c.itemName}</span></>
+                                  : <>Toda la categoría: <span className="text-zinc-300">{c.categoryName}</span></>}
+                              </span>
+                              {c.parentGroups.length > 0 && <span>Grupo: {c.parentGroups.join(', ')}</span>}
+                              {c.foundIn.length > 0 && <span>Definida en: {c.foundIn.join(', ')}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-1.5 flex-shrink-0"
+                          disabled={toggling === key}
+                          onClick={() => reactivateCustomization(c)}
+                        >
+                          <Eye size={14} className="mr-1" />
+                          Reactivar
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
+}
+
+const KIND_LABEL: Record<PausedCustomizationData['kind'], string> = {
+  group: 'Grupo',
+  option: 'Opción',
+  variant: 'Variante',
+}
+
+function customizationKey(c: PausedCustomizationData): string {
+  return [c.locationId, c.owner, c.categoryId, c.itemId ?? '', c.kind, c.key].join('|')
 }

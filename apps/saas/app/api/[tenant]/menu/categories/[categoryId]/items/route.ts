@@ -8,6 +8,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { translateToEnglish } from '@/lib/translate'
 import { logAudit } from '@/lib/audit'
+import { withoutKeys, isStringList } from '@/lib/menu/paused-customizations'
 
 export async function POST(
   request: NextRequest,
@@ -111,7 +112,15 @@ export async function PUT(
     if (permError) return permError
 
     const body = await request.json()
-    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds } = body
+    const { locationId, itemId, name, description, price, isAvailable, isTakeawayAvailable, isBusinessAvailable, imageUrl, tags, isFeatured, suggestWith, customizationGroups, variants, availabilityMode, availabilitySchedule, takeawayPrice, businessPrice, originalPrice, takeawayOriginalPrice, hiddenReward, disabledVariantNames, disabledGroupIds, disabledOptionIds, enableVariantNames, enableGroupIds, enableOptionIds } = body
+
+    // Reactivar personalizaciones puntuales (vista «Artículos pausados»): se
+    // quitan sobre el menú recién leído para no pisar otros cambios.
+    for (const list of [enableVariantNames, enableGroupIds, enableOptionIds]) {
+      if (list !== undefined && !isStringList(list)) {
+        return NextResponse.json({ error: 'Lista de personalizaciones inválida' }, { status: 400 })
+      }
+    }
 
     const menu = await Menu.findOne({ tenantId: tenant._id, locationId })
     if (!menu) {
@@ -193,6 +202,9 @@ export async function PUT(
     if (disabledVariantNames !== undefined) item.disabledVariantNames = disabledVariantNames
     if (disabledGroupIds !== undefined) item.disabledGroupIds = disabledGroupIds
     if (disabledOptionIds !== undefined) item.disabledOptionIds = disabledOptionIds
+    if (enableVariantNames !== undefined) item.disabledVariantNames = withoutKeys(item.disabledVariantNames, enableVariantNames)
+    if (enableGroupIds !== undefined) item.disabledGroupIds = withoutKeys(item.disabledGroupIds, enableGroupIds)
+    if (enableOptionIds !== undefined) item.disabledOptionIds = withoutKeys(item.disabledOptionIds, enableOptionIds)
     if (availabilityMode !== undefined) item.availabilityMode = availabilityMode
     if (availabilitySchedule !== undefined) item.availabilitySchedule = availabilitySchedule
     // Permitir guardar explícitamente (para bulk update)
