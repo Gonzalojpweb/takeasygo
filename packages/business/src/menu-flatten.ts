@@ -63,7 +63,7 @@ export interface RawMenuItem {
   disabledGroupIds?: string[]
   disabledOptionIds?: string[]
   disabledVariantNames?: string[]
-  variants?: Array<{ name: string; customizationGroups?: RawCustomizationGroup[] }>
+  variants?: Array<{ name: string; price?: number; customizationGroups?: RawCustomizationGroup[] }>
 }
 
 export interface RawMenuSubCategory {
@@ -133,6 +133,46 @@ function flattenSubGroups(groups: RawOptionSubGroup[]): ProductModifier[] {
 // Un menú anidado → productos + categorías planos
 // ---------------------------------------------------------------------------
 
+/**
+ * Grupo con el que el POS elige la variante del plato (tamaño, porción…).
+ * Las variantes no son grupos de personalización en la colección: sin este
+ * grupo el POS no podía elegirlas (bug 11/11/2026: platos con variantes
+ * llegaban sin opciones y se cobraban al precio base).
+ */
+export const VARIANT_GROUP_NAME = 'Variante'
+
+/** Un grupo del catálogo → modificador del POS, sin las opciones desactivadas. */
+function toModifier(g: RawCustomizationGroup, disabledOptions: readonly string[]): ProductModifier {
+  const type = toGroupType(g.type)
+  return {
+    name: g.name,
+    type,
+    fixedCount: g.fixedCount,
+    required: g.required ?? false,
+    maxSelections:
+      type === 'fixed'
+        ? (g.fixedCount ?? 1)
+        : type === 'single'
+          ? 1
+          : undefined,
+    priceRule: toPriceRule(g.priceRule),
+    options: (g.options ?? [])
+      .filter(
+        (o) =>
+          !disabledOptions.includes(oid(o._id)) &&
+          !disabledOptions.includes(o.name)
+      )
+      .map((o) => ({
+        name: o.name,
+        price: o.extraPrice ?? 0,
+        subGroups:
+          o.subGroups && o.subGroups.length > 0
+            ? flattenSubGroups(o.subGroups)
+            : undefined,
+      })),
+  }
+}
+
 /** Un ítem del catálogo → Product, con los grupos heredados ya resueltos. */
 function flattenItem(
   item: RawMenuItem,
@@ -150,65 +190,54 @@ function flattenItem(
     (g) => !disabledGroups.includes(oid(g._id)) && !disabledGroups.includes(g.name)
   )
 
-  // Los grupos propios de cada variante entran solo si nadie los declaró
-  // antes (dedup por nombre) y el item no los desactivó.
+  const topModifiers = allGroups.map((g) => toModifier(g, disabledOptions))
+
+  // Variantes (no desactivadas y con precio): grupo obligatorio de una sola
+  // elección, primero en la hoja. El precio del plato pasa a ser el de la
+  // variante más barata y cada opción suma la diferencia, así el contrato de
+  // precios no cambia (unitPrice = product.price + modificadores, en
+  // centavos). Los grupos propios de cada variante cuelgan de su opción
+  // (subgrupos), salvo los que ya estaban declarados arriba o desactivados.
   const variants = (item.variants ?? []).filter(
-    (v) => !(item.disabledVariantNames ?? []).includes(v.name)
+    (v) => !(item.disabledVariantNames ?? []).includes(v.name) && typeof v.price === 'number' && v.price >= 0
   )
-  const seenGroupNames = new Set(allGroups.map((g) => g.name))
-  for (const variant of variants) {
-    for (const vg of variant.customizationGroups ?? []) {
-      if (
-        !seenGroupNames.has(vg.name) &&
-        !disabledGroups.includes(oid(vg._id)) &&
-        !disabledGroups.includes(vg.name)
-      ) {
-        allGroups.push(vg)
-        seenGroupNames.add(vg.name)
-      }
+  let price = item.price
+  let variantModifier: ProductModifier | null = null
+  if (variants.length > 0) {
+    price = Math.min(...variants.map((v) => v.price as number))
+    const topNames = new Set(allGroups.map((g) => g.name))
+    const groupName = topNames.has(VARIANT_GROUP_NAME) ? `${VARIANT_GROUP_NAME} del plato` : VARIANT_GROUP_NAME
+    variantModifier = {
+      name: groupName,
+      type: 'single',
+      required: true,
+      maxSelections: 1,
+      priceRule: 'sum',
+      options: variants.map((v) => {
+        const own = (v.customizationGroups ?? []).filter(
+          (vg) =>
+            !topNames.has(vg.name) &&
+            !disabledGroups.includes(oid(vg._id)) &&
+            !disabledGroups.includes(vg.name)
+        )
+        return {
+          name: v.name,
+          price: (v.price as number) - price,
+          subGroups: own.length > 0 ? own.map((vg) => toModifier(vg, disabledOptions)) : undefined,
+        }
+      }),
     }
   }
 
-  const modifiers: ProductModifier[] | undefined =
-    allGroups.length > 0
-      ? allGroups.map((g) => {
-          const type = toGroupType(g.type)
-          return {
-            name: g.name,
-            type,
-            fixedCount: g.fixedCount,
-            required: g.required ?? false,
-            maxSelections:
-              type === 'fixed'
-                ? (g.fixedCount ?? 1)
-                : type === 'single'
-                  ? 1
-                  : undefined,
-            priceRule: toPriceRule(g.priceRule),
-            options: (g.options ?? [])
-              .filter(
-                (o) =>
-                  !disabledOptions.includes(oid(o._id)) &&
-                  !disabledOptions.includes(o.name)
-              )
-              .map((o) => ({
-                name: o.name,
-                price: o.extraPrice ?? 0,
-                subGroups:
-                  o.subGroups && o.subGroups.length > 0
-                    ? flattenSubGroups(o.subGroups)
-                    : undefined,
-              })),
-          }
-        })
-      : undefined
+  const allModifiers = variantModifier ? [variantModifier, ...topModifiers] : topModifiers
+  const modifiers: ProductModifier[] | undefined = allModifiers.length > 0 ? allModifiers : undefined
 
   const product: Product = {
     id: oid(item._id),
     tenantId,
     name: item.name,
     description: item.description ?? '',
-    price: item.price,
+    price,
     category: categoryName,
     isAvailable: (item.isAvailable ?? true) && categoryAvailable,
     modifiers,

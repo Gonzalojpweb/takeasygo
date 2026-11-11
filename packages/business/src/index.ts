@@ -161,6 +161,7 @@ export {
   flattenMenu,
   flattenMenuSnapshot,
   injectHalfPriceModifiers,
+  VARIANT_GROUP_NAME,
   type FlatMenuResult,
   type RawMenu,
   type RawMenuCategory,
