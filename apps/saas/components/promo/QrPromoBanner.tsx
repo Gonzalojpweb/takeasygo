@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import { useQrPromo } from '@/hooks/useQrPromo'
+import { qrPromoMenuPath } from '@/lib/menu/location-ref'
 import { PromoModal } from './PromoModal'
 import { PromoHeader } from './PromoHeader'
 import { PromoImage } from './PromoImage'
@@ -17,11 +18,8 @@ export function QrPromoBanner({ tenantSlug }: QrPromoBannerProps) {
   const pathname = usePathname()
   const { promo, loading, show, loyaltyMsg, accentColor, tenantLogo, tenantName, dismiss } = useQrPromo(tenantSlug)
 
-  const pathParts = pathname?.split('/').filter(Boolean) ?? []
-  const isPublic = pathParts.length === 3
-  const isTakeaway = pathParts.length === 4 && pathParts[3] === 'takeaway'
-
-  if (!isPublic && !isTakeaway) return null
+  // Link general del comercio, página de la sede o menú para llevar/delivery.
+  if (!qrPromoMenuPath(pathname ?? '').show) return null
 
   if (loading || !show || !promo) return null
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import type { QrPromoData, LoyaltyMessaging } from '@/components/promo/types'
+import { qrPromoMenuPath } from '@/lib/menu/location-ref'
 
 interface UseQrPromoReturn {
   promo: QrPromoData | null
@@ -31,23 +32,21 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
   const resolvedLocationId = useRef<string | null>(null)
 
   const checkPromo = useCallback(async () => {
-    let effectiveSource = source
-    let locationId: string | null = null
-    if (!effectiveSource && typeof window !== 'undefined') {
-      const pathParts = window.location.pathname.split('/')
-      const pathLocationId = pathParts[3]
-      if (pathLocationId && pathLocationId.length === 24) {
-        effectiveSource = 'qr-auto'
-        locationId = pathLocationId
-      }
-    }
-    if (!effectiveSource) {
+    // La sede viaja como está en la dirección (slug, _id viejo o '' en el link
+    // general /<comercio>/menu) y la resuelve el servidor. Antes solo se
+    // reconocía un _id de 24 caracteres: con las direcciones por nombre de sede
+    // (31/10) la campaña dejó de aparecer al entrar al menú.
+    if (typeof window === 'undefined') return
+    const path = qrPromoMenuPath(window.location.pathname)
+    if (!path.show) {
       setLoading(false)
       return
     }
+    const effectiveSource = source || 'qr-auto'
     try {
-      const apiUrl = `/api/${tenantSlug}/qr-promo?source=${effectiveSource}${urlPromoSlug ? `&promo=${urlPromoSlug}` : ''}${locationId ? `&locationId=${locationId}` : ''}&_=${Date.now()}`
-      const res = await fetch(apiUrl)
+      const qs = new URLSearchParams({ source: effectiveSource, location: path.locationRef, _: String(Date.now()) })
+      if (urlPromoSlug) qs.set('promo', urlPromoSlug)
+      const res = await fetch(`/api/${tenantSlug}/qr-promo?${qs}`)
       if (!res.ok) {
         console.error(`QR promo fetch failed: ${res.status} ${res.statusText}`)
         return
@@ -56,7 +55,7 @@ export function useQrPromo(tenantSlug: string): UseQrPromoReturn {
       if (data.show && data.promo) {
         const slug = data.resolvedSlug || urlPromoSlug
         resolvedSlug.current = slug
-        resolvedLocationId.current = locationId
+        resolvedLocationId.current = data.locationId ?? null
 
         setPromo(data.promo)
         setShow(true)

@@ -47,6 +47,23 @@ export function menuHref(
  * Dirección vieja con _id ⇒ datos para redirigir. null si no corresponde.
  * /kekelarry/menu/<24 hex>[/resto]
  */
+/**
+ * Páginas del menú donde se muestra la campaña QR al entrar, y la sede de la
+ * dirección (slug o _id; '' en el link general /<comercio>/menu, que con una
+ * sola sede ya muestra su menú). La sede la resuelve el servidor.
+ *   /que-cachapa/menu                    → { show: true, locationRef: '' }
+ *   /que-cachapa/menu/caballito          → { show: true, locationRef: 'caballito' }
+ *   /que-cachapa/menu/caballito/takeaway → { show: true, locationRef: 'caballito' }
+ *   /que-cachapa/menu/caballito/dine-in  → { show: false, ... }
+ */
+export function qrPromoMenuPath(pathname: string): { show: boolean; locationRef: string } {
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts[1] !== 'menu') return { show: false, locationRef: '' }
+  const locationRef = parts[2] ?? ''
+  const show = parts.length === 2 || parts.length === 3 || (parts.length === 4 && parts[3] === 'takeaway')
+  return { show, locationRef }
+}
+
 export function parseLegacyMenuPath(pathname: string): { tenant: string; locationId: string; rest: string } | null {
   const m = /^\/([a-z0-9-]{2,50})\/menu\/([0-9a-f]{24})(\/[A-Za-z0-9/_-]*)?$/i.exec(pathname)
   if (!m) return null

@@ -6,6 +6,7 @@ import QrPromo from '@/models/QrPromo'
 import QrPromoView from '@/models/QrPromoView'
 import { NextRequest, NextResponse } from 'next/server'
 import { isPromoActiveToday } from '@/lib/promo-schedule'
+import { locationRefFilter, OBJECT_ID_RE, LOCATION_SLUG_RE } from '@/lib/menu/location-ref'
 
 interface PromoShape {
   _id: string
@@ -46,9 +47,17 @@ function addSchedulingFilter(query: any) {
     { scheduledEnd: { $gte: now } },
   ]
   query.$and = [
+    ...(query.$and ?? []),
     { $or: scheduleFilter },
     { $or: endFilter },
   ]
+  return query
+}
+
+// Suma el filtro de sede con $and: hacer spread de su $or pisaba el $or de
+// targetTenants de las campañas globales (se mostraban fuera de su destino).
+function scoped(query: Record<string, unknown>, locationScope: Record<string, unknown> | null) {
+  if (locationScope) query.$and = [...((query.$and as unknown[] | undefined) ?? []), locationScope]
   return query
 }
 
@@ -69,7 +78,7 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const source = searchParams.get('source') || ''
     const promoSlug = searchParams.get('promo') || ''
-    const locationParam = searchParams.get('locationId') || ''
+    let locationParam = searchParams.get('locationId') || ''
 
     await connectDB()
 
@@ -83,6 +92,25 @@ export async function GET(
     // ── Sede: supresión de captación y scope de resolución ───────────────
     // Si la URL trae locationId, la promo NUNCA se muestra en sedes sin
     // captación habilitada (inactiva, pausada o acceptsOrders=false).
+    // `location` es la sede tal como está en la dirección del menú: slug, _id
+    // viejo o '' en el link general /<comercio>/menu (con una sola sede ese
+    // link ya muestra su menú; con varias es el selector y se espera la sede).
+    if (!locationParam && searchParams.has('location')) {
+      const ref = (searchParams.get('location') || '').trim()
+      if (ref) {
+        if (!OBJECT_ID_RE.test(ref) && !LOCATION_SLUG_RE.test(ref.toLowerCase())) {
+          return NextResponse.json({ show: false, reason: 'location_not_available' })
+        }
+        const loc = await Location.findOne({ ...locationRefFilter(ref), tenantId }).select('_id').lean<{ _id: unknown }>()
+        if (!loc) return NextResponse.json({ show: false, reason: 'location_not_available' })
+        locationParam = String(loc._id)
+      } else {
+        const locs = await Location.find({ tenantId, isActive: true }).select('_id').limit(2).lean<{ _id: unknown }[]>()
+        if (locs.length !== 1) return NextResponse.json({ show: false, reason: 'pick_location' })
+        locationParam = String(locs[0]._id)
+      }
+    }
+
     let locationScope: Record<string, any> | null = null
     if (locationParam) {
       if (!mongoose.Types.ObjectId.isValid(locationParam)) {
@@ -114,45 +142,42 @@ export async function GET(
 
     // 1) Slug exacto: busca en tenant (scoped por sede) + global
     if (promoSlug) {
-      qrPromoConfig = await findPromo({
+      qrPromoConfig = await findPromo(scoped({
         $or: [
-          { scope: 'tenant', tenantId, ...(locationScope ?? {}) },
-          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }], ...(locationScope ?? {}) },
+          { scope: 'tenant', tenantId },
+          { scope: 'global', $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }] },
         ],
         slug: promoSlug.toLowerCase().trim(),
-      })
+      }, locationScope))
       if (qrPromoConfig) matchedBy = 'slug'
     }
 
     // 2) Por source trigger: tenant first, then global
     if (!qrPromoConfig && source) {
-      qrPromoConfig = await findPromo({
+      qrPromoConfig = await findPromo(scoped({
         scope: 'tenant',
         tenantId,
-        ...(locationScope ?? {}),
         sourceTriggers: source,
-      })
+      }, locationScope))
       if (qrPromoConfig) {
         matchedBy = 'source'
       } else {
-        qrPromoConfig = await findPromo({
+        qrPromoConfig = await findPromo(scoped({
           scope: 'global',
           $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
-          ...(locationScope ?? {}),
           sourceTriggers: source,
-        })
+        }, locationScope))
         if (qrPromoConfig) matchedBy = 'source_global'
       }
     }
 
     // 3) Default: última habilitada del tenant (scoped por sede), luego global
     if (!qrPromoConfig) {
-      qrPromoConfig = await findPromo({ scope: 'tenant', tenantId, ...(locationScope ?? {}) })
-        .then(f => f || findPromo({
+      qrPromoConfig = await findPromo(scoped({ scope: 'tenant', tenantId }, locationScope))
+        .then(f => f || findPromo(scoped({
           scope: 'global',
           $or: [{ targetTenants: tenantId }, { targetTenants: { $size: 0 } }],
-          ...(locationScope ?? {}),
-        }))
+        }, locationScope)))
       if (qrPromoConfig) matchedBy = 'default'
     }
 
@@ -221,6 +246,8 @@ export async function GET(
         slug: resolvedSlug,
       },
       resolvedSlug,
+      // Sede resuelta (_id): el cliente la usa al cerrar para atribuir la vista.
+      locationId: locationParam || null,
       memberOnly: qrPromoConfig.memberOnly ?? false,
       cooldownHours: qrPromoConfig.cooldownHours ?? 24,
       loyaltyMessaging: tenant.loyaltyMessaging,
