@@ -18,6 +18,23 @@ export interface FiscalConfig {
   modality?: "electronic" | "controller" | "none"
   /** El local pide el domicilio en las facturas con CUIT (impresora fiscal). */
   requireBuyerAddress?: boolean
+  /** Solo del lado POS: no se pudo leer la configuración (red, permiso). */
+  unavailable?: boolean
+}
+
+/**
+ * Por qué el cobro no ofrece comprobante (null = sí ofrece). Lo ve el cajero
+ * en lugar del selector, para que no parezca una falla.
+ */
+export function invoiceUnavailableNotice(config: FiscalConfig): string | null {
+  if (config.enabled) return null
+  if (config.unavailable) {
+    return "No se pudo leer la configuración de facturación. Esta venta sale sin factura; recargá el POS para reintentar."
+  }
+  if (config.modality === "electronic" || config.modality === "controller") {
+    return "La facturación está apagada en el POS para esta sede. El administrador la activa en Configuración › Comprobantes."
+  }
+  return "Facturación no configurada en esta sede. El administrador la carga en el panel web (Factura electrónica)."
 }
 
 /** Lo que eligió el cajero en el cobro. */
@@ -230,7 +247,7 @@ export async function getFiscalConfig(tenantId: string): Promise<FiscalConfig> {
   try {
     return await posApi<FiscalConfig>(tenantId, "/fiscal")
   } catch {
-    return OFF_CONFIG
+    return { ...OFF_CONFIG, unavailable: true }
   }
 }
 

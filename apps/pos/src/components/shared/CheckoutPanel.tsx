@@ -14,7 +14,7 @@ import {
 import { PaymentMethodGrid } from "./PaymentMethodGrid"
 import { formatCurrency, parsePesosInput, centsToPesosInput } from "../../utils/format"
 import { formatPaymentMethod, isExternalPaymentMethod } from "../../services/payment"
-import { isInvoiceChoiceValid, type FiscalConfig, type InvoiceChoice } from "../../services/fiscal"
+import { invoiceUnavailableNotice, isInvoiceChoiceValid, type FiscalConfig, type InvoiceChoice } from "../../services/fiscal"
 import { InvoicePicker } from "./InvoicePicker"
 import { SplitByItems, type SplitLine } from "./SplitByItems"
 
@@ -460,7 +460,11 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
           {invoice && (
             <section className="checkout-section checkout-section--invoice" aria-label="Comprobante">
               <h3 className="checkout-section-title">Comprobante</h3>
-              <InvoicePicker config={invoice.config} value={invoice.value} onChange={invoice.onChange} />
+              {invoiceUnavailableNotice(invoice.config) ? (
+                <p className="cash-help invoice-unavailable" role="note">{invoiceUnavailableNotice(invoice.config)}</p>
+              ) : (
+                <InvoicePicker config={invoice.config} value={invoice.value} onChange={invoice.onChange} />
+              )}
             </section>
           )}
         </div>

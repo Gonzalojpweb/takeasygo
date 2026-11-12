@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { isInvoiceChoiceValid, type InvoiceChoice } from "../services/fiscal"
+import { OFF_CONFIG, invoiceUnavailableNotice, isInvoiceChoiceValid, type InvoiceChoice } from "../services/fiscal"
 
 // El server rechaza un CUIT con dígito verificador incorrecto DESPUÉS del cobro:
 // el POS tiene que frenarlo antes, con la misma regla.
@@ -35,5 +35,26 @@ describe("isInvoiceChoiceValid", () => {
 
   it("sin factura no valida nada", () => {
     expect(isInvoiceChoiceValid({ ...base, type: "none", docNumber: "123" })).toBe(true)
+  })
+})
+
+// 12/11/2026: sin facturación, el cobro mostraba la sección «Comprobante»
+// vacía. Ahora dice por qué no hay comprobante.
+describe("invoiceUnavailableNotice", () => {
+  it("con facturación activa no hay aviso", () => {
+    expect(invoiceUnavailableNotice({ ...OFF_CONFIG, enabled: true, mode: "ask", modality: "electronic" })).toBeNull()
+  })
+
+  it("sede sin configurar", () => {
+    expect(invoiceUnavailableNotice({ ...OFF_CONFIG, modality: "none" })).toMatch(/no configurada en esta sede/)
+    expect(invoiceUnavailableNotice(OFF_CONFIG)).toMatch(/no configurada en esta sede/)
+  })
+
+  it("configurada pero apagada en el POS", () => {
+    expect(invoiceUnavailableNotice({ ...OFF_CONFIG, modality: "controller" })).toMatch(/apagada en el POS/)
+  })
+
+  it("error al leer la configuración: no se confunde con «no configurada»", async () => {
+    expect(invoiceUnavailableNotice({ ...OFF_CONFIG, unavailable: true })).toMatch(/No se pudo leer/)
   })
 })
