@@ -29,6 +29,15 @@ echo ---------------------------------------------------
 echo.
 node install_service.js
 echo.
+echo ---------------------------------------------------
+echo PASO 3: Impresion sin internet desde otra PC (puerto 7717, red privada)
+echo ---------------------------------------------------
+netsh advfirewall firewall delete rule name="TakeasyGO Printer Agent (POS local)" >nul 2>&1
+netsh advfirewall firewall add rule name="TakeasyGO Printer Agent (POS local)" dir=in action=allow protocol=TCP localport=7717 profile=private
+if %ERRORLEVEL% neq 0 echo (Sin permiso de administrador: si hace falta, corre HABILITAR_RED_LOCAL.bat como administrador)
+echo.
+echo El codigo para vincular el POS esta en CODIGO_POS.txt (o abri VER_CODIGO.bat).
+echo.
 echo ===================================================
 echo    INSTALACION FINALIZADA
 echo ===================================================

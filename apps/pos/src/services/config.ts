@@ -28,6 +28,8 @@ export interface PosPrinter {
   paperWidth: 58 | 80
   columns: number
   documents: PrinterDocument[]
+  /** Estaciones (kitchen / bar / cashier). Etapa 4: el POS arma sin internet la comanda de cada una. */
+  roles?: string[]
   customDocuments: boolean
   isActive: boolean
   lastStatus: "ok" | "error" | "offline" | "unknown" | string

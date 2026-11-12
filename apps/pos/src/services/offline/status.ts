@@ -21,6 +21,8 @@ export interface OfflineStatus {
   role: "primary" | "secondary" | null
   /** ISO del último envío completo de la cola. */
   lastSyncAt: string | null
+  /** Etapa 4: la última comanda sin internet no salió en alguna impresora (null = todo bien). */
+  printIssue: string | null
 }
 
 let state: OfflineStatus = {
@@ -31,6 +33,7 @@ let state: OfflineStatus = {
   enabled: false,
   role: null,
   lastSyncAt: null,
+  printIssue: null,
 }
 
 let deviceId: string | null = null
@@ -85,7 +88,7 @@ export function getCachedDeviceId(): string | null {
 
 /** Solo tests. */
 export function __resetOfflineStatusForTests(): void {
-  state = { online: true, pending: 0, conflicts: 0, syncing: false, enabled: false, role: null, lastSyncAt: null }
+  state = { online: true, pending: 0, conflicts: 0, syncing: false, enabled: false, role: null, lastSyncAt: null, printIssue: null }
   deviceId = null
   listeners.clear()
   onlineListeners.clear()

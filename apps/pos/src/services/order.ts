@@ -4,6 +4,7 @@ import { db } from "../db/dexie"
 import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
 import { offlineAware } from "./offline/executor"
+import { printForOfflineOp } from "./offline/local-print"
 import {
   applyAddItem,
   applyFireCourse,
@@ -110,6 +111,8 @@ async function writeOrder(params: {
   idempotencyKey?: string
   extraKeys?: string[]
   local: (current: WireOrder, now: Date) => WireOrder
+  /** Etapa 4: impresión por la red local después de aplicarla sin internet. */
+  afterLocal?: (order: WireOrder, opId: string) => Promise<void>
 }): Promise<WireOrder> {
   return runMutation(() =>
     offlineAware<WireOrder>({
@@ -132,6 +135,7 @@ async function writeOrder(params: {
         await db.orders.put(next)
         return next
       },
+      ...(params.afterLocal ? { afterLocal: (order: WireOrder, op: { id: string }) => params.afterLocal!(order, op.id) } : {}),
     })
   )
 }
@@ -201,6 +205,16 @@ async function transition(
         await db.orders.put(order)
         if (releasesTable(status)) await releaseLocalTable(order.tableId, orderId)
       },
+      // Etapa 4: confirmar = mandar a cocina. Sin internet, la comanda sale
+      // por la red local (como onOrderConfirmed en el server).
+      ...(status === "confirmed"
+        ? {
+            afterLocal: async (_: void, op: { id: string }) => {
+              const order = await db.orders.get(orderId)
+              if (order) await printForOfflineOp(tenantId, op.id, { type: "comanda", order })
+            },
+          }
+        : {}),
     })
   )
 }
@@ -266,6 +280,11 @@ export async function createOrder(
         await db.orders.put(order)
         return order
       },
+      // Etapa 4: la ronda que nace enviada a cocina imprime su comanda por la
+      // red local (con internet la arma el server).
+      ...(options.status === "confirmed"
+        ? { afterLocal: (order: Order, op: { id: string }) => printForOfflineOp(tenantId, op.id, { type: "comanda", order }) }
+        : {}),
     })
   ).catch((err: unknown) => {
     // 30/10: «Mesa no encontrada en esta sede» ⇒ el salón se actualiza solo.
@@ -323,7 +342,9 @@ export async function recordPayments(
  * «MARCHA PRINCIPAL» + mesa, sin repetir los platos. Idempotente en el
  * server: un doble toque no saca dos marchas.
  */
-export async function fireCourse(tenantId: string, orderId: string, course: ItemCourse): Promise<Order> {
+export async function fireCourse(tenantId: string, orderId: string, course: ItemCourse, firedBy?: string | null): Promise<Order> {
+  // Solo marcha (e imprime) si el tiempo seguía en espera, como el server.
+  let wasHeld = false
   return writeOrder({
     tenantId,
     orderId,
@@ -331,7 +352,13 @@ export async function fireCourse(tenantId: string, orderId: string, course: Item
     method: "POST",
     path: `/orders/${encodeURIComponent(orderId)}/courses`,
     body: { course },
-    local: (o, now) => applyFireCourse(o, course, now),
+    local: (o, now) => {
+      wasHeld = Boolean(o.heldCourses?.includes(course))
+      return applyFireCourse(o, course, now)
+    },
+    afterLocal: async (order, opId) => {
+      if (wasHeld) await printForOfflineOp(tenantId, opId, { type: "marcha", order, course, firedBy: firedBy ?? null })
+    },
   })
 }
 

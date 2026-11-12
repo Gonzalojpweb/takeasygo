@@ -163,3 +163,6 @@ export {
   type TableLayout,
   type PlacedTable,
 } from "./floor-plan"
+
+// POS offline V2 — etapa 4: tickets ESC/POS compartidos server ↔ POS.
+export * from "./escpos"

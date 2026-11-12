@@ -12,6 +12,9 @@ import { PosError } from './errors'
 //   X-Pos-Op-Id        UUID de la operación (obligatorio para deduplicar)
 //   X-Pos-Occurred-At  ISO del momento real en que pasó (en el local)
 //   X-Pos-Device-Id    equipo que la hizo
+//   X-Pos-Printed      ids de impresoras donde el equipo ya imprimió por la
+//                      red local (etapa 4): el server no vuelve a mandarles
+//                      esa comanda
 //
 // posRoute envuelve el handler con `withOpReceipt`: el primer envío reserva el
 // recibo (pending), corre el handler y guarda la respuesta 2xx (done). Un
@@ -34,6 +37,8 @@ export interface OfflineOpContext {
   deviceId: string | null
   /** Momento real (validado: no futuro, no más viejo que 7 días). */
   occurredAt: Date | null
+  /** Impresoras donde el equipo ya imprimió sin internet (X-Pos-Printed). */
+  printedPrinterIds: string[]
 }
 
 /** Lee y valida los headers de una operación offline. null = petición online normal. */
@@ -55,7 +60,12 @@ export function readOfflineOp(request: Request): OfflineOpContext | null {
       occurredAt = new Date(Math.min(d.getTime(), now))
     }
   }
-  return { opId, deviceId, occurredAt }
+  const printedPrinterIds = (request.headers.get('x-pos-printed') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => mongoose.Types.ObjectId.isValid(s) && /^[a-f0-9]{24}$/i.test(s))
+    .slice(0, 20)
+  return { opId, deviceId, occurredAt, printedPrinterIds }
 }
 
 function replay(status: number, body: unknown): NextResponse {

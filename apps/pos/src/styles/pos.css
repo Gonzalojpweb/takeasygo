@@ -5004,3 +5004,4 @@ html {
 .offline-device-list li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .offline-device-list small { color: var(--text-secondary); }
 .offline-chip { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--primary-action) 12%, transparent); color: var(--primary-action); }
+.offline-print { display: flex; flex-direction: column; gap: var(--sp-3); }

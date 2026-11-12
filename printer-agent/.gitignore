@@ -13,3 +13,7 @@ docs*
 
 # Reportes fiscales descargados de cada equipo: nunca al repo
 reportes-fiscales/
+
+# Impresión sin internet (etapa 4): datos de cada local, nunca al repo
+CODIGO_POS.txt
+printers-cache.json

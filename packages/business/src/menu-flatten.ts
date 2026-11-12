@@ -69,6 +69,7 @@ export interface RawMenuItem {
 export interface RawMenuSubCategory {
   _id?: unknown
   name: string
+  printRole?: 'kitchen' | 'bar' | 'both' | null
   sortOrder?: number
   customizationGroups?: RawCustomizationGroup[]
   items?: RawMenuItem[]
@@ -77,6 +78,7 @@ export interface RawMenuSubCategory {
 export interface RawMenuCategory {
   _id?: unknown
   name: string
+  printRole?: 'kitchen' | 'bar' | 'both' | null
   sortOrder?: number
   isAvailable?: boolean
   customizationGroups?: RawCustomizationGroup[]
@@ -181,7 +183,9 @@ function flattenItem(
   categoryName: string,
   subcategoryId?: string,
   /** Fase J: categoría pausada ⇒ todos sus ítems quedan faltantes. */
-  categoryAvailable = true
+  categoryAvailable = true,
+  /** Etapa 4 del POS offline: estación de la comanda (como printRoles.ts del server). */
+  printRole: 'kitchen' | 'bar' | 'both' = 'kitchen'
 ): Product {
   const disabledGroups = item.disabledGroupIds ?? []
   const disabledOptions = item.disabledOptionIds ?? []
@@ -241,6 +245,7 @@ function flattenItem(
     category: categoryName,
     isAvailable: (item.isAvailable ?? true) && categoryAvailable,
     modifiers,
+    printRole,
   }
   if (!product.isAvailable) {
     product.unavailableReason = item.isAvailable === false && item.pausedReason === 'stock' ? 'stock' : 'manual'
@@ -273,7 +278,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
 
     const categoryAvailable = cat.isAvailable ?? true
     for (const item of cat.items ?? []) {
-      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable))
+      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable, cat.printRole ?? 'kitchen'))
     }
 
     // D13 — subcategorías: cada una es una MenuCategory con `parentId`. Sus
@@ -291,7 +296,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
       })
       const subGroups = [...inheritedGroups, ...(sub.customizationGroups ?? [])]
       for (const item of sub.items ?? []) {
-        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable))
+        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable, sub.printRole ?? cat.printRole ?? 'kitchen'))
       }
     }
   }

@@ -1,4 +1,5 @@
 import { posApi } from "../pos-api"
+import { cachePrinters, type PrinterForCache } from "./local-print"
 import { offlineStore } from "./store"
 import { getOfflineStatus, setCachedDeviceId, setOfflineStatus } from "./status"
 import type { OfflineEligibility } from "./types"
@@ -46,6 +47,8 @@ interface DevicesResponse {
   limit: number
   devices: { deviceId: string; name: string; role: "primary" | "secondary"; lastSeenAt: string | null; enabledAt: string }[]
   thisDevice: { enabled: boolean; role: "primary" | "secondary" | null; name: string | null }
+  /** Etapa 4: impresoras activas de la sede (solo para un equipo habilitado). */
+  printers?: PrinterForCache[]
 }
 
 /** Consulta al server y guarda la respuesta. Sin red, devuelve la guardada. */
@@ -61,6 +64,8 @@ export async function refreshEligibility(tenantId: string): Promise<OfflineEligi
       checkedAt: new Date().toISOString(),
     }
     await offlineStore().setMeta(eligibilityKey(tenantId), e)
+    // Sin internet la comanda se arma con estas impresoras (etapa 4).
+    if (e.enabled && Array.isArray(res.printers)) await cachePrinters(tenantId, res.printers)
     applyToStatus(e)
     return e
   } catch {

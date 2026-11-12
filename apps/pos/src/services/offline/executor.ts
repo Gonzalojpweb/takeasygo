@@ -2,6 +2,7 @@ import { isPosApiError, PosApiError } from "../pos-api"
 import { isOfflineEnabled } from "./device"
 import { refreshOfflineCounts, replayOfflineOps } from "./replay"
 import { offlineStore } from "./store"
+import { beginLocalWork, endLocalWork } from "./local-work"
 import { getOfflineStatus, markOffline } from "./status"
 import type { OfflineOp, OfflineOpMethod } from "./types"
 
@@ -37,6 +38,12 @@ export interface OfflineAwareParams<T> {
   online: (headers: Record<string, string>) => Promise<T>
   /** Escritura local equivalente (solo Dexie: corre dentro de una transacción). */
   applyLocal: (op: OfflineOp) => Promise<T>
+  /**
+   * Etapa 4: lo que hay que hacer en el local después de aplicarla sin
+   * internet (imprimir la comanda por la red local). Corre en segundo plano,
+   * nunca falla la operación y el reenvío la espera antes de mandarla.
+   */
+  afterLocal?: (result: T, op: OfflineOp) => Promise<void>
 }
 
 export const OFFLINE_NOT_ENABLED_MESSAGE =
@@ -86,13 +93,35 @@ export async function offlineAware<T>(params: OfflineAwareParams<T>): Promise<T>
     createdAt: occurredAt,
   }
 
-  const result = await store.runAtomic(async () => {
-    const value = await params.applyLocal(op)
-    await store.addOp(op)
-    return value
-  })
+  // Marcada «en curso» ANTES de entrar a la cola: un reenvío que ya esté
+  // corriendo no la manda hasta que termine afterLocal (impresión local).
+  const after = params.afterLocal
+  if (after) beginLocalWork(op.id)
+  let result: T
+  try {
+    result = await store.runAtomic(async () => {
+      const value = await params.applyLocal(op)
+      await store.addOp(op)
+      return value
+    })
+  } catch (err) {
+    if (after) endLocalWork(op.id)
+    throw err
+  }
 
   await refreshOfflineCounts(params.tenantId)
-  if (getOfflineStatus().online) void replayOfflineOps(params.tenantId).catch(() => {})
+  const replayIfOnline = () => {
+    if (getOfflineStatus().online) void replayOfflineOps(params.tenantId).catch(() => {})
+  }
+  if (after) {
+    void after(result, op)
+      .catch(() => {})
+      .finally(() => {
+        endLocalWork(op.id)
+        replayIfOnline()
+      })
+  } else {
+    replayIfOnline()
+  }
   return result
 }

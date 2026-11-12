@@ -10,6 +10,7 @@ import { toPosOrder } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 import { operatorName } from '@/lib/pos-online/operator'
 import { buildCourseFireJobs } from '@/lib/printing/courseFire'
+import { printedOffline } from '@/lib/pos-online/offlineReplay'
 
 // ============================================================================
 // POST /api/[tenant]/pos/orders/[id]/courses — «Marcha» de un tiempo
@@ -72,14 +73,16 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.write', asy
   // marcha (el estado ya quedó guardado; el mozo puede avisar a viva voz).
   let printed = 0
   try {
-    const [printers, location] = await Promise.all([
+    const skip = await printedOffline(ctx)
+    const [allPrinters, location] = await Promise.all([
       Printer.find({ tenantId: ctx.tenantId, locationId: ctx.locationId, isActive: true }).lean(),
       Location.findOne({ _id: ctx.locationId }).select('timezone').lean<{ timezone?: string }>(),
     ])
     const jobs = buildCourseFireJobs({
       course,
       order: { orderNumber: order.orderNumber, posTableNumber: order.posTableNumber, items: order.items },
-      printers: printers as never,
+      // Las que ya imprimieron la marcha sin internet no la repiten.
+      printers: allPrinters.filter((p) => !skip.has(String(p._id))) as never,
       firedBy,
       at,
       timezone: location?.timezone,

@@ -12,7 +12,7 @@ import {
   type SaasOrderDraft,
 } from '@/lib/pos-online/orderMapper'
 import { assertOrderAgainstCatalog } from '@/lib/pos-online/catalogPrices'
-import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
+import { printedOffline, trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
 
 // ============================================================================
@@ -249,7 +249,7 @@ export const POST = posRoute('orders.write', async (ctx) => {
   // `confirmed` (ver orders/[id]/route.ts).
   if (created.status === 'confirmed') {
     const { onOrderConfirmed } = await import('@/lib/printing')
-    await onOrderConfirmed(created)
+    await onOrderConfirmed(created, { skipPrinterIds: await printedOffline(ctx) })
   }
 
   await logAudit({

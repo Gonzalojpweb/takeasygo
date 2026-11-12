@@ -16,6 +16,7 @@ New-Item -ItemType Directory -Path $stageDir -Force | Out-Null
 # Archivos a copiar
 $files = @(
     'agent.js',
+    'local-server.js',
     'setup.js',
     'package.json',
     'pnpm-lock.yaml',
@@ -28,6 +29,8 @@ $files = @(
     'DIAGNOSTICO.bat',
     'REPARAR_USB_EPSON.bat',
     'INSTALAR_SERVICIO.bat',
+    'VER_CODIGO.bat',
+    'HABILITAR_RED_LOCAL.bat',
     'install_service.js',
     'uninstall_service.js',
     'README.md'

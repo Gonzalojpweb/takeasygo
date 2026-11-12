@@ -10,6 +10,7 @@
     "./sync-events": "./dist/sync-events.js",
     "./jwt": "./dist/jwt.js",
     "./pos-pin": "./dist/pos-pin.js",
+    "./escpos": "./dist/escpos/index.js",
     "./mongo": "./dist/mongo.js",
     "./src/mongo": {
       "types": "./src/mongo.ts"

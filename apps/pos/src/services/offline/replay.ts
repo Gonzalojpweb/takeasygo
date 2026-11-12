@@ -3,6 +3,7 @@ import { offlineOpKind } from "./registry"
 import { offlineStore } from "./store"
 import { getOfflineStatus, markOffline, setOfflineStatus } from "./status"
 import type { OfflineOp } from "./types"
+import { isLocalWorkPending } from "./local-work"
 
 // ============================================================================
 // Reenvío de la cola al volver la red
@@ -28,14 +29,23 @@ export interface ReplayResult {
 /** Envío real (inyectable para tests). */
 export type OpSender = (op: OfflineOp) => Promise<unknown>
 
-export const sendOpToServer: OpSender = (op) =>
-  posApi(op.tenantId, op.path, {
+/** Etapa 4: impresoras donde la comanda de esta operación ya salió por la red local. */
+const printedKey = (opId: string) => `printed:${opId}`
+
+export const sendOpToServer: OpSender = async (op) => {
+  const printed = await offlineStore().getMeta<string[]>(printedKey(op.id))
+  return posApi(op.tenantId, op.path, {
     method: op.method,
     body: op.body,
     idempotencyKey: op.idempotencyKey,
     skipApproval: true,
-    headers: { "X-Pos-Op-Id": op.id, "X-Pos-Occurred-At": op.occurredAt },
+    headers: {
+      "X-Pos-Op-Id": op.id,
+      "X-Pos-Occurred-At": op.occurredAt,
+      ...(printed?.length ? { "X-Pos-Printed": printed.join(",") } : {}),
+    },
   })
+}
 
 /** Errores que no son del dato sino del momento: se reintenta, no es conflicto. */
 function isTransient(err: unknown): boolean {
@@ -83,15 +93,23 @@ async function doReplay(tenantId: string, send: OpSender): Promise<ReplayResult>
       }
       // Depende de algo que el server no aceptó: espera la revisión.
       if (op.entityKeys.some((k) => blocked.has(k))) continue
+      // Se está imprimiendo por la red local: si saliera ya, el server no
+      // sabría que se imprimió. Se manda en cuanto termine (en orden).
+      if (isLocalWorkPending(op.id)) {
+        result.retryLater = true
+        break
+      }
 
       try {
         const response = await send(op)
         await offlineOpKind(op.kind)?.onSuccess?.(response, op)
         await store.deleteOp(op.id)
+        await store.deleteMeta(printedKey(op.id))
         result.sent++
       } catch (err) {
         if (isPosApiError(err) && offlineOpKind(op.kind)?.tolerate?.(err, op)) {
           await store.deleteOp(op.id)
+          await store.deleteMeta(printedKey(op.id))
           result.sent++
           continue
         }

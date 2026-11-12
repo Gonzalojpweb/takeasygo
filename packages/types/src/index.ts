@@ -219,6 +219,12 @@ export interface Product {
   category: string
   /** id de la subcategoría (MenuCategory con parentId), si el ítem vive en una. */
   subcategoryId?: string
+  /**
+   * Estación de la comanda (la de la subcategoría o, si no, la de la
+   * categoría; cocina por defecto). POS offline V2 etapa 4: el equipo sin
+   * internet arma la comanda de cocina y la de barra como el server.
+   */
+  printRole?: "kitchen" | "bar" | "both"
   isAvailable: boolean
   /**
    * Fase J (2026-10): por qué no está disponible. «manual» = lo pausó un rol

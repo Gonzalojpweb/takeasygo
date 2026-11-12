@@ -17,7 +17,7 @@ import { addPointsFromOrder } from '@/lib/loyalty'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { runAfterResponse } from '@/lib/after-response'
 import { requireManagerApproval } from '@/lib/pos-online/approval'
-import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
+import { printedOffline, trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/orders/[id] — una orden por su posId
@@ -229,7 +229,7 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
     })
     if (fullOrder) {
       const { onOrderConfirmed } = await import('@/lib/printing')
-      await onOrderConfirmed(fullOrder)
+      await onOrderConfirmed(fullOrder, { skipPrinterIds: await printedOffline(ctx) })
     }
   }
 

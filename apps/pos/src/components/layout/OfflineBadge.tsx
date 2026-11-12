@@ -1,4 +1,4 @@
-import { CloudOff, RefreshCw, AlertTriangle } from "lucide-react"
+import { CloudOff, RefreshCw, AlertTriangle, Printer } from "lucide-react"
 import { useOfflineStatus } from "../../hooks/useOfflineStatus"
 
 // ============================================================================
@@ -9,9 +9,25 @@ import { useOfflineStatus } from "../../hooks/useOfflineStatus"
 //   · sin internet (no habilitado)→ «Sin internet» (rojo: no se puede operar)
 //   · con red y cola pendiente    → «Enviando 3…»
 //   · conflictos                  → «2 para revisar» (rojo)
+//   · sin internet y una comanda que no salió → ícono de impresora (etapa 4)
 // ============================================================================
 
 export function OfflineBadge() {
+  const s = useOfflineStatus()
+  const badge = <StatusBadge />
+  if (!s.printIssue || s.online) return badge
+  return (
+    <>
+      {badge}
+      <div className="offline-badge is-offline" role="alert" title={s.printIssue}>
+        <Printer size={14} aria-hidden />
+        <span>Revisar impresión</span>
+      </div>
+    </>
+  )
+}
+
+function StatusBadge() {
   const s = useOfflineStatus()
 
   if (s.conflicts > 0) {

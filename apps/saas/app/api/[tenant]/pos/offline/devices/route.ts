@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { OFFLINE_DEVICE_LIMIT } from '@takeasygo/business'
 import Tenant from '@/models/Tenant'
+import Printer from '@/models/Printer'
 import PosOfflineDevice, { type IPosOfflineDevice } from '@/models/PosOfflineDevice'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
@@ -62,10 +63,20 @@ export const GET = posRoute('tables.read', async (ctx) => {
       { $set: { lastSeenAt: new Date() } }
     )
   }
+  // Etapa 4: un equipo habilitado guarda las impresoras de la sede para armar
+  // sin internet la comanda de cada estación (la manda por la red local).
+  const printers = mine
+    ? (
+        await Printer.find({ tenantId: ctx.tenantId, locationId: ctx.locationId, isActive: true })
+          .select('name paperWidth roles printSettings')
+          .lean<{ _id: unknown; name: string; paperWidth?: number; roles?: string[]; printSettings?: Record<string, unknown> }[]>()
+      ).map((p) => ({ id: String(p._id), name: p.name, paperWidth: p.paperWidth === 58 ? 58 : 80, roles: p.roles ?? [], printSettings: p.printSettings ?? {} }))
+    : undefined
   return NextResponse.json({
     limit,
     devices: devices.map(toWire),
     thisDevice: mine ? { enabled: true, role: mine.role, name: mine.name } : { enabled: false, role: null, name: null },
+    ...(printers ? { printers } : {}),
   })
 })
 

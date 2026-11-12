@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { CloudOff, ShieldCheck, Trash2 } from "lucide-react"
 import { useOfflineStatus } from "../../hooks/useOfflineStatus"
+import { LocalPrintPanel } from "./LocalPrintPanel"
 import { enableThisDevice, getDeviceId, listOfflineDevices, revokeDevice, requestPersistentStorage } from "../../services/offline/device"
 
 // ============================================================================
@@ -123,6 +124,8 @@ export function OfflineDevicesPanel({ tenantId, canManage, flash }: { tenantId: 
         </div>
       )}
       {!canManage && !mine && <p className="cash-help">Lo puede habilitar el administrador o el encargado.</p>}
+
+      {mine && <LocalPrintPanel tenantId={tenantId} canManage={canManage} flash={flash} />}
 
       {devices && devices.length > 0 && (
         <ul className="offline-device-list" aria-label="Equipos habilitados">

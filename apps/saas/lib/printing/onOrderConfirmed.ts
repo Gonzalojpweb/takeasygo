@@ -33,7 +33,16 @@ import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 // reintenta en el próximo poll del agente (hasta MAX_ATTEMPTS).
 // ============================================================================
 
-export async function onOrderConfirmed(order: IOrder): Promise<void> {
+export async function onOrderConfirmed(
+  order: IOrder,
+  options: {
+    /**
+     * POS offline (etapa 4): impresoras donde el equipo ya imprimió esta
+     * comanda por la red local. No se les genera otro job.
+     */
+    skipPrinterIds?: Set<string>
+  } = {}
+): Promise<void> {
   type BuildPrinters = Parameters<typeof buildPrintPayload>[1]
   // Inventario: el plato confirmado descuenta sus insumos (todos los canales
   // pasan por acá). Idempotente y sin bloquear: nunca frena la impresión.
@@ -48,11 +57,12 @@ export async function onOrderConfirmed(order: IOrder): Promise<void> {
       if (loc?.settings?.autoPrintAppOrders === false) return
     }
 
-    const activePrinters = await Printer.find({
+    const skip = options.skipPrinterIds
+    const activePrinters = (await Printer.find({
       tenantId: order.tenantId,
       locationId: order.locationId,
       isActive: true,
-    }).lean()
+    }).lean()).filter((p) => !skip?.has(String(p._id)))
 
     if (activePrinters.length === 0) return
 

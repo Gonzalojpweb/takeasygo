@@ -18,6 +18,7 @@ export interface OfflineStore {
   nextSeq(): Promise<number>
   getMeta<T>(key: string): Promise<T | undefined>
   setMeta(key: string, value: unknown): Promise<void>
+  deleteMeta(key: string): Promise<void>
   /** Corre `fn` en una transacción con la cola y las tablas del read model. */
   runAtomic<T>(fn: () => Promise<T>): Promise<T>
 }
@@ -51,6 +52,9 @@ export const dexieOfflineStore: OfflineStore = {
   },
   async setMeta(key, value) {
     await db.offlineMeta.put({ key, value })
+  },
+  async deleteMeta(key) {
+    await db.offlineMeta.delete(key)
   },
   async runAtomic<T>(fn: () => Promise<T>) {
     return db.transaction(
@@ -89,6 +93,9 @@ export function createMemoryOfflineStore(): OfflineStore {
     },
     async setMeta(key, value) {
       meta.set(key, structuredClone(value))
+    },
+    async deleteMeta(key) {
+      meta.delete(key)
     },
     async runAtomic<T>(fn: () => Promise<T>) {
       return fn()

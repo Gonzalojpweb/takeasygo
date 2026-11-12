@@ -8,7 +8,7 @@ echo ===================================================
 echo    ACTUALIZADOR AUTOMATICO - TAKEASYGO
 echo ===================================================
 echo.
-echo Coloca los archivos nuevos agent.js y package.json
+echo Coloca los archivos nuevos agent.js, local-server.js y package.json
 echo en esta carpeta y ejecuta este script.
 echo.
 
@@ -36,6 +36,11 @@ echo.
 if exist "agent.js" (
     copy /Y "agent.js" "agent.js.bak" >nul
     echo Backup agent.js -^> agent.js.bak
+)
+
+if exist "local-server.js" (
+    copy /Y "local-server.js" "local-server.js.bak" >nul
+    echo Backup local-server.js -^> local-server.js.bak
 )
 
 if exist "package.json" (

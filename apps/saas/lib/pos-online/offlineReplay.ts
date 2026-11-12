@@ -35,3 +35,14 @@ export function trustedOfflineAt(ctx: PosContext): Promise<Date | null> {
   cache.set(ctx, result)
   return result
 }
+
+/**
+ * Impresoras donde el equipo habilitado ya imprimió esta operación por la red
+ * local (etapa 4). El server no les vuelve a mandar la comanda; a las demás
+ * (las que fallaron sin internet) sí, así nunca se pierde una.
+ */
+export async function printedOffline(ctx: PosContext): Promise<Set<string>> {
+  const ids = ctx.offline?.printedPrinterIds ?? []
+  if (ids.length === 0) return new Set()
+  return (await trustedOfflineAt(ctx)) ? new Set(ids) : new Set()
+}

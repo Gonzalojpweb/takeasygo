@@ -5,6 +5,7 @@ const path = require('path');
 const os = require('os');
 const { execFile, execSync, spawn } = require('child_process');
 const iconv = require('iconv-lite');
+const { startLocalServer, generateLocalKey, DEFAULT_PORT: LOCAL_DEFAULT_PORT } = require('./local-server');
 
 // ============================================================================
 // VERSIÓN LOCAL
@@ -55,6 +56,24 @@ if (!config.apiUrl || !config.tenantSlug || !config.locationId ||
     console.log('    Ejecuta SETUP.bat para configurar el agente.');
     console.log('');
     process.exit(1);
+}
+
+// ── Impresión sin internet (POS offline V2, etapa 4) ───────────────────────
+// Código de vinculación del canal local (local-server.js): se genera una vez
+// y queda en config.json (localKey) y en CODIGO_POS.txt, porque como servicio
+// de Windows la consola no se ve. config.localServer = false lo apaga.
+const LOCAL_CODE_PATH = path.join(__dirname, 'CODIGO_POS.txt');
+if (config.localServer !== false) {
+    let changed = false;
+    if (!config.localKey) { config.localKey = generateLocalKey(); changed = true; }
+    if (!config.localPort) { config.localPort = LOCAL_DEFAULT_PORT; changed = true; }
+    if (changed) {
+        try {
+            fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+        } catch (e) {
+            console.error(`[LOCAL] No se pudo guardar el código en config.json: ${e.message}`);
+        }
+    }
 }
 
 // Headers comunes de todo request al SaaS (poll + confirmaciones)
@@ -277,6 +296,31 @@ function buf(input) {
 // findPrinterByName resuelve contra ambas, con normalización de nombre.
 let serverPrinters = [];
 let windowsPrinters = [];
+
+// Etapa 4: las impresoras del server quedan guardadas en disco. Si el agente
+// se reinicia SIN internet igual sabe la IP de cada impresora de red.
+const PRINTERS_CACHE_PATH = path.join(__dirname, 'printers-cache.json');
+try {
+    if (fs.existsSync(PRINTERS_CACHE_PATH)) {
+        const cached = JSON.parse(fs.readFileSync(PRINTERS_CACHE_PATH, 'utf8'));
+        if (Array.isArray(cached)) serverPrinters = cached;
+    }
+} catch (e) {
+    console.error(`[PRINTER] No se pudo leer printers-cache.json: ${e.message}`);
+}
+let lastSavedPrinters = JSON.stringify(serverPrinters);
+
+function setServerPrinters(list) {
+    serverPrinters = list;
+    const json = JSON.stringify(list);
+    if (json === lastSavedPrinters) return;
+    lastSavedPrinters = json;
+    try {
+        fs.writeFileSync(PRINTERS_CACHE_PATH, json);
+    } catch (e) {
+        console.error(`[PRINTER] No se pudo guardar printers-cache.json: ${e.message}`);
+    }
+}
 
 function isWindowsOS() {
     return process.platform === 'win32';
@@ -1072,7 +1116,7 @@ async function poll() {
 
             // Actualizar registry de impresoras del servidor (ambos formatos lo envían)
             if (Array.isArray(data.printers)) {
-                serverPrinters = data.printers;
+                setServerPrinters(data.printers);
             }
 
             pollInterval = data.pollInterval || currentInterval;
@@ -1122,7 +1166,7 @@ async function poll() {
             pollInterval = serverPollInterval || currentInterval;
 
             if (Array.isArray(printers)) {
-                serverPrinters = printers;
+                setServerPrinters(printers);
             }
 
             const orderCount = (orders || []).length;
@@ -1225,3 +1269,41 @@ setInterval(checkForUpdate, 60 * 60 * 1000);
 
 // Iniciar polling
 pollTimer = setTimeout(poll, currentInterval);
+
+// Impresión sin internet: el POS manda las comandas directo (local-server.js)
+if (config.localServer !== false) {
+    try {
+        const lines = [
+            'IMPRESION SIN INTERNET - TAKEASYGO POS',
+            '',
+            `Codigo de vinculacion: ${config.localKey}`,
+            `En esta PC:            http://127.0.0.1:${config.localPort}`,
+            ...Object.values(os.networkInterfaces()).flat()
+                .filter((a) => a && a.family === 'IPv4' && !a.internal)
+                .map((a) => `Desde otra PC:         http://${a.address}:${config.localPort}`),
+            '',
+            'En el POS: Configuracion > Sin internet > Impresion sin internet.',
+        ];
+        fs.writeFileSync(LOCAL_CODE_PATH, lines.map((l) => `${l}\r\n`).join(''));
+    } catch (e) {
+        console.error(`[LOCAL] No se pudo escribir CODIGO_POS.txt: ${e.message}`);
+    }
+
+    startLocalServer({
+        config,
+        version: LOCAL_VERSION,
+        findPrinter: (printerId, printerName) => {
+            if (printerId) {
+                const byId = serverPrinters.find((p) => String(p._id || p.uid || '') === String(printerId));
+                if (byId) return findPrinterByName(byId.name);
+            }
+            return findPrinterByName(printerName);
+        },
+        listPrinters: () => [...new Set([...serverPrinters.map((p) => p.name), ...windowsPrinters.map((p) => p.name)].filter(Boolean))],
+        print: (printer, buffer) => new Promise((resolve) => {
+            jobManager.enqueue(printer.uid, printer, buffer, async (success, errorMsg) => {
+                resolve(success ? { ok: true } : { ok: false, error: errorMsg || 'Error de impresión' });
+            });
+        }),
+    });
+}

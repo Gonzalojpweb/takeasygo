@@ -10,6 +10,8 @@ import Menu from '@/models/Menu'
 import PosOfflineDevice from '@/models/PosOfflineDevice'
 import CashRegister from '@/models/CashRegister'
 import CashMovement from '@/models/CashMovement'
+import Printer from '@/models/Printer'
+import { GET as listDevices } from '@/app/api/[tenant]/pos/offline/devices/route'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -45,7 +47,7 @@ function req(url: string, body: unknown, headers: Record<string, string> = {}, m
   return new Request(url, {
     method,
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, 'x-location-id': locationId, ...headers },
-    body: JSON.stringify(body),
+    ...(method === 'GET' ? {} : { body: JSON.stringify(body) }),
   }) as unknown as NextRequest
 }
 const base = `http://localhost:3000/api/${SLUG}/pos/orders`
@@ -133,5 +135,62 @@ describe('cobro y caja sin internet (etapa 3)', () => {
     const movement = await CashMovement.findOne({ tenantId, type: 'sale' }).lean<{ timestamp: Date; amount: number }>()
     expect(movement).toMatchObject({ amount: 18000 })
     expect(movement!.timestamp.getTime()).toBe(paidAt.getTime())
+  })
+})
+
+/**
+ * Etapa 4 (12/11/2026): lo que el equipo ya imprimió sin internet por la red
+ * local no se vuelve a imprimir. X-Pos-Printed trae las impresoras donde
+ * salió; las demás (las que fallaron) sí reciben la comanda del server.
+ */
+describe('comanda impresa sin internet', () => {
+  async function printers() {
+    const cocina = await Printer.create({ tenantId, locationId, uid: 'cocina', name: 'Cocina', ip: '192.168.0.50', roles: ['kitchen'], isActive: true })
+    const barra = await Printer.create({ tenantId, locationId, uid: 'barra', name: 'Barra', ip: '192.168.0.51', roles: ['kitchen'], isActive: true })
+    return { cocina: String(cocina._id), barra: String(barra._id) }
+  }
+  const offlineHeaders = (printed: string) => ({
+    'x-pos-op-id': crypto.randomUUID(),
+    'x-pos-occurred-at': new Date(Date.now() - 60_000).toISOString(),
+    'x-pos-device-id': DEVICE,
+    'x-pos-printed': printed,
+  })
+  const jobPrinters = async (posId: string) =>
+    ((await Order.findOne({ tenantId, posId }).lean<{ printJobs?: { printerName: string }[] }>())?.printJobs ?? []).map((j) => j.printerName).sort()
+
+  it('equipo habilitado: solo imprime el server en las que fallaron sin internet', async () => {
+    await PosOfflineDevice.create({ tenantId, locationId, deviceId: DEVICE, name: 'Caja', role: 'primary' })
+    const { cocina } = await printers()
+    const body = round()
+    const res = await createOrder(req(base, body, offlineHeaders(cocina)), p())
+    expect(res.status).toBe(201)
+    expect(await jobPrinters(body.id)).toEqual(['Barra'])
+
+    // Confirmada después (PATCH) también respeta lo impreso en local.
+    const pending = round('pending')
+    expect((await createOrder(req(base, pending, offlineHeaders('')), p())).status).toBe(201)
+    const patch = await patchOrder(req(`${base}/${pending.id}`, { status: 'confirmed' }, offlineHeaders(cocina), 'PATCH'), p(pending.id))
+    expect(patch.status).toBe(200)
+    expect(await jobPrinters(pending.id)).toEqual(['Barra'])
+  })
+
+  it('equipo NO habilitado: el header no vale, imprime todo', async () => {
+    const { cocina, barra } = await printers()
+    // Sin equipo habilitado el precio se valida contra la carta actual.
+    const body = { ...round(), items: [{ productId: PIZZA, name: 'Pizza', quantity: 1, unitPrice: 10000, total: 10000 }] }
+    expect((await createOrder(req(base, body, offlineHeaders(`${cocina},${barra}`)), p())).status).toBe(201)
+    expect(await jobPrinters(body.id)).toEqual(['Barra', 'Cocina'])
+  })
+
+  it('el equipo habilitado recibe las impresoras de la sede para imprimir sin internet', async () => {
+    const { cocina } = await printers()
+    const url = `http://localhost:3000/api/${SLUG}/pos/offline/devices`
+    const off = await (await listDevices(req(url, undefined, { 'x-pos-device-id': DEVICE }, 'GET'), p())).json()
+    expect(off.printers).toBeUndefined()
+
+    await PosOfflineDevice.create({ tenantId, locationId, deviceId: DEVICE, name: 'Caja', role: 'primary' })
+    const on = await (await listDevices(req(url, undefined, { 'x-pos-device-id': DEVICE }, 'GET'), p())).json()
+    expect(on.printers).toHaveLength(2)
+    expect(on.printers.find((x: { id: string }) => x.id === cocina)).toMatchObject({ name: 'Cocina', paperWidth: 80, roles: ['kitchen'] })
   })
 })

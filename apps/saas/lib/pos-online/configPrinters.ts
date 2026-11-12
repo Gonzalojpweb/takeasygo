@@ -41,6 +41,8 @@ export function toPosPrinter(p: PrinterDoc) {
     paperWidth: p.paperWidth,
     columns: PAPER_COLUMNS[p.paperWidth] ?? 48,
     documents: effectiveDocuments(p),
+    /** Estaciones del agente (kitchen / bar / cashier): el POS offline arma la comanda de cada una. */
+    roles: p.roles ?? [],
     /** false = usa los documentos de su rol (impresora anterior a la Fase 1). */
     customDocuments: (p.documents ?? []).length > 0,
     isActive: p.isActive,
