@@ -1,8 +1,18 @@
 import type { ItemCourse, Order, OrderItem, OrderStatus } from "@takeasygo/types"
 import { pathToDelivered, type AllocatedPayment } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
-import { posApi, isPosApiError } from "./pos-api"
+import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
+import { offlineAware } from "./offline/executor"
+import {
+  applyAddItem,
+  applyFireCourse,
+  applyItemQuantity,
+  applyRemoveItem,
+  applyTransition,
+  buildLocalOrder,
+  releasesTable,
+} from "./offline/local-model"
 import { rehydrateOrder } from "./pos-wire"
 import { notifyStatusToSyncLayer } from "./sync-api"
 import type { InvoiceIntent } from "./fiscal"
@@ -40,12 +50,14 @@ async function postOrder(
   tenantId: string,
   path: string,
   body: Record<string, unknown>,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  headers?: Record<string, string>
 ): Promise<WireOrder> {
   const { order } = await posApi<{ order: WireOrder }>(tenantId, path, {
     method: "POST",
     body,
     idempotencyKey,
+    headers,
   })
   return order
 }
@@ -53,13 +65,74 @@ async function postOrder(
 async function patchOrder(
   tenantId: string,
   path: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  headers?: Record<string, string>
 ): Promise<WireOrder> {
   const { order } = await posApi<{ order: WireOrder }>(tenantId, path, {
     method: "PATCH",
     body,
+    headers,
   })
   return order
+}
+
+// ── POS offline (etapa 2) ────────────────────────────────────────────────────
+
+/** «Mesa 5» o «Mostrador»: para el texto de la pantalla de sincronización. */
+async function placeLabel(order: { tableId?: string; tableNumber?: number } | undefined): Promise<string> {
+  if (order?.tableNumber !== undefined) return `Mesa ${order.tableNumber}`
+  if (order?.tableId) {
+    const t = await db.diningTable.get(order.tableId)
+    if (t) return `Mesa ${t.number}`
+  }
+  return "Mostrador"
+}
+
+async function requireLocalOrder(orderId: string): Promise<WireOrder> {
+  const order = await db.orders.get(orderId)
+  if (!order) throw new PosApiError("Orden no encontrada en este equipo", "not_found", 404)
+  return order
+}
+
+/**
+ * Escritura de una orden «online si se puede, offline si hace falta». El
+ * server devuelve `{ order }`; sin red, `local` arma el mismo registro desde
+ * el que está en Dexie.
+ */
+async function writeOrder(params: {
+  tenantId: string
+  orderId: string
+  label: string
+  method: "POST" | "PATCH" | "DELETE"
+  path: string
+  body?: Record<string, unknown>
+  idempotencyKey?: string
+  extraKeys?: string[]
+  local: (current: WireOrder, now: Date) => WireOrder
+}): Promise<WireOrder> {
+  return runMutation(() =>
+    offlineAware<WireOrder>({
+      tenantId: params.tenantId,
+      kind: "order.write",
+      label: params.label,
+      request: { method: params.method, path: params.path, body: params.body, idempotencyKey: params.idempotencyKey },
+      entityKeys: [`order:${params.orderId}`, ...(params.extraKeys ?? [])],
+      online: async (headers) => {
+        const { order } = await posApi<{ order: WireOrder }>(params.tenantId, params.path, {
+          method: params.method,
+          body: params.body,
+          idempotencyKey: params.idempotencyKey,
+          headers,
+        })
+        return saveOrder(order)
+      },
+      applyLocal: async () => {
+        const next = params.local(await requireLocalOrder(params.orderId), new Date())
+        await db.orders.put(next)
+        return next
+      },
+    })
+  )
 }
 
 async function saveOrder(order: WireOrder): Promise<WireOrder> {
@@ -91,27 +164,44 @@ async function releaseLocalTable(
 }
 
 /** Transición de estado + refresco local + notify fire-and-forget a sync. */
+const STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
+  confirmed: "a cocina",
+  preparing: "en preparación",
+  ready: "lista",
+  delivered: "entregada",
+  cancelled: "cancelada",
+  en_ruta: "en camino",
+  arrived: "llegó",
+}
+
 async function transition(
   tenantId: string,
   orderId: string,
   status: OrderStatus,
   jwt?: string
 ): Promise<void> {
-  return runMutation(async () => {
-    const order = await saveOrder(
-      await patchOrder(tenantId, `/orders/${encodeURIComponent(orderId)}`, {
-        status,
-      })
-    )
-
-    if (status === "cancelled" || status === "delivered") {
-      await releaseLocalTable(order.tableId, orderId)
-    }
-
-    if (jwt) {
-      notifyStatusToSyncLayer(orderId, status, jwt).catch(() => {})
-    }
-  })
+  const path = `/orders/${encodeURIComponent(orderId)}`
+  const known = await db.orders.get(orderId)
+  const label = `${await placeLabel(known)} · ${STATUS_LABEL[status] ?? status}`
+  await runMutation(() =>
+    offlineAware<void>({
+      tenantId,
+      kind: "order.status",
+      label,
+      request: { method: "PATCH", path, body: { status } },
+      entityKeys: [`order:${orderId}`, ...(known?.tableId && releasesTable(status) ? [`table:${known.tableId}`] : [])],
+      online: async (headers) => {
+        const order = await saveOrder(await patchOrder(tenantId, path, { status }, headers))
+        if (releasesTable(status)) await releaseLocalTable(order.tableId, orderId)
+        if (jwt) notifyStatusToSyncLayer(orderId, status, jwt).catch(() => {})
+      },
+      applyLocal: async () => {
+        const order = applyTransition(await requireLocalOrder(orderId), status, new Date())
+        await db.orders.put(order)
+        if (releasesTable(status)) await releaseLocalTable(order.tableId, orderId)
+      },
+    })
+  )
 }
 
 // ============================================================================
@@ -143,30 +233,40 @@ export async function createOrder(
   _serverId?: string,
   options: CreateOrderOptions = {}
 ): Promise<Order> {
-  return runMutation(async () => {
-    const id = options.id ?? crypto.randomUUID()
+  const id = options.id ?? crypto.randomUUID()
 
-    // `mostrador-<ts>` es un marcador local del Counter, no una mesa: si no
-    // existe en el registro de mesas no viaja y el server la trata como
-    // takeaway. Con mesa real siempre está en Dexie (es lo que eligió la UI).
-    const isRealTable = Boolean(tableId) && Boolean(await db.diningTable.get(tableId))
+  // `mostrador-<ts>` es un marcador local del Counter, no una mesa: si no
+  // existe en el registro de mesas no viaja y el server la trata como
+  // takeaway. Con mesa real siempre está en Dexie (es lo que eligió la UI).
+  const table = tableId ? await db.diningTable.get(tableId) : undefined
+  const isRealTable = Boolean(table)
+  const body = {
+    id,
+    items,
+    ...(isRealTable ? { tableId } : {}),
+    ...(notes ? { notes } : {}),
+    ...(options.status ? { status: options.status } : {}),
+    ...(options.holdCourses?.length ? { holdCourses: options.holdCourses } : {}),
+  }
 
-    const order = await postOrder(
+  return runMutation(() =>
+    offlineAware<Order>({
       tenantId,
-      "/orders",
-      {
-        id,
-        items,
-        ...(isRealTable ? { tableId } : {}),
-        ...(notes ? { notes } : {}),
-        ...(options.status ? { status: options.status } : {}),
-        ...(options.holdCourses?.length ? { holdCourses: options.holdCourses } : {}),
+      kind: "order.write",
+      label: `${table ? `Mesa ${table.number}` : "Mostrador"} · ${options.status === "confirmed" ? "ronda a cocina" : "nueva ronda"}`,
+      request: { method: "POST", path: "/orders", body, idempotencyKey: id },
+      entityKeys: [`order:${id}`, ...(table ? [`table:${table.id}`] : [])],
+      online: async (headers) => saveOrder(await postOrder(tenantId, "/orders", body, id, headers)),
+      applyLocal: async () => {
+        const order = buildLocalOrder(
+          { id, tenantId, ...(table ? { tableId: table.id, tableNumber: table.number } : {}), items, notes, status: options.status, holdCourses: options.holdCourses },
+          new Date()
+        )
+        await db.orders.put(order)
+        return order
       },
-      id
-    )
-
-    return saveOrder(order)
-  }).catch((err: unknown) => {
+    })
+  ).catch((err: unknown) => {
     // 30/10: «Mesa no encontrada en esta sede» ⇒ el salón se actualiza solo.
     if (tableId && isPosApiError(err) && err.status === 404) resyncTablesSoon(tenantId)
     throw err
@@ -215,9 +315,15 @@ export async function recordPayments(
  * server: un doble toque no saca dos marchas.
  */
 export async function fireCourse(tenantId: string, orderId: string, course: ItemCourse): Promise<Order> {
-  return runMutation(async () =>
-    saveOrder(await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/courses`, { course }))
-  )
+  return writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · marcha ${course}`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/courses`,
+    body: { course },
+    local: (o, now) => applyFireCourse(o, course, now),
+  })
 }
 
 /**
@@ -230,13 +336,16 @@ export async function setOrderCustomerPhone(
   orderId: string,
   phone: string
 ): Promise<Order> {
-  return runMutation(async () =>
-    saveOrder(
-      await patchOrder(tenantId, `/orders/${encodeURIComponent(orderId)}`, {
-        customerPhone: phone,
-      })
-    )
-  )
+  return writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · celular del cliente`,
+    method: "PATCH",
+    path: `/orders/${encodeURIComponent(orderId)}`,
+    body: { customerPhone: phone },
+    // El server lo guarda cifrado y el POS no lo muestra: localmente no cambia nada.
+    local: (o, now) => ({ ...o, updatedAt: now, pendingSync: true }),
+  })
 }
 
 /**
@@ -266,23 +375,23 @@ export async function addItem(
   orderId: string,
   item: OrderItem
 ): Promise<void> {
-  return runMutation(async () => {
-    const order = await postOrder(
-      tenantId,
-      `/orders/${encodeURIComponent(orderId)}/items`,
-      {
-        productId: item.productId,
-        name: item.name,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.total,
-        ...(item.modifiers ? { modifiers: item.modifiers } : {}),
-        ...(item.notes ? { notes: item.notes } : {}),
-        ...(item.course ? { course: item.course } : {}),
-      }
-    )
-
-    await saveOrder(order)
+  await writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · agregar ${item.quantity} × ${item.name}`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/items`,
+    body: {
+      productId: item.productId,
+      name: item.name,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: item.total,
+      ...(item.modifiers ? { modifiers: item.modifiers } : {}),
+      ...(item.notes ? { notes: item.notes } : {}),
+      ...(item.course ? { course: item.course } : {}),
+    },
+    local: (o, now) => applyAddItem(o, item, now),
   })
 }
 
@@ -325,14 +434,13 @@ export async function removeItem(
   orderId: string,
   productId: string
 ): Promise<void> {
-  return runMutation(async () => {
-    const order = await posApi<{ order: WireOrder }>(
-      tenantId,
-      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
-      { method: "DELETE" }
-    ).then((r) => r.order)
-
-    await saveOrder(order)
+  await writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · quitar producto`,
+    method: "DELETE",
+    path: `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
+    local: (o, now) => applyRemoveItem(o, productId, now),
   })
 }
 
@@ -346,14 +454,14 @@ export async function updateItemQuantity(
     throw new Error(`[order] Quantity cannot be negative`)
   }
 
-  return runMutation(async () => {
-    const order = await patchOrder(
-      tenantId,
-      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
-      { quantity }
-    )
-
-    await saveOrder(order)
+  await writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · cantidad ${quantity}`,
+    method: "PATCH",
+    path: `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
+    body: { quantity },
+    local: (o, now) => applyItemQuantity(o, productId, quantity, now),
   })
 }
 

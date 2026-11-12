@@ -1,7 +1,9 @@
 import type { Table, TableStatus } from "@takeasygo/types"
 import { db } from "../db/dexie"
-import { posApi, isPosApiError } from "./pos-api"
+import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
+import { offlineAware } from "./offline/executor"
+import { applyTablePatch, type TablePatch } from "./offline/local-model"
 
 // ============================================================================
 // Server-first (V1 POS Online)
@@ -52,20 +54,49 @@ async function createTable(
   })
 }
 
+/** Texto de la operación en la pantalla de sincronización. */
+function describePatch(body: TablePatch): string {
+  if (body.status === "free") return "liberar"
+  if (body.status === "occupied") return body.guests ? `abrir (${body.guests} comensales)` : "ocupar"
+  if (body.status === "reserved") return "reservar"
+  if (body.status === "closed") return "cerrar"
+  if (body.status === "needs_attention") return "llamar al encargado"
+  if (body.needsBill !== undefined) return body.needsBill ? "pidió la cuenta" : "reabrir"
+  if (body.currentOrderId) return "vincular ronda"
+  if (body.guests !== undefined) return `comensales: ${body.guests}`
+  return "cambios"
+}
+
+/**
+ * POS offline (etapa 2): con red, server-first como siempre; sin red y con el
+ * equipo habilitado, el cambio se aplica en la mesa local y se encola.
+ */
 async function patchTable(
   tenantId: string,
   tableId: string,
-  body: Record<string, unknown>
+  body: TablePatch
 ): Promise<void> {
+  const path = `/tables/${encodeURIComponent(tableId)}`
+  const local = await db.diningTable.get(tableId)
   try {
-    return await runMutation(async () => {
-      const { table } = await posApi<{ table: WireTable }>(
+    return await runMutation(() =>
+      offlineAware<void>({
         tenantId,
-        `/tables/${encodeURIComponent(tableId)}`,
-        { method: "PATCH", body }
-      )
-      await applyServerTable(table)
-    })
+        kind: "table.write",
+        label: `Mesa ${local?.number ?? "?"} · ${describePatch(body)}`,
+        request: { method: "PATCH", path, body },
+        entityKeys: [`table:${tableId}`, ...(body.currentOrderId ? [`order:${body.currentOrderId}`] : [])],
+        online: async (headers) => {
+          const { table } = await posApi<{ table: WireTable }>(tenantId, path, { method: "PATCH", body, headers })
+          await applyServerTable(table)
+        },
+        applyLocal: async () => {
+          const current = await db.diningTable.get(tableId)
+          if (!current) throw new PosApiError("Mesa no encontrada en esta sede", "not_found", 404)
+          await db.diningTable.put(applyTablePatch(current, body))
+        },
+      })
+    )
   } catch (err) {
     // 30/10: mesa que el server no tiene ⇒ el salón se actualiza solo.
     if (isPosApiError(err) && err.status === 404) resyncTablesSoon(tenantId)
@@ -172,21 +203,46 @@ export async function moveTable(
   toId: string,
   join: boolean
 ): Promise<{ mode: "move" | "join"; movedOrders: number }> {
-  return runMutation(async () => {
-    const res = await posApi<{ mode: "move" | "join"; movedOrders: number; from: WireTable; to: WireTable }>(
-      tenantId,
-      `/tables/${encodeURIComponent(fromId)}/move`,
-      { method: "POST", body: { toTableId: toId, ...(join ? { join: true } : {}) } }
-    )
-    await applyServerTable(res.from)
-    await applyServerTable(res.to)
-    await db.orders
+  const path = `/tables/${encodeURIComponent(fromId)}/move`
+  const body = { toTableId: toId, ...(join ? { join: true } : {}) }
+  const [from, to] = await Promise.all([db.diningTable.get(fromId), db.diningTable.get(toId)])
+  const retarget = () =>
+    db.orders
       .where("tableId")
       .equals(fromId)
       .filter((o) => o.status !== "delivered" && o.status !== "cancelled")
       .modify({ tableId: toId })
-    return { mode: res.mode, movedOrders: res.movedOrders }
-  })
+  return runMutation(() =>
+    offlineAware({
+      tenantId,
+      kind: "table.move",
+      label: `Mesa ${from?.number ?? "?"} → Mesa ${to?.number ?? "?"}${join ? " (unir)" : ""}`,
+      request: { method: "POST", path, body },
+      entityKeys: [`table:${fromId}`, `table:${toId}`],
+      online: async (headers) => {
+        const res = await posApi<{ mode: "move" | "join"; movedOrders: number; from: WireTable; to: WireTable }>(tenantId, path, { method: "POST", body, headers })
+        await applyServerTable(res.from)
+        await applyServerTable(res.to)
+        await retarget()
+        return { mode: res.mode, movedOrders: res.movedOrders }
+      },
+      // Sin red: el destino toma la mesa (o se une) y el origen queda libre.
+      applyLocal: async () => {
+        const [src, dst] = await Promise.all([db.diningTable.get(fromId), db.diningTable.get(toId)])
+        if (!src || !dst) throw new PosApiError("Mesa no encontrada en esta sede", "not_found", 404)
+        const joinMode = dst.status === "occupied"
+        if (joinMode && !join) throw new PosApiError("La mesa de destino está ocupada", "conflict", 409)
+        const moved = await retarget()
+        await db.diningTable.put(
+          joinMode
+            ? { ...dst, guests: (dst.guests ?? 0) + (src.guests ?? 0) || undefined }
+            : applyTablePatch(dst, { status: "occupied", serverId: src.serverId, guests: src.guests, ...(src.currentOrderId ? { currentOrderId: src.currentOrderId } : {}) })
+        )
+        await db.diningTable.put(applyTablePatch(src, { status: "free" }))
+        return { mode: joinMode ? ("join" as const) : ("move" as const), movedOrders: moved }
+      },
+    })
+  )
 }
 
 /**

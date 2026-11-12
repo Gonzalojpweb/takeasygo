@@ -17,6 +17,7 @@ import { addPointsFromOrder } from '@/lib/loyalty'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { runAfterResponse } from '@/lib/after-response'
 import { requireManagerApproval } from '@/lib/pos-online/approval'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 
 // ============================================================================
 // GET   /api/[tenant]/pos/orders/[id] — una orden por su posId
@@ -49,8 +50,7 @@ type OrderDoc = PosOrderDoc
  * (`update[\`statusTimestamps.${field}\`]`) es exactamente lo que el linter
  * de seguridad marca como inyectable, y acá no aporta nada.
  */
-function statusTimestampsFor(to: PosOrderStatusValue): Record<string, unknown> {
-  const now = new Date()
+function statusTimestampsFor(to: PosOrderStatusValue, now: Date = new Date()): Record<string, unknown> {
   switch (to) {
     case 'confirmed':
       return { 'statusTimestamps.confirmedAt': now }
@@ -174,7 +174,8 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
       cashSaleToRegister = true
     }
 
-    Object.assign(update, statusTimestampsFor(to))
+    // POS offline: la hora real en que pasó, si viene de un equipo habilitado.
+    Object.assign(update, statusTimestampsFor(to, (await trustedOfflineAt(ctx)) ?? new Date()))
   }
 
   if (Object.keys(update).length === 0) {

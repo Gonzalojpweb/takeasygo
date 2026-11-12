@@ -88,6 +88,8 @@ export interface SaasOrderDraft {
   status: PosOrderStatusValue
   /** Orden creada ya comandada: hora de comanda (30/10). */
   statusTimestamps?: { confirmedAt: Date }
+  /** POS offline: hora real de la ronda tomada sin internet (si no, la pone Mongoose). */
+  createdAt?: Date
   source: 'pos'
   items: SaasOrderItemDraft[]
   subtotal: number

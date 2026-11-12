@@ -422,6 +422,11 @@ export interface Order {
    * entrada por método. Ausente = la orden todavía no se cobró desde el POS.
    */
   payments?: OrderPayment[]
+  /**
+   * POS offline V2: hecha (o cambiada) sin internet y todavía sin confirmar
+   * por el server. La respuesta del server la reemplaza y el campo desaparece.
+   */
+  pendingSync?: boolean
 }
 
 /** Una parte del cobro de una orden POS (centavos). */

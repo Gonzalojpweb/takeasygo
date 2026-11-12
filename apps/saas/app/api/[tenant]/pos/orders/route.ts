@@ -12,6 +12,7 @@ import {
   type SaasOrderDraft,
 } from '@/lib/pos-online/orderMapper'
 import { assertOrderAgainstCatalog } from '@/lib/pos-online/catalogPrices'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
 
 // ============================================================================
@@ -196,7 +197,16 @@ export const POST = posRoute('orders.write', async (ctx) => {
   // Precios contra el catálogo VIGENTE: se valida DESPUÉS del replay para que
   // un reintento idéntico de una orden ya aceptada siga devolviendo 200 aunque
   // la carta haya cambiado entre medio. Toda orden NUEVA cierra contra carta.
-  await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
+  // POS offline: una ronda tomada sin internet por un equipo habilitado se
+  // guarda con su hora real y con el precio vigente en ese momento (la carta
+  // pudo cambiar antes de que volviera la red).
+  const offlineAt = await trustedOfflineAt(ctx)
+  if (offlineAt) {
+    draft.createdAt = offlineAt
+    if (draft.statusTimestamps?.confirmedAt) draft.statusTimestamps.confirmedAt = offlineAt
+  } else {
+    await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
+  }
   // Fase G: comensales de la mesa en su PRIMERA ronda abierta (KPI del POS).
   // Si otra ronda abierta de la mesa ya los tiene, esta no los repite.
   if (draft.posTableId && table?.guests) {
