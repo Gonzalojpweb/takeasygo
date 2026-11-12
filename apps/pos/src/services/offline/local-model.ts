@@ -1,5 +1,5 @@
-import type { ItemCourse, Order, OrderItem, OrderStatus, Table } from "@takeasygo/types"
-import { calculateOrderTotal } from "@takeasygo/business/browser"
+import type { CashChannel, CashExpenseCategory, CashMovement, CashMovementType, CashRegister, ItemCourse, Order, OrderItem, OrderPayment, OrderStatus, PaymentMethod, Table } from "@takeasygo/types"
+import { calculateOrderTotal, cashExpectedDelta } from "@takeasygo/business/browser"
 
 // ============================================================================
 // Modelo local: lo que haría el server, aplicado en el equipo sin internet
@@ -133,4 +133,94 @@ export function applyFireCourse(order: Order, course: ItemCourse, now: Date): Or
 /** ¿Esta transición libera la mesa? (igual que el server al entregar/cancelar). */
 export function releasesTable(status: OrderStatus): boolean {
   return status === "delivered" || status === "cancelled"
+}
+
+// ── Etapa 3: cobro y caja ────────────────────────────────────────────────────
+
+/** Una parte del cobro tal como viaja a POST /orders/[id]/payments. */
+export interface LocalPaymentPart {
+  id: string
+  method: PaymentMethod
+  amount: number
+  reference?: string
+}
+
+/**
+ * Cobro de la orden sin internet. Mismas reglas que el server: la suma de las
+ * partes tiene que ser el total de la orden, y una orden cancelada o ya
+ * cobrada no se vuelve a cobrar. Devuelve el motivo del rechazo, si lo hay.
+ */
+export function applyPayments(order: Order, parts: LocalPaymentPart[], now: Date): Order | { error: string; code: "validation" | "conflict" } {
+  if (order.status === "cancelled") return { error: "La orden está cancelada: no se puede cobrar", code: "conflict" }
+  if (order.payments?.length) return { error: "La orden ya fue cobrada", code: "conflict" }
+  if (parts.length === 0 || parts.some((p) => !Number.isInteger(p.amount) || p.amount <= 0)) {
+    return { error: "Los montos del cobro tienen que ser positivos", code: "validation" }
+  }
+  const sum = parts.reduce((s, p) => s + p.amount, 0)
+  if (sum !== order.total) return { error: "El cobro no cubre el total de la orden", code: "validation" }
+  const payments: OrderPayment[] = parts.map((p) => ({ method: p.method, amount: p.amount, ...(p.reference ? { reference: p.reference } : {}) }))
+  return { ...order, payments, paymentSource: "pos_charged", updatedAt: now, pendingSync: true }
+}
+
+export interface LocalRegisterDraft {
+  id: string
+  tenantId: string
+  initialAmount: number
+  openedBy: string
+  defaultForChannel: CashChannel | null
+  shiftId?: string | null
+}
+
+export function buildLocalRegister(draft: LocalRegisterDraft, now: Date): CashRegister {
+  return {
+    id: draft.id,
+    tenantId: draft.tenantId,
+    openedBy: draft.openedBy,
+    openedAt: now,
+    initialAmount: draft.initialAmount,
+    expectedAmount: draft.initialAmount,
+    movements: [],
+    status: "open",
+    defaultForChannel: draft.defaultForChannel,
+    ...(draft.shiftId ? { shiftId: draft.shiftId } : {}),
+  }
+}
+
+export interface LocalMovementDraft {
+  id: string
+  type: CashMovementType
+  amount: number
+  reason: string
+  userId: string
+  channel: CashChannel
+  paymentMethod: PaymentMethod
+  relatedOrderId?: string
+  category?: CashExpenseCategory
+}
+
+/**
+ * Movimiento de caja sin internet. Como el server: la caja tiene que estar
+ * abierta, (relatedOrderId, tipo) no se repite y solo el efectivo mueve el
+ * arqueo. Devuelve el movimiento (el existente si era repetido) y la caja.
+ */
+export function applyMovement(register: CashRegister, draft: LocalMovementDraft, now: Date): { register: CashRegister; movement: CashMovement } | { error: string } {
+  if (register.status !== "open") return { error: "La caja está cerrada" }
+  if (draft.relatedOrderId) {
+    const existing = register.movements.find((m) => m.relatedOrderId === draft.relatedOrderId && m.type === draft.type)
+    if (existing) return { register, movement: existing }
+  }
+  const movement: CashMovement = {
+    id: draft.id,
+    type: draft.type,
+    amount: draft.amount,
+    reason: draft.reason,
+    userId: draft.userId,
+    timestamp: now,
+    channel: draft.channel,
+    paymentMethod: draft.paymentMethod,
+    ...(draft.relatedOrderId ? { relatedOrderId: draft.relatedOrderId } : {}),
+    ...(draft.category ? { category: draft.category } : {}),
+  }
+  const expected = (register.expectedAmount ?? register.initialAmount) + cashExpectedDelta(draft.type, draft.paymentMethod, draft.amount)
+  return { register: { ...register, movements: [...register.movements, movement], expectedAmount: expected }, movement }
 }

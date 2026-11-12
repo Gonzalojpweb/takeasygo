@@ -3,6 +3,7 @@ import Order from '@/models/Order'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { toPosOrder } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 import {
@@ -103,7 +104,8 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
 
   assertPaymentsCoverTotal(parts, order.total)
 
-  const paidAt = new Date()
+  // POS offline: cobro hecho sin internet → hora real (equipo habilitado).
+  const paidAt = (await trustedOfflineAt(ctx)) ?? new Date()
   const posPayments = parts.map((p) => ({
     posId: p.posId,
     method: p.method,

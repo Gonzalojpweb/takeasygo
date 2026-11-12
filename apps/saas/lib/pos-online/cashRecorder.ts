@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import CashRegister from '@/models/CashRegister'
 import CashMovement from '@/models/CashMovement'
 import { cashExpectedDelta } from '@takeasygo/business'
@@ -65,6 +66,8 @@ export async function recordPartsInOpenRegister(
   const register = await findOpenRegister(ctx)
   if (!register) return null
   const registerId = register._id as mongoose.Types.ObjectId
+  // POS offline: el movimiento lleva la hora real del cobro.
+  const timestamp = (await trustedOfflineAt(ctx)) ?? new Date()
 
   for (let i = 0; i < input.parts.length; i++) {
     const part = input.parts[i]
@@ -79,7 +82,7 @@ export async function recordPartsInOpenRegister(
         amount: part.amount,
         reason: saleReasonFor(input.baseReason, i, input.parts.length),
         userId: ctx.user.id,
-        timestamp: new Date(),
+        timestamp,
         relatedOrderId,
         channel: 'counter',
         paymentMethod: part.method,

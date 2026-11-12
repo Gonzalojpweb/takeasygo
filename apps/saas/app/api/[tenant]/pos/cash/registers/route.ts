@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
 import { operatorName } from '@/lib/pos-online/operator'
 import { PosError } from '@/lib/pos-online/errors'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import {
   registerSignature,
   toPosMovement,
@@ -174,6 +175,10 @@ export const POST = posRoute('cash.write', async (ctx) => {
   if (alreadyOpen) {
     throw PosError.conflict('Ya hay una caja abierta en esta sede')
   }
+
+  // POS offline: caja abierta sin internet → hora real de apertura.
+  const offlineAt = await trustedOfflineAt(ctx)
+  if (offlineAt) Object.assign(draft, { openedAt: offlineAt })
 
   let created
   try {

@@ -8,8 +8,10 @@ import type {
   PaymentMethod,
 } from "@takeasygo/types"
 import { db } from "../db/dexie"
-import { posApi } from "./pos-api"
+import { posApi, PosApiError } from "./pos-api"
 import { runMutation, syncRegisters } from "./polling"
+import { offlineAware } from "./offline/executor"
+import { applyMovement, buildLocalRegister } from "./offline/local-model"
 import {
   rehydrateMovement,
   rehydrateRegister,
@@ -33,14 +35,6 @@ import {
 // ============================================================================
 
 type WireResponse = { serverTime?: string }
-
-async function postRegister(
-  tenantId: string,
-  path: string,
-  body: Record<string, unknown>
-): Promise<WireResponse & { register: CashRegister }> {
-  return posApi(tenantId, path, { method: "POST", body })
-}
 
 // ============================================================================
 // Mutaciones
@@ -68,23 +62,38 @@ export async function openRegister(
   /** Turno elegido (Fase 2); sin él, el server toma el de la hora de la sede. */
   shiftId: string | null = null
 ): Promise<CashRegister> {
-  return runMutation(async () => {
-    const { register } = await postRegister(
+  const id = crypto.randomUUID()
+  const body = {
+    id,
+    initialAmount,
+    openedBy,
+    defaultForChannel,
+    ...(shiftId ? { shiftId } : {}),
+  }
+  return runMutation(() =>
+    offlineAware<CashRegister>({
       tenantId,
-      "/cash/registers",
-      {
-        id: crypto.randomUUID(),
-        initialAmount,
-        openedBy,
-        defaultForChannel,
-        ...(shiftId ? { shiftId } : {}),
-      }
-    )
-
-    const rehydrated = rehydrateRegister(register)
-    await db.cashRegister.put(rehydrated)
-    return rehydrated
-  })
+      kind: "cash.register",
+      label: `Abrir caja · inicial $${(initialAmount / 100).toLocaleString("es-AR")}`,
+      request: { method: "POST", path: "/cash/registers", body },
+      entityKeys: [`register:${id}`],
+      online: async (headers) => {
+        const { register } = await posApi<WireResponse & { register: CashRegister }>(tenantId, "/cash/registers", { method: "POST", body, headers })
+        const rehydrated = rehydrateRegister(register)
+        await db.cashRegister.put(rehydrated)
+        return rehydrated
+      },
+      // Sin red: «una caja abierta por sede» se controla con lo que sabe este
+      // equipo; si otra terminal abrió una, el server lo marca al sincronizar.
+      applyLocal: async () => {
+        const open = await db.cashRegister.where("tenantId").equals(tenantId).and((r) => r.status === "open").first()
+        if (open) throw new PosApiError("Ya hay una caja abierta en esta sede", "conflict", 409)
+        const register = buildLocalRegister({ id, tenantId, initialAmount, openedBy, defaultForChannel, shiftId }, new Date())
+        await db.cashRegister.put(register)
+        return register
+      },
+    })
+  )
 }
 
 /**
@@ -219,30 +228,41 @@ export async function addMovement(
   // cuando el caller se equivoca de frente. El server repite la misma regla.
   if (amount <= 0) throw new Error("[cash] El monto debe ser positivo")
 
-  return runMutation(async () => {
-    const { movement, register } = await posApi<{
-      movement: CashMovement
-      register: CashRegister
-    }>(tenantId, `/cash/registers/${encodeURIComponent(registerId)}/movements`, {
-      method: "POST",
-      body: {
-        id: crypto.randomUUID(),
-        type,
-        amount,
-        reason,
-        channel,
-        paymentMethod,
-        userId,
-        ...(relatedOrderId ? { relatedOrderId } : {}),
-        ...(category ? { category } : {}),
+  const path = `/cash/registers/${encodeURIComponent(registerId)}/movements`
+  const body = {
+    id: crypto.randomUUID(),
+    type,
+    amount,
+    reason,
+    channel,
+    paymentMethod,
+    userId,
+    ...(relatedOrderId ? { relatedOrderId } : {}),
+    ...(category ? { category } : {}),
+  }
+  return runMutation(() =>
+    offlineAware<{ movement: CashMovement; register: CashRegister }>({
+      tenantId,
+      kind: "cash.movement",
+      label: `Caja · ${reason}`,
+      request: { method: "POST", path, body },
+      entityKeys: [`register:${registerId}`, ...(relatedOrderId ? [`order:${relatedOrderId.split(/[#:]/)[0]}`] : [])],
+      online: async (headers) => {
+        const { movement, register } = await posApi<{ movement: CashMovement; register: CashRegister }>(tenantId, path, { method: "POST", body, headers })
+        const rehydrated = rehydrateRegister(register)
+        await db.cashRegister.put(rehydrated)
+        return { movement: rehydrateMovement(movement), register: rehydrated }
+      },
+      applyLocal: async () => {
+        const current = await db.cashRegister.get(registerId)
+        if (!current) throw new PosApiError("Caja no encontrada en este equipo", "not_found", 404)
+        const result = applyMovement(current, { ...body, category }, new Date())
+        if ("error" in result) throw new PosApiError(result.error, "conflict", 409)
+        await db.cashRegister.put(result.register)
+        return result
       },
     })
-
-    const rehydrated = rehydrateRegister(register)
-    await db.cashRegister.put(rehydrated)
-
-    return { movement: rehydrateMovement(movement), register: rehydrated }
-  })
+  )
 }
 
 // ============================================================================

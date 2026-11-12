@@ -13,6 +13,7 @@ import { useLayout } from "../layout/LayoutContext"
 import { useAuth } from "../../hooks/useAuth"
 import { ProductSelector } from "../shared/ProductSelector"
 import { PaymentProcessingOverlay, type ChargingSnapshot } from "../shared/PaymentProcessingOverlay"
+import { getOfflineStatus } from "../../services/offline/status"
 import { ProductConfigSheet, type ProductConfigDraft } from "../shared/ProductConfigSheet"
 import { ComboBuilderSheet, type ComboUnit } from "../shared/ComboBuilderSheet"
 import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/combo"
@@ -1127,6 +1128,19 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       // server respondería 409 por concurrencia optimista y el cobro se
       // cortaría con la orden creada a medio camino.
       await tableOpChainRef.current.catch(() => {})
+
+      // POS offline: el posnet integrado y los descuentos (PIN del encargado)
+      // necesitan internet. Se avisa ANTES de crear nada.
+      if (!getOfflineStatus().online) {
+        if (pointEnabled && parts.some((p) => p.method === "mercadopago")) {
+          showErrorToast("Sin internet el posnet integrado no cobra. Cobralo en el posnet en modo manual y elegí Débito o Crédito.")
+          return
+        }
+        if (!selectedTableId && mostradorDiscount) {
+          showErrorToast("Sin internet no se pueden aplicar descuentos (necesitan el PIN del encargado). Quitá el descuento o esperá a que vuelva la conexión.")
+          return
+        }
+      }
 
       const toCharge: Order[] = [...unpaidTableOrders]
 

@@ -1,6 +1,6 @@
-import type { Order, OrderStatus, Table } from "@takeasygo/types"
+import type { CashRegister, Order, OrderStatus, Table } from "@takeasygo/types"
 import { db } from "../../db/dexie"
-import { rehydrateOrder } from "../pos-wire"
+import { rehydrateOrder, rehydrateRegister } from "../pos-wire"
 import { registerOfflineOpKind } from "./registry"
 import { applyTablePatch, releasesTable } from "./local-model"
 
@@ -13,6 +13,7 @@ import { applyTablePatch, releasesTable } from "./local-model"
 // «ya estaba hecho».
 //
 //   etapa 2 — order.write, order.status, table.write, table.move
+//   etapa 3 — cash.register, cash.movement (el cobro es order.write)
 // ============================================================================
 
 async function saveServerOrder(response: unknown): Promise<Order | null> {
@@ -64,3 +65,11 @@ registerOfflineOpKind("table.move", {
     await saveServerTable(res?.to)
   },
 })
+
+async function saveServerRegister(response: unknown): Promise<void> {
+  const register = (response as { register?: CashRegister } | null)?.register
+  if (register) await db.cashRegister.put(rehydrateRegister(register))
+}
+
+registerOfflineOpKind("cash.register", { onSuccess: saveServerRegister })
+registerOfflineOpKind("cash.movement", { onSuccess: saveServerRegister })

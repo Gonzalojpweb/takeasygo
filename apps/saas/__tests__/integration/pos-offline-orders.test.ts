@@ -8,6 +8,8 @@ import Table from '@/models/Table'
 import Order from '@/models/Order'
 import Menu from '@/models/Menu'
 import PosOfflineDevice from '@/models/PosOfflineDevice'
+import CashRegister from '@/models/CashRegister'
+import CashMovement from '@/models/CashMovement'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -15,6 +17,8 @@ import type { NextRequest } from 'next/server'
 
 import { POST as createOrder } from '@/app/api/[tenant]/pos/orders/route'
 import { PATCH as patchOrder } from '@/app/api/[tenant]/pos/orders/[id]/route'
+import { POST as payOrder } from '@/app/api/[tenant]/pos/orders/[id]/payments/route'
+import { POST as openRegister } from '@/app/api/[tenant]/pos/cash/registers/route'
 
 /**
  * POS offline V2 — etapa 2 (12/11/2026): rondas tomadas sin internet.
@@ -105,5 +109,29 @@ describe('ronda tomada sin internet', () => {
     const res = await createOrder(req(base, round(), { 'x-pos-op-id': crypto.randomUUID(), 'x-pos-occurred-at': new Date().toISOString(), 'x-pos-device-id': DEVICE }), p())
     expect(res.status).toBe(409) // el precio no coincide con la carta vigente
     expect(await Order.countDocuments({ tenantId })).toBe(0)
+  })
+})
+
+describe('cobro y caja sin internet (etapa 3)', () => {
+  it('equipo habilitado: apertura, cobro y movimiento con la hora real', async () => {
+    await PosOfflineDevice.create({ tenantId, locationId, deviceId: DEVICE, name: 'Caja', role: 'primary' })
+    const openedAt = new Date(Date.now() - 4 * 60 * 60 * 1000)
+    const paidAt = new Date(Date.now() - 2 * 60 * 60 * 1000)
+    const off = (at: Date) => ({ 'x-pos-op-id': crypto.randomUUID(), 'x-pos-occurred-at': at.toISOString(), 'x-pos-device-id': DEVICE })
+
+    const reg = await openRegister(req(`http://localhost:3000/api/${SLUG}/pos/cash/registers`, { id: crypto.randomUUID(), initialAmount: 50000, openedBy: 'Ana', defaultForChannel: null }, off(openedAt)), p())
+    expect(reg.status).toBe(201)
+    const storedReg = await CashRegister.findOne({ tenantId }).lean<{ openedAt: Date }>()
+    expect(storedReg!.openedAt.getTime()).toBe(openedAt.getTime())
+
+    const body = round('pending')
+    expect((await createOrder(req(base, body, off(paidAt)), p())).status).toBe(201)
+    const pay = await payOrder(req(`${base}/${body.id}/payments`, { payments: [{ id: crypto.randomUUID(), method: 'cash', amount: 18000 }] }, off(paidAt)), p(body.id))
+    expect(pay.status).toBe(201)
+    const order = await Order.findOne({ tenantId, posId: body.id }).lean<{ posPayments: { paidAt: Date }[] }>()
+    expect(order!.posPayments[0].paidAt.getTime()).toBe(paidAt.getTime())
+    const movement = await CashMovement.findOne({ tenantId, type: 'sale' }).lean<{ timestamp: Date; amount: number }>()
+    expect(movement).toMatchObject({ amount: 18000 })
+    expect(movement!.timestamp.getTime()).toBe(paidAt.getTime())
   })
 })

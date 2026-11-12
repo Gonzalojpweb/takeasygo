@@ -9,6 +9,7 @@ import {
   applyFireCourse,
   applyItemQuantity,
   applyRemoveItem,
+  applyPayments,
   applyTransition,
   buildLocalOrder,
   releasesTable,
@@ -290,22 +291,30 @@ export async function recordPayments(
    */
   invoice?: InvoiceIntent
 ): Promise<Order> {
-  return runMutation(async () => {
-    const order = await postOrder(
-      tenantId,
-      `/orders/${encodeURIComponent(orderId)}/payments`,
-      {
-        ...(reason ? { reason } : {}),
-        ...(invoice ? { invoice } : {}),
-        payments: payments.map((p) => ({
-          id: p.id,
-          method: p.method,
-          amount: p.amount,
-          ...(p.reference ? { reference: p.reference } : {}),
-        })),
-      }
-    )
-    return saveOrder(order)
+  const parts = payments.map((p) => ({
+    id: p.id,
+    method: p.method,
+    amount: p.amount,
+    ...(p.reference ? { reference: p.reference } : {}),
+  }))
+  const total = parts.reduce((sum, p) => sum + p.amount, 0)
+  return writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · cobro $${(total / 100).toLocaleString("es-AR")}`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/payments`,
+    body: {
+      ...(reason ? { reason } : {}),
+      ...(invoice ? { invoice } : {}),
+      payments: parts,
+    },
+    // Sin red: mismas reglas que el server (suma = total, no cobrar dos veces).
+    local: (o, now) => {
+      const next = applyPayments(o, parts, now)
+      if ("error" in next) throw new PosApiError(next.error, next.code, next.code === "conflict" ? 409 : 400)
+      return next
+    },
   })
 }
 

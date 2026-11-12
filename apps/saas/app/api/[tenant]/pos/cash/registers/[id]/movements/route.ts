@@ -20,6 +20,7 @@ import { requireManagerApproval } from '@/lib/pos-online/approval'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody, requireFields } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import {
   ALL_CASH_MOVEMENT_TYPES,
   CASH_CHANNELS,
@@ -250,6 +251,10 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     )
     draft.approvedBy = approval.approvedBy
   }
+
+  // POS offline: movimiento hecho sin internet → hora real.
+  const offlineAt = await trustedOfflineAt(ctx)
+  if (offlineAt) Object.assign(draft, { timestamp: offlineAt })
 
   let created
   try {
