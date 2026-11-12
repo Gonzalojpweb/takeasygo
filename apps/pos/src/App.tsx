@@ -35,6 +35,8 @@ import {
 } from "./services/connectivity"
 import { flush } from "./services/event-queue"
 import { startPosPolling, stopPosPolling } from "./services/polling"
+import { startOfflineMonitor, stopOfflineMonitor } from "./services/offline/monitor"
+import "./services/offline/kinds"
 import { connectSocket, disconnectSocket, onSocketEvent } from "./services/socket-client"
 import { handleTakeasyGOSale } from "./services/sync-cash"
 import type { TakeasyGOSalePayload } from "./services/sync-cash"
@@ -83,9 +85,11 @@ function App() {
     if (decodeRole(state.jwt.accessToken) === "waiter") {
       startConnectivityMonitoring()
       startPosPolling(state.tenantId, { includeCash: false })
+      void startOfflineMonitor(state.tenantId).catch((err) => console.warn("[offline] monitor:", err))
       return () => {
         stopConnectivityMonitoring()
         stopPosPolling()
+        stopOfflineMonitor()
       }
     }
 
@@ -95,6 +99,9 @@ function App() {
     // Sin esto cada terminal solo ve lo que ella misma escribió (D14).
     // El primer tick corre adentro de startPosPolling, sin esperar el intervalo.
     startPosPolling(state.tenantId)
+
+    // ── POS offline (12/11): habilitación del equipo y envío de la cola ──
+    void startOfflineMonitor(state.tenantId).catch((err) => console.warn("[offline] monitor:", err))
 
     // ── Connect socket at root level (CRITICAL) ──
     connectSocket(state.jwt.accessToken)
@@ -292,6 +299,7 @@ function App() {
       unsubscribe()
       stopConnectivityMonitoring()
       stopPosPolling()
+      stopOfflineMonitor()
       disconnectSocket()
     }
   }, [state.status, state.tenantId, state.jwt])

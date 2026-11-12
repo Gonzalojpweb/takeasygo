@@ -1,5 +1,6 @@
 import Dexie from "dexie"
 import type { OfflineEvent, Table, Order, KitchenCommand, CashRegister, CashMovementType, CashChannel, PaymentMethod } from "@takeasygo/types"
+import type { OfflineOp } from "../services/offline/types"
 
 export interface TenantConfigRecord {
   tenantId: string
@@ -85,6 +86,12 @@ export interface MenuSnapshotRecord {
   updatedAt: Date
 }
 
+/** Clave/valor del modo offline (identidad del equipo, habilitación, secuencia). */
+export interface OfflineMetaRecord {
+  key: string
+  value: unknown
+}
+
 export class PosDatabase extends Dexie {
   tenantConfig!: Dexie.Table<TenantConfigRecord, string>
   session!: Dexie.Table<SessionRecord, string>
@@ -97,6 +104,9 @@ export class PosDatabase extends Dexie {
   pendingMovements!: Dexie.Table<PendingMovementRecord, string>
   pendingStatusUpdates!: Dexie.Table<PendingStatusUpdateRecord, string>
   menuSnapshot!: Dexie.Table<MenuSnapshotRecord, string>
+  /** POS offline V2: operaciones hechas sin internet, en orden (services/offline). */
+  offlineOps!: Dexie.Table<OfflineOp, string>
+  offlineMeta!: Dexie.Table<OfflineMetaRecord, string>
 
   constructor() {
     super("TakeasyGoPOS")
@@ -194,6 +204,22 @@ export class PosDatabase extends Dexie {
       pendingMovements: "id, tenantId, relatedOrderId, createdAt",
       pendingStatusUpdates: "orderId, tenantId, createdAt",
       menuSnapshot: "tenantId",
+    })
+    // POS offline V2 (12/11/2026): cola de operaciones sin internet.
+    this.version(11).stores({
+      tenantConfig: "tenantId",
+      session: "tenantId",
+      pendingEvents: "++id, tenantId, status, timestamp",
+      pairedSpokes: "deviceId, tenantId, pairedAt",
+      diningTable: "id, tenantId, status, section, number",
+      orders: "id, tenantId, status, tableId, createdAt, source, externalStatus",
+      commands: "id, tenantId, status, createdAt",
+      cashRegister: "id, tenantId, status, openedAt",
+      pendingMovements: "id, tenantId, relatedOrderId, createdAt",
+      pendingStatusUpdates: "orderId, tenantId, createdAt",
+      menuSnapshot: "tenantId",
+      offlineOps: "id, tenantId, status, seq",
+      offlineMeta: "key",
     })
   }
 }

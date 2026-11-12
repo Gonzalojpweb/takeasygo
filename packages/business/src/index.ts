@@ -15,6 +15,7 @@ export {
   HIDDEN_REWARDS_GROWTH_LIMIT,
   HIDDEN_REWARDS_LIMIT,
   PRINTER_LIMIT,
+  OFFLINE_DEVICE_LIMIT,
 } from "./plans"
 export { canPerformAction, PERMISSIONS } from "./authorization"
 export { SHARED_SURFACES, SHARED_SURFACE_ROLES, canSeeSharedSurfaces, POS_ONLY_ADMIN_PATHS, isPosOnlyAdminPath, type SharedSurface, type SharedSurfaceId, type SharedSurfaceRole } from "./surfaces"

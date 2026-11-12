@@ -8,6 +8,7 @@ import { isAudioUnlocked, unlockAudio } from "../../services/notification-sound"
 import { CURRENT_BUILD, versionLabel } from "../../services/app-update"
 import { useLayout } from "./LayoutContext"
 import { CalculatorButton } from "../shared/Calculator"
+import { OfflineBadge } from "./OfflineBadge"
 
 // ============================================================================
 // Header — identidad permanente: ¿dónde estoy? (W0S §2, VLS §3)
@@ -205,6 +206,7 @@ export function Header({ tenantName, locationName, userName, roleLabel, contextT
             <AlertTriangle size={16} aria-hidden /> <span className="header-btn-label">Sesión por vencer — reingresar</span>
           </button>
         )}
+        <OfflineBadge />
         <div className={`sync-status ${connected ? "" : "disconnected"}`} role="status">
           {connected ? <Cloud size={14} aria-hidden /> : <CloudOff size={14} aria-hidden />}
           <span className="sr-only">{connected ? "Online" : "Sin conexión"}</span>

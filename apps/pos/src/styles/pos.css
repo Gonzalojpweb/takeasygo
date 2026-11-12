@@ -4981,3 +4981,26 @@ html {
   .paying-overlay { animation: none; }
   .paying-spinner { animation-duration: 2.4s; }
 }
+
+/* ── POS offline (12/11/2026) ─────────────────────────────────────────── */
+.offline-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: var(--font-size-xs); font-weight: 700; white-space: nowrap; }
+.offline-badge.is-offline { color: #8a5300; background: #fff1d6; }
+.offline-badge.is-blocked, .offline-badge.is-conflict { color: var(--danger); background: var(--danger-light, #fee2e2); }
+.offline-badge.is-syncing { color: var(--primary-action); background: color-mix(in srgb, var(--primary-action) 12%, transparent); }
+.offline-badge-spin { animation: spin 1.2s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .offline-badge-spin { animation: none; } }
+.config-offline { display: flex; flex-direction: column; gap: var(--sp-4); }
+.offline-this-device { display: flex; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-4); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text-secondary); }
+.offline-this-device.is-on { border-color: color-mix(in srgb, var(--success) 40%, transparent); background: var(--success-light); color: var(--success); }
+.offline-this-device-text { display: flex; flex-direction: column; gap: 4px; color: var(--text-primary); }
+.offline-this-device-text span { color: var(--text-secondary); font-size: var(--font-size-sm); }
+.offline-warn { color: #8a5300 !important; font-weight: 600; }
+.offline-enable { display: flex; flex-direction: column; gap: var(--sp-2); }
+.offline-enable label { font-weight: 700; font-size: var(--font-size-sm); }
+.offline-enable-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.offline-enable-row .search-input { flex: 1; min-width: 200px; }
+.offline-device-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.offline-device-list li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.offline-device-list li > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.offline-device-list small { color: var(--text-secondary); }
+.offline-chip { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--primary-action) 12%, transparent); color: var(--primary-action); }

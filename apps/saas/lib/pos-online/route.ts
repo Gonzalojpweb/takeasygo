@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { resolvePosContext, type PosContext } from './tenantContext'
 import { PosError, toPosErrorResponse } from './errors'
 import { assertPosCapability, type PosCapability } from './permissions'
+import { readOfflineOp, withOpReceipt } from './opReceipt'
 
 // ============================================================================
 // posRoute — el wrapper de TODA la superficie /api/[tenant]/pos/*
@@ -32,7 +33,12 @@ export function posRoute<T extends RouteParams = RouteParams>(
       const ctx = await resolvePosContext(request, resolved.tenant)
       // Antes del body: un rol sin permiso nunca recibe errores de validación.
       assertPosCapability(ctx.user.role, capability)
-      return await handler(ctx, resolved)
+      // POS offline (12/11): una operación reenviada con X-Pos-Op-Id se aplica
+      // una sola vez; el handler ve el momento real en ctx.offline.
+      const op = request.method === 'GET' || request.method === 'HEAD' ? null : readOfflineOp(request)
+      if (!op) return await handler(ctx, resolved)
+      ctx.offline = op
+      return await withOpReceipt(ctx.tenantId, request, op, () => handler(ctx, resolved))
     } catch (error) {
       return toPosErrorResponse(error)
     }

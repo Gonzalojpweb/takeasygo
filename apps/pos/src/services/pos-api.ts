@@ -1,5 +1,6 @@
 import { db } from "../db/dexie"
 import { MAX_APPROVAL_ATTEMPTS, requestManagerPin } from "./manager-approval"
+import { getCachedDeviceId, markOffline, markOnline } from "./offline/status"
 
 // ============================================================================
 // pos-api — el ÚNICO cliente HTTP de la superficie /api/[tenant]/pos/*
@@ -110,6 +111,13 @@ export interface PosApiRequest {
   query?: Record<string, string | number | boolean | undefined>
   /** Token explícito (si el caller ya lo tiene); si no, se lee de la sesión. */
   accessToken?: string
+  /** Headers extra (POS offline: X-Pos-Op-Id, X-Pos-Occurred-At). */
+  headers?: Record<string, string>
+  /**
+   * No pedir el PIN del encargado: el reenvío de la cola offline corre en
+   * segundo plano y no puede abrir un diálogo; la operación queda para revisar.
+   */
+  skipApproval?: boolean
 }
 
 /**
@@ -135,7 +143,8 @@ export async function posApi<T>(
       if (
         !isPosApiError(err) ||
         (err.code !== "approval_required" && err.code !== "approval_invalid") ||
-        attempt >= MAX_APPROVAL_ATTEMPTS
+        attempt >= MAX_APPROVAL_ATTEMPTS ||
+        request.skipApproval
       ) {
         throw err
       }
@@ -181,6 +190,10 @@ async function posApiOnce<T>(
   if (request.body !== undefined) headers["Content-Type"] = "application/json"
   if (request.idempotencyKey) headers["Idempotency-Key"] = request.idempotencyKey
   if (managerPin) headers["X-Manager-Pin"] = managerPin
+  // POS offline: el server reconoce el equipo (habilitación y auditoría).
+  const deviceId = getCachedDeviceId()
+  if (deviceId) headers["X-Pos-Device-Id"] = deviceId
+  Object.assign(headers, request.headers ?? {})
 
   // La sede la declara el POS; el server la valida contra el tenant y NUNCA
   // elige una por su cuenta (ver resolvePosContext).
@@ -199,12 +212,17 @@ async function posApiOnce<T>(
       body: request.body !== undefined ? JSON.stringify(request.body) : undefined,
     })
   } catch (e) {
+    // Sin respuesta del server: el POS pasa a «sin conexión» (POS offline).
+    markOffline()
     throw new PosApiError(
       e instanceof Error ? e.message : "Error de red",
       "network",
       0
     )
   }
+
+  // Cualquier respuesta (aun un error) prueba que el server está.
+  markOnline()
 
   if (res.ok) {
     if (res.status === 204) return undefined as T

@@ -182,6 +182,21 @@ export const PRINTER_LIMIT: Record<Plan, number> = {
   high:     4,
 }
 
+/**
+ * Equipos del POS que pueden operar SIN INTERNET, por sede (POS offline V2,
+ * decisión del dueño 12/11/2026). Inicial y Crecimiento: 1 — el equipo donde
+ * está la impresora del comprobante. Premium y Élite: 2 (principal y
+ * secundario). Anfitriones no tiene POS.
+ */
+export const OFFLINE_DEVICE_LIMIT: Record<Plan, number> = {
+  trial:    1,
+  try:      1,
+  buy:      1,
+  full:     2,
+  anfitrion: 0,
+  high:     2,
+}
+
 /** Límite de premios ocultos por sede en plan Crecimiento. null = sin límite */
 export const HIDDEN_REWARDS_GROWTH_LIMIT = 20
 export const HIDDEN_REWARDS_LIMIT: Record<Plan, number | null> = {

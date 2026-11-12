@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Printer, Receipt, Plus, Clock, Trash2, Bike, Store } from "lucide-react"
+import { Printer, Receipt, Plus, Clock, Trash2, Bike, Store, CloudOff } from "lucide-react"
+import { OfflineDevicesPanel } from "./OfflineDevicesPanel"
 import { FISCAL_DOCUMENTS, PRINTER_DOCUMENTS, PRINTER_DOCUMENT_LABELS, type PrinterDocument } from "@takeasygo/business/browser"
 import { useAuth } from "../../hooks/useAuth"
 import { useLayout } from "../layout/LayoutContext"
@@ -38,7 +39,7 @@ import {
 // fases siguientes.
 // ============================================================================
 
-type Section = "impresoras" | "comprobantes" | "turnos" | "deliverys" | "mostrador"
+type Section = "impresoras" | "comprobantes" | "turnos" | "deliverys" | "mostrador" | "offline"
 
 const SECTIONS: { id: Section; label: string; hint: string; icon: typeof Printer }[] = [
   { id: "impresoras", label: "Impresoras", hint: "Qué imprime cada una", icon: Printer },
@@ -46,6 +47,7 @@ const SECTIONS: { id: Section; label: string; hint: string; icon: typeof Printer
   { id: "turnos", label: "Turnos", hint: "Un turno, una caja", icon: Clock },
   { id: "deliverys", label: "Deliverys", hint: "PedidosYa, Rappi y otras", icon: Bike },
   { id: "mostrador", label: "Mostrador", hint: "Productos con o sin fotos", icon: Store },
+  { id: "offline", label: "Sin internet", hint: "Equipos que siguen operando", icon: CloudOff },
 ]
 
 const STATUS_LABEL: Record<string, string> = { ok: "Imprimiendo bien", error: "Con error", offline: "Sin conexión", unknown: "Sin datos todavía" }
@@ -178,7 +180,7 @@ export function ConfigDashboard({ role }: { role?: string }) {
   }, [tenantId, isAdmin, counterConfig.showProductImages, flash])
 
   useEffect(() => {
-    if (section === "mostrador") return
+    if (section === "mostrador" || section === "offline") return
     const id = setTimeout(() => {
       void (section === "impresoras" ? loadPrinters() : section === "comprobantes" ? loadFiscal() : section === "turnos" ? loadShifts() : loadPlatforms())
     }, 0)
@@ -421,6 +423,20 @@ export function ConfigDashboard({ role }: { role?: string }) {
       })
       return
     }
+    if (section === "offline") {
+      setContextPanel({
+        title: "Sin internet",
+        subtitle: "POS offline",
+        body: (
+          <p className="cash-help">
+            Un equipo habilitado sigue tomando pedidos, abriendo mesas y cobrando si se corta internet. Lo que se hace se guarda en el equipo y se envía solo, en orden, cuando vuelve la conexión.
+            Instalá el POS como app en ese equipo (Chrome o Edge) para que el navegador no borre los datos.
+          </p>
+        ),
+      })
+      setActionBar(null)
+      return
+    }
     if (section === "mostrador") {
       setContextPanel({
         title: "Mostrador",
@@ -569,6 +585,10 @@ export function ConfigDashboard({ role }: { role?: string }) {
                 ))}
               </fieldset>
             </div>
+          )}
+
+          {section === "offline" && tenantId && (
+            <OfflineDevicesPanel tenantId={tenantId} canManage={role === "admin" || role === "manager"} flash={flash} />
           )}
 
           {section === "mostrador" && (

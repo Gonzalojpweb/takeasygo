@@ -34,6 +34,11 @@ export interface PosContext {
   locationId: string
   /** true cuando el alcance vino fijado en el token. */
   scopedByToken: boolean
+  /**
+   * Operación reenviada por un equipo que estuvo sin internet (POS offline
+   * V2). La completa posRoute; ausente en las peticiones online normales.
+   */
+  offline?: import('./opReceipt').OfflineOpContext | null
 }
 
 const SLUG_RE = /^[a-z0-9-]{2,50}$/

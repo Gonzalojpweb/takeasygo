@@ -4,6 +4,7 @@ import { db } from "../db/dexie"
 import { posApi } from "./pos-api"
 import { rehydrateOrders, rehydrateRegisters } from "./pos-wire"
 import { syncMenu } from "./menu"
+import { getOfflineStatus } from "./offline/status"
 
 // ============================================================================
 // polling — diff-then-put contra /api/[tenant]/pos/*
@@ -83,6 +84,16 @@ export function mutationInFlight(): boolean {
   return activeMutations > 0
 }
 
+/**
+ * POS offline (12/11): mientras haya operaciones hechas sin internet que el
+ * server todavía no tiene, el polling no escribe. Lo que trae el server es
+ * anterior a esas operaciones y pisaría lo que el cajero ve. Al mandarse la
+ * cola, el polling vuelve solo.
+ */
+function writesBlocked(): boolean {
+  return activeMutations > 0 || getOfflineStatus().pending > 0
+}
+
 /** Solo para tests: los contadores viven en módulo y no se resetean solos. */
 export function resetPollingState(): void {
   activeMutations = 0
@@ -140,12 +151,12 @@ async function flush<T extends { id: string }>(
   incoming: T[],
   epoch: number
 ): Promise<number> {
-  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  if (writesBlocked() || completedMutations !== epoch) return 0
 
   const changed = await collectChanged(table, incoming)
   // ← última comprobación: no puede haber ningún await debajo hasta llamar a
   //   bulkPut, para que el orden de escritura en Dexie sea determinista.
-  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  if (writesBlocked() || completedMutations !== epoch) return 0
   if (changed.length === 0) return 0
 
   await table.bulkPut(changed)
@@ -155,7 +166,7 @@ async function flush<T extends { id: string }>(
 // â”€â”€ Colecciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function syncTables(tenantId: string): Promise<number> {
-  if (activeMutations > 0) return 0
+  if (writesBlocked()) return 0
   const epoch = completedMutations
 
   const { tables } = await posApi<{ tables: Table[] }>(tenantId, "/tables")
@@ -172,11 +183,11 @@ export async function syncTables(tenantId: string): Promise<number> {
  * una mesa recién creada por una mutación en vuelo no se toca.
  */
 async function pruneMissingTables(tenantId: string, incoming: Table[], epoch: number): Promise<number> {
-  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  if (writesBlocked() || completedMutations !== epoch) return 0
   const keep = new Set(incoming.map((t) => t.id))
   const local = await db.diningTable.where("tenantId").equals(tenantId).toArray()
   const stale = local.filter((t) => !keep.has(t.id)).map((t) => t.id)
-  if (activeMutations > 0 || completedMutations !== epoch) return 0
+  if (writesBlocked() || completedMutations !== epoch) return 0
   if (stale.length === 0) return 0
   await Promise.all(stale.map((id) => db.diningTable.delete(id)))
   return stale.length
@@ -194,7 +205,7 @@ export function resyncTablesSoon(tenantId: string): void {
 }
 
 export async function syncOrders(tenantId: string): Promise<number> {
-  if (activeMutations > 0) return 0
+  if (writesBlocked()) return 0
   const epoch = completedMutations
 
   const { orders } = await posApi<{ orders: Order[] }>(tenantId, "/orders", {
@@ -205,7 +216,7 @@ export async function syncOrders(tenantId: string): Promise<number> {
 }
 
 export async function syncRegisters(tenantId: string): Promise<number> {
-  if (activeMutations > 0) return 0
+  if (writesBlocked()) return 0
   const epoch = completedMutations
 
   const { registers } = await posApi<{ registers: CashRegister[] }>(
