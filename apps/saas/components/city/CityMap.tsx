@@ -24,7 +24,11 @@ import { CITY_PIN_DEFS, USER_PUCK_HTML, clusterHtml, pinHtml, pinKey, pinModel }
 export interface CityMapHandle {
   recenter: () => void
   focus: (place: RestaurantCardData) => void
+  /** Encuadra al usuario y a estos lugares (al encender una capa). */
+  fitTo: (places: RestaurantCardData[]) => void
 }
+
+const FIT_MAX_PLACES = 6
 
 interface Props {
   center: { lat: number; lng: number }
@@ -37,6 +41,11 @@ interface Props {
   bottomInset: number
   /** Píxeles del borde superior tapados por el encabezado. */
   topInset: number
+  /**
+   * false = «ventana a la ciudad» (Inicio): el mapa se mira, no se maneja.
+   * Sin gestos ni atribución desplegable; el contenedor decide qué hace el toque.
+   */
+  interactive?: boolean
 }
 
 const HOME_ZOOM = 15.4
@@ -46,12 +55,18 @@ const TILT = 50
 type ClusterProps = { awake: number }
 type PointProps = { placeId: string; awake: number }
 
+/** Corre `fn` ya, o cuando termine la animación de cámara en curso. */
+function afterMove(map: MapLibreMap, fn: () => void) {
+  if (map.isMoving()) map.once('moveend', fn)
+  else fn()
+}
+
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
-  { center, places, selectedId, onSelect, theme, tilted, bottomInset, topInset },
+  { center, places, selectedId, onSelect, theme, tilted, bottomInset, topInset, interactive = true },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -72,6 +87,33 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
   const themeRef = useRef(theme)
   const tiltedRef = useRef(tilted)
   tiltedRef.current = tilted
+  const interactiveRef = useRef(interactive)
+  // Encuadre pedido antes de que el mapa terminara de cargar.
+  const pendingFitRef = useRef<RestaurantCardData[] | null>(null)
+  const fitRef = useRef<(places: RestaurantCardData[], duration: number) => boolean>(() => false)
+  fitRef.current = (targets, duration) => {
+    const map = mapRef.current
+    const lib = libRef.current
+    if (!map || !lib) return false
+    const c = centerRef.current
+    const points = targets
+      .filter(p => p.lat != null && p.lng != null)
+      .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity))
+      .slice(0, FIT_MAX_PLACES)
+    if (points.length === 0) return false
+    const bounds = new lib.LngLatBounds([c.lng, c.lat], [c.lng, c.lat])
+    for (const p of points) bounds.extend([p.lng as number, p.lat as number])
+    map.fitBounds(bounds, {
+      // El margen del encabezado y del panel ya está en el padding del mapa
+      // (fitBounds lo suma): acá va solo el aire extra.
+      padding: { top: 48, bottom: 40, left: 44, right: 44 },
+      maxZoom: HOME_ZOOM,
+      pitch: tiltedRef.current ? TILT : 0,
+      bearing: tiltedRef.current ? -14 : 0,
+      duration,
+    })
+    return true
+  }
   const insetRef = useRef({ top: topInset, bottom: bottomInset })
   insetRef.current = { top: topInset, bottom: bottomInset }
   // Lo último que el mapa ya tiene aplicado: los efectos solo animan cambios
@@ -209,6 +251,7 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
           // El mapa no se arrastra con dos dedos hacia arriba por accidente:
           // la inclinación se cambia con el botón 3D.
           touchPitch: false,
+          interactive: interactiveRef.current,
           fadeDuration: 180,
         })
         mapRef.current = map
@@ -246,7 +289,11 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
           map.setPadding(padding)
           setReady(true)
           renderRef.current()
-          if (animateIn) {
+          const pendingFit = pendingFitRef.current
+          pendingFitRef.current = null
+          if (pendingFit && fitRef.current(pendingFit, animateIn ? 1600 : 0)) {
+            // Se abrió con una capa: el encuadre reemplaza la entrada.
+          } else if (animateIn) {
             // «Entrar a la ciudad»: un único gesto al abrir, después el mapa
             // se queda quieto.
             map.easeTo({
@@ -261,12 +308,23 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
           }
         })
         map.on('error', event => {
+          const message = String(event?.error?.message ?? event?.error ?? '')
           // Sin WebGL el constructor no llega a `load`; el resto son teselas
-          // sueltas que fallan y no rompen la experiencia.
-          if (!mapRef.current?.loaded() && String(event?.error?.message ?? '').includes('WebGL')) {
+          // sueltas que fallan y no rompen la experiencia, pero se registran.
+          if (!mapRef.current?.loaded() && message.includes('WebGL')) {
             setFailed(true)
           }
+          console.warn('[TGO mapa]', message)
         })
+
+        // El contenedor puede cambiar de tamaño (o nacer en 0 mientras carga
+        // el CSS): el mapa se reacomoda solo.
+        const container = containerRef.current
+        if (typeof ResizeObserver !== 'undefined' && container) {
+          const observer = new ResizeObserver(() => map?.resize())
+          observer.observe(container)
+          map.once('remove', () => observer.disconnect())
+        }
       })
       .catch(() => {
         if (!cancelled) setFailed(true)
@@ -321,7 +379,12 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
     if (!map || !ready || (applied.top === topInset && applied.bottom === bottomInset)) return
     applied.top = topInset
     applied.bottom = bottomInset
-    map.easeTo({ padding: { top: topInset, bottom: bottomInset, left: 0, right: 0 }, duration: 350 })
+    // Si hay una animación en curso (entrada, encuadre de capa), no se la
+    // corta: el ajuste espera a que termine y usa el valor más reciente.
+    afterMove(map, () => {
+      const inset = insetRef.current
+      map.easeTo({ padding: { top: inset.top, bottom: inset.bottom, left: 0, right: 0 }, duration: 350 })
+    })
   }, [bottomInset, topInset, ready])
 
   // ── El usuario se movió (llegó el GPS real) ──────────────────────────────
@@ -334,7 +397,10 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
     puckRef.current?.setLngLat([center.lng, center.lat])
     const source = map.getSource('walk15') as GeoJSONSource | undefined
     source?.setData(circlePolygon(center, CITY_15_RADIUS_M))
-    map.easeTo({ center: [center.lng, center.lat], duration: 900 })
+    afterMove(map, () => {
+      const c = centerRef.current
+      map.easeTo({ center: [c.lng, c.lat], duration: 900 })
+    })
   }, [center.lat, center.lng, ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(
@@ -349,6 +415,13 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
           bearing: tiltedRef.current ? -14 : 0,
           duration: 800,
         })
+      },
+      fitTo: targets => {
+        if (!mapRef.current?.loaded()) {
+          pendingFitRef.current = targets
+          return
+        }
+        fitRef.current(targets, 800)
       },
       focus: place => {
         const map = mapRef.current

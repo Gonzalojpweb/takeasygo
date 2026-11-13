@@ -13,6 +13,7 @@ import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { FetchOverlay } from './ExploreLoadingSkeleton'
 import CityCard from '@/components/city/CityCard'
+import { CITY_LAYERS, type CityLayer } from '@/lib/city/signals'
 import '@/components/city/city.css'
 import ExplorePromoCard, { type ExplorePromo } from './ExplorePromoCard'
 import RestaurantDetailOverlay from './RestaurantDetailOverlay'
@@ -26,6 +27,11 @@ import { Button } from '@/components/ui/button'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
 // La ciudad viva: un solo mapa para «Inicio» y «Mapa» (components/city).
+const CityFeed = dynamic(() => import('@/components/city/CityFeed'), {
+  ssr: false,
+  loading: () => null,
+})
+
 const CityHome = dynamic(() => import('@/components/city/CityHome'), {
   ssr: false,
   loading: () => null,
@@ -276,6 +282,12 @@ function ExploreClientInner() {
     }
   }, [coords, handleNetworkDismiss, setCoords, setGpsResolved])
 
+  // Capa del mapa pedida desde Inicio (/app?view=map&layer=promo).
+  const mapLayer = useMemo<CityLayer | null>(() => {
+    const raw = searchParams.get('layer')
+    return CITY_LAYERS.some(l => l.id === raw) ? (raw as CityLayer) : null
+  }, [searchParams])
+
   // ── Sync View with URL + track view changes ──────────────────────
   useEffect(() => {
     const v = searchParams.get('view')
@@ -507,16 +519,21 @@ function ExploreClientInner() {
           {/* Fetch overlay — only on first load */}
           {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
-          {/* === INICIO + MAPA: la ciudad viva (un solo mapa) === */}
+          {/* === INICIO (relato de la ciudad) y MAPA (exploración) === */}
           {(view === 'home' || view === 'map') && (
           <div className="absolute inset-0">
             {coords ? (
-              <CityHome
-                mode={view}
-                center={coords}
-                places={restaurants}
-                onOpen={handleNavigate}
-              />
+              view === 'home' ? (
+                <CityFeed center={coords} places={restaurants} onOpen={handleNavigate} />
+              ) : (
+                <CityHome
+                  key={mapLayer ?? 'all'}
+                  initialLayer={mapLayer}
+                  center={coords}
+                  places={restaurants}
+                  onOpen={handleNavigate}
+                />
+              )
             ) : (
               <div
                 className="flex flex-col items-center justify-center h-full gap-3"

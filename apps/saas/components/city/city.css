@@ -92,10 +92,19 @@
 
 /* ── Mapa ───────────────────────────────────────────────────────────────── */
 
-.city-map,
-.city-map__canvas {
+.city-map {
   position: absolute;
   inset: 0;
+}
+/* Doble clase a propósito: el CSS de MapLibre pone .maplibregl-map en
+   position: relative y, según el orden de carga (en producción sí pasa),
+   le ganaba a esta regla y el mapa quedaba con alto 0. */
+.city-map .city-map__canvas,
+.city-map .city-map__canvas.maplibregl-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .city-map__fallback {
@@ -1024,6 +1033,253 @@
   border-radius: 20px;
   background: var(--c-surface);
   overflow: hidden;
+}
+
+/* ── Inicio (CityFeed) ───────────────────────────────────────────────── */
+
+.city-feed {
+  background: var(--c-surface-2);
+}
+.city-root[data-theme='night'].city-feed {
+  background: #11131c;
+}
+.city-feed__scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 0 calc(var(--city-dock) + 24px);
+}
+
+.city-feed__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 var(--city-gutter) 14px;
+}
+.city-feed__hello {
+  flex: 1;
+  min-width: 0;
+}
+.city-feed__hello p {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-ink-3);
+}
+.city-feed__hello h1 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+.city-feed__btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+}
+
+/* Ventana viva al mapa */
+.city-window {
+  position: relative;
+  height: min(46vh, 380px);
+  margin: 0 var(--city-gutter);
+  border-radius: 26px;
+  overflow: hidden;
+  border: 1px solid var(--c-line);
+  box-shadow: var(--c-float);
+  isolation: isolate;
+}
+.city-window__map {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.city-window__map .maplibregl-ctrl-bottom-left {
+  bottom: 60px !important;
+}
+.city-window__tap {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border: 0;
+  padding: 0;
+  background: linear-gradient(to bottom, transparent 55%, rgba(20, 18, 40, 0.18));
+  cursor: pointer;
+}
+.city-window__voice {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--c-line);
+  border-radius: 16px;
+  background: var(--c-glass);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: var(--c-float);
+  text-align: left;
+  cursor: pointer;
+}
+.city-window__voice .city-voice__line {
+  flex: 1;
+  min-width: 0;
+}
+.city-window__open {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: var(--c-inverse);
+  color: var(--c-on-inverse);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.city-feed__stats {
+  margin: 14px var(--city-gutter) 0;
+}
+.city-feed .city-stat {
+  background: var(--c-surface);
+}
+
+.city-feed__section {
+  margin-top: 28px;
+}
+.city-feed__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 var(--city-gutter) 12px;
+}
+.city-feed__head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.city-feed__head p {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--c-ink-3);
+}
+.city-feed__head button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 6px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--c-ink-2);
+  cursor: pointer;
+}
+.city-feed .city-list {
+  margin: 0 var(--city-gutter);
+}
+
+/* Carrusel */
+.city-rail {
+  display: flex;
+  gap: 12px;
+  padding: 2px var(--city-gutter) 6px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 var(--city-gutter);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.city-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.city-tile {
+  flex: none;
+  width: 228px;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 1px solid var(--c-line);
+  border-radius: 20px;
+  background: var(--c-surface);
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  scroll-snap-align: start;
+  transition: transform 0.18s ease;
+}
+.city-tile:active {
+  transform: scale(0.98);
+}
+.city-tile__band {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  height: 76px;
+  padding: 0 12px 10px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tint) 30%, transparent), color-mix(in srgb, var(--tint) 8%, transparent));
+}
+.city-tile__near {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 24px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--c-glass);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--c-ink-2);
+}
+.city-tile__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 13px;
+  min-width: 0;
+}
+.city-tile__name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.city-tile .city-status {
+  font-size: 12.5px;
+}
+.city-tile__opp {
+  margin-top: 6px;
+  display: flex;
+  min-width: 0;
+}
+.city-tile__opp .city-opp {
+  min-width: 0;
 }
 
 /* ── Movimiento reducido ────────────────────────────────────────────────── */

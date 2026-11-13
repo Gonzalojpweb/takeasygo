@@ -49,7 +49,8 @@ import PlacePreview from './PlacePreview'
 import './city.css'
 
 interface Props {
-  mode: 'home' | 'map'
+  /** Capa encendida al abrir (viene de Inicio: /app?view=map&layer=promo). */
+  initialLayer?: CityLayer | null
   center: { lat: number; lng: number }
   places: RestaurantCardData[]
   /** Abre la ficha completa del lugar. */
@@ -84,7 +85,7 @@ function autoTheme(): CityTheme {
   return minutes >= 19 * 60 + 30 || minutes < 6 * 60 + 30 ? 'night' : 'day'
 }
 
-export default function CityHome({ mode, center, places, onOpen }: Props) {
+export default function CityHome({ initialLayer = null, center, places, onOpen }: Props) {
   const router = useRouter()
   const haptic = useHaptic()
   const { data: session } = useSession()
@@ -101,7 +102,7 @@ export default function CityHome({ mode, center, places, onOpen }: Props) {
     return autoTheme()
   })
   const [tilted, setTilted] = useState(true)
-  const [layer, setLayer] = useState<CityLayer | null>(null)
+  const [layer, setLayer] = useState<CityLayer | null>(initialLayer)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [sheetInset, setSheetInset] = useState(0)
   const [hour, setHour] = useState(() => new Date().getHours())
@@ -187,11 +188,22 @@ export default function CityHome({ mode, center, places, onOpen }: Props) {
     [haptic]
   )
 
+  // Al encender una capa, el mapa encuadra esos lugares (pueden estar lejos
+  // de la vista actual). Al apagarla, vuelve a vos.
   const toggleLayer = (id: CityLayer) => {
     haptic.selection()
     setSelectedId(null)
-    setLayer(prev => (prev === id ? null : id))
+    const next = layer === id ? null : id
+    setLayer(next)
+    if (next) mapRef.current?.fitTo(places.filter(p => matchesLayer(p, next)))
+    else mapRef.current?.recenter()
   }
+
+  // Abierto desde Inicio con una capa: mismo encuadre, una sola vez.
+  useEffect(() => {
+    if (initialLayer) mapRef.current?.fitTo(places.filter(p => matchesLayer(p, initialLayer)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al abrir
+  }, [])
 
   const onVoiceTap = () => {
     if (voiceItem.placeId) {
@@ -201,11 +213,6 @@ export default function CityHome({ mode, center, places, onOpen }: Props) {
     haptic.selection()
     sheetRef.current?.snapTo('half')
   }
-
-  // «Inicio» abre el panel a medio; «Mapa» lo deja asomado.
-  useEffect(() => {
-    sheetRef.current?.snapTo(mode === 'map' ? 'peek' : 'half')
-  }, [mode])
 
   const firstName = session?.user?.name?.trim().split(/\s+/)[0]
   const greeting = MOMENT_GREETING[dayMoment(hour)]
@@ -334,7 +341,7 @@ export default function CityHome({ mode, center, places, onOpen }: Props) {
       {/* ── Panel: pulso de la ciudad + lugares ──────────────────────────── */}
       <CitySheet
         ref={sheetRef}
-        initial={mode === 'map' ? 'peek' : 'half'}
+        initial={initialLayer ? 'half' : 'peek'}
         hidden={!!selected}
         onVisibleHeight={setSheetInset}
         header={
