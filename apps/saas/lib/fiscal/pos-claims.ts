@@ -21,6 +21,7 @@
  * se sueltan recién después de tomar todos los nuevos.
  */
 import mongoose from 'mongoose'
+import { flagDbReady } from '@/lib/flag-db'
 import FiscalPosClaim, { type PosClaimKind } from '@/models/FiscalPosClaim'
 
 const TTL_MS = 15_000
@@ -37,7 +38,7 @@ export function clearFiscalFlagsCache(): void {
 
 async function readFlag<T extends string>(field: 'fiscalPosClaims' | 'fiscalCsrAliasShared', allowed: readonly T[], fallback: T): Promise<{ v: T; cacheable: boolean }> {
   try {
-    if (mongoose.connection.readyState !== 1) return { v: fallback, cacheable: false }
+    if (!(await flagDbReady())) return { v: fallback, cacheable: false }
     const PlatformConfig = (await import('@/models/PlatformConfig')).default
     const doc = await PlatformConfig.findById('platform').select(field).lean<Record<string, unknown>>()
     const raw = doc?.[field]

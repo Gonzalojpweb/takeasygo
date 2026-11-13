@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { flagDbReady } from '@/lib/flag-db'
 import type { ShadowReason } from '@/models/AccessShadowEvent'
 
 // ============================================================================
@@ -37,9 +38,9 @@ export async function getAccessMode(): Promise<AccessMode> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.mode
   let mode: AccessMode = 'off'
   try {
-    // Sin base conectada todavía (instancia recién arrancada): `off` sin
-    // guardarlo, para no quedar 15 s apagado cuando la base conecta enseguida.
-    if (mongoose.connection.readyState !== 1) return 'off'
+    // Instancia recién arrancada: conecta primero (flag-db). Si no puede,
+    // `off` sin guardarlo: se reintenta en la próxima lectura.
+    if (!(await flagDbReady())) return 'off'
     const PlatformConfig = (await import('@/models/PlatformConfig')).default
     const doc = await PlatformConfig.findById('platform').select('accessCentral').lean<{ accessCentral?: string }>()
     if (isAccessMode(doc?.accessCentral)) mode = doc.accessCentral

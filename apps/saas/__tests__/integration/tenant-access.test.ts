@@ -208,6 +208,50 @@ describe('getAccessMode', () => {
     expect(await getAccessMode()).toBe('enforce')
     expect(await getOrgAccessMode()).toBe('enforce')
   })
+
+  it('instancia recién arrancada: conecta la base ANTES de leer el interruptor (no da «apagado» en frío)', async () => {
+    // Regresión 13/11/2026: /grupo/[slug]/personal, /crm y /catalogo daban
+    // 404 intermitente porque el interruptor se leía sin conexión → «off».
+    delete process.env.ACCESS_CENTRAL_MODE
+    delete process.env.ORG_DASHBOARD_MODE
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    await PlatformConfig.updateOne({ _id: 'platform' }, { $set: { accessCentral: 'enforce', orgAccess: 'enforce', orgDashboard: 'on' } }, { upsert: true })
+    const { getOrgAccessMode, clearOrgAccessModeCache, getOrgDashboardMode, clearOrgDashboardModeCache } = await import('@/lib/org-access')
+    const { connectDB } = await import('@/lib/mongoose')
+    clearAccessModeCache()
+    clearOrgAccessModeCache()
+    clearOrgDashboardModeCache()
+    // Sin conexión hasta que alguien llama a connectDB.
+    let connected = false
+    const state = vi.spyOn(mongoose.connection, 'readyState', 'get').mockImplementation(() => (connected ? 1 : 0) as never)
+    vi.mocked(connectDB).mockImplementation(async () => { connected = true; return undefined as never })
+    try {
+      expect(await getOrgDashboardMode()).toBe('on')
+      expect(connectDB).toHaveBeenCalled()
+      expect(await getAccessMode()).toBe('enforce')
+      expect(await getOrgAccessMode()).toBe('enforce')
+    } finally {
+      state.mockRestore()
+      vi.mocked(connectDB).mockReset().mockResolvedValue(undefined as never)
+    }
+  })
+
+  it('si no puede conectar, sigue fallando cerrado («off») sin guardarlo', async () => {
+    delete process.env.ORG_DASHBOARD_MODE
+    const PlatformConfig = (await import('@/models/PlatformConfig')).default
+    await PlatformConfig.updateOne({ _id: 'platform' }, { $set: { orgDashboard: 'on' } }, { upsert: true })
+    const { getOrgDashboardMode, clearOrgDashboardModeCache } = await import('@/lib/org-access')
+    const { connectDB } = await import('@/lib/mongoose')
+    clearOrgDashboardModeCache()
+    const state = vi.spyOn(mongoose.connection, 'readyState', 'get').mockReturnValue(0 as never)
+    vi.mocked(connectDB).mockRejectedValueOnce(new Error('sin red'))
+    try {
+      expect(await getOrgDashboardMode()).toBe('off')
+    } finally {
+      state.mockRestore()
+    }
+    expect(await getOrgDashboardMode()).toBe('on')
+  })
 })
 
 describe('getAdminSession (PR 3: páginas del admin)', () => {

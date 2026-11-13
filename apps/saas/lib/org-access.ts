@@ -1,4 +1,4 @@
-import mongoose from 'mongoose'
+import { flagDbReady } from '@/lib/flag-db'
 import { isAccessMode, type AccessMode } from '@/lib/access-central'
 
 // ============================================================================
@@ -34,9 +34,9 @@ export async function getOrgAccessMode(): Promise<AccessMode> {
   if (cached && Date.now() - cached.at < TTL_MS) return cached.mode
   let mode: AccessMode = 'off'
   try {
-    // Sin base conectada todavía (instancia recién arrancada): `off` sin
-    // guardarlo, para no quedar 15 s apagado cuando la base conecta enseguida.
-    if (mongoose.connection.readyState !== 1) return 'off'
+    // Instancia recién arrancada: conecta primero (flag-db). Si no puede,
+    // `off` sin guardarlo: se reintenta en la próxima lectura.
+    if (!(await flagDbReady())) return 'off'
     const PlatformConfig = (await import('@/models/PlatformConfig')).default
     const doc = await PlatformConfig.findById('platform').select('orgAccess').lean<{ orgAccess?: string }>()
     if (isAccessMode(doc?.orgAccess)) mode = doc.orgAccess
@@ -71,7 +71,7 @@ export async function getOrgDashboardMode(): Promise<DashboardMode> {
   if (dashCached && Date.now() - dashCached.at < TTL_MS) return dashCached.mode
   let mode: DashboardMode = 'off'
   try {
-    if (mongoose.connection.readyState !== 1) return 'off'
+    if (!(await flagDbReady())) return 'off'
     const PlatformConfig = (await import('@/models/PlatformConfig')).default
     const doc = await PlatformConfig.findById('platform').select('orgDashboard').lean<{ orgDashboard?: string }>()
     if (isDashboardMode(doc?.orgDashboard)) mode = doc.orgDashboard
@@ -101,7 +101,7 @@ export async function getPosMultiBrandMode(): Promise<DashboardMode> {
   if (posCached && Date.now() - posCached.at < TTL_MS) return posCached.mode
   let mode: DashboardMode = 'off'
   try {
-    if (mongoose.connection.readyState !== 1) return 'off'
+    if (!(await flagDbReady())) return 'off'
     const PlatformConfig = (await import('@/models/PlatformConfig')).default
     const doc = await PlatformConfig.findById('platform').select('posMultiBrand').lean<{ posMultiBrand?: string }>()
     if (isDashboardMode(doc?.posMultiBrand)) mode = doc.posMultiBrand
