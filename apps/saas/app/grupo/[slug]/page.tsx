@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, BarChart3, Store, TrendingDown, TrendingUp, Flame, Wallet, ShoppingBag, Receipt, Users, Percent, Ban, Columns3, UserCheck, HeartHandshake } from 'lucide-react'
+import { ArrowLeft, BarChart3, Store, TrendingDown, TrendingUp, Flame, Wallet, ShoppingBag, Receipt, Users, Percent, Ban, Columns3, UserCheck, HeartHandshake, BookOpen } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
 import { getOrgDashboardMode } from '@/lib/org-access'
 import { DASHBOARD_PERIODS, loadOrgDashboard, parseDashboardQuery, SALE_CHANNELS, type OrgDashboard } from '@/lib/organizations/dashboard'
@@ -195,6 +195,11 @@ export default async function GrupoDashboardPage({
                   <Link href={`/grupo/${slug}/crm`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted">
                     <HeartHandshake size={15} /> Clientes del grupo
                   </Link>
+                  {(d.orgRole === 'owner' || d.orgRole === 'org_admin' || d.orgRole === 'brand_manager') && (
+                    <Link href={`/grupo/${slug}/catalogo`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted">
+                      <BookOpen size={15} /> Carta del grupo
+                    </Link>
+                  )}
                 </div>
                 <DashboardFilters periods={DASHBOARD_PERIODS} period={d.period} range={d.range} available={d.filters.available} brands={d.filters.brands} locations={d.filters.locations} />
               </header>

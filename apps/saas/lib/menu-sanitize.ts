@@ -1,6 +1,8 @@
 /**
  * Elimina de la payload pública lo que no debe exponerse al cliente:
  * - hiddenReward de todos los ítems (NUNCA se expone en el menú público).
+ * - master (vínculo con la carta central del grupo y precios enviados) y
+ *   masterCategoryKey: datos internos de gestión.
  * - Grupos y opciones de personalización globales marcados como ocultos
  *   (category.disabledGroupIds / disabledOptionIds — disponibilidad).
  * Se aplica en todas las rutas que sirven menú al cliente (takeaway, dine-in,
@@ -36,13 +38,16 @@ export function sanitizeMenuForPublic(menu: any) {
   const menuObj = menu?.toObject ? menu.toObject() : { ...menu }
   for (const cat of (menuObj?.categories || []) as SanitizeCategory[]) {
     const items = (cat as Record<string, unknown>).items as Array<Record<string, unknown>> | undefined
+    delete (cat as Record<string, unknown>).masterCategoryKey
     for (const item of items || []) {
       delete item.hiddenReward
+      delete item.master
     }
     const catSubs = (cat as Record<string, unknown>).subcategories as Array<{ items?: Array<Record<string, unknown>> }> | undefined
     for (const sub of catSubs || []) {
       for (const item of sub.items || []) {
         delete item.hiddenReward
+        delete item.master
       }
     }
     filterHiddenCustomizations(cat)

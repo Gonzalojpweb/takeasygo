@@ -51,6 +51,24 @@ export interface IAvailabilitySlot {
   timeEnd: string
 }
 
+/**
+ * Vínculo con un plato de la carta central del grupo (F3, 13/11/2026).
+ * Guarda los precios que se mandaron la última vez: si el plato tiene otro
+ * precio, la sede lo cambió por su cuenta y el próximo envío lo conserva
+ * (salvo que se pida pisarlo). null = plato propio de la sede.
+ */
+export interface IMenuItemMasterLink {
+  catalogId: string
+  itemKey: string
+  syncedAt: Date
+  /** @storedAs cents */
+  syncedPrice: number | null
+  /** @storedAs cents */
+  syncedTakeawayPrice: number | null
+  /** Precio enviado por variante (nombre → centavos). */
+  syncedVariantPrices: Record<string, number>
+}
+
 export interface IMenuItem {
   _id?: mongoose.Types.ObjectId
   name: string
@@ -120,6 +138,8 @@ export interface IMenuItem {
   }
   /** Alícuota de IVA (%) del producto. null = la de su categoría o la del comercio. Fase 3 fiscal. */
   ivaRate?: number | null
+  /** Vínculo con la carta central del grupo (F3). */
+  master?: IMenuItemMasterLink | null
 }
 
 export interface IMenuSubCategory {
@@ -169,6 +189,8 @@ export interface IMenuCategory {
   combosAfter?: boolean
   /** La Tarjeta del Club se muestra después de esta categoría (menú takeaway). */
   clubCardAfter?: boolean
+  /** Categoría de la carta central del grupo a la que corresponde (F3). */
+  masterCategoryKey?: string | null
 }
 
 export interface IMenu extends Document {
@@ -358,6 +380,19 @@ const MenuItemSchema = new Schema<IMenuItem>({
   },
   // Fase 3 fiscal: alícuota propia del producto (null = hereda).
   ivaRate: { type: Number, default: null, validate: IVA_RATE_VALIDATOR },
+  // F3: vínculo con la carta central del grupo (null = plato propio de la sede).
+  master: {
+    type: {
+      _id: false,
+      catalogId: { type: String, required: true },
+      itemKey: { type: String, required: true },
+      syncedAt: { type: Date, required: true },
+      syncedPrice: { type: Number, default: null },
+      syncedTakeawayPrice: { type: Number, default: null },
+      syncedVariantPrices: { type: Schema.Types.Mixed, default: {} },
+    },
+    default: null,
+  },
 })
 
 const MenuSubCategorySchema = new Schema<IMenuSubCategory>({
@@ -456,6 +491,8 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
   displayLayoutApplyTo: { type: String, enum: ['both', 'takeaway', 'dine-in'], default: 'both' },
   combosAfter: { type: Boolean, default: false },
   clubCardAfter: { type: Boolean, default: false },
+  // F3: categoría de la carta central del grupo a la que corresponde.
+  masterCategoryKey: { type: String, default: null },
 })
 
 const MenuSchema = new Schema<IMenu>(
