@@ -419,13 +419,26 @@ export const HELP_TOPICS: HelpTopic[] = [
     group: 'Ajustes',
     title: 'Ajustes y transferencias',
     summary: 'Ajustar corrige con un motivo (ej.: devolución al proveedor). Transferir mueve mercadería entre sedes.',
-    keywords: ['ajuste', 'transferencia', 'mover', 'otra sede', 'devolucion', 'corregir'],
+    keywords: ['ajuste', 'transferencia', 'mover', 'otra sede', 'devolucion', 'corregir', 'envio', 'pedido', 'pedir', 'despachar', 'recibir', 'diferencia'],
     sections: [
       {
         tips: [
           'Ajuste: para lo que no es venta, compra, merma ni conteo. Siempre con motivo; queda con tu nombre.',
-          'Transferencia: sale de una sede y entra en la otra en el mismo movimiento.',
+          'Transferencia rápida: sale de un depósito y entra en el otro en el mismo movimiento.',
           'Para corregir cuánto hay, preferí un conteo: es más claro que un ajuste.',
+        ],
+      },
+      {
+        heading: 'Envíos entre sedes',
+        steps: [
+          'Pedir: la sede que necesita la mercadería la pide en «Envíos».',
+          'Autorizar: un encargado de la otra sede la autoriza (puede mandar menos) o la rechaza con un motivo.',
+          'Despachar: al despacharla, sale del depósito de origen.',
+          'Recibir: la sede que pidió cuenta lo que llegó. Si llegó menos, queda anotada la diferencia del envío con su costo.',
+        ],
+        tips: [
+          'Un encargado también puede «Enviar sin pedido»: sale en el momento y la otra sede solo la recibe.',
+          'Solo entre sedes del mismo comercio: entre marcas distintas sería una venta.',
         ],
       },
     ],
@@ -502,8 +515,9 @@ export function helpTopic(id: HelpTopicId): HelpTopic {
 }
 
 /** Tema con el que abre la ayuda según la pantalla. */
-export const HELP_BY_VIEW: Record<'ahora' | 'productos' | 'recetas' | 'actividad', HelpTopicId> = {
+export const HELP_BY_VIEW: Record<'ahora' | 'productos' | 'recetas' | 'envios' | 'actividad', HelpTopicId> = {
   ahora: 'tablero',
+  envios: 'ajuste-transferencia',
   productos: 'productos',
   recetas: 'recetas',
   actividad: 'actividad',

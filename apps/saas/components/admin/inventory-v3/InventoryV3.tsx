@@ -28,14 +28,16 @@ import NowView from './views/NowView'
 import ProductsView from './views/ProductsView'
 import RecipesView from './views/RecipesView'
 import ActivityView from './views/ActivityView'
+import TransfersView from './views/TransfersView'
 import PanelHost, { type PanelRequest } from './panels/PanelHost'
 
-export type ViewId = 'ahora' | 'productos' | 'recetas' | 'actividad'
+export type ViewId = 'ahora' | 'productos' | 'recetas' | 'envios' | 'actividad'
 
 const VIEWS: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>; needs?: keyof Capabilities }> = [
   { id: 'ahora', label: 'Ahora', icon: Zap },
   { id: 'productos', label: 'Productos', icon: PackageOpen, needs: 'read' },
   { id: 'recetas', label: 'Recetas', icon: UtensilsCrossed, needs: 'recipes' },
+  { id: 'envios', label: 'Envíos', icon: Truck, needs: 'read' },
   { id: 'actividad', label: 'Actividad', icon: ClipboardList, needs: 'read' },
 ]
 
@@ -233,6 +235,11 @@ export default function InventoryV3({
         {capabilities.recipes && (
           <TabsContent value="recetas">
             <RecipesView ctx={ctx} />
+          </TabsContent>
+        )}
+        {capabilities.read && (
+          <TabsContent value="envios">
+            <TransfersView ctx={ctx} />
           </TabsContent>
         )}
         {capabilities.read && (
