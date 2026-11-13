@@ -1129,17 +1129,12 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       // cortaría con la orden creada a medio camino.
       await tableOpChainRef.current.catch(() => {})
 
-      // POS offline: el posnet integrado y los descuentos (PIN del encargado)
-      // necesitan internet. Se avisa ANTES de crear nada.
-      if (!getOfflineStatus().online) {
-        if (pointEnabled && parts.some((p) => p.method === "mercadopago")) {
-          showErrorToast("Sin internet el posnet integrado no cobra. Cobralo en el posnet en modo manual y elegí Débito o Crédito.")
-          return
-        }
-        if (!selectedTableId && mostradorDiscount) {
-          showErrorToast("Sin internet no se pueden aplicar descuentos (necesitan el PIN del encargado). Quitá el descuento o esperá a que vuelva la conexión.")
-          return
-        }
+      // POS offline: el posnet integrado necesita internet. Se avisa ANTES de
+      // crear nada. (Los descuentos sí salen sin internet desde la etapa 7:
+      // el PIN del encargado se verifica en el equipo.)
+      if (!getOfflineStatus().online && pointEnabled && parts.some((p) => p.method === "mercadopago")) {
+        showErrorToast("Sin internet el posnet integrado no cobra. Cobralo en el posnet en modo manual y elegí Débito o Crédito.")
+        return
       }
 
       const toCharge: Order[] = [...unpaidTableOrders]

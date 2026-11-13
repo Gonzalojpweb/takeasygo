@@ -146,7 +146,7 @@ describe('posCorsHeaders', () => {
     for (const m of ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']) {
       expect(h['Access-Control-Allow-Methods']).toContain(m)
     }
-    for (const name of ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Location-Id', 'X-Manager-Pin', 'X-Pos-Op-Id', 'X-Pos-Occurred-At', 'X-Pos-Device-Id', 'X-Pos-Printed']) {
+    for (const name of ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Location-Id', 'X-Manager-Pin', 'X-Pos-Op-Id', 'X-Pos-Occurred-At', 'X-Pos-Device-Id', 'X-Pos-Printed', 'X-Pos-Offline-Approver']) {
       expect(h['Access-Control-Allow-Headers']).toContain(name)
     }
     expect(h['Access-Control-Max-Age']).toBe('600')

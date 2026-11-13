@@ -1,6 +1,8 @@
 import { getDeviceId, refreshEligibility } from "./device"
 import { refreshOfflineCounts, replayOfflineOps } from "./replay"
 import { getOfflineStatus, markOffline, onBackOnline } from "./status"
+import { probeServer } from "../pos-api"
+import { currentPosUser } from "./offline-auth"
 
 // ============================================================================
 // Vigilancia de la conexión y envío automático de la cola
@@ -27,7 +29,10 @@ async function tick(): Promise<void> {
   if (!tenantId) return
   const s = getOfflineStatus()
   if (!s.online) {
-    await refreshEligibility(tenantId) // si responde, pos-api marca online → onBackOnline
+    // Ingreso sin internet (etapa 7): no hay token, así que se sondea sin
+    // credenciales; al responder, el POS pide el PIN para un token real.
+    if (currentPosUser().offline) await probeServer(tenantId)
+    else await refreshEligibility(tenantId) // si responde, pos-api marca online → onBackOnline
     return
   }
   if (s.pending > 0 && !s.syncing) await replayOfflineOps(tenantId).catch(() => {})

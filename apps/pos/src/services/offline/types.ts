@@ -35,6 +35,8 @@ export interface OfflineOp {
   path: string
   body?: unknown
   idempotencyKey?: string
+  /** Headers propios de la operación (etapa 7: X-Pos-Offline-Approver). */
+  headers?: Record<string, string>
   /**
    * Entidades que toca (`order:<id>`, `table:<id>`, `register:<id>`). Si una
    * operación queda con conflicto, las siguientes que comparten entidad

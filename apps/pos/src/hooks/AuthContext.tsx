@@ -13,6 +13,8 @@ import * as authApi from "../services/auth-api"
 import { SESSION_CACHE_KEY } from "../services/pos-api"
 import { applyPosLocation, type LocationSwitchDb } from "../services/location-switch"
 import { readRootMemory, writeRootMemory } from "../services/root-memory"
+import { offlinePinLogin, offlineSessionFor, rememberOfflineUser } from "../services/offline/offline-auth"
+import { onBackOnline } from "../services/offline/status"
 
 // ============================================================================
 // Ciclo de vida del token (Auditoría POS Online V1 §1.4)
@@ -182,6 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshNow = useCallback(async (): Promise<boolean> => {
     const cached = getCachedSession()
     if (!cached) return false
+    // Ingreso sin internet (etapa 7): no hay token del server que renovar.
+    if ((cached as { offline?: boolean }).offline) return false
     try {
       const result = await authApi.refreshSession(cached.accessToken)
       cacheSession(result, cached.tenantId)
@@ -248,6 +252,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     return clearTimers
   }, [state.status, state.jwt?.expiresAt, startTimers, clearTimers])
+
+  // Etapa 7: si se entró sin internet, al volver la red se pide el PIN otra
+  // vez (pantalla de reingreso) para obtener un token real; recién ahí la cola
+  // se puede mandar (sin token el envío espera, no da conflicto).
+  useEffect(() => {
+    return onBackOnline(() => {
+      const current = stateRef.current
+      if (current.status === "authenticated" && (current.jwt as { offline?: boolean } | undefined)?.offline) {
+        setState({ ...current, status: "expired" })
+      }
+    })
+  }, [])
 
   // Try to restore session on mount
   useEffect(() => {
@@ -327,7 +343,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const key = await deriveSessionEncryptionKey(employeePin, salt)
           setEncryptionKey(key)
 
-          const result = await authApi.loginWithPin(employeePin, tenantId, locationId)
+          let result: authApi.LoginResponse
+          try {
+            result = await authApi.loginWithPin(employeePin, tenantId, locationId)
+          } catch (err) {
+            // Etapa 7: sin internet entra quien ya entró en este equipo con
+            // internet (verificador local del PIN). Si no, el error de siempre.
+            if (!(err instanceof authApi.LoginError && err.kind === "network")) throw err
+            const offline = await offlinePinLogin(tenantId, employeePin)
+            if (!offline.ok) {
+              if (offline.reason === "invalid") throw new authApi.LoginError("credentials", 401, null, "PIN incorrecto (sin internet)")
+              if (offline.reason === "locked") throw new authApi.LoginError("locked", 429, offline.retryAfter ?? null, "Demasiados intentos sin internet")
+              throw err
+            }
+            const session = offlineSessionFor(offline.user)
+            setState({ status: "authenticated", tenantId, jwt: session })
+            cacheSession(session, tenantId)
+            rememberLogin(tenantId, session, "pin", locationId)
+            return
+          }
 
           const encrypted = await encryptStore(result, key)
           await db.session.put({ tenantId, encryptedJwt: encrypted })
@@ -335,6 +369,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setState({ status: "authenticated", tenantId, jwt: result })
           cacheSession(result, tenantId)
           rememberLogin(tenantId, result, "pin", locationId)
+          // Etapa 7: guarda el verificador del PIN para entrar sin internet.
+          void rememberOfflineUser(tenantId, employeePin, result, locationId ?? null).catch(() => {})
           // Desbloqueo con un PIN (el mismo u otro cajero): el token anterior
           // no puede quedar vivo.
           if (previousToken && previousToken !== result.accessToken) void authApi.revokeSession(previousToken)

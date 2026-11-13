@@ -7,6 +7,8 @@ import { offlineAware } from "./offline/executor"
 import { printForOfflineOp } from "./offline/local-print"
 import { issueOfflineInvoice, offlineCaeaWire, offlineSaleInfo, printOfflineInvoice } from "./offline/caea"
 import type { OfflineOp } from "./offline/types"
+import { offlineApprovalHeaders } from "./offline/offline-auth"
+import { applyDiscount, applyVoidSentItem, distributeCents, openRoundsOf, roundWeights } from "./offline/local-model"
 import {
   applyAddItem,
   applyFireCourse,
@@ -117,6 +119,8 @@ async function writeOrder(params: {
   afterLocal?: (order: WireOrder, opId: string) => Promise<void>
   /** Etapa 5: trabajo extra DENTRO de la transacción local (puede completar la operación). */
   applied?: (order: WireOrder, op: OfflineOp) => Promise<void>
+  /** Etapa 7: antes de aplicarla sin internet (PIN del encargado). */
+  beforeLocal?: () => Promise<Record<string, string>>
 }): Promise<WireOrder> {
   return runMutation(() =>
     offlineAware<WireOrder>({
@@ -140,6 +144,7 @@ async function writeOrder(params: {
         if (params.applied) await params.applied(next, op)
         return next
       },
+      ...(params.beforeLocal ? { beforeLocal: params.beforeLocal } : {}),
       ...(params.afterLocal ? { afterLocal: (order: WireOrder, op: { id: string }) => params.afterLocal!(order, op.id) } : {}),
     })
   )
@@ -487,13 +492,23 @@ export async function voidSentItem(
   reason: ItemVoidReason
 ): Promise<void> {
   if (keepQuantity < 0) throw new Error("[order] Quantity cannot be negative")
-  return runMutation(async () => {
-    const order = await patchOrder(
-      tenantId,
-      `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(line.productId)}`,
-      { quantity: keepQuantity, lineId: line.lineId, reason }
-    )
-    await saveOrder(order)
+  // Etapa 7: también sin internet, con el PIN del encargado verificado en el
+  // equipo (si el plato ya se mandó a cocina, como pide el server).
+  const known = await db.orders.get(orderId)
+  const needsApproval = known?.status === "confirmed"
+  await writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(known)} · quitar plato enviado`,
+    method: "PATCH",
+    path: `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(line.productId)}`,
+    body: { quantity: keepQuantity, lineId: line.lineId, reason },
+    local: (o, now) => {
+      const next = applyVoidSentItem(o, line.lineId, keepQuantity, now)
+      if ("error" in next) throw new PosApiError(next.error, "validation", 400)
+      return next
+    },
+    ...(needsApproval ? { beforeLocal: () => offlineApprovalHeaders(tenantId, "Quitar productos que ya se mandaron a cocina necesita la aprobación de un encargado") } : {}),
   })
 }
 
@@ -677,10 +692,24 @@ export async function discountOrderLine(
   lineId: string,
   discount: DiscountRequest
 ): Promise<void> {
-  return runMutation(async () => {
-    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/discounts`, { ...discount, lineId })
-    await saveOrder(order)
+  await writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · descuento en un plato`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/discounts`,
+    body: { ...discount, lineId },
+    local: (o, now) => localDiscount(o, discount, lineId, now),
+    beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
   })
+}
+
+const DISCOUNT_APPROVAL_MESSAGE = "Aplicar un descuento necesita la aprobación de un encargado"
+
+function localDiscount(o: WireOrder, discount: DiscountRequest, lineId: string | null, now: Date): WireOrder {
+  const next = applyDiscount(o, { kind: discount.kind, value: discount.value, reason: discount.reason }, lineId, now)
+  if ("error" in next) throw new PosApiError(next.error, "conflict", 409)
+  return next
 }
 
 export async function removeOrderLineDiscount(tenantId: string, orderId: string, lineId: string): Promise<void> {
@@ -696,15 +725,41 @@ export async function removeOrderLineDiscount(tenantId: string, orderId: string,
 
 /** Descuento a TODA la cuenta de la mesa (el server lo reparte entre rondas). */
 export async function discountTable(tenantId: string, tableId: string, discount: DiscountRequest): Promise<number> {
-  return runMutation(async () => {
-    const res = await posApi<{ orders: WireOrder[]; discountedCents: number }>(
+  const path = `/tables/${encodeURIComponent(tableId)}/discount`
+  const table = await db.diningTable.get(tableId)
+  const rounds = openRoundsOf((await db.orders.where("tableId").equals(tableId).toArray()) as WireOrder[], tableId)
+  return runMutation(() =>
+    offlineAware<number>({
       tenantId,
-      `/tables/${encodeURIComponent(tableId)}/discount`,
-      { method: "POST", body: discount }
-    )
-    for (const order of res.orders) await saveOrder(order)
-    return res.discountedCents
-  })
+      kind: "order.many",
+      label: `Mesa ${table?.number ?? "?"} · descuento de la cuenta`,
+      request: { method: "POST", path, body: discount },
+      entityKeys: [`table:${tableId}`, ...rounds.map((o) => `order:${o.id}`)],
+      online: async (headers) => {
+        const res = await posApi<{ orders: WireOrder[]; discountedCents: number }>(tenantId, path, { method: "POST", body: discount, headers })
+        for (const order of res.orders) await saveOrder(order)
+        return res.discountedCents
+      },
+      // Como el server: un MONTO se reparte entre las rondas por su bruto y
+      // cada ronda lo reparte entre sus platos; un % va igual en todas.
+      applyLocal: async () => {
+        const current = openRoundsOf((await db.orders.where("tableId").equals(tableId).toArray()) as WireOrder[], tableId)
+        if (current.length === 0) throw new PosApiError("La mesa no tiene nada sin cobrar", "conflict", 409)
+        const shares = discount.kind === "amount" ? distributeCents(roundWeights(current), discount.value) : null
+        const now = new Date()
+        let discounted = 0
+        for (const [i, round] of current.entries()) {
+          if (shares && shares[i] <= 0) continue
+          const before = round.total
+          const next = localDiscount(round, shares ? { ...discount, value: shares[i] } : discount, null, now)
+          await db.orders.put(next)
+          discounted += before - next.total
+        }
+        return discounted
+      },
+      beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
+    })
+  )
 }
 
 export async function removeTableDiscounts(tenantId: string, tableId: string): Promise<void> {
@@ -716,9 +771,15 @@ export async function removeTableDiscounts(tenantId: string, tableId: string): P
 
 /** Descuento a TODA una orden (Mostrador, Fase E). Devuelve la orden con el total nuevo. */
 export async function discountOrder(tenantId: string, orderId: string, discount: DiscountRequest): Promise<Order> {
-  return runMutation(async () => {
-    const order = await postOrder(tenantId, `/orders/${encodeURIComponent(orderId)}/discounts`, { ...discount })
-    return saveOrder(order)
+  return writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · descuento de la cuenta`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/discounts`,
+    body: { ...discount },
+    local: (o, now) => localDiscount(o, discount, null, now),
+    beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
   })
 }
 

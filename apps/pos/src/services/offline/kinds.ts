@@ -14,6 +14,7 @@ import { applyTablePatch, releasesTable } from "./local-model"
 //
 //   etapa 2 — order.write, order.status, table.write, table.move
 //   etapa 3 — cash.register, cash.movement (el cobro es order.write)
+//   etapa 7 — order.many (descuento de mesa)
 // ============================================================================
 
 async function saveServerOrder(response: unknown): Promise<Order | null> {
@@ -73,3 +74,10 @@ async function saveServerRegister(response: unknown): Promise<void> {
 
 registerOfflineOpKind("cash.register", { onSuccess: saveServerRegister })
 registerOfflineOpKind("cash.movement", { onSuccess: saveServerRegister })
+
+// Etapa 7: descuento de la cuenta de la mesa (el server devuelve sus rondas).
+registerOfflineOpKind("order.many", {
+  onSuccess: async (response) => {
+    for (const order of (response as { orders?: Order[] } | null)?.orders ?? []) await db.orders.put(rehydrateOrder(order))
+  },
+})

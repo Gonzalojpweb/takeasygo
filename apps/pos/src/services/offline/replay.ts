@@ -40,6 +40,7 @@ export const sendOpToServer: OpSender = async (op) => {
     idempotencyKey: op.idempotencyKey,
     skipApproval: true,
     headers: {
+      ...(op.headers ?? {}),
       "X-Pos-Op-Id": op.id,
       "X-Pos-Occurred-At": op.occurredAt,
       ...(printed?.length ? { "X-Pos-Printed": printed.join(",") } : {}),

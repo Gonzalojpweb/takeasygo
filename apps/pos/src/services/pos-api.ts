@@ -291,3 +291,22 @@ export async function posApiDownload(
   link.remove()
   setTimeout(() => URL.revokeObjectURL(link.href), 10_000)
 }
+
+/**
+ * POS offline V2 — etapa 7: ¿el server responde? Sin token (ingreso sin
+ * internet) las llamadas de siempre no salen del equipo, así que esta prueba
+ * va sin credenciales y en modo «no-cors»: cualquier respuesta alcanza para
+ * saber que volvió la conexión (y marca online/offline como posApi).
+ */
+export async function probeServer(tenantId: string): Promise<boolean> {
+  const base = saasUrl()
+  if (!base) return false
+  try {
+    await fetch(`${base.replace(/\/$/, "")}/api/${encodeURIComponent(tenantId)}/pos/offline/devices`, { method: "GET", mode: "no-cors", cache: "no-store", credentials: "omit" })
+    markOnline()
+    return true
+  } catch {
+    markOffline()
+    return false
+  }
+}

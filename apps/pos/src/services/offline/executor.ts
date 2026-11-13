@@ -44,6 +44,12 @@ export interface OfflineAwareParams<T> {
    * nunca falla la operación y el reenvío la espera antes de mandarla.
    */
   afterLocal?: (result: T, op: OfflineOp) => Promise<void>
+  /**
+   * Etapa 7: lo que hay que resolver ANTES de aplicarla sin internet (p. ej.
+   * el PIN del encargado). Corre fuera de la transacción (puede abrir un
+   * diálogo) y devuelve headers que viajan con la operación.
+   */
+  beforeLocal?: () => Promise<Record<string, string>>
 }
 
 export const OFFLINE_NOT_ENABLED_MESSAGE =
@@ -74,6 +80,7 @@ export async function offlineAware<T>(params: OfflineAwareParams<T>): Promise<T>
     throw new PosApiError(OFFLINE_NOT_ENABLED_MESSAGE, "network", 0)
   }
 
+  const extraHeaders = params.beforeLocal ? await params.beforeLocal() : undefined
   const store = offlineStore()
   const op: OfflineOp = {
     id: opId,
@@ -85,6 +92,7 @@ export async function offlineAware<T>(params: OfflineAwareParams<T>): Promise<T>
     path: params.request.path,
     ...(params.request.body !== undefined ? { body: params.request.body } : {}),
     ...(params.request.idempotencyKey ? { idempotencyKey: params.request.idempotencyKey } : {}),
+    ...(extraHeaders && Object.keys(extraHeaders).length ? { headers: extraHeaders } : {}),
     entityKeys: params.entityKeys,
     occurredAt,
     status: "pending",

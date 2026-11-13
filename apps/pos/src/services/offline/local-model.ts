@@ -224,3 +224,98 @@ export function applyMovement(register: CashRegister, draft: LocalMovementDraft,
   const expected = (register.expectedAmount ?? register.initialAmount) + cashExpectedDelta(draft.type, draft.paymentMethod, draft.amount)
   return { register: { ...register, movements: [...register.movements, movement], expectedAmount: expected }, movement }
 }
+
+// ── Etapa 7: descuentos y platos quitados sin internet ───────────────────────
+// Mismas reglas que lib/pos-online/discounts.ts del server: el descuento vive
+// en la línea y baja su total; por ítem solo esa línea; por cuenta, % igual
+// en cada una o un MONTO repartido proporcional (resto mayor, al centavo).
+
+export interface LocalDiscountInput {
+  kind: "percent" | "amount"
+  value: number
+  reason: string
+}
+
+/** Importe de la línea sin descuento: (precio + agregados) × cantidad. */
+export function grossOfLine(item: Pick<OrderItem, "unitPrice" | "modifiers" | "quantity">): number {
+  return lineTotal(item, item.quantity)
+}
+
+export function lineDiscountCents(gross: number, kind: "percent" | "amount", value: number): number {
+  if (gross <= 0) return 0
+  return kind === "percent" ? Math.min(gross, Math.round((gross * value) / 100)) : Math.min(gross, value)
+}
+
+/** Reparte `amount` entre `weights` en proporción, al centavo (resto mayor). */
+export function distributeCents(weights: number[], amount: number): number[] {
+  const total = weights.reduce((s, w) => s + w, 0)
+  if (total <= 0) return weights.map(() => 0)
+  const target = Math.min(amount, total)
+  const raw = weights.map((w) => (w * target) / total)
+  const out = raw.map(Math.floor)
+  let rest = target - out.reduce((s, n) => s + n, 0)
+  const order = raw.map((r, i) => ({ i, frac: r - Math.floor(r) })).sort((a, b) => b.frac - a.frac || a.i - b.i)
+  for (const { i } of order) {
+    if (rest <= 0) break
+    if (out[i] < weights[i]) { out[i] += 1; rest -= 1 }
+  }
+  return out
+}
+
+function discounted(item: OrderItem, input: LocalDiscountInput, amount: number, scope: "item" | "order"): OrderItem {
+  const gross = grossOfLine(item)
+  const cents = Math.min(gross, amount)
+  return { ...item, total: gross - cents, discount: { kind: input.kind, value: input.value, amount: cents, scope, reason: input.reason } }
+}
+
+/** Descuento sobre la orden: `lineId` = esa línea; sin lineId = toda la cuenta. */
+export function applyDiscount(order: Order, input: LocalDiscountInput, lineId: string | null, now: Date): Order | { error: string } {
+  if (order.payments?.length) return { error: "La orden ya fue cobrada" }
+  if (lineId) {
+    const idx = order.items.findIndex((i) => i.lineId === lineId)
+    if (idx < 0) return { error: "Producto no encontrado en la orden" }
+    const items = order.items.map((item, i) => (i === idx ? discounted(item, input, lineDiscountCents(grossOfLine(item), input.kind, input.value), "item") : item))
+    return { ...order, items, total: calculateOrderTotal(items), updatedAt: now, pendingSync: true }
+  }
+  const grosses = order.items.map(grossOfLine)
+  const shares = input.kind === "percent" ? grosses.map((g) => lineDiscountCents(g, "percent", input.value)) : distributeCents(grosses, input.value)
+  const items = order.items.map((item, i) => (grosses[i] > 0 ? discounted(item, input, shares[i], "order") : item))
+  return { ...order, items, total: calculateOrderTotal(items), updatedAt: now, pendingSync: true }
+}
+
+/** Rondas sin cobrar de una mesa (las que toca el descuento de mesa del server). */
+export function openRoundsOf(orders: Order[], tableId: string): Order[] {
+  return orders
+    .filter((o) => o.tableId === tableId && o.status !== "delivered" && o.status !== "cancelled" && !o.voided && !(o.payments?.length))
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+}
+
+/** Pesos para repartir un MONTO entre rondas (como el server: bruto de cada una). */
+export function roundWeights(orders: Order[]): number[] {
+  return orders.map((o) => o.items.reduce((s, i) => s + grossOfLine(i), 0))
+}
+
+/**
+ * Quita (o baja) un plato ya enviado. Como el server: la línea queda con
+ * `keepQuantity` (0 = sale de la orden) y su descuento se recalcula.
+ */
+export function applyVoidSentItem(order: Order, lineId: string, keepQuantity: number, now: Date): Order | { error: string } {
+  const idx = order.items.findIndex((i) => i.lineId === lineId)
+  if (idx < 0) return { error: "Producto no encontrado en la orden" }
+  const line = order.items[idx]
+  if (keepQuantity >= line.quantity) return { error: "La cantidad nueva tiene que ser menor" }
+  let items: OrderItem[]
+  if (keepQuantity === 0) {
+    items = order.items.filter((_, i) => i !== idx)
+  } else {
+    const next: OrderItem = { ...line, quantity: keepQuantity, total: lineTotal(line, keepQuantity) }
+    if (line.discount) {
+      const gross = lineTotal(line, keepQuantity)
+      const amount = lineDiscountCents(gross, line.discount.kind, line.discount.value)
+      next.discount = { ...line.discount, amount }
+      next.total = gross - amount
+    }
+    items = order.items.map((item, i) => (i === idx ? next : item))
+  }
+  return { ...order, items, total: calculateOrderTotal(items), updatedAt: now, pendingSync: true }
+}

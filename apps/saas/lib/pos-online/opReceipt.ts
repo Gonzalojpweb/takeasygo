@@ -15,6 +15,8 @@ import { PosError } from './errors'
 //   X-Pos-Printed      ids de impresoras donde el equipo ya imprimió por la
 //                      red local (etapa 4): el server no vuelve a mandarles
 //                      esa comanda
+//   X-Pos-Offline-Approver  encargado que aprobó con su PIN sin internet
+//                      (etapa 7, ver approval.ts)
 //
 // posRoute envuelve el handler con `withOpReceipt`: el primer envío reserva el
 // recibo (pending), corre el handler y guarda la respuesta 2xx (done). Un

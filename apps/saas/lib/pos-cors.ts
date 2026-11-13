@@ -36,7 +36,7 @@ export const POS_CORS_ALLOWED_METHODS = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
 // id de operación viaja también online: sin estos headers en la lista, el
 // preflight fallaría y el POS no podría guardar nada desde pos.takeasygo.com.
 export const POS_CORS_ALLOWED_HEADERS =
-  'Content-Type, Authorization, Idempotency-Key, X-Location-Id, X-Manager-Pin, X-Pos-Op-Id, X-Pos-Occurred-At, X-Pos-Device-Id, X-Pos-Printed'
+  'Content-Type, Authorization, Idempotency-Key, X-Location-Id, X-Manager-Pin, X-Pos-Op-Id, X-Pos-Occurred-At, X-Pos-Device-Id, X-Pos-Printed, X-Pos-Offline-Approver'
 /** El preflight se cachea 10 min: el POS hace polling cada 7 s. */
 export const POS_CORS_MAX_AGE = '600'
 
