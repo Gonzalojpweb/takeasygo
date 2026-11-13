@@ -1,5 +1,8 @@
 import { isValidCuit } from "@takeasygo/business/browser"
-import { posApi, posApiDownload } from "./pos-api"
+import { posApi, posApiDownload, PosApiError } from "./pos-api"
+import { offlineStore } from "./offline/store"
+import { getOfflineStatus } from "./offline/status"
+import { getOfflineInvoice, offlineInvoiceLabel } from "./offline/caea"
 
 // ============================================================================
 // Factura electrónica desde el POS (Fase 5 de caja, 2026-10)
@@ -243,11 +246,19 @@ export const OFF_CONFIG: FiscalConfig = {
   letterForCompany: null,
 }
 
+/**
+ * Etapa 5 del POS offline: la configuración queda guardada en el equipo para
+ * que, sin internet, el cobro siga ofreciendo factura (con CAEA).
+ */
 export async function getFiscalConfig(tenantId: string): Promise<FiscalConfig> {
+  const key = `fiscalConfig:${tenantId}`
   try {
-    return await posApi<FiscalConfig>(tenantId, "/fiscal")
+    const config = await posApi<FiscalConfig>(tenantId, "/fiscal")
+    await offlineStore().setMeta(key, config).catch(() => {})
+    return config
   } catch {
-    return { ...OFF_CONFIG, unavailable: true }
+    const cached = await offlineStore().getMeta<FiscalConfig>(key).catch(() => undefined)
+    return cached ?? { ...OFF_CONFIG, unavailable: true }
   }
 }
 
@@ -273,8 +284,29 @@ export function isInvoiceChoiceValid(choice: InvoiceChoice, config?: Pick<Fiscal
 export async function invoiceOrder(
   tenantId: string,
   orderId: string,
-  choice: InvoiceChoice
+  choice: InvoiceChoice,
+  /** Por qué no salió con CAEA sin internet (takeOfflineInvoiceReason). */
+  reason?: string | null
 ): Promise<FiscalDocumentSummary> {
+  // Etapa 5: cobrada sin internet con factura CAEA → ya está emitida e
+  // impresa en este equipo; el server la recibe con el cobro.
+  const offline = await getOfflineInvoice(orderId)
+  if (offline) {
+    return {
+      id: `caea:${orderId}`,
+      kind: "invoice",
+      letter: offline.letter,
+      status: "authorized",
+      label: offlineInvoiceLabel(offline),
+      cae: offline.caea,
+      totalCents: offline.amounts.totalCents,
+      message: "Emitida sin internet con CAEA. Se informa a ARCA cuando vuelva la conexión.",
+      caeaReportStatus: "pending",
+    }
+  }
+  if (!getOfflineStatus().online) {
+    throw new PosApiError(`Sin internet: la factura queda pendiente y se emite cuando vuelva la conexión.${reason ? ` (${reason})` : ""}`, "network", 0)
+  }
   const intent = invoiceIntentFor(choice)
   const res = await posApi<{
     document?: FiscalDocumentSummary

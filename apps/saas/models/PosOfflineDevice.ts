@@ -9,6 +9,11 @@ import mongoose, { Schema, type Document } from 'mongoose'
 // `deviceId` es el UUID que genera el POS la primera vez y guarda en Dexie.
 // Revocar (revokedAt) libera el lugar; el equipo deja de operar offline en
 // cuanto vuelve a consultar.
+//
+// Etapa 5 (12/11/2026): `contingencyPointOfSale` = punto de venta de ARCA
+// EXCLUSIVO de este equipo para facturar con CAEA sin internet. Exclusivo
+// para que dos equipos (o el server en contingencia) nunca usen el mismo
+// número: cada uno numera solo, sin poder consultar a nadie.
 // ============================================================================
 
 export type OfflineDeviceRole = 'primary' | 'secondary'
@@ -22,6 +27,7 @@ export interface IPosOfflineDevice extends Document {
   registeredBy: mongoose.Types.ObjectId | null
   lastSeenAt: Date | null
   revokedAt: Date | null
+  contingencyPointOfSale: number | null
   createdAt: Date
   updatedAt: Date
 }
@@ -36,6 +42,7 @@ const PosOfflineDeviceSchema = new Schema<IPosOfflineDevice>(
     registeredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     lastSeenAt: { type: Date, default: null },
     revokedAt: { type: Date, default: null },
+    contingencyPointOfSale: { type: Number, default: null, min: 1, max: 99998 },
   },
   { timestamps: true, collection: 'pos_offline_devices' }
 )

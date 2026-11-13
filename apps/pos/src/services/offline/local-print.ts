@@ -42,6 +42,8 @@ export interface CachedPrinter {
   name: string
   paperWidth: 58 | 80
   roles: string[]
+  /** Documentos que imprime (etapa 5: la factura sale por la que tiene «factura»). */
+  documents?: string[]
   printSettings: PosPrinter["printSettings"]
 }
 
@@ -94,6 +96,7 @@ export async function setPrintAgent(tenantId: string, config: PrintAgentConfig |
 
 export type PrinterForCache = Pick<PosPrinter, "id" | "name" | "paperWidth"> & {
   roles?: string[]
+  documents?: string[]
   isActive?: boolean
   printSettings?: PosPrinter["printSettings"]
 }
@@ -102,7 +105,7 @@ export type PrinterForCache = Pick<PosPrinter, "id" | "name" | "paperWidth"> & {
 export async function cachePrinters(tenantId: string, printers: PrinterForCache[]): Promise<void> {
   const cached: CachedPrinter[] = printers
     .filter((p) => p.isActive !== false)
-    .map((p) => ({ id: p.id, name: p.name, paperWidth: p.paperWidth, roles: p.roles ?? [], printSettings: p.printSettings ?? {} }))
+    .map((p) => ({ id: p.id, name: p.name, paperWidth: p.paperWidth, roles: p.roles ?? [], documents: p.documents ?? [], printSettings: p.printSettings ?? {} }))
   await offlineStore().setMeta(printersKey(tenantId), cached)
 }
 

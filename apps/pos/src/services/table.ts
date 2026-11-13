@@ -4,6 +4,9 @@ import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
 import { offlineAware } from "./offline/executor"
 import { applyTablePatch, type TablePatch } from "./offline/local-model"
+import { isOfflineError } from "./offline/executor"
+import { getOfflineStatus } from "./offline/status"
+import { printPrecuentaLocally } from "./offline/local-precuenta"
 
 // ============================================================================
 // Server-first (V1 POS Online)
@@ -251,11 +254,20 @@ export async function moveTable(
  * hay impresora de caja; el que llama decide cómo avisar.
  */
 export async function printPrecuenta(tenantId: string, tableId: string): Promise<{ printerName: string; total: number }> {
-  return posApi<{ printed: true; printerName: string; total: number }>(
-    tenantId,
-    `/tables/${encodeURIComponent(tableId)}/precuenta`,
-    { method: "POST" }
-  )
+  // Etapa 5: sin internet (o con operaciones sin mandar, que el server todavía
+  // no tiene) sale igual por la red local, con el mismo ticket.
+  const status = getOfflineStatus()
+  if (!status.online || status.pending > 0) return printPrecuentaLocally(tenantId, tableId)
+  try {
+    return await posApi<{ printed: true; printerName: string; total: number }>(
+      tenantId,
+      `/tables/${encodeURIComponent(tableId)}/precuenta`,
+      { method: "POST" }
+    )
+  } catch (err) {
+    if (isOfflineError(err)) return printPrecuentaLocally(tenantId, tableId)
+    throw err
+  }
 }
 
 /**

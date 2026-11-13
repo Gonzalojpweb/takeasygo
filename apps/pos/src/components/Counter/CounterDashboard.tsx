@@ -44,7 +44,7 @@ import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { fireCourse, recordPayments, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
+import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
 import { printPrecuenta } from "../../services/table"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
@@ -1279,7 +1279,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       if (fiscalConfig.enabled && invoiceChoice.type !== "none") {
         for (const order of toCharge) {
           try {
-            invoices.push(await invoiceOrder(tenantId, order.id, invoiceChoice))
+            invoices.push(await invoiceOrder(tenantId, order.id, invoiceChoice, takeOfflineInvoiceReason(order.id)))
           } catch (err) {
             invoices.push({
               id: order.id,

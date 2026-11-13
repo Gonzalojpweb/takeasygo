@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import mongoose from 'mongoose'
-import { OFFLINE_DEVICE_LIMIT } from '@takeasygo/business'
+import { OFFLINE_DEVICE_LIMIT, effectiveDocuments } from '@takeasygo/business'
 import Tenant from '@/models/Tenant'
 import Printer from '@/models/Printer'
+import Location from '@/models/Location'
+import { assignDevicePointOfSale, offlineFiscalKit } from '@/lib/pos-online/offlineFiscal'
 import PosOfflineDevice, { type IPosOfflineDevice } from '@/models/PosOfflineDevice'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
@@ -18,10 +20,14 @@ import type { Plan } from '@/lib/plans'
 //        y en cada vuelta de conexión: un equipo revocado deja de operar offline.
 // POST   (admin y encargado) — habilita este equipo { deviceId, name }.
 // DELETE (admin y encargado) — ?deviceId= revoca y libera el lugar.
+// PATCH  (admin y encargado) — { deviceId, contingencyPointOfSale } punto de
+//        venta EXCLUSIVO del equipo para facturar con CAEA sin internet.
+// El equipo habilitado recibe además sus impresoras (etapa 4) y su kit fiscal
+// (etapa 5: CAEA, punto de venta, último número, emisor, alícuotas).
 // Tope por sede: OFFLINE_DEVICE_LIMIT (Inicial/Crecimiento 1, Premium/Élite 2).
 // ============================================================================
 
-type DeviceDoc = Pick<IPosOfflineDevice, 'deviceId' | 'name' | 'role' | 'lastSeenAt' | 'createdAt'>
+type DeviceDoc = Pick<IPosOfflineDevice, 'deviceId' | 'name' | 'role' | 'lastSeenAt' | 'createdAt'> & { contingencyPointOfSale?: number | null }
 
 const toWire = (d: DeviceDoc) => ({
   deviceId: d.deviceId,
@@ -29,6 +35,7 @@ const toWire = (d: DeviceDoc) => ({
   role: d.role,
   lastSeenAt: d.lastSeenAt ? new Date(d.lastSeenAt).toISOString() : null,
   enabledAt: new Date(d.createdAt).toISOString(),
+  contingencyPointOfSale: d.contingencyPointOfSale ?? null,
 })
 
 async function limitFor(tenantId: string): Promise<number> {
@@ -68,15 +75,28 @@ export const GET = posRoute('tables.read', async (ctx) => {
   const printers = mine
     ? (
         await Printer.find({ tenantId: ctx.tenantId, locationId: ctx.locationId, isActive: true })
-          .select('name paperWidth roles printSettings')
-          .lean<{ _id: unknown; name: string; paperWidth?: number; roles?: string[]; printSettings?: Record<string, unknown> }[]>()
-      ).map((p) => ({ id: String(p._id), name: p.name, paperWidth: p.paperWidth === 58 ? 58 : 80, roles: p.roles ?? [], printSettings: p.printSettings ?? {} }))
+          .sort({ name: 1 })
+          .select('name paperWidth roles documents printSettings')
+          .lean<{ _id: unknown; name: string; paperWidth?: number; roles?: string[]; documents?: string[]; printSettings?: Record<string, unknown> }[]>()
+      ).map((p) => ({ id: String(p._id), name: p.name, paperWidth: p.paperWidth === 58 ? 58 : 80, roles: p.roles ?? [], documents: effectiveDocuments(p), printSettings: p.printSettings ?? {} }))
     : undefined
   return NextResponse.json({
     limit,
     devices: devices.map(toWire),
     thisDevice: mine ? { enabled: true, role: mine.role, name: mine.name } : { enabled: false, role: null, name: null },
     ...(printers ? { printers } : {}),
+    ...(mine
+      ? {
+          location: await Location.findOne({ _id: ctx.locationId, tenantId: ctx.tenantId })
+            .select('name timezone')
+            .lean<{ name: string; timezone?: string }>()
+            .then((l) => (l ? { name: l.name, timezone: l.timezone ?? null } : undefined)),
+          fiscal: await offlineFiscalKit(ctx.tenantId, ctx.locationId, mine).catch((err) => ({
+            available: false as const,
+            reason: err instanceof Error ? err.message : 'No se pudo armar el kit fiscal',
+          })),
+        }
+      : {}),
   })
 })
 
@@ -134,6 +154,21 @@ export const POST = posRoute('config.manage', async (ctx) => {
     request: ctx.request,
   })
   return NextResponse.json({ device: toWire(device) }, { status: 201 })
+})
+
+export const PATCH = posRoute('config.manage', async (ctx) => {
+  const body = await readPosBody<{ deviceId?: unknown; contingencyPointOfSale?: unknown }>(ctx.request)
+  const deviceId = readDeviceId(body.deviceId)
+  const number = await assignDevicePointOfSale(ctx.tenantId, ctx.locationId, deviceId, body.contingencyPointOfSale)
+  logAudit({
+    tenantId: ctx.tenantId,
+    action: 'pos.offline.device_point_of_sale',
+    entity: 'location',
+    entityId: ctx.locationId,
+    details: { deviceId, contingencyPointOfSale: number },
+    request: ctx.request,
+  })
+  return NextResponse.json({ deviceId, contingencyPointOfSale: number })
 })
 
 export const DELETE = posRoute('config.manage', async (ctx) => {

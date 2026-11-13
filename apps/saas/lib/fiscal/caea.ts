@@ -5,6 +5,7 @@ import FiscalDocument, { type IFiscalDocument } from '@/models/FiscalDocument'
 import FiscalProfile from '@/models/FiscalProfile'
 import { RECEIVER_IVA_CONDITION_IDS, cbteTipo, type IssuerIvaCondition } from '@takeasygo/business'
 import { arcaQrUrl } from './qr'
+import { deviceContingencyPointsOfSale } from '@/lib/pos-online/offlineFiscal'
 import { openArcaSession } from './arca/session'
 import {
   caeaPeriodFor,
@@ -208,12 +209,14 @@ export async function ensureCaea(
     done.push(`${w.period}-${w.order}`)
   }
 
-  // Contadores locales nunca por detrás de ARCA.
-  for (const pos of profile.contingency?.pointsOfSale ?? []) {
+  // Contadores locales nunca por detrás de ARCA. Incluye los puntos de venta
+  // exclusivos de los equipos que facturan sin internet (etapa 5).
+  const numbers = [...new Set([...(profile.contingency?.pointsOfSale ?? []).map((p) => p.number), ...(await deviceContingencyPointsOfSale(tenantId))])]
+  for (const posNumber of numbers) {
     for (const tipo of tiposFor(profile.ivaCondition)) {
-      const last = await feCompUltimoAutorizado(session.environment, session.auth, pos.number, tipo, session.fetchImpl)
+      const last = await feCompUltimoAutorizado(session.environment, session.auth, posNumber, tipo, session.fetchImpl)
       await FiscalCounter.updateOne(
-        { tenantId, environment: profile.environment, pointOfSale: pos.number, cbteTipo: tipo },
+        { tenantId, environment: profile.environment, pointOfSale: posNumber, cbteTipo: tipo },
         { $max: { last } },
         { upsert: true }
       )
@@ -302,13 +305,15 @@ export async function informCaea(
       environment: profile.environment,
       validTo: { $lt: now, $gte: new Date(now.getTime() - 30 * 86_400_000) },
     })
+    // Los de los equipos sin internet también se informan «sin movimiento».
+    const numbers = [...new Set([...(profile.contingency?.pointsOfSale ?? []).map((p) => p.number), ...(await deviceContingencyPointsOfSale(tenantId))])]
     for (const period of ended) {
-      for (const pos of profile.contingency?.pointsOfSale ?? []) {
-        if (period.noMovementInformed.includes(pos.number)) continue
-        const used = await FiscalDocument.exists({ tenantId, authMode: 'caea', cae: period.caea, pointOfSale: pos.number })
+      for (const posNumber of numbers) {
+        if (period.noMovementInformed.includes(posNumber)) continue
+        const used = await FiscalDocument.exists({ tenantId, authMode: 'caea', cae: period.caea, pointOfSale: posNumber })
         if (used) continue
-        await feCaeaSinMovimiento(session.environment, session.auth, pos.number, period.caea, session.fetchImpl)
-        period.noMovementInformed.push(pos.number)
+        await feCaeaSinMovimiento(session.environment, session.auth, posNumber, period.caea, session.fetchImpl)
+        period.noMovementInformed.push(posNumber)
         result.noMovement++
       }
       await period.save()

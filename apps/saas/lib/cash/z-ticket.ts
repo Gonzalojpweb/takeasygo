@@ -1,7 +1,7 @@
-import iconv from 'iconv-lite'
 import { CASH_EXPENSE_CATEGORY_LABELS, toPesos } from '@takeasygo/business'
 import type { CashExpenseCategory, PaymentMethod, ZReport } from '@takeasygo/types'
 import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
+import { linesToEscPosBytes, type TicketLine } from '@takeasygo/business/escpos'
 
 // ============================================================================
 // Ticket térmico del reporte Z (ESC/POS) — Fase 2 de caja (2026-10)
@@ -13,20 +13,6 @@ import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 // Documentación: ADMIN/FASE2_Z_PARA_LLEVARSE.md.
 // ============================================================================
 
-const ESC_POS = {
-  INIT: Buffer.from([0x1b, 0x40]),
-  CODE_PAGE: Buffer.from([0x1b, 0x74, 43]), // CP858
-  CUT: Buffer.from([0x1d, 0x56, 0x01]),
-  BOLD_ON: Buffer.from([0x1b, 0x45, 0x01]),
-  BOLD_OFF: Buffer.from([0x1b, 0x45, 0x00]),
-  ALIGN_LEFT: Buffer.from([0x1b, 0x61, 0x00]),
-  ALIGN_CENTER: Buffer.from([0x1b, 0x61, 0x01]),
-  SIZE_NORMAL: Buffer.from([0x1d, 0x21, 0x00]),
-  SIZE_LARGE: Buffer.from([0x1d, 0x21, 0x11]),
-}
-
-const NON_LATIN1_RE = /[^\u0000-ÿ€]/g
-
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: 'Efectivo',
   mercadopago: 'MercadoPago',
@@ -34,10 +20,6 @@ const METHOD_LABELS: Record<PaymentMethod, string> = {
   posnet_credit: 'Credito',
   kripton: 'Kripton',
   transfer: 'Transferencia',
-}
-
-function enc(text: string): Buffer {
-  return iconv.encode(text.replace(NON_LATIN1_RE, ''), 'cp858')
 }
 
 export function money(cents: number): string {
@@ -143,22 +125,14 @@ export function buildZTicketBuffer(z: ZReport, ctx: ZTicketContext): string {
   return escPosFromLines(zTicketLines(z, ctx))
 }
 
-export type TicketLine = { text: string; bold?: boolean; center?: boolean; large?: boolean }
+export type { TicketLine }
 
 /**
  * Líneas de texto → buffer ESC/POS en base64 (CP858, corte al final). Lo
  * comparten el Z y la precuenta del POS (Fase E): mismo canal, mismo agente.
+ * El armado vive en @takeasygo/business/escpos (lines-ticket.ts) desde la
+ * etapa 5 del POS offline: el equipo sin internet imprime la precuenta igual.
  */
 export function escPosFromLines(lines: TicketLine[]): string {
-  const chunks: Buffer[] = [ESC_POS.INIT, ESC_POS.CODE_PAGE, Buffer.from([0x1b, 0x33, 36])]
-  for (const line of lines) {
-    chunks.push(line.center ? ESC_POS.ALIGN_CENTER : ESC_POS.ALIGN_LEFT)
-    if (line.large) chunks.push(ESC_POS.SIZE_LARGE)
-    if (line.bold) chunks.push(ESC_POS.BOLD_ON)
-    chunks.push(enc(`${line.text}\n`))
-    if (line.bold) chunks.push(ESC_POS.BOLD_OFF)
-    if (line.large) chunks.push(ESC_POS.SIZE_NORMAL)
-  }
-  chunks.push(enc('\n\n'), ESC_POS.CUT)
-  return Buffer.concat(chunks).toString('base64')
+  return Buffer.from(linesToEscPosBytes(lines)).toString('base64')
 }

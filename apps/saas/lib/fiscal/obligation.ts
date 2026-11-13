@@ -5,6 +5,7 @@ import type { ReceiverCondition } from '@/models/FiscalDocument'
 import { FiscalIssueError, prepareInvoiceForOrder, type ReceiverInput } from './issue'
 import { enqueueControllerInvoice, loadModality } from './controller'
 import Order from '@/models/Order'
+import { readOfflineCaea, recordOfflineCaeaInvoice, type OfflineCaeaInvoice } from '@/lib/pos-online/offlineFiscal'
 
 // ============================================================================
 // Obligación fiscal al cobrar — orden de ejecución 31/10 (P1.2)
@@ -24,15 +25,19 @@ import Order from '@/models/Order'
 
 const CONDITIONS = new Set<ReceiverCondition>(['consumidor_final', 'responsable_inscripto', 'monotributo', 'exento', 'no_categorizado'])
 
-/** Lo que el POS manda en el cobro. `undefined` = POS viejo (no informó). */
-export type InvoiceIntent = { none: true } | { receiver: ReceiverInput } | undefined
+/**
+ * Lo que el POS manda en el cobro. `undefined` = POS viejo (no informó).
+ * `offlineCaea` (etapa 5 del POS offline): el comprobante que el equipo ya
+ * emitió con CAEA sin internet y le entregó al cliente.
+ */
+export type InvoiceIntent = { none: true } | { receiver: ReceiverInput; offlineCaea?: OfflineCaeaInvoice | null } | undefined
 
 /** Lee y valida `body.invoice` del pedido de cobro. */
 export function readInvoiceIntent(body: unknown): InvoiceIntent {
   const raw = (body as { invoice?: unknown } | null)?.invoice
   if (raw === undefined || raw === null) return undefined
   if (typeof raw !== 'object') return undefined
-  const value = raw as { none?: unknown; receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown; address?: unknown } }
+  const value = raw as { none?: unknown; offlineCaea?: unknown; receiver?: { condition?: unknown; docNumber?: unknown; name?: unknown; address?: unknown } }
   if (value.none === true) return { none: true }
   const r = value.receiver
   if (!r || typeof r !== 'object') return undefined
@@ -44,6 +49,7 @@ export function readInvoiceIntent(body: unknown): InvoiceIntent {
       name: typeof r.name === 'string' ? r.name.slice(0, 120) : null,
       address: typeof r.address === 'string' ? r.address.slice(0, 120) : null,
     },
+    ...(value.offlineCaea !== undefined ? { offlineCaea: readOfflineCaea(value.offlineCaea) } : {}),
   }
 }
 
@@ -58,6 +64,8 @@ export async function registerFiscalObligation(input: {
   userId: string
   userRole: string
   intent: InvoiceIntent
+  /** Reenvío de un equipo que estuvo sin internet (etapa 5). */
+  offline?: { deviceId: string | null; trusted: boolean; printedPrinterIds: string[]; locationId: string } | null
 }): Promise<'created' | 'skipped' | 'failed'> {
   try {
     const profile = await FiscalProfile.findOne({ tenantId: input.tenantId })
@@ -75,6 +83,22 @@ export async function registerFiscalObligation(input: {
     // POS que no informó la decisión: con «facturar siempre», consumidor final.
     else if (!input.intent && profile.invoicingMode === 'always') receiver = { condition: 'consumidor_final' }
     if (!receiver) return 'skipped'
+
+    // Factura emitida sin internet con CAEA: se guarda la que se entregó.
+    const offlineCaea = input.intent && 'receiver' in input.intent ? input.intent.offlineCaea : undefined
+    if (offlineCaea && modality === 'electronic') {
+      await recordOfflineCaeaInvoice({
+        tenantId: input.tenantId,
+        locationId: input.offline?.locationId ?? String(order?.locationId ?? ''),
+        orderId: input.orderId,
+        deviceId: input.offline?.deviceId ?? null,
+        trusted: input.offline?.trusted === true,
+        invoice: offlineCaea,
+        printedPrinterIds: input.offline?.printedPrinterIds ?? [],
+        userId: input.userId,
+      })
+      return 'created'
+    }
 
     if (modality === 'controller') {
       await enqueueControllerInvoice({ tenantId: input.tenantId, orderId: String(input.orderId), receiver, userId: input.userId })

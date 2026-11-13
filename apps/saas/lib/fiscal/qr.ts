@@ -1,4 +1,5 @@
 import { ARCA_QR_URL } from './arca/endpoints'
+import { arcaQrPayload as sharedPayload, arcaQrUrl as sharedUrl, type ArcaQrInput } from '@takeasygo/business/escpos'
 
 // ============================================================================
 // QR fiscal de ARCA (RG 4892/2020)
@@ -6,51 +7,17 @@ import { ARCA_QR_URL } from './arca/endpoints'
 // URL: https://www.arca.gob.ar/fe/qr/?p=<base64(JSON)>
 // Campos (especificación de ARCA, versión 1): ver, fecha (yyyy-mm-dd), cuit,
 // ptoVta, tipoCmp, nroCmp, importe, moneda, ctz, tipoDocRec, nroDocRec,
-// tipoCodAut ("E" = CAE), codAut.
+// tipoCodAut ("E" = CAE, "A" = CAEA), codAut.
+// Desde la etapa 5 del POS offline el armado vive en @takeasygo/business/escpos
+// (el equipo sin internet arma el QR de la factura con CAEA).
 // ============================================================================
 
-export interface QrInput {
-  issuedAt: Date
-  cuit: string
-  pointOfSale: number
-  cbteTipo: number
-  number: number
-  totalCents: number
-  docType: number
-  docNumber: string
-  cae: string
-  /** 'E' = CAE (default) · 'A' = CAEA (contingencia). */
-  authType?: 'E' | 'A'
-}
-
-function arDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Argentina/Buenos_Aires',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(date)
-}
+export type QrInput = ArcaQrInput
 
 export function arcaQrPayload(input: QrInput): Record<string, string | number> {
-  return {
-    ver: 1,
-    fecha: arDate(input.issuedAt),
-    cuit: Number(input.cuit),
-    ptoVta: input.pointOfSale,
-    tipoCmp: input.cbteTipo,
-    nroCmp: input.number,
-    importe: Number((input.totalCents / 100).toFixed(2)),
-    moneda: 'PES',
-    ctz: 1,
-    tipoDocRec: input.docType,
-    nroDocRec: Number(input.docNumber) || 0,
-    tipoCodAut: input.authType ?? 'E',
-    codAut: Number(input.cae),
-  }
+  return sharedPayload(input)
 }
 
 export function arcaQrUrl(input: QrInput): string {
-  const json = JSON.stringify(arcaQrPayload(input))
-  return `${ARCA_QR_URL}?p=${Buffer.from(json, 'utf8').toString('base64')}`
+  return sharedUrl(input, ARCA_QR_URL)
 }

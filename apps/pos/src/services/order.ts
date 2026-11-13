@@ -5,6 +5,8 @@ import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
 import { offlineAware } from "./offline/executor"
 import { printForOfflineOp } from "./offline/local-print"
+import { issueOfflineInvoice, offlineCaeaWire, offlineSaleInfo, printOfflineInvoice } from "./offline/caea"
+import type { OfflineOp } from "./offline/types"
 import {
   applyAddItem,
   applyFireCourse,
@@ -113,6 +115,8 @@ async function writeOrder(params: {
   local: (current: WireOrder, now: Date) => WireOrder
   /** Etapa 4: impresión por la red local después de aplicarla sin internet. */
   afterLocal?: (order: WireOrder, opId: string) => Promise<void>
+  /** Etapa 5: trabajo extra DENTRO de la transacción local (puede completar la operación). */
+  applied?: (order: WireOrder, op: OfflineOp) => Promise<void>
 }): Promise<WireOrder> {
   return runMutation(() =>
     offlineAware<WireOrder>({
@@ -130,9 +134,10 @@ async function writeOrder(params: {
         })
         return saveOrder(order)
       },
-      applyLocal: async () => {
+      applyLocal: async (op) => {
         const next = params.local(await requireLocalOrder(params.orderId), new Date())
         await db.orders.put(next)
+        if (params.applied) await params.applied(next, op)
         return next
       },
       ...(params.afterLocal ? { afterLocal: (order: WireOrder, op: { id: string }) => params.afterLocal!(order, op.id) } : {}),
@@ -334,7 +339,34 @@ export async function recordPayments(
       if ("error" in next) throw new PosApiError(next.error, next.code, next.code === "conflict" ? 409 : 400)
       return next
     },
+    // Etapa 5: con factura pedida, se emite con CAEA en la misma transacción
+    // y viaja con el cobro. Si no se puede, queda pendiente (la emite el
+    // server con CAE al volver la red).
+    applied: async (order, op) => {
+      if (!invoice || !("receiver" in invoice)) return
+      const result = await issueOfflineInvoice(tenantId, order, invoice.receiver, offlineSaleInfo(order, parts))
+      if ("reason" in result) {
+        offlineInvoiceReasons.set(orderId, result.reason)
+        return
+      }
+      const body = op.body as { invoice?: Record<string, unknown> }
+      body.invoice = { ...invoice, offlineCaea: offlineCaeaWire(result) }
+    },
+    afterLocal: async (_order, opId) => {
+      if (invoice && "receiver" in invoice) await printOfflineInvoice(tenantId, opId, orderId)
+    },
   })
+}
+
+/**
+ * Motivo por el que una factura pedida sin internet NO salió con CAEA (para
+ * mostrarlo en el cobro). Se lee una vez.
+ */
+const offlineInvoiceReasons = new Map<string, string>()
+export function takeOfflineInvoiceReason(orderId: string): string | null {
+  const reason = offlineInvoiceReasons.get(orderId) ?? null
+  offlineInvoiceReasons.delete(orderId)
+  return reason
 }
 
 /**

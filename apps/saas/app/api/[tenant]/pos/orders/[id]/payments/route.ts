@@ -3,7 +3,7 @@ import Order from '@/models/Order'
 import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { PosError } from '@/lib/pos-online/errors'
-import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
+import { printedOffline, trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { toPosOrder } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 import {
@@ -80,8 +80,19 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   const reason = readReason(body, posId)
   // P1.2 (31/10): la decisión de facturar viaja con el cobro.
   const invoiceIntent = readInvoiceIntent(body)
-  const fiscal = (orderId: unknown) =>
-    registerFiscalObligation({ tenantId: ctx.tenantId, orderId: String(orderId), userId: ctx.user.id, userRole: ctx.user.role, intent: invoiceIntent })
+  // Etapa 5: si el cobro viene de un equipo que estuvo sin internet, la
+  // factura que ya emitió con CAEA se guarda tal cual (offlineFiscal.ts).
+  const fiscal = async (orderId: unknown) =>
+    registerFiscalObligation({
+      tenantId: ctx.tenantId,
+      orderId: String(orderId),
+      userId: ctx.user.id,
+      userRole: ctx.user.role,
+      intent: invoiceIntent,
+      offline: ctx.offline
+        ? { deviceId: ctx.offline.deviceId, trusted: Boolean(await trustedOfflineAt(ctx)), printedPrinterIds: [...(await printedOffline(ctx))], locationId: ctx.locationId }
+        : null,
+    })
 
   const order = (await findPosOrder(ctx, posId)) as PaidOrderDoc
 

@@ -3,8 +3,8 @@ import { printerForDocument } from '@/lib/printers/select'
 import PreClosePrintJob from '@/models/PreClosePrintJob'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
-import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
-import { escPosFromLines, money, type TicketLine } from '@/lib/cash/z-ticket'
+import { escPosFromLines } from '@/lib/cash/z-ticket'
+import { precuentaLines, type PrecuentaItem } from '@takeasygo/business/escpos'
 
 // ============================================================================
 // Precuenta de la mesa (Fase E, 2026-10)
@@ -16,72 +16,9 @@ import { escPosFromLines, money, type TicketLine } from '@/lib/cash/z-ticket'
 // ESC/POS listo que el printer-agent del local imprime en su próximo ciclo.
 // ============================================================================
 
-export interface PrecuentaItem {
-  name: string
-  quantity: number
-  /** Importe neto de la línea (ya con descuento), centavos. */
-  subtotal: number
-  /** Centavos descontados de la línea (0 si no tiene). */
-  discountCents: number
-}
-
-export interface PrecuentaData {
-  locationName: string
-  tableNumber: number
-  guests: number | null
-  items: PrecuentaItem[]
-  at: Date
-  timezone?: string
-  /** 32 (58 mm) o 48 (80 mm). */
-  columns: number
-}
-
-/** Líneas del ticket (sin códigos de control): base del buffer y de los tests. */
-export function precuentaLines(data: PrecuentaData): TicketLine[] {
-  const cols = data.columns
-  const row = (label: string, value: string, bold = false): TicketLine => {
-    const room = cols - value.length - 1
-    const left = label.length > room ? label.slice(0, room) : label
-    return { text: `${left}${' '.repeat(Math.max(1, cols - left.length - value.length))}${value}`, bold }
-  }
-  const rule = { text: '-'.repeat(cols) }
-  const when = data.at.toLocaleString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    timeZone: data.timezone || DEFAULT_TIMEZONE,
-  })
-
-  const gross = data.items.reduce((s, i) => s + i.subtotal + i.discountCents, 0)
-  const discounts = data.items.reduce((s, i) => s + i.discountCents, 0)
-  const total = data.items.reduce((s, i) => s + i.subtotal, 0)
-
-  const out: TicketLine[] = [
-    { text: data.locationName.toUpperCase(), bold: true, center: true },
-    { text: 'PRECUENTA', bold: true, center: true, large: true },
-    { text: `Mesa ${data.tableNumber}${data.guests ? ` - ${data.guests} ${data.guests === 1 ? 'comensal' : 'comensales'}` : ''}`, center: true },
-    { text: when, center: true },
-    rule,
-  ]
-  for (const item of data.items) {
-    out.push(row(`${item.quantity}x ${item.name}`, money(item.subtotal + item.discountCents)))
-    if (item.discountCents > 0) out.push(row('   Descuento', `-${money(item.discountCents)}`))
-  }
-  out.push(rule)
-  if (discounts > 0) {
-    out.push(row('Subtotal', money(gross)))
-    out.push(row('Descuentos', `-${money(discounts)}`))
-  }
-  out.push({ ...row('TOTAL', money(total), true), large: false })
-  if (data.guests && data.guests > 1) {
-    out.push(row(`Por persona (${data.guests})`, money(Math.ceil(total / data.guests))))
-  }
-  out.push(
-    rule,
-    { text: 'NO VALIDO COMO FACTURA', center: true, bold: true },
-    { text: 'Gracias por su visita', center: true },
-    { text: '' }
-  )
-  return out
-}
+// Las líneas viven en @takeasygo/business/escpos (lines-ticket.ts) desde la
+// etapa 5 del POS offline: el equipo sin internet imprime la misma precuenta.
+export { precuentaLines, type PrecuentaItem, type PrecuentaData } from '@takeasygo/business/escpos'
 
 export type PrecuentaPrintResult = { ok: true; printerName: string; total: number } | { ok: false; reason: 'no_printer' | 'empty' }
 

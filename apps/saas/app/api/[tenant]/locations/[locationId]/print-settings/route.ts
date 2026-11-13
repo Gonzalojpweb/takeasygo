@@ -27,7 +27,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Sede inválida' }, { status: 400 })
     }
     await connectDB()
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id flags').lean<{ _id: mongoose.Types.ObjectId; flags?: Record<string, boolean> | null }>()
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const authError = await requireAuth(request, tenant._id.toString())

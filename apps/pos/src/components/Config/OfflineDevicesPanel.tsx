@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { CloudOff, ShieldCheck, Trash2 } from "lucide-react"
 import { useOfflineStatus } from "../../hooks/useOfflineStatus"
 import { LocalPrintPanel } from "./LocalPrintPanel"
+import { OfflineInvoicePanel } from "./OfflineInvoicePanel"
 import { enableThisDevice, getDeviceId, listOfflineDevices, revokeDevice, requestPersistentStorage } from "../../services/offline/device"
 
 // ============================================================================
@@ -19,6 +20,7 @@ interface DeviceRow {
   role: "primary" | "secondary"
   lastSeenAt: string | null
   enabledAt: string
+  contingencyPointOfSale?: number | null
 }
 
 const ROLE_LABEL = { primary: "Principal", secondary: "Secundario" } as const
@@ -126,6 +128,7 @@ export function OfflineDevicesPanel({ tenantId, canManage, flash }: { tenantId: 
       {!canManage && !mine && <p className="cash-help">Lo puede habilitar el administrador o el encargado.</p>}
 
       {mine && <LocalPrintPanel tenantId={tenantId} canManage={canManage} flash={flash} />}
+      {mine && devices && <OfflineInvoicePanel tenantId={tenantId} canManage={canManage} flash={flash} devices={devices} myId={myId} onChanged={load} />}
 
       {devices && devices.length > 0 && (
         <ul className="offline-device-list" aria-label="Equipos habilitados">

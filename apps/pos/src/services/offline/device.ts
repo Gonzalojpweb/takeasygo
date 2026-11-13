@@ -1,5 +1,7 @@
 import { posApi } from "../pos-api"
 import { cachePrinters, type PrinterForCache } from "./local-print"
+import { cacheFiscalKit, type OfflineFiscalKitResult } from "./caea"
+import { cacheLocation, type CachedLocation } from "./local-precuenta"
 import { offlineStore } from "./store"
 import { getOfflineStatus, setCachedDeviceId, setOfflineStatus } from "./status"
 import type { OfflineEligibility } from "./types"
@@ -45,10 +47,14 @@ export async function isOfflineEnabled(tenantId: string, now = Date.now()): Prom
 
 interface DevicesResponse {
   limit: number
-  devices: { deviceId: string; name: string; role: "primary" | "secondary"; lastSeenAt: string | null; enabledAt: string }[]
+  devices: { deviceId: string; name: string; role: "primary" | "secondary"; lastSeenAt: string | null; enabledAt: string; contingencyPointOfSale?: number | null }[]
   thisDevice: { enabled: boolean; role: "primary" | "secondary" | null; name: string | null }
   /** Etapa 4: impresoras activas de la sede (solo para un equipo habilitado). */
   printers?: PrinterForCache[]
+  /** Etapa 5: CAEA, punto de venta del equipo y datos para facturar sin internet. */
+  fiscal?: OfflineFiscalKitResult
+  /** Nombre y zona horaria de la sede (encabezado de la precuenta sin internet). */
+  location?: CachedLocation
 }
 
 /** Consulta al server y guarda la respuesta. Sin red, devuelve la guardada. */
@@ -66,6 +72,8 @@ export async function refreshEligibility(tenantId: string): Promise<OfflineEligi
     await offlineStore().setMeta(eligibilityKey(tenantId), e)
     // Sin internet la comanda se arma con estas impresoras (etapa 4).
     if (e.enabled && Array.isArray(res.printers)) await cachePrinters(tenantId, res.printers)
+    if (e.enabled && res.fiscal) await cacheFiscalKit(tenantId, res.fiscal)
+    if (e.enabled && res.location) await cacheLocation(tenantId, res.location)
     applyToStatus(e)
     return e
   } catch {
@@ -87,6 +95,15 @@ export async function enableThisDevice(tenantId: string, name: string): Promise<
   await posApi(tenantId, "/offline/devices", { method: "POST", body: { deviceId, name } })
   await requestPersistentStorage()
   return refreshEligibility(tenantId)
+}
+
+/**
+ * Etapa 5: punto de venta EXCLUSIVO del equipo para facturar con CAEA sin
+ * internet (null lo quita). Después se refresca el kit fiscal de este equipo.
+ */
+export async function setDevicePointOfSale(tenantId: string, deviceId: string, pointOfSale: number | null): Promise<void> {
+  await posApi(tenantId, "/offline/devices", { method: "PATCH", body: { deviceId, contingencyPointOfSale: pointOfSale } })
+  if (deviceId === (await getDeviceId())) await refreshEligibility(tenantId)
 }
 
 /** Revoca un equipo (por defecto, este). */
