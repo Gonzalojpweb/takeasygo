@@ -163,6 +163,15 @@ export const HELP_TOPICS: HelpTopic[] = [
         paragraphs: ['Si cargás el total pagado por línea, el sistema calcula el costo por unidad y con eso el costo de cada plato y el valor del stock.'],
       },
       {
+        heading: 'Con orden de compra',
+        steps: [
+          'En «Compras» cargá tus proveedores (o traelos del campo «proveedor» de tus insumos).',
+          'Armá la orden: insumos, cuánto va a cada sede y, si lo sabés, el precio. Queda en borrador.',
+          'Mandala: se arma el texto del pedido para WhatsApp o para copiar.',
+          'Cuando llega, cada sede carga lo que recibió con el precio de la factura. Si falta algo, la orden queda abierta para la próxima entrega; si no llega más, cerrala.',
+        ],
+      },
+      {
         warnings: ['Registrá la mercadería el mismo día que llega. Si no, el sistema cree que hay menos y te pide reponer algo que ya tenés.'],
       },
     ],
@@ -515,8 +524,9 @@ export function helpTopic(id: HelpTopicId): HelpTopic {
 }
 
 /** Tema con el que abre la ayuda según la pantalla. */
-export const HELP_BY_VIEW: Record<'ahora' | 'productos' | 'recetas' | 'envios' | 'actividad', HelpTopicId> = {
+export const HELP_BY_VIEW: Record<'ahora' | 'productos' | 'recetas' | 'compras' | 'envios' | 'actividad', HelpTopicId> = {
   ahora: 'tablero',
+  compras: 'recibir',
   envios: 'ajuste-transferencia',
   productos: 'productos',
   recetas: 'recetas',

@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CircleHelp, ClipboardList, PackageOpen, Settings2, Truck, Upload, UtensilsCrossed, Zap } from 'lucide-react'
+import { CircleHelp, ClipboardList, PackageOpen, Settings2, ShoppingCart, Truck, Upload, UtensilsCrossed, Zap } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { invApi } from './data/api'
 import { useResource } from './data/useResource'
@@ -29,14 +29,16 @@ import ProductsView from './views/ProductsView'
 import RecipesView from './views/RecipesView'
 import ActivityView from './views/ActivityView'
 import TransfersView from './views/TransfersView'
+import PurchasesView from './views/PurchasesView'
 import PanelHost, { type PanelRequest } from './panels/PanelHost'
 
-export type ViewId = 'ahora' | 'productos' | 'recetas' | 'envios' | 'actividad'
+export type ViewId = 'ahora' | 'productos' | 'recetas' | 'compras' | 'envios' | 'actividad'
 
 const VIEWS: Array<{ id: ViewId; label: string; icon: React.ComponentType<{ size?: number; 'aria-hidden'?: boolean }>; needs?: keyof Capabilities }> = [
   { id: 'ahora', label: 'Ahora', icon: Zap },
   { id: 'productos', label: 'Productos', icon: PackageOpen, needs: 'read' },
   { id: 'recetas', label: 'Recetas', icon: UtensilsCrossed, needs: 'recipes' },
+  { id: 'compras', label: 'Compras', icon: ShoppingCart, needs: 'read' },
   { id: 'envios', label: 'Envíos', icon: Truck, needs: 'read' },
   { id: 'actividad', label: 'Actividad', icon: ClipboardList, needs: 'read' },
 ]
@@ -235,6 +237,11 @@ export default function InventoryV3({
         {capabilities.recipes && (
           <TabsContent value="recetas">
             <RecipesView ctx={ctx} />
+          </TabsContent>
+        )}
+        {capabilities.read && (
+          <TabsContent value="compras">
+            <PurchasesView ctx={ctx} />
           </TabsContent>
         )}
         {capabilities.read && (
