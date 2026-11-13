@@ -145,7 +145,17 @@ export interface LocationRank {
   sales: number
   prevSales: number
   avgTicket: number
+  prevAvgTicket: number
+  guests: number
+  perGuest: number
   share: number
+  discounts: number
+  voided: { count: number; amount: number }
+  itemVoids: { count: number; amount: number }
+  /** Margen teórico por recetas de la sede; null si no hay ventas con receta. */
+  margin: { marginPct: number; coveragePct: number } | null
+  /** Facturación por canal en la sede. */
+  byChannel: Record<SaleChannel, number>
 }
 
 export interface MoneyRow { revenue: number; prevRevenue: number; quantity: number }
@@ -238,6 +248,34 @@ function seriesOf(list: SalesMetrics[], unit: 'day' | 'hour', labels: string[]):
 
 const PRODUCT_LIMIT = 300
 
+export interface CoveredBrand {
+  brand: Awaited<ReturnType<typeof getMyOrganizations>>[number]['brands'][number]
+  locations: { id: string; name: string }[]
+}
+
+/**
+ * Sedes que la membresía cubre (para los filtros) y las elegidas. Los filtros
+ * solo ACHICAN: lo que no está cubierto se ignora. Lo usan la vista 360 y la
+ * actividad del personal.
+ */
+export async function resolveCoverage(
+  mine: Awaited<ReturnType<typeof getMyOrganizations>>[number],
+  opts: Pick<DashboardOptions, 'brands' | 'locations'>,
+): Promise<{ covered: CoveredBrand[]; selected: CoveredBrand[]; wantBrands: Set<string>; wantLocations: Set<string> }> {
+  const covered = await Promise.all(mine.brands.map(async brand => ({
+    brand,
+    locations: (await Location.find({ tenantId: brand.tenantId, isActive: true }).select('_id name').sort({ name: 1 })
+      .lean<{ _id: unknown; name?: string }[]>()).map(l => ({ id: String(l._id), name: l.name ?? 'Sede' })),
+  })))
+  const wantBrands = new Set((opts.brands ?? []).filter(s => covered.some(c => c.brand.slug === s)))
+  const wantLocations = new Set((opts.locations ?? []).filter(id => covered.some(c => c.locations.some(l => l.id === id))))
+  const selected = covered
+    .filter(c => !wantBrands.size || wantBrands.has(c.brand.slug))
+    .map(c => ({ ...c, locations: c.locations.filter(l => !wantLocations.size || wantLocations.has(l.id)) }))
+    .filter(c => c.locations.length > 0 || !wantLocations.size)
+  return { covered, selected, wantBrands, wantLocations }
+}
+
 export async function loadOrgDashboard(userId: string, orgSlug: string, period: DashboardPeriod, opts: DashboardOptions = {}): Promise<OrgDashboardResult> {
   const mine = (await getMyOrganizations(userId)).find(o => o.organization.slug === orgSlug)
   if (!mine) return { ok: false, reason: 'not_member' }
@@ -253,20 +291,7 @@ export async function loadOrgDashboard(userId: string, orgSlug: string, period: 
   const labels = unit === 'hour' ? Array.from({ length: 24 }, (_, h) => String(h)) : datesOf(range)
   const prevLabels = unit === 'hour' ? labels : datesOf(cmp.range)
 
-  // Todas las sedes que la membresía cubre (para los filtros), en paralelo.
-  const covered = await Promise.all(mine.brands.map(async brand => ({
-    brand,
-    locations: (await Location.find({ tenantId: brand.tenantId, isActive: true }).select('_id name').sort({ name: 1 })
-      .lean<{ _id: unknown; name?: string }[]>()).map(l => ({ id: String(l._id), name: l.name ?? 'Sede' })),
-  })))
-
-  // Los filtros solo achican: lo que no está cubierto se ignora.
-  const wantBrands = new Set((opts.brands ?? []).filter(s => covered.some(c => c.brand.slug === s)))
-  const wantLocations = new Set((opts.locations ?? []).filter(id => covered.some(c => c.locations.some(l => l.id === id))))
-  const selected = covered
-    .filter(c => !wantBrands.size || wantBrands.has(c.brand.slug))
-    .map(c => ({ ...c, locations: c.locations.filter(l => !wantLocations.size || wantLocations.has(l.id)) }))
-    .filter(c => c.locations.length > 0 || !wantLocations.size)
+  const { covered, selected, wantBrands, wantLocations } = await resolveCoverage(mine, opts)
 
   const perBrand = await Promise.all(selected.map(async ({ brand, locations }) => {
     const perLocation = await Promise.all(locations.map(async l => {
@@ -311,7 +336,18 @@ export async function loadOrgDashboard(userId: string, orgSlug: string, period: 
     sales: p.cur.totals.sales,
     prevSales: p.prev.totals.sales,
     avgTicket: p.cur.totals.avgTicket,
+    prevAvgTicket: p.prev.totals.avgTicket,
+    guests: p.cur.totals.guests,
+    perGuest: p.cur.totals.perGuest,
     share: total.totals.revenue ? Math.round((p.cur.totals.revenue / total.totals.revenue) * 1000) / 10 : 0,
+    ...extrasOf([p.cur]),
+    margin: p.cur.cost.costedRevenue > 0
+      ? {
+          marginPct: Math.round(((p.cur.cost.costedRevenue - p.cur.cost.cogs) / p.cur.cost.costedRevenue) * 1000) / 10,
+          coveragePct: p.cur.totals.revenue ? Math.round((p.cur.cost.costedRevenue / p.cur.totals.revenue) * 100) : 0,
+        }
+      : null,
+    byChannel: Object.fromEntries(SALE_CHANNELS.map(c => [c, p.cur.byChannel[c].revenue])) as Record<SaleChannel, number>,
   }))).sort((a, b) => b.revenue - a.revenue)
 
   const payments = new Map<string, { amount: number; count: number; prevAmount: number }>()

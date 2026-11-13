@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeft, BarChart3, Store, TrendingDown, TrendingUp, Flame, Wallet, ShoppingBag, Receipt, Users, Percent, Ban } from 'lucide-react'
+import { ArrowLeft, BarChart3, Store, TrendingDown, TrendingUp, Flame, Wallet, ShoppingBag, Receipt, Users, Percent, Ban, Columns3, UserCheck } from 'lucide-react'
 import { getSessionUser } from '@/lib/apiAuth'
 import { getOrgDashboardMode } from '@/lib/org-access'
 import { DASHBOARD_PERIODS, loadOrgDashboard, parseDashboardQuery, SALE_CHANNELS, type OrgDashboard } from '@/lib/organizations/dashboard'
@@ -13,6 +13,7 @@ import OrgMembership from '@/models/OrgMembership'
 import Organization from '@/models/Organization'
 import { weeklySummaryEnabled } from '@/lib/organizations/weekly-summary'
 import SalesTrendChart from '@/components/grupo/SalesTrendChart'
+import LocationCompareTable from '@/components/grupo/LocationCompareTable'
 import { BRAND_COLORS, CHANNEL_LABEL, METHOD_LABEL, fmtDate, money, moneyShort } from '@/components/grupo/format'
 
 // /grupo/[slug]: vista 360 del dueño — cómo viene facturando el grupo y dónde
@@ -122,6 +123,14 @@ function Heatmap({ grid }: { grid: number[][] }) {
   )
 }
 
+/** Pasa período, fechas, marcas y sedes a la pantalla de personal. */
+function personalQuery(sp: Record<string, string | undefined>): string {
+  const q = new URLSearchParams()
+  for (const k of ['periodo', 'desde', 'hasta', 'marcas', 'sedes']) if (sp[k]) q.set(k, sp[k]!)
+  const s = q.toString()
+  return s ? `?${s}` : ''
+}
+
 export default async function GrupoDashboardPage({
   params,
   searchParams,
@@ -178,7 +187,12 @@ export default async function GrupoDashboardPage({
                   </h1>
                   <p className="mt-1 text-sm text-muted-foreground">{rangeText} · {d.compare.label} ({d.compare.range.from === d.compare.range.to ? fmtDate(d.compare.range.from) : `${fmtDate(d.compare.range.from)} al ${fmtDate(d.compare.range.to)}`})</p>
                 </div>
-                <Suspense fallback={null}><DashboardActions slug={slug} summaryEnabled={summaryOn} /></Suspense>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Suspense fallback={null}><DashboardActions slug={slug} summaryEnabled={summaryOn} /></Suspense>
+                  <Link href={`/grupo/${slug}/personal${personalQuery(sp)}`} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted">
+                    <UserCheck size={15} /> Actividad del personal
+                  </Link>
+                </div>
                 <DashboardFilters periods={DASHBOARD_PERIODS} period={d.period} range={d.range} available={d.filters.available} brands={d.filters.brands} locations={d.filters.locations} />
               </header>
 
@@ -233,6 +247,12 @@ export default async function GrupoDashboardPage({
                   </div>
                 )}
               </Section>
+
+              {d.locations.filter(l => l.revenue > 0 || l.prevRevenue > 0).length > 1 && (
+                <Section title="Comparar sedes" icon={Columns3} aside={<span className="text-xs text-muted-foreground">Mismo período, lado a lado</span>}>
+                  <LocationCompareTable locations={d.locations} showBrand={showBrandCol} />
+                </Section>
+              )}
 
               {showBrandCol && (
                 <Section title="Por marca">
