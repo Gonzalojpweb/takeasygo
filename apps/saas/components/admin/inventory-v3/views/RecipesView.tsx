@@ -10,6 +10,7 @@
 
 import { useState } from 'react'
 import { ChefHat, ChevronRight, CookingPot, Plus, Search, SlidersHorizontal } from 'lucide-react'
+import ProfitabilityView from './ProfitabilityView'
 import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
 import type { DishCoverage, DishView, RecipesData } from '../data/types'
@@ -19,7 +20,7 @@ import { cn } from '@/lib/utils'
 import type { V3Context } from '../InventoryV3'
 
 type Filter = 'all' | 'pending' | 'ready'
-type Section = 'dishes' | 'modifiers' | 'preparations'
+type Section = 'dishes' | 'profit' | 'modifiers' | 'preparations'
 
 interface ModifierRule {
   optionName: string
@@ -77,10 +78,20 @@ export default function RecipesView({ ctx }: { ctx: V3Context }) {
   const sectionPicker = (
     <div role="group" aria-label="Qué querés ver" className="flex flex-wrap gap-2">
       <FilterChip active={section === 'dishes'} onClick={() => setSection('dishes')}>Platos ({r.items.length})</FilterChip>
+      <FilterChip active={section === 'profit'} onClick={() => setSection('profit')}>Rentabilidad</FilterChip>
       <FilterChip active={section === 'modifiers'} onClick={() => setSection('modifiers')}>Opciones del menú ({options.length})</FilterChip>
       <FilterChip active={section === 'preparations'} onClick={() => setSection('preparations')}>Preparaciones ({r.preparations.length})</FilterChip>
     </div>
   )
+
+  if (section === 'profit') {
+    return (
+      <div className="space-y-5">
+        {sectionPicker}
+        <ProfitabilityView ctx={ctx} />
+      </div>
+    )
+  }
 
   if (section === 'modifiers') {
     return (

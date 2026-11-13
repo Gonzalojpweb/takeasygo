@@ -305,14 +305,24 @@ function flattenMenu(menu: { categories?: unknown[] } | null): MenuItemView[] {
   return out
 }
 
-/** Costo por unidad canónica para costeo teórico: promedio del depósito de consumo o último precio. */
+/**
+ * Costo por unidad canónica para costeo teórico: promedio del depósito de
+ * consumo de la sede (de ahí descuentan las ventas); si ahí no hay costo, el
+ * de otro depósito de la sede; si no, el último precio del insumo.
+ */
 async function costMap(ctx: InventoryContext, locationId: mongoose.Types.ObjectId) {
-  const [skus, states] = await Promise.all([
+  const [skus, states, consumption] = await Promise.all([
     InventorySKU.find({ tenantId: ctx.tenantObjectId }).select('name canonicalUnit lastUnitCostCents isActive').lean(),
-    InventoryState.find({ tenantId: ctx.tenantObjectId, locationId }).select('skuId avgUnitCostCents').lean(),
+    InventoryState.find({ tenantId: ctx.tenantObjectId, locationId }).select('skuId storageLocationId avgUnitCostCents').lean(),
+    InventoryStorageLocation.findOne({ tenantId: ctx.tenantObjectId, locationId, isDefaultConsumption: true }).select('_id').lean(),
   ])
+  const consumptionId = consumption ? String(consumption._id) : null
   const avg = new Map<string, number>()
-  for (const s of states) if (s.avgUnitCostCents > 0) avg.set(String(s.skuId), s.avgUnitCostCents)
+  for (const s of states) {
+    if (!(s.avgUnitCostCents > 0)) continue
+    const key = String(s.skuId)
+    if (String(s.storageLocationId) === consumptionId || !avg.has(key)) avg.set(key, s.avgUnitCostCents)
+  }
   return new Map(skus.map((s) => [String(s._id), { name: s.name, unit: s.canonicalUnit, isActive: s.isActive, costCents: avg.get(String(s._id)) ?? s.lastUnitCostCents }]))
 }
 
