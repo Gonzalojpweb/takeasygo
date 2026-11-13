@@ -3,6 +3,7 @@ import { CloudOff, ShieldCheck, Trash2 } from "lucide-react"
 import { useOfflineStatus } from "../../hooks/useOfflineStatus"
 import { LocalPrintPanel } from "./LocalPrintPanel"
 import { OfflineInvoicePanel } from "./OfflineInvoicePanel"
+import { SyncCenter } from "../offline/SyncCenter"
 import { enableThisDevice, getDeviceId, listOfflineDevices, revokeDevice, requestPersistentStorage } from "../../services/offline/device"
 
 // ============================================================================
@@ -37,6 +38,7 @@ export function OfflineDevicesPanel({ tenantId, canManage, flash }: { tenantId: 
   const [name, setName] = useState("Caja principal")
   const [busy, setBusy] = useState(false)
   const [persisted, setPersisted] = useState<boolean | null>(null)
+  const [syncOpen, setSyncOpen] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -154,6 +156,10 @@ export function OfflineDevicesPanel({ tenantId, canManage, flash }: { tenantId: 
         {status.conflicts > 0 ? ` · ${status.conflicts} para revisar` : ""}
         {status.lastSyncAt ? ` · último envío ${new Date(status.lastSyncAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}` : ""}
       </p>
+      {(status.pending > 0 || status.conflicts > 0) && (
+        <button type="button" className="btn btn-sm" onClick={() => setSyncOpen(true)}>Ver sincronización</button>
+      )}
+      {syncOpen && <SyncCenter tenantId={tenantId} onClose={() => setSyncOpen(false)} />}
     </div>
   )
 }

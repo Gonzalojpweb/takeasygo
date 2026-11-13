@@ -91,8 +91,13 @@ async function doReplay(tenantId: string, send: OpSender): Promise<ReplayResult>
         op.entityKeys.forEach((k) => blocked.add(k))
         continue
       }
-      // Depende de algo que el server no aceptó: espera la revisión.
-      if (op.entityKeys.some((k) => blocked.has(k))) continue
+      // Depende de algo que el server no aceptó: espera la revisión. Sus
+      // entidades también quedan frenadas (etapa 6): un retiro de la misma
+      // caja no puede adelantarse a un movimiento que está esperando.
+      if (op.entityKeys.some((k) => blocked.has(k))) {
+        op.entityKeys.forEach((k) => blocked.add(k))
+        continue
+      }
       // Se está imprimiendo por la red local: si saliera ya, el server no
       // sabría que se imprimió. Se manda en cuanto termine (en orden).
       if (isLocalWorkPending(op.id)) {
