@@ -1,0 +1,3 @@
+
+# Worker de MapLibre copiado tal cual de node_modules (ver apps/saas/public/vendor/maplibre/LEEME.md)
+apps/saas/public/vendor/maplibre/*/*.mjs -text

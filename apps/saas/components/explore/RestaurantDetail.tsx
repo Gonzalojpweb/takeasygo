@@ -21,6 +21,7 @@ import { formatDeliveryTimeShort } from '@/lib/delivery-time'
 import { microcopy } from '@/components/tgo/microcopy'
 import PuntoTGO, { type LcsFaceExpression, type LcsRingScale } from '@/components/tgo/PuntoTGO'
 import { HorizontalScroller } from '@/components/tgo'
+import { PlaceNow } from '@/components/city/PlaceGadgets'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -469,6 +470,9 @@ export default function RestaurantDetail({
             </div>
           )}
         </div>
+
+        {/* ── AHORA: estado, oportunidad y gadgets (lenguaje de ciudad) ── */}
+        <PlaceNow place={r} />
 
         {/* ── INFO CARD ────────────────────────────────────────────────── */}
         <div

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useSyncExternalStore } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import type { RestaurantCardData } from '@/types/restaurant-card'
@@ -12,7 +12,8 @@ import BottomNav from './BottomNav'
 import InstallBanner from './InstallBanner'
 import PushSubscriber from './PushSubscriber'
 import { FetchOverlay } from './ExploreLoadingSkeleton'
-import DiscoverCard from './DiscoverCard'
+import CityCard from '@/components/city/CityCard'
+import '@/components/city/city.css'
 import ExplorePromoCard, { type ExplorePromo } from './ExplorePromoCard'
 import RestaurantDetailOverlay from './RestaurantDetailOverlay'
 
@@ -24,17 +25,12 @@ import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
 import { useHaptic } from '@/components/tgo/useHaptic'
 
-const ExploreMap = dynamic(() => import('./ExploreMap'), {
+// La ciudad viva: un solo mapa para «Inicio» y «Mapa» (components/city).
+const CityHome = dynamic(() => import('@/components/city/CityHome'), {
   ssr: false,
   loading: () => null,
 })
 
-const HomeFullbleed = dynamic(() => import('./HomeFullbleed'), {
-  ssr: false,
-  loading: () => null,
-})
-
-import HomeView from './HomeView'
 import OrdersView from './OrdersView'
 
 const CategoriesModule = dynamic(
@@ -46,7 +42,14 @@ type View = 'home' | 'list' | 'map' | 'orders'
 
 const BUENOS_AIRES = { lat: -34.6037, lng: -58.3816 }
 
+const noopSubscribe = () => () => {}
+
 export default function ExploreClient() {
+  // La app arma su estado inicial con GPS y sessionStorage (cache de lugares
+  // y de ubicación). Renderizarla en el servidor daba un árbol distinto al
+  // del navegador (error de hidratación): se monta solo del lado del cliente.
+  const isClient = useSyncExternalStore(noopSubscribe, () => true, () => false)
+  if (!isClient) return null
   return <ExploreClientInner />
 }
 
@@ -75,11 +78,6 @@ function ExploreClientInner() {
   const searchParams = useSearchParams()
   const { setTenantSlug } = useTenant()
   const sidRef = useRef<string>('')
-
-  // Preload Leaflet so map view loads instantly
-  useEffect(() => {
-    import('leaflet')
-  }, [])
 
   const [view, setView] = useState<View>('home')
   const readExploreCache = () => {
@@ -334,8 +332,8 @@ function ExploreClientInner() {
   }, [gpsResolved])
 
   // ── Fetch restaurants ────────────────────────────────────────────────
-  const fetchNearby = useCallback(async (lat: number, lng: number, r: number) => {
-    setFetching(true)
+  const fetchNearby = useCallback(async (lat: number, lng: number, r: number, silent = false) => {
+    if (!silent) setFetching(true)
     try {
       const res = await fetch(`/api/explore/nearby?lat=${lat}&lng=${lng}&radius=${r}`, {
         headers: { 'x-session-id': sidRef.current },
@@ -348,14 +346,29 @@ function ExploreClientInner() {
         sessionStorage.setItem('tgo_explore_cache', JSON.stringify({ restaurants: data.restaurants, radius: r, timestamp: Date.now() }))
       } catch {}
     } catch {
-      setRestaurants([])
+      // Un refresco en segundo plano que falla no borra la ciudad ya cargada.
+      if (!silent) setRestaurants([])
     } finally {
-      setFetching(false)
+      if (!silent) setFetching(false)
     }
   }, [])
 
   useEffect(() => {
     if (coords) fetchNearby(coords.lat, coords.lng, radius)
+  }, [coords, radius, fetchNearby])
+
+  // La ciudad se mueve: se refresca sola cada minuto mientras la app está a la vista.
+  useEffect(() => {
+    if (!coords) return
+    const refresh = () => {
+      if (document.visibilityState === 'visible') fetchNearby(coords.lat, coords.lng, radius, true)
+    }
+    const timer = setInterval(refresh, 60_000)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [coords, radius, fetchNearby])
 
   // ── Fetch promotions ────────────────────────────────────────────────
@@ -494,25 +507,15 @@ function ExploreClientInner() {
           {/* Fetch overlay — only on first load */}
           {fetching && !hasLoadedOnce.current && <FetchOverlay />}
 
-          {/* === HOME VIEW === */}
-          {view === 'home' && (
+          {/* === INICIO + MAPA: la ciudad viva (un solo mapa) === */}
+          {(view === 'home' || view === 'map') && (
           <div className="absolute inset-0">
             {coords ? (
-              <HomeFullbleed
-                userLat={coords.lat}
-                userLng={coords.lng}
-                restaurants={restaurants}
-                onSelect={handleNavigate}
-                openCount={networkCount}
-                promoCount={listedCount}
-                newCount={restaurants.filter(r => r.isNew).length}
-                avgPickup={(() => {
-                  const open = restaurants.filter(r => r.isOpenNow && r.estimatedPickupTime)
-                  return open.length > 0
-                    ? Math.round(open.reduce((sum, r) => sum + (r.estimatedPickupTime ?? 0), 0) / open.length)
-                    : null
-                })()}
-                onNavigateToMap={() => router.push('/app?view=map')}
+              <CityHome
+                mode={view}
+                center={coords}
+                places={restaurants}
+                onOpen={handleNavigate}
               />
             ) : (
               <div
@@ -530,7 +533,7 @@ function ExploreClientInner() {
                   }}
                 />
                 <p style={{ color: 'var(--tgo-text-muted)', fontSize: 13 }}>
-                  Localizando posición en el mapa...
+                  Buscando tu lugar en la ciudad...
                 </p>
               </div>
             )}
@@ -593,34 +596,12 @@ function ExploreClientInner() {
 
                   {/* ── Featured (network restaurants) horizontal scroll ── */}
                   {featuredRestaurants.length > 0 && (
-                    <Section title="Recomendados para vos" subtitle="Opciones que tienen sentido ahora mismo">
-                      <HorizontalScroller>
-                        {featuredRestaurants.map((r) => {
-                          const isClosed = r.isOpenNow === false
-                          const isResting = isClosed || r.isOperational === false
-                          const hasWink = r.hasWinkOffer === true || r.loyaltyInfo?.hasActivePromo === true
-                          const expression = isResting ? 'sleepy' : (hasWink ? 'wink' : 'happy')
-                          const distLabel = r.distanceM != null
-                            ? (r.distanceM < 1000 ? `${r.distanceM} m` : `${(r.distanceM / 1000).toFixed(1)} km`)
-                            : undefined
-
-                          return (
-                            <DiscoverCard
-                              key={r.id}
-                              name={r.name}
-                              cuisineType={r.cuisineTypes}
-                              rating={r.averageRating ?? undefined}
-                              distanceLabel={distLabel}
-                              logoUrl={r.logoUrl}
-                              placeholderColor={r.primaryColor}
-                              isNetwork={r.type === 'network'}
-                              isOpenNow={r.isOpenNow === true}
-                              expression={expression}
-                              onClick={() => handleNavigate(r)}
-                            />
-                          )
-                        })}
-                      </HorizontalScroller>
+                    <Section title="Está pasando cerca tuyo" subtitle="Lo que tiene sentido ahora mismo">
+                      <div className="city-scope city-list">
+                        {featuredRestaurants.map(r => (
+                          <CityCard key={r.id} place={r} onSelect={handleNavigate} />
+                        ))}
+                      </div>
                     </Section>
                   )}
 
@@ -645,44 +626,6 @@ function ExploreClientInner() {
                   )}
                 </div>
             </div>
-          </div>
-          )}
-
-          {/* === MAP VIEW === */}
-          {view === 'map' && (
-          <div className="absolute inset-0">
-            {coords ? (
-              <ExploreMap
-                userLat={coords.lat}
-                userLng={coords.lng}
-                restaurants={restaurants}
-                onSelect={handleNavigate}
-                metrics={{
-                  openCount: networkCount,
-                  promoCount: listedCount,
-                  newCount: 0,
-                }}
-              />
-            ) : (
-              <div
-                className="flex flex-col items-center justify-center h-full gap-3"
-                style={{ backgroundColor: 'var(--tgo-surface-1)' }}
-              >
-                <div
-                  className="animate-spin"
-                  style={{
-                    width: 32,
-                    height: 32,
-                    border: '3px solid var(--tgo-border)',
-                    borderTopColor: 'var(--tgo-brand)',
-                    borderRadius: '50%',
-                  }}
-                />
-                <p style={{ color: 'var(--tgo-text-muted)', fontSize: 13 }}>
-                  Localizando posición en el mapa...
-                </p>
-              </div>
-            )}
           </div>
           )}
 

@@ -1,4 +1,5 @@
 import type { ServiceSlot } from '@/app/api/explore/nearby/route'
+import type { CitySignals } from '@/lib/city/signals'
 
 /**
  * Unified type for RestaurantCard across Home, Explore, Search, and Map views.
@@ -61,4 +62,6 @@ export interface RestaurantCardData {
   hasWinkOffer?: boolean
   /** 100% operativo: cuenta MP activa + split OAuth vigente (cobra con marketplace_fee). */
   isFullOperational?: boolean
+  /** Señales de la ciudad: pagos, modalidad, salón, ritmo, horarios, club, promo. */
+  signals?: CitySignals
 }

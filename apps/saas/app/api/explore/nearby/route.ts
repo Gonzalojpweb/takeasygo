@@ -12,6 +12,22 @@ import { rateLimit } from '@/lib/rateLimit'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { isFullyOperational } from '@/lib/mercadopago'
 import type { RestaurantCardData } from '@/types/restaurant-card'
+import Table from '@/models/Table'
+import Order from '@/models/Order'
+import { getNowInTimezone } from '@/lib/restaurant-time'
+import { getMpAccountForLocation } from '@/lib/mercadopago'
+import { canChargeWithMercadoPago } from '@/lib/mp-split-guard'
+import { resolveTransferAccountForLocation } from '@/lib/location-resolvers'
+import { resolveCashConfig } from '@/lib/cash'
+import { canAccess, type Plan } from '@/lib/plans'
+import {
+  distanceMeters,
+  openWindow,
+  paceFromOrders,
+  salonFromTables,
+  type CitySignals,
+  type TableCounts,
+} from '@/lib/city/signals'
 
 const DEFAULT_RADIUS_M = 20000 // 20 km
 const MAX_RADIUS_M     = 50000 // 50 km — techo de seguridad
@@ -75,6 +91,23 @@ export interface NearbyRestaurant {
   hasWinkOffer?: boolean
   // 100% operativo: MP activo + split OAuth vigente (solo type = 'network')
   isFullOperational?: boolean
+  /** Señales de la ciudad (solo type = 'network'). Ver lib/city/signals. */
+  signals?: CitySignals
+}
+
+/** Título de promo listo para mostrar: corto y sin gritar en mayúsculas. */
+function tidyPromoTitle(raw: unknown): string {
+  if (typeof raw !== 'string') return ''
+  let title = raw.trim().replace(/\s+/g, ' ')
+  if (!title) return ''
+  const letters = title.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/g, '')
+  const upper = letters.replace(/[^A-ZÁÉÍÓÚÜÑ]/g, '').length
+  // Mayoría en mayúsculas («2x1 ESTO NO SE REPITE») = está gritando.
+  if (letters.length >= 4 && upper / letters.length >= 0.7) {
+    const lower = title.toLowerCase()
+    title = lower.replace(/(^|[^a-z0-9áéíóúüñ])([a-záéíóúüñ])/, (_m, pre: string, ch: string) => pre + ch.toUpperCase())
+  }
+  return title.length > 44 ? `${title.slice(0, 43).trimEnd()}…` : title
 }
 
 function getIcoRing(icoScore: number | null | undefined): 'none' | 'thin' | 'marked' | 'gold' {
@@ -129,6 +162,7 @@ function toRestaurantCardData(r: NearbyRestaurant): RestaurantCardData {
     hasCrown: r.hasCrown,
     hasWinkOffer: r.hasWinkOffer,
     isFullOperational: r.isFullOperational,
+    signals: r.signals,
   }
 }
 
@@ -214,6 +248,11 @@ export async function GET(request: NextRequest) {
             'settings.acceptsOrders': 1,
             'settings.estimatedPickupTime': 1,
             'settings.orderModes': 1,
+            'settings.cash': 1,
+            'settings.mpAccountId': 1,
+            'settings.transferAccountId': 1,
+            'settings.delayAnnouncement': 1,
+            'reservationConfig.enabled': 1,
             deliveryConfig: 1,
             'tenant._id': 1,
             'tenant.name': 1,
@@ -283,6 +322,11 @@ export async function GET(request: NextRequest) {
               'settings.acceptsOrders': 1,
               'settings.estimatedPickupTime': 1,
               'settings.orderModes': 1,
+              'settings.cash': 1,
+              'settings.mpAccountId': 1,
+              'settings.transferAccountId': 1,
+              'settings.delayAnnouncement': 1,
+              'reservationConfig.enabled': 1,
               deliveryConfig: 1,
               'tenant._id': 1,
               'tenant.name': 1,
@@ -314,6 +358,10 @@ export async function GET(request: NextRequest) {
     // Los tokens cifrados se leen server-side solo para derivar el boolean;
     // jamás salen en la respuesta.
     const payMap = new Map<string, boolean>()
+    // Medios de pago por comercio (para las señales de la ciudad). Mismo
+    // criterio: se lee el documento server-side y solo salen booleanos.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payTenantMap = new Map<string, any>()
     {
       const payTenantIds = mergedNetworkRaw
         .map((loc: { tenant?: { _id?: mongoose.Types.ObjectId } }) => loc.tenant?._id)
@@ -321,10 +369,11 @@ export async function GET(request: NextRequest) {
       if (payTenantIds.length > 0) {
         try {
           const payDocs = await Tenant.find({ _id: { $in: payTenantIds } })
-            .select('mercadopago mpOAuth mpAccounts')
+            .select('mercadopago mpOAuth mpAccounts mpSplitGuard mpMode flags plan features.cashPaymentEnabledBySuperadmin cash transfer transferAccounts paymentMethodsVisibility')
             .lean()
           for (const doc of payDocs) {
             payMap.set(doc._id.toString(), isFullyOperational(doc))
+            payTenantMap.set(doc._id.toString(), doc)
           }
         } catch (e) {
           console.error('[explore/nearby] mp status query failed:', e)
@@ -350,7 +399,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Promotions: active promos per tenant (filtered by locationId, scope, redemptions) ─
-    const promosMap: Record<string, { hasPromo: boolean; types: string[] }> = {}
+    const promosMap: Record<string, { hasPromo: boolean; types: string[]; titles: string[] }> = {}
     try {
       const now = new Date()
       const locationIds = mergedNetworkRaw.map((l: any) => l._id).filter(Boolean)
@@ -402,9 +451,15 @@ export async function GET(request: NextRequest) {
 
         if (!effectiveTenantId) continue
 
+        // Solo las promos de venta cuentan como oferta para la ciudad; los
+        // anuncios y mensajes del club no son una oportunidad de compra.
+        const promoTitle = promo.type === 'sale' ? tidyPromoTitle(promo.title) : ''
         if (!promosMap[effectiveTenantId]) {
-          promosMap[effectiveTenantId] = { hasPromo: true, types: [promo.type] }
+          promosMap[effectiveTenantId] = { hasPromo: true, types: [promo.type], titles: promoTitle ? [promoTitle] : [] }
         } else {
+          if (promoTitle && !promosMap[effectiveTenantId].titles.includes(promoTitle)) {
+            promosMap[effectiveTenantId].titles.push(promoTitle)
+          }
           promosMap[effectiveTenantId].hasPromo = true
           if (!promosMap[effectiveTenantId].types.includes(promo.type)) {
             promosMap[effectiveTenantId].types.push(promo.type)
@@ -413,6 +468,55 @@ export async function GET(request: NextRequest) {
       }
     } catch (e) {
       console.error('[explore/nearby] promos aggregation failed:', e)
+    }
+
+    // ── Señales vivas: salón (mesas del POS) y ritmo de pedidos ─────────────
+    // Solo salen niveles agregados por sede; nunca pedidos ni clientes.
+    const signalLocationIds = mergedNetworkRaw.map((l: any) => l._id).filter(Boolean)
+    const signalTenantIds = mergedNetworkRaw.map((l: any) => l.tenant?._id).filter(Boolean)
+    const tablesMap = new Map<string, TableCounts>()
+    const paceMap = new Map<string, number>()
+    if (signalLocationIds.length > 0) {
+      try {
+        const tableAggs = await Table.aggregate([
+          { $match: { tenantId: { $in: signalTenantIds }, locationId: { $in: signalLocationIds }, status: { $ne: 'closed' } } },
+          {
+            $group: {
+              _id: '$locationId',
+              free: { $sum: { $cond: [{ $eq: ['$status', 'free'] }, 1, 0] } },
+              occupied: { $sum: { $cond: [{ $eq: ['$status', 'occupied'] }, 1, 0] } },
+              reserved: { $sum: { $cond: [{ $eq: ['$status', 'reserved'] }, 1, 0] } },
+              needsAttention: { $sum: { $cond: [{ $eq: ['$status', 'needs_attention'] }, 1, 0] } },
+              lastUpdate: { $max: '$updatedAt' },
+            },
+          },
+        ])
+        for (const t of tableAggs) {
+          tablesMap.set(String(t._id), {
+            free: t.free, occupied: t.occupied, reserved: t.reserved,
+            needsAttention: t.needsAttention, lastUpdate: t.lastUpdate ?? null,
+          })
+        }
+      } catch (e) {
+        console.error('[explore/nearby] tables aggregation failed:', e)
+      }
+      try {
+        const sinceHour = new Date(Date.now() - 60 * 60 * 1000)
+        const paceAggs = await Order.aggregate([
+          {
+            $match: {
+              tenantId: { $in: signalTenantIds },
+              locationId: { $in: signalLocationIds },
+              createdAt: { $gte: sinceHour },
+              status: { $ne: 'cancelled' },
+            },
+          },
+          { $group: { _id: '$locationId', count: { $sum: 1 } } },
+        ])
+        for (const o of paceAggs) paceMap.set(String(o._id), o.count)
+      } catch (e) {
+        console.error('[explore/nearby] pace aggregation failed:', e)
+      }
     }
 
     // ── Directorio: RestaurantDirectory listados o reclamados ────────────────
@@ -462,8 +566,18 @@ export async function GET(request: NextRequest) {
       return typeof score === 'number' ? Math.max(max, score) : max
     }, 0)
 
+    const signalsNow = new Date()
+
     const networkResults: NearbyRestaurant[] = mergedNetworkRaw.map(loc => {
       const distanceM = Math.round(loc.distanceM)
+      // Los comercios «siempre visibles» entran con distancia 0 para el orden;
+      // al usuario se le muestra la distancia real.
+      const locLat: number | null = loc.geo?.coordinates?.[1] ?? null
+      const locLng: number | null = loc.geo?.coordinates?.[0] ?? null
+      const displayDistanceM =
+        distanceM === 0 && locLat != null && locLng != null
+          ? distanceMeters({ lat, lng }, { lat: locLat, lng: locLng })
+          : distanceM
       const estimatedPickupTime: number = loc.settings?.estimatedPickupTime ?? 20
       const acceptsOrders: boolean = loc.settings?.acceptsOrders ?? true
       const tz = loc.timezone || 'America/Argentina/Buenos_Aires'
@@ -501,14 +615,59 @@ export async function GET(request: NextRequest) {
       const hasWinkOffer = tenantPromo?.hasPromo === true
       const hasCrown = rawIcoScore !== null && rawIcoScore >= 85 && (rawIcoScore === maxIcoScore || rawIcoScore >= 95)
 
+      // ── Señales de la ciudad ────────────────────────────────────────────
+      const locIdStr = loc._id.toString()
+      const payTenant = tenantIdStr ? payTenantMap.get(tenantIdStr) : null
+      let payments: CitySignals['payments'] = { mp: false, cash: false, transfer: false }
+      if (payTenant) {
+        const mpAccount = getMpAccountForLocation(payTenant, loc.settings?.mpAccountId ?? null)
+        const transferAccount = resolveTransferAccountForLocation(payTenant, loc.settings?.transferAccountId ?? null)
+        payments = {
+          mp: !!mpAccount
+            && canChargeWithMercadoPago(payTenant, mpAccount)
+            && payTenant.paymentMethodsVisibility?.mercadopago !== false,
+          cash: canAccess(payTenant.plan as Plan, 'cashPayment')
+            && !!payTenant.features?.cashPaymentEnabledBySuperadmin
+            && resolveCashConfig(payTenant.cash, loc.settings?.cash ?? null).enabled,
+          transfer: !!payTenant.transfer?.enabled && !!transferAccount?.alias,
+        }
+      }
+      const dineIn = orderModes.includes('dine-in')
+      const isOpenForSalon = checkIsOpenNow(loc.serviceHours, 'dineIn', tz) ?? isOpenNow
+      const hoursSlots =
+        (loc.serviceHours?.takeaway?.length ? loc.serviceHours.takeaway : null)
+        ?? (loc.serviceHours?.dineIn?.length ? loc.serviceHours.dineIn : null)
+        ?? (loc.serviceHours?.delivery?.length ? loc.serviceHours.delivery : null)
+      const hoursWindow = openWindow(hoursSlots, getNowInTimezone(tz))
+      const delay = loc.settings?.delayAnnouncement?.takeaway
+      const signals: CitySignals = {
+        payments,
+        modes: {
+          takeaway: orderModes.includes('takeaway'),
+          delivery: deliveryEnabled,
+          dineIn,
+        },
+        salon: isOpenForSalon ? salonFromTables(tablesMap.get(locIdStr), signalsNow) : null,
+        pace: isOpenNow && acceptsOrders ? paceFromOrders(paceMap.get(locIdStr) ?? 0) : null,
+        delayMinutes: delay?.enabled && delay.extraMinutes > 0 ? Math.round(delay.extraMinutes) : null,
+        minutesToClose: isOpenNow ? hoursWindow.minutesToClose : null,
+        minutesSinceOpen: isOpenNow ? hoursWindow.minutesSinceOpen : null,
+        opensAt: isOpenNow === false ? hoursWindow.opensAt : null,
+        reservations: loc.reservationConfig?.enabled === true,
+        club: hasClub ? { name: loc.tenant?.loyalty?.clubName ?? null } : null,
+        promo: tenantPromo && tenantPromo.titles.length > 0
+          ? { title: tenantPromo.titles[0], count: tenantPromo.titles.length }
+          : null,
+      }
+
       return {
         id: loc._id.toString(),
         type: 'network',
         name: loc.tenant?.name ?? loc.name,
         address: loc.address,
-        lat: loc.geo?.coordinates?.[1] ?? null,
-        lng: loc.geo?.coordinates?.[0] ?? null,
-        distanceM,
+        lat: locLat as number,
+        lng: locLng as number,
+        distanceM: displayDistanceM,
         phone: loc.phone ?? '',
         cuisineTypes: loc.cuisineTypes ?? [],
         openingHours: '',
@@ -540,6 +699,7 @@ export async function GET(request: NextRequest) {
         hasCrown,
         hasWinkOffer,
         isFullOperational: tenantIdStr ? (payMap.get(tenantIdStr) ?? false) : false,
+        signals,
       }
     })
 

@@ -26,7 +26,7 @@ const securityHeaders = [
       "img-src 'self' data: blob: https://res.cloudinary.com https://api.dicebear.com https://images.unsplash.com https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://www.google.com",
       "media-src 'self' blob: https://res.cloudinary.com",
       "font-src 'self' https://fonts.gstatic.com https://use.typekit.net data:",
-      `connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://use.typekit.net https://*.typekit.net https://${POSTHOG_HOSTNAME} https://us-assets.i.posthog.com`,
+      `connect-src 'self' https://api.mercadopago.com https://api.cloudinary.com https://res.cloudinary.com https://api.mymemory.translated.net https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://tiles.openfreemap.org https://use.typekit.net https://*.typekit.net https://${POSTHOG_HOSTNAME} https://us-assets.i.posthog.com`,
       "worker-src 'self'",
       "frame-src https://www.mercadopago.com https://www.mercadopago.com.ar",
       "object-src 'none'",
