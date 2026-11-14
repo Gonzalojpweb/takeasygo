@@ -192,8 +192,14 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
   // suelto. Ahora: total arriba, «Cómo paga» a la izquierda, efectivo /
   // cocina / club / comprobante a la derecha, cada bloque con su borde, y el
   // botón de confirmar fijo abajo.
+  // 14/11 (pos1/pos2): la izquierda quedaba casi vacía y la derecha obligaba a
+  // hacer scroll en pleno servicio. Ahora cada columna lleva su parte
+  // (izquierda: cómo paga + propina; derecha: efectivo, cocina, club,
+  // comprobante) y `checkout--fit` encaja todo en el alto disponible: el total
+  // y el botón de confirmar quedan SIEMPRE a la vista; si una pantalla muy
+  // baja no alcanza, se desplazan solo los bloques del medio.
   return (
-    <div className="checkout">
+    <div className="checkout checkout--fit">
       <header className="checkout-head">
         <div className="checkout-head-total">
           <span className="checkout-eyebrow">Total a cobrar</span>
@@ -213,6 +219,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
       </header>
 
       <div className="checkout-grid">
+        <div className="checkout-col">
         <section className="checkout-section" aria-labelledby="checkout-methods">
           <h3 id="checkout-methods" className="checkout-section-title">Cómo paga</h3>
 
@@ -318,7 +325,6 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
           </div>
         </section>
 
-        <div className="checkout-side">
           {tips && (
             <section className="checkout-section" aria-labelledby="tip-title">
               <h3 id="tip-title" className="checkout-section-title">
@@ -349,7 +355,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
                   )
                 })}
               </div>
-              <div className="checkout-part-row">
+              <div className="checkout-part-row checkout-tip-row">
                 <input
                   className="search-input checkout-part-amount"
                   inputMode="decimal"
@@ -375,7 +381,9 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
               )}
             </section>
           )}
+        </div>
 
+        <div className="checkout-col checkout-side">
           {cashDue > 0 && (
             <section className="checkout-section checkout-section--cash" aria-labelledby="cash-received-title">
               <h3 id="cash-received-title" className="checkout-section-title">
@@ -453,7 +461,7 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
               />
               <span className={`checkout-section-hint${isClubPhoneValid(clubPhone.value) ? "" : " is-error"}`}>
                 {isClubPhoneValid(clubPhone.value)
-                  ? "Si es socio, la compra le suma puntos. Si lo invitó otro socio, cuenta como su visita."
+                  ? "Si es socio suma puntos; si lo invitó otro socio, cuenta como su visita."
                   : "Revisá el número: tiene que tener entre 8 y 15 dígitos."}
               </span>
             </section>

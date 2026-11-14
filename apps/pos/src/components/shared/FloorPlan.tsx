@@ -14,7 +14,7 @@ import {
 } from "@takeasygo/business/browser"
 import { Minus, Plus, Maximize2, RotateCw, X } from "lucide-react"
 import { FloorTable } from "./FloorTable"
-import type { MesaVariant } from "./MesaCard"
+import { mesaState, type MesaState, type MesaVariant } from "./MesaCard"
 import type { TableActivity } from "../../hooks/useTableActivity"
 
 // ============================================================================
@@ -30,7 +30,7 @@ import type { TableActivity } from "../../hooks/useTableActivity"
 //     todas las tablets ven el mismo plano.
 // ============================================================================
 
-type Filter = "all" | Table["status"]
+type Filter = "all" | MesaState
 
 export interface FloorPlanProps {
   tables: Table[]
@@ -377,7 +377,7 @@ export function FloorPlan({
               now={now}
               showServer={showServer}
               selected={editing ? editSel === t.id : selectedTableId === t.id}
-              dimmed={filter !== "all" && t.status !== filter}
+              dimmed={filter !== "all" && mesaState(t) !== filter}
               editing={editing}
               onClick={() => onTableClick(t.id)}
               onPointerDown={(e) => onTableDown(t.id, e)}

@@ -1,8 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react"
-import type { Table, TableStatus } from "@takeasygo/types"
-import { LayoutGrid, CircleCheck, Users, BellRing, CalendarClock, Settings, PencilRuler, Check } from "lucide-react"
+import type { Table } from "@takeasygo/types"
+import { LayoutGrid, CircleCheck, Users, BellRing, CalendarClock, Settings, PencilRuler, Check, Receipt } from "lucide-react"
 import type { TableLayout } from "@takeasygo/business/browser"
-import { MESA_STATUS_LABEL, type MesaVariant } from "./MesaCard"
+import { MESA_STATUS_LABEL, mesaState, type MesaState, type MesaVariant } from "./MesaCard"
 import { FloorPlan } from "./FloorPlan"
 import { useNow } from "../../hooks/useNow"
 import type { TableActivity } from "../../hooks/useTableActivity"
@@ -23,7 +23,7 @@ import type { TableActivity } from "../../hooks/useTableActivity"
 // pone <SalonHeaderBar> arriba de <SalonMap>, los dos en el workspace.
 // ============================================================================
 
-type Filter = "all" | TableStatus
+type Filter = "all" | MesaState
 
 const DEFAULT_SECTION = "Sala Principal"
 
@@ -31,6 +31,8 @@ const FILTERS: { id: Filter; label: string; icon: typeof Users; tone?: string }[
   { id: "all", label: "Todas", icon: LayoutGrid },
   { id: "free", label: MESA_STATUS_LABEL.free, icon: CircleCheck, tone: "libre" },
   { id: "occupied", label: MESA_STATUS_LABEL.occupied, icon: Users, tone: "ocupada" },
+  // 14/11: las que ya pidieron la cuenta, aparte (color propio en el plano).
+  { id: "bill", label: MESA_STATUS_LABEL.bill, icon: Receipt, tone: "cuenta" },
   { id: "needs_attention", label: MESA_STATUS_LABEL.needs_attention, icon: BellRing, tone: "atencion" },
   { id: "reserved", label: MESA_STATUS_LABEL.reserved, icon: CalendarClock, tone: "reservada" },
 ]
@@ -88,7 +90,7 @@ export function SalonHeaderBar({ view, onConfigure, extra, canEditLayout = false
   const { sectors, sector, setSector, filter, setFilter, sectorTables, editing, setEditing } = view
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: sectorTables.length }
-    for (const t of sectorTables) c[t.status] = (c[t.status] ?? 0) + 1
+    for (const t of sectorTables) { const s = mesaState(t); c[s] = (c[s] ?? 0) + 1 }
     return c
   }, [sectorTables])
 

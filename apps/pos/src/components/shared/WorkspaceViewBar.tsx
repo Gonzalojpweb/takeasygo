@@ -16,9 +16,13 @@ interface WorkspaceViewBarProps {
   onChange: (viewId: string) => void
 }
 
+// 14/11: solo íconos (más grandes), pegados al sidebar a la altura del
+// título del workspace. El nombre aparece como etiqueta flotante al pasar el
+// mouse o al enfocar con teclado (no se usa `title`: tarda ~1 s y en la
+// tablet no sale); el lector de pantalla lo lee por aria-label.
 export function WorkspaceViewBar({ views, activeView, onChange }: WorkspaceViewBarProps) {
   return (
-    <nav className="workspace-views" aria-label="Vistas">
+    <nav className="workspace-views workspace-views--icons" aria-label="Vistas">
       {views.map((view) => {
         const Icon = view.icon
         const isComponent = typeof Icon !== "string"
@@ -29,11 +33,10 @@ export function WorkspaceViewBar({ views, activeView, onChange }: WorkspaceViewB
             className={`view-tab${activeView === view.id ? " active" : ""}${view.alert ? " is-alert" : ""}`}
             aria-current={activeView === view.id ? "page" : undefined}
             aria-label={view.badge ? `${view.label}, ${view.badge} nuevas` : view.label}
-            title={view.label}
             onClick={() => onChange(view.id)}
           >
-            {isComponent ? <Icon size={18} className="nav-item-svg" aria-hidden /> : Icon}
-            <span className="view-tab-label">{view.label}</span>
+            {isComponent ? <Icon size={24} className="nav-item-svg" aria-hidden /> : Icon}
+            <span className="view-tab-tip" aria-hidden>{view.label}</span>
             {view.badge ? <span className="view-tab-badge" aria-hidden>{view.badge}</span> : null}
           </button>
         )

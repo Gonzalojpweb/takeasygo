@@ -3,7 +3,7 @@ import type { Table } from "@takeasygo/types"
 import type { PlacedTable } from "@takeasygo/business/browser"
 import { BellRing, CalendarClock, ChefHat, Clock, Receipt, User } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
-import { MESA_STATUS_LABEL, type MesaVariant } from "./MesaCard"
+import { MESA_STATUS_LABEL, mesaState, type MesaVariant } from "./MesaCard"
 import {
   formatElapsed,
   formatElapsedShort,
@@ -29,6 +29,7 @@ const STATUS_CLASS: Record<string, string> = {
   needs_attention: "atencion",
   reserved: "reservada",
   closed: "cerrada",
+  bill: "cuenta",
 }
 
 /** Diferencia mínima para mostrar «en cocina» aparte de «abierta». */
@@ -55,7 +56,6 @@ export interface FloorTableProps {
 export function FloorTable({
   table,
   placed,
-  variant,
   activity,
   reservation,
   now,
@@ -70,9 +70,12 @@ export function FloorTable({
   onKeyDown,
 }: FloorTableProps) {
   const { layout, w, h } = placed
-  const status = STATUS_CLASS[table.status] ?? "libre"
-  const askingBill = Boolean(table.needsBill) && table.status === "occupied"
-  const statusLabel = askingBill && variant === "waiter" ? "Pide cuenta" : (MESA_STATUS_LABEL[table.status] ?? "Libre")
+  // 14/11: «Cuenta pedida» tiene color propio (antes quedaba naranja como
+  // cualquier ocupada y solo la delataba el ícono chico de la esquina).
+  const state = mesaState(table)
+  const status = STATUS_CLASS[state] ?? "libre"
+  const askingBill = state === "bill"
+  const statusLabel = MESA_STATUS_LABEL[state] ?? "Libre"
 
   const amount = activity && activity.total > 0 ? formatCurrency(activity.total) : null
   const opened = activity?.openedAt ?? null

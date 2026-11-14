@@ -20,6 +20,7 @@ export const MESA_STATUS_LABEL: Record<string, string> = {
   needs_attention: "Atención",
   reserved: "Reservada",
   closed: "Cerrada",
+  bill: "Cuenta pedida",
 }
 
 const STATUS_CLASS: Record<string, string> = {
@@ -28,6 +29,17 @@ const STATUS_CLASS: Record<string, string> = {
   needs_attention: "atencion",
   reserved: "reservada",
   closed: "libre",
+  bill: "cuenta",
+}
+
+/**
+ * Estado VISIBLE de la mesa (14/11). «Cuenta pedida» no es un estado del
+ * server (la mesa sigue `occupied` con `needsBill`), pero en el salón tiene
+ * su propio color: el cajero ve de un vistazo qué mesas esperan cobrar.
+ */
+export type MesaState = Table["status"] | "bill"
+export function mesaState(table: Pick<Table, "status" | "needsBill">): MesaState {
+  return table.status === "occupied" && table.needsBill ? "bill" : table.status
 }
 
 interface MesaCardProps {
@@ -44,8 +56,9 @@ interface MesaCardProps {
   showServer?: boolean
 }
 
-export function MesaCard({ table, variant, onClick, isSelected = false, activity, now, reservation, showServer = false }: MesaCardProps) {
-  const statusLabel = table.needsBill && variant === "waiter" ? "Pide cuenta" : (MESA_STATUS_LABEL[table.status] ?? "Libre")
+export function MesaCard({ table, onClick, isSelected = false, activity, now, reservation, showServer = false }: MesaCardProps) {
+  const state = mesaState(table)
+  const statusLabel = MESA_STATUS_LABEL[state] ?? "Libre"
   const elapsed = activity ? formatElapsed(activity.openedAt, now) : null
   const amount = activity && activity.total > 0 ? formatCurrency(activity.total) : null
   // 30/10: tiempos visibles en la mesa — abierta y en cocina (semáforo).
@@ -71,7 +84,7 @@ export function MesaCard({ table, variant, onClick, isSelected = false, activity
   return (
     <button
       type="button"
-      className={`mesa ${STATUS_CLASS[table.status] ?? "libre"}${isSelected ? " seleccionada" : ""}`}
+      className={`mesa ${STATUS_CLASS[state] ?? "libre"}${isSelected ? " seleccionada" : ""}`}
       onClick={() => onClick(table.id)}
       aria-pressed={isSelected}
       aria-label={ariaLabel}
