@@ -280,6 +280,27 @@ export function addCityLayers(map: MapLibreMap, _theme: CityTheme, data: CitySou
   })
 }
 
+/**
+ * Genera por adelantado todos los dibujos que estas fuentes van a pedir.
+ * No depende del resolver de imágenes a pedido (en el build de producción no
+ * se disparaba y los pines no aparecían); el resolver queda como respaldo.
+ */
+export function ensureSprites(map: MapLibreMap, data: CitySources, generate: (id: string) => { width: number; height: number; data: Uint8ClampedArray } | null, ratio: number) {
+  const ids = new Set<string>()
+  for (const f of [...data.active, ...data.dim]) ids.add(String(f.properties.pin))
+  for (const f of [...data.primary, ...data.orbit]) ids.add(`g|${f.properties.g}|${SPRITE_THEME}|${f.properties.w}`)
+  for (const f of data.tags) ids.add(`tag|${f.properties.text}|${f.properties.tone}|${SPRITE_THEME}`)
+  for (let n = 2; n <= Math.max(2, data.active.length); n++) {
+    ids.add(`c|${n}|0|${SPRITE_THEME}`)
+    ids.add(`c|${n}|1|${SPRITE_THEME}`)
+  }
+  for (const id of ids) {
+    if (map.hasImage(id)) continue
+    const sprite = generate(id)
+    if (sprite) map.addImage(id, sprite, { pixelRatio: ratio })
+  }
+}
+
 export function updateCitySources(map: MapLibreMap, data: CitySources, layer: CityLayer | null) {
   const set = (id: string, features: Feature[]) => (map.getSource(id) as GeoJSONSource | undefined)?.setData(collection(features))
   set('city-active', data.active)

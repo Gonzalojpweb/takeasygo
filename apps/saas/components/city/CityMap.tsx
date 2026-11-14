@@ -29,6 +29,7 @@ import {
   CITY_HIT_LAYERS,
   addCityLayers,
   buildSources,
+  ensureSprites,
   SPRITE_THEME,
   showSelected,
   updateCitySources,
@@ -152,6 +153,7 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
   /** Agrega las capas de la ciudad al estilo actual (al cargar y al cambiar de tema). */
   const mountCityRef = useRef<(map: MapLibreMap) => void>(() => {})
   mountCityRef.current = map => {
+    ensureSprites(map, sourcesRef.current, generateSprite, SPRITE_RATIO)
     addCityLayers(map, themeRef.current, sourcesRef.current, layerRef.current)
     const selected = selectedRef.current ? byIdRef.current.get(selectedRef.current) ?? null : null
     showSelected(map, selected, false)
@@ -323,6 +325,7 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || !map.getSource('city-active')) return
+    ensureSprites(map, sources, generateSprite, SPRITE_RATIO)
     updateCitySources(map, sources, layer)
   }, [sources, layer, ready])
 
