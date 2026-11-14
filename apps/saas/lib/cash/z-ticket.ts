@@ -39,6 +39,11 @@ export interface ZTicketContext {
 }
 
 /** Líneas de texto del ticket (sin códigos de control): base del buffer y de los tests. */
+/** Sin tildes: la impresora térmica imprime ASCII (como «Notas de credito»). */
+function plain(text: string): string {
+  return text.normalize('NFD').replace(/\p{Diacritic}/gu, '')
+}
+
 export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; bold?: boolean; center?: boolean; large?: boolean }[] {
   const tz = ctx.timezone || DEFAULT_TIMEZONE
   const cols = ctx.columns
@@ -85,6 +90,11 @@ export function zTicketLines(z: ZReport, ctx: ZTicketContext): { text: string; b
   out.push(row('Total ventas', money(z.salesTotal)))
   if (z.refundTotal > 0) out.push(row('Devoluciones', money(-z.refundTotal)))
   if ((z.voidCount ?? 0) > 0) out.push(row('Ventas anuladas', String(z.voidCount)))
+  // Descuentos del turno (14/11/2026): informativo, las ventas ya son netas.
+  if (z.discounts && z.discounts.totalCents > 0) {
+    out.push(row(`Descuentos (${z.discounts.orderCount})`, money(-z.discounts.totalCents)))
+    for (const r of z.discounts.byReason) out.push(row(`  ${plain(r.label)} (${r.count})`, money(-r.cents)))
+  }
   if (z.fiscal) {
     out.push(row(`Facturado (${z.fiscal.invoices})`, money(z.fiscal.invoicedCents)))
     if (z.fiscal.creditNotes > 0) out.push(row(`Notas de credito (${z.fiscal.creditNotes})`, money(-z.fiscal.creditedCents)))

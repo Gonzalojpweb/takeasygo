@@ -69,8 +69,10 @@ export function parsePosPayments(body: unknown): PosPaymentPartInput[] {
       throw PosError.validation(`payments[${i}].method inválido`)
     }
 
-    if (typeof p.amount !== 'number' || !Number.isSafeInteger(p.amount) || p.amount < 1) {
-      throw PosError.validation(`payments[${i}].amount debe ser un entero en centavos ≥ 1`)
+    // 0 solo es válido como cierre de una cuenta en $0 (descuento del 100 %):
+    // lo termina de decidir assertPaymentsCoverTotal contra el total del server.
+    if (typeof p.amount !== 'number' || !Number.isSafeInteger(p.amount) || p.amount < 0) {
+      throw PosError.validation(`payments[${i}].amount debe ser un entero en centavos ≥ 0`)
     }
 
     let reference: string | null = null
@@ -87,6 +89,16 @@ export function parsePosPayments(body: unknown): PosPaymentPartInput[] {
 
 /** La suma de las partes tiene que cerrar contra el total del server. */
 export function assertPaymentsCoverTotal(parts: PosPaymentPartInput[], orderTotal: number): void {
+  // Cuenta en $0 (14/11/2026, descuento del 100 %): se cierra con UNA parte de
+  // $0 en efectivo — queda como venta cobrada (libera la mesa, entra al Z con
+  // su descuento) sin mover dinero. Una parte en $0 en cualquier otro caso es
+  // un error del POS.
+  if (parts.some((p) => p.amount === 0)) {
+    if (orderTotal !== 0 || parts.length !== 1 || parts[0].method !== 'cash') {
+      throw PosError.validation('Un cobro de $0 solo cierra una cuenta en $0, en una sola parte en efectivo')
+    }
+    return
+  }
   const sum = parts.reduce((s, p) => s + p.amount, 0)
   if (sum !== orderTotal) {
     throw PosError.validation(

@@ -3626,6 +3626,75 @@
     }
    }
   },
+  "/api/{tenant}/pos/config/discounts": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_config_discounts",
+    "summary": "política de descuentos del comercio",
+    "description": "GET /api/[tenant]/pos/config/discounts — política de descuentos del comercio\nPara la caja (orders.pay): el POS la guarda en el equipo para avisar ANTES\nde mandar si hace falta PIN y de quién, y para pedir el PIN correcto sin\ninternet. Es solo una guía: el server vuelve a decidir siempre (y al\nreprocesar lo hecho sin internet). Se edita en el panel admin\n(Cajas POS › Descuentos), no desde el POS.\n\nFuente: `apps/saas/app/api/[tenant]/pos/config/discounts/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay"
+   }
+  },
   "/api/{tenant}/pos/config/fiscal": {
    "get": {
     "tags": [
@@ -5681,6 +5750,375 @@
     }
    }
   },
+  "/api/{tenant}/pos/offline/devices": {
+   "get": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "get_api_tenant_pos_offline_devices",
+    "summary": "lista de la sede, tope del plan y si ESTE equipo (X-Pos-Device-Id) está habilitado. El POS lo consulta al entrar y en cada vuelta de…",
+    "description": "/api/[tenant]/pos/offline/devices — equipos habilitados para operar sin internet\nGET    (cualquier usuario del POS) — lista de la sede, tope del plan y si ESTE\n       equipo (X-Pos-Device-Id) está habilitado. El POS lo consulta al entrar\n       y en cada vuelta de conexión: un equipo revocado deja de operar offline.\nPOST   (admin y encargado) — habilita este equipo { deviceId, name }.\nDELETE (admin y encargado) — ?deviceId= revoca y libera el lugar.\nPATCH  (admin y encargado) — { deviceId, contingencyPointOfSale } punto de\n       venta EXCLUSIVO del equipo para facturar con CAEA sin internet.\nEl equipo habilitado recibe además sus impresoras (etapa 4) y su kit fiscal\n(etapa 5: CAEA, punto de venta, último número, emisor, alícuotas).\nTope por sede: OFFLINE_DEVICE_LIMIT (Inicial/Crecimiento 1, Premium/Élite 2).\n\nFuente: `apps/saas/app/api/[tenant]/pos/offline/devices/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.read"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_offline_devices",
+    "summary": "habilita este equipo { deviceId, name }.",
+    "description": "/api/[tenant]/pos/offline/devices — equipos habilitados para operar sin internet\nGET    (cualquier usuario del POS) — lista de la sede, tope del plan y si ESTE\n       equipo (X-Pos-Device-Id) está habilitado. El POS lo consulta al entrar\n       y en cada vuelta de conexión: un equipo revocado deja de operar offline.\nPOST   (admin y encargado) — habilita este equipo { deviceId, name }.\nDELETE (admin y encargado) — ?deviceId= revoca y libera el lugar.\nPATCH  (admin y encargado) — { deviceId, contingencyPointOfSale } punto de\n       venta EXCLUSIVO del equipo para facturar con CAEA sin internet.\nEl equipo habilitado recibe además sus impresoras (etapa 4) y su kit fiscal\n(etapa 5: CAEA, punto de venta, último número, emisor, alícuotas).\nTope por sede: OFFLINE_DEVICE_LIMIT (Inicial/Crecimiento 1, Premium/Élite 2).\n\nFuente: `apps/saas/app/api/[tenant]/pos/offline/devices/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_offline_devices",
+    "summary": "{ deviceId, contingencyPointOfSale } punto de venta EXCLUSIVO del equipo para facturar con CAEA sin internet.",
+    "description": "/api/[tenant]/pos/offline/devices — equipos habilitados para operar sin internet\nGET    (cualquier usuario del POS) — lista de la sede, tope del plan y si ESTE\n       equipo (X-Pos-Device-Id) está habilitado. El POS lo consulta al entrar\n       y en cada vuelta de conexión: un equipo revocado deja de operar offline.\nPOST   (admin y encargado) — habilita este equipo { deviceId, name }.\nDELETE (admin y encargado) — ?deviceId= revoca y libera el lugar.\nPATCH  (admin y encargado) — { deviceId, contingencyPointOfSale } punto de\n       venta EXCLUSIVO del equipo para facturar con CAEA sin internet.\nEl equipo habilitado recibe además sus impresoras (etapa 4) y su kit fiscal\n(etapa 5: CAEA, punto de venta, último número, emisor, alícuotas).\nTope por sede: OFFLINE_DEVICE_LIMIT (Inicial/Crecimiento 1, Premium/Élite 2).\n\nFuente: `apps/saas/app/api/[tenant]/pos/offline/devices/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_offline_devices",
+    "summary": "?deviceId= revoca y libera el lugar.",
+    "description": "/api/[tenant]/pos/offline/devices — equipos habilitados para operar sin internet\nGET    (cualquier usuario del POS) — lista de la sede, tope del plan y si ESTE\n       equipo (X-Pos-Device-Id) está habilitado. El POS lo consulta al entrar\n       y en cada vuelta de conexión: un equipo revocado deja de operar offline.\nPOST   (admin y encargado) — habilita este equipo { deviceId, name }.\nDELETE (admin y encargado) — ?deviceId= revoca y libera el lugar.\nPATCH  (admin y encargado) — { deviceId, contingencyPointOfSale } punto de\n       venta EXCLUSIVO del equipo para facturar con CAEA sin internet.\nEl equipo habilitado recibe además sus impresoras (etapa 4) y su kit fiscal\n(etapa 5: CAEA, punto de venta, último número, emisor, alícuotas).\nTope por sede: OFFLINE_DEVICE_LIMIT (Inicial/Crecimiento 1, Premium/Élite 2).\n\nFuente: `apps/saas/app/api/[tenant]/pos/offline/devices/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
+   }
+  },
+  "/api/{tenant}/pos/offline/discards": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_offline_discards",
+    "summary": "descartar operaciones sin internet",
+    "description": "POST /api/[tenant]/pos/offline/discards — descartar operaciones sin internet\nPOS offline V2 — etapa 6 (12/11/2026). Una operación hecha sin internet que\nel server rechazó («con conflicto») y las que dependen de ella se pueden\ndescartar desde el POS. Es una decisión de un encargado: pide su PIN\n(requireManagerApproval) y queda en la auditoría qué se descartó, desde qué\nequipo, el motivo y el error que había dado el server.\n\nEl server no tiene nada que deshacer: esas operaciones nunca se aplicaron\n(un rechazo borra el recibo, ver opReceipt.ts). El POS borra su copia local\ny vuelve a leer del server.\n\nBody: { reason?: string, ops: [{ opId, kind, label, method, path, occurredAt, error? }] }\n\nFuente: `apps/saas/app/api/[tenant]/pos/offline/discards/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.service",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/orders": {
    "get": {
     "tags": [
@@ -6083,7 +6521,7 @@
     ],
     "operationId": "post_api_tenant_pos_orders_id_discounts",
     "summary": "descuento (Fase D)",
-    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nReglas y modelo: lib/pos-online/discounts.ts + discountService.ts.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -6168,7 +6606,7 @@
     ],
     "operationId": "delete_api_tenant_pos_orders_id_discounts",
     "summary": "quita el descuento de ese plato (o de toda la orden sin lineId).",
-    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nReglas y modelo: lib/pos-online/discounts.ts + discountService.ts.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -7956,8 +8394,8 @@
      "POS online (SaaS)"
     ],
     "operationId": "post_api_tenant_pos_tables_id_discount",
-    "summary": "descuento a TODA la cuenta de la mesa (Fase D). { kind, value, reason, note? }",
-    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nUn solo PIN de encargado autoriza el descuento completo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
+    "summary": "descuento a TODA la cuenta de la mesa (Fase D). { kind, value, reason, note?, finalCents? }",
+    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note?, finalCents? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nLa política se evalúa sobre la cuenta completa: un solo PIN autoriza todo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -8042,7 +8480,7 @@
     ],
     "operationId": "delete_api_tenant_pos_tables_id_discount",
     "summary": "quita los descuentos de todas las rondas sin cobrar de la mesa.",
-    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nUn solo PIN de encargado autoriza el descuento completo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
+    "description": "POST   /api/[tenant]/pos/tables/[id]/discount — descuento a TODA la cuenta\n       de la mesa (Fase D). { kind, value, reason, note?, finalCents? }\n       · %     → el mismo % en cada ronda sin cobrar.\n       · monto → se reparte entre las rondas en proporción a su importe\n                 (al centavo); dentro de cada ronda, entre sus platos.\nDELETE /api/[tenant]/pos/tables/[id]/discount — quita los descuentos de\n       todas las rondas sin cobrar de la mesa.\nLa política se evalúa sobre la cuenta completa: un solo PIN autoriza todo.\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/discount/route.ts`",
     "parameters": [
      {
       "name": "tenant",

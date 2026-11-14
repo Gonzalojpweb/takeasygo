@@ -103,7 +103,7 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
     // Reintento: si la venta no había llegado a la caja, se completa ahora.
     const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
     // …y si la obligación fiscal no había quedado, también (idempotente).
-    const fiscalObligation = await fiscal(existing._id)
+    const fiscalObligation = existing.total === 0 ? 'skipped' : await fiscal(existing._id)
     return NextResponse.json({ order: toPosOrder(existing), cashRegisterId, fiscalObligation }, { status: 200 })
   }
 
@@ -178,7 +178,8 @@ export const POST = posRoute<{ tenant: string; id: string }>('orders.pay', async
   const cashRegisterId = await recordSaleInCash(ctx, posId, parts, reason)
   // Obligación fiscal persistida en el MISMO pedido que confirma el cobro:
   // si el POS se cae ahora, la factura se emite igual (recuperación).
-  const fiscalObligation = await fiscal(updated._id)
+  // Cuenta en $0 (descuento del 100 %): no hay importe que facturar.
+  const fiscalObligation = order.total === 0 ? 'skipped' : await fiscal(updated._id)
 
   return NextResponse.json(
     { order: toPosOrder(updated as unknown as PosOrderDoc), cashRegisterId, fiscalObligation },

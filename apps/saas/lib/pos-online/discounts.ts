@@ -1,3 +1,4 @@
+import { DISCOUNT_NOTE_MAX, DISCOUNT_REASONS, isDiscountReason, type DiscountReason } from '@takeasygo/business'
 import { PosError } from './errors'
 import type { SaasOrderItemDraft } from './orderMapper'
 
@@ -15,16 +16,10 @@ import type { SaasOrderItemDraft } from './orderMapper'
 // Los montos son centavos enteros; nunca se descuenta más que la línea.
 // ============================================================================
 
-export const DISCOUNT_REASONS = {
-  courtesy: 'Cortesía de la casa',
-  complaint: 'Reclamo / demora',
-  regular: 'Cliente frecuente',
-  staff: 'Consumo del personal',
-  promotion: 'Promoción del local',
-  other: 'Otro',
-} as const
-
-export type DiscountReason = keyof typeof DISCOUNT_REASONS
+// Motivos: fuente única en @takeasygo/business/discount-policy (server, POS
+// y modo sin internet leen la misma lista). Se re-exportan para no romper
+// los imports existentes.
+export { DISCOUNT_REASONS, type DiscountReason }
 export type DiscountKind = 'percent' | 'amount'
 
 export interface PosLineDiscount {
@@ -50,9 +45,16 @@ export interface DiscountInput {
   value: number
   reason: DiscountReason
   note: string | null
+  /**
+   * Modo «importe final» (14/11/2026): lo que el cajero escribió que quería
+   * cobrar. Solo para la auditoría: el descuento que se aplica es `value`
+   * (monto fijo = base − final, calculado en el POS). El server verifica que
+   * coincidan con el importe real de la cuenta.
+   */
+  finalCents: number | null
 }
 
-const MAX_NOTE = 140
+const MAX_NOTE = DISCOUNT_NOTE_MAX
 
 /** Valida el body de un descuento (400 ante cualquier cosa rara). */
 export function parseDiscountInput(body: Record<string, unknown>): DiscountInput {
@@ -64,7 +66,7 @@ export function parseDiscountInput(body: Record<string, unknown>): DiscountInput
   }
   if (kind === 'percent' && value > 100) throw PosError.validation('El porcentaje va de 1 a 100')
   const reason = body.reason
-  if (typeof reason !== 'string' || !Object.prototype.hasOwnProperty.call(DISCOUNT_REASONS, reason)) {
+  if (!isDiscountReason(reason)) {
     throw PosError.validation(`Motivo requerido: ${Object.keys(DISCOUNT_REASONS).join(', ')}`)
   }
   const note = body.note
@@ -74,7 +76,20 @@ export function parseDiscountInput(body: Record<string, unknown>): DiscountInput
   if (reason === 'other' && (typeof note !== 'string' || !note.trim())) {
     throw PosError.validation('Con motivo «Otro» la nota es obligatoria')
   }
-  return { kind, value, reason: reason as DiscountReason, note: typeof note === 'string' && note.trim() ? note.trim() : null }
+  const final = body.finalCents
+  if (final !== undefined && final !== null) {
+    if (typeof final !== 'number' || !Number.isInteger(final) || final < 0) {
+      throw PosError.validation('finalCents debe ser un entero >= 0 (centavos)')
+    }
+    if (kind !== 'amount') throw PosError.validation('El importe final se aplica como monto fijo')
+  }
+  return {
+    kind,
+    value,
+    reason,
+    note: typeof note === 'string' && note.trim() ? note.trim() : null,
+    finalCents: typeof final === 'number' ? final : null,
+  }
 }
 
 /** Importe de la línea sin descuento (base + extras) × cantidad. */

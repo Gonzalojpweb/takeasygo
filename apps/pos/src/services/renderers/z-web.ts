@@ -129,6 +129,10 @@ export function renderZWeb(zReport: ZReport, options: RenderOptions): string {
       <div class="card">
         <div class="row"><span class="label">Ingresos</span><span class="value positive">+${formatCurrency(zReport.incomeTotal)}</span></div>
         ${(zReport.tipTotal ?? 0) > 0 ? `<div class="row"><span class="label">· de ellos propinas</span><span class="value">${formatCurrency(zReport.tipTotal ?? 0)}</span></div>` : ""}
+        ${zReport.discounts && zReport.discounts.totalCents > 0
+          ? `<div class="row"><span class="label">Descuentos del turno (${zReport.discounts.orderCount})</span><span class="value">-${formatCurrency(zReport.discounts.totalCents)}</span></div>` +
+            zReport.discounts.byReason.map((r) => `<div class="row"><span class="label">· ${escapeZ(r.label)} (${r.count})</span><span class="value">-${formatCurrency(r.cents)}</span></div>`).join("")
+          : ""}
         <div class="row"><span class="label">Egresos</span><span class="value negative">-${formatCurrency(zReport.expenseTotal)}</span></div>
         <div class="row"><span class="label">Ventas</span><span class="value">${formatCurrency(zReport.salesTotal)}</span></div>
         <div class="row"><span class="label">Reembolsos</span><span class="value negative">-${formatCurrency(zReport.refundTotal)}</span></div>
@@ -146,6 +150,11 @@ export function renderZWeb(zReport: ZReport, options: RenderOptions): string {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────
+
+/** Texto que llega del Z (motivos) escapado para HTML. */
+function escapeZ(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c)
+}
 
 function formatCurrency(amount: number): string {
   return `$${toPesos(amount).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`

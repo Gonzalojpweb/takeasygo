@@ -570,7 +570,8 @@ const OrderItemSchema = new Schema<IOrderItem>({
           scope: { type: String, enum: ['item', 'order'], required: true },
           reason: {
             type: String,
-            enum: ['courtesy', 'complaint', 'regular', 'staff', 'promotion', 'other'],
+            // Espejo de DISCOUNT_REASON_IDS (@takeasygo/business/discount-policy).
+            enum: ['courtesy', 'complaint', 'regular', 'staff', 'promotion', 'agreement', 'incident', 'other'],
             required: true,
           },
           note: { type: String, default: null, maxlength: 140 },

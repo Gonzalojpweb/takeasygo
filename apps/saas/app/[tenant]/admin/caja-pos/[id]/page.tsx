@@ -8,6 +8,7 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import CashRegister from '@/models/CashRegister'
 import { getPageScope } from '@/lib/page-scope'
+import { requireCashPageSession } from '@/lib/cash/page-guard'
 import { ZReportSheet } from '@/components/cash/ZReportSheet'
 import { ZShareActions } from '@/components/cash/ZShareActions'
 import { isShareTokenValid, zSharePath } from '@/lib/cash/z-share'
@@ -22,6 +23,7 @@ import type { ZReport } from '@takeasygo/types'
 
 export default async function CajaPosDetailPage({ params }: { params: Promise<{ tenant: string; id: string }> }) {
   const { id } = await params
+  await requireCashPageSession()
   if (!mongoose.Types.ObjectId.isValid(id)) notFound()
   const tenantSlug = (await headers()).get('x-tenant-slug')
 

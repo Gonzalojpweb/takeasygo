@@ -11,6 +11,7 @@ import { getPageScope } from '@/lib/page-scope'
 import { formatCents } from '@takeasygo/business'
 import { summarizeCashiers, summarySince, type ClosedRegisterRow } from '@/lib/cash/cashier-summary'
 import { MpPointSettings } from '@/components/cash/MpPointSettings'
+import { requireCashPageSession } from '@/lib/cash/page-guard'
 
 // ============================================================================
 // Cajas POS — cierres (reporte Z) y control de faltantes por empleado
@@ -35,6 +36,7 @@ interface ZSnapshot {
 }
 
 export default async function CajaPosPage() {
+  await requireCashPageSession()
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 
@@ -86,6 +88,12 @@ export default async function CajaPosPage() {
           Cierres de caja del POS con su reporte Z. Los montos son los del cierre: no se recalculan. El cajero cuenta sin
           ver el saldo esperado (cierre ciego); la diferencia es la que ves acá.
         </p>
+        <Link
+          href={`/${tenantSlug}/admin/caja-pos/descuentos`}
+          className="mt-3 inline-flex items-center gap-1 rounded-2xl border-2 border-border/60 px-4 py-2 text-sm font-bold hover:bg-muted/40"
+        >
+          Descuentos y ajustes: reporte y política <ChevronRight size={16} aria-hidden />
+        </Link>
       </div>
 
       <MpPointSettings tenantSlug={tenantSlug ?? ''} />

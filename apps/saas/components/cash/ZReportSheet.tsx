@@ -118,6 +118,15 @@ export function ZReportSheet({ z, header }: { z: ZReport; header: ZSheetHeader }
               {z.fiscal.pending > 0 && <Row label="Esperando a ARCA" value={String(z.fiscal.pending)} />}
             </div>
           )}
+          {z.discounts && z.discounts.totalCents > 0 && (
+            <div className="mt-2 border-t border-dashed border-border pt-2">
+              <Row label={`Descuentos del turno (${z.discounts.orderCount})`} value={`−${formatCents(z.discounts.totalCents)}`} strong />
+              {z.discounts.byReason.map((r) => (
+                <Row key={r.reason} label={`${r.label} (${r.count})`} value={`−${formatCents(r.cents)}`} />
+              ))}
+              <p className="mt-1 text-[11px] text-muted-foreground">Informativo: las ventas ya están netas de descuento.</p>
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl bg-muted/30 p-4">

@@ -63,6 +63,26 @@ interface ApproverDoc {
 }
 
 /**
+ * Opciones para aprobaciones con reglas del comercio (política de descuentos,
+ * 14/11/2026). Sin opciones, la regla de siempre: encargado/admin aprueba.
+ */
+export interface ApprovalOptions {
+  /**
+   * La política ya decidió que el operador NO alcanza solo: aunque sea
+   * encargado, hace falta el PIN de OTRA persona (p. ej. un admin).
+   */
+  requireOther?: boolean
+  /** Además de ser encargado/admin, el rol del aprobador tiene que cumplir esto. */
+  approverCheck?: (posRole: string | null) => boolean
+  /**
+   * Mensaje cuando el PIN no sirve. Es el MISMO para PIN incorrecto y para
+   * PIN válido de alguien que no puede autorizar esto: no se revela qué PIN
+   * existe (enumeración).
+   */
+  invalidMessage?: string
+}
+
+/**
  * Exige aprobación de encargado para `action`. Devuelve quién aprobó o lanza
  * `approval_required` / `approval_invalid` / `rate_limited`.
  *
@@ -71,17 +91,18 @@ interface ApproverDoc {
 export async function requireManagerApproval(
   ctx: PosContext,
   action: string,
-  message: string
+  message: string,
+  options: ApprovalOptions = {}
 ): Promise<Approval> {
-  if (isApproverRole(resolvePosRole(ctx.user.role))) {
+  if (!options.requireOther && isApproverRole(resolvePosRole(ctx.user.role))) {
     return { approvedBy: ctx.user.id, approverName: null, viaPin: false }
   }
 
   const pin = ctx.request.headers.get(MANAGER_PIN_HEADER)?.trim() ?? ''
   const offlineApprover = ctx.request.headers.get(OFFLINE_APPROVER_HEADER)?.trim() ?? ''
-  if (!pin && offlineApprover && ctx.offline) return offlineApproval(ctx, action, offlineApprover)
+  if (!pin && offlineApprover && ctx.offline) return offlineApproval(ctx, action, offlineApprover, options)
   if (!pin) throw PosError.approvalRequired(message)
-  if (!/^\d{4,8}$/.test(pin)) throw PosError.approvalInvalid()
+  if (!/^\d{4,8}$/.test(pin)) throw PosError.approvalInvalid(options.invalidMessage)
 
   const limit = await rateLimit(`pos-approval:${ctx.tenantId}:${ctx.user.id}`, ATTEMPTS, WINDOW_MS)
   if (!limit.success) throw PosError.rateLimited()
@@ -101,10 +122,12 @@ export async function requireManagerApproval(
   const locations = (approver?.assignedLocations ?? []).map(String)
   const atLocation = locations.length === 0 || locations.includes(ctx.locationId)
 
+  const approverRole = approver ? resolvePosRole(approver.role) : null
   if (
     !approver ||
     !pinMatches ||
-    !isApproverRole(resolvePosRole(approver.role)) ||
+    !isApproverRole(approverRole) ||
+    (options.approverCheck && !options.approverCheck(approverRole)) ||
     !atLocation ||
     String(approver._id) === ctx.user.id
   ) {
@@ -118,7 +141,7 @@ export async function requireManagerApproval(
       userId: ctx.user.id,
       userRole: ctx.user.role,
     })
-    throw PosError.approvalInvalid()
+    throw PosError.approvalInvalid(options.invalidMessage)
   }
 
   await logAudit({
@@ -140,7 +163,7 @@ export async function requireManagerApproval(
  * `approval_invalid` si el equipo no está habilitado o el usuario ya no es
  * encargado de la sede: la operación queda «con conflicto» para revisar.
  */
-async function offlineApproval(ctx: PosContext, action: string, approverId: string): Promise<Approval> {
+async function offlineApproval(ctx: PosContext, action: string, approverId: string, options: ApprovalOptions = {}): Promise<Approval> {
   const trusted = await trustedOfflineAt(ctx)
   const approver = trusted && mongoose.Types.ObjectId.isValid(approverId)
     ? ((await User.findOne({ _id: new mongoose.Types.ObjectId(approverId), tenantId: new mongoose.Types.ObjectId(ctx.tenantId), isActive: true })
@@ -149,7 +172,15 @@ async function offlineApproval(ctx: PosContext, action: string, approverId: stri
     : null
   const locations = (approver?.assignedLocations ?? []).map(String)
   const atLocation = locations.length === 0 || locations.includes(ctx.locationId)
-  if (!approver || !isApproverRole(resolvePosRole(approver.role)) || !atLocation) {
+  const approverRole = approver ? resolvePosRole(approver.role) : null
+  if (
+    !approver ||
+    !isApproverRole(approverRole) ||
+    (options.approverCheck && !options.approverCheck(approverRole)) ||
+    // La política pidió a OTRA persona: el equipo no puede mandar al mismo operador.
+    (options.requireOther && String(approver._id) === ctx.user.id) ||
+    !atLocation
+  ) {
     await logAudit({
       tenantId: ctx.tenantId,
       action: 'pos.approval.denied',
@@ -160,7 +191,7 @@ async function offlineApproval(ctx: PosContext, action: string, approverId: stri
       userId: ctx.user.id,
       userRole: ctx.user.role,
     })
-    throw PosError.approvalInvalid()
+    throw PosError.approvalInvalid(options.invalidMessage)
   }
   await logAudit({
     tenantId: ctx.tenantId,

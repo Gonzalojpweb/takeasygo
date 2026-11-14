@@ -1,4 +1,4 @@
-import { isApproverRole } from "@takeasygo/business/browser"
+import { canApproveDiscount, evaluateDiscount, isApproverRole, type DiscountAmounts, type DiscountPolicy } from "@takeasygo/business/browser"
 import type { LoginResponse } from "../auth-api"
 import { SESSION_CACHE_KEY, PosApiError } from "../pos-api"
 import { requestManagerPin } from "../manager-approval"
@@ -178,4 +178,41 @@ export async function offlineApprovalHeaders(tenantId: string, message: string):
     error = "PIN incorrecto o de alguien que no es encargado"
   }
   throw new PosApiError("PIN del encargado incorrecto", "approval_invalid", 403)
+}
+
+/**
+ * Descuento SIN internet con la política del comercio (14/11/2026). Decide
+ * con la copia guardada en el equipo:
+ *   · alcanza solo → no hace falta header (el server vuelve a evaluar);
+ *   · supera el máximo del rol → no se aplica;
+ *   · necesita autorización → PIN de OTRA persona cuya autonomía lo cubra
+ *     (un encargado no se autoriza a sí mismo por encima de su límite).
+ * Al volver la red el server reevalúa con la política vigente o con la que
+ * regía en ese momento; una copia vieja o tocada en el equipo no habilita nada.
+ */
+export async function offlineDiscountApprovalHeaders(
+  tenantId: string,
+  policy: DiscountPolicy,
+  amounts: DiscountAmounts
+): Promise<Record<string, string>> {
+  const me = currentPosUser()
+  const decision = evaluateDiscount(policy, me.role, amounts)
+  if (decision.kind === "allow") return {}
+  if (decision.kind === "deny") throw new PosApiError(decision.message, "forbidden", 403)
+  const approvers = (await listUsers(tenantId)).filter(
+    (u) => u.userId !== me.userId && canApproveDiscount(policy, u.role, amounts) && Date.now() - new Date(u.savedAt).getTime() <= OFFLINE_LOGIN_TRUST_MS
+  )
+  if (approvers.length === 0) {
+    throw new PosApiError("Sin internet solo puede autorizar este descuento alguien con permiso que ya haya entrado en este equipo con internet.", "approval_required", 403)
+  }
+  let error: string | null = null
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const pin = await requestManagerPin({ message: `${decision.message} (sin internet)`, error })
+    if (pin === null) throw new PosApiError("Operación cancelada: falta la autorización", "approval_cancelled", 403)
+    for (const user of approvers) {
+      if (sameHex(await derive(pin, user.salt), user.verifier)) return { "X-Pos-Offline-Approver": user.userId }
+    }
+    error = "PIN incorrecto o de alguien que no puede autorizar este descuento"
+  }
+  throw new PosApiError("PIN incorrecto", "approval_invalid", 403)
 }

@@ -37,8 +37,12 @@ export function remainingToPay(total: number, parts: readonly { amount: number }
   return total - parts.reduce((s, p) => s + p.amount, 0)
 }
 
-/** El cobro está listo para confirmarse: ≥1 parte, todas > 0, suma exacta. */
+/**
+ * El cobro está listo para confirmarse: ≥1 parte, todas > 0, suma exacta.
+ * Cuenta en $0 (descuento del 100 %, 14/11/2026): se cierra SIN partes.
+ */
 export function isCheckoutComplete(total: number, parts: readonly { amount: number }[]): boolean {
+  if (total === 0) return parts.length === 0
   return (
     parts.length > 0 &&
     parts.every((p) => Number.isSafeInteger(p.amount) && p.amount > 0) &&
@@ -100,7 +104,9 @@ export function allocatePayments(
   }
 
   const result = new Map<string, AllocatedPayment[]>()
-  for (const order of orders) result.set(order.id, [])
+  // Orden en $0 (descuento del 100 %): se cierra con una parte de $0 en
+  // efectivo. Id determinístico ⇒ un reintento no la duplica.
+  for (const order of orders) result.set(order.id, order.total === 0 ? [{ id: `zero:${order.id}`, method: "cash", amount: 0 }] : [])
   for (const step of plan) {
     const part = parts[step.partIndex]
     const split = (touches.get(part.id) ?? 0) > 1

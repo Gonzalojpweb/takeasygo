@@ -60,7 +60,8 @@ import { PosApiError } from "../services/pos-api"
 import { createMemoryOfflineStore, setOfflineStore, offlineStore } from "../services/offline/store"
 import { setOfflineStatus, __resetOfflineStatusForTests } from "../services/offline/status"
 import { replayOfflineOps } from "../services/offline/replay"
-import { rememberOfflineUser, offlinePinLogin, offlineSessionFor, offlineApprovalHeaders, currentPosUser, OFFLINE_LOGIN_TRUST_MS } from "../services/offline/offline-auth"
+import { rememberOfflineUser, offlinePinLogin, offlineSessionFor, offlineApprovalHeaders, offlineDiscountApprovalHeaders, currentPosUser, OFFLINE_LOGIN_TRUST_MS } from "../services/offline/offline-auth"
+import { DEFAULT_DISCOUNT_POLICY, normalizeDiscountPolicy } from "@takeasygo/business/browser"
 import { subscribeApproval, answerApproval } from "../services/manager-approval"
 import { createOrder, discountOrder, discountTable, voidSentItem, recordPayments, settleToDelivered } from "../services/order"
 import { openRegister } from "../services/cash"
@@ -212,7 +213,10 @@ describe("prueba de corte: un servicio entero sin internet", () => {
     expect((stores.orders.get("r1") as { total: number }).total).toBe(1_800_000 - 90_000)
     expect((stores.orders.get("r2") as { total: number }).total).toBe(200_000 - 10_000)
     const op = (await offlineStore().listOps(T)).find((o) => o.path === "/tables/t5/discount")!
-    expect(op).toMatchObject({ kind: "order.many", headers: { "X-Pos-Offline-Approver": ANA } })
+    // Política del comercio (14/11/2026): la encargada está dentro de su límite,
+    // así que no viaja «aprobador» (el server reevalúa su rol al sincronizar).
+    expect(op.kind).toBe("order.many")
+    expect(op.headers?.["X-Pos-Offline-Approver"]).toBeUndefined()
   })
 
   it("quitar un plato que todavía no se mandó a cocina no pide PIN", async () => {
@@ -225,5 +229,62 @@ describe("prueba de corte: un servicio entero sin internet", () => {
     expect((stores.orders.get("o2") as { total: number }).total).toBe(900_000 + 200_000)
     const op = (await offlineStore().listOps(T)).find((o) => o.path === "/orders/o2/items/p1")!
     expect(op.headers).toBeUndefined()
+  })
+})
+
+describe("política de descuentos sin internet (14/11/2026)", () => {
+  const ADMIN = "64b0000000000000000000a3"
+  const withRoles = (roles: Record<string, object>) =>
+    normalizeDiscountPolicy({ ...DEFAULT_DISCOUNT_POLICY, roles: { ...DEFAULT_DISCOUNT_POLICY.roles, ...Object.fromEntries(Object.entries(roles).map(([k, v]) => [k, { ...DEFAULT_DISCOUNT_POLICY.roles[k as "cashier"], ...v }])) } })
+  const amounts = (gross: number, discount: number) => ({ grossCents: gross, discountCents: discount, previousDiscountCents: 0 })
+  const asLuis = async () => actAs(offlineSessionFor((await offlinePinLogin(T, "1357") as { user: Parameters<typeof offlineSessionFor>[0] }).user))
+  const asAna = async () => actAs(offlineSessionFor((await offlinePinLogin(T, "4826") as { user: Parameters<typeof offlineSessionFor>[0] }).user))
+
+  it("dentro de la autonomía del cajero no pide PIN", async () => {
+    await asLuis()
+    expect(await offlineDiscountApprovalHeaders(T, withRoles({ cashier: { autonomyPercent: 10 } }), amounts(10000, 1000))).toEqual({})
+  })
+
+  it("arriba de la autonomía pide el PIN de quien lo cubre y no acepta el del propio cajero", async () => {
+    await asLuis()
+    answerNextPin("1357")
+    setTimeout(() => answerNextPin("4826"), 5)
+    expect(await offlineDiscountApprovalHeaders(T, withRoles({ cashier: { autonomyPercent: 10 } }), amounts(10000, 2000))).toEqual({ "X-Pos-Offline-Approver": ANA })
+  })
+
+  it("supera el máximo del rol: no se aplica (sin pedir PIN)", async () => {
+    await asLuis()
+    await expect(offlineDiscountApprovalHeaders(T, withRoles({ cashier: { maxPercent: 30 } }), amounts(10000, 5000))).rejects.toMatchObject({ code: "forbidden" })
+  })
+
+  it("encargada por encima de su límite: necesita un admin; ella misma no sirve", async () => {
+    await asAna()
+    const policy = withRoles({ manager: { autonomyPercent: 10 } })
+    await expect(offlineDiscountApprovalHeaders(T, policy, amounts(10000, 2000))).rejects.toThrow(/alguien con permiso/)
+    await rememberOfflineUser(T, "9182", login(ADMIN, "Dueño", "admin"))
+    answerNextPin("4826")
+    setTimeout(() => answerNextPin("9182"), 5)
+    expect(await offlineDiscountApprovalHeaders(T, policy, amounts(10000, 2000))).toEqual({ "X-Pos-Offline-Approver": ADMIN })
+  })
+
+  it("el PIN de una encargada que no cubre el monto se rechaza", async () => {
+    await asLuis()
+    const policy = withRoles({ cashier: { autonomyPercent: 0 }, manager: { autonomyPercent: 10 } })
+    await rememberOfflineUser(T, "9182", login(ADMIN, "Dueño", "admin"))
+    answerNextPin("4826")
+    setTimeout(() => answerNextPin("9182"), 5)
+    expect(await offlineDiscountApprovalHeaders(T, policy, amounts(10000, 2000))).toEqual({ "X-Pos-Offline-Approver": ADMIN })
+  })
+})
+
+describe("importe final (14/11/2026)", () => {
+  it("viaja como monto fijo con finalCents para que el server verifique el total", async () => {
+    setOfflineStatus({ online: true })
+    stores.orders.set("m1", { id: "m1", tenantId: T, items: [{ ...pizza, lineId: "64b0000000000000000000f1" }], total: 1_800_000, status: "pending", createdAt: new Date(), updatedAt: new Date() })
+    posApiMock.mockReset()
+    posApiMock.mockResolvedValue({ order: { id: "m1", tenantId: T, items: [], total: 1_500_000, status: "pending", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } })
+    await discountOrder(T, "m1", { kind: "amount", value: 300_000, reason: "agreement", finalCents: 1_500_000, note: "Convenio" })
+    const call = posApiMock.mock.calls.find((c) => c[1] === "/orders/m1/discounts")!
+    expect(call[2].body).toEqual({ kind: "amount", value: 300_000, reason: "agreement", note: "Convenio", finalCents: 1_500_000 })
   })
 })

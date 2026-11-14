@@ -172,14 +172,16 @@ export function CheckoutPanel({ total, busy = false, onConfirm, sendToKitchen, c
   }
 
   const statusLabel =
-    parts.length === 0
+    total === 0
+      ? parts.length === 0 ? "Cuenta en $0: se cierra sin cobro" : "Cuenta en $0: quitá los medios de pago"
+      : parts.length === 0
       ? "Elegí cómo paga"
       : remaining === 0
         ? "Cubierto"
         : remaining > 0
           ? `Falta ${formatCurrency(remaining)}`
           : `Sobra ${formatCurrency(-remaining)}`
-  const statusClass = parts.length === 0 ? "idle" : remaining === 0 ? "ok" : "short"
+  const statusClass = total === 0 ? "ok" : parts.length === 0 ? "idle" : remaining === 0 ? "ok" : "short"
   const confirmDisabled = !complete ||
     busy ||
     (clubPhone ? !isClubPhoneValid(clubPhone.value) : false) ||

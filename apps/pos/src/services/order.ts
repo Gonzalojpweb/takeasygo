@@ -1,5 +1,5 @@
 import type { ItemCourse, Order, OrderItem, OrderStatus } from "@takeasygo/types"
-import { pathToDelivered, type AllocatedPayment } from "@takeasygo/business/browser"
+import { pathToDelivered, DISCOUNT_REASONS as REASON_LABELS, DISCOUNT_REASON_IDS, type AllocatedPayment, type DiscountAmounts, type DiscountReason as SharedDiscountReason } from "@takeasygo/business/browser"
 import { db } from "../db/dexie"
 import { posApi, isPosApiError, PosApiError } from "./pos-api"
 import { runMutation, resyncTablesSoon } from "./polling"
@@ -7,8 +7,9 @@ import { offlineAware } from "./offline/executor"
 import { printForOfflineOp } from "./offline/local-print"
 import { issueOfflineInvoice, offlineCaeaWire, offlineSaleInfo, printOfflineInvoice } from "./offline/caea"
 import type { OfflineOp } from "./offline/types"
-import { offlineApprovalHeaders } from "./offline/offline-auth"
-import { applyDiscount, applyVoidSentItem, distributeCents, openRoundsOf, roundWeights } from "./offline/local-model"
+import { offlineApprovalHeaders, offlineDiscountApprovalHeaders } from "./offline/offline-auth"
+import { readCachedDiscountPolicy } from "./discount-policy"
+import { applyDiscount, applyVoidSentItem, distributeCents, grossOfLine, openRoundsOf, roundWeights } from "./offline/local-model"
 import {
   applyAddItem,
   applyFireCourse,
@@ -348,7 +349,8 @@ export async function recordPayments(
     // y viaja con el cobro. Si no se puede, queda pendiente (la emite el
     // server con CAE al volver la red).
     applied: async (order, op) => {
-      if (!invoice || !("receiver" in invoice)) return
+      // Cuenta en $0: no hay importe que facturar (como el server).
+      if (!invoice || !("receiver" in invoice) || order.total === 0) return
       const result = await issueOfflineInvoice(tenantId, order, invoice.receiver, offlineSaleInfo(order, parts))
       if ("reason" in result) {
         offlineInvoiceReasons.set(orderId, result.reason)
@@ -661,21 +663,16 @@ export async function getActiveOrders(tenantId: string): Promise<Order[]> {
 // ============================================================================
 // Descuentos (Fase D, 2026-10) — espejo de lib/pos-online/discounts del SaaS
 // ============================================================================
-// El server decide el importe (bajando el subtotal de cada línea) y pide el
-// PIN del encargado si el operador es cajero: pos-api lo resuelve con el
-// diálogo de aprobación. Acá solo se arma el pedido y se guarda lo que
-// devolvió el server.
+// El server decide el importe (bajando el subtotal de cada línea) y, con la
+// POLÍTICA DEL COMERCIO (14/11/2026), si alcanza solo o hace falta el PIN de
+// alguien que lo cubra: pos-api lo resuelve con el diálogo de aprobación.
+// Sin internet decide la copia de la política guardada en el equipo y el
+// server la reevalúa al sincronizar. Los motivos salen de la misma lista que
+// usa el server (@takeasygo/business/discount-policy).
 
-export const DISCOUNT_REASONS = [
-  { id: "courtesy", label: "Cortesía de la casa" },
-  { id: "complaint", label: "Reclamo / demora" },
-  { id: "regular", label: "Cliente frecuente" },
-  { id: "staff", label: "Consumo del personal" },
-  { id: "promotion", label: "Promoción del local" },
-  { id: "other", label: "Otro" },
-] as const
+export type DiscountReason = SharedDiscountReason
 
-export type DiscountReason = (typeof DISCOUNT_REASONS)[number]["id"]
+export const DISCOUNT_REASONS: readonly { id: DiscountReason; label: string }[] = DISCOUNT_REASON_IDS.map((id) => ({ id, label: REASON_LABELS[id] }))
 
 export interface DiscountRequest {
   kind: "percent" | "amount"
@@ -683,6 +680,48 @@ export interface DiscountRequest {
   value: number
   reason: DiscountReason
   note?: string
+  /**
+   * Modo «importe final»: lo que se quiere cobrar (centavos). Va con
+   * kind "amount" y value = base − final; el server verifica que el total
+   * que queda sea exactamente este (si la cuenta cambió, rechaza).
+   */
+  finalCents?: number
+}
+
+/** Importes de la cuenta (rondas) para evaluar la política: bruto y descuento. */
+function accountOf(rounds: WireOrder[], replaced: Map<string, WireOrder>): DiscountAmounts {
+  let grossCents = 0
+  let discountCents = 0
+  let previousDiscountCents = 0
+  for (const round of rounds) {
+    const after = replaced.get(round.id) ?? round
+    for (const item of round.items) {
+      grossCents += grossOfLine(item)
+      previousDiscountCents += item.discount?.amount ?? 0
+    }
+    for (const item of after.items) discountCents += item.discount?.amount ?? 0
+  }
+  return { grossCents, discountCents, previousDiscountCents }
+}
+
+/** Sin internet: PIN según la política (cuenta = la mesa entera si la orden es de una mesa). */
+async function offlineOrderDiscountHeaders(tenantId: string, orderId: string, discount: DiscountRequest, lineId: string | null): Promise<Record<string, string>> {
+  const order = await requireLocalOrder(orderId)
+  const next = localDiscount(order, discount, lineId, new Date())
+  const rounds = order.tableId ? openRoundsOf((await db.orders.where("tableId").equals(order.tableId).toArray()) as WireOrder[], order.tableId) : []
+  const account = rounds.some((r) => r.id === order.id) ? rounds : [order]
+  return offlineDiscountApprovalHeaders(tenantId, readCachedDiscountPolicy(tenantId).policy, accountOf(account, new Map([[order.id, next]])))
+}
+
+/** Lo que viaja al server (sin campos vacíos). */
+function discountBody(discount: DiscountRequest): Record<string, unknown> {
+  return {
+    kind: discount.kind,
+    value: discount.value,
+    reason: discount.reason,
+    ...(discount.note ? { note: discount.note } : {}),
+    ...(discount.finalCents !== undefined ? { finalCents: discount.finalCents } : {}),
+  }
 }
 
 /** Descuento sobre UN plato de una ronda. */
@@ -698,13 +737,11 @@ export async function discountOrderLine(
     label: `${await placeLabel(await db.orders.get(orderId))} · descuento en un plato`,
     method: "POST",
     path: `/orders/${encodeURIComponent(orderId)}/discounts`,
-    body: { ...discount, lineId },
+    body: { ...discountBody(discount), lineId },
     local: (o, now) => localDiscount(o, discount, lineId, now),
-    beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
+    beforeLocal: () => offlineOrderDiscountHeaders(tenantId, orderId, discount, lineId),
   })
 }
-
-const DISCOUNT_APPROVAL_MESSAGE = "Aplicar un descuento necesita la aprobación de un encargado"
 
 function localDiscount(o: WireOrder, discount: DiscountRequest, lineId: string | null, now: Date): WireOrder {
   const next = applyDiscount(o, { kind: discount.kind, value: discount.value, reason: discount.reason }, lineId, now)
@@ -733,10 +770,10 @@ export async function discountTable(tenantId: string, tableId: string, discount:
       tenantId,
       kind: "order.many",
       label: `Mesa ${table?.number ?? "?"} · descuento de la cuenta`,
-      request: { method: "POST", path, body: discount },
+      request: { method: "POST", path, body: discountBody(discount) },
       entityKeys: [`table:${tableId}`, ...rounds.map((o) => `order:${o.id}`)],
       online: async (headers) => {
-        const res = await posApi<{ orders: WireOrder[]; discountedCents: number }>(tenantId, path, { method: "POST", body: discount, headers })
+        const res = await posApi<{ orders: WireOrder[]; discountedCents: number }>(tenantId, path, { method: "POST", body: discountBody(discount), headers })
         for (const order of res.orders) await saveOrder(order)
         return res.discountedCents
       },
@@ -757,7 +794,18 @@ export async function discountTable(tenantId: string, tableId: string, discount:
         }
         return discounted
       },
-      beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
+      beforeLocal: async () => {
+        const current = openRoundsOf((await db.orders.where("tableId").equals(tableId).toArray()) as WireOrder[], tableId)
+        if (current.length === 0) throw new PosApiError("La mesa no tiene nada sin cobrar", "conflict", 409)
+        const shares = discount.kind === "amount" ? distributeCents(roundWeights(current), discount.value) : null
+        const now = new Date()
+        const replaced = new Map<string, WireOrder>()
+        current.forEach((round, i) => {
+          if (shares && shares[i] <= 0) return
+          replaced.set(round.id, localDiscount(round, shares ? { ...discount, value: shares[i] } : discount, null, now))
+        })
+        return offlineDiscountApprovalHeaders(tenantId, readCachedDiscountPolicy(tenantId).policy, accountOf(current, replaced))
+      },
     })
   )
 }
@@ -777,9 +825,9 @@ export async function discountOrder(tenantId: string, orderId: string, discount:
     label: `${await placeLabel(await db.orders.get(orderId))} · descuento de la cuenta`,
     method: "POST",
     path: `/orders/${encodeURIComponent(orderId)}/discounts`,
-    body: { ...discount },
+    body: discountBody(discount),
     local: (o, now) => localDiscount(o, discount, null, now),
-    beforeLocal: () => offlineApprovalHeaders(tenantId, DISCOUNT_APPROVAL_MESSAGE),
+    beforeLocal: () => offlineOrderDiscountHeaders(tenantId, orderId, discount, null),
   })
 }
 

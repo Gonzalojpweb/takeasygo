@@ -808,9 +808,26 @@ export interface ZReport {
   closingCount?: CashClosingCount | null
   /** Comprobantes electrónicos del turno (Fase 5). Ausente si no factura. */
   fiscal?: ZFiscalSummary | null
+  /**
+   * Descuentos y ajustes de las ventas cobradas en el turno (14/11/2026).
+   * INFORMATIVO: las ventas ya están netas de descuento; no entra en el
+   * arqueo ni en ningún total de caja. Ausente en Z anteriores.
+   */
+  discounts?: ZDiscountSummary | null
 
   // ── Metadata ─────────────────────────────────────────────────────
   generatedAt: Date
+}
+
+/** Descuentos del turno por motivo (centavos). */
+export interface ZDiscountSummary {
+  /** Total descontado en las ventas del turno. */
+  totalCents: number
+  /** Ventas (órdenes) con algún descuento. */
+  orderCount: number
+  /** Importe de esas ventas sin descuento (para el % del turno). */
+  grossCents: number
+  byReason: { reason: string; label: string; cents: number; count: number }[]
 }
 
 // ============================================================================

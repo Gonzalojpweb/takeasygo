@@ -92,6 +92,11 @@ export function renderZEscPos(zReport: ZReport, options: RenderOptions): string 
   pushkv(lines, "Total movimientos:", `${zReport.totalMovements}`, w)
   pushkv(lines, "Ingresos:", formatCurrency(zReport.incomeTotal, w), w)
   if ((zReport.tipTotal ?? 0) > 0) pushkv(lines, "  de ellos propinas:", formatCurrency(zReport.tipTotal ?? 0, w), w)
+  // Descuentos del turno (14/11/2026): informativo, las ventas ya son netas.
+  if (zReport.discounts && zReport.discounts.totalCents > 0) {
+    pushkv(lines, `Descuentos (${zReport.discounts.orderCount}):`, `-${formatCurrency(zReport.discounts.totalCents, w)}`, w)
+    for (const r of zReport.discounts.byReason) pushkv(lines, `  ${r.label} (${r.count})`, `-${formatCurrency(r.cents, w)}`, w)
+  }
   pushkv(lines, "Egresos:", formatCurrency(zReport.expenseTotal, w), w)
   pushkv(lines, "Ventas:", formatCurrency(zReport.salesTotal, w), w)
   pushkv(lines, "Reembolsos:", formatCurrency(zReport.refundTotal, w), w)

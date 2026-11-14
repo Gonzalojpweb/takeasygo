@@ -4,15 +4,17 @@ import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder } from '@/lib/pos-online/orderMapper'
 import { findPosOrder } from '@/lib/pos-online/orderRepo'
 import { parseDiscountInput } from '@/lib/pos-online/discounts'
-import { applyOrderDiscount, approveDiscount, assertDiscountable, removeOrderDiscount } from '@/lib/pos-online/discountService'
+import { assertDiscountable, discountOrder, removeOrderDiscount } from '@/lib/pos-online/discountService'
 
 // ============================================================================
 // POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)
-//        { lineId?, kind: 'percent'|'amount', value, reason, note? }
+//        { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }
 //        lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.
+//        finalCents ⇒ modo «importe final» (kind amount; el server verifica
+//        que el total que queda sea exactamente ese).
 // DELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento
 //        de ese plato (o de toda la orden sin lineId).
-// Reglas y modelo: lib/pos-online/discounts.ts + discountService.ts.
+// Quién puede y con qué PIN: política del comercio (discountService).
 // ============================================================================
 
 function optionalLineId(value: unknown): string | null {
@@ -27,8 +29,7 @@ export const POST = posRoute('orders.pay', async (ctx, { id }) => {
   const body = await readPosBody(ctx.request)
   const input = parseDiscountInput(body)
   const lineId = optionalLineId(body.lineId)
-  const approval = await approveDiscount(ctx)
-  const { order: saved, discountedCents } = await applyOrderDiscount(ctx, order, input, lineId, approval)
+  const { order: saved, discountedCents } = await discountOrder(ctx, order, input, lineId)
   return NextResponse.json({ order: toPosOrder(saved), discountedCents })
 })
 

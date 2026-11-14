@@ -2471,6 +2471,13 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .discount-reasons .void-reason.active { border-color: var(--primary-action); background: var(--primary-action-light); }
 .discount-preview { display: flex; align-items: baseline; justify-content: center; gap: var(--sp-2); font-variant-numeric: tabular-nums; }
 .discount-preview strong { font-size: var(--font-size-lg); }
+/* Política de descuentos (14/11/2026): aviso previo de PIN / tope. */
+.discount-hint { margin: 0; font-size: var(--font-size-xs); color: var(--text-muted); text-align: center; }
+.discount-policy { display: flex; align-items: center; gap: var(--sp-2); margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: 10px; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.discount-policy--allow { background: var(--success-light); color: var(--success); }
+.discount-policy--approval { background: var(--warning-light); color: #7A5200; }
+.discount-policy--deny { background: var(--error-light); color: var(--error); }
+.zr-note { margin: var(--sp-2) 0 0; font-size: var(--font-size-xs); color: var(--text-muted); }
 
 .split-items { display: flex; flex-direction: column; gap: var(--sp-3); }
 .split-people { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; }

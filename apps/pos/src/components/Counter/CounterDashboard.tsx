@@ -43,6 +43,7 @@ import { GuestsDialog } from "../shared/GuestsDialog"
 import { VoidItemDialog } from "../shared/VoidItemDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
+import { useDiscountPolicy, evaluateForCurrentUser } from "../../services/discount-policy"
 import { formatCurrency, timeAgo } from "../../utils/format"
 import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
 import { printPrecuenta } from "../../services/table"
@@ -237,6 +238,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // al cobrar) y se aplica en el server justo después de crearla.
   const [mostradorDiscount, setMostradorDiscount] = useState<DiscountRequest | null>(null)
   const [mostradorDiscountOpen, setMostradorDiscountOpen] = useState(false)
+  // Importe final (14/11/2026): sobre qué total se eligió. Si la venta cambia,
+  // el importe final deja de tener sentido y se descarta (no se cobra de menos).
+  const [mostradorDiscountBase, setMostradorDiscountBase] = useState<number | null>(null)
+  // Política de descuentos del comercio (copia del equipo + server).
+  const { policy: discountPolicy } = useDiscountPolicy(tenantId)
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
@@ -561,6 +567,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     () => (view === "mostrador" && mostradorDiscount && cart.length > 0 ? expectedDiscountCents(cart.map((i) => i.total), mostradorDiscount) : 0),
     [view, mostradorDiscount, cart]
   )
+
+  // Importe final del Mostrador elegido sobre otro total: se descarta y se avisa.
+  useEffect(() => {
+    if (mostradorDiscount?.finalCents === undefined || mostradorDiscountBase === null) return
+    if (cartTotal === mostradorDiscountBase) return
+    setMostradorDiscount(null)
+    setMostradorDiscountBase(null)
+    showToast("Cambió la venta: volvé a cargar el importe final", "info")
+  }, [cartTotal, mostradorDiscount, mostradorDiscountBase, showToast])
 
   // Fase D: platos de lo que se cobra (rondas sin cobrar + carrito), netos
   // de descuento, para «Dividir por platos». Si por algún motivo no suman el
@@ -2057,7 +2072,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                   discount={{
                     appliedCents: mostradorDiscountCents,
                     label: mostradorDiscount
-                      ? (mostradorDiscount.kind === "percent" ? `${mostradorDiscount.value}%` : "") +
+                      ? (mostradorDiscount.kind === "percent" ? `${mostradorDiscount.value}%` : mostradorDiscount.finalCents !== undefined ? "importe final" : "") +
                         ` (${DISCOUNT_REASONS.find((r) => r.id === mostradorDiscount.reason)?.label ?? ""})`
                       : undefined,
                     onEdit: () => setMostradorDiscountOpen(true),
@@ -2188,8 +2203,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           target="Mostrador, toda la venta"
           base={cartTotal}
           hasDiscount={Boolean(mostradorDiscount)}
-          onConfirm={(d) => { setMostradorDiscount(d); setMostradorDiscountOpen(false) }}
-          onRemove={() => { setMostradorDiscount(null); setMostradorDiscountOpen(false) }}
+          allowFinal
+          policy={discountPolicy}
+          evaluate={(off) => evaluateForCurrentUser(discountPolicy, { grossCents: cartTotal, discountCents: off, previousDiscountCents: 0 })}
+          onConfirm={(d) => { setMostradorDiscount(d); setMostradorDiscountBase(cartTotal); setMostradorDiscountOpen(false) }}
+          onRemove={() => { setMostradorDiscount(null); setMostradorDiscountBase(null); setMostradorDiscountOpen(false) }}
           onCancel={() => setMostradorDiscountOpen(false)}
         />
       )}
@@ -2197,11 +2215,19 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // Base = importe SIN descuentos (el nuevo reemplaza a los anteriores).
         const gross = (i: OrderItem) => i.total + (i.discount?.amount ?? 0)
         const lines = discountTarget.scope === "table" ? unpaidTableOrders.flatMap((o) => o.items) : [discountTarget.item]
+        // La política se evalúa sobre TODA la cuenta de la mesa (como el server).
+        const accountLines = unpaidTableOrders.flatMap((o) => o.items)
+        const accountGross = accountLines.reduce((s, i) => s + gross(i), 0)
+        const accountDiscount = accountLines.reduce((s, i) => s + (i.discount?.amount ?? 0), 0)
+        const replacedDiscount = discountTarget.scope === "table" ? accountDiscount : (discountTarget.item.discount?.amount ?? 0)
         return (
           <DiscountDialog
             target={discountTarget.scope === "table" ? `Mesa ${selectedTable.number}, toda la cuenta` : discountTarget.item.name}
             base={lines.reduce((s, i) => s + gross(i), 0)}
             hasDiscount={lines.some((i) => i.discount)}
+            allowFinal={discountTarget.scope === "table"}
+            policy={discountPolicy}
+            evaluate={(off) => evaluateForCurrentUser(discountPolicy, { grossCents: accountGross, discountCents: accountDiscount - replacedDiscount + off, previousDiscountCents: accountDiscount })}
             busy={discountBusy}
             onConfirm={handleDiscountConfirm}
             onRemove={handleDiscountRemove}

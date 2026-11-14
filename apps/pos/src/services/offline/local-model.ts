@@ -153,7 +153,9 @@ export interface LocalPaymentPart {
 export function applyPayments(order: Order, parts: LocalPaymentPart[], now: Date): Order | { error: string; code: "validation" | "conflict" } {
   if (order.status === "cancelled") return { error: "La orden está cancelada: no se puede cobrar", code: "conflict" }
   if (order.payments?.length) return { error: "La orden ya fue cobrada", code: "conflict" }
-  if (parts.length === 0 || parts.some((p) => !Number.isInteger(p.amount) || p.amount <= 0)) {
+  // Cuenta en $0 (descuento del 100 %): una sola parte de $0 en efectivo, como el server.
+  const zeroClose = order.total === 0 && parts.length === 1 && parts[0].amount === 0 && parts[0].method === "cash"
+  if (!zeroClose && (parts.length === 0 || parts.some((p) => !Number.isInteger(p.amount) || p.amount <= 0))) {
     return { error: "Los montos del cobro tienen que ser positivos", code: "validation" }
   }
   const sum = parts.reduce((s, p) => s + p.amount, 0)

@@ -17,6 +17,7 @@ import {
 import { findPosRegister, loadMovementsForRegister } from '@/lib/pos-online/cashRepo'
 import { operatorName } from '@/lib/pos-online/operator'
 import { fiscalSummaryForShift } from '@/lib/fiscal/shift-summary'
+import { discountSummaryForRegister } from '@/lib/cash/z-discounts'
 import { reconcileShiftSales } from '@/lib/pos-online/cashReconcile'
 import { publicOrigin, tenantSlugOf, zShareUrl } from '@/lib/cash/z-share'
 import { enqueueZPrint, type ZPrintRegister } from '@/lib/cash/z-print'
@@ -116,6 +117,14 @@ export const POST = posRoute<{ tenant: string; id: string }>('cash.write', async
     from: register.openedAt,
     to: closedAt,
   })
+  // 14/11/2026: descuentos de las ventas del turno, por motivo. Informativo:
+  // no toca arqueo ni totales. Nunca corta el cierre.
+  try {
+    zReport.discounts = await discountSummaryForRegister({ tenantId: ctx.tenantId, locationId: ctx.locationId, movements })
+  } catch (err) {
+    console.error('[pos/cash/close] no se pudo calcular los descuentos del turno:', err)
+    zReport.discounts = null
+  }
   const shareToken = randomUUID()
 
   // Guard con `status: 'open'` en el filtro: dos cierres simultáneos no

@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { Banknote, CreditCard, Receipt, TrendingDown, HandCoins, FileText, CheckCircle2, AlertTriangle, PlusCircle } from "lucide-react"
+import { Banknote, CreditCard, Receipt, TrendingDown, HandCoins, FileText, CheckCircle2, AlertTriangle, PlusCircle, Percent } from "lucide-react"
 import { CASH_EXPENSE_CATEGORY_LABELS } from "@takeasygo/business/browser"
 import type { CashExpenseCategory, PaymentMethod, ZReport } from "@takeasygo/types"
 import { formatCurrency } from "../../utils/format"
@@ -174,6 +174,16 @@ export function ZReportView({ z }: { z: ZReport }) {
                 : [{ label: "Exento / no gravado", value: r.netCents }]),
             ]} />
             {z.fiscal.pending > 0 && <p className="zr-warn">{z.fiscal.pending} factura{z.fiscal.pending === 1 ? "" : "s"} esperando a ARCA</p>}
+          </ReportBlock>
+        )}
+
+        {z.discounts && z.discounts.totalCents > 0 && (
+          <ReportBlock title="Descuentos del turno" tone="expense" icon={Percent}>
+            <ReportRows negative rows={[
+              { label: `Total (${z.discounts.orderCount} venta${z.discounts.orderCount === 1 ? "" : "s"})`, value: z.discounts.totalCents, strong: true },
+              ...z.discounts.byReason.map((r) => ({ label: `${r.label} (${r.count})`, value: r.cents })),
+            ]} />
+            <p className="zr-note">Informativo: las ventas ya están netas de descuento. No cambia el arqueo.</p>
           </ReportBlock>
         )}
       </div>
