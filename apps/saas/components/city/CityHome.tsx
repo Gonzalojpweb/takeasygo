@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Armchair,
+  ArrowLeftRight,
   Banknote,
   Bike,
   DoorOpen,
@@ -23,6 +24,7 @@ import {
   LocateFixed,
   Moon,
   Search,
+  Smartphone,
   Sun,
   Tag,
   type LucideIcon,
@@ -37,6 +39,7 @@ import {
   dayMoment,
   isAwake,
   matchesLayer,
+  type CityFeedItem,
   type CityLayer,
 } from '@/lib/city/signals'
 import type { CityTheme } from '@/lib/city/map-style'
@@ -65,6 +68,8 @@ const LAYER_ICON: Record<CityLayer, LucideIcon> = {
   delivery: Bike,
   salon: Armchair,
   cash: Banknote,
+  mp: Smartphone,
+  transfer: ArrowLeftRight,
 }
 
 const LAYER_EMPTY: Record<CityLayer, string> = {
@@ -75,9 +80,22 @@ const LAYER_EMPTY: Record<CityLayer, string> = {
   delivery: 'Ningún lugar cercano hace delivery ahora.',
   salon: 'Ningún salón está informando lugar en este momento.',
   cash: 'Ningún lugar cercano informa pago en efectivo.',
+  mp: 'Ningún lugar cercano cobra con Mercado Pago por ahora.',
+  transfer: 'Ningún lugar cercano acepta transferencia por ahora.',
 }
 
 const THEME_KEY = 'tgo_city_theme'
+
+/** Dibujo de la burbuja según el tipo de novedad (sin dibujo = sin burbuja). */
+const BUBBLE_GADGET: Record<CityFeedItem['kind'], { id: string; width?: number } | null> = {
+  promo: { id: 'promo' },
+  opened: { id: 'new' },
+  new: { id: 'new' },
+  closing: { id: 'closing' },
+  full: { id: 'salon-full', width: 50 },
+  calm: { id: 'salon-calm', width: 50 },
+  busy: null,
+}
 
 function autoTheme(): CityTheme {
   const now = new Date()
@@ -174,6 +192,17 @@ export default function CityHome({ initialLayer = null, center, places, onOpen }
   }, [voice.length])
   const voiceItem = voice[voiceIndex % voice.length]
 
+  // Cada novedad real también «sale» de su pin en el mapa, como una burbuja.
+  const voiceKind = 'kind' in voiceItem ? voiceItem.kind : null
+  useEffect(() => {
+    if (!voiceKind || !voiceItem.placeId) return
+    const gadget = BUBBLE_GADGET[voiceKind]
+    const place = places.find(p => p.id === voiceItem.placeId)
+    if (!gadget || !place) return
+    mapRef.current?.bubble(place, voiceItem.text, gadget.id, gadget.width)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- una burbuja por novedad
+  }, [voiceItem.id])
+
   // ── Acciones ─────────────────────────────────────────────────────────────
   const select = useCallback(
     (place: RestaurantCardData | null) => {
@@ -182,8 +211,8 @@ export default function CityHome({ initialLayer = null, center, places, onOpen }
         return
       }
       haptic.impact('light')
+      // El mapa centra el pin elegido solo (ver CityMap), ya con la ficha abierta.
       setSelectedId(place.id)
-      mapRef.current?.focus(place)
     },
     [haptic]
   )
@@ -238,7 +267,8 @@ export default function CityHome({ initialLayer = null, center, places, onOpen }
       <CityMap
         ref={mapRef}
         center={center}
-        places={visible}
+        places={places}
+        layer={layer}
         selectedId={selected?.id ?? null}
         onSelect={select}
         theme={theme}

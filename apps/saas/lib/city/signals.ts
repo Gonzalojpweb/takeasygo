@@ -326,7 +326,7 @@ export const SALON_FILL: Record<SalonLevel, number> = { calm: 1, moving: 2, busy
 
 // ── Capas del mapa (filtros) ────────────────────────────────────────────────
 
-export type CityLayer = 'open' | 'promo' | 'club' | 'delivery' | 'salon' | 'walk15' | 'cash'
+export type CityLayer = 'open' | 'promo' | 'club' | 'delivery' | 'salon' | 'walk15' | 'cash' | 'mp' | 'transfer'
 
 export const CITY_LAYERS: Array<{ id: CityLayer; label: string }> = [
   { id: 'open', label: 'Abiertos' },
@@ -336,6 +336,8 @@ export const CITY_LAYERS: Array<{ id: CityLayer; label: string }> = [
   { id: 'delivery', label: 'Delivery' },
   { id: 'salon', label: 'Con lugar' },
   { id: 'cash', label: 'Efectivo' },
+  { id: 'mp', label: 'Mercado Pago' },
+  { id: 'transfer', label: 'Transferencia' },
 ]
 
 export function matchesLayer(
@@ -357,6 +359,10 @@ export function matchesLayer(
       return isWithin15(p.distanceM)
     case 'cash':
       return p.signals?.payments.cash === true
+    case 'mp':
+      return p.signals?.payments.mp === true
+    case 'transfer':
+      return p.signals?.payments.transfer === true
   }
 }
 

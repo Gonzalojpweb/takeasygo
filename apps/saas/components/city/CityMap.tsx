@@ -5,27 +5,42 @@
 // El mapa vivo de TGO. Vectorial (MapLibre), con inclinación, edificios con
 // volumen, paleta de día y de noche, y el anillo de «15 minutos a pie».
 //
-// Reglas del Living City System que este componente cuida:
-//   · el único movimiento ambiental es la respiración del pin despierto;
-//   · el mapa manda el primer vistazo: `bottomInset` corre el centro para
-//     que el sheet nunca tape al usuario;
-//   · las estrellas no viven acá.
+// Pines y gadgets se dibujan DENTRO del motor del mapa (capas de símbolos con
+// imágenes generadas a pedido, ver ./map), no como elementos HTML: así escala
+// a cientos de locales y el motor resuelve los choques entre gadgets.
+//
+// Niveles (lib/city/gadgets.ts):
+//   Barrio → pines chicos y grupos · Cuadras → un gadget · Tu cuadra → órbita.
+//
+// Reglas del Living City System que se mantienen:
+//   · el pin es el protagonista; los gadgets son insignias chicas;
+//   · el único movimiento ambiental es el brillo de los despiertos;
+//   · el mapa manda el primer vistazo (`bottomInset` corre el centro).
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
-import type { Map as MapLibreMap, Marker, GeoJSONSource } from 'maplibre-gl'
-import Supercluster from 'supercluster'
+import type { Map as MapLibreMap, Marker, GeoJSONSource, MapMouseEvent } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { RestaurantCardData } from '@/types/restaurant-card'
-import { isAwake } from '@/lib/city/signals'
+import { CITY_15_RADIUS_M, type CityLayer } from '@/lib/city/signals'
+import { ZOOM_BLOCKS, ZOOM_STREET, GADGET_SIZE } from '@/lib/city/gadgets'
 import { buildCityStyle, circlePolygon, cityMapBackground, type CityTheme } from '@/lib/city/map-style'
-import { CITY_15_RADIUS_M } from '@/lib/city/signals'
-import { CITY_PIN_DEFS, USER_PUCK_HTML, clusterHtml, pinHtml, pinKey, pinModel } from './pin'
+import { SPRITE_RATIO, gadgetCanvas, generateSprite } from './map/sprites'
+import {
+  CITY_HIT_LAYERS,
+  addCityLayers,
+  buildSources,
+  SPRITE_THEME,
+  showSelected,
+  updateCitySources,
+} from './map/layers'
 
 export interface CityMapHandle {
   recenter: () => void
   focus: (place: RestaurantCardData) => void
   /** Encuadra al usuario y a estos lugares (al encender una capa). */
   fitTo: (places: RestaurantCardData[]) => void
+  /** Novedad que sale del pin (solo hechos reales, una a la vez). */
+  bubble: (place: RestaurantCardData, text: string, gadget: string, width?: number) => void
 }
 
 const FIT_MAX_PLACES = 6
@@ -37,23 +52,25 @@ interface Props {
   onSelect: (place: RestaurantCardData | null) => void
   theme: CityTheme
   tilted: boolean
+  /** Capa encendida: los que no cumplen quedan tenues y los que sí muestran su gadget. */
+  layer?: CityLayer | null
   /** Píxeles del borde inferior tapados por el sheet o la ficha. */
   bottomInset: number
   /** Píxeles del borde superior tapados por el encabezado. */
   topInset: number
   /**
    * false = «ventana a la ciudad» (Inicio): el mapa se mira, no se maneja.
-   * Sin gestos ni atribución desplegable; el contenedor decide qué hace el toque.
+   * Sin gestos; el contenedor decide qué hace el toque.
    */
   interactive?: boolean
 }
 
 const HOME_ZOOM = 15.4
-const TAG_MIN_ZOOM = 14.2
 const TILT = 50
 
-type ClusterProps = { awake: number }
-type PointProps = { placeId: string; awake: number }
+const PUCK_HTML = `
+  <span class="city-puck__pulse"></span>
+  <span class="city-puck__dot"></span>`
 
 /** Corre `fn` ya, o cuando termine la animación de cámara en curso. */
 function afterMove(map: MapLibreMap, fn: () => void) {
@@ -66,20 +83,31 @@ function prefersReducedMotion(): boolean {
 }
 
 const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
-  { center, places, selectedId, onSelect, theme, tilted, bottomInset, topInset, interactive = true },
+  { center, places, selectedId, onSelect, theme, tilted, layer = null, bottomInset, topInset, interactive = true },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const libRef = useRef<typeof import('maplibre-gl') | null>(null)
-  const markersRef = useRef(new Map<string, { marker: Marker; placeId: string | null }>())
   const puckRef = useRef<Marker | null>(null)
+  const bubbleRef = useRef<Marker | null>(null)
+  const centeredRef = useRef<string | null>(null)
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
+
+  const valid = useMemo(() => places.filter(p => p.lat != null && p.lng != null), [places])
+  const byId = useMemo(() => new Map(valid.map(p => [p.id, p])), [valid])
+  const sources = useMemo(() => buildSources(valid, layer), [valid, layer])
 
   // Valores vivos para los listeners del mapa (se registran una sola vez).
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
+  const byIdRef = useRef(byId)
+  byIdRef.current = byId
+  const sourcesRef = useRef(sources)
+  sourcesRef.current = sources
+  const layerRef = useRef(layer)
+  layerRef.current = layer
   const selectedRef = useRef(selectedId)
   selectedRef.current = selectedId
   const centerRef = useRef(center)
@@ -88,6 +116,12 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
   const tiltedRef = useRef(tilted)
   tiltedRef.current = tilted
   const interactiveRef = useRef(interactive)
+  const insetRef = useRef({ top: topInset, bottom: bottomInset })
+  insetRef.current = { top: topInset, bottom: bottomInset }
+  // Lo último que el mapa ya tiene aplicado: los efectos solo animan cambios
+  // reales, así no pisan la animación de entrada.
+  const appliedRef = useRef({ tilted, top: topInset, bottom: bottomInset, lat: center.lat, lng: center.lng })
+
   // Encuadre pedido antes de que el mapa terminara de cargar.
   const pendingFitRef = useRef<RestaurantCardData[] | null>(null)
   const fitRef = useRef<(places: RestaurantCardData[], duration: number) => boolean>(() => false)
@@ -114,117 +148,20 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
     })
     return true
   }
-  const insetRef = useRef({ top: topInset, bottom: bottomInset })
-  insetRef.current = { top: topInset, bottom: bottomInset }
-  // Lo último que el mapa ya tiene aplicado: los efectos solo animan cambios
-  // reales, así no pisan la animación de entrada.
-  const appliedRef = useRef({
-    tilted,
-    top: topInset,
-    bottom: bottomInset,
-    lat: center.lat,
-    lng: center.lng,
-  })
 
-  const valid = useMemo(() => places.filter(p => p.lat != null && p.lng != null), [places])
-  const byId = useMemo(() => new Map(valid.map(p => [p.id, p])), [valid])
-
-  const index = useMemo(() => {
-    const sc = new Supercluster<PointProps, ClusterProps>({
-      radius: 46,
-      maxZoom: 16,
-      map: props => ({ awake: props.awake }),
-      reduce: (acc, props) => {
-        acc.awake += props.awake
-      },
-    })
-    sc.load(
-      valid.map(p => ({
-        type: 'Feature' as const,
-        properties: { placeId: p.id, awake: isAwake(p) ? 1 : 0 },
-        geometry: { type: 'Point' as const, coordinates: [p.lng as number, p.lat as number] },
-      }))
-    )
-    return sc
-  }, [valid])
-
-  const renderRef = useRef<() => void>(() => {})
-  renderRef.current = () => {
-    const map = mapRef.current
-    const lib = libRef.current
-    if (!map || !lib) return
-
-    const zoom = map.getZoom()
-    const withTags = zoom >= TAG_MIN_ZOOM
-    const b = map.getBounds()
-    const features = index.getClusters(
-      [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()],
-      Math.floor(zoom)
-    )
-
-    const wanted = new Set<string>()
-    for (const f of features) {
-      const [lng, lat] = f.geometry.coordinates
-      const props = f.properties as Partial<Supercluster.ClusterProperties & ClusterProps & PointProps>
-
-      if (props.cluster) {
-        const count = props.point_count ?? 0
-        const awake = props.awake ?? 0
-        const key = `cluster·${f.id}·${count}·${awake > 0}`
-        wanted.add(key)
-        if (markersRef.current.has(key)) continue
-        const el = document.createElement('button')
-        el.type = 'button'
-        el.className = 'city-cluster'
-        el.setAttribute('aria-label', `${count} lugares en esta zona. Acercar`)
-        el.innerHTML = clusterHtml(count, awake)
-        const clusterId = props.cluster_id as number
-        el.addEventListener('click', event => {
-          event.stopPropagation()
-          const nextZoom = Math.min(index.getClusterExpansionZoom(clusterId) + 0.4, 18)
-          map.easeTo({ center: [lng, lat], zoom: nextZoom, duration: 600 })
-        })
-        const marker = new lib.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map)
-        markersRef.current.set(key, { marker, placeId: null })
-        continue
-      }
-
-      const place = props.placeId ? byId.get(props.placeId) : undefined
-      if (!place) continue
-      const model = pinModel(place)
-      const key = pinKey(place, model, withTags)
-      wanted.add(key)
-      if (markersRef.current.has(key)) continue
-
-      const el = document.createElement('button')
-      el.type = 'button'
-      el.className = 'city-pin'
-      el.dataset.network = String(model.network)
-      el.setAttribute('aria-label', model.label)
-      el.innerHTML = pinHtml(model, withTags)
-      if (place.id === selectedRef.current) el.classList.add('is-selected')
-      el.style.zIndex = model.awake ? '3' : model.network ? '2' : '1'
-      el.addEventListener('click', event => {
-        event.stopPropagation()
-        onSelectRef.current(place)
-      })
-      const marker = new lib.Marker({ element: el, anchor: 'bottom' }).setLngLat([lng, lat]).addTo(map)
-      markersRef.current.set(key, { marker, placeId: place.id })
-    }
-
-    for (const [key, entry] of markersRef.current) {
-      if (!wanted.has(key)) {
-        entry.marker.remove()
-        markersRef.current.delete(key)
-      }
-    }
+  /** Agrega las capas de la ciudad al estilo actual (al cargar y al cambiar de tema). */
+  const mountCityRef = useRef<(map: MapLibreMap) => void>(() => {})
+  mountCityRef.current = map => {
+    addCityLayers(map, themeRef.current, sourcesRef.current, layerRef.current)
+    const selected = selectedRef.current ? byIdRef.current.get(selectedRef.current) ?? null : null
+    showSelected(map, selected, false)
   }
 
   // ── Crear el mapa (una sola vez) ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
     let map: MapLibreMap | null = null
-    const markers = markersRef.current
+    let raf = 0
 
     import('maplibre-gl')
       .then(lib => {
@@ -248,47 +185,74 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
           minZoom: 10,
           maxZoom: 18.5,
           attributionControl: false,
-          // El mapa no se arrastra con dos dedos hacia arriba por accidente:
-          // la inclinación se cambia con el botón 3D.
+          // El mapa no se inclina con dos dedos por accidente: la inclinación
+          // se cambia con el botón 3D.
           touchPitch: false,
+          dragRotate: false,
           interactive: interactiveRef.current,
           fadeDuration: 180,
         })
         mapRef.current = map
+        // Solo en desarrollo: acceso desde la consola para depurar el mapa.
+        if (process.env.NODE_ENV !== 'production') {
+          ;(window as unknown as { __tgoMap?: MapLibreMap }).__tgoMap = map
+        }
+
+        // Dibujos a pedido: el motor pide cada imagen por nombre la primera vez.
+        // (MapLibre 6: tiene que ser el «resolver»; un listener del evento
+        // styleimagemissing llega tarde para la tesela que la pidió.)
+        map.setMissingStyleImageResolver(id => {
+          if (!map || map.hasImage(id)) return
+          const sprite = generateSprite(id)
+          if (sprite) map.addImage(id, sprite, { pixelRatio: SPRITE_RATIO })
+        })
 
         // Atribución abajo a la izquierda y plegada: no pelea con los controles.
         map.addControl(new lib.AttributionControl({ compact: true }), 'bottom-left')
         const collapseAttribution = () =>
-          containerRef.current
-            ?.querySelector('.maplibregl-ctrl-attrib')
-            ?.classList.remove('maplibregl-compact-show')
+          containerRef.current?.querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show')
         collapseAttribution()
 
         const puckEl = document.createElement('div')
         puckEl.className = 'city-puck'
-        puckEl.innerHTML = USER_PUCK_HTML
-        puckRef.current = new lib.Marker({ element: puckEl, anchor: 'center' })
-          .setLngLat([start.lng, start.lat])
-          .addTo(map)
+        puckEl.innerHTML = PUCK_HTML
+        puckRef.current = new lib.Marker({ element: puckEl, anchor: 'center' }).setLngLat([start.lng, start.lat]).addTo(map)
 
-        map.on('click', () => onSelectRef.current(null))
-        map.on('moveend', () => renderRef.current())
+        if (interactiveRef.current) {
+          const hitLayers = () => CITY_HIT_LAYERS.filter(id => map?.getLayer(id))
+          map.on('click', (event: MapMouseEvent) => {
+            if (!map) return
+            const cluster = map.queryRenderedFeatures(event.point, { layers: map.getLayer('city-clusters') ? ['city-clusters'] : [] })[0]
+            if (cluster) {
+              const source = map.getSource('city-active') as GeoJSONSource
+              const coords = (cluster.geometry as GeoJSON.Point).coordinates as [number, number]
+              source
+                .getClusterExpansionZoom(cluster.properties?.cluster_id)
+                .then(zoom => map?.easeTo({ center: coords, zoom: Math.min(zoom + 0.6, 18), duration: 600 }))
+                .catch(() => {})
+              return
+            }
+            const hit = map.queryRenderedFeatures(event.point, { layers: hitLayers() })[0]
+            const place = hit?.properties?.id ? byIdRef.current.get(String(hit.properties.id)) : undefined
+            onSelectRef.current(place ?? null)
+          })
+          map.on('mousemove', event => {
+            if (!map) return
+            const over = map.queryRenderedFeatures(event.point, { layers: [...hitLayers(), ...(map.getLayer('city-clusters') ? ['city-clusters'] : [])] })
+            map.getCanvas().style.cursor = over.length ? 'pointer' : ''
+          })
+        }
+
         map.on('load', () => {
           if (cancelled || !map) return
           collapseAttribution()
+          mountCityRef.current(map)
           const inset = insetRef.current
           const padding = { top: inset.top, bottom: inset.bottom, left: 0, right: 0 }
           const c = centerRef.current
-          appliedRef.current = {
-            tilted: tiltedRef.current,
-            top: inset.top,
-            bottom: inset.bottom,
-            lat: c.lat,
-            lng: c.lng,
-          }
+          appliedRef.current = { tilted: tiltedRef.current, top: inset.top, bottom: inset.bottom, lat: c.lat, lng: c.lng }
           map.setPadding(padding)
           setReady(true)
-          renderRef.current()
           const pendingFit = pendingFitRef.current
           pendingFitRef.current = null
           if (pendingFit && fitRef.current(pendingFit, animateIn ? 1600 : 0)) {
@@ -306,14 +270,25 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
               easing: t => 1 - Math.pow(1 - t, 3),
             })
           }
+          // Brillo de los despiertos: respira lento en la base del pin.
+          if (animateIn) {
+            const pulse = (t: number) => {
+              if (!map || cancelled) return
+              if (map.getLayer('city-halo')) {
+                const k = (t % 2600) / 2600
+                map.setPaintProperty('city-halo', 'circle-radius', ['case', ['==', ['get', 'pro'], 1], 12 + 18 * k, 10 + 14 * k])
+                map.setPaintProperty('city-halo', 'circle-opacity', 0.26 * (1 - k))
+              }
+              raf = requestAnimationFrame(pulse)
+            }
+            raf = requestAnimationFrame(pulse)
+          }
         })
         map.on('error', event => {
           const message = String(event?.error?.message ?? event?.error ?? '')
           // Sin WebGL el constructor no llega a `load`; el resto son teselas
           // sueltas que fallan y no rompen la experiencia, pero se registran.
-          if (!mapRef.current?.loaded() && message.includes('WebGL')) {
-            setFailed(true)
-          }
+          if (!mapRef.current?.loaded() && message.includes('WebGL')) setFailed(true)
           console.warn('[TGO mapa]', message)
         })
 
@@ -332,8 +307,9 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
 
     return () => {
       cancelled = true
-      for (const entry of markers.values()) entry.marker.remove()
-      markers.clear()
+      cancelAnimationFrame(raf)
+      bubbleRef.current?.remove()
+      bubbleRef.current = null
       puckRef.current?.remove()
       puckRef.current = null
       try {
@@ -343,25 +319,55 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
     }
   }, [])
 
-  // ── Redibujar pines cuando cambian los lugares ───────────────────────────
+  // ── Lugares o capa cambiaron ─────────────────────────────────────────────
   useEffect(() => {
-    if (ready) renderRef.current()
-  }, [ready, index, byId])
+    const map = mapRef.current
+    if (!map || !ready || !map.getSource('city-active')) return
+    updateCitySources(map, sources, layer)
+  }, [sources, layer, ready])
 
   // ── Pin seleccionado ─────────────────────────────────────────────────────
   useEffect(() => {
-    for (const entry of markersRef.current.values()) {
-      if (!entry.placeId) continue
-      entry.marker.getElement().classList.toggle('is-selected', entry.placeId === selectedId)
+    const map = mapRef.current
+    if (!map || !ready) return
+    const place = selectedId ? byId.get(selectedId) ?? null : null
+    showSelected(map, place, !prefersReducedMotion())
+    if (!place) {
+      centeredRef.current = null
+      return
     }
-  }, [selectedId, ready])
+    bubbleRef.current?.remove()
+    // Centrar el pin elegido una sola vez por selección (no en cada refresco
+    // de datos), ya con el espacio que tapa la ficha (bottomInset).
+    if (centeredRef.current === place.id || !interactiveRef.current) return
+    centeredRef.current = place.id
+    const inset = insetRef.current
+    appliedRef.current.top = inset.top
+    appliedRef.current.bottom = inset.bottom
+    map.easeTo({
+      center: [place.lng as number, place.lat as number],
+      zoom: Math.max(map.getZoom(), 16.2),
+      padding: { top: inset.top, bottom: inset.bottom, left: 0, right: 0 },
+      duration: prefersReducedMotion() ? 0 : 700,
+    })
+  }, [selectedId, byId, ready])
 
   // ── Tema día / noche ─────────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready || themeRef.current === theme) return
     themeRef.current = theme
-    map.setStyle(buildCityStyle(theme, centerRef.current))
+    // Día y noche comparten las mismas capas y solo cambian colores: se
+    // repintan en el lugar. Un setStyle completo recargaba todas las teselas
+    // (y en MapLibre 6 a veces quedaban pendientes, con el mapa vacío).
+    const next = buildCityStyle(theme, centerRef.current)
+    for (const layer of next.layers) {
+      if (!map.getLayer(layer.id) || !('paint' in layer) || !layer.paint) continue
+      for (const [key, value] of Object.entries(layer.paint)) {
+        map.setPaintProperty(layer.id, key as never, value as never)
+      }
+    }
+    if (next.light) map.setLight(next.light)
   }, [theme, ready])
 
   // ── Inclinación 3D / plano ───────────────────────────────────────────────
@@ -426,11 +432,52 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
       focus: place => {
         const map = mapRef.current
         if (!map || place.lat == null || place.lng == null) return
-        map.easeTo({
-          center: [place.lng, place.lat],
-          zoom: Math.max(map.getZoom(), 16.2),
-          duration: 700,
+        // Un cuadro después: para entonces la ficha ya avisó cuánto tapa
+        // (bottomInset) y el pin queda centrado en el espacio libre, no detrás.
+        requestAnimationFrame(() => {
+          const inset = insetRef.current
+          appliedRef.current.top = inset.top
+          appliedRef.current.bottom = inset.bottom
+          map.easeTo({
+            center: [place.lng as number, place.lat as number],
+            zoom: Math.max(map.getZoom(), 16.2),
+            padding: { top: inset.top, bottom: inset.bottom, left: 0, right: 0 },
+            duration: 700,
+          })
         })
+      },
+      bubble: (place, text, gadget, width = GADGET_SIZE) => {
+        const map = mapRef.current
+        const lib = libRef.current
+        if (!map || !lib || place.lat == null || place.lng == null || selectedRef.current) return
+        if (!map.getBounds().contains([place.lng, place.lat])) return
+        bubbleRef.current?.remove()
+        const el = document.createElement('div')
+        el.className = 'city-bubble'
+        el.setAttribute('aria-hidden', 'true')
+        const inner = document.createElement('div')
+        inner.className = 'city-bubble__in'
+        const icon = gadgetCanvas(gadget, SPRITE_THEME, width)
+        icon.style.width = `${(width + 4) * 0.8}px`
+        icon.style.height = `${(GADGET_SIZE + 4) * 0.8}px`
+        const label = document.createElement('span')
+        label.textContent = text
+        inner.append(icon, label)
+        const tail = document.createElement('div')
+        tail.className = 'city-bubble__tail'
+        el.append(inner, tail)
+        const zoom = map.getZoom()
+        const scale = zoom < ZOOM_BLOCKS ? 0.72 : zoom < ZOOM_STREET ? 0.85 : 1
+        const marker = new lib.Marker({ element: el, anchor: 'bottom', offset: [0, -60 * scale] })
+          .setLngLat([place.lng, place.lat])
+          .addTo(map)
+        bubbleRef.current = marker
+        window.setTimeout(() => {
+          if (bubbleRef.current === marker) {
+            marker.remove()
+            bubbleRef.current = null
+          }
+        }, 4300)
       },
     }),
     []
@@ -438,7 +485,6 @@ const CityMap = forwardRef<CityMapHandle, Props>(function CityMap(
 
   return (
     <div className="city-map" style={{ backgroundColor: cityMapBackground(theme) }}>
-      <div dangerouslySetInnerHTML={{ __html: CITY_PIN_DEFS }} />
       <div ref={containerRef} className="city-map__canvas" />
       {failed && (
         <div className="city-map__fallback" role="status">
