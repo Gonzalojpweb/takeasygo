@@ -31,8 +31,11 @@ const ROUTES_DIR = join(__dirname, '..', 'app', 'api', '[tenant]')
 // discountAdminContext (lib/pos-online/discountAdmin.ts): requireTenantRole
 // (Administrador o Encargado; editar la política solo Administrador) +
 // getSessionUser con el alcance de sede, para «Descuentos POS» (/pos-discounts/*).
+// spacesAdminContext (lib/spaces/admin-access.ts) y reservationsAdminContext
+// (lib/reservations/admin-access.ts): requireTenantRole + getSessionUser con
+// alcance de sede, para «Salón y espacios» y reportes/contactos de reservas.
 const GUARD_RE =
-  /\bdiscountAdminContext\b|\bresolveAssistantContext\b|\brequireAuth\b|\brequireTenantRole\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b|\bcommissionsTenant\b|\bfiscalAdminContext\b|\bauthorizeTenantBySlug\b|\bgetIdentitySession\b|\bpriceContext\b/
+  /\bspacesAdminContext\b|\breservationsAdminContext\b|\bdiscountAdminContext\b|\bresolveAssistantContext\b|\brequireAuth\b|\brequireTenantRole\b|\brequireAdminRole\b|\brequireSuperAdmin\b|\brequireCronSecret\w*\b|\brequireCorpAccess\b|\bgetSessionUser\b|\bposRoute\b|\binventoryRoute\b|\bmatchesInternalSecret\b|\bmatchesInternalBearer\b|\bgetToken\b|\bauth\(\)|\border\.trackingToken\b|\bverifyMemberToken\b|\benforcePermission\w*\b|\bresolveDashboardScope\b|\bcommissionsTenant\b|\bfiscalAdminContext\b|\bauthorizeTenantBySlug\b|\bgetIdentitySession\b|\bpriceContext\b/
 
 const OPEN_BY_DESIGN = new Set([
   // PÚBLICO por diseño (carta, cotizaciones, eventos, feedback, promo)

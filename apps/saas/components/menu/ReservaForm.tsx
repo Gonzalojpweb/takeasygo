@@ -127,7 +127,8 @@ export default function ReservaForm({ tenant, location }: Props) {
   const maxAdvanceDays: number | null = typeof config.maxAdvanceDays === 'number' ? config.maxAdvanceDays : null
   const useAutoSlots = config.slotConfig?.enabled && config.slotConfig?.operatingHours?.length > 0
   // Con espacios cargados el aforo lo decide el server, también en modo manual.
-  const spaces: SpaceItem[] = Array.isArray(location.spaces) ? location.spaces : []
+  // Solo los espacios que aceptan reservas (los del salón sin reservas no se muestran).
+  const spaces: SpaceItem[] = Array.isArray(location.spaces) ? location.spaces.filter((s: SpaceItem & { reservable?: boolean }) => s.reservable !== false) : []
   const spacesMode = spaces.length > 0
   const useServerSlots: boolean = !!useAutoSlots || spacesMode
 
@@ -158,6 +159,8 @@ export default function ReservaForm({ tenant, location }: Props) {
     phone: '',
     email: '',
     notes: '',
+    // Consentimiento explícito para novedades/promos (Ley 25.326). Destildado por defecto.
+    marketingOptIn: false,
   })
 
   // Si al cambiar la fecha el espacio elegido queda bloqueado/deshabilitado,
@@ -650,6 +653,19 @@ export default function ReservaForm({ tenant, location }: Props) {
               style={{ ...inputStyle, resize: 'none', height: 80 }}
             />
           </div>
+
+          {/* Permiso para novedades y promos (opcional, destildado por defecto) */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', lineHeight: 1.4, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={form.marketingOptIn}
+              onChange={e => setForm(f => ({ ...f, marketingOptIn: e.target.checked }))}
+              style={{ width: 18, height: 18, marginTop: 1, flexShrink: 0 }}
+            />
+            <span style={{ opacity: 0.75 }}>
+              Quiero recibir novedades, promociones y el club de {tenant.name} por WhatsApp o email. Puedo darme de baja cuando quiera.
+            </span>
+          </label>
 
           {error && (
             <p style={{ fontSize: '13px', color: '#ef4444', textAlign: 'center' }}>{error}</p>

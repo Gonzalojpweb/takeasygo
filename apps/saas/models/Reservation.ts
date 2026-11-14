@@ -11,6 +11,12 @@ export interface IReservation extends Document {
   phone: string
   email?: string
   notes: string
+  /**
+   * Permiso explícito del cliente para recibir novedades y promos (14/11/2026,
+   * Ley 25.326). Sin permiso, el contacto solo se usa para su reserva.
+   */
+  marketingOptIn?: boolean
+  marketingOptInAt?: Date | null
   clientToken?: string
   /**
    * Espacio/sector elegido por el cliente al reservar (Salón, Terraza…).
@@ -58,6 +64,8 @@ const ReservationSchema = new Schema<IReservation>(
     phone: { type: String, required: true, trim: true },
     email: { type: String, default: '', trim: true },
     notes: { type: String, default: '', trim: true },
+    marketingOptIn: { type: Boolean, default: false },
+    marketingOptInAt: { type: Date, default: null },
     tablePosId: { type: String, default: null },
     /** Cuándo la marcó no-show el sistema (null = manual o no aplica). */
     autoNoShowAt: { type: Date, default: null },

@@ -6,8 +6,10 @@ import type { Table } from "@takeasygo/types"
 // ============================================================================
 // Reservas y sectores en el POS (observación 24/10)
 // ============================================================================
-// · Sectores: los espacios de la sede definidos en el SaaS (fuente única).
-//   El POS los lista para ubicar mesas; no los crea.
+// · Sectores = espacios de la sede (Location.spaces, fuente única con el
+//   panel). Desde el 14/11/2026 el POS también los crea y edita (admin y
+//   encargado): un local sin reservas necesita dividir el salón, y en un
+//   finde lleno se pausan las reservas sin salir del POS.
 // · Reservas: las del día de la sede, con su sector y mesa. Asignar mesa
 //   (queda reservada), sentar (pasa a ocupada con los comensales), no vino
 //   (libera). Confirmar / cancelar / señas siguen en el panel del SaaS.
@@ -20,6 +22,26 @@ export interface PosSector {
   capacity: number
   enabled: boolean
   order: number
+  /** Acepta reservas (14/11/2026). */
+  reservable?: boolean
+  tables?: number
+  upcomingReservations?: number
+  blockedDates?: string[]
+}
+
+/** Recepción de reservas de la sede: available = el comercio tiene el módulo. */
+export interface PosReservationIntake {
+  available: boolean
+  enabled: boolean
+}
+
+export interface SectorInput {
+  name?: string
+  capacity?: number
+  enabled?: boolean
+  reservable?: boolean
+  blockedDates?: string[]
+  order?: number
 }
 
 export interface PosReservation {
@@ -43,6 +65,30 @@ export type ReservationAction = "assign" | "unassign" | "seat" | "no_show"
 export async function listSectors(tenantId: string): Promise<PosSector[]> {
   const { sectors } = await posApi<{ sectors: PosSector[] }>(tenantId, "/sectors")
   return sectors
+}
+
+/** Espacios + estado de la recepción de reservas (pantalla Configurar salón). */
+export async function loadSalon(tenantId: string): Promise<{ sectors: PosSector[]; reservations: PosReservationIntake }> {
+  const res = await posApi<{ sectors: PosSector[]; reservations?: PosReservationIntake }>(tenantId, "/sectors")
+  return { sectors: res.sectors, reservations: res.reservations ?? { available: false, enabled: false } }
+}
+
+export async function createSector(tenantId: string, input: SectorInput): Promise<void> {
+  await posApi(tenantId, "/sectors", { method: "POST", body: input as Record<string, unknown> })
+}
+
+export async function updateSector(tenantId: string, id: string, input: SectorInput): Promise<void> {
+  await posApi(tenantId, `/sectors/${encodeURIComponent(id)}`, { method: "PATCH", body: input as Record<string, unknown> })
+}
+
+export async function deleteSector(tenantId: string, id: string): Promise<void> {
+  await posApi(tenantId, `/sectors/${encodeURIComponent(id)}`, { method: "DELETE" })
+}
+
+/** Abrir / cerrar la recepción de reservas online de la sede. */
+export async function setReservationIntake(tenantId: string, enabled: boolean): Promise<boolean> {
+  const res = await posApi<{ enabled: boolean }>(tenantId, "/reservations/intake", { method: "PUT", body: { enabled } })
+  return res.enabled
 }
 
 export async function listReservations(

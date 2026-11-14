@@ -20,10 +20,26 @@ export default async function ReservaPage({ params }: Props) {
   if (!location) notFound()
   if (location.reservationConfig?.enabled === false) notFound()
 
+  // 14/11/2026 (seguridad): esta página es PÚBLICA. Antes mandaba al navegador
+  // el comercio y la sede enteros (integraciones, agente de impresión, cuentas
+  // de pago…). Solo viaja lo que el formulario usa; espacios, solo los que
+  // aceptan reservas.
+  const publicTenant = { _id: String(tenant._id), name: tenant.name, slug: tenant.slug, branding: tenant.branding ?? {} }
+  const publicLocation = {
+    _id: String(location._id),
+    name: location.name,
+    phone: location.phone ?? '',
+    timezone: location.timezone ?? null,
+    reservationConfig: location.reservationConfig ?? {},
+    spaces: ((location.spaces ?? []) as Array<{ _id: unknown; name: string; capacity: number; enabled?: boolean; reservable?: boolean; blockedDates?: string[]; order?: number }>)
+      .filter((s) => s.reservable !== false)
+      .map((s) => ({ _id: String(s._id), name: s.name, capacity: s.capacity, enabled: s.enabled !== false, blockedDates: s.blockedDates ?? [], order: s.order ?? 0 })),
+  }
+
   return (
     <ReservaForm
-      tenant={JSON.parse(JSON.stringify(tenant))}
-      location={JSON.parse(JSON.stringify(location))}
+      tenant={JSON.parse(JSON.stringify(publicTenant))}
+      location={JSON.parse(JSON.stringify(publicLocation))}
     />
   )
 }

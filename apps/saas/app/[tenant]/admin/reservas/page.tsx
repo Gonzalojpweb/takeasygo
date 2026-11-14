@@ -11,8 +11,14 @@ import { safeDecrypt } from '@/lib/crypto'
 import { Lock } from 'lucide-react'
 import { getPageScope, sanitizeLocationForClient } from '@/lib/page-scope'
 import { applyAutoNoShow } from '@/lib/reservation-no-show'
+import { requireCashPageSession } from '@/lib/cash/page-guard'
+import Link from 'next/link'
+import { BarChart3 } from 'lucide-react'
 
 export default async function ReservasPage() {
+  // 14/11/2026 (seguridad): la página muestra nombres y teléfonos de clientes;
+  // antes solo la ocultaba el menú. Sesión del comercio + admin/encargado.
+  await requireCashPageSession(['admin', 'manager'])
   const headersList = await headers()
   const tenantSlug = headersList.get('x-tenant-slug')
 
@@ -100,6 +106,12 @@ export default async function ReservasPage() {
       <div>
         <h1 className="text-foreground text-4xl font-bold tracking-tight">Reservaciones</h1>
         <p className="text-muted-foreground mt-2 font-medium">Gestioná las reservas y confirmaciones de tus mesas.</p>
+        <Link
+          href={`/${tenantSlug}/admin/reservas/reportes`}
+          className="mt-3 inline-flex items-center gap-2 rounded-2xl border-2 border-border/60 px-4 py-2 text-sm font-bold hover:bg-muted/40"
+        >
+          <BarChart3 size={16} /> Reportes y clientes
+        </Link>
       </div>
 
       <ReservasPanel

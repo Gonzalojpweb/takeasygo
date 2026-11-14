@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import type { Table } from "@takeasygo/types"
 import { Users, Clock, LayoutGrid, StickyNote } from "lucide-react"
 import type { PosReservation, ReservationAction } from "../../services/reservations"
+import { ReservationIntakeBar } from "./ReservationIntakeBar"
 
 // ============================================================================
 // Reservaciones del día en el POS (observación 24/10)
@@ -124,16 +125,20 @@ export function ReservationsView({ reservations, tables, busyId, canManage, onAc
 
   if (reservations.length === 0) {
     return (
+      <div className="res-view">
+      <ReservationIntakeBar />
       <div className="empty-state" style={{ flex: 1 }}>
         <span className="empty-state-icon">📅</span>
         <span className="empty-state-text">No hay reservas para hoy</span>
         <span className="text-sm text-muted">Las reservas que entren por la web aparecen acá y en el panel.</span>
+      </div>
       </div>
     )
   }
 
   return (
     <div className="res-view">
+      <ReservationIntakeBar />
       <div className="res-summary" role="status">
         <span><strong>{upcoming.length}</strong> por llegar</span>
         <span><strong>{upcoming.reduce((s, r) => s + r.partySize, 0)}</strong> comensales esperados</span>

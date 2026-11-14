@@ -7845,6 +7845,85 @@
     "x-pos-capability": "tables.manage"
    }
   },
+  "/api/{tenant}/pos/reservations/intake": {
+   "put": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "put_api_tenant_pos_reservations_intake",
+    "summary": "abrir / cerrar la recepción de reservas de la sede desde el POS (14/11/2026)",
+    "description": "PUT /api/[tenant]/pos/reservations/intake { enabled } — abrir / cerrar la\nrecepción de reservas de la sede desde el POS (14/11/2026)\nUn finde lleno: el encargado corta las reservas online sin salir del POS.\nLas reservas ya hechas no se tocan. config.manage = admin y encargado.\nMismo campo que Configuración › Reservas del panel (reservationConfig.enabled).\n\nFuente: `apps/saas/app/api/[tenant]/pos/reservations/intake/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/reservations/seen": {
    "post": {
     "tags": [
@@ -8017,8 +8096,8 @@
      "POS online (SaaS)"
     ],
     "operationId": "get_api_tenant_pos_sectors",
-    "summary": "sectores del salón (obs. 24/10)",
-    "description": "GET /api/[tenant]/pos/sectors — sectores del salón (obs. 24/10)\nLos espacios de la sede definidos en el SaaS (Location.spaces). El POS los\nusa para ubicar cada mesa; no los crea ni los edita (fuente única).\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/route.ts`",
+    "summary": "espacios del salón (obs. 24/10; 14/11/2026)",
+    "description": "/api/[tenant]/pos/sectors — espacios del salón (obs. 24/10; 14/11/2026)\nGET  (tables.read): los espacios de la sede (Location.spaces), con mesas,\n     reservas por venir y si la sede está recibiendo reservas.\nPOST (config.manage = admin y encargado): crea un espacio. Desde el\n     14/11/2026 el POS también los crea y edita: un local sin reservas\n     necesita dividir el salón, y en un finde lleno no hay que salir del\n     POS para pausar las reservas de un espacio.\nMismo servicio que el panel (lib/spaces/location-spaces).\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -8078,6 +8157,245 @@
      }
     ],
     "x-pos-capability": "tables.read"
+   },
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_sectors",
+    "summary": "espacios del salón (obs. 24/10; 14/11/2026)",
+    "description": "/api/[tenant]/pos/sectors — espacios del salón (obs. 24/10; 14/11/2026)\nGET  (tables.read): los espacios de la sede (Location.spaces), con mesas,\n     reservas por venir y si la sede está recibiendo reservas.\nPOST (config.manage = admin y encargado): crea un espacio. Desde el\n     14/11/2026 el POS también los crea y edita: un local sin reservas\n     necesita dividir el salón, y en un finde lleno no hay que salir del\n     POS para pausar las reservas de un espacio.\nMismo servicio que el panel (lib/spaces/location-spaces).\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/sectors/{id}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_sectors_id",
+    "summary": "editar / borrar un espacio desde el POS",
+    "description": "/api/[tenant]/pos/sectors/[id] — editar / borrar un espacio desde el POS\nPATCH { name?, capacity?, reservable?, enabled?, blockedDates?, order? }\nDELETE: solo sin mesas ni reservas por venir (si no, deshabilitarlo).\nconfig.manage = administrador y encargado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   },
+   "delete": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "delete_api_tenant_pos_sectors_id",
+    "summary": "editar / borrar un espacio desde el POS",
+    "description": "/api/[tenant]/pos/sectors/[id] — editar / borrar un espacio desde el POS\nPATCH { name?, capacity?, reservable?, enabled?, blockedDates?, order? }\nDELETE: solo sin mesas ni reservas por venir (si no, deshabilitarlo).\nconfig.manage = administrador y encargado.\n\nFuente: `apps/saas/app/api/[tenant]/pos/sectors/[id]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "config.manage"
    }
   },
   "/api/{tenant}/pos/tables": {

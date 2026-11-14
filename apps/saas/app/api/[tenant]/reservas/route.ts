@@ -136,6 +136,8 @@ export async function POST(
 
     const body = await request.json()
     const { locationId, date, time, partySize, name, phone, email, clientToken, notes, spaceId } = body
+    // Solo `true` explícito cuenta como permiso para promos (Ley 25.326).
+    const marketing = body?.marketingOptIn === true ? { marketingOptIn: true, marketingOptInAt: new Date() } : { marketingOptIn: false, marketingOptInAt: null }
 
     if (!locationId || !date || !time || !partySize || !name || !phone) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
@@ -200,8 +202,9 @@ export async function POST(
       if (typeof spaceId !== 'string' || !/^[0-9a-fA-F]{24}$/.test(spaceId)) {
         return NextResponse.json({ error: 'Elegí un espacio para tu reserva.' }, { status: 400 })
       }
-      const space = (spaces as Array<{ _id?: unknown; name: string; capacity: number; enabled?: boolean; blockedDates?: string[] }>)
-        .find(s => s._id != null && String(s._id) === spaceId)
+      // Solo los espacios que aceptan reservas (una «Barra» del salón no se reserva).
+      const space = (spaces as Array<{ _id?: unknown; name: string; capacity: number; enabled?: boolean; reservable?: boolean; blockedDates?: string[] }>)
+        .find(s => s._id != null && String(s._id) === spaceId && s.reservable !== false)
       if (!space) {
         return NextResponse.json({ error: 'El espacio elegido no existe en esta sede.' }, { status: 400 })
       }
@@ -307,6 +310,7 @@ export async function POST(
         name:  encrypt(name.trim()),
         phone: encrypt(phone.trim()),
         email: email?.trim() || '',
+        ...marketing,
         clientToken: clientToken || null,
         notes: notes?.trim() || '',
         spaceId: spacesMode && typeof spaceId === 'string' ? spaceId : null,
@@ -327,6 +331,7 @@ export async function POST(
       name:  encrypt(name.trim()),
       phone: encrypt(phone.trim()),
       email: email?.trim() || '',
+      ...marketing,
       clientToken: clientToken || null,
       notes: notes?.trim() || '',
       spaceId: spacesMode && typeof spaceId === 'string' ? spaceId : null,

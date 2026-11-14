@@ -5,6 +5,8 @@ export interface ReservationSpace {
   name: string
   capacity: number
   enabled?: boolean
+  /** Acepta reservas (14/11/2026). Ausente = sí (espacios anteriores). */
+  reservable?: boolean
   blockedDates?: string[]
   order?: number
 }
@@ -19,9 +21,17 @@ export interface OccupyingReservation {
 /** Estados que ocupan lugar en el aforo de un día. */
 export const ACTIVE_RESERVATION_STATUSES = ['pending_payment', 'confirmed'] as const
 
-/** Un sin espacios (vacío o ausente) = modo clásico por maxReservationsPerSlot. */
+/**
+ * Espacios que participan de las reservas. Un espacio solo del salón
+ * (reservable: false, p. ej. «Barra») no se ofrece al reservar ni suma aforo.
+ */
+export function reservableSpaces(spaces?: ReservationSpace[] | null): ReservationSpace[] {
+  return Array.isArray(spaces) ? spaces.filter((s) => s.reservable !== false) : []
+}
+
+/** Sin espacios reservables (vacío o ausente) = modo clásico por maxReservationsPerSlot. */
 export function isSpacesMode(spaces?: ReservationSpace[] | null): boolean {
-  return Array.isArray(spaces) && spaces.length > 0
+  return reservableSpaces(spaces).length > 0
 }
 
 /** Espacios que cuentan ese día: habilitados y sin la fecha bloqueada. */
@@ -30,7 +40,7 @@ export function getActiveSpaces(
   date: string
 ): ReservationSpace[] {
   if (!isSpacesMode(spaces)) return []
-  return spaces!.filter(
+  return reservableSpaces(spaces).filter(
     s => s.enabled !== false && !(s.blockedDates ?? []).includes(date)
   )
 }
@@ -124,7 +134,7 @@ export function getSeatsState(opts: {
       s => s._id != null && String(s._id) === opts.spaceId
     )
     const active =
-      !!space && space.enabled !== false && !(space.blockedDates ?? []).includes(opts.date)
+      !!space && space.reservable !== false && space.enabled !== false && !(space.blockedDates ?? []).includes(opts.date)
     // Espacio inactivo o bloqueado ese día: capacidad 0 ⇒ no entra nada.
     const capacity = active ? (space!.capacity || 0) : 0
     const occupied = occupiedSeatsForSpace(
@@ -186,9 +196,16 @@ export function validateSpacesInput(spaces: unknown): string | null {
       return `El nombre "${name}" es demasiado largo (máx. ${MAX_SPACE_NAME_LENGTH} caracteres)`
     }
 
+    if ('reservable' in space && typeof space.reservable !== 'boolean') {
+      return `«Acepta reservas» de "${name}" debe ser verdadero o falso`
+    }
+    // Solo un espacio que acepta reservas necesita aforo (14/11/2026).
+    const reservable = space.reservable !== false
     const capacity = space.capacity
-    if (!Number.isInteger(capacity) || (capacity as number) < 1) {
-      return `La capacidad de "${name}" debe ser un número entero mayor o igual a 1`
+    if (!Number.isInteger(capacity) || (capacity as number) < (reservable ? 1 : 0)) {
+      return reservable
+        ? `La capacidad de "${name}" debe ser un número entero mayor o igual a 1`
+        : `La capacidad de "${name}" debe ser un número entero mayor o igual a 0`
     }
 
     if ('enabled' in space && typeof space.enabled !== 'boolean') {
@@ -224,6 +241,7 @@ export function normalizeSpacesInput(
       name: String(space.name ?? '').trim(),
       capacity: Number(space.capacity),
       enabled: space.enabled !== false,
+      reservable: space.reservable !== false,
       blockedDates: Array.isArray(space.blockedDates) ? (space.blockedDates as string[]) : [],
       order: Number.isInteger(space.order) ? Number(space.order) : index,
     }

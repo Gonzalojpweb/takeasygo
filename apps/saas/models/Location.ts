@@ -123,16 +123,19 @@ export interface ILocation extends Document {
     }
   }
   /**
-   * Espacios/sectores de la sede para el aforo de reservas.
-   * Vacío o ausente = sin espacios: manda maxReservationsPerSlot (modo clásico).
-   * Con espacios cargados el cliente elige uno al reservar (obligatorio).
+   * Espacios de la sede (14/11/2026: de la SEDE, no de las reservas). El POS
+   * ubica las mesas en ellos; las reservas usan solo los `reservable`.
+   * Sin espacios reservables = modo clásico de reservas (maxReservationsPerSlot).
+   * Se editan con lib/spaces/location-spaces (panel y POS).
    */
   spaces?: Array<{
     /** Nombre libre: Salón, Terraza, Coworking, Interior, Exterior... */
     name: string
-    /** Comensales/sillas. Entero >= 1. */
+    /** Comensales/sillas (aforo de reservas). >= 1 si es reservable; 0 permitido si no. */
     capacity: number
     enabled: boolean
+    /** Acepta reservas. Ausente (espacios anteriores) = sí. */
+    reservable?: boolean
     /** Días 'YYYY-MM-DD' con el espacio fuera de servicio. */
     blockedDates: string[]
     order: number
@@ -388,8 +391,10 @@ settings: {
     spaces: {
       type: [{
         name: { type: String, required: true, trim: true },
-        capacity: { type: Number, required: true, min: 1 },
+        capacity: { type: Number, required: true, min: 0, default: 0 },
         enabled: { type: Boolean, default: true },
+        // Ausente en los espacios anteriores al 14/11/2026 ⇒ se lee como true.
+        reservable: { type: Boolean, default: true },
         blockedDates: { type: [String], default: [] },
         order: { type: Number, default: 0 },
       }],

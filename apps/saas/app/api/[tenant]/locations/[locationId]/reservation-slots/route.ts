@@ -43,8 +43,8 @@ export async function GET(
     const spaceIdParam = searchParams.get('spaceId')
     let spaceId: string | null = null
     if (spaceIdParam) {
-      const spacesList = (location.spaces ?? []) as Array<{ _id?: unknown }>
-      const exists = spacesList.some(s => s._id != null && String(s._id) === spaceIdParam)
+      const spacesList = (location.spaces ?? []) as Array<{ _id?: unknown; reservable?: boolean }>
+      const exists = spacesList.some(s => s._id != null && String(s._id) === spaceIdParam && s.reservable !== false)
       if (!exists) {
         return NextResponse.json({ error: 'Espacio no válido para esta sede' }, { status: 400 })
       }

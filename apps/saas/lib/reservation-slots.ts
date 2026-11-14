@@ -124,6 +124,7 @@ export async function generateReservationSlots(
     : null
   const chosenSpaceActive =
     !!chosenSpace &&
+    chosenSpace.reservable !== false &&
     chosenSpace.enabled !== false &&
     !(chosenSpace.blockedDates ?? []).includes(dateStr)
   const chosenSpaceCapacity = chosenSpaceActive ? chosenSpace!.capacity || 0 : 0

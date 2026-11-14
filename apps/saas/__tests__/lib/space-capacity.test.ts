@@ -299,11 +299,12 @@ describe('normalizeSpacesInput', () => {
   it('aplica defaults de enabled, blockedDates y order', () => {
     const normalized = normalizeSpacesInput([
       { name: '  Salón  ', capacity: 6 },
-      { name: 'Terraza', capacity: 4, enabled: false, blockedDates: [DAY], order: 7 },
+      { name: 'Terraza', capacity: 4, enabled: false, reservable: false, blockedDates: [DAY], order: 7 },
     ])
+    // 14/11/2026: «acepta reservas» por defecto true (espacios anteriores).
     expect(normalized).toEqual([
-      { name: 'Salón', capacity: 6, enabled: true, blockedDates: [], order: 0 },
-      { name: 'Terraza', capacity: 4, enabled: false, blockedDates: [DAY], order: 7 },
+      { name: 'Salón', capacity: 6, enabled: true, reservable: true, blockedDates: [], order: 0 },
+      { name: 'Terraza', capacity: 4, enabled: false, reservable: false, blockedDates: [DAY], order: 7 },
     ])
   })
 
@@ -321,8 +322,8 @@ describe('normalizeSpacesInput', () => {
     expect(normalized[0]._id).toBeUndefined()
     expect(normalized[1]._id).toBeUndefined()
     expect(normalized).toEqual([
-      { name: 'Salón', capacity: 6, enabled: true, blockedDates: [], order: 0 },
-      { name: 'Terraza', capacity: 4, enabled: true, blockedDates: [], order: 1 },
+      { name: 'Salón', capacity: 6, enabled: true, reservable: true, blockedDates: [], order: 0 },
+      { name: 'Terraza', capacity: 4, enabled: true, reservable: true, blockedDates: [], order: 1 },
     ])
   })
 })

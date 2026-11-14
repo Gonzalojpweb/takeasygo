@@ -282,12 +282,24 @@ export async function PUT(
       if (spacesError) {
         return NextResponse.json({ error: spacesError }, { status: 400 })
       }
+      body.__rawSpaces = body.spaces
       body.spaces = normalizeSpacesInput(body.spaces as Array<Record<string, unknown>>)
     }
 
     // Merge profundo: preservar subdocumentos existentes (deliveryConfig, settings, serviceHours)
     // cuando el body solo trae parciales
     const existing = await Location.findOne({ _id: locationId, tenantId: tenant._id }).lean() as Record<string, any> | null
+    // 14/11/2026: «acepta reservas» se edita en Salón y espacios. Un cliente
+    // que manda la lista completa sin ese campo no lo pisa: se conserva el de
+    // cada espacio (los nuevos sin el campo quedan reservables, como antes).
+    if (Array.isArray(body?.spaces)) {
+      const prev = new Map(((existing?.spaces ?? []) as Array<{ _id: unknown; reservable?: boolean }>).map((sp) => [String(sp._id), sp.reservable !== false]))
+      const raw = new Map(((body.__rawSpaces ?? []) as Array<{ _id?: unknown; reservable?: unknown }>).map((sp) => [String(sp._id), typeof sp.reservable === 'boolean']))
+      body.spaces = (body.spaces as Array<{ _id?: string; reservable?: boolean }>).map((sp) =>
+        sp._id && prev.has(String(sp._id)) && !raw.get(String(sp._id)) ? { ...sp, reservable: prev.get(String(sp._id)) } : sp
+      )
+      delete body.__rawSpaces
+    }
     const merged: Record<string, any> = {}
     const subdocKeys = ['deliveryConfig', 'rapiboyConfig', 'settings', 'serviceHours', 'scheduledOrdersConfig', 'reservationConfig', 'hero', 'gallery']
 
