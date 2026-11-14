@@ -12,7 +12,7 @@
 // ============================================================================
 
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, PackagePlus, Plus, RefreshCw, Trash2, Truck, XCircle } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Copy, PackagePlus, Plus, RefreshCw, Trash2, Truck, XCircle } from 'lucide-react'
 import { invApi } from '../data/api'
 import {
   addLine,
@@ -28,7 +28,7 @@ import {
   type ReceiveLine,
   type ReceiveSession,
 } from '@/lib/inventory/ui/receive-session'
-import { compatibleUnits } from '@/lib/inventory/ui/fields'
+import { compatibleUnits, parseDecimal } from '@/lib/inventory/ui/fields'
 import { UNIT_SHORT, formatQty, pesos } from '@/lib/inventory/ui/format'
 import { EmptyBlock, Field, LoadingBlock, Notice, Panel, SearchPicker, Spinner, btnGhost, btnPrimary, btnSecondary, inputClass } from '../ui'
 import { SkuIcon, Stepper } from '../visual'
@@ -37,6 +37,8 @@ import { cn } from '@/lib/utils'
 import { resolveStorage, type PanelProps } from './PanelHost'
 import type { SkuOption, StockData } from '../data/types'
 import { SKU_CATEGORIES } from '../RowsEditor'
+import { DuplicateNameTip, UnitChoice } from '../coach/UnitChoice'
+import { duplicateReceipt, guessCategory } from '@/lib/inventory/coach/tips'
 
 type Action =
   | { t: 'add'; sku: SkuOption }
@@ -63,6 +65,40 @@ function reducer(s: ReceiveSession, a: Action): ReceiveSession {
       return markResult(s, a.key, a.outcome)
     case 'reset':
       return emptySession()
+  }
+}
+
+
+// ── Compra repetida (13/11/2026, caso La Pescería: la misma caja dos veces) ──
+// Se recuerdan en este navegador las recepciones de los últimos 15 minutos.
+// No bloquea (pueden ser dos entregas): pregunta antes de confirmar.
+type RecentReceipt = { skuId: string; quantity: number; unit: string; at: number }
+const recentKey = (tenant: string, location: string) => `tgo.inv.recentReceipts.${tenant}.${location}`
+/** Líneas que repiten una recepción reciente (se calcula al pasar a «Confirmar»). */
+function findRepeated(key: string, lines: ReceiveLine[]): Array<{ lineKey: string; name: string; minutes: number }> {
+  const recent = readRecent(key)
+  const now = Date.now()
+  return lines.flatMap((l) => {
+    const hit = duplicateReceipt(recent, { skuId: l.sku._id, quantity: parseDecimal(l.quantity) ?? 0, unit: receiptUnitSig(l) }, now)
+    return hit ? [{ lineKey: l.key, name: l.sku.name, minutes: hit.minutes }] : []
+  })
+}
+function receiptUnitSig(l: ReceiveLine) {
+  return l.byPack ? `${l.packLabel.trim() || 'bulto'}×${l.packSize}${l.packUnit}` : l.unit
+}
+function readRecent(key: string): RecentReceipt[] {
+  try {
+    const v = JSON.parse(window.localStorage.getItem(key) ?? '[]') as RecentReceipt[]
+    return Array.isArray(v) ? v.filter((r) => Date.now() - r.at < 15 * 60_000) : []
+  } catch {
+    return []
+  }
+}
+function rememberReceipt(key: string, r: Omit<RecentReceipt, 'at'>) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify([{ ...r, at: Date.now() }, ...readRecent(key)].slice(0, 50)))
+  } catch {
+    /* sin almacenamiento: no se recuerda */
   }
 }
 
@@ -94,8 +130,15 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
   const [createError, setCreateError] = useState<string | null>(null)
   const [createBusy, setCreateBusy] = useState(false)
 
+  const [unitMissing, setUnitMissing] = useState(false)
+  const [repeated, setRepeated] = useState<Array<{ lineKey: string; name: string; minutes: number }>>([])
+
   async function createSku() {
     if (!creating) return
+    if (!creating.canonicalUnit) {
+      setUnitMissing(true)
+      return
+    }
     setCreateBusy(true)
     setCreateError(null)
     const res = await invApi<{ sku: SkuOption }>(ctx.tenantSlug, 'skus', { method: 'POST', body: { ...creating, businessImpact: 'medium' } })
@@ -144,7 +187,10 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
         method: 'POST',
         body: receiptBody(session, l, storageId, opts),
       })
-      if (res.ok) any = true
+      if (res.ok) {
+        any = true
+        rememberReceipt(recentKey(ctx.tenantSlug, ctx.location.id), { skuId: l.sku._id, quantity: parseDecimal(l.quantity) ?? 0, unit: receiptUnitSig(l) })
+      }
       dispatch({ t: 'result', key: l.key, outcome: res.ok ? { ok: true, result: res.data } : { ok: false, error: res.error.message } })
     }
     if (any) onChanged()
@@ -268,6 +314,21 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
         <div className="mb-5">
           <Stepper steps={STEPS} current={2} />
         </div>
+        {repeated.length > 0 && (
+          <div role="alert" className="mb-4 space-y-2 rounded-2xl border-2 border-amber-600/40 bg-amber-50 p-4 text-sm text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
+            <p className="flex items-center gap-2 font-black">
+              <Copy size={18} aria-hidden /> ¿Es otra entrega?
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              {repeated.map((r) => (
+                <li key={r.lineKey}>
+                  Hace {r.minutes} {r.minutes === 1 ? 'minuto' : 'minutos'} ya registraste lo mismo de <strong>{r.name}</strong>.
+                </li>
+              ))}
+            </ul>
+            <p>Si llegó de nuevo, confirmá tranquilo. Si es la misma entrega, no la registres otra vez: el stock quedaría duplicado.</p>
+          </div>
+        )}
         <dl className="mb-4 grid grid-cols-2 gap-3 text-sm">
           <div>
             <dt className="font-bold">Proveedor</dt>
@@ -300,28 +361,19 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
           <div className="space-y-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
             <p className="font-bold">Nuevo insumo: «{creating.name}»</p>
             {createError && <Notice tone="error">{createError}</Notice>}
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="¿Cómo se mide?" hint="Es la unidad de todo su historial: elegila bien.">
-                {(a11y) => (
-                  <select {...a11y} value={creating.canonicalUnit} onChange={(e) => setCreating({ ...creating, canonicalUnit: e.target.value })} className={inputClass}>
-                    <option value="kg">Por peso (kg)</option>
-                    <option value="l">Por volumen (litros)</option>
-                    <option value="unit">Por unidades</option>
-                  </select>
-                )}
-              </Field>
-              <Field label="Categoría">
-                {(a11y) => (
-                  <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
-                    {SKU_CATEGORIES.map(([k, v]) => (
-                      <option key={k} value={k}>
-                        {v}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </Field>
-            </div>
+            <UnitChoice value={creating.canonicalUnit} invalid={unitMissing} onChange={(u) => { setUnitMissing(false); setCreating({ ...creating, canonicalUnit: u }) }} />
+            <Field label="Categoría">
+              {(a11y) => (
+                <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
+                  {SKU_CATEGORIES.map(([k, v]) => (
+                    <option key={k} value={k}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+            <DuplicateNameTip />
             <div className="flex flex-wrap gap-2">
               <button type="button" className={btnPrimary} onClick={createSku} disabled={createBusy}>
                 {createBusy ? <Spinner label="Creando insumo" /> : <PackagePlus size={16} aria-hidden />} Crear y agregar
@@ -367,7 +419,7 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
                 const sku = ctx.skus.find((s) => s._id === id)
                 if (sku) dispatch({ t: 'add', sku })
               }}
-              onCreate={ctx.caps.recipes ? (name) => setCreating({ name, canonicalUnit: 'kg', category: 'other' }) : undefined}
+              onCreate={ctx.caps.recipes ? (name) => { setUnitMissing(false); setCreating({ name, canonicalUnit: '', category: guessCategory(name) ?? 'other' }) } : undefined}
               createLabel="Crear insumo"
             />
           )}
@@ -442,7 +494,10 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
             disabled={pending.length === 0 || !storageId}
             onClick={() => {
               setShowErrors(true)
-              if (invalid.length === 0) setStep('review')
+              if (invalid.length === 0) {
+                setRepeated(findRepeated(recentKey(ctx.tenantSlug, ctx.location.id), sendableLines(session, opts)))
+                setStep('review')
+              }
             }}
           >
             Continuar ({pending.length}) <ArrowRight size={18} aria-hidden />
@@ -492,7 +547,7 @@ export default function ReceivePanel({ ctx, onClose, onChanged, skuId }: PanelPr
               const sku = ctx.skus.find((s) => s._id === id)
               if (sku) dispatch({ t: 'add', sku })
             }}
-            onCreate={ctx.caps.recipes ? (name) => setCreating({ name, canonicalUnit: 'kg', category: 'other' }) : undefined}
+            onCreate={ctx.caps.recipes ? (name) => { setUnitMissing(false); setCreating({ name, canonicalUnit: '', category: guessCategory(name) ?? 'other' }) } : undefined}
             createLabel="Crear insumo"
           />
         )}

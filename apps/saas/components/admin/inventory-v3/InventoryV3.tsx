@@ -31,6 +31,7 @@ import ActivityView from './views/ActivityView'
 import TransfersView from './views/TransfersView'
 import PurchasesView from './views/PurchasesView'
 import PanelHost, { type PanelRequest } from './panels/PanelHost'
+import GuideHost from './coach/Guide'
 
 export type ViewId = 'ahora' | 'productos' | 'recetas' | 'compras' | 'envios' | 'actividad'
 
@@ -216,6 +217,9 @@ export default function InventoryV3({
             </button>
           )}
       </div>
+
+      {/* Guía en vivo: qué te toca ahora y qué se vio en tus datos (gestión y cocina). */}
+      {(capabilities.recipes || capabilities.manage) && <GuideHost key={location.id} ctx={ctx} />}
 
       <Tabs value={view} onValueChange={(v) => setView(v as ViewId)} className="gap-5">
         <TabsList aria-label="Contextos de inventario" className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-2xl bg-muted p-1 sm:w-fit">

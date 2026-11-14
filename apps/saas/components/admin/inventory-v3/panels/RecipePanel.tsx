@@ -16,7 +16,11 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, CopyPlus, Sparkles } from 'lucide-react'
 import { invApi } from '../data/api'
 import { useResource } from '../data/useResource'
-import type { DishSuggestion, DishView, RecipesData, SkuOption } from '../data/types'
+import type { DishSuggestion, DishView, RecipesData, SkuOption, StockData } from '../data/types'
+import { LiveTips } from '../coach/LiveTips'
+import { recipeLiveTips, type LiveRow } from '@/lib/inventory/coach/tips'
+import type { CoachUnit } from '@/lib/inventory/coach/rules'
+import { parseDecimal } from '@/lib/inventory/ui/fields'
 import {
   addRow,
   copyFromBase,
@@ -117,6 +121,30 @@ function Editor({
     for (const s of [...ctx.skus, ...extraSkus]) m.set(s._id, s)
     return m
   }, [ctx.skus, extraSkus])
+  // Stock de la cocina de la sede: para decir, ANTES de guardar, para cuántos platos alcanza.
+  const stock = useResource(ctx.caps.read ? `${ctx.tenantSlug}|stock|${ctx.location.id}|${ctx.version}` : null, (signal) =>
+    invApi<StockData>(ctx.tenantSlug, `stock?locationId=${ctx.location.id}`, { signal }),
+  )
+  const kitchenId = ctx.storages.find((s) => s.isDefaultConsumption)?._id ?? null
+  const liveTips = useMemo(() => {
+    const bySku = new Map((stock.data?.rows ?? []).filter((r) => r.storageLocationId === kitchenId).map((r) => [r.skuId, r]))
+    const rows: LiveRow[] = draft.rows.flatMap((r) => {
+      const sku = skus.get(r.skuId)
+      if (!sku) return []
+      const st = bySku.get(r.skuId)
+      return [{
+        skuId: r.skuId,
+        skuName: sku.name,
+        canonicalUnit: sku.canonicalUnit as CoachUnit,
+        quantity: parseDecimal(r.quantity),
+        unit: r.unit as CoachUnit,
+        stock: st ? { qty: st.belief.mu, counted: st.belief.anchored } : null,
+      }]
+    })
+    const tips = recipeLiveTips(rows)
+    // Sin datos de stock (cargando o sin permiso) solo se avisan las cantidades raras.
+    return stock.data ? tips : tips.filter((t) => t.key.startsWith('odd:'))
+  }, [draft.rows, skus, stock.data, kitchenId])
   const baseExists = Boolean(dish.base)
   const validation = validateDraft(draft, skus, { baseExists })
   const dirty = isDirty(draft, original)
@@ -146,13 +174,22 @@ function Editor({
 
   async function createSku(input: NewSkuInput): Promise<SkuOption | null> {
     setServerError(null)
-    const res = await invApi<{ sku: SkuOption }>(ctx.tenantSlug, 'skus', {
+    const res = await invApi<{ sku: SkuOption; outcome?: 'created' | 'existing' | 'reactivated' }>(ctx.tenantSlug, 'skus', {
       method: 'POST',
       body: { name: input.name, category: input.category, canonicalUnit: input.canonicalUnit, businessImpact: 'medium' },
     })
     if (!res.ok) {
       setServerError(res.error.message)
       return null
+    }
+    // Ya existía: se usa ese (nunca un error sin salida). Se avisa, sobre todo si la unidad es otra.
+    if (res.data.outcome && res.data.outcome !== 'created') {
+      const s = res.data.sku
+      const otherUnit = s.canonicalUnit !== input.canonicalUnit
+      setNotice(
+        `${res.data.outcome === 'reactivated' ? `«${s.name}» estaba desactivado: lo reactivamos` : `«${s.name}» ya existía: usamos ese`} y lo agregamos a la receta.` +
+          (otherUnit ? ` Ojo: se lleva ${s.canonicalUnit === 'unit' ? 'por unidad' : s.canonicalUnit === 'l' ? 'por volumen' : 'por peso'}, no como elegiste.` : ''),
+      )
     }
     setExtraSkus((x) => [...x, res.data.sku])
     ctx.refreshCatalog()
@@ -441,6 +478,7 @@ function Editor({
               onCreateSku={createSku}
             />
             {showErrors && validation.form && <p className="text-sm font-semibold text-red-700 dark:text-red-300">{validation.form}</p>}
+            <LiveTips tips={liveTips} />
           </section>
         )}
 

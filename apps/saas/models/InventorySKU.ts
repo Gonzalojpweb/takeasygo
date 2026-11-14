@@ -21,7 +21,7 @@ export interface IInventorySKU extends Document {
   tenantId: mongoose.Types.ObjectId
   name: string
   nameKey: string
-  skuCode: string | null
+  skuCode?: string | null
   category: (typeof SKU_CATEGORIES)[number]
   kind: 'raw' | 'prepared'
   canonicalUnit: (typeof SKU_UNITS)[number]
@@ -42,7 +42,12 @@ const InventorySKUSchema = new Schema<IInventorySKU>({
   name: { type: String, required: true, trim: true, maxlength: 120 },
   /** Nombre normalizado (sin acentos/mayúsculas) para evitar duplicados. */
   nameKey: { type: String, required: true },
-  skuCode: { type: String, default: null },
+  /**
+   * Código interno opcional. Sin código el campo no se guarda (ni como null).
+   * Ver LEGACY_SKU_CODE_INDEX en lib/inventory/catalog.ts: un índice viejo
+   * de producción no dejaba crear un segundo insumo sin código (13/11/2026).
+   */
+  skuCode: { type: String },
   category: { type: String, enum: SKU_CATEGORIES, required: true },
   kind: { type: String, enum: ['raw', 'prepared'], default: 'raw' },
   canonicalUnit: { type: String, enum: SKU_UNITS, required: true },

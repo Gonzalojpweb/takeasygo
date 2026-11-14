@@ -15,6 +15,8 @@ import { compatibleUnits, recipeDefaultUnit } from '@/lib/inventory/ui/fields'
 import { UNIT_SHORT } from '@/lib/inventory/ui/format'
 import { Field, SearchPicker, Spinner, btnGhost, btnPrimary, inputClass } from './ui'
 import { SkuIcon } from './visual'
+import { guessCategory } from '@/lib/inventory/coach/tips'
+import { DuplicateNameTip, UnitChoice } from './coach/UnitChoice'
 
 export const SKU_CATEGORIES: Array<[string, string]> = [
   ['meat_poultry', 'Carnes y aves'],
@@ -73,8 +75,15 @@ export default function RowsEditor({
     onChange([...rows, { key: rowKey(), skuId: sku._id, quantity: '', unit: recipeDefaultUnit(sku.canonicalUnit) }])
   }
 
+  const [unitMissing, setUnitMissing] = useState(false)
+
   async function create() {
     if (!creating || !onCreateSku) return
+    // Sin unidad por defecto: «20» en kilos o en unidades cambia todo (caso La Pescería).
+    if (!creating.canonicalUnit) {
+      setUnitMissing(true)
+      return
+    }
     setBusy(true)
     const sku = await onCreateSku(creating)
     setBusy(false)
@@ -135,28 +144,26 @@ export default function RowsEditor({
       {creating ? (
         <div className="space-y-3 rounded-2xl border-2 border-primary/40 bg-primary/5 p-4">
           <p className="font-bold">Nuevo insumo: «{creating.name}»</p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="¿Cómo se mide?" hint="Es la unidad de todo su historial: elegila bien.">
-              {(a11y) => (
-                <select {...a11y} value={creating.canonicalUnit} onChange={(e) => setCreating({ ...creating, canonicalUnit: e.target.value })} className={inputClass}>
-                  <option value="kg">Por peso (kg)</option>
-                  <option value="l">Por volumen (litros)</option>
-                  <option value="unit">Por unidades</option>
-                </select>
-              )}
-            </Field>
-            <Field label="Categoría">
-              {(a11y) => (
-                <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
-                  {SKU_CATEGORIES.map(([k, v]) => (
-                    <option key={k} value={k}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </Field>
-          </div>
+          <UnitChoice
+            value={creating.canonicalUnit}
+            invalid={unitMissing}
+            onChange={(u) => {
+              setUnitMissing(false)
+              setCreating({ ...creating, canonicalUnit: u })
+            }}
+          />
+          <Field label="Categoría" hint={guessCategory(creating.name) === creating.category && creating.category !== 'other' ? 'La sugerimos por el nombre: cambiala si no corresponde.' : undefined}>
+            {(a11y) => (
+              <select {...a11y} value={creating.category} onChange={(e) => setCreating({ ...creating, category: e.target.value })} className={inputClass}>
+                {SKU_CATEGORIES.map(([k, v]) => (
+                  <option key={k} value={k}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+          <DuplicateNameTip />
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btnPrimary} onClick={create} disabled={busy}>
               {busy ? <Spinner label="Creando insumo" /> : <Plus size={16} aria-hidden />} Crear y agregar
@@ -175,7 +182,14 @@ export default function RowsEditor({
             const sku = skus.get(id)
             if (sku) add(sku)
           }}
-          onCreate={onCreateSku ? (name) => setCreating({ name, canonicalUnit: 'kg', category: 'other' }) : undefined}
+          onCreate={
+            onCreateSku
+              ? (name) => {
+                  setUnitMissing(false)
+                  setCreating({ name, canonicalUnit: '', category: guessCategory(name) ?? 'other' })
+                }
+              : undefined
+          }
           createLabel="Crear insumo"
         />
       )}

@@ -33,19 +33,98 @@ export const skuInputSchema = z.object({
 
 export type SkuInput = z.infer<typeof skuInputSchema>
 
-export async function createSku(tenantId: mongoose.Types.ObjectId, input: SkuInput): Promise<IInventorySKU> {
+/** Mensaje claro según QUÉ índice chocó (antes: «nombre o código», aunque nunca se hubiera cargado un código). */
+function duplicateSkuError(err: unknown, input: { name: string; skuCode?: string | null }): InventoryError {
+  const keys = Object.keys((err as { keyPattern?: Record<string, unknown> }).keyPattern ?? {})
+  if (keys.includes('skuCode')) {
+    return input.skuCode
+      ? InventoryError.conflict(`Ya hay otro insumo con el código «${input.skuCode}». Usá otro código o dejalo vacío.`)
+      : InventoryError.conflict('No pudimos guardar el insumo por un problema nuestro, no por lo que cargaste. Avisanos y lo resolvemos.')
+  }
+  return InventoryError.conflict(`Ya existe un insumo «${input.name}». Buscalo en la lista y usalo, así no queda repetido.`)
+}
+
+/**
+ * Índice del núcleo v1 que quedó en producción: `{tenantId, skuCode}` único y
+ * sparse. Un sparse COMPUESTO indexa todo documento que tenga `tenantId`, así
+ * que trata «sin código» como un valor más y no deja crear un segundo insumo
+ * sin código (incidente 13/11/2026, La Pescería). El índice vigente es
+ * `sku_code` (parcial: solo códigos de texto).
+ */
+const LEGACY_SKU_CODE_INDEX = 'tenantId_1_skuCode_1'
+
+function isLegacyCodeConflict(err: unknown, input: { skuCode?: string | null }) {
+  const keys = Object.keys((err as { keyPattern?: Record<string, unknown> }).keyPattern ?? {})
+  return (err as { code?: number }).code === 11000 && keys.includes('skuCode') && !input.skuCode
+}
+
+/** Borra el índice viejo si sigue en la base. true = había y se borró. */
+export async function dropLegacySkuCodeIndex(): Promise<boolean> {
   try {
-    return await InventorySKU.create({
-      tenantId,
-      ...input,
-      nameKey: normalizeName(input.name),
-      skuCode: input.skuCode || null,
-      parLevel: input.parLevel ?? null,
-      supplierName: input.supplierName || null,
-      lastUnitCostCents: input.lastUnitCostCents ?? 0,
-    })
+    const indexes = await InventorySKU.collection.indexes()
+    if (!indexes.some((i) => i.name === LEGACY_SKU_CODE_INDEX)) return false
+    await InventorySKU.collection.dropIndex(LEGACY_SKU_CODE_INDEX)
+    console.warn(`[inventory] índice viejo ${LEGACY_SKU_CODE_INDEX} borrado (bloqueaba insumos sin código)`)
+    return true
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) throw InventoryError.conflict(`Ya existe un insumo "${input.name}" (o el código está repetido)`)
+    console.error('[inventory] no se pudo borrar el índice viejo de skuCode:', err)
+    return false
+  }
+}
+
+export async function createSku(tenantId: mongoose.Types.ObjectId, input: SkuInput): Promise<IInventorySKU> {
+  const { skuCode, ...rest } = input
+  const doc = {
+    tenantId,
+    ...rest,
+    nameKey: normalizeName(input.name),
+    // Sin código, el campo no se guarda (ni como null).
+    ...(skuCode ? { skuCode } : {}),
+    parLevel: input.parLevel ?? null,
+    supplierName: input.supplierName || null,
+    lastUnitCostCents: input.lastUnitCostCents ?? 0,
+  }
+  try {
+    return await InventorySKU.create(doc)
+  } catch (err) {
+    // Se repara solo: si chocó contra el índice viejo, se borra y se reintenta una vez.
+    if (isLegacyCodeConflict(err, input) && (await dropLegacySkuCodeIndex())) {
+      try {
+        return await InventorySKU.create(doc)
+      } catch (retryErr) {
+        if ((retryErr as { code?: number }).code === 11000) throw duplicateSkuError(retryErr, input)
+        throw retryErr
+      }
+    }
+    if ((err as { code?: number }).code === 11000) throw duplicateSkuError(err, input)
+    throw err
+  }
+}
+
+export type SkuCreateOutcome = 'created' | 'existing' | 'reactivated'
+
+/**
+ * Alta desde una receta o una recepción: si ya hay un insumo con ese nombre
+ * (aunque esté desactivado y por eso no aparezca en el buscador), se usa ese
+ * en lugar de frenar con un error sin salida. Uno desactivado se reactiva.
+ */
+export async function createOrReuseSku(
+  tenantId: mongoose.Types.ObjectId,
+  input: SkuInput,
+): Promise<{ sku: IInventorySKU; outcome: SkuCreateOutcome }> {
+  const existing = await InventorySKU.findOne({ tenantId, nameKey: normalizeName(input.name) })
+  if (existing) {
+    if (existing.isActive) return { sku: existing, outcome: 'existing' }
+    existing.isActive = true
+    await existing.save()
+    return { sku: existing, outcome: 'reactivated' }
+  }
+  try {
+    return { sku: await createSku(tenantId, input), outcome: 'created' }
+  } catch (err) {
+    // Carrera: otro usuario lo creó entre la búsqueda y el alta.
+    const raced = await InventorySKU.findOne({ tenantId, nameKey: normalizeName(input.name) })
+    if (raced) return { sku: raced, outcome: 'existing' }
     throw err
   }
 }
@@ -65,11 +144,11 @@ export async function updateSku(tenantId: mongoose.Types.ObjectId, skuId: mongoo
   }
   Object.assign(sku, patch)
   if (patch.name) sku.nameKey = normalizeName(patch.name)
-  if (patch.skuCode !== undefined) sku.skuCode = patch.skuCode || null
+  if (patch.skuCode !== undefined) sku.skuCode = patch.skuCode || undefined
   try {
     await sku.save()
   } catch (err) {
-    if ((err as { code?: number }).code === 11000) throw InventoryError.conflict('Nombre o código repetido')
+    if ((err as { code?: number }).code === 11000) throw duplicateSkuError(err, { name: sku.name, skuCode: patch.skuCode })
     throw err
   }
   return sku

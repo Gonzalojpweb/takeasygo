@@ -8,6 +8,9 @@
 // Una diferencia se informa como evidencia, sin culpables.
 // ============================================================================
 
+import { LiveTips } from '../coach/LiveTips'
+import type { LiveTip } from '@/lib/inventory/coach/tips'
+import { convert, type CoachUnit } from '@/lib/inventory/coach/rules'
 import { useMemo, useState } from 'react'
 import { ClipboardCheck } from 'lucide-react'
 import { invApi } from '../data/api'
@@ -21,6 +24,33 @@ const METHODS: Array<{ id: string; label: string }> = [
   { id: 'visual_count', label: 'Lo conté a mano' },
   { id: 'estimation', label: 'Lo estimé a ojo' },
 ]
+
+/**
+ * Diferencia grande entre lo contado y lo que el sistema esperaba (también en
+ * el primer conteo, si ya había compras o ventas): causas probables, en
+ * idioma de cocina. El conteo ya corrigió el número; esto es para que no se repita.
+ */
+function countGapTips(result: CountResult, name: string, canonicalUnit: string | undefined): LiveTip[] {
+  const expected = result.before?.mu
+  if (expected === undefined || result.duplicate || !canonicalUnit) return []
+  // `before.mu` está en la unidad del insumo; lo contado, en la que se eligió al contar.
+  const observed = convert(result.observed, result.unit as CoachUnit, canonicalUnit as CoachUnit)
+  if (observed === null) return []
+  if (expected < 0) {
+    return [{ key: 'neg', tone: 'info', text: `Antes de contar, ${name} estaba en negativo: se vendió antes de registrar la compra o de hacer el primer conteo. Con este conteo quedó corregido.` }]
+  }
+  if (expected <= 0 || Math.abs(observed - expected) / expected < 0.3) return []
+  const tips: LiveTip[] = []
+  if (observed < expected) {
+    tips.push({ key: 'dup', tone: 'warn', text: '¿Se registró dos veces la misma compra? Fijate en «Actividad» si hay dos recepciones iguales seguidas.' })
+    tips.push({ key: 'waste', tone: 'info', text: '¿Hubo merma sin anotar (se venció, se cayó, comida del personal)? La próxima vez anotala en «Merma».' })
+    tips.push({ key: 'recipe', tone: 'info', text: '¿La receta lleva menos de lo que se usa de verdad? Pesá una porción real y ajustala.' })
+  } else {
+    tips.push({ key: 'receipt', tone: 'info', text: '¿Llegó mercadería sin registrar? La próxima vez cargala en «Registrar mercadería».' })
+    tips.push({ key: 'recipe', tone: 'info', text: '¿La receta pide más de lo que se sirve? Pesá una porción real y ajustala.' })
+  }
+  return tips
+}
 
 interface CountResult {
   duplicate: boolean
@@ -124,6 +154,7 @@ export default function CountPanel({ ctx, onClose, onSwitch, onChanged, skuId, s
               </p>
             </Notice>
           )}
+          <LiveTips tips={countGapTips(result, sku?.name ?? 'este insumo', sku?.canonicalUnit)} title="Qué pudo pasar" />
         </div>
       </Panel>
     )

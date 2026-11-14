@@ -5,6 +5,8 @@ import Location from '@/models/Location'
 import InventorySKU from '@/models/InventorySKU'
 import { normalizeName } from '@takeasygo/business/inventory'
 import { logAudit } from '@/lib/audit'
+import InventoryRecipe from '@/models/InventoryRecipe'
+import { syncDishAvailabilitySafe } from '@/lib/inventory/availability'
 import { canRoleUse, inventoryRoute, readInventoryBody, InventoryError } from '@/lib/inventory/route'
 import {
   ensureConsumptionStorage,
@@ -80,6 +82,16 @@ export const POST = inventoryRoute('recipes', async (ctx) => {
     await setSalesConsumption(ctx.tenantObjectId, loc._id, true)
   }
   const after = input.mode === 'activate' ? 'active' : before === 'off' ? (input.mode === 'prepare' ? 'preparing' : 'off') : before
+
+  // Al activar, la carta refleja el stock desde el primer minuto: un plato
+  // cuya receta no alcanza se pausa ya, y no después de venderlo en negativo.
+  if (after === 'active' && before !== 'active') {
+    const recipes = await InventoryRecipe.find({ tenantId: ctx.tenantObjectId, kind: 'dish', locationId: loc._id, isCurrent: true, removedAt: null })
+      .select('items.skuId')
+      .lean<{ items: { skuId: mongoose.Types.ObjectId }[] }[]>()
+    const ids = [...new Set(recipes.flatMap((r) => r.items.map((i) => String(i.skuId))))]
+    await syncDishAvailabilitySafe(ctx.tenantId, ids)
+  }
 
   const existing = await InventorySKU.find({ tenantId: ctx.tenantObjectId }).select('nameKey').lean()
   const known = new Map(existing.map((s) => [s.nameKey, String(s._id)]))

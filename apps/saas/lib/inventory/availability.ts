@@ -25,7 +25,8 @@ import { consumptionStorageFor } from './catalog'
 //   · stockPortions  → queda guardado en el ítem: el POS muestra «Quedan N».
 // SEGURIDAD: si algún insumo del plato nunca se contó (estado no anclado), el
 // stock es DESCONOCIDO y no se toca la disponibilidad — un comercio que recién
-// arranca con inventario no ve toda su carta pausada.
+// arranca con inventario no ve toda su carta pausada. Y una pausa POR STOCK
+// que quedó de una receta anterior se levanta (13/11/2026).
 // Nunca lanza hacia el llamador (no puede frenar una venta).
 // ============================================================================
 
@@ -122,7 +123,21 @@ export async function syncDishAvailability(
         const id = String(item._id)
         if (!portionsByItem.has(id)) return
         const portions = portionsByItem.get(id) ?? null
-        if (portions === null) return // stock desconocido: no se toca
+        if (portions === null) {
+          // Stock desconocido (la receta cambió y lleva un insumo sin contar):
+          // no se pausa nada. Si había quedado una pausa POR STOCK de la receta
+          // anterior, se levanta: ya no hay datos que la sostengan.
+          if (item.stockPortions != null) { item.stockPortions = null; dirty = true }
+          if (item.isAvailable === false && item.pausedReason === 'stock') {
+            item.isAvailable = true
+            item.pausedReason = null
+            item.pausedAt = null
+            item.pausedBy = null
+            dirty = true
+            changes.push({ menuItemId: id, locationId, action: 'resumed', portions: null })
+          }
+          return
+        }
         if ((item.stockPortions ?? null) !== portions) { item.stockPortions = portions; dirty = true }
         const available = item.isAvailable !== false
         if (portions < 1 && available) {
@@ -160,6 +175,70 @@ export async function syncDishAvailability(
     })
   }
   return changes
+}
+
+/**
+ * Recalcula UN plato después de guardar o quitar su receta (13/11/2026).
+ * Antes solo se recalculaba cuando había un movimiento de stock, así que:
+ *   · quitar la receta dejaba el plato pausado «por stock» para siempre
+ *     (caso La Pescería: Mejillones rebozados), y
+ *   · bajar la cantidad de la receta no lo reanudaba hasta la próxima venta.
+ * Sin receta base vigente, o con stock desconocido (insumos sin contar), una
+ * pausa POR STOCK se levanta. Una pausa manual nunca se toca. Nunca lanza.
+ */
+export async function refreshDishAvailability(tenantId: string, locationId: string, menuItemId: string): Promise<void> {
+  try {
+    const tid = new mongoose.Types.ObjectId(tenantId)
+    const recipe = await InventoryRecipe.findOne({
+      tenantId: tid,
+      kind: 'dish',
+      isCurrent: true,
+      removedAt: null,
+      locationId: new mongoose.Types.ObjectId(locationId),
+      menuItemId,
+      variantName: null,
+    })
+      .select('items')
+      .lean<{ items: { skuId: mongoose.Types.ObjectId }[] } | null>()
+    if (recipe && recipe.items.length > 0) {
+      await syncDishAvailability(tenantId, recipe.items.map((i) => String(i.skuId)))
+    }
+    // Lo que syncDishAvailability no resuelve: sin receta, o stock desconocido.
+    const menus = await Menu.find({ tenantId: tid, locationId })
+    for (const menu of menus) {
+      let dirty = false
+      eachItem(menu as never, (item) => {
+        if (String(item._id) !== menuItemId) return
+        if (recipe && recipe.items.length > 0) return // ya lo resolvió syncDishAvailability
+        if (item.isAvailable === false && item.pausedReason === 'stock') {
+          item.isAvailable = true
+          item.pausedReason = null
+          item.pausedAt = null
+          item.pausedBy = null
+          item.stockPortions = null
+          dirty = true
+        } else if (item.stockPortions != null) {
+          item.stockPortions = null
+          dirty = true
+        }
+      })
+      if (dirty) {
+        menu.markModified('categories')
+        await menu.save()
+        await logAudit({
+          tenantId,
+          action: 'menu.item.autoresume',
+          entity: 'MenuItem',
+          entityId: menuItemId,
+          details: { locationId, source: 'inventory', reason: 'recipe_removed' },
+          userId: 'inventory',
+          userName: 'Inventario (automático)',
+        })
+      }
+    }
+  } catch (err) {
+    console.error('[inventory] refreshDishAvailability falló:', tenantId, menuItemId, err)
+  }
 }
 
 /** Para el proyector: nunca lanza (una falla acá no frena el inventario ni la venta). */
