@@ -159,6 +159,17 @@ export default function InventoryV3({
     return <p className="py-24 text-center text-muted-foreground">No hay sedes disponibles para tu usuario.</p>
   }
 
+  function switchToClasico() {
+    document.cookie = 'inventory_version=clasico; path=/; max-age=31536000'
+    if (capabilities.manage) {
+      fetch(`/api/${tenantSlug}/inventory/toggle-v3`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: false }),
+      }).catch(() => {})
+    }
+  }
+
   const pill = STATUS_PILL[location.status]
 
   return (
@@ -174,6 +185,14 @@ export default function InventoryV3({
             {pill.label}
             <span className="sr-only">: {pill.title}</span>
           </span>
+          <Link
+            href={`/${tenantSlug}/admin/inventario/clasico`}
+            onClick={switchToClasico}
+            className={btnSecondary}
+            title="Ir a la pantalla clásica de inventario"
+          >
+            Pantalla clásica
+          </Link>
           {capabilities.manage && (
             <Link href={`/${tenantSlug}/admin/inventario/importar`} className={btnSecondary} title="Desde Fudo, Maxirest, Bistrosoft, Núcleo o una planilla">
               <Upload size={18} aria-hidden /> Importar
@@ -262,7 +281,11 @@ export default function InventoryV3({
 
       <p className="text-xs text-muted-foreground">
         ¿Necesitás algo que todavía no está acá?{' '}
-        <Link href={`/${tenantSlug}/admin/inventario/clasico`} className="font-bold underline underline-offset-2">
+        <Link
+          href={`/${tenantSlug}/admin/inventario/clasico`}
+          onClick={switchToClasico}
+          className="font-bold underline underline-offset-2"
+        >
           Abrir la pantalla clásica
         </Link>
       </p>

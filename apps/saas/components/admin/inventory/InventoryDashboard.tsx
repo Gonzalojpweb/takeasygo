@@ -14,7 +14,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Upload } from 'lucide-react'
+import { Sparkles, Upload } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import TodayTab from './TodayTab'
 import StockTab from './StockTab'
@@ -62,6 +62,17 @@ export default function InventoryDashboard({ tenantSlug, canRead, canRecipes, ca
 
   const locationStorages = storages.filter((s) => s.locationId === locationId)
 
+  function switchToV3() {
+    document.cookie = 'inventory_version=v3; path=/; max-age=31536000'
+    if (canManage) {
+      fetch(`/api/${tenantSlug}/inventory/toggle-v3`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: true }),
+      }).catch(() => {})
+    }
+  }
+
   return (
     <div className="space-y-6 pb-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -71,23 +82,33 @@ export default function InventoryDashboard({ tenantSlug, canRead, canRecipes, ca
             Las ventas descuentan insumos solas. Vos verificás solo lo que importa.
           </p>
         </div>
-        {canManage && (
+        <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/${tenantSlug}/admin/inventario/importar`}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-border bg-background px-4 text-sm font-bold hover:bg-muted"
+            href={`/${tenantSlug}/admin/inventario/v3`}
+            onClick={switchToV3}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-primary/20 bg-primary/10 px-4 text-sm font-bold text-primary hover:bg-primary/20 transition-colors"
+            title="Ir a la versión V3 moderna con guías paso a paso"
           >
-            <Upload size={18} aria-hidden /> Importar desde otro sistema
+            <Sparkles size={18} aria-hidden /> Versión V3 (moderna)
           </Link>
-        )}
-        {locations.length > 1 && (
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={`${fieldClass} w-56`} aria-label="Sede">
-            {locations.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}{l.inventoryActive ? '' : ' (inactivo)'}
-              </option>
-            ))}
-          </select>
-        )}
+          {canManage && (
+            <Link
+              href={`/${tenantSlug}/admin/inventario/importar`}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border-2 border-border bg-background px-4 text-sm font-bold hover:bg-muted"
+            >
+              <Upload size={18} aria-hidden /> Importar desde otro sistema
+            </Link>
+          )}
+          {locations.length > 1 && (
+            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className={`${fieldClass} w-56`} aria-label="Sede">
+              {locations.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}{l.inventoryActive ? '' : ' (inactivo)'}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {!location.inventoryActive && !canManage && (
@@ -127,6 +148,17 @@ export default function InventoryDashboard({ tenantSlug, canRead, canRecipes, ca
           </TabsContent>
         )}
       </Tabs>
+
+      <p className="text-xs text-muted-foreground">
+        ¿Querés probar la nueva versión con guías paso a paso?{' '}
+        <Link
+          href={`/${tenantSlug}/admin/inventario/v3`}
+          onClick={switchToV3}
+          className="font-bold underline underline-offset-2"
+        >
+          Abrir la pantalla V3 (moderna)
+        </Link>
+      </p>
     </div>
   )
 }
