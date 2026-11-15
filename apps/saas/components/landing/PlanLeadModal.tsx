@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { fontVars } from './fonts'
 
 interface PlanLeadModalProps {
     plan: string      // display label, e.g. "Crecimiento – $50/mes"
@@ -16,11 +17,10 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
     const [form, setForm] = useState({ name: '', business: '', email: '', phone: '' })
     const [state, setState] = useState<FormState>('idle')
     const [errorMsg, setErrorMsg] = useState('')
-    const [mounted, setMounted] = useState(false)
     const firstInputRef = useRef<HTMLInputElement>(null)
 
     // Only render portal on client
-    useEffect(() => { setMounted(true) }, [])
+    // El modal solo se abre con un clic (en el navegador): alcanza con comprobar que hay documento.
 
     // Focus first input on mount
     useEffect(() => {
@@ -82,7 +82,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
             <label
                 htmlFor={`plm-${id}`}
                 style={{
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                     fontSize: 10, fontWeight: 700,
                     letterSpacing: '0.18em', textTransform: 'uppercase',
                     color: '#8a8280',
@@ -105,7 +105,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                     border: 'none',
                     borderBottom: '1.5px solid rgba(13,11,10,0.12)',
                     padding: '10px 0',
-                    fontFamily: "'DM Sans', sans-serif",
+                    fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                     fontSize: 14, fontWeight: 400,
                     color: '#0d0b0a',
                     outline: 'none',
@@ -118,12 +118,11 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
         </div>
     )
 
-    if (!mounted) return null
+    if (typeof document === 'undefined') return null
 
     const content = (
-        <>
+        <div className={fontVars}>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
 
                 /* Backdrop fade in */
                 @keyframes plm-backdrop-in {
@@ -229,7 +228,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                                 style={{ color: '#f14722', margin: '0 auto 20px' }}
                             />
                             <h3 style={{
-                                fontFamily: "'DM Serif Display', serif",
+                                fontFamily: "var(--font-tgo-serif), Georgia, serif",
                                 fontSize: 'clamp(22px, 4vw, 30px)',
                                 fontWeight: 400, color: '#0d0b0a',
                                 lineHeight: 1.1, marginBottom: 12,
@@ -237,7 +236,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                                 ¡Consulta enviada!
                             </h3>
                             <p style={{
-                                fontFamily: "'DM Sans', sans-serif",
+                                fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                                 fontSize: 14, fontWeight: 300,
                                 color: '#6b6460', lineHeight: 1.75,
                             }}>
@@ -257,7 +256,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                                     background: '#f14722', display: 'block', flexShrink: 0,
                                 }} />
                                 <span style={{
-                                    fontFamily: "'DM Sans', sans-serif",
+                                    fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                                     fontSize: 10, fontWeight: 600,
                                     letterSpacing: '0.2em', textTransform: 'uppercase',
                                     color: '#f14722',
@@ -267,7 +266,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                             </div>
 
                             <h3 style={{
-                                fontFamily: "'DM Serif Display', serif",
+                                fontFamily: "var(--font-tgo-serif), Georgia, serif",
                                 fontSize: 'clamp(22px, 4vw, 32px)',
                                 fontWeight: 400, color: '#0d0b0a',
                                 lineHeight: 1.08, marginBottom: 8,
@@ -275,7 +274,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                                 Hablemos de tu proyecto.
                             </h3>
                             <p style={{
-                                fontFamily: "'DM Sans', sans-serif",
+                                fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                                 fontSize: 13, fontWeight: 300,
                                 color: '#8a8280', lineHeight: 1.65,
                                 marginBottom: 28,
@@ -300,7 +299,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
 
                                 {state === 'error' && (
                                     <p style={{
-                                        fontFamily: "'DM Sans', sans-serif",
+                                        fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                                         fontSize: 12, color: '#d63b1f',
                                         marginTop: -6,
                                     }}>
@@ -318,7 +317,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                                         color: '#f7f4f1',
                                         border: 'none',
                                         cursor: state === 'loading' ? 'not-allowed' : 'pointer',
-                                        fontFamily: "'DM Sans', sans-serif",
+                                        fontFamily: "var(--font-tgo-sans), system-ui, sans-serif",
                                         fontSize: 11, fontWeight: 600,
                                         letterSpacing: '0.1em', textTransform: 'uppercase',
                                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -344,7 +343,7 @@ export default function PlanLeadModal({ plan, planId, onClose }: PlanLeadModalPr
                     )}
                 </div>
             </div>
-        </>
+        </div>
     )
 
     return createPortal(content, document.body)

@@ -1,446 +1,232 @@
 'use client'
 
+// ============================================================================
+// Landing — planes
+// ============================================================================
+// Cuatro planes (antes faltaba Élite), con pago mensual o anual (15% menos).
+// Los precios y las listas salen de packages/business/src/plans.ts
+// (PLAN_FEATURES_LANDING): una sola fuente, igual que el panel.
+// «Quiero este plan» abre el formulario de contacto (POST /api/leads), como
+// hasta ahora; «Empezar gratis» lleva al alta autogestionada (/empezar).
+// ============================================================================
+
 import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowRight, Check, ChevronDown, Handshake } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Check, Handshake, ChevronDown, ChevronUp, Star, Zap } from 'lucide-react'
-import PlanLeadModal from './PlanLeadModal'
 import { PLAN_FEATURES_LANDING } from '@/lib/plans'
+import PlanLeadModal from './PlanLeadModal'
+import { Eyebrow, Reveal, SectionTitle } from './brand'
 
-interface LandingPlan {
-    id: string
-    name: string
-    price: string
-    sub: string
-    desc?: string
-    planKey?: 'try' | 'buy' | 'full'
-    featuredFeatures?: string[]
-    extraFeatures?: string[]
-    features?: string[]
-    featured?: boolean
-    anchorPrice?: string   // precio tachado (referencia más alta)
-    anchorSavings?: string // badge de ahorro (ej: "Ahorrás $63.000")
-    anchorHint?: string    // texto sutil debajo del precio (mensual)
+type Billing = 'mensual' | 'anual'
+type PlanKey = 'try' | 'buy' | 'full' | 'high'
+
+interface PlanDef {
+  key: PlanKey
+  name: string
+  forWho: string
+  monthly: string
+  /** Total anual con 15% de descuento (null = se conversa). */
+  yearly: string | null
+  yearlyFull: string | null
+  saving: string | null
+  featured?: boolean
+  dark?: boolean
 }
 
-const mensualPlans: LandingPlan[] = [
-    {
-        id: 'inicial-mensual',
-        name: 'Inicial',
-        price: '35.000',
-        sub: 'Para empezar a vender online',
-        planKey: 'try',
-        featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.try.extra,
-        anchorHint: 'Con pago anual pagás $29.750/mes · Ahorrás $63.000/año',
-    },
-    {
-        id: 'crecimiento-mensual',
-        name: 'Crecimiento',
-        price: '45.000',
-        sub: 'Para escalar tu operación',
-        planKey: 'buy',
-        featured: true,
-        featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorHint: 'Con pago anual pagás $38.250/mes · Ahorrás $81.000/año',
-    },
-    {
-        id: 'premium-mensual',
-        name: 'Premium',
-        price: '60.000',
-        sub: 'Para optimizar con datos',
-        planKey: 'full',
-        featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.full.extra,
-        anchorHint: 'Con pago anual pagás $51.000/mes · Ahorrás $108.000/año',
-    },
+const PLANS: PlanDef[] = [
+  { key: 'try', name: 'Inicial', forWho: 'Para empezar a vender online', monthly: '35.000', yearly: '357.000', yearlyFull: '420.000', saving: '63.000' },
+  { key: 'buy', name: 'Crecimiento', forWho: 'Para ordenar y escalar la operación', monthly: '45.000', yearly: '459.000', yearlyFull: '540.000', saving: '81.000', featured: true },
+  { key: 'full', name: 'Premium', forWho: 'Para optimizar con datos', monthly: '60.000', yearly: '612.000', yearlyFull: '720.000', saving: '108.000' },
+  { key: 'high', name: 'Élite', forWho: 'El servicio completo, con asistente', monthly: '100.000', yearly: null, yearlyFull: null, saving: null, dark: true },
 ]
 
-const anualPlans: LandingPlan[] = [
-    {
-        id: 'inicial-anual',
-        name: 'Inicial',
-        price: '357.000',
-        sub: 'Pago anual anticipado · 15% OFF',
-        planKey: 'try',
-        featuredFeatures: PLAN_FEATURES_LANDING.try.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.try.extra,
-        anchorPrice: '420.000',
-        anchorSavings: 'Ahorrás $63.000',
-    },
-    {
-        id: 'crecimiento-anual',
-        name: 'Crecimiento',
-        price: '459.000',
-        sub: 'Pago anual anticipado · 15% OFF',
-        planKey: 'buy',
-        featured: true,
-        featuredFeatures: PLAN_FEATURES_LANDING.buy.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.buy.extra,
-        anchorPrice: '540.000',
-        anchorSavings: 'Ahorrás $81.000',
-    },
-    {
-        id: 'premium-anual',
-        name: 'Premium',
-        price: '612.000',
-        sub: 'Pago anual anticipado · 15% OFF',
-        planKey: 'full',
-        featuredFeatures: PLAN_FEATURES_LANDING.full.featured,
-        extraFeatures: PLAN_FEATURES_LANDING.full.extra,
-        anchorPrice: '720.000',
-        anchorSavings: 'Ahorrás $108.000',
-    },
-]
+function PlanCard({ plan, billing, onChoose }: { plan: PlanDef; billing: Billing; onChoose: () => void }) {
+  const [more, setMore] = useState(false)
+  const features = PLAN_FEATURES_LANDING[plan.key]
+  const annual = billing === 'anual' && plan.yearly !== null
+  const price = annual ? plan.yearly! : plan.monthly
+  const listId = `plan-${plan.key}-extra`
 
-function PlanCard({
-    plan,
-    type,
-    onOpen,
-}: {
-    plan: LandingPlan
-    type: 'mensual' | 'anual'
-    onOpen: () => void
-}) {
-    const [expanded, setExpanded] = useState(false)
-    const hasFeatured = !!plan.featuredFeatures
-    const visibleFeatures = hasFeatured
-        ? (expanded ? [...plan.featuredFeatures!, ...plan.extraFeatures!] : plan.featuredFeatures!)
-        : plan.features ?? []
+  return (
+    <article
+      className={cn(
+        'relative flex h-full flex-col rounded-[26px] p-7',
+        plan.dark ? 'bg-[#0d0b0a] text-[#f7f4f1]' : 'bg-white',
+        plan.featured ? 'border-2 border-[#f14722] shadow-[0_30px_60px_-24px_rgba(241,71,34,0.35)]' : plan.dark ? 'border border-[#0d0b0a]' : 'border border-[var(--tgo-line)]',
+      )}
+    >
+      {plan.featured && (
+        <span className="absolute -top-3 left-7 rounded-full bg-[#f14722] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white">El más elegido</span>
+      )}
+      <h3 className="tgo-serif text-[1.8rem] leading-none">{plan.name}</h3>
+      <p className={cn('mt-2 text-[13.5px]', plan.dark ? 'text-white/55' : 'text-[var(--tgo-muted)]')}>{plan.forWho}</p>
 
-    return (
-        <div
-            className={cn(
-                'rounded-[2rem] md:rounded-[2.5rem] p-7 md:p-10 border transition-all duration-500 flex flex-col h-full',
-                plan.featured
-                    ? 'bg-white border-zinc-900 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] md:scale-105 z-10'
-                    : 'bg-zinc-50/50 border-zinc-100 hover:border-zinc-200'
-            )}
-        >
-            <div className="flex items-center justify-between mb-6">
-                <h4 className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">
-                    {plan.name}
-                </h4>
-                {plan.featured && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-zinc-900 text-white">
-                        Más popular
-                    </span>
-                )}
-            </div>
+      <div className="mt-6 min-h-[92px]">
+        {annual && (
+          <p className="mb-1 flex flex-wrap items-center gap-2 text-[13px]">
+            <s className={plan.dark ? 'text-white/40' : 'text-zinc-400'}>${plan.yearlyFull}</s>
+            <span className="rounded-full bg-[#f14722]/12 px-2 py-0.5 text-[11px] font-bold text-[#f14722]">Ahorrás ${plan.saving}</span>
+          </p>
+        )}
+        <p className="flex items-baseline gap-1.5">
+          <span className="text-[2.5rem] font-bold leading-none tracking-tight tabular-nums">${price}</span>
+          <span className={cn('text-sm font-medium', plan.dark ? 'text-white/50' : 'text-zinc-500')}>{annual ? '/año' : '/mes'}</span>
+        </p>
+        <p className={cn('mt-2 text-[12.5px] leading-snug', plan.dark ? 'text-white/45' : 'text-zinc-500')}>
+          {plan.yearly === null
+            ? 'Pesos argentinos. Se activa con acompañamiento del equipo.'
+            : annual
+              ? 'Pesos argentinos. Un pago anual anticipado.'
+              : `Pesos argentinos. Con pago anual ahorrás $${plan.saving}.`}
+        </p>
+      </div>
 
-            {/* Anchor: precio tachado + badge de ahorro (plan anual) */}
-            {plan.anchorPrice && (
-                <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-zinc-400 line-through text-sm font-medium">
-                        ${plan.anchorPrice}/año
-                    </span>
-                    <span className="bg-[#f14722] text-white text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full">
-                        {plan.anchorSavings}
-                    </span>
-                </div>
-            )}
+      <button
+        type="button"
+        onClick={onChoose}
+        className={cn(
+          'mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-5 text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors',
+          plan.featured || plan.dark ? 'bg-[#f14722] text-white hover:bg-[#d93a18]' : 'bg-[#0d0b0a] text-[#f7f4f1] hover:bg-[#2a2421]',
+        )}
+      >
+        {plan.dark ? 'Hablar con el equipo' : 'Quiero este plan'} <ArrowRight size={14} aria-hidden="true" />
+      </button>
 
-            <div className="flex items-baseline gap-1 mb-2">
-                <span className="text-xl font-bold text-zinc-900 italic">$ARG</span>
-                <span className="text-5xl font-bold text-zinc-900 tracking-tighter">{plan.price}</span>
-                <span className="text-zinc-400 font-medium lowercase">
-                    {type === 'mensual' ? '/mes' : '/año'}
-                </span>
-            </div>
+      <ul className={cn('mt-7 space-y-3 text-[14px] leading-snug', plan.dark ? 'text-white/85' : 'text-zinc-700')}>
+        {features.featured.map((f) => (
+          <li key={f} className="flex gap-2.5">
+            <Check size={16} strokeWidth={2.4} className="mt-0.5 shrink-0 text-[#f14722]" aria-hidden="true" />
+            {f}
+          </li>
+        ))}
+      </ul>
 
-            {/* Anchor hint: empuja al plan anual desde el plan mensual */}
-            {plan.anchorHint ? (
-                <p className="text-[10px] font-semibold text-emerald-600 mb-4 leading-relaxed">
-                    ✦ {plan.anchorHint}
-                </p>
-            ) : (
-                <p className="text-zinc-500 text-[11px] font-bold uppercase tracking-wider mb-4">
-                    {plan.sub}
-                </p>
-            )}
-
-            {plan.desc && (
-                <p className="text-zinc-400 text-xs leading-relaxed mb-4">{plan.desc}</p>
-            )}
-
-            <ul className="space-y-4 mt-2">
-                {visibleFeatures.map((f, j) => (
-                    <li key={j} className="flex gap-3 text-zinc-500 text-[13px] font-medium leading-tight">
-                        <Check size={16} className="text-orange-500 shrink-0 mt-0.5" />
-                        {f}
-                    </li>
-                ))}
-            </ul>
-
-            {hasFeatured && plan.extraFeatures && plan.extraFeatures.length > 0 && (
-                <button
-                    type="button"
-                    onClick={() => setExpanded(v => !v)}
-                    className="mt-4 flex items-center gap-1 text-[11px] font-bold text-zinc-400 hover:text-orange-500 transition-colors self-start"
-                >
-                    {expanded ? (
-                        <><ChevronUp size={14} /> Ocultar</>
-                    ) : (
-                        <><ChevronDown size={14} /> Ver todo lo incluido</>
-                    )}
-                </button>
-            )}
-
-            <div className="flex-1" />
-
-            <button
-                onClick={onOpen}
-                className={cn(
-                    'w-full h-12 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all cursor-pointer border mt-8',
-                    plan.featured
-                        ? 'bg-zinc-900 text-white border-zinc-900 hover:bg-[#f14722] hover:border-[#f14722]'
-                        : 'bg-white text-zinc-900 border-zinc-200 hover:bg-zinc-50'
-                )}
-            >
-                {type === 'mensual' ? 'Suscribirse' : 'Contratar Anual'}
-            </button>
-        </div>
-    )
-}
-
-const FOUNDER_FEATURES = [
-    { icon: '⚡', label: 'Dashboard de administración' },
-    { icon: '🍽️', label: 'Menú digital completo' },
-    { icon: '⚙️', label: 'Configuración del restaurante' },
-    { icon: '💳', label: 'Gestión de facturación' },
-]
-
-function FounderBanner({ onOpen }: { onOpen: () => void }) {
-    return (
-        <div className="relative mb-16 md:mb-20">
-            {/* Glow de fondo */}
-            <div
-                className="absolute inset-0 rounded-[2.5rem] pointer-events-none"
-                style={{
-                    background: 'radial-gradient(ellipse at 50% 0%, rgba(245,158,11,0.12) 0%, transparent 70%)',
-                }}
-            />
-
-            <div className="relative rounded-[2rem] md:rounded-[2.5rem] border border-amber-200 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40 p-8 md:p-12 overflow-hidden">
-
-                {/* Fondo decorativo */}
-                <div
-                    className="absolute top-0 right-0 w-80 h-80 pointer-events-none opacity-30"
-                    style={{
-                        background: 'radial-gradient(ellipse at 80% 20%, rgba(245,158,11,0.25) 0%, transparent 60%)',
-                    }}
-                />
-
-                <div className="relative flex flex-col md:flex-row items-start md:items-center gap-10 md:gap-16">
-
-                    {/* ── Copy ── */}
-                    <div className="flex-1 min-w-0">
-                        {/* Badges */}
-                        <div className="flex flex-wrap items-center gap-2 mb-5">
-                            <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full bg-amber-500 text-white">
-                                <Star size={9} fill="white" />
-                                Acceso Anfitriones
-                            </span>
-                            <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1.5 rounded-full border border-amber-300 text-amber-700 bg-amber-50">
-                                <Zap size={9} />
-                                Lanzamiento Limitado
-                            </span>
-                        </div>
-
-                        {/* Título */}
-                        <h3 className="text-zinc-900 font-bold text-2xl md:text-3xl tracking-tight mb-2">
-                            El mejor momento para empezar<br className="hidden md:block" /> es ahora.
-                        </h3>
-                        <p className="text-zinc-500 text-sm leading-relaxed max-w-md mb-6">
-                            Cupos exclusivos para los primeros restaurantes en sumarse a la plataforma.
-                            Acceso completo al panel, menú digital, configuración y facturación.
-                        </p>
-
-                        {/* Features grid */}
-                        <div className="grid grid-cols-2 gap-2.5">
-                            {FOUNDER_FEATURES.map((f) => (
-                                <div key={f.label} className="flex items-center gap-2 text-zinc-600 text-xs font-medium">
-                                    <span className="text-base leading-none">{f.icon}</span>
-                                    {f.label}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* ── Precio ── */}
-                    <div className="shrink-0 flex flex-col items-start md:items-center gap-5">
-                        <div className="bg-white border border-amber-100 rounded-2xl p-6 shadow-sm text-center min-w-[200px]">
-                            {/* Anchor diario */}
-                            <div className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-700 mb-4">
-                                ✦ Menos de $250/día
-                            </div>
-
-                            <div className="flex items-baseline justify-center gap-1 mb-1">
-                                <span className="text-sm font-bold text-zinc-400 italic">$ARG</span>
-                                <span className="text-5xl font-bold text-zinc-900 tracking-tighter">7.500</span>
-                            </div>
-                            <p className="text-zinc-400 text-[11px] font-bold uppercase tracking-wider mb-1">
-                                / mes
-                            </p>
-                            <p className="text-zinc-400 text-[10px] leading-relaxed">
-                                = $7.500 ÷ 30 días
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={onOpen}
-                            className="w-full h-12 px-8 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] uppercase tracking-widest transition-all cursor-pointer border-0 shadow-lg shadow-amber-500/20 whitespace-nowrap"
-                        >
-                            Quiero ser Anfitrión
-                        </button>
-
-                        <p className="text-zinc-400 text-[10px] text-center leading-relaxed">
-                            Cupos limitados · Sin permanencia
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
+      {features.extra.length > 0 && (
+        <>
+          <ul id={listId} hidden={!more} className={cn('mt-3 space-y-3 text-[14px] leading-snug', plan.dark ? 'text-white/65' : 'text-zinc-600')}>
+            {features.extra.map((f) => (
+              <li key={f} className="flex gap-2.5">
+                <Check size={16} strokeWidth={2} className={cn('mt-0.5 shrink-0', plan.dark ? 'text-white/40' : 'text-zinc-400')} aria-hidden="true" />
+                {f}
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => setMore((v) => !v)}
+            aria-expanded={more}
+            aria-controls={listId}
+            className={cn('mt-auto inline-flex min-h-11 items-center gap-1.5 pt-5 text-[12px] font-semibold uppercase tracking-[0.1em]', plan.dark ? 'text-white/60 hover:text-white' : 'text-zinc-500 hover:text-zinc-900')}
+          >
+            {more ? 'Ver menos' : `Ver todo (${features.extra.length} más)`}
+            <ChevronDown size={15} aria-hidden="true" className={cn('transition-transform', more && 'rotate-180')} />
+          </button>
+        </>
+      )}
+    </article>
+  )
 }
 
 export default function Pricing() {
-    const [type, setType] = useState<'mensual' | 'anual'>('mensual')
-    const [modal, setModal] = useState<{ plan: string; planId: string } | null>(null)
+  const [billing, setBilling] = useState<Billing>('mensual')
+  const [modal, setModal] = useState<{ plan: string; planId: string } | null>(null)
 
-    const plans = type === 'mensual' ? mensualPlans : anualPlans
+  return (
+    <section id="planes" aria-labelledby="planes-title" className="px-6 py-20 md:px-10 md:py-28">
+      <div className="mx-auto max-w-7xl">
+        <Reveal className="mx-auto max-w-3xl text-center">
+          <Eyebrow center>Planes</Eyebrow>
+          <SectionTitle id="planes-title" lead="Elegí según dónde estás hoy." accent="Cambiás cuando quieras." className="mt-6 text-[clamp(2rem,4.4vw,3.4rem)]" />
+          <p className="mx-auto mt-6 max-w-xl text-[1.05rem] leading-relaxed text-[var(--tgo-muted)]">
+            Precio fijo por mes, sin letra chica. El POS TakeasyGO se suma a cualquier plan.
+          </p>
 
-    return (
-        <>
-            <section id="pricing" className="bg-white py-20 md:py-32 px-5 md:px-6">
-                <div className="max-w-7xl mx-auto">
+          <div role="group" aria-label="Forma de pago" className="mx-auto mt-9 flex w-fit items-center gap-1 rounded-full border border-[var(--tgo-line)] bg-white p-1">
+            {(['mensual', 'anual'] as Billing[]).map((b) => (
+              <button
+                key={b}
+                type="button"
+                aria-pressed={billing === b}
+                onClick={() => setBilling(b)}
+                className={cn(
+                  'min-h-11 rounded-full px-5 text-[12px] font-semibold uppercase tracking-[0.1em] transition-colors sm:px-7',
+                  billing === b ? 'bg-[#0d0b0a] text-[#f7f4f1]' : 'text-zinc-500 hover:text-zinc-900',
+                )}
+              >
+                {b === 'mensual' ? 'Mensual' : 'Anual · 15% menos'}
+              </button>
+            ))}
+          </div>
+        </Reveal>
 
-                    {/* ── Banner Anfitriones ──────────────────────────────── */}
-                    {/* 
-                    <FounderBanner
-                        onOpen={() => setModal({ plan: 'Anfitriones — $7.500/mes', planId: 'anfitrion' })}
-                    /> 
-                    */}
+        {/* Prueba gratis */}
+        <Reveal className="mt-12">
+          <div className="flex flex-col items-start justify-between gap-5 rounded-[26px] bg-[#f14722] p-7 text-white md:flex-row md:items-center md:p-8">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/80">Prueba gratis</p>
+              <p className="tgo-serif mt-2 text-[1.7rem] leading-tight">Tus primeros 30 pedidos, sin pagar nada.</p>
+              <p className="mt-1.5 max-w-xl text-[14.5px] leading-relaxed text-white/85">
+                Armás la carta, cobrás con Mercado Pago y, al llegar a 30 pedidos, te damos un informe de cómo viene tu operación.
+              </p>
+            </div>
+            <Link
+              href="/empezar"
+              className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full bg-[#0d0b0a] px-7 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#f7f4f1] transition-colors hover:bg-[#2a2421]"
+            >
+              Empezar gratis <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+        </Reveal>
 
-                    {/* ── Header ─────────────────────────────────────────── */}
-                    <div className="text-center mb-12 md:mb-16">
-                        <span className="text-[#f14722] font-bold uppercase tracking-[0.3em] text-[10px]">
-                            Modelos de Negocio
-                        </span>
-                        <h2 className="text-3xl md:text-5xl font-bold text-zinc-900 tracking-tight mt-4 mb-8">
-                            Elige cómo quieres crecer.
-                        </h2>
-
-                        {/* Switcher */}
-                        <div className="flex items-center justify-center gap-1 p-1 bg-zinc-50 rounded-full w-fit mx-auto border border-zinc-100 shadow-inner">
-                            <button
-                                onClick={() => setType('mensual')}
-                                className={cn(
-                                    'px-4 md:px-8 py-2 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap',
-                                    type === 'mensual'
-                                        ? 'bg-white text-zinc-900 shadow-sm border border-zinc-100'
-                                        : 'text-zinc-400 hover:text-zinc-600'
-                                )}
-                            >
-                                Suscripción Mensual
-                            </button>
-                            <button
-                                onClick={() => setType('anual')}
-                                className={cn(
-                                    'px-4 md:px-8 py-2 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap',
-                                    type === 'anual'
-                                        ? 'bg-white text-zinc-900 shadow-sm border border-zinc-100'
-                                        : 'text-zinc-400 hover:text-zinc-600'
-                                )}
-                            >
-                                Pago Anual · 15% OFF
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* ── Plan cards ─────────────────────────────────────── */}
-                    <div className={cn(
-                        'grid gap-5 md:gap-8 items-stretch justify-center max-w-6xl mx-auto',
-                        plans.length === 3
-                            ? 'grid-cols-1 md:grid-cols-3'
-                            : 'grid-cols-1 md:grid-cols-2 md:max-w-3xl'
-                    )}>
-                        {plans.map((plan) => (
-                            <PlanCard
-                                key={plan.id}
-                                plan={plan}
-                                type={type}
-                                onOpen={() => setModal({
-                                    plan: `${plan.name} – $ARG ${plan.price}${type === 'mensual' ? '/mes' : '/año'}`,
-                                    planId: plan.id,
-                                })}
-                            />
-                        ))}
-                    </div>
-
-                    {type === 'anual' && (
-                        <p className="text-center text-zinc-400 text-xs mt-10 md:mt-12 max-w-lg mx-auto leading-relaxed px-4">
-                            * El precio anual se abona de forma anticipada y equivale a 10.2 meses de servicio. Renovación anual. Mismo plan, mismas funcionalidades.
-                        </p>
-                    )}
-
-                    {/* ── Partner card ───────────────────────────────────── */}
-                    <div className="mt-14 md:mt-20 max-w-4xl mx-auto">
-                        <div className="relative rounded-[2rem] md:rounded-[2.5rem] border border-zinc-100 bg-zinc-50/60 p-8 md:p-12 overflow-hidden flex flex-col md:flex-row items-start md:items-center gap-8 md:gap-12">
-                            {/* Decorative glow */}
-                            <div
-                                className="absolute top-0 right-0 w-64 h-64 pointer-events-none"
-                                style={{
-                                    background: 'radial-gradient(ellipse at 80% 20%, rgba(241,71,34,0.07) 0%, transparent 65%)',
-                                }}
-                            />
-
-                            {/* Icon */}
-                            <div className="shrink-0 w-14 h-14 rounded-2xl bg-[#f14722]/10 flex items-center justify-center">
-                                <Handshake size={24} strokeWidth={1.5} className="text-[#f14722]" />
-                            </div>
-
-                            {/* Copy */}
-                            <div className="flex-1 min-w-0">
-                                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#f14722] mb-2 block">
-                                    Programa de Socios
-                                </span>
-                                <h3 className="text-zinc-900 font-bold text-xl md:text-2xl tracking-tight mb-3">
-                                    Ganá un 15% por cada cliente que recomendés.
-                                </h3>
-                                <p className="text-zinc-500 text-sm leading-relaxed max-w-lg">
-                                    Como socio estratégico recibís el&nbsp;
-                                    <strong className="text-zinc-700">15% del valor de la licencia</strong> por cada cliente que cerremos gracias a tu recomendación.
-                                    Pago único al cierre de la venta — sin comisiones recurrentes, sin extensiones, sin letra chica.
-                                </p>
-                            </div>
-
-                            {/* CTA */}
-                            <button
-                                onClick={() =>
-                                    setModal({
-                                        plan: 'Socio Estratégico – 15% por referido',
-                                        planId: 'socio-estrategico',
-                                    })
-                                }
-                                className="shrink-0 h-12 px-8 rounded-xl bg-zinc-900 text-white font-bold text-[10px] uppercase tracking-widest hover:bg-[#f14722] transition-all whitespace-nowrap cursor-pointer border-0"
-                            >
-                                Ser Socio Estratégico
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-            {/* ── Modal ─────────────────────────────────────────────── */}
-            {modal && (
-                <PlanLeadModal
-                    plan={modal.plan}
-                    planId={modal.planId}
-                    onClose={() => setModal(null)}
+        <ul className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {PLANS.map((p, i) => (
+            <li key={p.key}>
+              <Reveal delay={i * 0.06} className="h-full">
+                <PlanCard
+                  plan={p}
+                  billing={billing}
+                  onChoose={() => {
+                    const annual = billing === 'anual' && p.yearly !== null
+                    setModal({ plan: `${p.name} – $${annual ? p.yearly : p.monthly}${annual ? '/año' : '/mes'}`, planId: `${p.key}-${annual ? 'anual' : 'mensual'}` })
+                  }}
                 />
-            )}
-        </>
-    )
+              </Reveal>
+            </li>
+          ))}
+        </ul>
+
+        {billing === 'anual' && (
+          <p className="mx-auto mt-8 max-w-xl text-center text-[13px] leading-relaxed text-zinc-500">
+            El pago anual se abona por adelantado y equivale a 10,2 meses de servicio. Mismo plan y mismas funciones.
+          </p>
+        )}
+
+        {/* Socios */}
+        <Reveal className="mt-14">
+          <div className="flex flex-col items-start gap-6 rounded-[26px] border border-[var(--tgo-line)] bg-white p-7 md:flex-row md:items-center md:p-9">
+            <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#f14722]/10 text-[#f14722]">
+              <Handshake size={25} strokeWidth={1.6} aria-hidden="true" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#f14722]">Programa de socios</p>
+              <h3 className="mt-1.5 text-xl font-bold tracking-tight md:text-2xl">Ganá un 15% por cada local que recomiendes.</h3>
+              <p className="mt-2 max-w-2xl text-[14.5px] leading-relaxed text-[var(--tgo-muted)]">
+                Recibís el 15% del valor de la licencia por cada cliente que se sume gracias a vos. Un pago único al cerrar la venta.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setModal({ plan: 'Socio estratégico – 15% por referido', planId: 'socio-estrategico' })}
+              className="inline-flex min-h-12 shrink-0 items-center rounded-full bg-[#0d0b0a] px-7 text-[12px] font-semibold uppercase tracking-[0.1em] text-[#f7f4f1] transition-colors hover:bg-[#f14722]"
+            >
+              Quiero ser socio
+            </button>
+          </div>
+        </Reveal>
+      </div>
+
+      {modal && <PlanLeadModal plan={modal.plan} planId={modal.planId} onClose={() => setModal(null)} />}
+    </section>
+  )
 }

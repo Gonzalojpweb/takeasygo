@@ -1,275 +1,183 @@
 'use client'
 
+// ============================================================================
+// Landing — pedir una demo (cierre de la página)
+// ============================================================================
+// Mismo destino que antes: POST /api/leads con planId «demo». Formulario con
+// etiquetas visibles, errores anunciados y estado de envío claro.
+// ============================================================================
+
 import { useState } from 'react'
-import { CheckCircle2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import Link from 'next/link'
+import { ArrowRight, CheckCircle2, Loader2, MessageCircle } from 'lucide-react'
+import { Eyebrow, Reveal, WHATSAPP_SALES } from './brand'
 
-const demoImages = [
-    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772042562/ChatGPT_Image_25_feb_2026_02_45_51_p.m._meobg5.png',
-    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038261/Iphone_on_table_with_coffee_b047a1844a_w2mryk.png',
-    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038257/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_45f3ac9529_u9qpzr.png',
-    'https://res.cloudinary.com/dt6iu9m9f/image/upload/v1772038257/La_web_utiliza_un_fondo_blancocrema_f7f4f1_y_acent_c402e4742b_zcniii.png',
-    'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=2015&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1512428559087-560fa5ceab42?q=80&w=2070&auto=format&fit=crop',
-]
+type State = 'idle' | 'loading' | 'success' | 'error'
 
-const carouselImages = [...demoImages, ...demoImages]
+const INTERESTS = ['Vender online', 'POS para el salón', 'Inventario y gestión', 'Todo el sistema']
 
-type SubmitState = 'idle' | 'loading' | 'success' | 'error'
+const inputCls =
+  'mt-1.5 block min-h-12 w-full rounded-xl border-2 border-white/15 bg-white/[0.06] px-4 text-[15px] text-white placeholder:text-white/35 transition-colors focus:border-[#f14722] focus:outline-none'
+
+const NEXT_STEPS = ['Te contactamos por WhatsApp para coordinar', 'Vemos qué plan te conviene según tu operación', 'Si te sirve, te ayudamos a ponerlo en marcha']
 
 export default function DemoSection() {
-    const [isPaused, setIsPaused] = useState(false)
-    const [formData, setFormData] = useState({ name: '', business: '', email: '', phone: '', countryCode: '+54' })
-    const [submitState, setSubmitState] = useState<SubmitState>('idle')
-    const [errorMsg, setErrorMsg] = useState('')
+  const [form, setForm] = useState({ name: '', business: '', email: '', phone: '', interest: INTERESTS[3] })
+  const [state, setState] = useState<State>('idle')
+  const [error, setError] = useState('')
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setState('loading')
+    setError('')
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          business: form.business,
+          email: form.email,
+          phone: form.phone,
+          plan: 'Demo – Solicitud de demostración',
+          planId: 'demo',
+          notes: `Le interesa: ${form.interest}`,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(
+          data.error === 'Datos inválidos'
+            ? 'Revisá los datos: hay algún campo incompleto o con formato incorrecto.'
+            : data.error || 'No pudimos enviar tu pedido. Probá de nuevo.',
+        )
+        setState('error')
+        return
+      }
+      setState('success')
+    } catch {
+      setError('No hay conexión. Probá de nuevo en un momento.')
+      setState('error')
     }
+  }
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setSubmitState('loading')
-        setErrorMsg('')
+  return (
+    <section id="demo" aria-labelledby="demo-title" className="px-3 pb-3 pt-3 md:px-5 md:pb-5">
+      <div className="relative overflow-hidden rounded-[22px] bg-[#0d0b0a] text-[#f7f4f1] md:rounded-[28px]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-40 -top-40 size-[520px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(241,71,34,0.42) 0%, transparent 62%)' }}
+        />
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-6 py-20 md:px-10 md:py-28 lg:grid-cols-2 lg:gap-16">
+          <Reveal>
+            <Eyebrow>Demo sin compromiso</Eyebrow>
+            <h2 id="demo-title" className="tgo-serif mt-6 text-balance text-[clamp(2.2rem,5vw,3.8rem)] leading-[1.04]">
+              Mirá cómo quedaría <em className="italic text-[#f14722]">en tu local.</em>
+            </h2>
+            <p className="mt-6 max-w-lg text-[1.05rem] leading-relaxed text-white/70">
+              En 20 minutos te mostramos el sistema con ejemplos de tu rubro: la carta, el POS y los números. Sin presentaciones eternas.
+            </p>
+            <ul className="mt-8 space-y-3 text-[15px] text-white/80">
+              {NEXT_STEPS.map((t) => (
+                <li key={t} className="flex items-center gap-3">
+                  <CheckCircle2 size={18} className="shrink-0 text-[#f14722]" aria-hidden="true" /> {t}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={WHATSAPP_SALES}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border-2 border-white/25 px-6 text-[12px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:border-white/60 hover:bg-white/10"
+              >
+                <MessageCircle size={16} aria-hidden="true" /> Prefiero escribir ahora
+              </a>
+              <Link
+                href="/empezar"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 text-[12px] font-semibold uppercase tracking-[0.1em] text-white/80 transition-colors hover:text-white"
+              >
+                O empezar gratis por mi cuenta <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            </div>
+          </Reveal>
 
-        try {
-            const res = await fetch('/api/leads', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    business: formData.business,
-                    email: formData.email,
-                    phone: `${formData.countryCode} ${formData.phone}`,
-                    plan: 'Demo – Solicitud de demostración',
-                    planId: 'demo',
-                }),
-            })
-
-            const data = await res.json()
-
-            if (!res.ok) {
-                setErrorMsg(data.error || 'Error al enviar. Intentá de nuevo.')
-                setSubmitState('error')
-                return
-            }
-
-            setSubmitState('success')
-        } catch {
-            setErrorMsg('Error de conexión. Intentá de nuevo.')
-            setSubmitState('error')
-        }
-    }
-
-    return (
-        <>
-            <style>{`
-                @keyframes carousel-scroll {
-                    from { transform: translateX(0); }
-                    to   { transform: translateX(-50%); }
-                }
-                .demo-track {
-                    animation: carousel-scroll 28s linear infinite;
-                }
-            `}</style>
-
-            <section id="demo" className="bg-white py-20 md:py-32 overflow-hidden border-t border-zinc-100">
-
-                {/* ── Header + Form ─────────────────────────────────────────── */}
-                <div className="max-w-5xl mx-auto px-5 md:px-6 mb-14 md:mb-20 text-center">
-                    <h2 className="text-4xl md:text-7xl font-bold text-zinc-900 tracking-tight mb-3 md:mb-4">
-                        Solicita Demo
-                    </h2>
-                    <p className="text-zinc-500 text-base md:text-lg font-medium">
-                        Aumenta la fidelidad. Impulsa las ventas.
-                    </p>
-
-                    {submitState === 'success' ? (
-                        /* ── Success state ─────────────────────────────── */
-                        <div className="mt-10 md:mt-16 flex flex-col items-center gap-4 py-6">
-                            <CheckCircle2
-                                size={52}
-                                strokeWidth={1.5}
-                                className="text-[#f14722]"
-                            />
-                            <h3 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
-                                ¡Demo solicitada!
-                            </h3>
-                            <p className="text-zinc-500 text-base max-w-sm leading-relaxed">
-                                Te contactamos en breve para agendar tu demo personalizada.
-                            </p>
-                        </div>
-                    ) : (
-                        /* ── Form ─────────────────────────────────────── */
-                        <form
-                            className="mt-10 md:mt-16 flex flex-col md:flex-row flex-wrap gap-6 md:gap-8 items-stretch md:items-end justify-center"
-                            onSubmit={handleSubmit}
-                            noValidate
-                        >
-                            {/* Name */}
-                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                                <label
-                                    htmlFor="demo-name"
-                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                                >
-                                    Nombre
-                                </label>
-                                <input
-                                    id="demo-name"
-                                    name="name"
-                                    type="text"
-                                    autoComplete="name"
-                                    placeholder="Tu nombre"
-                                    required
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    disabled={submitState === 'loading'}
-                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
-                                />
-                            </div>
-
-                            {/* Business */}
-                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                                <label
-                                    htmlFor="demo-business"
-                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                                >
-                                    Negocio
-                                </label>
-                                <input
-                                    id="demo-business"
-                                    name="business"
-                                    type="text"
-                                    autoComplete="organization"
-                                    placeholder="Nombre del restaurante"
-                                    required
-                                    value={formData.business}
-                                    onChange={handleChange}
-                                    disabled={submitState === 'loading'}
-                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
-                                />
-                            </div>
-
-                            {/* Email */}
-                            <div className="flex flex-col gap-2 w-full md:min-w-[180px] md:flex-1 text-left">
-                                <label
-                                    htmlFor="demo-email"
-                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                                >
-                                    Email
-                                </label>
-                                <input
-                                    id="demo-email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
-                                    placeholder="tu@email.com"
-                                    required
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    disabled={submitState === 'loading'}
-                                    className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
-                                />
-                            </div>
-
-                            {/* Phone with Country Code */}
-                            <div className="flex flex-col gap-2 w-full md:min-w-[200px] md:flex-1 text-left">
-                                <label
-                                    htmlFor="demo-phone"
-                                    className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest ml-1"
-                                >
-                                    Teléfono
-                                </label>
-                                <div className="flex gap-2">
-                                    <select
-                                        name="countryCode"
-                                        value={formData.countryCode}
-                                        onChange={handleChange}
-                                        disabled={submitState === 'loading'}
-                                        className="bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 text-sm disabled:opacity-50 focus:outline-none focus:border-zinc-900 w-[80px]"
-                                    >
-                                        <option value="+54">🇦🇷 +54</option>
-                                        <option value="+598">🇺🇾 +598</option>
-                                        <option value="+56">🇨🇱 +56</option>
-                                        <option value="+55">🇧🇷 +55</option>
-                                        <option value="+51">🇵🇪 +51</option>
-                                        <option value="+52">🇲🇽 +52</option>
-                                        <option value="+1">🇺🇸 +1</option>
-                                        <option value="+34">🇪🇸 +34</option>
-                                        <option value="+44">🇬🇧 +44</option>
-                                        <option value="+49">🇩🇪 +49</option>
-                                        <option value="+33">🇫🇷 +33</option>
-                                        <option value="+39">🇮🇹 +39</option>
-                                    </select>
-                                    <input
-                                        id="demo-phone"
-                                        name="phone"
-                                        type="tel"
-                                        autoComplete="tel"
-                                        placeholder="9 11 0000 0000"
-                                        required
-                                        value={formData.phone}
-                                        onChange={handleChange}
-                                        disabled={submitState === 'loading'}
-                                        className="flex-1 bg-transparent border-b-2 border-zinc-200 py-3 text-zinc-900 placeholder:text-zinc-300 focus:outline-none focus:border-zinc-900 transition-colors text-sm disabled:opacity-50"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="w-full md:w-auto flex flex-col items-stretch md:items-end gap-2 shrink-0">
-                                <Button
-                                    type="submit"
-                                    disabled={submitState === 'loading'}
-                                    className="w-full md:w-auto bg-zinc-900 text-white rounded-full px-10 md:px-12 h-14 font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[#f14722] transition-all mt-2 md:mt-0 disabled:opacity-60 disabled:cursor-not-allowed"
-                                >
-                                    {submitState === 'loading' ? 'Enviando…' : 'Solicitar Demo Gratuíto'}
-                                </Button>
-
-                                {submitState === 'error' && (
-                                    <p className="text-xs text-red-500 font-medium text-center md:text-right mt-1">
-                                        {errorMsg}
-                                    </p>
-                                )}
-                            </div>
-                        </form>
-                    )}
+          <Reveal delay={0.1}>
+            {state === 'success' ? (
+              <div role="status" className="flex h-full min-h-[380px] flex-col items-center justify-center rounded-[26px] border border-white/10 bg-white/[0.05] p-8 text-center">
+                <span className="flex size-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                  <CheckCircle2 size={32} aria-hidden="true" />
+                </span>
+                <p className="tgo-serif mt-6 text-3xl">¡Listo, {form.name.split(' ')[0] || 'gracias'}!</p>
+                <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-white/65">Recibimos tu pedido. Te escribimos por WhatsApp para coordinar la demo.</p>
+              </div>
+            ) : (
+              <form onSubmit={submit} className="rounded-[26px] border border-white/10 bg-white/[0.05] p-6 md:p-8">
+                <p className="text-lg font-bold">Pedí tu demo</p>
+                <p className="mt-1 text-[13.5px] text-white/55">Todos los campos son necesarios.</p>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <label className="block text-[13px] font-semibold text-white/80">
+                    Tu nombre
+                    <input required autoComplete="name" maxLength={100} value={form.name} onChange={set('name')} placeholder="Ana García" className={inputCls} />
+                  </label>
+                  <label className="block text-[13px] font-semibold text-white/80">
+                    Nombre del local
+                    <input required autoComplete="organization" maxLength={150} value={form.business} onChange={set('business')} placeholder="La Esquina" className={inputCls} />
+                  </label>
+                  <label className="block text-[13px] font-semibold text-white/80">
+                    Email
+                    <input required type="email" autoComplete="email" maxLength={200} value={form.email} onChange={set('email')} placeholder="ana@laesquina.com" className={inputCls} />
+                  </label>
+                  <label className="block text-[13px] font-semibold text-white/80">
+                    WhatsApp
+                    <input required type="tel" inputMode="tel" autoComplete="tel" maxLength={30} value={form.phone} onChange={set('phone')} placeholder="+54 9 11 1234 5678" className={inputCls} />
+                  </label>
+                  <label className="block text-[13px] font-semibold text-white/80 sm:col-span-2">
+                    ¿Qué te interesa ver?
+                    <select value={form.interest} onChange={set('interest')} className={`${inputCls} [&>option]:text-zinc-900`}>
+                      {INTERESTS.map((i) => (
+                        <option key={i}>{i}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
 
-                {/* ── Infinite auto-scroll carousel ─────────────────────────── */}
-                <div
-                    className="overflow-hidden"
-                    onMouseEnter={() => setIsPaused(true)}
-                    onMouseLeave={() => setIsPaused(false)}
-                    onTouchStart={() => setIsPaused(true)}
-                    onTouchEnd={() => setIsPaused(false)}
-                    onTouchCancel={() => setIsPaused(false)}
-                    aria-hidden="true"
+                {state === 'error' && (
+                  <p role="alert" className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-[14px] font-medium text-red-200">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={state === 'loading'}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#f14722] px-7 py-4 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#d93a18] disabled:opacity-60"
                 >
-                    <div
-                        className="demo-track flex gap-4 md:gap-6 pl-5 md:pl-6"
-                        style={{
-                            width: 'max-content',
-                            animationPlayState: isPaused ? 'paused' : 'running',
-                        }}
-                    >
-                        {carouselImages.map((src, i) => (
-                            <div
-                                key={i}
-                                className="min-w-[240px] md:min-w-[300px] h-[160px] md:h-[200px] rounded-2xl md:rounded-3xl overflow-hidden border border-zinc-100 shadow-sm flex-shrink-0"
-                            >
-                                <img
-                                    src={src}
-                                    alt=""
-                                    className="w-full h-full object-cover hover:grayscale-0 transition-all duration-700"
-                                    loading="lazy"
-                                    draggable={false}
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-            </section>
-        </>
-    )
+                  {state === 'loading' ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" aria-hidden="true" /> Enviando…
+                    </>
+                  ) : (
+                    <>
+                      Quiero mi demo <ArrowRight size={15} aria-hidden="true" />
+                    </>
+                  )}
+                </button>
+                <p className="mt-4 text-center text-[12px] leading-relaxed text-white/40">
+                  Usamos tus datos solo para contactarte por esta demo.{' '}
+                  <Link href="/privacidad" className="underline underline-offset-2 hover:text-white/70">
+                    Política de privacidad
+                  </Link>
+                  .
+                </p>
+              </form>
+            )}
+          </Reveal>
+        </div>
+      </div>
+    </section>
+  )
 }

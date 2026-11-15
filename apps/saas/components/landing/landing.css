@@ -1,0 +1,103 @@
+/* ============================================================================
+   Landing takeasygo.com — estilos propios (rediseño 15/11/2026)
+   ============================================================================
+   Marca: naranja #f14722 · tinta #0d0b0a · crema #f7f4f1.
+   Serif (DM Serif Display) para titulares con una frase en itálica; sans
+   (DM Sans) para el resto. Todo lo visual está hecho con HTML/CSS/SVG: la
+   landing no depende de imágenes externas (las viejas devolvían 401).
+   ========================================================================== */
+
+.tgo-landing {
+  --tgo-orange: #f14722;
+  --tgo-orange-deep: #d93a18;
+  --tgo-ink: #0d0b0a;
+  --tgo-ink-soft: #1a1614;
+  --tgo-cream: #f7f4f1;
+  --tgo-cream-deep: #efe9e3;
+  --tgo-line: rgba(13, 11, 10, 0.1);
+  --tgo-muted: #6b625d;
+  font-family: var(--font-tgo-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--tgo-ink);
+  background: var(--tgo-cream);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tgo-serif {
+  font-family: var(--font-tgo-serif), Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.tgo-sans {
+  font-family: var(--font-tgo-sans), system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+/* Anclas: el menú fijo no tapa el título de la sección */
+.tgo-landing section[id] {
+  scroll-margin-top: 88px;
+}
+
+/* Foco visible y consistente */
+.tgo-landing a:focus-visible,
+.tgo-landing button:focus-visible,
+.tgo-landing input:focus-visible,
+.tgo-landing select:focus-visible,
+.tgo-landing summary:focus-visible {
+  outline: 3px solid var(--tgo-orange);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+.tgo-on-orange a:focus-visible,
+.tgo-on-orange button:focus-visible {
+  outline-color: var(--tgo-ink);
+}
+
+/* Flotación suave de las maquetas del hero */
+@keyframes tgo-float-a {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes tgo-float-b {
+  0%, 100% { transform: translateY(-6px); }
+  50% { transform: translateY(6px); }
+}
+.tgo-float-a { animation: tgo-float-a 6s ease-in-out infinite; }
+.tgo-float-b { animation: tgo-float-b 7.5s ease-in-out infinite; }
+
+/* Pulso del punto "en vivo" */
+@keyframes tgo-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55); }
+  70% { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+.tgo-live-dot { animation: tgo-pulse 2s infinite; }
+
+/* Cinta de capacidades */
+@keyframes tgo-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.tgo-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: tgo-marquee 38s linear infinite;
+}
+.tgo-marquee:hover .tgo-marquee-track { animation-play-state: paused; }
+
+/* Preguntas frecuentes: <details> nativo, accesible sin JavaScript */
+.tgo-faq summary { list-style: none; cursor: pointer; }
+.tgo-faq summary::-webkit-details-marker { display: none; }
+.tgo-faq details[open] .tgo-faq-icon { transform: rotate(45deg); }
+.tgo-faq-icon { transition: transform 0.25s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tgo-float-a,
+  .tgo-float-b,
+  .tgo-live-dot,
+  .tgo-marquee-track {
+    animation: none !important;
+  }
+  .tgo-landing * {
+    scroll-behavior: auto !important;
+  }
+}
