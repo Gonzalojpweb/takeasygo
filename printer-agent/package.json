@@ -10,9 +10,9 @@
         "build": "pkg . --targets node18-win-x64 --output printer-agent.exe"
     },
     "dependencies": {
-        "axios": "^1.6.0",
+        "axios": "^1.21.0",
         "iconv-lite": "^0.7.2",
-        "node-windows": "^1.0.0-beta.8"
+        "node-windows": "1.0.0-beta.8"
     },
     "devDependencies": {
         "pkg": "^5.8.1"
