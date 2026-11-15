@@ -14,6 +14,7 @@ import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
 import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago, markSplitRevoked } from '@/lib/mp-split-guard'
 import { getBaseUrl } from '@/lib/site-url'
+import { buildMpItems } from '@/lib/payments/mp-items'
 import { withLocationCommercialSettings, type LocationCommercialSettings } from '@/lib/location-resolvers'
 
 export async function POST(
@@ -93,80 +94,10 @@ if (!success) {
       ? pricing.platformFeeAmount
       : undefined
 
-    // ── Construir items de MP aplicando descuento QR proporcional ─────────
-    // El descuento QR solo aplica sobre items que NO son promoción y
-    // NO tienen descuento de categoría (hasCategoryDiscount == false).
-    const mpItems: any[] = []
-    if (order.qrPromoApplied && order.discountAmount > 0) {
-      const eligibleItems: any[] = []
-      const nonEligibleItems: any[] = []
-      for (const item of order.items) {
-        if (item.itemType !== 'promotion' && !item.hasCategoryDiscount) {
-          eligibleItems.push(item)
-        } else {
-          nonEligibleItems.push(item)
-        }
-      }
-
-      const eligibleSubtotal = eligibleItems.reduce(
-        (sum, item) => sum + item.subtotal, 0
-      )
-      const eligibleTarget = eligibleSubtotal - order.discountAmount
-      const ratio = eligibleSubtotal > 0 ? eligibleTarget / eligibleSubtotal : 0
-
-      let computedEligibleTotal = 0
-      for (let i = 0; i < eligibleItems.length; i++) {
-        const item = eligibleItems[i]
-        const isLast = i === eligibleItems.length - 1
-        let discountedPrice: number
-        if (isLast) {
-          // Ajuste fino para que coincida exactamente con el total esperado
-          const remaining = eligibleTarget - computedEligibleTotal
-          discountedPrice = Math.ceil(remaining / item.quantity)
-        } else {
-          discountedPrice = Math.ceil(item.price * ratio)
-          computedEligibleTotal += discountedPrice * item.quantity
-        }
-        mpItems.push({
-          id: item.menuItemId?.toString() ?? item._id.toString(),
-          title: item.name,
-          quantity: item.quantity,
-          unit_price: discountedPrice,
-          currency_id: 'ARS',
-        })
-      }
-
-      for (const item of nonEligibleItems) {
-        mpItems.push({
-          id: item.menuItemId?.toString() ?? item._id.toString(),
-          title: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          currency_id: 'ARS',
-        })
-      }
-    } else {
-      for (const item of order.items) {
-        mpItems.push({
-          id: item.menuItemId?.toString() ?? item._id.toString(),
-          title: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          currency_id: 'ARS',
-        })
-      }
-    }
-
-    // Delivery fee (nunca se descuenta)
-    if (order.orderMode === 'delivery' && order.deliveryCost > 0) {
-      mpItems.push({
-        id: 'delivery_fee',
-        title: 'Costo de envío',
-        quantity: 1,
-        unit_price: order.deliveryCost,
-        currency_id: 'ARS',
-      })
-    }
+    // ── Ítems de MP (descuento QR proporcional, sin líneas a $0) ──────────
+    // Ver lib/payments/mp-items.ts: los platos de un combo y los premios van a
+    // $0 en el pedido y MP rechaza ítems sin precio (bug 14/11, combos sin ventas).
+    const mpItems = buildMpItems(order as never)
 
     // ── Distribuir recargo proporcionalmente en cada item ──────────────
     // order.total ya incluye el surcharge; asegurar que la suma de
