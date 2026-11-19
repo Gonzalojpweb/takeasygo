@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { isLargeGroup, isOptionSoldOut, markSoldOutGroups, soldOutKeysFor } from '@/lib/menu/sold-out-options'
-import { groupBySection, sectionChoices, suggestSection } from '@/lib/menu/option-sections'
+import { displaySections, groupBySection, sectionChoices, suggestSection } from '@/lib/menu/option-sections'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 
 describe('agotados', () => {
@@ -67,5 +67,27 @@ describe('familias', () => {
   it('agrupa respetando el orden y deja «Otros» al final', () => {
     const out = groupBySection([{ n: 1, section: 'B' }, { n: 2 }, { n: 3, section: 'A' }, { n: 4, section: 'B' }])
     expect(out.map(([k, l]) => [k, l.length])).toEqual([['B', 2], ['A', 1], ['Otros', 1]])
+  })
+})
+
+describe('familias para el cliente', () => {
+  const REAL = ['Americana', 'Banana Split', 'Cereza a la Crema', 'Coco', 'Crema del Cielo', 'Crema Flan', 'Crema Oreo', 'Crema Nutella', 'Crema Rusa', 'Crocantino', 'Frutilla a la Crema', 'Frutilla a la Reyna', 'Frutos del Bosque', 'Granizado', 'Limón Siciliano', 'Mantecol', 'Mascarpone', 'Menta Granizada', 'Mousse de Limón', 'Mousse Maracuyá', 'Pistacho', 'Sambayón', 'Tramontana', 'Vainilla', 'Chocolate', 'Chocolate Alfajor', 'Chocolate Amargo', 'Chocolate Blanco', 'Chocolate con Almendras', 'Chocolate Italiano', 'Chocolate Rocher', 'Chocolate Shot', 'Chocolate Suizo', 'Chocolate Patagónico', 'Chocotorta', 'Dulce de Leche', 'Dulce de Leche con Nuez', 'Dulce de Leche Granizado', 'Dulce de Leche Oreo', 'Super Dulce de Leche', 'Dulce de Leche Tentación', 'Ananá', 'Frutilla', 'Frambuesa', 'Limón', 'Tiramisú', 'Crema Irlandesa', 'Chocolate Marroc', 'Chocolate Dubái', 'Crema de Almendras', 'Dulce de Leche con Almendras']
+
+  it('sin familias cargadas, las sugiere y no pierde ninguna opción (Heladería Italia)', () => {
+    const out = displaySections(REAL.map(name => ({ name })))
+    const names = out.map(([k]) => k)
+    expect(names.slice(0, 4)).toEqual(['Cremas', 'Chocolates', 'Dulce de leche', 'Frutales'])
+    expect(out.reduce((n, [, l]) => n + l.length, 0)).toBe(REAL.length)
+    const otros = out.find(([k]) => k === 'Otros')?.[1].map(o => o.name) ?? []
+    expect(otros.length).toBeLessThanOrEqual(5)
+  })
+
+  it('si el local cargó familias, manda lo suyo', () => {
+    const out = displaySections([{ name: 'A', section: 'De autor' }, { name: 'Chocolate' }])
+    expect(out.map(([k]) => k)).toEqual(['De autor', 'Otros'])
+  })
+
+  it('si no salen dos familias, va todo junto sin títulos', () => {
+    expect(displaySections([{ name: 'Pistacho' }, { name: 'Granizado' }])).toEqual([['', [{ name: 'Pistacho' }, { name: 'Granizado' }]]])
   })
 })

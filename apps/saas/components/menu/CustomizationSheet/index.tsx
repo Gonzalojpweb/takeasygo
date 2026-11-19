@@ -569,6 +569,7 @@ export default function CustomizationSheet({
                 optionImageRegistry={optionImageRegistry}
                 primaryColor={primaryColor}
                 textColor={textColor}
+                bgColor={bgColor}
                 onToggle={(groupName, optionName) => toggleOption(group, optionName)}
               />
             </div>

@@ -64,3 +64,24 @@ export function groupBySection<T extends { section?: string | null }>(options: T
   if (map.has('')) result.push([named.length ? otherLabel : '', map.get('')!])
   return result
 }
+
+/**
+ * Familias para MOSTRAR al cliente. Si el local cargó familias, se usan esas.
+ * Si no cargó ninguna, se sugieren por el nombre (Chocolates, Cremas…), en el
+ * orden de la lista sugerida y con «Otros» al final; si así no salen al menos
+ * dos familias, va todo junto sin títulos ([['', opciones]]).
+ */
+export function displaySections<T extends { name: string; section?: string | null }>(options: T[]): Array<[string, T[]]> {
+  if (options.some(o => (o.section ?? '').trim())) return groupBySection(options, 'Otros')
+  const buckets = new Map<string, T[]>()
+  for (const o of options) {
+    const key = suggestSection(o.name) ?? ''
+    if (!buckets.has(key)) buckets.set(key, [])
+    buckets.get(key)!.push(o)
+  }
+  const named = SUGGESTED_SECTIONS.filter(s => buckets.has(s))
+  if (named.length < 2) return [['', options]]
+  const out: Array<[string, T[]]> = named.map(s => [s, buckets.get(s)!])
+  if (buckets.has('')) out.push(['Otros', buckets.get('')!])
+  return out
+}

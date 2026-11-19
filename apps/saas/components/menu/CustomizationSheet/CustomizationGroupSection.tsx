@@ -35,6 +35,8 @@ interface CustomizationGroupSectionProps {
   optionImageRegistry?: Record<string, string>
   primaryColor: string
   textColor: string
+  /** Fondo del sheet (la barra fija del selector de grupos grandes lo usa). */
+  bgColor?: string
   onToggle: (groupName: string, optionName: string) => void
   /** Recursive renderer for sub-groups */
   renderSubGroup?: (group: CustomizationGroup, selectedNames: string[]) => React.ReactNode
@@ -46,6 +48,7 @@ export default function CustomizationGroupSection({
   optionImageRegistry,
   primaryColor,
   textColor,
+  bgColor,
   onToggle,
   renderSubGroup,
 }: CustomizationGroupSectionProps) {
@@ -96,8 +99,10 @@ export default function CustomizationGroupSection({
           options={group.options}
           selectedNames={selectedNames}
           max={max}
+          required={group.required}
           primaryColor={primaryColor}
           textColor={textColor}
+          bgColor={bgColor}
           onToggle={(optionName) => onToggle(group.name, optionName)}
         />
       )}
