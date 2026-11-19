@@ -261,6 +261,12 @@ export interface ModifierOption {
   name: string
   price: number
   subGroups?: ProductModifier[]
+  /** _id de la opción en el catálogo (para marcarla agotada desde el POS). */
+  id?: string
+  /** Familia de la opción (p. ej. «Chocolates»): ordena grupos grandes. */
+  section?: string
+  /** Agotada hoy: no se puede elegir hasta que alguien la reponga. */
+  soldOut?: boolean
 }
 
 // ============================================================================

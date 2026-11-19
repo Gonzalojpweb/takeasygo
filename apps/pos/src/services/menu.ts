@@ -61,6 +61,15 @@ export async function syncMenu(tenantId: string, jwt?: string): Promise<boolean>
  * admin). El server guarda el motivo «manual»; después se refresca la carta
  * local para que todos los equipos lo vean como «Faltante».
  */
+/**
+ * 19/11: «Disponibles hoy» — marcar una opción (sabor) agotada o reponerla.
+ * Queda así hasta que alguien la repone; después se refresca la carta local.
+ */
+export async function setOptionSoldOut(tenantId: string, optionId: string, soldOut: boolean): Promise<void> {
+  await posApi(tenantId, `/menu/options/${encodeURIComponent(optionId)}`, { method: "PATCH", body: { soldOut } })
+  await syncMenu(tenantId)
+}
+
 export async function setItemAvailability(tenantId: string, itemId: string, available: boolean): Promise<void> {
   await posApi(tenantId, `/menu/items/${encodeURIComponent(itemId)}`, { method: "PATCH", body: { available } })
   await syncMenu(tenantId)

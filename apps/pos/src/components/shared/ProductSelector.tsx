@@ -4,6 +4,8 @@ import { ChevronLeft, Search, SlidersHorizontal, Star, X } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { isCoarsePointer } from "../../utils/touch"
 import { menuThumbUrl } from "../../utils/images"
+import { largeOptionGroups } from "../../utils/option-availability"
+import { OptionAvailabilitySheet } from "./OptionAvailabilitySheet"
 
 // ============================================================================
 // Selector de productos (Fase B, 2026-10)
@@ -50,6 +52,8 @@ interface ProductSelectorProps {
    * tocar un artículo lo pausa o lo reanuda en vez de agregarlo.
    */
   onToggleAvailability?: (product: Product) => void
+  /** 19/11: presente ⇒ botón «Sabores» (Disponibles hoy) para grupos grandes. */
+  onToggleOptionSoldOut?: (optionId: string, soldOut: boolean) => Promise<void>
   /**
    * Obs. UX 25/10: volver (a la mesa / al salón) vive ARRIBA de las
    * categorías, no en un footer. Ausente ⇒ sin botón.
@@ -120,11 +124,14 @@ export function ProductSelector({
   onSelectCombo,
   popularIds = [],
   onToggleAvailability,
+  onToggleOptionSoldOut,
   back,
   showImages = false,
   overlay,
 }: ProductSelectorProps) {
   const [pauseMode, setPauseMode] = useState(false)
+  const [showAvailability, setShowAvailability] = useState(false)
+  const hasLargeGroups = useMemo(() => largeOptionGroups(products).length > 0, [products])
   const [query, setQuery] = useState("")
   const [selectedSub, setSelectedSub] = useState<string | null>(null)
   // «Frecuentes» por defecto (si el comercio todavía no tiene, cae en «Todos»).
@@ -350,6 +357,16 @@ export function ProductSelector({
               {pauseMode ? "Listo" : "Faltantes"}
             </button>
           )}
+          {onToggleOptionSoldOut && hasLargeGroups && (
+            <button
+              type="button"
+              className="btn btn-secondary psel-pause-toggle"
+              onClick={() => setShowAvailability(true)}
+              title="Marcar sabores agotados o reponerlos"
+            >
+              Sabores
+            </button>
+          )}
         </div>
 
         <div className="psel-chips" ref={chipsRef} role="toolbar" aria-label="Categorías">
@@ -473,6 +490,9 @@ export function ProductSelector({
         </div>
       </footer>
       {overlay}
+      {showAvailability && onToggleOptionSoldOut && (
+        <OptionAvailabilitySheet products={products} onToggle={onToggleOptionSoldOut} onClose={() => setShowAvailability(false)} />
+      )}
     </div>
   )
 }

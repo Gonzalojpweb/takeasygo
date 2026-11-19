@@ -5,9 +5,13 @@
  *   masterCategoryKey: datos internos de gestión.
  * - Grupos y opciones de personalización globales marcados como ocultos
  *   (category.disabledGroupIds / disabledOptionIds — disponibilidad).
+ * - Opciones AGOTADAS (soldOutOptionIds de categoría e ítem): NO se borran,
+ *   se marcan con `soldOut: true` para que el cliente las vea en gris.
  * Se aplica en todas las rutas que sirven menú al cliente (takeaway, dine-in,
  * business, API). El admin y el server de pedidos leen el menú crudo.
  */
+import { markSoldOutGroups, soldOutKeysFor } from '@/lib/menu/sold-out-options'
+
 interface SanitizeOption {
   _id?: unknown
   name?: string
@@ -37,6 +41,7 @@ function idOf(value: unknown): string {
 export function sanitizeMenuForPublic(menu: any) {
   const menuObj = menu?.toObject ? menu.toObject() : { ...menu }
   for (const cat of (menuObj?.categories || []) as SanitizeCategory[]) {
+    markSoldOut(cat)
     const items = (cat as Record<string, unknown>).items as Array<Record<string, unknown>> | undefined
     delete (cat as Record<string, unknown>).masterCategoryKey
     for (const item of items || []) {
@@ -53,6 +58,30 @@ export function sanitizeMenuForPublic(menu: any) {
     filterHiddenCustomizations(cat)
   }
   return menuObj
+}
+
+/** Marca `soldOut` en las opciones agotadas: las de la categoría alcanzan a sus
+ *  grupos, subcategorías e ítems; las del ítem, a sus grupos y variantes. */
+function markSoldOut(cat: SanitizeCategory) {
+  const catKeys = soldOutKeysFor(cat.soldOutOptionIds as string[] | undefined)
+  if (catKeys.length) {
+    cat.customizationGroups = markSoldOutGroups(cat.customizationGroups, catKeys)
+    for (const sub of cat.subcategories || []) {
+      sub.customizationGroups = markSoldOutGroups(sub.customizationGroups, catKeys)
+    }
+  }
+  const markItem = (item: Record<string, any>) => {
+    const keys = soldOutKeysFor(catKeys, item.soldOutOptionIds)
+    if (!keys.length) return
+    item.customizationGroups = markSoldOutGroups(item.customizationGroups, keys)
+    if (Array.isArray(item.variants)) {
+      item.variants = item.variants.map((v: Record<string, any>) => ({ ...v, customizationGroups: markSoldOutGroups(v.customizationGroups, keys) }))
+    }
+  }
+  for (const item of ((cat as Record<string, any>).items ?? []) as Array<Record<string, any>>) markItem(item)
+  for (const sub of ((cat as Record<string, any>).subcategories ?? []) as Array<Record<string, any>>) {
+    for (const item of (sub.items ?? []) as Array<Record<string, any>>) markItem(item)
+  }
 }
 
 /** Aplica las listas de ocultos de la categoría a sus grupos globales

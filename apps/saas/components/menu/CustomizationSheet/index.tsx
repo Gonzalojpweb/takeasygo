@@ -27,6 +27,8 @@ interface CustomizationOption {
   extraPrice: number
   imageUrl?: string
   description?: string
+  section?: string
+  soldOut?: boolean
   subGroups?: CustomizationGroup[]
 }
 
@@ -312,6 +314,9 @@ export default function CustomizationSheet({
   }, [isHalfMode, firstHalfSelection, item.name]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleOption(group: CustomizationGroup, optionName: string) {
+    // Agotada: no se puede elegir (sí quitar, si quedó elegida de antes).
+    const target = group.options.find(o => o.name === optionName)
+    if (target?.soldOut && !(selections[group._id] ?? []).includes(optionName)) return
     setSelections(prev => {
       const current = prev[group._id] ?? []
       let next: Record<string, string[]>

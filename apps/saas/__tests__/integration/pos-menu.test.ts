@@ -164,7 +164,8 @@ describe('GET /pos/menu — snapshot', () => {
     expect(muz.price).toBe(8000)
     expect(muz.modifiers).toHaveLength(1)
     expect(muz.modifiers[0].name).toBe('Queso')
-    expect(muz.modifiers[0].options[0]).toEqual({ name: 'Extra', price: 100 })
+    // Cada opción viaja con su id (19/11: sabores agotados desde el POS).
+    expect(muz.modifiers[0].options[0]).toEqual({ id: expect.any(String), name: 'Extra', price: 100 })
   })
 
   it('disabledGroupIds por nombre filtra el grupo heredado', async () => {

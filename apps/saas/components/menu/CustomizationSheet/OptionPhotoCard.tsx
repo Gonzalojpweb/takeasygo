@@ -10,17 +10,22 @@ interface OptionPhotoCardProps {
   isSelected: boolean
   primaryColor: string
   compact?: boolean
+  /** Agotada hoy: se ve en gris y no se puede elegir. */
+  soldOut?: boolean
   onClick: () => void
 }
 
-export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected, primaryColor, compact = false, onClick }: OptionPhotoCardProps) {
+export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected, primaryColor, compact = false, soldOut = false, onClick }: OptionPhotoCardProps) {
+  const soldStyle: React.CSSProperties = soldOut ? { opacity: 0.5, cursor: 'not-allowed', filter: 'grayscale(1)' } : {}
   if (compact) {
     return (
       <button
         type="button"
         onClick={onClick}
+        disabled={soldOut && !isSelected}
+        aria-label={soldOut ? `${name}, agotado` : undefined}
         className="flex-shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl border transition-all active:scale-[0.97]"
-        style={{ borderColor: isSelected ? primaryColor : '#e4e4e7', backgroundColor: isSelected ? `${primaryColor}08` : '#fff' }}
+        style={{ borderColor: isSelected ? primaryColor : '#e4e4e7', backgroundColor: isSelected ? `${primaryColor}08` : '#fff', ...soldStyle }}
       >
         <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
           {imageUrl ? (
@@ -40,6 +45,7 @@ export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected
           <span className="text-[11px] font-medium leading-tight truncate max-w-[70px]" style={{ color: isSelected ? primaryColor : '#3f3f46' }}>
             {name}
           </span>
+          {soldOut && <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Agotado</span>}
           {extraPrice > 0 && (
             <span className="text-[9px] opacity-50 whitespace-nowrap">
               +${toPesos(extraPrice).toLocaleString('es-AR')}
@@ -54,8 +60,10 @@ export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected
     <button
       type="button"
       onClick={onClick}
+      disabled={soldOut && !isSelected}
+      aria-label={soldOut ? `${name}, agotado` : undefined}
       className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl border transition-all active:scale-[0.98] text-left"
-      style={{ borderColor: isSelected ? primaryColor : '#e4e4e7', backgroundColor: isSelected ? `${primaryColor}08` : '#fff' }}
+      style={{ borderColor: isSelected ? primaryColor : '#e4e4e7', backgroundColor: isSelected ? `${primaryColor}08` : '#fff', ...soldStyle }}
     >
       <div className="relative w-11 h-11 rounded-lg overflow-hidden flex-shrink-0">
         {imageUrl ? (
@@ -75,6 +83,7 @@ export default function OptionPhotoCard({ name, extraPrice, imageUrl, isSelected
         <span className="text-[11px] font-medium leading-tight truncate" style={{ color: isSelected ? primaryColor : '#3f3f46' }}>
           {name}
         </span>
+        {soldOut && <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500">Agotado</span>}
         {extraPrice > 0 && (
           <span className="text-[10px] opacity-50 whitespace-nowrap mt-0.5">
             +${toPesos(extraPrice).toLocaleString('es-AR')}

@@ -35,6 +35,8 @@ export interface RawGroupOption {
   _id?: unknown
   name: string
   extraPrice?: number
+  /** Familia (sección) de la opción, p. ej. «Chocolates». */
+  section?: string
   subGroups?: RawOptionSubGroup[]
 }
 
@@ -64,6 +66,8 @@ export interface RawMenuItem {
   customizationGroups?: RawCustomizationGroup[]
   disabledGroupIds?: string[]
   disabledOptionIds?: string[]
+  /** Opciones agotadas de los grupos propios (ids o nombres). */
+  soldOutOptionIds?: string[]
   disabledVariantNames?: string[]
   variants?: Array<{ name: string; price?: number; customizationGroups?: RawCustomizationGroup[] }>
 }
@@ -84,6 +88,8 @@ export interface RawMenuCategory {
   sortOrder?: number
   isAvailable?: boolean
   customizationGroups?: RawCustomizationGroup[]
+  /** Opciones agotadas de los grupos de la categoría (alcanza a sus ítems). */
+  soldOutOptionIds?: string[]
   items?: RawMenuItem[]
   subcategories?: RawMenuSubCategory[]
 }
@@ -146,7 +152,7 @@ function flattenSubGroups(groups: RawOptionSubGroup[]): ProductModifier[] {
 export const VARIANT_GROUP_NAME = 'Variante'
 
 /** Un grupo del catálogo → modificador del POS, sin las opciones desactivadas. */
-function toModifier(g: RawCustomizationGroup, disabledOptions: readonly string[]): ProductModifier {
+function toModifier(g: RawCustomizationGroup, disabledOptions: readonly string[], soldOut: ReadonlySet<string> = new Set()): ProductModifier {
   const type = toGroupType(g.type)
   return {
     name: g.name,
@@ -166,14 +172,22 @@ function toModifier(g: RawCustomizationGroup, disabledOptions: readonly string[]
           !disabledOptions.includes(oid(o._id)) &&
           !disabledOptions.includes(o.name)
       )
-      .map((o) => ({
-        name: o.name,
-        price: o.extraPrice ?? 0,
-        subGroups:
-          o.subGroups && o.subGroups.length > 0
-            ? flattenSubGroups(o.subGroups)
-            : undefined,
-      })),
+      .map((o) => {
+        const id = oid(o._id)
+        const option: ProductModifier['options'][number] = {
+          name: o.name,
+          price: o.extraPrice ?? 0,
+          subGroups:
+            o.subGroups && o.subGroups.length > 0
+              ? flattenSubGroups(o.subGroups)
+              : undefined,
+        }
+        // Sabores del día: id para marcar/reponer desde el POS, familia y agotado.
+        if (id) option.id = id
+        if (o.section) option.section = o.section
+        if ((id && soldOut.has(id)) || soldOut.has(o.name)) option.soldOut = true
+        return option
+      }),
   }
 }
 
@@ -187,16 +201,19 @@ function flattenItem(
   /** Fase J: categoría pausada ⇒ todos sus ítems quedan faltantes. */
   categoryAvailable = true,
   /** Etapa 4 del POS offline: estación de la comanda (como printRoles.ts del server). */
-  printRole: 'kitchen' | 'bar' | 'both' = 'kitchen'
+  printRole: 'kitchen' | 'bar' | 'both' = 'kitchen',
+  /** Agotadas de la categoría: se suman a las del ítem. */
+  categorySoldOut: readonly string[] = []
 ): Product {
   const disabledGroups = item.disabledGroupIds ?? []
   const disabledOptions = item.disabledOptionIds ?? []
+  const soldOut = new Set<string>([...categorySoldOut, ...(item.soldOutOptionIds ?? [])])
 
   const allGroups = [...inheritedGroups, ...(item.customizationGroups ?? [])].filter(
     (g) => !disabledGroups.includes(oid(g._id)) && !disabledGroups.includes(g.name)
   )
 
-  const topModifiers = allGroups.map((g) => toModifier(g, disabledOptions))
+  const topModifiers = allGroups.map((g) => toModifier(g, disabledOptions, soldOut))
 
   // Variantes (no desactivadas y con precio): grupo obligatorio de una sola
   // elección, primero en la hoja. El precio del plato pasa a ser el de la
@@ -229,7 +246,7 @@ function flattenItem(
         return {
           name: v.name,
           price: (v.price as number) - price,
-          subGroups: own.length > 0 ? own.map((vg) => toModifier(vg, disabledOptions)) : undefined,
+          subGroups: own.length > 0 ? own.map((vg) => toModifier(vg, disabledOptions, soldOut)) : undefined,
         }
       }),
     }
@@ -280,7 +297,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
 
     const categoryAvailable = cat.isAvailable ?? true
     for (const item of cat.items ?? []) {
-      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable, cat.printRole ?? 'kitchen'))
+      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable, cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? []))
     }
 
     // D13 — subcategorías: cada una es una MenuCategory con `parentId`. Sus
@@ -298,7 +315,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
       })
       const subGroups = [...inheritedGroups, ...(sub.customizationGroups ?? [])]
       for (const item of sub.items ?? []) {
-        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable, sub.printRole ?? cat.printRole ?? 'kitchen'))
+        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable, sub.printRole ?? cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? []))
       }
     }
   }

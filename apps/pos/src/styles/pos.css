@@ -5267,3 +5267,33 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
 .checkout--fit .checkout-head-total { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: center; column-gap: var(--sp-4); row-gap: 0; }
 .checkout--fit .checkout-head-total > .checkout-eyebrow { grid-column: 1 / -1; }
 .checkout--fit .checkout-head .checkout-discount { margin-top: 0; }
+
+/* ========================================================================
+   19/11 — «Disponibles hoy»: sabores agotados desde la caja
+   Hoja a pantalla completa sobre el selector (como el armado de combos).
+   ======================================================================== */
+.oas { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; min-height: 0; background: var(--surface); }
+.oas-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-3); border-bottom: 1px solid var(--border); }
+.oas-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.oas-title strong { font-size: 1.2857rem; color: var(--text-primary); }
+.oas-tools { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.oas-groups { display: flex; gap: var(--sp-2); overflow-x: auto; scrollbar-width: none; }
+.oas-groups::-webkit-scrollbar { display: none; }
+.oas-used { margin: 0; }
+.oas-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--sp-3) var(--sp-4) var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4); }
+.oas-sec h3 { margin: 0 0 var(--sp-2); font-size: var(--font-size-sm); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
+.oas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); gap: var(--sp-2); }
+.oas-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); min-height: 56px; padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); font: inherit; font-weight: 600; color: var(--text-primary);
+  text-align: left; cursor: pointer; touch-action: manipulation;
+}
+.oas-btn:disabled { opacity: .6; }
+.oas-name { min-width: 0; overflow-wrap: anywhere; }
+.oas-state { flex-shrink: 0; font-size: .7857rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--success); }
+.oas-btn.sold { border-style: dashed; background: var(--surface-secondary); color: var(--text-muted); }
+.oas-btn.sold .oas-name { text-decoration: line-through; }
+.oas-btn.sold .oas-state { color: var(--text-secondary); }
+.oas-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); flex-shrink: 0; }
+.oas-foot .btn { min-height: 48px; min-width: 140px; }
+.oas-empty { padding: var(--sp-6, 32px) var(--sp-4); text-align: center; color: var(--text-muted); }

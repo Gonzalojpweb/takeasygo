@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import LargeGroupEditor, { LargeGroupSummary, type SoldOutContext } from '@/components/admin/menu/LargeGroupEditor'
+import { isLargeGroup } from '@/lib/menu/sold-out-options'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -66,9 +68,13 @@ interface Props {
 }
 
 type CustomizationOptionForm = {
+  /** _id guardado: se conserva al guardar para que «agotado» (por id) no se pierda. */
+  _id?: string
   name: string
   extraPrice: string
   imageUrl: string
+  /** Familia (p. ej. «Chocolates»): agrupa grupos grandes. */
+  section?: string
   subGroups: CustomizationGroupForm[]   // grupos que se activan si esta opción es elegida
 }
 type CustomizationGroupForm = {
@@ -133,9 +139,11 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
       required: g.required,
       ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
       options: g.options.map((o: CustomizationOptionForm) => ({
+        ...(o._id ? { _id: o._id } : {}),
         name: o.name,
         extraPrice: toCents(parseFloat(o.extraPrice) || 0),
         imageUrl: o.imageUrl || undefined,
+        ...(o.section?.trim() ? { section: o.section.trim().slice(0, 40) } : {}),
         subGroups: serializeGroups(o.subGroups ?? []),
       })),
     }
@@ -173,9 +181,11 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     required: g.required ?? false,
     priceRule: g.priceRule ?? 'sum',
     options: (g.options || []).map((o: any) => ({
+      ...(o._id ? { _id: String(o._id) } : {}),
       name: o.name,
       extraPrice: toPesos(o.extraPrice ?? 0).toString(),
       imageUrl: o.imageUrl || '',
+      section: o.section || '',
       subGroups: deserializeGroups(o.subGroups ?? []),
     })),
   }))
@@ -194,6 +204,9 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
   const [editingCategoryName, setEditingCategoryName] = useState('')
   const [editingCategoryDescription, setEditingCategoryDescription] = useState('')
   const [editingCategoryGroups, setEditingCategoryGroups] = useState<CustomizationGroupForm[]>([])
+  // Grupos grandes de la categoría (sabores): panel propio.
+  const [catLargeOpen, setCatLargeOpen] = useState<number | null>(null)
+  const [catClassicGroups, setCatClassicGroups] = useState<Set<number>>(new Set())
   const [editingCategoryDisabledGroupIds, setEditingCategoryDisabledGroupIds] = useState<string[]>([])
   const [editingCategoryDisabledOptionIds, setEditingCategoryDisabledOptionIds] = useState<string[]>([])
   const [editingCategoryAvailMode, setEditingCategoryAvailMode] = useState<'always' | 'scheduled'>('always')
@@ -308,6 +321,11 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
   }
 
   const currentMenu = menus.find(m => m.locationId.toString() === selectedLocation)
+  /** «Disponibles hoy» de los grupos de una categoría (agotados guardados en la categoría). */
+  const categorySoldOutCtx = (category: any): SoldOutContext | undefined =>
+    selectedLocation && category?._id
+      ? { tenantSlug, locationId: selectedLocation, keys: category.soldOutOptionIds ?? [] }
+      : undefined
   const currentLocation = locations.find(l => l._id === selectedLocation)
 
   const [localCategories, setLocalCategories] = useState<any[]>([])
@@ -1603,6 +1621,27 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                       </div>
                                       {/* Opciones del grupo */}
                                       <div className="space-y-2 pl-2 border-l-2 border-border/40">
+                                        {isLargeGroup(cg) && !catClassicGroups.has(cgi) ? (
+                                          <>
+                                            <LargeGroupSummary
+                                              group={cg}
+                                              soldOutKeys={categorySoldOutCtx(category)?.keys}
+                                              onOpen={() => setCatLargeOpen(cgi)}
+                                              onShowClassic={() => setCatClassicGroups(cur => new Set(cur).add(cgi))}
+                                            />
+                                            <LargeGroupEditor
+                                              open={catLargeOpen === cgi}
+                                              group={cg}
+                                              soldOut={categorySoldOutCtx(category)}
+                                              onChange={opts => {
+                                                const updated = [...editingCategoryGroups]
+                                                updated[cgi] = { ...updated[cgi], options: opts as CustomizationOptionForm[] }
+                                                setEditingCategoryGroups(updated)
+                                              }}
+                                              onClose={() => setCatLargeOpen(null)}
+                                            />
+                                          </>
+                                        ) : (<>
                                         {cg.options.map((opt, oi) => (
                                           <div key={oi} className={cn("flex items-center gap-2 group/cgopt", opt.name && editingCategoryDisabledOptionIds.includes(opt.name) && "opacity-50")}>
                                             <input
@@ -1690,6 +1729,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                         >
                                           <Plus size={10} className="inline mr-1" strokeWidth={4} /> Agregar opción
                                         </button>
+                                        </>)}
                                       </div>
                                     </div>
                                   ))}
@@ -1860,6 +1900,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                                               mode="edit"
                                                               tenantSlug={tenantSlug}
                                                               selectedLocation={selectedLocation}
+                                                              soldOutKeys={item.soldOutOptionIds}
                                                               allItems={(currentMenu?.categories || []).flatMap((c: any) => [
                                                                 ...c.items,
                                                                 ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])
@@ -2032,6 +2073,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                           mode="edit"
                                           tenantSlug={tenantSlug}
                                           selectedLocation={selectedLocation}
+                                          soldOutKeys={item.soldOutOptionIds}
                                           allItems={(currentMenu?.categories || []).flatMap((c: any) => [...c.items, ...(c.subcategories || []).flatMap((sc: any) => sc.items || [])]).filter((i: any) => i._id !== item._id)}
                                         />
                                       ) : (
@@ -2444,6 +2486,7 @@ function RecursiveGroupEditor({
   disabledOptionIds,
   onToggleGroupDisabled,
   onToggleOptionDisabled,
+  soldOut,
 }: {
   groups: CustomizationGroupForm[]
   onUpdate: (next: CustomizationGroupForm[]) => void
@@ -2458,7 +2501,12 @@ function RecursiveGroupEditor({
   disabledOptionIds?: string[]
   onToggleGroupDisabled?: (groupId: string) => void
   onToggleOptionDisabled?: (optionId: string) => void
+  /** Sede y agotados guardados: habilita «Disponibles hoy» en grupos grandes. */
+  soldOut?: SoldOutContext
 }) {
+  // Grupos grandes (más de 12 opciones): resumen + panel propio.
+  const [openLarge, setOpenLarge] = useState<number | null>(null)
+  const [classicGroups, setClassicGroups] = useState<Set<number>>(new Set())
   function updateGroup(idx: number, patch: Partial<CustomizationGroupForm>) {
     const next = [...groups]
     next[idx] = { ...next[idx], ...patch }
@@ -2612,6 +2660,29 @@ function RecursiveGroupEditor({
               </div>
             )}
 
+            {isLargeGroup(group) && !classicGroups.has(gi) ? (
+              <>
+                <LargeGroupSummary
+                  group={group}
+                  soldOutKeys={soldOut?.keys}
+                  onOpen={() => setOpenLarge(gi)}
+                  onShowClassic={() => setClassicGroups(cur => new Set(cur).add(gi))}
+                />
+                <LargeGroupEditor
+                  open={openLarge === gi}
+                  group={group}
+                  soldOut={soldOut}
+                  onChange={opts => updateGroup(gi, { options: opts as CustomizationOptionForm[] })}
+                  onClose={() => setOpenLarge(null)}
+                />
+              </>
+            ) : (<>
+            {isLargeGroup(group) && (
+              <button type="button" onClick={() => setClassicGroups(cur => { const n = new Set(cur); n.delete(gi); return n })}
+                className="text-[11px] font-semibold text-primary underline underline-offset-2">
+                Volver a la vista resumida
+              </button>
+            )}
             {group.options.map((opt, oi) => {
               const hasSubGroups = (opt.subGroups ?? []).length > 0
               const refKey = `${context}-${depth}-${gi}-${oi}`
@@ -2746,6 +2817,7 @@ function RecursiveGroupEditor({
             >
               <Plus size={12} className="mr-1.5" strokeWidth={4} /> Agregar opción
             </Button>
+            </>)}
           </div>
         </div>
       ))}
@@ -2767,7 +2839,7 @@ function RecursiveGroupEditor({
 }
 
 function ItemForm({
-  data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [], selectedLocation,
+  data, onChange, onSave, onCancel, loading, mode, tenantSlug, allItems = [], selectedLocation, soldOutKeys,
 }: {
   data: ItemFormData
   onChange: (v: ItemFormData) => void
@@ -2779,8 +2851,14 @@ function ItemForm({
   allItems?: any[]
   /** Sede del menú: las imágenes se guardan en su carpeta. */
   selectedLocation?: string
+  /** Opciones agotadas guardadas del plato (soldOutOptionIds). */
+  soldOutKeys?: string[]
 }) {
   const [uploading, setUploading] = useState(false)
+  // «Disponibles hoy» solo para platos ya guardados (sus opciones tienen _id).
+  const soldOutCtx: SoldOutContext | undefined = mode === 'edit' && selectedLocation
+    ? { tenantSlug, locationId: selectedLocation, keys: soldOutKeys ?? [] }
+    : undefined
   const [upsellSearch, setUpsellSearch] = useState('')
   const [upsellOpen, setUpsellOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -3021,6 +3099,7 @@ function ItemForm({
           labelCls={labelCls}
           inputCls={inputCls}
           context="item"
+          soldOut={soldOutCtx}
           optFileRefs={optFileRefs}
           uploadingOptKey={uploadingOptKey}
           onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
@@ -3220,6 +3299,7 @@ function ItemForm({
                   labelCls={labelCls}
                   inputCls={inputCls}
                   context={`variant-${vi}`}
+                  soldOut={soldOutCtx}
                   optFileRefs={optFileRefs}
                   uploadingOptKey={uploadingOptKey}
                   onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}

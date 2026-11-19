@@ -83,7 +83,8 @@ function toView(g: ProductModifier, key: string, parentLabel?: string): ViewGrou
     kind,
     required: kind === "fixed" || Boolean(g.required),
     max: max && max > 0 ? max : undefined,
-    options: g.options.map((o) => ({ name: o.name, price: o.price })),
+    // Agotadas hoy («Disponibles hoy»): no se ofrecen al cajero.
+    options: g.options.filter((o) => !o.soldOut).map((o) => ({ name: o.name, price: o.price })),
     priceRule: g.priceRule ?? "sum",
     parentLabel,
     source: g,

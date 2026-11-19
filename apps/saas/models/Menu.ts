@@ -7,6 +7,9 @@ export interface ICustomizationOption {
   /** Precio extra de esta opción en centavos. @storedAs cents */
   extraPrice: number
   imageUrl?: string
+  /** Familia de la opción (p. ej. «Chocolates» en una heladería). Ordena y
+   *  agrupa grupos grandes en el panel y en el menú. Vacío = sin familia. */
+  section?: string
   subGroups?: ICustomizationGroup[]  // Grupos que se activan si esta opción es elegida
 }
 
@@ -115,6 +118,11 @@ export interface IMenuItem {
   disabledVariantNames?: string[]
   disabledGroupIds?: string[]
   disabledOptionIds?: string[]
+  /** Opciones AGOTADAS de los grupos propios del ítem (y de sus variantes):
+   *  _id de la opción (o nombre en datos viejos). Se ven en gris y no se
+   *  pueden elegir; quedan así hasta que alguien las repone. Distinto de
+   *  disabledOptionIds (oculto = no se ofrece en este plato). */
+  soldOutOptionIds?: string[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
@@ -180,6 +188,9 @@ export interface IMenuCategory {
   disabledGroupIds?: string[]
   /** Opciones de grupos globales ocultas (ids o nombres). No se muestran en el menú público. */
   disabledOptionIds?: string[]
+  /** Opciones AGOTADAS de los grupos de la categoría y sus subcategorías
+   *  (alcanza a todos sus ítems). Ver soldOutOptionIds del ítem. */
+  soldOutOptionIds?: string[]
   nameTranslations?: { en: string }
   descriptionTranslations?: { en: string }
   availabilityMode?: 'always' | 'scheduled'
@@ -240,6 +251,7 @@ CustomizationOptionSchema.add({
   /** @storedAs cents */
   extraPrice: { type: Number, default: 0, min: 0 },
   imageUrl:   { type: String, default: '' },
+  section:    { type: String, trim: true, default: undefined, maxlength: 40 },
   subGroups:  { type: [CustomizationGroupSchema], default: [] },
 })
 
@@ -352,6 +364,10 @@ const MenuItemSchema = new Schema<IMenuItem>({
   disabledOptionIds: {
     type: [String],
     default: [],
+  },
+  soldOutOptionIds: {
+    type: [String],
+    default: undefined,
   },
   nameTranslations: {
     en: { type: String, default: '' },
@@ -476,6 +492,7 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
   disabledGroupIds: { type: [String], default: [] },
   disabledOptionIds: { type: [String], default: [] },
+  soldOutOptionIds: { type: [String], default: undefined },
   nameTranslations: {
     en: { type: String, default: '' },
   },

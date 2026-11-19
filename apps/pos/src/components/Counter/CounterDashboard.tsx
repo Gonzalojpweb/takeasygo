@@ -6,7 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks"
 import { useTables } from "../../hooks/useTables"
 import { useMenu } from "../../hooks/useMenu"
 import { useEscapeBack } from "../../hooks/useEscapeBack"
-import { setItemAvailability } from "../../services/menu"
+import { setItemAvailability, setOptionSoldOut } from "../../services/menu"
 import { usePayments } from "../../hooks/usePayments"
 import { useOrders } from "../../hooks/useOrders"
 import { useLayout } from "../layout/LayoutContext"
@@ -835,6 +835,17 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       showToast(product.isAvailable ? `«${product.name}» marcado como faltante` : `«${product.name}» disponible otra vez`, "success")
     } catch (err) {
       showToast(describePosError(err, "No se pudo cambiar la disponibilidad"), "error")
+    }
+  }, [tenantId, showToast])
+
+  // ── 19/11: «Disponibles hoy» — sabores agotados ───────────────────────────
+  const handleToggleOptionSoldOut = useCallback(async (optionId: string, soldOut: boolean) => {
+    if (!tenantId) return
+    try {
+      await setOptionSoldOut(tenantId, optionId, soldOut)
+    } catch (err) {
+      showToast(describePosError(err, "No se pudo cambiar la disponibilidad"), "error")
+      throw err
     }
   }, [tenantId, showToast])
 
@@ -1925,6 +1936,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onSelectCombo={(combo) => setBuildingCombo({ combo, scene })}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
+                onToggleOptionSoldOut={handleToggleOptionSoldOut}
                 overlay={sheet}
                 back={{
                   label: cart.length > 0 ? "Salón" : `Mesa ${selectedTable?.number ?? ""}`,
@@ -2037,6 +2049,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onSelectCombo={(combo) => setBuildingCombo({ combo, scene })}
                 popularIds={popularIds}
                 onToggleAvailability={handleToggleAvailability}
+                onToggleOptionSoldOut={handleToggleOptionSoldOut}
                 overlay={sheet}
               />
             </div>

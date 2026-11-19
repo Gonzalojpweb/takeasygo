@@ -2,6 +2,8 @@
 
 import OptionChip from './OptionChip'
 import OptionPhotoCard from './OptionPhotoCard'
+import LargeOptionPicker from './LargeOptionPicker'
+import { isLargeGroup } from '@/lib/menu/sold-out-options'
 
 interface CustomizationOption {
   _id?: string
@@ -9,6 +11,9 @@ interface CustomizationOption {
   extraPrice: number
   imageUrl?: string
   description?: string
+  section?: string
+  /** Agotada hoy (la marca el local): en gris y sin poder elegirla. */
+  soldOut?: boolean
   subGroups?: any[]
 }
 
@@ -44,9 +49,11 @@ export default function CustomizationGroupSection({
   onToggle,
   renderSubGroup,
 }: CustomizationGroupSectionProps) {
-  const hasPhotos = group.options.some((opt) => opt.imageUrl || optionImageRegistry?.[opt.name])
+  const large = isLargeGroup(group)
+  const hasPhotos = !large && group.options.some((opt) => opt.imageUrl || optionImageRegistry?.[opt.name])
   const useGridLayout = hasPhotos && group.options.length <= 6
   const useHorizontalScroll = hasPhotos && group.options.length > 6
+  const max = group.type === 'single' ? 1 : group.type === 'fixed' ? (group.fixedCount ?? 1) : group.maxSelections
 
   return (
     <div className="space-y-3">
@@ -82,6 +89,19 @@ export default function CustomizationGroupSection({
         )}
       </div>
 
+      {/* Grupos grandes (sabores): buscador, familias y agotados al final */}
+      {large && (
+        <LargeOptionPicker
+          groupName={group.name}
+          options={group.options}
+          selectedNames={selectedNames}
+          max={max}
+          primaryColor={primaryColor}
+          textColor={textColor}
+          onToggle={(optionName) => onToggle(group.name, optionName)}
+        />
+      )}
+
       {/* Layout: 2-col compact list for photos ≤6 */}
       {useGridLayout && (
         <div className="grid grid-cols-2 gap-1.5">
@@ -95,6 +115,7 @@ export default function CustomizationGroupSection({
                 imageUrl={img}
                 isSelected={selectedNames.includes(opt.name)}
                 primaryColor={primaryColor}
+                soldOut={opt.soldOut}
                 onClick={() => onToggle(group.name, opt.name)}
               />
             )
@@ -119,6 +140,7 @@ export default function CustomizationGroupSection({
                 isSelected={selectedNames.includes(opt.name)}
                 primaryColor={primaryColor}
                 compact
+                soldOut={opt.soldOut}
                 onClick={() => onToggle(group.name, opt.name)}
               />
             )
@@ -127,7 +149,7 @@ export default function CustomizationGroupSection({
       )}
 
       {/* Layout: text chips (no photos) */}
-      {!hasPhotos && (
+      {!hasPhotos && !large && (
         <div className="flex flex-wrap gap-2">
           {group.options.map((opt) => (
             <OptionChip
@@ -137,6 +159,7 @@ export default function CustomizationGroupSection({
               isSelected={selectedNames.includes(opt.name)}
               primaryColor={primaryColor}
               textColor={textColor}
+              soldOut={opt.soldOut}
               onClick={() => onToggle(group.name, opt.name)}
             />
           ))}

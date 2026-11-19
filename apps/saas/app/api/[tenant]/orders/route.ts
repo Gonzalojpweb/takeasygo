@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { isOptionSoldOut, soldOutKeysFor } from '@/lib/menu/sold-out-options'
 import { connectDB } from '@/lib/mongoose'
 import { menuItemNamesOf, unavailableItemMessage } from '@/lib/orders/unavailable-item'
 import Order from '@/models/Order'
@@ -83,6 +84,8 @@ const POS_GATE_WINDOW_MS = 120_000
 function resolveCustomizations(
   clientCustomizations: any[],
   dbGroups: any[],
+  /** Opciones agotadas del plato (categoría ∪ ítem): no se pueden pedir. */
+  soldOutKeys?: Set<string>,
 ): { resolved: any[]; extraPrice: number } {
   let extraPrice = 0
   const resolved: any[] = []
@@ -102,6 +105,9 @@ function resolveCustomizations(
       if (!dbOption) {
         throw new ValidationError(`Opción inválida "${clientOption.name}" en grupo "${dbGroup.name}"`)
       }
+      if (soldOutKeys?.size && isOptionSoldOut(dbOption, soldOutKeys)) {
+        throw new ValidationError(`«${dbOption.name}» se agotó. Elegí otra opción en «${dbGroup.name}».`)
+      }
       groupSelectedOpts.push(dbOption)
 
       const resolvedOption: any = {
@@ -111,7 +117,7 @@ function resolveCustomizations(
 
       // Resolver subGroups recursivamente (cada subGroup tiene su propio priceRule)
       if (dbOption.subGroups?.length > 0 && Array.isArray(clientOption.subGroups)) {
-        const subResult = resolveCustomizations(clientOption.subGroups, dbOption.subGroups)
+        const subResult = resolveCustomizations(clientOption.subGroups, dbOption.subGroups, soldOutKeys)
         if (subResult.resolved.length > 0) {
           resolvedOption.subGroups = subResult.resolved
         }
@@ -813,6 +819,7 @@ export async function POST(
             categoryName: category.name,
             categoryId: category._id,
             categoryCustomizationGroups: category.customizationGroups || [],
+            soldOutKeys: soldOutKeysFor(category.soldOutOptionIds, item.soldOutOptionIds),
             printRole: category.printRole || 'kitchen',
           })
         }
@@ -836,6 +843,7 @@ export async function POST(
                 ...(subcategory.customizationGroups || []),
                 ...(item.customizationGroups || []),
               ],
+              soldOutKeys: soldOutKeysFor(category.soldOutOptionIds, item.soldOutOptionIds),
               printRole: subcategory.printRole || category.printRole || 'kitchen',
             })
           }
@@ -1406,7 +1414,7 @@ export async function POST(
                 ...(menuItem.customizationGroups || []),
                 ...(dbVariant?.customizationGroups || []),
               ]
-              const result = resolveCustomizations(clientItem.customizations, allCustomizationGroups)
+              const result = resolveCustomizations(clientItem.customizations, allCustomizationGroups, new Set<string>(menuItem.soldOutKeys ?? []))
               resolvedCustomizations.push(...result.resolved)
               extraPrice += result.extraPrice
             }
