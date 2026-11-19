@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
+  KeyRound,
   TrendingUp,
   LayoutDashboard,
   Store,
@@ -126,6 +127,7 @@ export default function SuperAdminSidebar() {
       items: [
         { href: '/superadmin/analytics', label: 'Analytics', icon: BarChart3 },
         { href: '/superadmin/auditoria', label: 'Auditoría', icon: Shield },
+        { href: '/superadmin/seguridad', label: 'Seguridad de la cuenta', icon: KeyRound },
         { href: '/superadmin/feedback', label: 'Feedback UX', icon: MessageSquare },
         { href: '/superadmin/comisiones', label: 'Comisiones', icon: DollarSign },
         { href: '/superadmin/ingresos', label: 'Ingresos por comercio', icon: TrendingUp },

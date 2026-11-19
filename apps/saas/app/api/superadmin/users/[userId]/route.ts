@@ -100,6 +100,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
     }
 
+    // Recuperación del SuperAdmin (19/11/2026): una cuenta superadmin no se
+    // degrada ni se desactiva desde la web (una sesión robada podía dejar
+    // afuera al dueño legítimo). Solo por el procedimiento offline.
+    const target = await User.findById(userId).select('role').lean<{ role?: string }>()
+    if (!target) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
+    }
+    if (target.role === 'superadmin') {
+      return NextResponse.json({ error: 'Las cuentas SuperAdmin no se modifican desde el panel.' }, { status: 403 })
+    }
+
     const user = await User.findByIdAndUpdate(userId, { $set: update }, { new: true })
       .select('-password -resetToken -resetTokenExpiry')
       .lean()
@@ -107,6 +118,16 @@ export async function PATCH(
     if (!user) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
     }
+
+    const { logAudit } = await import('@/lib/audit')
+    await logAudit({
+      tenantId: null,
+      action: 'superadmin.user_updated',
+      entity: 'user',
+      entityId: userId,
+      details: { changes: update, previousRole: target.role ?? null },
+      request,
+    })
 
     return NextResponse.json({ user })
   } catch (error) {

@@ -15,6 +15,75 @@ class TenantMissingSignin extends CredentialsSignin {
   code = 'tenant_missing'
 }
 
+/** Login de superadmin con MFA activado: falta el código de 6 dígitos. */
+class MfaRequiredSignin extends CredentialsSignin {
+  code = 'mfa_required'
+}
+
+/** Código MFA (o de recuperación) incorrecto o ya usado. */
+class MfaInvalidSignin extends CredentialsSignin {
+  code = 'mfa_invalid'
+}
+
+/**
+ * Recuperación del SuperAdmin (19/11/2026): segundo factor del superadmin.
+ * Devuelve true si el login queda con MFA verificado, false si la cuenta
+ * todavía no activó MFA (entra como 'superadmin_pending', solo para enrolarse).
+ * Lanza MfaRequired/MfaInvalid si falta o falla el código.
+ */
+async function verifySuperAdminMfa(userId: unknown, otp: unknown, request: Request | undefined): Promise<boolean> {
+  const { default: User } = await import('@/models/User')
+  const doc = await User.findById(userId).select('+mfaSecret +mfaRecoveryCodes +mfaLastStep mfaEnabled email name')
+  if (!doc?.mfaEnabled || !doc.mfaSecret) return false
+
+  const code = typeof otp === 'string' ? otp.trim() : ''
+  if (!code) throw new MfaRequiredSignin()
+
+  const { verifyTotp, matchRecoveryCode, looksLikeRecoveryCode } = await import('@/lib/totp')
+  const { decrypt } = await import('@/lib/crypto')
+  const { logSystemAudit } = await import('@/lib/audit')
+  const { requestFingerprint, sendSecurityAlert } = await import('@/lib/security-alerts')
+  const fp = requestFingerprint(request?.headers)
+  const auditBase = { entity: 'session', userId: String(doc._id), userName: doc.name, userRole: 'superadmin', ip: fp.ip, userAgent: fp.userAgent }
+
+  if (looksLikeRecoveryCode(code)) {
+    const idx = matchRecoveryCode(code, doc.mfaRecoveryCodes)
+    if (idx === -1) {
+      await logSystemAudit({ ...auditBase, action: 'security.superadmin_mfa_failed', details: { method: 'recovery_code' } })
+      throw new MfaInvalidSignin()
+    }
+    // Un solo uso: se borra de forma atómica (si dos logins usan el mismo
+    // código a la vez, solo uno logra sacarlo de la lista).
+    const used = doc.mfaRecoveryCodes![idx]
+    const res = await User.updateOne({ _id: doc._id, mfaRecoveryCodes: used }, { $pull: { mfaRecoveryCodes: used } })
+    if (res.modifiedCount !== 1) throw new MfaInvalidSignin()
+    const left = (doc.mfaRecoveryCodes?.length ?? 1) - 1
+    await logSystemAudit({ ...auditBase, action: 'security.superadmin_recovery_code_used', details: { remaining: left } })
+    await sendSecurityAlert({
+      accountEmail: doc.email,
+      subject: 'Se usó un código de recuperación',
+      summary: `Se inició sesión de SuperAdmin con un código de recuperación. Quedan ${left}.`,
+      ip: fp.ip, userAgent: fp.userAgent,
+    })
+    return true
+  }
+
+  let secret = ''
+  try { secret = decrypt(doc.mfaSecret) } catch { throw new MfaInvalidSignin() }
+  const step = verifyTotp(secret, code, doc.mfaLastStep ?? null)
+  if (step === null) {
+    await logSystemAudit({ ...auditBase, action: 'security.superadmin_mfa_failed', details: { method: 'totp' } })
+    throw new MfaInvalidSignin()
+  }
+  // Anti-replay atómico: solo avanza si el paso es mayor al último aceptado.
+  const res = await User.updateOne(
+    { _id: doc._id, $or: [{ mfaLastStep: null }, { mfaLastStep: { $exists: false } }, { mfaLastStep: { $lt: step } }] },
+    { $set: { mfaLastStep: step } },
+  )
+  if (res.modifiedCount !== 1) throw new MfaInvalidSignin()
+  return true
+}
+
 /**
  * Regla: los logins por contraseña (staff) requieren un tenant activo.
  * - superadmin: exento (acceso global, tenantId nulo por diseño).
@@ -93,6 +162,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
         ssoCode: { label: 'SSO Code' },
+        otp: { label: 'Código MFA' },
       },
       async authorize(credentials, request) {
         const [
@@ -118,6 +188,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           await connectDB()
           const user = await User.findOne({ email, isActive: true })
           if (!user) return null
+          // El SuperAdmin nunca entra por SSO del POS: solo contraseña + MFA.
+          if (user.role === 'superadmin') return null
           await assertTenantUsable(user)
 
           let tenantSlug: string | null = null
@@ -169,9 +241,38 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           user.password
         )
 
-        if (!passwordMatch) return null
+        if (!passwordMatch) {
+          if (user.role === 'superadmin') {
+            const { logSystemAudit } = await import('@/lib/audit')
+            await logSystemAudit({
+              action: 'security.superadmin_login_failed', entity: 'session',
+              userId: user._id.toString(), userName: user.name, userRole: 'superadmin',
+              details: { reason: 'password' }, ip,
+              userAgent: request?.headers?.get('user-agent') ?? '',
+            })
+          }
+          return null
+        }
 
         await assertTenantUsable(user)
+
+        // Recuperación del SuperAdmin (19/11/2026): segundo factor obligatorio.
+        let superAdminRole: string | null = null
+        let mfaVerified = false
+        if (user.role === 'superadmin') {
+          mfaVerified = await verifySuperAdminMfa(user._id, credentials.otp, request)
+          superAdminRole = mfaVerified ? 'superadmin' : 'superadmin_pending'
+          const { requestFingerprint, sendSecurityAlert } = await import('@/lib/security-alerts')
+          const fp = requestFingerprint(request?.headers)
+          await sendSecurityAlert({
+            accountEmail: user.email,
+            subject: 'Nuevo inicio de sesión de SuperAdmin',
+            summary: mfaVerified
+              ? 'Se inició sesión en la cuenta SuperAdmin (contraseña + MFA).'
+              : 'Se inició sesión en la cuenta SuperAdmin con contraseña. La cuenta todavía no tiene MFA: solo puede activarlo.',
+            ip: fp.ip, userAgent: fp.userAgent,
+          })
+        }
 
         // Resolve tenant slug for redirect after login
         let tenantSlug: string | null = null
@@ -184,7 +285,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user._id.toString(),
           name: user.name,
           email: user.email,
-          role: user.role,
+          role: superAdminRole ?? user.role,
+          mfa: mfaVerified,
           tenantId: user.tenantId?.toString() ?? null,
           tenantSlug,
           assignedLocation: user.assignedLocations?.[0]?.toString() ?? null,

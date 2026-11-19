@@ -183,10 +183,23 @@ describe('org.access = enforce', () => {
   it('superadmin no se proyecta', async () => {
     const u = await mkUser('sa@test', 'superadmin')
     await OrgMembership.collection.insertOne({ organizationId: orgA, userId: u._id, orgRole: 'brand_manager', status: 'active', scope: { allTenants: false, tenantIds: [new mongoose.Types.ObjectId(tA1)], locations: [] } })
-    loginAs(u)
+    // Token de contraseña + MFA (recuperación del SuperAdmin, 19/11/2026).
+    authMock.mockResolvedValue({
+      user: {
+        id: String(u._id), role: 'superadmin', email: 'sa@test', name: 'X', tenantId: null, tenantSlug: null,
+        assignedLocations: [], assignedTenants: [], issuedAt: Math.floor(Date.now() / 1000), authProvider: 'credentials', mfa: true,
+      },
+    } as never)
     const s = await getSessionUser(req('/api/a-uno/x')) as Record<string, unknown>
     expect(s.role).toBe('superadmin')
     expect(s.via).toBeUndefined()
+
+    // Sin MFA verificado: queda superadmin_pending y tampoco se proyecta.
+    clearFreshUserCache()
+    loginAs(u)
+    const p = await getSessionUser(req('/api/a-uno/x')) as Record<string, unknown>
+    expect(p.role).toBe('superadmin_pending')
+    expect(p.via).toBeUndefined()
   })
 })
 

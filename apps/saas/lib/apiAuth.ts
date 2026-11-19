@@ -111,9 +111,18 @@ async function withFreshPermissions<T extends {
   if (fresh === undefined) return user
   if (fresh === null) return null
   if (sessionCutOff(issuedAtSec, fresh.sessionsValidAfter)) return null
+  // Recuperación del SuperAdmin (19/11/2026): el rol superadmin fresco de la
+  // base solo se reconoce en un token emitido por contraseña + MFA. Cualquier
+  // otro token de esa cuenta (Google, magic link, POS, previo al MFA) queda en
+  // 'superadmin_pending', que ninguna guardia acepta.
+  const tokenInfo = user as { authProvider?: string | null; mfa?: boolean | null; role?: string | null }
+  const freshRole = fresh.role === 'superadmin'
+    && !(tokenInfo.authProvider === 'credentials' && tokenInfo.mfa === true && tokenInfo.role === 'superadmin')
+    ? 'superadmin_pending'
+    : fresh.role
   const base: T = {
     ...user,
-    role: fresh.role,
+    role: freshRole,
     tenantId: fresh.tenantId,
     assignedLocations: fresh.assignedLocations,
     assignedLocation: fresh.assignedLocations[0] ?? null,
@@ -147,6 +156,8 @@ export async function getSessionUser(request?: NextRequest) {
         assignedLocations: token.assignedLocations as string[],
         assignedTenants: token.assignedTenants as string[],
         image: token.image as string | null,
+        authProvider: (token.authProvider as string | undefined) ?? null,
+        mfa: token.mfa === true,
       }, request, typeof token.iat === 'number' ? token.iat : null)
     }
   }

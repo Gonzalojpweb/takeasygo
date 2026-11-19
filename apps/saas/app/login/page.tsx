@@ -12,6 +12,8 @@ export default function LoginPage() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    // Recuperación del SuperAdmin: segundo paso con el código MFA.
+    const [needsOtp, setNeedsOtp] = useState(false)
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -21,14 +23,26 @@ export default function LoginPage() {
         const form = e.currentTarget
         const email = (form.elements.namedItem('email') as HTMLInputElement).value
         const password = (form.elements.namedItem('password') as HTMLInputElement).value
+        const otpInput = form.elements.namedItem('otp') as HTMLInputElement | null
+        const otp = otpInput?.value?.trim() ?? ''
 
         const result = await signIn('credentials', {
             email,
             password,
+            ...(otp ? { otp } : {}),
             redirect: false,
         })
 
-        if (result?.error) {
+        const code = (result as { code?: string } | undefined)?.code
+        if (result?.error && code === 'mfa_required') {
+            setNeedsOtp(true)
+            setError('')
+            setLoading(false)
+        } else if (result?.error && code === 'mfa_invalid') {
+            setNeedsOtp(true)
+            setError('Código incorrecto o ya usado. Probá con el código nuevo de tu app.')
+            setLoading(false)
+        } else if (result?.error) {
             setError('Email o contraseña incorrectos')
             setLoading(false)
         } else {
@@ -39,7 +53,10 @@ export default function LoginPage() {
             // solo rutas internas, nunca otro dominio.
             const safeCallback = safeCallbackUrl(new URLSearchParams(window.location.search).get('callbackUrl'))
 
-            if (safeCallback) {
+            if (role === 'superadmin_pending') {
+                // SuperAdmin sin MFA: lo único que puede hacer es activarlo.
+                router.push('/superadmin/seguridad')
+            } else if (safeCallback) {
                 router.push(safeCallback)
             } else if (role === 'superadmin') {
                 router.push('/superadmin')
@@ -410,6 +427,29 @@ export default function LoginPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Código MFA (solo cuentas con segundo factor) */}
+                        {needsOtp && (
+                            <div className="login-field">
+                                <label htmlFor="login-otp" className="login-label">Código de verificación</label>
+                                <div className="login-input-wrap">
+                                    <input
+                                        id="login-otp"
+                                        name="otp"
+                                        type="text"
+                                        inputMode="text"
+                                        autoComplete="one-time-code"
+                                        autoFocus
+                                        required
+                                        placeholder="123456 o código de recuperación"
+                                        className="login-input"
+                                    />
+                                </div>
+                                <span style={{ fontSize: '11px', color: '#8a8280' }}>
+                                    Abrí tu app autenticadora e ingresá el código de 6 dígitos.
+                                </span>
+                            </div>
+                        )}
 
                         {/* Forgot password */}
                         <div style={{ textAlign: 'right', marginTop: '-16px', marginBottom: '16px' }}>

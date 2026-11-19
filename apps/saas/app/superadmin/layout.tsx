@@ -1,11 +1,28 @@
 import { getRoleSession } from '@/lib/tenant-access'
+import { getSuperAdminForSecurity } from '@/lib/superadmin-guard'
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import SuperAdminSidebar from '@/components/superadmin/SuperAdminSidebar'
 import MobileNav from '@/components/MobileNav'
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
+  // Recuperación del SuperAdmin (19/11/2026): sin MFA activo, la única página
+  // accesible es Seguridad (para activarlo). x-pathname lo pone proxy.ts.
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  const onSecurityPage = pathname === '/superadmin/seguridad' || pathname.startsWith('/superadmin/seguridad/')
+
   const session = await getRoleSession('superadmin')
-  if (!session) redirect('/login')
+  if (!session) {
+    const pending = await getSuperAdminForSecurity()
+    if (!pending) redirect('/login')
+    if (!onSecurityPage) redirect('/superadmin/seguridad')
+    // Enrolamiento: página sola, sin el menú del panel.
+    return (
+      <main className="min-h-screen bg-background p-4 md:p-8">
+        <div className="max-w-2xl mx-auto">{children}</div>
+      </main>
+    )
+  }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">

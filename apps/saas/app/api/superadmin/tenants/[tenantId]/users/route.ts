@@ -3,6 +3,19 @@ import User from '@/models/User'
 import bcrypt from 'bcryptjs'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
+import { logAudit } from '@/lib/audit'
+
+/**
+ * Roles que se pueden crear para un comercio desde el superadmin
+ * (Recuperación del SuperAdmin, Fase 0 — 19/11/2026). Nunca superadmin:
+ * antes el rol salía del body sin filtro y una sesión robada podía crear
+ * otro SuperAdmin como persistencia. consumer y member tampoco (no son
+ * staff de un comercio).
+ */
+const TENANT_CREATABLE_ROLES = new Set([
+    'admin', 'manager', 'operations_manager', 'kitchen_lead', 'staff',
+    'cashier', 'waiter', 'host', 'auditor', 'seller',
+])
 
 // GET — list all users for a tenant (passwords excluded)
 export async function GET(
@@ -39,6 +52,13 @@ export async function POST(
         const { tenantId } = await params
         const { name, email, password, role = 'admin', assignedLocations = [] } = await request.json()
 
+        if (typeof role !== 'string' || !TENANT_CREATABLE_ROLES.has(role)) {
+            return NextResponse.json({ error: 'Rol no permitido.' }, { status: 400 })
+        }
+        if (typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string') {
+            return NextResponse.json({ error: 'Datos inválidos.' }, { status: 400 })
+        }
+
         if (!name || !email || !password) {
             return NextResponse.json(
                 { error: 'Nombre, email y contraseña son requeridos.' },
@@ -74,6 +94,15 @@ export async function POST(
         }
 
         const user = await User.create(userData)
+
+        await logAudit({
+            tenantId: role === 'seller' ? null : tenantId,
+            action: 'superadmin.user_created',
+            entity: 'user',
+            entityId: user._id.toString(),
+            details: { role, email: user.email, forTenant: tenantId },
+            request,
+        })
 
         const { password: _pwd, ...safeUser } = user.toObject()
         return NextResponse.json({ user: safeUser }, { status: 201 })

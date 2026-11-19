@@ -145,36 +145,58 @@ describe('authorizeTenantBySlug', () => {
   })
 })
 
-describe('requireSuperAdminCentral (S5)', () => {
+describe('requireSuperAdminCentral (S5 + recuperación del SuperAdmin 19/11/2026)', () => {
+  // Desde el 19/11/2026 el SuperAdmin se valida SIEMPRE contra la base, con
+  // MFA y corte de sesiones, sin importar el modo de access.central.
+  const strongJwt = () => jwt({ id: userId, role: 'superadmin', tenantSlug: null, authProvider: 'credentials', mfa: true, issuedAt: Math.floor(Date.now() / 1000) })
+
   beforeEach(async () => {
     await User.updateOne({ _id: userId }, { role: 'manager' })
-    jwt({ id: userId, role: 'superadmin', tenantSlug: null })
+    strongJwt()
   })
 
-  it('off: el rol del JWT manda (como siempre)', async () => {
+  for (const mode of ['off', 'log', 'enforce'] as const) {
+    it(`${mode}: al que le sacaron el superadmin en la base no pasa (aunque el JWT diga superadmin)`, async () => {
+      await setMode(mode)
+      const r = await requireSuperAdminCentral()
+      expect(r?.status).toBe(403)
+    })
+
+    it(`${mode}: superadmin vigente con MFA pasa`, async () => {
+      await setMode(mode)
+      await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null, mfaEnabled: true })
+      clearFreshUserCache()
+      expect(await requireSuperAdminCentral()).toBeNull()
+    })
+  }
+
+  it('sin MFA activado en la base no pasa', async () => {
     await setMode('off')
-    expect(await requireSuperAdminCentral()).toBeNull()
+    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null, mfaEnabled: false })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
   })
 
-  it('log: pasa por el JWT y registra jwt_stale_role', async () => {
-    await setMode('log')
-    expect(await requireSuperAdminCentral('superadmin')).toBeNull()
-    await waitShadow(1)
-    const ev = await AccessShadowEvent.findOne().lean()
-    expect(ev?.reason).toBe('jwt_stale_role')
+  it('token sin MFA verificado, o emitido por Google, no pasa', async () => {
+    await setMode('off')
+    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null, mfaEnabled: true })
+    jwt({ id: userId, role: 'superadmin', tenantSlug: null, authProvider: 'credentials', mfa: false, issuedAt: Math.floor(Date.now() / 1000) })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
+    jwt({ id: userId, role: 'superadmin', tenantSlug: null, authProvider: 'google', mfa: true, issuedAt: Math.floor(Date.now() / 1000) })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
+    jwt({ id: userId, role: 'superadmin_pending', tenantSlug: null, authProvider: 'credentials', mfa: false, issuedAt: Math.floor(Date.now() / 1000) })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
   })
 
-  it('enforce: al que le sacaron el superadmin en la base no pasa', async () => {
-    await setMode('enforce')
-    const r = await requireSuperAdminCentral()
-    expect(r?.status).toBe(403)
+  it('cierre de sesiones: un token anterior a sessionsValidAfter no pasa', async () => {
+    await setMode('off')
+    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null, mfaEnabled: true, sessionsValidAfter: new Date(Date.now() + 5_000) })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
   })
 
-  it('enforce: superadmin vigente pasa', async () => {
-    await setMode('enforce')
-    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null })
-    clearFreshUserCache()
-    expect(await requireSuperAdminCentral()).toBeNull()
+  it('cuenta desactivada no pasa', async () => {
+    await setMode('off')
+    await User.updateOne({ _id: userId }, { role: 'superadmin', tenantId: null, mfaEnabled: true, isActive: false })
+    expect((await requireSuperAdminCentral())?.status).toBe(403)
   })
 })
 

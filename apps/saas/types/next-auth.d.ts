@@ -10,6 +10,10 @@ declare module 'next-auth' {
       assignedLocation: string | null
       assignedLocations: string[]
       assignedTenants: string[]
+      /** Proveedor con el que se emitió la sesión (credentials, google, email…). */
+      authProvider?: string | null
+      /** true si el login verificó el segundo factor (SuperAdmin). */
+      mfa?: boolean
     } & DefaultSession['user']
   }
 
@@ -22,6 +26,7 @@ declare module 'next-auth' {
     assignedLocation: string | null
     assignedLocations: string[]
     assignedTenants: string[]
+    mfa?: boolean
   }
 }
 
@@ -35,5 +40,7 @@ declare module 'next-auth/jwt' {
     assignedLocation: string | null
     assignedLocations: string[]
     assignedTenants: string[]
+    authProvider?: string | null
+    mfa?: boolean
   }
 }

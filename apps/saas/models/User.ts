@@ -21,6 +21,16 @@ export interface IUser extends Document {
   isActive: boolean
   /** Multi-marca PR 7: sesiones emitidas antes de esta fecha dejan de valer (lo aplica el PR 8). */
   sessionsValidAfter?: Date | null
+  /** MFA TOTP (superadmin). Secreto cifrado AES-256-GCM; nunca se selecciona por defecto. */
+  mfaEnabled?: boolean
+  mfaEnabledAt?: Date | null
+  mfaSecret?: string | null
+  mfaPendingSecret?: string | null
+  mfaPendingAt?: Date | null
+  /** Hashes SHA-256 de los códigos de recuperación (un solo uso). */
+  mfaRecoveryCodes?: string[]
+  /** Último paso TOTP aceptado (anti-replay). */
+  mfaLastStep?: number | null
   savedAddresses: {
     label: string
     address: string
@@ -120,6 +130,14 @@ const UserSchema = new Schema<IUser>(
       type: Date,
       default: null,
     },
+    // Recuperación del SuperAdmin (19/11/2026): MFA TOTP obligatorio para superadmin.
+    mfaEnabled: { type: Boolean, default: false },
+    mfaEnabledAt: { type: Date, default: null },
+    mfaSecret: { type: String, default: null, select: false },
+    mfaPendingSecret: { type: String, default: null, select: false },
+    mfaPendingAt: { type: Date, default: null, select: false },
+    mfaRecoveryCodes: { type: [String], default: undefined, select: false },
+    mfaLastStep: { type: Number, default: null, select: false },
     savedAddresses: [
       {
         label: { type: String, required: true }, // "Casa", "Trabajo"
@@ -219,7 +237,7 @@ const BCRYPT_HASH_RE = /^\$2[abxy]\$\d{2}\$[./A-Za-z0-9]{53}$/
 UserSchema.pre('save', async function () {
   if (!this.isModified('password') || !this.password) return
   if (BCRYPT_HASH_RE.test(this.password)) return
-  this.password = await bcrypt.hash(this.password, 10)
+  this.password = await bcrypt.hash(this.password, 12)
 })
 
 const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema)

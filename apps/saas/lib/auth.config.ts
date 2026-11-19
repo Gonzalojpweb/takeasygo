@@ -12,6 +12,27 @@ export const authConfig = {
       return baseUrl
     },
     async signIn({ user, account }) {
+      // Recuperación del SuperAdmin (19/11/2026, Fase 0): una cuenta superadmin
+      // solo entra con contraseña + MFA. Google y el link por email quedan
+      // bloqueados para ese rol (antes alcanzaba con controlar la casilla).
+      if (account && account.provider !== 'credentials' && user?.email) {
+        const { connectDB } = await import('@/lib/mongoose')
+        const User = (await import('@/models/User')).default
+        await connectDB()
+        const target = await User.findOne({ email: String(user.email).toLowerCase().trim() })
+          .select('_id role').lean<{ _id: unknown; role?: string }>()
+        if (target?.role === 'superadmin') {
+          const { logSystemAudit } = await import('@/lib/audit')
+          await logSystemAudit({
+            action: 'security.superadmin_provider_blocked',
+            entity: 'session',
+            userId: String(target._id),
+            userRole: 'superadmin',
+            details: { provider: account.provider },
+          })
+          return false
+        }
+      }
       if (account?.provider === 'google' || account?.provider === 'nodemailer') {
         const { connectDB } = await import('@/lib/mongoose')
         const User = (await import('@/models/User')).default
@@ -73,8 +94,11 @@ export const authConfig = {
         token.assignedTenants = (user as any).assignedTenants || []
         token.image = user.image
         token.name = user.name || token.name
+        token.authProvider = 'credentials'
+        token.mfa = (user as { mfa?: boolean }).mfa === true
       }
       else {
+        if (user && account?.provider) token.authProvider = account.provider
         if (user || trigger === 'update') {
           const email = user?.email || token.email
           if (email) {
@@ -83,6 +107,13 @@ export const authConfig = {
             const Tenant = (await import('@/models/Tenant')).default
             await connectDB()
             const dbUser = await User.findOne({ email })
+            if (dbUser?.role === 'superadmin') {
+              // Nunca se sube a superadmin refrescando el token: un token de
+              // contraseña conserva el rol que obtuvo en el login (con o sin
+              // MFA); cualquier otro (Google, email) se invalida.
+              if (token.authProvider !== 'credentials') return null
+              return token
+            }
             if (dbUser) {
               token.id = dbUser._id.toString()
               token.role = dbUser.role || 'consumer'
@@ -114,6 +145,9 @@ export const authConfig = {
         session.user.name = token.name as string | null
         // Multi-marca PR 8: emisión del JWT, para el corte sessionsValidAfter.
         ;(session.user as { issuedAt?: number | null }).issuedAt = typeof token.iat === 'number' ? token.iat : null
+        // Recuperación del SuperAdmin: cómo se emitió la sesión y si verificó MFA.
+        ;(session.user as { authProvider?: string | null }).authProvider = (token.authProvider as string | undefined) ?? null
+        ;(session.user as { mfa?: boolean }).mfa = token.mfa === true
       }
       return session
     },

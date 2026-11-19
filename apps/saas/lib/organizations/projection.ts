@@ -224,7 +224,8 @@ export async function resolveMembershipAccess(userId: string, slugOrId: string, 
  * Devuelve el mismo objeto si no corresponde proyectar.
  */
 export async function projectSessionUser<T extends ProjectableUser>(base: T, request?: NextRequest, explicitSlug?: string | null): Promise<T | (T & ProjectedFields)> {
-  if (!base?.id || !OBJECT_ID_RE.test(base.id) || base.role === 'superadmin') return base
+  // superadmin_pending (sin MFA verificado) tampoco se proyecta: no tiene acceso a nada.
+  if (!base?.id || !OBJECT_ID_RE.test(base.id) || base.role === 'superadmin' || base.role === 'superadmin_pending') return base
 
   const { getOrgAccessMode } = await import('@/lib/org-access')
   const mode = await getOrgAccessMode()

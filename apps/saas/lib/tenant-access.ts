@@ -164,6 +164,12 @@ export async function authorizeTenantBySlug(
  * acceso en ≤ 30 s, no en 8 h (S5).
  */
 export async function requireSuperAdminCentral(family = 'superadmin', request?: NextRequest): Promise<NextResponse | null> {
+  // Recuperación del SuperAdmin (19/11/2026): en cualquier modo, el SuperAdmin
+  // se valida contra la base + MFA + cierre de sesiones (lib/superadmin-guard).
+  const { getStrictSuperAdmin } = await import('@/lib/superadmin-guard')
+  if (!(await getStrictSuperAdmin())) {
+    return NextResponse.json({ error: 'Acceso denegado' }, { status: 403 })
+  }
   const mode = await getAccessMode()
   const session = await auth()
   const jwtRole = (session?.user as JwtUser | undefined)?.role ?? null
@@ -270,6 +276,13 @@ export interface RoleSessionUser {
  * vendedor) salen de la base: quitar el rol corta en ≤ 30 s (S5).
  */
 export async function getRoleSession(role: 'superadmin' | 'seller'): Promise<{ user: RoleSessionUser } | null> {
+  if (role === 'superadmin') {
+    // Recuperación del SuperAdmin (19/11/2026): base + MFA + cierre de sesiones, en cualquier modo.
+    const { getStrictSuperAdmin } = await import('@/lib/superadmin-guard')
+    const strict = await getStrictSuperAdmin()
+    if (!strict) return null
+    return { user: { id: strict.id, email: strict.email, name: strict.name, role: 'superadmin', assignedTenants: [] } }
+  }
   const mode = await getAccessMode()
   const session = await auth()
   const jwt = session?.user as (JwtUser & { assignedTenants?: string[] | null }) | undefined
