@@ -57,7 +57,7 @@ export interface CartItem {
   customizations: SelectedCustomization[]
   customizationSummary: string // e.g. "Papa fritas · Al punto"
   selectedVariant?: SelectedVariant
-  addedFrom?: 'menu' | 'upsell_sheet' | 'checkout_banner' | 'promotion' | 'group' | 'best_sellers' | 'store'
+  addedFrom?: 'menu' | 'upsell_sheet' | 'checkout_banner' | 'promotion' | 'group' | 'best_sellers' | 'liked_carousel' | 'store'
   type: CartItemType
   /** Solo type === 'reward': ítem de la tienda canjeado con puntos (línea $0). */
   storeItemId?: string

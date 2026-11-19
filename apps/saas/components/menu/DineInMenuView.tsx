@@ -21,6 +21,8 @@ import LocationBar from '@/components/menu/LocationBar'
 import { toast } from 'sonner'
 import type { CartItem } from '@/types/cart'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import LikedItemsCarousel from '@/components/menu/LikedItemsCarousel'
+import { collectMenuEntries, pickLikedItems, type LikedCarouselSettings } from '@/lib/menu/liked-items'
 import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
 import MenuClosing from '@/components/menu/MenuClosing'
 import { categoryHasItems } from '@/lib/menu/has-items'
@@ -31,6 +33,8 @@ interface Props {
   location: any
   menu: any
   bestSellers?: any[]
+  /** Ventana de rotación del carrusel de likes (la calcula el server). */
+  likedRotation?: number
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -98,7 +102,7 @@ const UI = {
   },
 }
 
-export default function DineInMenuView({ tenant, location, menu, bestSellers }: Props) {
+export default function DineInMenuView({ tenant, location, menu, bestSellers, likedRotation = 0 }: Props) {
   const branding = tenant.branding
   const profile = tenant.profile ?? {}
   const applyGridToDineIn = branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'dine-in'
@@ -472,6 +476,26 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
   // Combos anclados a una categoría visible (si la marcada está oculta, vuelven a su lugar).
   const combosAnchorId = findAnchorCategoryId(categories, (c: any) => c.combosAfter)
 
+  // ── Carrusel automático de likes (en la carta de salón abre el detalle del plato) ──
+  const likedSettings: LikedCarouselSettings | undefined = tenant.branding?.likedCarousel
+  const likedEntries = likedSettings?.showSection === false
+    ? []
+    : pickLikedItems(collectMenuEntries(categories, isDineInItemVisible), { minLikes: likedSettings?.minLikes, rotation: likedRotation })
+  const likedSection = (position: NonNullable<LikedCarouselSettings['position']>) =>
+    likedEntries.length > 0 && (likedSettings?.position ?? 'afterBestsellers') === position ? (
+      <LikedItemsCarousel
+        entries={likedEntries}
+        settings={likedSettings}
+        primary={branding.primaryColor}
+        textColor={text}
+        getPrice={(item) => item.price ?? 0}
+        getName={(item) => tn(item, 'name', locale)}
+        onSelect={(item, cat) => openDishInfo(item, cat?.customizationGroups)}
+        locationId={location._id}
+        mode="dine-in"
+      />
+    ) : null
+
   function renderDineInItem(item: any, cat: any, layout: CategoryLayout) {
     return (
       <DineInItemCard
@@ -650,6 +674,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           </button>
 </div>
 
+        {likedSection('afterFeatured')}
         {comboSection('afterFeatured')}
 
         {/* Promotions Section */}
@@ -678,6 +703,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
       </div>
       {/* ── Menu sections ─────────────────────────────────── */}
       <main className="max-w-4xl mx-auto px-4 pt-8 pb-0">
+        {likedSection('beforeCategories')}
         {comboSection('beforeCategories')}
         {categories.map((cat: any) => {
           const layout = resolveCategoryLayout(cat, 'dine-in', isGrid)
@@ -738,10 +764,13 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
           )
         })}
 
+        {likedSection('afterCategories')}
         {comboSection('afterCategories')}
       </main>
 
       {/* ── End of Menu: Club + TGO Network ── */}
+
+      <div className="max-w-4xl mx-auto px-4">{likedSection('beforeBestsellers')}</div>
 
       {/* Best Sellers */}
       {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
@@ -763,7 +792,10 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers }: 
         />
       )}
 
-      <div className="max-w-4xl mx-auto px-4">{comboSection('afterBestsellers')}</div>
+      <div className="max-w-4xl mx-auto px-4">
+        {likedSection('afterBestsellers')}
+        {comboSection('afterBestsellers')}
+      </div>
 
       {/* ── Cierre del menú: club, datos del local, red TakeasyGO y pie (con la marca del local) ── */}
       <MenuClosing

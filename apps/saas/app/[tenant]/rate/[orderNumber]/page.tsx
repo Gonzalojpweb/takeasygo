@@ -5,6 +5,7 @@ import Rating from '@/models/Rating'
 import { verifyRatingToken } from '@/lib/rating-token'
 import { notFound } from 'next/navigation'
 import RatingForm from '@/components/tracking/RatingForm'
+import RateLikesPrompt from '@/components/tracking/RateLikesPrompt'
 
 interface Props {
   params: Promise<{ tenant: string; orderNumber: string }>
@@ -32,6 +33,19 @@ export default async function RatePage({ params, searchParams }: Props) {
   const alreadyRated = await Rating.exists({ orderId: order._id })
 
   const canRate = tokenValid && isDelivered && !alreadyRated
+
+  // Likes: solo con el link del comprador (token) y el pedido entregado.
+  // Los premios canjeados no se likean (no son platos comprados).
+  const likeItems = tokenValid && isDelivered
+    ? (order.items ?? [])
+        .filter((item: any) => item.menuItemId && item.itemType !== 'reward')
+        .map((item: any) => ({
+          _id: String(item._id ?? ''),
+          name: String(item.name ?? ''),
+          quantity: Number(item.quantity ?? 1),
+          menuItemId: String(item.menuItemId),
+        }))
+    : []
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: branding.backgroundColor, color: branding.textColor }}>
@@ -68,6 +82,17 @@ export default async function RatePage({ params, searchParams }: Props) {
             <p className="font-semibold">Link inválido</p>
             <p className="text-xs mt-1">Este enlace no es válido</p>
           </div>
+        )}
+
+        {likeItems.length > 0 && (
+          <RateLikesPrompt
+            items={likeItems}
+            orderId={orderId}
+            ratingToken={token}
+            tenantSlug={tenantSlug}
+            tenantName={tenant.name}
+            primaryColor={branding.primaryColor}
+          />
         )}
 
         {isDelivered && tokenValid && alreadyRated && (

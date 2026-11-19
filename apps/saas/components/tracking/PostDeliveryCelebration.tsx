@@ -46,6 +46,25 @@ export default function PostDeliveryCelebration({
   const celebRef = useRef(false)
   const [showLikeModal, setShowLikeModal] = useState(false)
 
+  // Pedido de like automático: al quedar entregado, el modal de likes se abre
+  // solo (una vez por pedido, después del festejo). Solo el comprador tiene el
+  // token del pedido, así que solo él puede likear.
+  const hasLikeableItems = orderItems.some(it => it.menuItemId)
+  useEffect(() => {
+    if (!ratingToken || !hasLikeableItems) return
+    const key = `tgo-like-prompt-${orderId}`
+    try {
+      if (localStorage.getItem(key)) return
+    } catch {
+      return
+    }
+    const timer = setTimeout(() => {
+      setShowLikeModal(true)
+      try { localStorage.setItem(key, '1') } catch { /* sin storage: se vuelve a ofrecer */ }
+    }, 1800)
+    return () => clearTimeout(timer)
+  }, [orderId, ratingToken, hasLikeableItems])
+
   // Subtle confetti on mount
   useEffect(() => {
     if (celebRef.current) return

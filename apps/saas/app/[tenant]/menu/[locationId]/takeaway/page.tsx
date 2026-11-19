@@ -5,6 +5,7 @@ import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import MenuPublicView from '@/components/menu/MenuPublicView'
 import { getBestSellers } from '@/lib/tia/bestSellers'
+import { likedRotationSlot } from '@/lib/menu/liked-items'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
@@ -72,6 +73,8 @@ export default async function TakeawayMenuPage({ params }: Props) {
       menu={menu}
       mode="takeaway"
       bestSellers={JSON.parse(JSON.stringify(bestSellers))}
+      // Tanda del carrusel de likes: cambia cada hora si califican más de 6 platos.
+      likedRotation={likedRotationSlot()}
     />
   )
 }

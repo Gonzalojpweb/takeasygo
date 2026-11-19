@@ -1,32 +1,71 @@
+import mongoose from 'mongoose'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
-import Menu from '@/models/Menu'
 import Order from '@/models/Order'
 import ItemLike from '@/models/ItemLike'
 import { verifyRatingToken } from '@/lib/rating-token'
+import { rateLimit } from '@/lib/rateLimit'
+import { clientIp } from '@/lib/onboarding-guard'
+import { adjustItemLikes, locateMenuItem } from '@/lib/menu/item-likes'
 import { NextRequest, NextResponse } from 'next/server'
 
-function findItemInMenu(menu: any, itemId: string): { cat: any; item: any } | null {
-  for (const cat of menu.categories) {
-    const directItem = cat.items.id(itemId)
-    if (directItem) return { cat, item: directItem }
-    for (const sub of cat.subcategories || []) {
-      const subItem = sub.items.id(itemId)
-      if (subItem) return { cat, item: subItem }
-    }
-  }
-  return null
+// ============================================================================
+// Like de un plato — solo quien lo compró
+// ============================================================================
+// Un like por PEDIDO y plato (índice único en ItemLike). Lo puede dar quien
+// tiene el token del pedido (seguimiento, calificación) y solo si el pedido
+// fue ENTREGADO y el plato está en ese pedido.
+//
+// Correcciones 19/11:
+//   - el plato se ubica por su _id en el menú de SU sede (antes: el primer menú
+//     activo del tenant → en multi-sede los likes se perdían con 404);
+//   - se exige pedido entregado (antes: cualquier estado, incluso cancelado);
+//   - contador atómico, sin guardar el menú entero (lib/menu/item-likes);
+//   - «ya tenía like» devolvía el _id del registro como cantidad;
+//   - límite de intentos por IP.
+// ============================================================================
+
+const LIKE_STATUSES = new Set(['delivered'])
+
+function isObjectId(id: unknown): id is string {
+  return typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id
 }
 
-async function getTenantAndItem(tenantSlug: string, itemId: string) {
+async function limited(request: NextRequest): Promise<NextResponse | null> {
+  const { success } = await rateLimit(`item-like:${clientIp(request.headers)}`, 60, 60_000)
+  return success ? null : NextResponse.json({ error: 'Demasiados intentos, probá en un rato' }, { status: 429 })
+}
+
+async function readBody(request: NextRequest): Promise<{ orderId?: unknown; token?: unknown }> {
+  try {
+    return await request.json()
+  } catch {
+    return {}
+  }
+}
+
+/** Valida token, pedido entregado y que el plato esté en el pedido. */
+async function authorizeOrder(tenantSlug: string, itemId: string, orderId: unknown, token: unknown) {
+  if (!isObjectId(orderId) || typeof token !== 'string' || !isObjectId(itemId)) {
+    return { error: NextResponse.json({ error: 'orderId y token requeridos' }, { status: 400 }) }
+  }
+  if (!verifyRatingToken(orderId, token)) {
+    return { error: NextResponse.json({ error: 'Token inválido' }, { status: 401 }) }
+  }
+
   await connectDB()
-  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-  if (!tenant) return null
-  const menu = await Menu.findOne({ tenantId: tenant._id, isActive: true })
-  if (!menu) return null
-  const found = findItemInMenu(menu, itemId)
-  if (!found) return null
-  return { tenant, menu, item: found.item }
+  const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+  if (!tenant) return { error: NextResponse.json({ error: 'Item no encontrado' }, { status: 404 }) }
+
+  const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
+    .select('status locationId items.menuItemId')
+    .lean<{ status: string; locationId?: mongoose.Types.ObjectId; items?: Array<{ menuItemId?: unknown }> }>()
+  if (!order) return { error: NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 }) }
+
+  const itemInOrder = (order.items ?? []).some(i => i.menuItemId && String(i.menuItemId) === itemId)
+  if (!itemInOrder) return { error: NextResponse.json({ error: 'Item no está en este pedido' }, { status: 403 }) }
+
+  return { tenant, order }
 }
 
 export async function POST(
@@ -34,54 +73,41 @@ export async function POST(
   { params }: { params: Promise<{ tenant: string; itemId: string }> }
 ) {
   try {
+    const blocked = await limited(request)
+    if (blocked) return blocked
+
     const { tenant: tenantSlug, itemId } = await params
-    const { orderId, token } = await request.json()
+    const { orderId, token } = await readBody(request)
+    const auth = await authorizeOrder(tenantSlug, itemId, orderId, token)
+    if ('error' in auth) return auth.error
+    const { tenant, order } = auth
 
-    if (!orderId || !token) {
-      return NextResponse.json({ error: 'orderId y token requeridos' }, { status: 400 })
+    if (!LIKE_STATUSES.has(order.status)) {
+      return NextResponse.json({ error: 'Vas a poder dar like cuando recibas tu pedido' }, { status: 409 })
     }
 
-    if (!verifyRatingToken(orderId, token)) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-    }
-
-    const result = await getTenantAndItem(tenantSlug, itemId)
-    if (!result) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
-    }
-    const { tenant, menu } = result
-
-    const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-    if (!order) {
-      return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
-    }
-
-    const itemInOrder = order.items.some(
-      (i: any) => i.menuItemId && i.menuItemId.toString() === itemId
-    )
-    if (!itemInOrder) {
+    const location = await locateMenuItem(tenant._id, itemId)
+    if (!location) return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+    // El plato tiene que ser de la carta de la sede del pedido.
+    if (order.locationId && location.locationId && String(order.locationId) !== String(location.locationId)) {
       return NextResponse.json({ error: 'Item no está en este pedido' }, { status: 403 })
     }
 
-    const existing = await ItemLike.findOne({ orderId, menuItemId: itemId })
-    if (existing) {
-      return NextResponse.json({ liked: true, likesCount: existing._id })
+    try {
+      await ItemLike.create({ tenantId: tenant._id, menuItemId: itemId, orderId })
+    } catch (err: any) {
+      // Ya tenía like (o dos toques simultáneos): no se suma de nuevo.
+      if (err?.code === 11000) {
+        return NextResponse.json({ liked: true, likesCount: location.likesCount })
+      }
+      throw err
     }
 
-    await ItemLike.create({ tenantId: tenant._id, menuItemId: itemId, orderId })
-
-    const found1 = findItemInMenu(menu, itemId)
-    if (!found1) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
-    }
-    const item = found1.item
-    item.likesCount = (item.likesCount || 0) + 1
-    menu.markModified('categories')
-    await menu.save()
-
-    return NextResponse.json({ liked: true, likesCount: item.likesCount })
+    const likesCount = await adjustItemLikes(tenant._id, itemId, 1)
+    return NextResponse.json({ liked: true, likesCount: likesCount ?? location.likesCount + 1 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error('[item-like] POST', error)
+    return NextResponse.json({ error: 'No se pudo registrar el like' }, { status: 500 })
   }
 }
 
@@ -90,40 +116,26 @@ export async function DELETE(
   { params }: { params: Promise<{ tenant: string; itemId: string }> }
 ) {
   try {
+    const blocked = await limited(request)
+    if (blocked) return blocked
+
     const { tenant: tenantSlug, itemId } = await params
-    const { orderId, token } = await request.json()
-
-    if (!orderId || !token) {
-      return NextResponse.json({ error: 'orderId y token requeridos' }, { status: 400 })
-    }
-
-    if (!verifyRatingToken(orderId, token)) {
-      return NextResponse.json({ error: 'Token inválido' }, { status: 401 })
-    }
-
-    const result = await getTenantAndItem(tenantSlug, itemId)
-    if (!result) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
-    }
-    const { tenant, menu } = result
+    const { orderId, token } = await readBody(request)
+    const auth = await authorizeOrder(tenantSlug, itemId, orderId, token)
+    if ('error' in auth) return auth.error
+    const { tenant } = auth
 
     const removed = await ItemLike.findOneAndDelete({ orderId, menuItemId: itemId })
     if (!removed) {
-      return NextResponse.json({ liked: false, likesCount: 0 })
+      const location = await locateMenuItem(tenant._id, itemId)
+      return NextResponse.json({ liked: false, likesCount: location?.likesCount ?? 0 })
     }
 
-    const found2 = findItemInMenu(menu, itemId)
-    if (!found2) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
-    }
-    const item = found2.item
-    item.likesCount = Math.max(0, (item.likesCount || 0) - 1)
-    menu.markModified('categories')
-    await menu.save()
-
-    return NextResponse.json({ liked: false, likesCount: item.likesCount })
+    const likesCount = await adjustItemLikes(tenant._id, itemId, -1)
+    return NextResponse.json({ liked: false, likesCount: likesCount ?? 0 })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error('[item-like] DELETE', error)
+    return NextResponse.json({ error: 'No se pudo quitar el like' }, { status: 500 })
   }
 }
 
@@ -133,23 +145,25 @@ export async function GET(
 ) {
   try {
     const { tenant: tenantSlug, itemId } = await params
+    if (!isObjectId(itemId)) return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+
+    await connectDB()
+    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+    if (!tenant) return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+
+    const location = await locateMenuItem(tenant._id, itemId)
+    if (!location) return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
+
     const orderId = request.nextUrl.searchParams.get('orderId')
     const token = request.nextUrl.searchParams.get('token')
-
-    const result = await getTenantAndItem(tenantSlug, itemId)
-    if (!result) {
-      return NextResponse.json({ error: 'Item no encontrado' }, { status: 404 })
-    }
-    const { item } = result
-
     let liked = false
-    if (orderId && token && verifyRatingToken(orderId, token)) {
-      const existing = await ItemLike.findOne({ orderId, menuItemId: itemId })
-      liked = !!existing
+    if (isObjectId(orderId) && token && verifyRatingToken(orderId, token)) {
+      liked = !!(await ItemLike.exists({ orderId, menuItemId: itemId }))
     }
 
-    return NextResponse.json({ liked, likesCount: item.likesCount || 0 })
+    return NextResponse.json({ liked, likesCount: location.likesCount })
   } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    console.error('[item-like] GET', error)
+    return NextResponse.json({ error: 'No se pudo leer el like' }, { status: 500 })
   }
 }

@@ -1059,6 +1059,97 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                     </div>
                   </section>
 
+                  {/* ── Carrusel automático de likes ── */}
+                  <section className="space-y-4 p-5 rounded-3xl border border-border bg-card">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-red-100">
+                        <span className="text-sm">❤️</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Carrusel de likes</p>
+                        <p className="text-[10px] text-muted-foreground/60">Automático: se arma con los likes de quienes compraron cada plato.</p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Aparece cuando al menos 3 platos alcanzan el mínimo de likes y muestra hasta 6. Si califican más, van rotando cada hora. Los platos pausados o fuera de horario no se muestran.
+                    </p>
+                    <label className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-border">
+                      <span className="text-xs font-bold text-foreground">Mostrar el carrusel en el menú</span>
+                      <input
+                        type="checkbox"
+                        checked={branding.likedCarousel?.showSection !== false}
+                        onChange={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, showSection: e.target.checked } }))}
+                      />
+                    </label>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Título</Label>
+                        <input
+                          type="text"
+                          maxLength={40}
+                          value={branding.likedCarousel?.sectionTitle ?? 'Los que se ganaron un ❤️'}
+                          onChange={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, sectionTitle: e.target.value } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Subtítulo (opcional)</Label>
+                        <input
+                          type="text"
+                          maxLength={80}
+                          placeholder="Los platos que más corazones juntaron de quienes los pidieron"
+                          value={branding.likedCarousel?.sectionSubtitle ?? ''}
+                          onChange={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, sectionSubtitle: e.target.value } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Posición</Label>
+                        <select
+                          value={branding.likedCarousel?.position ?? 'afterBestsellers'}
+                          onChange={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, position: e.target.value } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        >
+                          <option value="afterFeatured">Después de destacados</option>
+                          <option value="beforeBestsellers">Antes de los más vendidos</option>
+                          <option value="afterBestsellers">Después de los más vendidos</option>
+                          <option value="beforeCategories">Antes de las categorías</option>
+                          <option value="afterCategories">Después de las categorías</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-foreground">Likes mínimos por plato</Label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={50}
+                          step={1}
+                          value={branding.likedCarousel?.minLikes ?? 3}
+                          onChange={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, minLikes: e.target.value === '' ? '' : Number(e.target.value) } }))}
+                          onBlur={e => setBranding((p: any) => ({ ...p, likedCarousel: { ...p.likedCarousel, minLikes: Math.min(50, Math.max(2, Math.round(Number(e.target.value) || 3))) } }))}
+                          className="flex h-11 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <p className="text-[11px] text-muted-foreground leading-snug">Mínimo 2. Por defecto 3.</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                      {([['backgroundColor', 'Fondo', '#ffffff'], ['textColor', 'Título', '#111111'], ['cardBgColor', 'Tarjeta', '#ffffff'], ['accentColor', 'Precio y botón', branding.primaryColor || '#f54500'], ['heartColor', 'Corazón', '#ef4444']] as const).map(([key, label, fallback]) => (
+                        <label key={key} className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase">{label}</span>
+                          <input
+                            type="color"
+                            value={branding.likedCarousel?.style?.[key] || fallback}
+                            onChange={e => setBranding((p: any) => ({
+                              ...p,
+                              likedCarousel: { ...p.likedCarousel, style: { ...p.likedCarousel?.style, [key]: e.target.value } },
+                            }))}
+                            className="block h-11 w-full rounded-xl border border-border bg-background px-1"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </section>
+
                   {/* ── Mejores Vendidos ─────────────────────────── */}
                   <section className="space-y-5 p-5 rounded-3xl border border-border bg-card">
                     <div className="flex items-center gap-2">

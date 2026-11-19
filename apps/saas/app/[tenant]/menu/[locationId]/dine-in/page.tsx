@@ -5,6 +5,7 @@ import Menu from '@/models/Menu'
 import { notFound } from 'next/navigation'
 import DineInMenuView from '@/components/menu/DineInMenuView'
 import { getBestSellers } from '@/lib/tia/bestSellers'
+import { likedRotationSlot } from '@/lib/menu/liked-items'
 import { sanitizeMenuForPublic } from '@/lib/menu-sanitize'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { Types } from 'mongoose'
@@ -67,6 +68,8 @@ export default async function DineInMenuPage({ params }: Props) {
       location={JSON.parse(JSON.stringify(locationDoc))}
       menu={sanitizeMenuForPublic(JSON.parse(JSON.stringify(menuDoc)))}
       bestSellers={JSON.parse(JSON.stringify(bestSellers))}
+      // Tanda del carrusel de likes: cambia cada hora si califican más de 6 platos.
+      likedRotation={likedRotationSlot()}
     />
   )
 }

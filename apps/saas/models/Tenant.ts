@@ -142,6 +142,25 @@ export interface ITenant extends Document {
         accentColor?: string
       }
     }
+    /**
+     * Carrusel automático «Los que se ganaron un ❤️» (platos con más likes de
+     * compradores). Reglas y saneo en lib/menu/liked-items.ts.
+     */
+    likedCarousel?: {
+      showSection?: boolean
+      sectionTitle?: string
+      sectionSubtitle?: string
+      position?: 'afterFeatured' | 'beforeBestsellers' | 'afterBestsellers' | 'beforeCategories' | 'afterCategories'
+      /** Likes mínimos para que un plato entre (piso 2, por defecto 3). */
+      minLikes?: number
+      style?: {
+        backgroundColor?: string
+        textColor?: string
+        accentColor?: string
+        cardBgColor?: string
+        heartColor?: string
+      }
+    }
     /** Color de fondo para contenedores de sección (Destacados, Club) - estilo nativo tipo PedidosYa */
     sectionContainerColor?: string
   }
@@ -680,6 +699,34 @@ const TenantSchema = new Schema<ITenant>(
             badgeColor: '',
             accentColor: '',
           },
+        }),
+      },
+      likedCarousel: {
+        type: {
+          showSection: { type: Boolean, default: true },
+          sectionTitle: { type: String, default: 'Los que se ganaron un ❤️' },
+          sectionSubtitle: { type: String, default: '' },
+          position: {
+            type: String,
+            enum: ['afterFeatured', 'beforeBestsellers', 'afterBestsellers', 'beforeCategories', 'afterCategories'],
+            default: 'afterBestsellers',
+          },
+          minLikes: { type: Number, default: 3, min: 2, max: 50 },
+          style: {
+            backgroundColor: { type: String, default: '' },
+            textColor: { type: String, default: '' },
+            accentColor: { type: String, default: '' },
+            cardBgColor: { type: String, default: '' },
+            heartColor: { type: String, default: '' },
+          },
+        },
+        default: () => ({
+          showSection: true,
+          sectionTitle: 'Los que se ganaron un ❤️',
+          sectionSubtitle: '',
+          position: 'afterBestsellers',
+          minLikes: 3,
+          style: { backgroundColor: '', textColor: '', accentColor: '', cardBgColor: '', heartColor: '' },
         }),
       },
       sectionContainerColor: { type: String, default: '' },

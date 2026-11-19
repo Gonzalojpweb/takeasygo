@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
+import { sanitizeLikedCarouselSettings } from '@/lib/menu/liked-items'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { logAudit } from '@/lib/audit'
 import { revalidateTenantPublicPages } from '@/lib/revalidate-tenant'
@@ -45,7 +46,16 @@ export async function PUT(
       }
     }
 
-    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'sectionContainerColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'menuLayoutApplyTo', 'darkMode', 'fonts', 'bestSellers', 'combosCarousel']
+    // Carrusel de likes: se sanea (título, posición, umbral con piso, colores hex).
+    if ('likedCarousel' in branding) {
+      const liked = sanitizeLikedCarouselSettings(branding.likedCarousel)
+      if (!liked) {
+        return NextResponse.json({ error: 'Configuración del carrusel de likes inválida' }, { status: 400 })
+      }
+      branding.likedCarousel = liked
+    }
+
+    const allowed = ['primaryColor', 'secondaryColor', 'backgroundColor', 'textColor', 'sectionContainerColor', 'logoUrl', 'fontFamily', 'borderRadius', 'menuLayout', 'menuLayoutApplyTo', 'darkMode', 'fonts', 'bestSellers', 'combosCarousel', 'likedCarousel']
     const update: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in branding) {

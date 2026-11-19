@@ -62,7 +62,7 @@ const orderItemSchema = z.object({
   quantity: z.number().int().min(1).max(99),
   customizations: z.array(customizationGroupSchema).max(10).default([]),
   selectedVariant: selectedVariantSchema.optional(),
-  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group', 'best_sellers', 'store']).optional(),
+  addedFrom: z.enum(['menu', 'upsell_sheet', 'checkout_banner', 'promotion', 'group', 'best_sellers', 'liked_carousel', 'store']).optional(),
   // Display/legacy: nombre y slot de la unidad (líneas de promo por unidad)
   _itemName: z.string().max(200).optional(),
   // Solo para mostrar: el nombre que ve el cliente en el carrito. Nunca se usa

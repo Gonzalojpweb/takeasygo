@@ -230,6 +230,34 @@ export function captureBestSellerAdded(item: { _id: string; name: string; price:
   })
 }
 
+// ── Carrusel de likes («Los que se ganaron un ❤️») ──────────────────────────
+
+export function captureLikedCarouselViewed(props: { items: number; locationId?: string; mode?: string }) {
+  posthog.capture('liked_carousel.viewed', {
+    items: props.items,
+    location_id: props.locationId,
+    mode: props.mode,
+  })
+}
+
+export function captureLikedCarouselClicked(item: { _id: string; name: string; likes: number; position: number; locationId?: string }) {
+  posthog.capture('liked_carousel.clicked', {
+    dish_id: item._id,
+    dish_name: item.name,
+    likes: item.likes,
+    position: item.position,
+    location_id: item.locationId,
+  })
+}
+
+export function captureLikedCarouselAdded(item: { _id: string; name: string; price: number }) {
+  posthog.capture('liked_carousel.added', {
+    dish_id: item._id,
+    dish_name: item.name,
+    dish_price: item.price,
+  })
+}
+
 // ── Hidden Rewards ────────────────────────────────────────────────────────────
 
 export function captureHiddenRewardDiscovered(menuItemId: string) {

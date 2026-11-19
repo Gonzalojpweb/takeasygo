@@ -54,6 +54,7 @@ const ADDED_FROM_VALUES: readonly string[] = [
   'promotion',
   'group',
   'best_sellers',
+  'liked_carousel',
 ]
 
 /**

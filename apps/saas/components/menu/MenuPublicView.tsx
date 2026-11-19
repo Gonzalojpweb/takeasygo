@@ -23,6 +23,9 @@ import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
 import { isAvailableNow } from '@/lib/availability'
 import BestSellersSection from '@/components/menu/BestSellersSection'
+import LikedItemsCarousel from '@/components/menu/LikedItemsCarousel'
+import { collectMenuEntries, pickLikedItems, type LikedCarouselSettings } from '@/lib/menu/liked-items'
+import { captureLikedCarouselAdded } from '@/lib/tia/events'
 import ComboCarousel, { type PublicCombo, type ComboCarouselSettings } from '@/components/menu/ComboCarousel'
 import { calculateComboPrice } from '@takeasygo/business/browser'
 import LikeBadge from '@/components/menu/LikeBadge'
@@ -60,6 +63,8 @@ interface Props {
   groupEmail?: string
   onGroupItemAdded?: (itemName: string, updatedItems: any[]) => void
   bestSellers?: any[]
+  /** Ventana de rotación del carrusel de likes (la calcula el server: sin desfase de hidratación). */
+  likedRotation?: number
 }
 
 const VEGETARIAN_TAGS = ['vegetariano', 'vegano', 'vegan', 'vegetarian']
@@ -139,7 +144,7 @@ const UI = {
   },
 }
 
-export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail, onGroupItemAdded, bestSellers }: Props) {
+export default function MenuPublicView({ tenant, location, menu, mode, groupSessionToken, groupEmail, onGroupItemAdded, bestSellers, likedRotation = 0 }: Props) {
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false)
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
@@ -168,6 +173,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const upsellModalRef = useRef(false)
   const upsellDismissedRef = useRef(false)
   const bestSellerRef = useRef(false)
+  /** El plato en curso se abrió desde el carrusel de likes (para `addedFrom`). */
+  const likedRef = useRef(false)
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
   const { play: playAddSound } = useNotificationSound('/pop.mp3')
@@ -996,14 +1003,19 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     }
 
     if (cartItem.menuItemId) {
-      const addedFrom = bestSellerRef.current ? 'best_sellers' : upsellModalRef.current ? 'upsell_sheet' : 'menu'
+      const addedFrom = bestSellerRef.current ? 'best_sellers' : likedRef.current ? 'liked_carousel' : upsellModalRef.current ? 'upsell_sheet' : 'menu'
       trackCartAdd({ menuItemId: cartItem.menuItemId, name: cartItem.name, price: cartItem.price, quantity: cartItem.quantity, hasCustomizations: true, source: addedFrom, locationId: location._id })
     }
     if (bestSellerRef.current && cartItem.menuItemId) {
       captureBestSellerAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price })
     }
+    if (likedRef.current && cartItem.menuItemId) {
+      captureLikedCarouselAdded({ _id: cartItem.menuItemId, name: cartItem.name, price: cartItem.price })
+    }
     const taggedItem: CartItem = bestSellerRef.current
       ? { ...cartItem, addedFrom: 'best_sellers' }
+      : likedRef.current
+        ? { ...cartItem, addedFrom: 'liked_carousel' }
       : upsellModalRef.current
         ? { ...cartItem, addedFrom: 'upsell_sheet' }
         : cartItem
@@ -1019,6 +1031,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
     skipUpsellRef.current = false
     upsellModalRef.current = false
     bestSellerRef.current = false
+    likedRef.current = false
   }
 
   function handleUpsellOpenModal(item: any) {
@@ -1249,6 +1262,46 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   // Secciones ancladas a una categoría visible (si la marcada está oculta, vuelven a su lugar).
   const combosAnchorId = findAnchorCategoryId(categories, (c: any) => c.combosAfter)
   const clubAnchorId = findAnchorCategoryId(categories, (c: any) => c.clubCardAfter)
+
+  // ── Carrusel automático de likes ──────────────────────────────────────────
+  // Sale de los likes de compradores (likesCount) con la misma visibilidad que
+  // el resto de la carta: pausados, fuera de canal o de horario no entran.
+  const likedSettings: LikedCarouselSettings | undefined = tenant.branding?.likedCarousel
+  const likedEntries = likedSettings?.showSection === false || likesOrderId || isAdminCorp
+    ? []
+    : pickLikedItems(collectMenuEntries(categories, isItemVisible), { minLikes: likedSettings?.minLikes, rotation: likedRotation })
+
+  /** Tocar un plato del carrusel: mismo flujo que en la carta (personalizable → modal con los grupos de su categoría). */
+  function handleLikedSelect(item: any, category: any) {
+    const catGroups = category?.customizationGroups ?? []
+    const needsModal = (item.variants ?? []).length > 0
+      || (item.customizationGroups ?? []).length > 0
+      || catGroups.length > 0
+    if (needsModal || !isOperational) {
+      likedRef.current = true
+      openCustomizationModal(item, catGroups)
+      return
+    }
+    addPlainToCart(item, true, 'liked_carousel')
+    captureLikedCarouselAdded({ _id: String(item._id), name: item.name, price: getItemPrice(item) })
+    toast.success(`${tn(item, 'name', locale)} agregado`)
+  }
+
+  const likedSection = (position: NonNullable<LikedCarouselSettings['position']>) =>
+    likedEntries.length > 0 && (likedSettings?.position ?? 'afterBestsellers') === position ? (
+      <LikedItemsCarousel
+        entries={likedEntries}
+        settings={likedSettings}
+        primary={primary}
+        textColor={text}
+        getPrice={getItemPrice}
+        getName={(item) => tn(item, 'name', locale)}
+        onSelect={handleLikedSelect}
+        actionLabel={isOperational ? 'Agregar' : undefined}
+        locationId={location._id}
+        mode={mode}
+      />
+    ) : null
 
   function renderTakeawayItem(item: any, category: any, subcategoryId: string | undefined, layout: CategoryLayout) {
     const catGroups = category.customizationGroups ?? []
@@ -1567,6 +1620,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         )}
 
         {/* Promotions Section — hidden for company admin in business mode */}
+        {likedSection('afterFeatured')}
         {comboSection('afterFeatured')}
 
         {promotions.length > 0 && !isAdminCorp && (
@@ -1595,6 +1649,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         {/* Tarjeta del Club (canje de puntos): acá, salvo que una categoría la ancle */}
         {!clubAnchorId && clubCard}
 
+        {likedSection('beforeBestsellers')}
+
         {/* Best Sellers */}
         {bestSellers && bestSellers.length > 0 && tenant.branding?.bestSellers?.showSection !== false && (
           <BestSellersSection
@@ -1616,7 +1672,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           />
         )}
 
+        {likedSection('afterBestsellers')}
         {comboSection('afterBestsellers')}
+        {likedSection('beforeCategories')}
         {comboSection('beforeCategories')}
 
         {/* All categories — cada una con su formato (lista, grilla o carrusel) */}
@@ -1680,6 +1738,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           )
         })}
 
+        {likedSection('afterCategories')}
         {comboSection('afterCategories')}
       </main>
 
@@ -1773,6 +1832,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             setCustomizingItem(null)
             setHalfPriceContext(null)
             bestSellerRef.current = false
+            likedRef.current = false
           }}
           primaryColor={primary}
           bgColor={bg}
