@@ -35,6 +35,8 @@ interface CustomizationGroup {
   name: string
   type: 'single' | 'multiple' | 'fixed'
   fixedCount?: number
+  /** Tope de opciones seleccionables en grupos 'multiple' (sin límite si falta). */
+  maxSelections?: number
   required: boolean
   options: CustomizationOption[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -202,6 +204,9 @@ export default function CustomizationSheet({
         if (g.type === 'fixed') {
           return count === (g.fixedCount ?? 1)
         }
+        if (g.maxSelections != null && count > g.maxSelections) {
+          return false
+        }
         if (g.required) {
           return count > 0
         }
@@ -327,12 +332,18 @@ export default function CustomizationSheet({
         }
       } else {
         const isAlreadySelected = current.includes(optionName)
-        next = {
-          ...prev,
-          [group._id]: isAlreadySelected
-            ? current.filter(n => n !== optionName)
-            : [...current, optionName],
-        }
+        const reachedMax =
+          !isAlreadySelected &&
+          group.maxSelections != null &&
+          current.length >= group.maxSelections
+        next = reachedMax
+          ? prev
+          : {
+              ...prev,
+              [group._id]: isAlreadySelected
+                ? current.filter(n => n !== optionName)
+                : [...current, optionName],
+            }
       }
 
       const newActiveGroups = computeActiveGroups(rootGroups, next, variantGroups, disabledGroupIds, disabledOptionIds)

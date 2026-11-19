@@ -75,6 +75,8 @@ type CustomizationGroupForm = {
   name: string
   type: 'single' | 'multiple' | 'fixed'
   fixedCount?: string
+  /** Tope de opciones para type 'multiple' (vacío = sin límite). */
+  maxSelections?: string
   required: boolean
   options: CustomizationOptionForm[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -90,7 +92,7 @@ type VariantForm = {
 }
 
 const EMPTY_CUSTOMIZATION_GROUP: CustomizationGroupForm = {
-  name: '', type: 'single', fixedCount: '2', required: false, options: [], priceRule: 'sum',
+  name: '', type: 'single', fixedCount: '2', maxSelections: '', required: false, options: [], priceRule: 'sum',
 }
 
 const EMPTY_VARIANT: VariantForm = {
@@ -121,19 +123,23 @@ const EMPTY_ITEM = {
 type ItemFormData = typeof EMPTY_ITEM
 
 function serializeGroups(groups: CustomizationGroupForm[]): any[] {
-  return groups.map((g: CustomizationGroupForm) => ({
-    name: g.name,
-    type: g.type,
-    ...(g.type === 'fixed' ? { fixedCount: Math.max(1, parseInt(g.fixedCount || '2', 10) || 2) } : {}),
-    required: g.required,
-    ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
-    options: g.options.map((o: CustomizationOptionForm) => ({
-      name: o.name,
-      extraPrice: toCents(parseFloat(o.extraPrice) || 0),
-      imageUrl: o.imageUrl || undefined,
-      subGroups: serializeGroups(o.subGroups ?? []),
-    })),
-  }))
+  return groups.map((g: CustomizationGroupForm) => {
+    const maxSelections = parseInt(g.maxSelections || '', 10)
+    return {
+      name: g.name,
+      type: g.type,
+      ...(g.type === 'fixed' ? { fixedCount: Math.max(1, parseInt(g.fixedCount || '2', 10) || 2) } : {}),
+      ...(g.type === 'multiple' && maxSelections >= 1 ? { maxSelections } : {}),
+      required: g.required,
+      ...(g.priceRule && g.priceRule !== 'sum' ? { priceRule: g.priceRule } : {}),
+      options: g.options.map((o: CustomizationOptionForm) => ({
+        name: o.name,
+        extraPrice: toCents(parseFloat(o.extraPrice) || 0),
+        imageUrl: o.imageUrl || undefined,
+        subGroups: serializeGroups(o.subGroups ?? []),
+      })),
+    }
+  })
 }
 
 function serializeVariants(variants: VariantForm[]): any[] {
@@ -163,6 +169,7 @@ function deserializeGroups(groups: any[]): CustomizationGroupForm[] {
     name: g.name,
     type: g.type ?? 'single',
     fixedCount: g.fixedCount != null ? g.fixedCount.toString() : '2',
+    maxSelections: g.maxSelections != null ? g.maxSelections.toString() : '',
     required: g.required ?? false,
     priceRule: g.priceRule ?? 'sum',
     options: (g.options || []).map((o: any) => ({
@@ -1562,6 +1569,21 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                             }}
                                           />
                                         )}
+                                        {cg.type === 'multiple' && (
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            placeholder="Máx."
+                                            title="Máximo de opciones seleccionables (vacío = sin límite)"
+                                            className="bg-white border-2 border-border/80 focus:border-primary/40 text-foreground text-xs font-medium rounded-xl px-3 py-2 outline-none w-20 text-center"
+                                            value={cg.maxSelections ?? ''}
+                                            onChange={e => {
+                                              const updated = [...editingCategoryGroups]
+                                              updated[cgi] = { ...updated[cgi], maxSelections: e.target.value }
+                                              setEditingCategoryGroups(updated)
+                                            }}
+                                          />
+                                        )}
                                         <button
                                           type="button"
                                           className={cn(
@@ -2534,6 +2556,21 @@ function RecursiveGroupEditor({
                   className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm text-center' : 'bg-muted/30 h-9 text-sm text-center')}
                   value={group.fixedCount ?? '2'}
                   onChange={e => updateGroup(gi, { fixedCount: e.target.value })}
+                />
+              </div>
+            )}
+            {group.type === 'multiple' && (
+              <div className={depth === 0 ? 'w-full sm:w-24' : 'w-20'}>
+                <label className={labelCls} title="Máximo de opciones seleccionables (vacío = sin límite)">
+                  Máx.
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="—"
+                  className={cn(inputCls, depth === 0 ? 'bg-white h-11 border-border/100 shadow-sm text-center' : 'bg-muted/30 h-9 text-sm text-center')}
+                  value={group.maxSelections ?? ''}
+                  onChange={e => updateGroup(gi, { maxSelections: e.target.value })}
                 />
               </div>
             )}

@@ -37,6 +37,9 @@ export interface ICustomizationGroup {
   name: string
   type: "single" | "multiple" | "fixed"
   fixedCount?: number
+  /** Tope de opciones seleccionables cuando type === "multiple".
+   *  Ausente = sin límite (comportamiento histórico). Ignorado en "single"/"fixed". */
+  maxSelections?: number
   required: boolean
   options: ICustomizationOption[]
   priceRule?: "sum" | "max" | "average"
@@ -146,6 +149,7 @@ CustomizationGroupSchema.add({
   name: { type: String, required: true },
   type: { type: String, enum: ["single", "multiple", "fixed"], default: "single" },
   fixedCount: { type: Number, default: undefined },
+  maxSelections: { type: Number, default: undefined, min: 1 },
   required: { type: Boolean, default: false },
   options: { type: [CustomizationOptionSchema], default: [] },
   priceRule: { type: String, enum: ["sum", "max", "average"], default: "sum" },

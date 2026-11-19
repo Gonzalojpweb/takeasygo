@@ -22,6 +22,8 @@ interface ReadOnlyGroup {
   name: string
   type: 'single' | 'multiple' | 'fixed'
   fixedCount?: number
+  /** Tope de opciones seleccionables en grupos 'multiple' (sin límite si falta). */
+  maxSelections?: number
   required: boolean
   options: ReadOnlyOption[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -102,7 +104,11 @@ export default function ReadOnlyCustomizationGroups({
               </span>
               {group.type === 'multiple' && (
                 <span className="text-[10px]" style={{ color: mutedText }}>
-                  (podés elegir varias)
+                  {group.maxSelections != null
+                    ? group.required
+                      ? `(elegí de 1 a ${group.maxSelections})`
+                      : `(hasta ${group.maxSelections})`
+                    : '(podés elegir varias)'}
                 </span>
               )}
               {group.type === 'fixed' && (

@@ -43,6 +43,8 @@ export interface RawCustomizationGroup {
   name: string
   type?: string
   fixedCount?: number
+  /** Tope de opciones cuando el grupo es de selección múltiple (sin límite si falta). */
+  maxSelections?: number
   required?: boolean
   priceRule?: string
   options?: RawGroupOption[]
@@ -156,7 +158,7 @@ function toModifier(g: RawCustomizationGroup, disabledOptions: readonly string[]
         ? (g.fixedCount ?? 1)
         : type === 'single'
           ? 1
-          : undefined,
+          : g.maxSelections,
     priceRule: toPriceRule(g.priceRule),
     options: (g.options ?? [])
       .filter(

@@ -17,6 +17,8 @@ interface CustomizationGroup {
   name: string
   type: 'single' | 'multiple' | 'fixed'
   fixedCount?: number
+  /** Tope de opciones seleccionables en grupos 'multiple' (sin límite si falta). */
+  maxSelections?: number
   required: boolean
   options: CustomizationOption[]
   priceRule?: 'sum' | 'max' | 'average'
@@ -62,7 +64,13 @@ export default function CustomizationGroupSection({
           {group.required ? 'Obligatorio' : 'Opcional'}
         </span>
         {group.type === 'multiple' && (
-          <span className="text-[10px] text-zinc-400">(podés elegir varias)</span>
+          <span className="text-[10px] text-zinc-400">
+            {group.maxSelections != null
+              ? group.required
+                ? `(elegí de 1 a ${group.maxSelections})`
+                : `(hasta ${group.maxSelections})`
+              : '(podés elegir varias)'}
+          </span>
         )}
         {group.type === 'fixed' && (
           <span className="text-[10px] font-bold text-amber-600">

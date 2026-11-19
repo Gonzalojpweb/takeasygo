@@ -15,6 +15,9 @@ export interface ICustomizationGroup {
   name: string
   type: 'single' | 'multiple' | 'fixed'
   fixedCount?: number
+  /** Tope de opciones seleccionables cuando type === 'multiple'.
+   *  Ausente = sin límite (comportamiento histórico). Ignorado en 'single'/'fixed'. */
+  maxSelections?: number
   required: boolean
   options: ICustomizationOption[]
   /** Regla de cálculo de precio para las opciones seleccionadas de este grupo.
@@ -241,12 +244,13 @@ CustomizationOptionSchema.add({
 })
 
 CustomizationGroupSchema.add({
-  name:       { type: String, required: true, trim: true },
-  type:       { type: String, enum: ['single', 'multiple', 'fixed'], default: 'single' },
-  fixedCount: { type: Number, default: undefined },
-  required:   { type: Boolean, default: false },
-  options:    { type: [CustomizationOptionSchema], default: [] },
-  priceRule:  { type: String, enum: ['sum', 'max', 'average'], default: 'sum' },
+  name:          { type: String, required: true, trim: true },
+  type:          { type: String, enum: ['single', 'multiple', 'fixed'], default: 'single' },
+  fixedCount:    { type: Number, default: undefined },
+  maxSelections: { type: Number, default: undefined, min: 1 },
+  required:      { type: Boolean, default: false },
+  options:       { type: [CustomizationOptionSchema], default: [] },
+  priceRule:     { type: String, enum: ['sum', 'max', 'average'], default: 'sum' },
 })
 
 const MenuItemSchema = new Schema<IMenuItem>({
