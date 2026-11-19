@@ -15,7 +15,7 @@ interface Props {
   tenantSlug: string
   location?: LocationInfo
   locationId?: string
-  variant?: 'light' | 'dark'
+  variant?: 'light' | 'dark' | 'hero'
 }
 
 export default function LocationBar({
@@ -61,7 +61,8 @@ export default function LocationBar({
 
   if (!location) return null
 
-  const isDark = variant === 'dark'
+  const isHero = variant === 'hero'
+  const isDark = variant === 'dark' || isHero
 
   // Pill styles based on variant
   const pillBase: React.CSSProperties = {
@@ -107,13 +108,31 @@ export default function LocationBar({
         color: '#8a7f7a',
       }
 
-  const pillStyle = { ...pillBase, ...(multipleLocations ? pillStyleInteractive : pillStyleStatic) }
+  // Portada de la sede: pastilla de vidrio en mayúsculas, igual con o sin
+  // selector (el chevron ya avisa que se puede cambiar).
+  const pillStyleHero: React.CSSProperties = {
+    padding: '8px 14px',
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    maxWidth: 180,
+    background: 'rgba(0,0,0,0.28)',
+    border: '1px solid rgba(255,255,255,0.38)',
+    color: '#fff',
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
+  }
+
+  const pillStyle = isHero
+    ? { ...pillBase, ...pillStyleHero }
+    : { ...pillBase, ...(multipleLocations ? pillStyleInteractive : pillStyleStatic) }
 
   const iconColor = isDark ? 'rgba(247,244,242,0.45)' : '#9a8f8a'
 
   const pillContent = (
     <div style={pillStyle}>
-      <MapPin size={12} style={{ color: isDark ? 'rgba(247,244,242,0.5)' : '#f14722', flexShrink: 0 }} />
+      <MapPin size={isHero ? 13 : 12} style={{ color: isHero ? '#fff' : isDark ? 'rgba(247,244,242,0.5)' : '#f14722', flexShrink: 0 }} />
       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
         {location.name}
       </span>
@@ -130,7 +149,7 @@ export default function LocationBar({
             <ChevronDown
               size={12}
               style={{
-                color: iconColor,
+                color: isHero ? 'rgba(255,255,255,0.75)' : iconColor,
                 transform: showSwitcher ? 'rotate(180deg)' : 'rotate(0deg)',
                 transition: 'transform 0.25s ease',
               }}

@@ -73,9 +73,10 @@ const MODE_CONFIG: Record<string, { label: string; icon: React.ElementType; colo
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  'tgo-explore': 'TGO Explore',
-  'tgo-customer': 'TGO Customer',
-  'tgo-app': 'TGO App',
+  'tgo-explore': 'App TGO',
+  // Links de Founder Links y el botón «Compartir» de la portada de la sede.
+  'tgo-customer': 'Founder Link',
+  'tgo-app': 'App TGO',
 }
 
 const PAYMENT_LABELS: Record<string, string> = {
