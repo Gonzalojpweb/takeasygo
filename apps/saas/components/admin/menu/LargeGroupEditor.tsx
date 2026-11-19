@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, MoreHorizontal, Search, Sparkles, X } from 'lucide-react'
+import { Camera, ChevronLeft, Loader2, MoreHorizontal, Search, Sparkles, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
+import { cn, cloudinaryUrl } from '@/lib/utils'
 import { groupBySection, sectionChoices, suggestSection } from '@/lib/menu/option-sections'
 
 // ============================================================================
@@ -46,6 +46,12 @@ export interface SoldOutContext {
   keys: string[]
 }
 
+/** Dónde subir las fotos de las opciones (mismo endpoint que el resto del menú). */
+export interface UploadContext {
+  tenantSlug: string
+  locationId?: string
+}
+
 interface Props {
   open: boolean
   group: LargeGroup
@@ -53,6 +59,8 @@ interface Props {
   onClose: () => void
   /** Sin contexto (plato nuevo sin guardar) «Disponibles hoy» queda deshabilitado. */
   soldOut?: SoldOutContext
+  /** Presente ⇒ cada fila tiene miniatura para subir la foto del sabor. */
+  upload?: UploadContext
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -75,6 +83,7 @@ export function LargeGroupSummary({ group, soldOutKeys, onOpen, onShowClassic }:
   const sold = group.options.filter(o => isSold(o, set)).length
   const extra = group.options.filter(o => (parseFloat(o.extraPrice) || 0) > 0).length
   const sections = new Set(group.options.map(o => o.section?.trim()).filter(Boolean)).size
+  const photos = group.options.filter(o => o.imageUrl).length
   return (
     <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -86,6 +95,7 @@ export function LargeGroupSummary({ group, soldOutKeys, onOpen, onShowClassic }:
             : <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Todos disponibles</span>}
           {extra > 0 && <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">{extra} con precio extra</span>}
           {sections > 0 && <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">{sections} familias</span>}
+          {photos > 0 && <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground">{photos} con foto</span>}
         </div>
         <button type="button" onClick={onOpen} className="h-9 rounded-xl bg-primary px-4 text-xs font-bold text-primary-foreground active:scale-95 transition-transform">
           Editar {group.name ? group.name.toLowerCase() : 'opciones'}
@@ -107,7 +117,7 @@ export function LargeGroupSummary({ group, soldOutKeys, onOpen, onShowClassic }:
 type Tab = 'today' | 'edit'
 type StateFilter = 'all' | 'on' | 'sold' | 'extra'
 
-export default function LargeGroupEditor({ open, group, onChange, onClose, soldOut }: Props) {
+export default function LargeGroupEditor({ open, group, onChange, onClose, soldOut, upload }: Props) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [tab, setTab] = useState<Tab>(soldOut ? 'today' : 'edit')
@@ -122,6 +132,10 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [dialog, setDialog] = useState<null | 'many' | 'price' | 'fam'>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
+  // Fotos: un solo input de archivo; se recuerda a qué fila va.
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [photoFor, setPhotoFor] = useState<number | null>(null)
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
 
   useEffect(() => setMounted(true), [])
   // Se resincroniza solo cuando cambia la lista guardada (no en cada render del formulario).
@@ -210,6 +224,36 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
     router.refresh()
   }
 
+  function pickPhoto(i: number) {
+    if (!upload) return
+    setPhotoFor(i)
+    fileRef.current?.click()
+  }
+
+  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    const i = photoFor
+    e.target.value = ''
+    if (!file || i === null || !upload) return
+    if (!file.type.startsWith('image/')) { toast.error('Elegí una imagen (JPG, PNG o WEBP)'); return }
+    setUploadingIdx(i)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      if (upload.locationId) formData.append('locationId', upload.locationId)
+      const res = await fetch(`/api/${upload.tenantSlug}/upload`, { method: 'POST', body: formData })
+      if (!res.ok) throw new Error()
+      const { url } = await res.json()
+      update(i, { imageUrl: url })
+      toast.success('Foto subida. Se publica al guardar.')
+    } catch {
+      toast.error('No se pudo subir la foto')
+    } finally {
+      setUploadingIdx(null)
+      setPhotoFor(null)
+    }
+  }
+
   function removeIndexes(idx: number[]) {
     const drop = new Set(idx)
     const before = options
@@ -243,6 +287,7 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
     <div className="fixed inset-0 z-[80] flex justify-end" role="dialog" aria-modal="true" aria-label={group.name || 'Opciones'}>
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative flex h-full w-full flex-col bg-background shadow-2xl md:max-w-[620px] md:border-l md:border-border">
+        {upload && <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhoto} />}
         {/* Encabezado */}
         <div className="border-b border-border px-3 pt-3 sm:px-4" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
           <div className="flex items-center gap-2">
@@ -354,7 +399,10 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
                             sold ? 'border-dashed border-border bg-muted text-muted-foreground' : 'border-border bg-card hover:border-primary/40',
                           )}
                         >
-                          <span className={cn('min-w-0 break-words', sold && 'line-through')}>{o.name || 'Sin nombre'}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            {o.imageUrl && <img src={cloudinaryUrl(o.imageUrl, { w: 96 })} alt="" loading="lazy" className={cn('h-8 w-8 shrink-0 rounded-md object-cover', sold && 'grayscale')} />}
+                            <span className={cn('min-w-0 break-words', sold && 'line-through')}>{o.name || 'Sin nombre'}</span>
+                          </span>
                           <span className={cn('shrink-0 text-[10px] font-bold uppercase tracking-wide', sold ? 'text-orange-700' : 'text-emerald-700')}>
                             {pending ? '…' : sold ? 'Agotado' : 'Hay'}
                           </span>
@@ -384,6 +432,20 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
                           aria-label={`Seleccionar ${o.name}`}
                           className="h-[18px] w-[18px] shrink-0 accent-[hsl(var(--primary))]"
                         />
+                      )}
+                      {upload && (
+                        <button
+                          type="button"
+                          onClick={() => pickPhoto(i)}
+                          disabled={uploadingIdx === i}
+                          aria-label={o.imageUrl ? `Cambiar la foto de ${o.name}` : `Subir foto de ${o.name}`}
+                          title={o.imageUrl ? 'Cambiar foto' : 'Subir foto'}
+                          className={cn('grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg border', o.imageUrl ? 'border-border' : 'border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary')}
+                        >
+                          {uploadingIdx === i ? <Loader2 size={14} className="animate-spin" />
+                            : o.imageUrl ? <img src={cloudinaryUrl(o.imageUrl, { w: 96 })} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            : <Camera size={14} />}
+                        </button>
                       )}
                       <input
                         value={o.name}
@@ -435,6 +497,16 @@ export default function LargeGroupEditor({ open, group, onChange, onClose, soldO
                           </div>
                           <FamilyInput onSubmit={v => { update(i, { section: v }); setMenuFor(null) }} />
                           <div className="my-1 h-px bg-border" />
+                          {upload && (
+                            <button type="button" onClick={() => { setMenuFor(null); pickPhoto(i) }} className="rounded-lg px-2.5 py-2 text-left text-sm hover:bg-muted">
+                              {o.imageUrl ? 'Cambiar foto' : 'Subir foto'}
+                            </button>
+                          )}
+                          {o.imageUrl && (
+                            <button type="button" onClick={() => { update(i, { imageUrl: '' }); setMenuFor(null) }} className="rounded-lg px-2.5 py-2 text-left text-sm hover:bg-muted">
+                              Quitar foto
+                            </button>
+                          )}
                           <button type="button" onClick={() => { removeIndexes([i]); setMenuFor(null) }} className="rounded-lg px-2.5 py-2 text-left text-sm text-destructive hover:bg-destructive/10">
                             Eliminar
                           </button>

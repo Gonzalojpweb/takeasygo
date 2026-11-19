@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import LargeGroupEditor, { LargeGroupSummary, type SoldOutContext } from '@/components/admin/menu/LargeGroupEditor'
+import LargeGroupEditor, { LargeGroupSummary, type SoldOutContext, type UploadContext } from '@/components/admin/menu/LargeGroupEditor'
 import { isLargeGroup } from '@/lib/menu/sold-out-options'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -1633,6 +1633,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                               open={catLargeOpen === cgi}
                                               group={cg}
                                               soldOut={categorySoldOutCtx(category)}
+                                              upload={{ tenantSlug, locationId: selectedLocation }}
                                               onChange={opts => {
                                                 const updated = [...editingCategoryGroups]
                                                 updated[cgi] = { ...updated[cgi], options: opts as CustomizationOptionForm[] }
@@ -2487,6 +2488,7 @@ function RecursiveGroupEditor({
   onToggleGroupDisabled,
   onToggleOptionDisabled,
   soldOut,
+  upload,
 }: {
   groups: CustomizationGroupForm[]
   onUpdate: (next: CustomizationGroupForm[]) => void
@@ -2503,6 +2505,8 @@ function RecursiveGroupEditor({
   onToggleOptionDisabled?: (optionId: string) => void
   /** Sede y agotados guardados: habilita «Disponibles hoy» en grupos grandes. */
   soldOut?: SoldOutContext
+  /** Subida de fotos de opciones en el panel de grupos grandes. */
+  upload?: UploadContext
 }) {
   // Grupos grandes (más de 12 opciones): resumen + panel propio.
   const [openLarge, setOpenLarge] = useState<number | null>(null)
@@ -2672,6 +2676,7 @@ function RecursiveGroupEditor({
                   open={openLarge === gi}
                   group={group}
                   soldOut={soldOut}
+                  upload={upload}
                   onChange={opts => updateGroup(gi, { options: opts as CustomizationOptionForm[] })}
                   onClose={() => setOpenLarge(null)}
                 />
@@ -2797,6 +2802,8 @@ function RecursiveGroupEditor({
                         disabledOptionIds={disabledOptionIds}
                         onToggleGroupDisabled={onToggleGroupDisabled}
                         onToggleOptionDisabled={onToggleOptionDisabled}
+                        soldOut={soldOut}
+                        upload={upload}
                       />
                     </div>
                   )}
@@ -3100,6 +3107,7 @@ function ItemForm({
           inputCls={inputCls}
           context="item"
           soldOut={soldOutCtx}
+          upload={{ tenantSlug, locationId: selectedLocation }}
           optFileRefs={optFileRefs}
           uploadingOptKey={uploadingOptKey}
           onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}
@@ -3300,6 +3308,7 @@ function ItemForm({
                   inputCls={inputCls}
                   context={`variant-${vi}`}
                   soldOut={soldOutCtx}
+                  upload={{ tenantSlug, locationId: selectedLocation }}
                   optFileRefs={optFileRefs}
                   uploadingOptKey={uploadingOptKey}
                   onImageUpload={(e, path) => handleOptionImageUpload(e, path[0], path[1])}

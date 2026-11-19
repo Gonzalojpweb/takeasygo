@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Check, Search, X } from 'lucide-react'
 import { toPesos } from '@takeasygo/business/browser'
+import { cloudinaryUrl } from '@/lib/utils'
 import { displaySections } from '@/lib/menu/option-sections'
 
 // ============================================================================
@@ -16,13 +17,16 @@ import { displaySections } from '@/lib/menu/option-sections'
 //     mitad de alto;
 //   · familias: las del local o, si no cargó ninguna, sugeridas por nombre;
 //     tocar una muestra solo esa;
-//   · agotados al final de cada familia, en gris y sin poder elegirlos.
+//   · agotados al final de cada familia, en gris y sin poder elegirlos;
+//   · fotos: si el local subió la foto del sabor, la tarjeta la muestra
+//     (si algún sabor tiene foto, todos llevan el mismo recuadro para alinear).
 // ============================================================================
 
 interface Option {
   _id?: string
   name: string
   extraPrice: number
+  imageUrl?: string
   section?: string
   soldOut?: boolean
 }
@@ -38,12 +42,14 @@ interface Props {
   textColor: string
   /** Fondo del sheet: la barra fija lo usa para tapar lo que pasa por debajo. */
   bgColor?: string
+  /** Foto global por nombre (optionImageRegistry del menú), si la opción no trae la suya. */
+  imageFor?: (optionName: string) => string | undefined
   onToggle: (optionName: string) => void
 }
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
-export default function LargeOptionPicker({ groupName, options, selectedNames, max, required, primaryColor, textColor, bgColor = '#ffffff', onToggle }: Props) {
+export default function LargeOptionPicker({ groupName, options, selectedNames, max, required, primaryColor, textColor, bgColor = '#ffffff', imageFor, onToggle }: Props) {
   const [q, setQ] = useState('')
   const [fam, setFam] = useState<string | null>(null)
 
@@ -67,6 +73,8 @@ export default function LargeOptionPicker({ groupName, options, selectedNames, m
   const full = multi && selectedNames.length >= max
   const total = visible.reduce((n, [, l]) => n + l.length, 0)
   const label = groupName.toLowerCase()
+  const photoOf = (o: Option) => o.imageUrl || imageFor?.(o.name) || ''
+  const withPhotos = options.some(o => photoOf(o))
 
   return (
     <div>
@@ -156,17 +164,35 @@ export default function LargeOptionPicker({ groupName, options, selectedNames, m
                       disabled={disabled}
                       aria-pressed={on}
                       onClick={() => onToggle(o.name)}
-                      className="flex min-h-[48px] items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100"
+                      className={`flex ${withPhotos ? 'min-h-[60px]' : 'min-h-[48px]'} items-center gap-2 rounded-xl border px-2.5 py-2 text-left transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:active:scale-100`}
                       style={{
                         borderColor: on ? primaryColor : '#e4e4e7',
                         backgroundColor: on ? `${primaryColor}12` : o.soldOut ? '#f4f4f5' : '#fff',
                         opacity: o.soldOut ? 0.6 : full && !on ? 0.45 : 1,
                       }}
                     >
-                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2"
-                        style={on ? { backgroundColor: primaryColor, borderColor: primaryColor } : { borderColor: '#d4d4d8' }}>
-                        {on && <Check size={12} strokeWidth={3.5} className="text-white" aria-hidden />}
-                      </span>
+                      {withPhotos ? (
+                        <span className="relative h-11 w-11 shrink-0">
+                          {photoOf(o) ? (
+                            <img src={cloudinaryUrl(photoOf(o), { w: 120 })} alt="" loading="lazy"
+                              className="h-full w-full rounded-lg object-cover" style={o.soldOut ? { filter: 'grayscale(1)' } : undefined} />
+                          ) : (
+                            <span className="grid h-full w-full place-items-center rounded-lg text-sm font-bold"
+                              style={{ backgroundColor: `${primaryColor}12`, color: primaryColor }} aria-hidden>
+                              {o.name.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                          <span className="absolute -right-1 -top-1 grid h-5 w-5 place-items-center rounded-full border-2 bg-white"
+                            style={on ? { backgroundColor: primaryColor, borderColor: '#fff' } : { borderColor: '#d4d4d8' }}>
+                            {on && <Check size={11} strokeWidth={3.5} className="text-white" aria-hidden />}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border-2"
+                          style={on ? { backgroundColor: primaryColor, borderColor: primaryColor } : { borderColor: '#d4d4d8' }}>
+                          {on && <Check size={12} strokeWidth={3.5} className="text-white" aria-hidden />}
+                        </span>
+                      )}
                       <span className="min-w-0 flex-1">
                         <span className={`line-clamp-2 text-[13px] font-medium leading-tight ${o.soldOut ? 'line-through' : ''}`}
                           style={{ color: on ? primaryColor : o.soldOut ? '#a1a1aa' : textColor }}>

@@ -103,6 +103,7 @@ export default function CustomizationGroupSection({
           primaryColor={primaryColor}
           textColor={textColor}
           bgColor={bgColor}
+          imageFor={(name) => optionImageRegistry?.[name]}
           onToggle={(optionName) => onToggle(group.name, optionName)}
         />
       )}
