@@ -17,7 +17,8 @@ import { chargedManualMethods, resolveManualCommission, sanitizeCommissionRules 
 
 const PLATFORM = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 4, takeasygoCashCommissionPercent: 2 } }
 // $11.500 con $1.500 de envío (centavos). Transferencia: base $11.500 (con
-// envío, desde 20/11/2026). Efectivo: base $10.000 (sin envío).
+// envío, desde 20/11/2026). Efectivo: también $11.500 (decisión del dueño 20/11:
+// el envío suma a la base en todos los medios).
 const BASE = 1_150_000
 const DELIVERY = 150_000
 
@@ -45,11 +46,11 @@ describe('con matriz del superadmin', () => {
 
   it('efectivo + delivery paga con el % global de efectivo; recargado al cliente', () => {
     const r = calculateFinalTotal(BASE, 'cash', { commissionRules: rules }, PLATFORM, undefined, 'delivery', DELIVERY)
-    expect(r.platformFeeAmount).toBe(20_000) // 2 % de $10.000
-    expect(r.platformFeeCustomerAmount).toBe(20_000)
-    expect(r.surchargeAmount).toBe(20_000)
+    expect(r.platformFeeAmount).toBe(23_000) // 2 % de $11.500 (con envío)
+    expect(r.platformFeeCustomerAmount).toBe(23_000)
+    expect(r.surchargeAmount).toBe(23_000)
     expect(r.surchargePercent).toBe(2)
-    expect(r.finalTotal).toBe(BASE + 20_000)
+    expect(r.finalTotal).toBe(BASE + 23_000)
   })
 
   it('efectivo + take away no está tildado: sin comisión', () => {
@@ -64,7 +65,7 @@ describe('con matriz del superadmin', () => {
 
   it('el comercio la absorbe: TakeasyGO cobra igual, el cliente paga el precio de carta', () => {
     const r = calculateFinalTotal(BASE, 'cash', { commissionRules: { ...rules, cash: { modes: ['delivery'], percent: 5 } }, commissionPayer: { cash: 'merchant' } }, PLATFORM, undefined, 'delivery', DELIVERY)
-    expect(r.platformFeeAmount).toBe(50_000)
+    expect(r.platformFeeAmount).toBe(57_500) // 5 % de $11.500 (con envío)
     expect(r.platformFeeCustomerAmount).toBe(0)
     expect(r.surchargeAmount).toBe(0)
     expect(r.finalTotal).toBe(BASE)

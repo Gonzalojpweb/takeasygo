@@ -24,7 +24,8 @@
 //     platformFees.takeasygoTransferCommissionPercent (igual que antes).
 //   · % efectivo: commissionRules.cash.percent → global
 //     platformFees.takeasygoCashCommissionPercent → 0.
-//   · Base de la comisión: subtotal SIN envío (el envío es passthrough).
+//   · Base de la comisión: productos a precio de LISTA + envío (20/11/2026,
+//     decisión del dueño: el envío suma en todos los medios; lib/pricing).
 // ============================================================================
 
 export const MANUAL_COMMISSION_METHODS = ['cash', 'transfer'] as const

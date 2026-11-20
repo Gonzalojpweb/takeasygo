@@ -100,7 +100,8 @@ describe('quién paga (admin)', () => {
 
     const t = await Tenant.findById(tenant._id).lean()
     const r = calculateFinalTotal(1_150_000, 'cash', t as any, {}, undefined, 'delivery', 150_000)
-    expect(r).toMatchObject({ platformFeeAmount: 30_000, platformFeeCustomerAmount: 0, finalTotal: 1_150_000 })
+    // 3 % de $11.500: el envío suma a la base (decisión del dueño 20/11)
+    expect(r).toMatchObject({ platformFeeAmount: 34_500, platformFeeCustomerAmount: 0, finalTotal: 1_150_000 })
     expect(await AuditLog.countDocuments({ tenantId: tenant._id, action: 'commissions.payer.update' })).toBe(1)
   })
 

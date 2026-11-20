@@ -8,7 +8,7 @@ export interface PricingResult {
   platformFeeAmount: number
   /**
    * Efectivo / transferencia: parte de la comisión de plataforma que se le
-   * RECARGÓ al cliente (porcentaje de plataforma × subtotal sin envío).
+   * RECARGÓ al cliente (porcentaje de plataforma × lo que paga, con envío).
    * 0 = la comisión no se recargó y la absorbe el comercio. @storedAs cents
    */
   platformFeeCustomerAmount?: number
@@ -108,10 +108,10 @@ export function calculateFinalTotal(
   orderMode?: string,
   /**
    * Costo de envío en centavos (ya incluido en baseTotal).
-   *  - Transferencia (20/11/2026): el envío ENTRA en la base de la comisión,
-   *    igual que en Mercado Pago. El recargo propio del comercio sigue siendo
-   *    solo sobre productos.
-   *  - Efectivo: el envío sigue fuera de la base de la comisión.
+   *  - 20/11/2026 (decisión del dueño): el envío ENTRA en la base de la
+   *    comisión en TODOS los medios (MP, transferencia y efectivo): TakeasyGO
+   *    hace el puente y le permite al local cobrar delivery. El recargo propio
+   *    del comercio sigue siendo solo sobre productos.
    */
   deliveryCost?: number,
   /**
@@ -145,9 +145,9 @@ export function calculateFinalTotal(
   //  - recargo propio del comercio por transferencia (paymentSurcharges.
   //    transfer.feePercent): queda en el negocio; como antes, solo delivery.
   // Base de la comisión:
-  //  - transferencia: productos + envío (sin la comisión de envío de TakeasyGO,
-  //    para no cobrar comisión sobre la comisión) — igual que Mercado Pago.
-  //  - efectivo: productos sin envío (regla histórica).
+  //  - transferencia y efectivo: productos + envío (sin la comisión de envío
+  //    de TakeasyGO, para no cobrar comisión sobre la comisión) — igual que
+  //    Mercado Pago (20/11/2026: el efectivo antes excluía el envío).
   if (paymentMethod === 'transfer' || paymentMethod === 'cash') {
     const commission = resolveManualCommission(paymentMethod as ManualCommissionMethod, orderMode, tenant, platformConfig, overridePlatformFeePercent)
     const merchantFeePercent = paymentMethod === 'transfer' && orderMode === 'delivery'
@@ -155,9 +155,7 @@ export function calculateFinalTotal(
       : 0
 
     const productsSubtotal = Math.max(0, baseTotal - (deliveryCost ?? 0))
-    const commissionBase = paymentMethod === 'transfer'
-      ? Math.max(0, baseTotal - deliveryPlatformFeeAmount)
-      : productsSubtotal
+    const commissionBase = Math.max(0, baseTotal - deliveryPlatformFeeAmount)
     // Comisión de TakeasyGO: base a precio de lista (+ lo descontado). Lo que
     // se le recarga al cliente sale de lo que el cliente paga; la diferencia
     // la absorbe el comercio.
