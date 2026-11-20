@@ -46,6 +46,7 @@ import { buildOrderWhatsAppMessage } from '@/lib/whatsapp-message'
 import { pickAdminWhatsApp, resolveTransferAccountForLocation, withLocationCommercialSettings, isClubDiscountEnabledForLocation } from '@/lib/location-resolvers'
 import { corporateHasAccess } from '@/lib/corporateAccess'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { productsListTotal } from '@/lib/commission-base'
 import { resolveCashConfig } from '@/lib/cash'
 import { sendAdminPushNotification } from '@/lib/push'
 import PlatformConfig from '@/models/PlatformConfig'
@@ -2128,7 +2129,16 @@ export async function POST(
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
     // Recargos con override por sede (sede propia > tenant).
     const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, location.settings)
-    const pricing = calculateFinalTotal(total, paymentMethod as any, pricingTenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc, rapiboyCheckoutData?.platformFee ?? 0)
+    // 20/11/2026 — REGLA: la comisión de TakeasyGO va sobre el precio de
+    // LISTA de los productos. Ninguna promo, combo, cupón, Club, descuento por
+    // efectivo o premio con puntos la baja (lib/commission-base).
+    const commissionListTotal = productsListTotal(resolvedItems, {
+      mode: body.mode,
+      menuItems: menuItemMap,
+      promotions: promotionsById,
+      rewardValues: new Map(pendingCheckoutRedemptions.map((r: any) => [String(r.storeItemId), Number(r.cashValue) || 0])),
+    })
+    const pricing = calculateFinalTotal(total, paymentMethod as any, pricingTenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc, rapiboyCheckoutData?.platformFee ?? 0, commissionListTotal)
 
     // ── orderNumber: perLocation (flag ON + prefijos completos) o legacy ──
     let orderNumber: string
@@ -2187,6 +2197,8 @@ export async function POST(
       'payment.platformFeeCustomerAmount': pricing.platformFeeCustomerAmount ?? null,
       'payment.merchantSurchargeAmount': pricing.merchantSurchargeAmount ?? null,
       'payment.deliveryPlatformFeeAmount': pricing.deliveryPlatformFeeAmount,
+      'payment.commissionListTotal': commissionListTotal,
+      'payment.commissionListGapAmount': pricing.commissionListGapAmount,
       'payment.transferAccount': resolvedTransferAccount,
       notes: body.notes || '',
       trackingToken: crypto.randomUUID(),

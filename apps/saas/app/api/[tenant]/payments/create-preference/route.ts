@@ -77,6 +77,8 @@ if (!success) {
       order.orderMode, order.deliveryCost ?? 0,
       // Comisión de envío de TakeasyGO (Rapiboy): viaja en el mismo split.
       order.payment.deliveryPlatformFeeAmount ?? 0,
+      // 20/11/2026: comisión a precio de lista (nunca baja por promos).
+      order.payment.commissionListTotal ?? null,
     )
 
     // ── Usar token de OAuth si está vigente, sino el propio del tenant ────────

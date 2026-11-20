@@ -319,6 +319,14 @@ export interface IOrder extends Document {
      * está incluida en platformFeeAmount y en deliveryCost. @storedAs cents
      */
     deliveryPlatformFeeAmount?: number
+    /**
+     * 20/11/2026 — base de la comisión a precio de LISTA: suma de los precios
+     * de carta de los productos (sin envío). La comisión de TakeasyGO nunca se
+     * calcula sobre menos (lib/commission-base). null = pedido anterior. @storedAs cents
+     */
+    commissionListTotal?: number | null
+    /** Parte de la base sumada por descuentos/promos del comercio (la absorbe el comercio). @storedAs cents */
+    commissionListGapAmount?: number
     // ── Transferencia ────────────────────────────────────────────────────
     transferConfirmed: boolean
     transferConfirmedAt: Date | null
@@ -870,6 +878,10 @@ const OrderSchema = new Schema(
       merchantSurchargeAmount: { type: Number, default: null, min: 0 },
       /** Comisión de envío de TakeasyGO (incluida en platformFeeAmount). @storedAs cents */
       deliveryPlatformFeeAmount: { type: Number, default: 0, min: 0 },
+      /** Productos a precio de lista: piso de la base de la comisión. @storedAs cents */
+      commissionListTotal: { type: Number, default: null, min: 0 },
+      /** Base sumada por descuentos del comercio (comisión que absorbe el comercio). @storedAs cents */
+      commissionListGapAmount: { type: Number, default: 0, min: 0 },
       // ── Transferencia ───────────────────────────────────────────────
       transferConfirmed: { type: Boolean, default: false },
       transferConfirmedAt: { type: Date, default: null },

@@ -156,7 +156,10 @@ export async function POST(
       undefined,
       order.orderMode,
       order.deliveryCost ?? 0,
-      order.payment?.deliveryPlatformFeeAmount ?? 0
+      order.payment?.deliveryPlatformFeeAmount ?? 0,
+      // 20/11/2026: comisión a precio de lista (nunca baja por promos ni por
+      // el descuento por efectivo).
+      order.payment?.commissionListTotal ?? null
     )
 
     order.payment.method = method
@@ -168,6 +171,7 @@ export async function POST(
     order.payment.platformFeeCustomerAmount = pricing.platformFeeCustomerAmount ?? null
     order.payment.merchantSurchargeAmount = pricing.merchantSurchargeAmount ?? null
     order.payment.deliveryPlatformFeeAmount = pricing.deliveryPlatformFeeAmount
+    order.payment.commissionListGapAmount = pricing.commissionListGapAmount
     order.total = pricing.finalTotal
     
     // ── Aplicar descuento de efectivo si el nuevo método es cash ────────

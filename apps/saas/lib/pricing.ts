@@ -20,6 +20,14 @@ export interface PricingResult {
    * se informa aparte para el desglose. @storedAs cents
    */
   deliveryPlatformFeeAmount: number
+  /**
+   * 20/11/2026 — REGLA del dueño: la comisión de TakeasyGO se calcula sobre
+   * el precio FULL de lista de los productos; ningún descuento ni promo del
+   * comercio la baja. Esta es la parte de la base que se sumó por descuentos
+   * (lista − productos cobrados). La comisión sobre ella la absorbe el
+   * comercio; nunca se le recarga al cliente. @storedAs cents
+   */
+  commissionListGapAmount: number
 }
 
 export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer' | 'cash'
@@ -112,9 +120,21 @@ export function calculateFinalTotal(
    * (en MP viaja en el marketplace_fee; en transferencia/efectivo entra en el
    * saldo de comisiones). No lleva comisión encima y no es un recargo.
    */
-  deliveryPlatformFee = 0
+  deliveryPlatformFee = 0,
+  /**
+   * 20/11/2026: suma de los precios de LISTA de los productos (sin envío),
+   * calculada por lib/commission-base. La comisión de TakeasyGO nunca se
+   * calcula sobre menos que esto: promos, combos, cupones, Club, descuento por
+   * efectivo o por medio de pago no la bajan. Ausente (pedidos viejos) = sin
+   * ajuste.
+   */
+  productsListTotal?: number | null
 ): PricingResult {
   const deliveryPlatformFeeAmount = Math.max(0, Math.round(deliveryPlatformFee || 0))
+  const productsCharged = Math.max(0, baseTotal - (deliveryCost ?? 0))
+  const commissionListGapAmount = productsListTotal != null && productsListTotal > productsCharged
+    ? Math.round(productsListTotal - productsCharged)
+    : 0
   // ── Efectivo / Transferencia: comisión MANUAL (lib/commission-rules) ──
   // Qué combinaciones medio × modo pagan comisión y con qué % lo decide el
   // superadmin; si se recarga al cliente o la absorbe el comercio, el admin.
@@ -138,8 +158,13 @@ export function calculateFinalTotal(
     const commissionBase = paymentMethod === 'transfer'
       ? Math.max(0, baseTotal - deliveryPlatformFeeAmount)
       : productsSubtotal
-    const orderFee = commission.percent > 0 ? Math.ceil(commissionBase * commission.percent / 100) : 0
-    const orderFeeCustomer = commission.payer === 'customer' ? orderFee : 0
+    // Comisión de TakeasyGO: base a precio de lista (+ lo descontado). Lo que
+    // se le recarga al cliente sale de lo que el cliente paga; la diferencia
+    // la absorbe el comercio.
+    const orderFee = commission.percent > 0 ? Math.ceil((commissionBase + commissionListGapAmount) * commission.percent / 100) : 0
+    const orderFeeCustomer = commission.payer === 'customer' && commission.percent > 0
+      ? Math.min(orderFee, Math.ceil(commissionBase * commission.percent / 100))
+      : 0
     const merchantSurchargeAmount = Math.round(productsSubtotal * merchantFeePercent / 100)
     const surchargeAmount = orderFeeCustomer + merchantSurchargeAmount
     const surchargePercent = merchantFeePercent + (commission.payer === 'customer' ? commission.percent : 0)
@@ -154,6 +179,7 @@ export function calculateFinalTotal(
       platformFeeCustomerAmount: orderFeeCustomer + deliveryPlatformFeeAmount,
       merchantSurchargeAmount,
       deliveryPlatformFeeAmount,
+      commissionListGapAmount,
     }
   }
 
@@ -167,6 +193,7 @@ export function calculateFinalTotal(
       finalTotal: baseTotal,
       platformFeeAmount: deliveryPlatformFeeAmount,
       deliveryPlatformFeeAmount,
+      commissionListGapAmount,
     }
   }
 
@@ -176,7 +203,14 @@ export function calculateFinalTotal(
   const finalTotal = Math.ceil(baseTotal / (1 - totalFees))
   const surchargeAmount = finalTotal - baseTotal
   const surchargePercent = baseTotal > 0 ? Math.round((surchargeAmount / baseTotal) * 10000) / 100 : 0
-  const platformFeeAmount = Math.ceil(finalTotal * platformFee) + deliveryPlatformFeeAmount
+  // Comisión de TakeasyGO (marketplace_fee, lo fija TakeasyGO): sobre lo
+  // cobrado + lo descontado a precio de lista. El recargo al cliente sigue
+  // saliendo de lo que paga. MP rechaza un marketplace_fee mayor que el cobro:
+  // tope en el total (solo con descuentos extremos).
+  const platformFeeAmount = Math.min(
+    finalTotal,
+    Math.ceil((finalTotal + commissionListGapAmount) * platformFee) + deliveryPlatformFeeAmount
+  )
 
   return {
     baseTotal,
@@ -185,6 +219,7 @@ export function calculateFinalTotal(
     finalTotal,
     platformFeeAmount,
     deliveryPlatformFeeAmount,
+    commissionListGapAmount,
   }
 }
 

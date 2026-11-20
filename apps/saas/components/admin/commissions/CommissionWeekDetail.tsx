@@ -208,6 +208,11 @@ function Ticket({ t }: { t: CommissionTicket }) {
           </>
         )}
         <Line label="Comisión TakeasyGO" value={pesos(t.commissionCents)} strong />
+        {(t.listPriceGapCents ?? 0) > 0 && (
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            La comisión se calcula sobre el precio de lista: tus promos y descuentos de este pedido ({pesos(t.listPriceGapCents)}) no la bajan.
+          </p>
+        )}
         <Line label="Te queda" value={pesos(t.restaurantKeepsCents)} />
       </dl>
       <div className={cn('rounded-xl border-2 p-3 font-sans', TONE[msg.tone])}>

@@ -474,3 +474,17 @@ describe('20/11 — canal de la promo', () => {
     expect(res.ok).toBe(true)
   })
 })
+
+describe('20/11 — comisión a precio de lista', () => {
+  it('la promo cobra $18.000 pero la base de comisión es la carta: $9.500 + $9.000', async () => {
+    const res = await post([bundleLine([unit(itemA, 'Cachapa L'), unit(itemB, 'Cachapa M')])])
+    expect(res.ok).toBe(true)
+    const order = await Order.findOne({ tenantId: tenant._id }).lean<any>()
+    expect(order.total).toBe(PRICE)
+    expect(order.payment.commissionListTotal).toBe(950_000 + 900_000)
+    // calculateFinalTotal recibe la lista como último argumento
+    const { calculateFinalTotal } = await import('@/lib/pricing')
+    const call = vi.mocked(calculateFinalTotal).mock.calls.at(-1)!
+    expect(call[8]).toBe(1_850_000)
+  })
+})

@@ -53,6 +53,12 @@ export interface CommissionTicket {
   totalPaidCents: number
   /** Comisión de TakeasyGO del pedido. @storedAs cents */
   commissionCents: number
+  /**
+   * 20/11/2026: la comisión se calcula sobre el precio de LISTA; esto es lo
+   * que las promos/descuentos del local bajaron el precio y NO bajan la base
+   * de la comisión. 0 = sin promos. @storedAs cents
+   */
+  listPriceGapCents: number
   /** De esa comisión, cuánto pagó el cliente / cuánto el restaurante. @storedAs cents */
   paidByCustomerCents: number | null
   paidByRestaurantCents: number | null
@@ -94,6 +100,7 @@ interface RawOrder {
     platformFeeCustomerAmount?: number | null
     merchantSurchargeAmount?: number | null
     deliveryPlatformFeeAmount?: number | null
+    commissionListGapAmount?: number | null
   }
 }
 
@@ -123,6 +130,7 @@ export function ticketFromOrder(o: RawOrder, settled: boolean): CommissionTicket
     surchargeCents: surcharge,
     totalPaidCents: o.total,
     commissionCents: o.payment.platformFeeAmount,
+    listPriceGapCents: o.payment.commissionListGapAmount ?? 0,
     paidByCustomerCents: byCustomer,
     paidByRestaurantCents: byRestaurant,
     origin,
@@ -157,7 +165,7 @@ export async function loadWeekTickets(tenantId: Types.ObjectId | string, key: st
   const tid = typeof tenantId === 'string' ? new mongoose.Types.ObjectId(tenantId) : tenantId
   const [orders, settlements] = await Promise.all([
     Order.find(commissionableFilter(tid, { createdAt: { $gte: weekStart, $lt: weekEnd } }))
-      .select('_id orderNumber createdAt total deliveryCost items.name items.quantity items.price items.subtotal payment.baseTotal payment.surchargeAmount payment.platformFeeAmount payment.platformFeeCustomerAmount payment.merchantSurchargeAmount payment.deliveryPlatformFeeAmount')
+      .select('_id orderNumber createdAt total deliveryCost items.name items.quantity items.price items.subtotal payment.baseTotal payment.surchargeAmount payment.platformFeeAmount payment.platformFeeCustomerAmount payment.merchantSurchargeAmount payment.deliveryPlatformFeeAmount payment.commissionListGapAmount')
       .sort({ createdAt: 1 })
       .lean<RawOrder[]>(),
     CommissionSettlement.find({ tenantId: tid }).select('orderIds').lean<Array<{ orderIds?: string[] }>>(),
