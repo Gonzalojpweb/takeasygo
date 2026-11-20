@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { VISIT_SOURCE_FIX_DATE } from '@/lib/visits/constants'
 
 interface TrafficAnalyticsPanelProps {
   tenantSlug: string
@@ -197,6 +198,11 @@ export default function TrafficAnalyticsPanel({ tenantSlug }: TrafficAnalyticsPa
               </span>
             </span>
           </h3>
+          {Date.now() - days * 86_400_000 < VISIT_SOURCE_FIX_DATE.getTime() && (
+            <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+              Desde el {VISIT_SOURCE_FIX_DATE.toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })} medimos mejor de dónde llegan tus visitas (QR, WhatsApp, enlaces de TakeasyGO…). Antes de esa fecha casi todas aparecían como «Otro».
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {summary.bySource.map((source: any) => {
               const sourceKey = KNOWN_SOURCES.includes(source._id) ? source._id : 'other'

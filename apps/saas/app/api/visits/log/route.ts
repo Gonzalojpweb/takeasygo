@@ -3,58 +3,13 @@ import { rateLimit } from '@/lib/rateLimit'
 import { logVisitSchema } from '@/lib/schemas'
 import Tenant from '@/models/Tenant'
 import MenuVisit from '@/models/MenuVisit'
-import Location from '@/models/Location'
 import { NextRequest, NextResponse } from 'next/server'
 import { Types } from 'mongoose'
+import { detectTrafficSource, externalReferrer, getDeviceType, resolveVisitLocation } from '@/lib/visits/attribution'
+
+// Sede y origen: ver lib/visits/attribution.ts (corrección del 20/11/2026).
 
 const DEDUP_WINDOW_MINUTES = 5
-const VALID_SOURCES = ['instagram', 'facebook', 'qr', 'whatsapp', 'google', 'direct', 'other']
-
-function getDeviceType(userAgent: string | null): 'mobile' | 'desktop' | 'unknown' {
-  if (!userAgent) return 'unknown'
-  const ua = userAgent.toLowerCase()
-  if (/mobile|android|iphone|ipod|blackberry|windows phone/i.test(ua)) return 'mobile'
-  if (/tablet|ipad|playbook|silk/i.test(ua)) return 'desktop'
-  if (/bot|crawler|spider|crawl/i.test(ua)) return 'unknown'
-  return 'desktop'
-}
-
-function extractBaseSource(raw: string): string {
-  const lower = raw.toLowerCase()
-  if (VALID_SOURCES.includes(lower)) return lower
-  const prefix = lower.split('-')[0]
-  if (VALID_SOURCES.includes(prefix)) return prefix
-  return lower
-}
-
-function detectTrafficSource(
-  referer: string | null,
-  urlSource: string | null,
-  userAgent: string | null
-): string {
-  if (urlSource) {
-    return extractBaseSource(urlSource)
-  }
-
-  if (userAgent) {
-    const ua = userAgent.toLowerCase()
-    if (ua.includes('instagram')) return 'instagram'
-  }
-
-  if (referer) {
-    const ref = referer.toLowerCase()
-    if (ref.includes('instagram.com')) return 'instagram'
-    if (ref.includes('facebook.com') || ref.includes('fb.com')) return 'facebook'
-    if (ref.includes('whatsapp.com') || ref.includes('wa.me')) return 'whatsapp'
-    if (ref.includes('google.com')) return 'google'
-  }
-
-  if (!referer || referer === '') {
-    return 'direct'
-  }
-
-  return 'other'
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,17 +26,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
 
-
-    const { tenantSlug, locationPath, promo: bodyPromo } = parsed.data
+    const { tenantSlug, locationPath, promo: bodyPromo, source: bodySource, referrer: bodyReferrer } = parsed.data
 
     const ip = request.headers.get('x-forwarded-for')
       || request.headers.get('cf-connecting-ip')
       || null
     const cleanIp = ip?.split(',')[0]?.trim() || null
     const userAgent = request.headers.get('user-agent')
-    const referer = request.headers.get('referer')
-    const urlSource = request.nextUrl.searchParams.get('source')
-    const promo = request.nextUrl.searchParams.get('promo') || bodyPromo || null
+    // De dónde llegó la persona: lo manda el cliente (document.referrer). El
+    // header Referer del beacon es la propia página del menú y no sirve.
+    const referer = externalReferrer(bodyReferrer, request.nextUrl.host)
+    const urlSource = bodySource || request.nextUrl.searchParams.get('source')
+    const promo = bodyPromo || request.nextUrl.searchParams.get('promo') || null
 
     // Rate limit: IP + tenantSlug para evitar bloquear tráfico legítimo de un WiFi compartido
     const identifier = `visit_log:${tenantSlug}:${cleanIp || 'unknown'}`
@@ -100,13 +56,9 @@ export async function POST(request: NextRequest) {
     const source = detectTrafficSource(referer, urlSource, userAgent)
     const tenantId = new Types.ObjectId(tenant._id.toString())
 
-    // Sede visitada: /{tenant}/menu/{locationId}… (validada contra el tenant).
-    let locationId: Types.ObjectId | null = null
-    const pathMatch = locationPath?.match(/\/(?:menu|reservas)\/([0-9a-fA-F]{24})(?:[/?#]|$)/)
-    if (pathMatch) {
-      const loc = await Location.exists({ _id: pathMatch[1], tenantId })
-      if (loc) locationId = new Types.ObjectId(pathMatch[1])
-    }
+    // Sede visitada (validada contra el tenant): por slug, por _id (direcciones
+    // viejas) o, en el link general /{tenant}/menu, la única sede activa.
+    const locationId = await resolveVisitLocation(tenantId, locationPath ?? null)
 
     // Dedup: buscar si el mismo IP visitó en los últimos 5 minutos
     let isDuplicate = false

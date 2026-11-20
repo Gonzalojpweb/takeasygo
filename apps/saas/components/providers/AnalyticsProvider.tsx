@@ -33,10 +33,19 @@ export function AnalyticsProvider({ children, tenantId, tenantSlug }: AnalyticsP
       version: '1.0',
     })
 
-    // Log de visita al menú público via sendBeacon (fire-and-forget confiable)
+    // Log de visita al menú público via sendBeacon (fire-and-forget confiable).
+    // 20/11: el origen (?source=, o el guardado en la sesión por SourceTracker),
+    // la promo y de dónde llegó la persona van en el cuerpo: la URL del beacon
+    // no los trae y su header Referer es esta misma página.
+    const params = new URLSearchParams(window.location.search)
+    let sessionSource: string | null = null
+    try { sessionSource = sessionStorage.getItem('tgo_attribution_source') } catch { /* sin storage */ }
     const payload = JSON.stringify({
       tenantSlug,
       locationPath: window.location.pathname,
+      source: params.get('source') || sessionSource || null,
+      promo: params.get('promo') || null,
+      referrer: document.referrer || null,
     })
     const blob = new Blob([payload], { type: 'application/json' })
     navigator.sendBeacon('/api/visits/log', blob)

@@ -64,6 +64,25 @@ export function qrPromoMenuPath(pathname: string): { show: boolean; locationRef:
   return { show, locationRef }
 }
 
+/**
+ * Sede de una ruta pública del menú (o de reservas), para atribuir visitas.
+ *   /kekelarry/menu                         → { ref: '' }          (link general)
+ *   /kekelarry/menu/palermo/takeaway?x=1    → { ref: 'palermo' }
+ *   /kekelarry/menu/69f8…9d                 → { ref: '69f8…9d' }   (dirección vieja)
+ *   /kekelarry/reservas/69f8…9d             → { ref: '69f8…9d' }
+ *   /kekelarry/admin, rutas raras           → null
+ * `ref` puede ser slug o _id: lo resuelve locationRefFilter. Vacío = sin sede
+ * en la ruta (con una sola sede activa, es esa).
+ */
+export function parseMenuPathSegment(path: string | null | undefined): { ref: string } | null {
+  if (!path) return null
+  const parts = path.split(/[?#]/)[0].split('/').filter(Boolean)
+  if (parts.length < 2 || (parts[1] !== 'menu' && parts[1] !== 'reservas')) return null
+  const ref = (parts[2] ?? '').toLowerCase()
+  if (ref && !OBJECT_ID_RE.test(ref) && !LOCATION_SLUG_RE.test(ref)) return null
+  return { ref }
+}
+
 export function parseLegacyMenuPath(pathname: string): { tenant: string; locationId: string; rest: string } | null {
   const m = /^\/([a-z0-9-]{2,50})\/menu\/([0-9a-f]{24})(\/[A-Za-z0-9/_-]*)?$/i.exec(pathname)
   if (!m) return null

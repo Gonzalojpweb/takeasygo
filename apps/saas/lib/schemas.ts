@@ -167,8 +167,16 @@ const slugRegex = /^[a-z0-9-]{2,50}$/
 
 export const logVisitSchema = z.object({
   tenantSlug: z.string().regex(slugRegex, 'Slug inválido'),
-  locationPath: z.string().optional(),
-  promo: z.string().optional().nullable(),
+  locationPath: z.string().max(500).optional(),
+  promo: z.string().max(80).optional().nullable(),
+  // 20/11: el cliente manda el ?source= de la página (o el de la sesión). Antes
+  // se leía de la URL del beacon, que nunca lo trae: todo quedaba en «other».
+  // Un valor fuera de formato se ignora (no rompe el registro de la visita).
+  source: z.string().max(60).optional().nullable()
+    .transform(v => (v && /^[a-z0-9_-]{1,40}$/i.test(v) ? v.toLowerCase() : null)),
+  // document.referrer: de dónde llegó la persona (el header Referer del beacon
+  // es la propia página del menú).
+  referrer: z.string().max(500).optional().nullable(),
 })
 
 // ── Leads (landing pública) ──────────────────────────────────────────────────
