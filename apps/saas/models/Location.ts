@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import { checkGeoCoordinates } from '@/lib/geo/validate-point'
 
 export interface ILocation extends Document {
   tenantId: mongoose.Types.ObjectId
@@ -253,6 +254,11 @@ const LocationSchema = new Schema<ILocation>(
       coordinates: {
         type: [Number], // [longitude, latitude]
         default: undefined,
+        // 20/11/2026: rango mundial y latitud ≠ longitud (lib/geo/validate-point.ts).
+        validate: {
+          validator: (v: unknown) => v == null || (Array.isArray(v) && v.length === 0) || checkGeoCoordinates(v).ok,
+          message: 'Coordenadas inválidas',
+        },
       },
     },
     networkVisible: {

@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { checkGeoBody } from '@/lib/geo/validate-point'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
@@ -103,6 +104,14 @@ export async function PUT(
     const rawBody = await request.json()
     // Pertenencia y credenciales del agente no se editan por esta vía.
     const { _id: _ignoredId, tenantId: _ignoredTenant, printerAgent: _ignoredAgent, ...body } = rawBody ?? {}
+
+    // ── Coordenadas: rango válido (una sede quedó en [-74, -74]) ──
+    let geoWarning: string | null = null
+    if ('geo' in body) {
+      const geoCheck = checkGeoBody(body.geo)
+      if (!geoCheck.ok) return NextResponse.json({ error: geoCheck.error }, { status: 400 })
+      geoWarning = geoCheck.warning
+    }
 
     // ── Encriptar apiToken de Rapiboy si se está guardando en texto plano ──
     if (body?.rapiboyConfig?.apiToken && !body.rapiboyConfig.apiToken.includes(':')) {
@@ -320,7 +329,7 @@ export async function PUT(
     if (!location) return NextResponse.json({ error: 'Sede no encontrada' }, { status: 404 })
 
     logAudit({ tenantId: tenant._id.toString(), action: 'settings.location.updated', entity: 'location', entityId: locationId, details: { fields: Object.keys(body) }, request })
-    return NextResponse.json({ location })
+    return NextResponse.json({ location, ...(geoWarning ? { geoWarning } : {}) })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }

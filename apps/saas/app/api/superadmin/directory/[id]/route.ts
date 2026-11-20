@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { checkGeoBody } from '@/lib/geo/validate-point'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
@@ -16,12 +17,10 @@ export async function PUT(
 
     const body = await request.json()
 
-    // Validar coords si vienen
-    if (body.geo?.coordinates) {
-      const [lng, lat] = body.geo.coordinates
-      if (lng < -180 || lng > 180 || lat < -90 || lat > 90) {
-        return NextResponse.json({ error: 'Coordenadas fuera de rango' }, { status: 400 })
-      }
+    // Validar coordenadas si vienen (rango y latitud ≠ longitud)
+    const geoCheck = checkGeoBody(body.geo)
+    if (!geoCheck.ok) {
+      return NextResponse.json({ error: geoCheck.error }, { status: 400 })
     }
 
     const entry = await RestaurantDirectory.findByIdAndUpdate(

@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { checkGeoBody } from '@/lib/geo/validate-point'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
@@ -101,6 +102,13 @@ export async function POST(
     }
 
     let geoWarning: string | null = null
+
+    // Coordenadas que vienen en el cuerpo (fuera del alta inicial, que geocodifica sola).
+    if (!isOnboarding && body.geo != null) {
+      const geoCheck = checkGeoBody(body.geo)
+      if (!geoCheck.ok) return NextResponse.json({ error: geoCheck.error }, { status: 400 })
+      geoWarning = geoCheck.warning
+    }
 
     if (isOnboarding) {
       delete body.geo
