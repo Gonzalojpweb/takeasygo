@@ -210,7 +210,7 @@ export default function OrderContextPanel({ item, tenantSlug, onClose, onRefresh
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-        {activeTab === 'detalles' && <DetallesTab item={item} waLink={waLink} />}
+        {activeTab === 'detalles' && <DetallesTab tenantSlug={tenantSlug} item={item} waLink={waLink} />}
         {activeTab === 'timeline' && <TimelineTab timestamps={timestamps} />}
         {activeTab === 'historial' && <HistorialTab item={item} tenantSlug={tenantSlug} />}
       </div>
@@ -407,7 +407,7 @@ function PickupLocationMap({
    TAB: DETALLES
    ═══════════════════════════════════════════════════════════ */
 
-function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null }) {
+function DetallesTab({ item, waLink, tenantSlug }: { item: OrderItem; waLink: string | null; tenantSlug: string }) {
   const hasDiscount = (item.discountAmount ?? 0) > 0 || item.qrPromoApplied
   const hasLoyalty = (item.loyaltyPointsUsed ?? 0) > 0
 
@@ -495,7 +495,7 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
 
       {/* ── Rapiboy Tracking ──────────────────────────────── */}
       {item.orderMode === 'delivery' && item.deliveryProvider?.type === 'rapiboy' && (
-        <Section title="Rapiboy Tracking">
+        <Section title="Envío Rapiboy">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs">
               <Truck size={12} className="text-emerald-500" />
@@ -529,6 +529,9 @@ function DetallesTab({ item, waLink }: { item: OrderItem; waLink: string | null 
                   {item.deliveryProvider.rapiboy.trackingId}
                 </span>
               </div>
+            )}
+            {item.deliveryProvider.rapiboy?.tripId && (
+              <RapiboyTripDetail tenantSlug={tenantSlug} orderId={item._id} />
             )}
           </div>
         </Section>
@@ -963,6 +966,84 @@ function HistorialTab({ item, tenantSlug }: { item: OrderItem; tenantSlug: strin
 /* ═══════════════════════════════════════════════════════════
    SHARED: Section wrapper
    ═══════════════════════════════════════════════════════════ */
+
+const RAPIBOY_PHASE_LABEL: Record<string, string> = {
+  searching: 'Buscando repartidor',
+  to_pickup: 'Repartidor yendo al local',
+  at_store: 'Repartidor en el local',
+  picked_up: 'Retirado, en camino al cliente',
+  at_customer: 'En el domicilio del cliente',
+  delivered: 'Entregado',
+  failed: 'No se pudo entregar',
+  cancelled: 'Viaje cancelado',
+}
+
+type RapiboyDetail = {
+  estadoNombre: string
+  phase: string | null
+  driverName: string
+  evidencias: Array<{ titulo: string; texto: string; archivo: string | null }>
+}
+
+/** Estado del viaje consultado en vivo a Rapiboy + evidencias de entrega (admin/encargado). */
+function RapiboyTripDetail({ tenantSlug, orderId }: { tenantSlug: string; orderId: string }) {
+  const [data, setData] = useState<RapiboyDetail | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function load() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/${tenantSlug}/orders/${orderId}/rapiboy-evidence`)
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.error || 'No se pudo consultar Rapiboy')
+      setData(json)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="pt-1 space-y-2">
+      <button
+        type="button"
+        onClick={load}
+        disabled={loading}
+        className="text-xs font-semibold text-emerald-700 hover:underline disabled:opacity-50"
+      >
+        {loading ? 'Consultando…' : data ? 'Actualizar estado y evidencias' : 'Ver estado y evidencias de entrega'}
+      </button>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      {data && (
+        <div className="space-y-1.5 text-xs">
+          <p>
+            <span className="font-medium">Estado:</span>{' '}
+            {(data.phase && RAPIBOY_PHASE_LABEL[data.phase]) || data.estadoNombre || '—'}
+          </p>
+          {data.evidencias.length === 0 ? (
+            <p className="text-muted-foreground">Sin evidencias todavía.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {data.evidencias.map((e, i) => (
+                <li key={i}>
+                  <span className="font-medium">{e.titulo}</span> {e.texto}
+                  {e.archivo && (
+                    <a href={e.archivo} target="_blank" rel="noopener noreferrer" className="ml-1 text-emerald-600 hover:underline">
+                      Ver archivo
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (

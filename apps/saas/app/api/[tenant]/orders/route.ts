@@ -1951,6 +1951,7 @@ export async function POST(
       checkoutCost: number
       checkoutQuoteTimestamp: Date
       transferBuffer: number
+      environment: 'production' | 'uat'
     } | null
 
     if (isDeliveryOrder && body.deliveryAddress) {
@@ -1982,13 +1983,16 @@ export async function POST(
         const transferBuffer = paymentMethod === 'transfer'
           ? Math.round(deliveryResult.rapiboyCost * (bufferPct / 100))
           : 0
-        deliveryCostCalc = deliveryResult.rapiboyCost + transferBuffer
+        // deliveryResult.cost ya incluye el margen de la sede (lo mismo que
+        // vio el cliente al cotizar); el colchón se calcula sobre el costo real.
+        deliveryCostCalc = deliveryResult.cost + transferBuffer
 
         // Guardar datos de checkout para la re-cotización en "ready"
         rapiboyCheckoutData = {
           checkoutCost: deliveryResult.rapiboyCost,
           checkoutQuoteTimestamp: new Date(),
           transferBuffer,
+          environment: loc?.rapiboyConfig?.environment === 'production' ? 'production' : 'uat',
         }
       }
     }
@@ -2189,7 +2193,7 @@ export async function POST(
               quotedCost: rapiboyCheckoutData.checkoutCost,
               chargedToCustomer: deliveryCostCalc,
               margin: deliveryCostCalc - rapiboyCheckoutData.checkoutCost,
-              environment: 'uat' as const,
+              environment: rapiboyCheckoutData.environment,
               checkoutCost: rapiboyCheckoutData.checkoutCost,
               checkoutQuoteTimestamp: rapiboyCheckoutData.checkoutQuoteTimestamp,
               transferBuffer: rapiboyCheckoutData.transferBuffer,

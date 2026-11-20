@@ -3,21 +3,40 @@ import { connectDB } from '@/lib/mongoose'
 import Order from '@/models/Order'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
-import PushSubscription from '@/models/PushSubscription'
 import { decrypt } from '@/lib/crypto'
-import { mapRapiboyStatus, isRapiboyStatusValid, isRapiboyTerminalStatus } from '@/lib/rapiboy/estados'
-import { sendPushToSubscription } from '@/lib/push'
+import { safeEqual } from '@/lib/safe-equal'
+import { consultarViaje } from '@/lib/rapiboy/client'
+import { applyTripState, notifyTripChange, rapiboyConfigFromLocation } from '@/lib/rapiboy/trips'
 import { claimCheckoutRedemptionsForOrder } from '@/lib/store-redemptions'
-import crypto from 'crypto'
 
 // ─── Rapiboy Webhook ────────────────────────────────────────────────────────
 //
 // POST /api/webhooks/rapiboy/[tenant]
 //
-// Recibe notificaciones de Rapiboy sobre cambios de estado de viajes.
-// Valida el header X-Rapiboy-Secret contra el webhookSecret de la sede.
-// Busca el pedido por deliveryProvider.rapiboy.tripId o por ReferenciaExterna.
-// Actualiza el estado del pedido y notifica al cliente.
+// Rapiboy NO documenta el formato del webhook (URL, eventos y autenticación
+// se acuerdan con ellos). Por eso (20/11/2026):
+//   · Secreto por sede: header X-Rapiboy-Secret, o Authorization: Bearer, o
+//     ?token= si Rapiboy solo permite configurar una URL.
+//   · La sede sale del PEDIDO (IdPedido / ReferenciaExterna) o de
+//     CodigoPlataforma; ya no se toma «cualquier sede con secreto».
+//   · El aviso es solo una señal: se confirma el estado con GetQuery (la guía
+//     pide no asumir entrega única ni ordenada) y, si la consulta falla, se usa
+//     el Estado del cuerpo.
+//   · Idempotente y sin retrocesos (lib/rapiboy/trips.ts → applyTripState).
+//   · No se loguean cuerpos ni headers (llevan datos del cliente y el secreto).
+
+function pick(body: any, ...keys: string[]): any {
+  for (const k of keys) if (body?.[k] !== undefined && body[k] !== null && body[k] !== '') return body[k]
+  return null
+}
+
+function suppliedSecret(request: NextRequest): string | null {
+  const header = request.headers.get('x-rapiboy-secret')
+  if (header) return header
+  const auth = request.headers.get('authorization')
+  if (auth?.toLowerCase().startsWith('bearer ')) return auth.slice(7).trim()
+  return request.nextUrl.searchParams.get('token')
+}
 
 export async function POST(
   request: NextRequest,
@@ -26,207 +45,106 @@ export async function POST(
   try {
     const { tenant: tenantSlug } = await params
 
+    let body: any
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+    }
+
+    const secret = suppliedSecret(request)
+    if (!secret) return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
+
+    const idPedido = pick(body, 'IdPedido', 'idPedido', 'Id')
+    const referencia = pick(body, 'ReferenciaExterna', 'referenciaExterna')
+    const codigoPlataforma = pick(body, 'CodigoPlataforma', 'codigoPlataforma')
+    const estadoRaw = pick(body, 'Estado', 'estado', 'IdEstado')
+    const bodyEstado = estadoRaw != null && Number.isFinite(Number(estadoRaw)) ? Number(estadoRaw) : null
+    const bodyDriver = pick(body, 'RepartidorOnDemand', 'NombreRepartidor', 'NombreChofer', 'nombreChofer')
+
     await connectDB()
 
-    // ── 1. Parse body ──
-    const body = await request.json()
+    const tenant = await Tenant.findOne({ slug: tenantSlug, status: { $in: ['active', 'paused'] } }).select('_id').lean() as any
+    if (!tenant) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-    console.log('[rapiboy-webhook] Body recibido:', JSON.stringify(body, null, 2))
-    console.log('[rapiboy-webhook] Headers:', JSON.stringify(Object.fromEntries(request.headers.entries()), null, 2))
-
-    // ── Normalize field names (Rapiboy may send PascalCase or camelCase) ──
-    const CodigoPlataforma = body.CodigoPlataforma ?? body.codigoPlataforma ?? null
-    const IdPedido = body.IdPedido ?? body.idPedido ?? body.IdPedido ?? null
-    const ReferenciaExterna = body.ReferenciaExterna ?? body.referenciaExterna ?? null
-    const Estado = body.Estado ?? body.estado ?? null
-    const TrackingId = body.TrackingId ?? body.trackingId ?? null
-    const NombreChofer = body.NombreChofer ?? body.nombreChofer ?? body.Nombre ?? body.nombre ?? null
-
-    // Rapiboy only requires Estado (or a known order identifier)
-    if (Estado === null || Estado === undefined) {
-      console.warn('[rapiboy-webhook] Missing Estado field. Body:', JSON.stringify(body))
-      return NextResponse.json({ error: 'Missing required fields: Estado' }, { status: 400 })
-    }
-
-    // ── 2. Find tenant ──
-    const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true }).lean() as any
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
-    }
-
-    // ── 3. Validate webhook secret ──
-    const rapiboySecret = request.headers.get('x-rapiboy-secret')
-    if (!rapiboySecret) {
-      console.warn('[rapiboy-webhook] Missing X-Rapiboy-Secret header')
-      return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-    }
-
-    // Find location: first by CodigoPlataforma, then fallback to any with webhookSecret
-    let location = null as any
-    if (CodigoPlataforma) {
-      location = await Location.findOne({
-        tenantId: tenant._id,
-        'rapiboyConfig.codigoPlataforma': String(CodigoPlataforma),
-      }).lean() as any
-    }
-
-    if (!location?.rapiboyConfig?.webhookSecret) {
-      location = await Location.findOne({
-        tenantId: tenant._id,
-        'rapiboyConfig.webhookSecret': { $exists: true, $ne: '' },
-      }).lean() as any
-    }
-
-    if (!location?.rapiboyConfig?.webhookSecret) {
-      console.warn(`[rapiboy-webhook] No webhookSecret configured for tenant ${tenantSlug}`)
-      return NextResponse.json({ error: 'Webhook not configured' }, { status: 404 })
-    }
-
-    const expectedSecret = decrypt(location.rapiboyConfig.webhookSecret)
-
-    // Safe comparison — handle different lengths without throwing
-    const secretMatch = rapiboySecret.length === expectedSecret.length &&
-      crypto.timingSafeEqual(Buffer.from(rapiboySecret), Buffer.from(expectedSecret))
-
-    if (!secretMatch) {
-      console.warn(`[rapiboy-webhook] Invalid signature for location ${location.name} (${location._id})`)
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-    }
-
-    console.log(`[rapiboy-webhook] ✓ Secret validated for location ${location.name} (${location._id}), CodigoPlataforma=${CodigoPlataforma}`)
-
-    // ── 4. Validate estado ──
-    if (!isRapiboyStatusValid(Estado)) {
-      console.warn(`[rapiboy-webhook] Unknown estado: ${Estado}. Acknowledging.`)
-      return NextResponse.json({ received: true })
-    }
-
-    const takeasygoStatus = mapRapiboyStatus(Estado)
-    if (!takeasygoStatus) {
-      console.warn(`[rapiboy-webhook] No mapping for estado ${Estado}. Acknowledging.`)
-      return NextResponse.json({ received: true })
-    }
-
-    // ── 5. Find order ──
+    // ── Pedido (acotado al comercio y a viajes Rapiboy) ──
     let order = null as any
-
-    // Try by tripId first
-    if (IdPedido) {
+    if (idPedido != null) {
       order = await Order.findOne({
         tenantId: tenant._id,
         'deliveryProvider.type': 'rapiboy',
-        'deliveryProvider.rapiboy.tripId': String(IdPedido),
+        'deliveryProvider.rapiboy.tripId': String(idPedido),
+      })
+    }
+    if (!order && referencia != null) {
+      order = await Order.findOne({
+        tenantId: tenant._id,
+        orderNumber: String(referencia),
+        'deliveryProvider.type': 'rapiboy',
       })
     }
 
-    // Fallback to orderNumber (ReferenciaExterna)
-    if (!order && ReferenciaExterna) {
-      order = await Order.findOne({
+    // ── Sede: la del pedido; sin pedido, por CodigoPlataforma ──
+    let location = null as any
+    if (order) {
+      location = await Location.findOne({ _id: order.locationId, tenantId: tenant._id }).select('name rapiboyConfig').lean()
+    } else if (codigoPlataforma != null) {
+      location = await Location.findOne({
         tenantId: tenant._id,
-        orderNumber: String(ReferenciaExterna),
-      })
+        'rapiboyConfig.codigoPlataforma': String(codigoPlataforma),
+      }).select('name rapiboyConfig').lean()
+    }
+
+    const stored = location?.rapiboyConfig?.webhookSecret
+    let expected = ''
+    try { expected = stored ? decrypt(stored) : '' } catch { expected = '' }
+    if (!expected || !safeEqual(secret, expected)) {
+      console.warn(`[rapiboy-webhook] firma inválida o sede sin secreto (tenant ${tenantSlug})`)
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
     }
 
     if (!order) {
-      console.warn(`[rapiboy-webhook] Order not found: tripId=${IdPedido}, orderNumber=${ReferenciaExterna}. Acknowledging.`)
-      return NextResponse.json({ received: true, note: 'Order not found but acknowledged' })
+      console.warn(`[rapiboy-webhook] pedido no encontrado (IdPedido=${idPedido ?? '-'}, ref=${referencia ?? '-'})`)
+      return NextResponse.json({ received: true, note: 'order not found' })
     }
 
-    // ── 6. Update order status ──
-    const previousStatus = order.status
-    order.status = takeasygoStatus as any
-
-    // Update delivery provider info
-    if (order.deliveryProvider?.rapiboy) {
-      if (TrackingId) {
-        order.deliveryProvider.rapiboy.trackingId = TrackingId
-      }
-      if (NombreChofer) {
-        order.deliveryProvider.rapiboy.driverName = NombreChofer
-      }
-    }
-
-    // Update delivery confirmation status
-    if (order.deliveryConfirmation) {
-      if (takeasygoStatus === 'en_ruta') {
-        order.deliveryConfirmation.status = 'assigned'
-      } else if (takeasygoStatus === 'arrived') {
-        order.deliveryConfirmation.status = 'arrived'
-        order.deliveryConfirmation.arrivalAt = new Date()
-      } else if (takeasygoStatus === 'delivered') {
-        order.deliveryConfirmation.status = 'completed'
-        order.deliveryConfirmation.completedAt = new Date()
-      } else if (takeasygoStatus === 'cancelled') {
-        order.deliveryConfirmation.status = 'disputed'
+    // ── Confirmar el estado con Rapiboy ──
+    let estado = bodyEstado
+    let driverName: string | null = typeof bodyDriver === 'string' ? bodyDriver : null
+    let trackingUrl: string | null = null
+    const cfg = rapiboyConfigFromLocation(location)
+    if (cfg && order.deliveryProvider?.rapiboy?.tripId) {
+      try {
+        const pedido = await consultarViaje({ idPedido: order.deliveryProvider.rapiboy.tripId }, cfg)
+        if (pedido?.estado != null) {
+          estado = pedido.estado
+          driverName = pedido.driverName || driverName
+          trackingUrl = pedido.trackingUrl || null
+        }
+        order.deliveryProvider.rapiboy.lastSyncAt = new Date()
+      } catch (e: any) {
+        console.warn(`[rapiboy-webhook] GetQuery falló, se usa el Estado del aviso: ${e?.message}`)
       }
     }
 
-    // Record timestamp
-    const STATUS_TIMESTAMP: Record<string, string> = {
-      confirmed: 'confirmedAt',
-      preparing: 'preparingAt',
-      ready: 'readyAt',
-      en_ruta: 'enRutaAt',
-      arrived: 'arrivedAt',
-      delivered: 'deliveredAt',
-      cancelled: 'cancelledAt',
-    }
-    const tsField = STATUS_TIMESTAMP[takeasygoStatus]
-    if (tsField) {
-      order.statusTimestamps[tsField] = new Date()
+    if (estado == null) {
+      return NextResponse.json({ received: true, note: 'no estado' })
     }
 
-    await order.save()
+    const result = applyTripState(order, { estado, driverName, trackingUrl })
+    if (result.changed || order.isModified()) await order.save()
 
-    // Canjes de checkout del pedido: al entregar se reclaman solos.
-    if (takeasygoStatus === 'delivered') {
+    if (result.newStatus === 'delivered') {
       await claimCheckoutRedemptionsForOrder(order._id, order.locationId)
     }
+    await notifyTripChange(order, result)
 
-    console.log(`[rapiboy-webhook] ✓ Order ${order.orderNumber} updated: ${previousStatus} → ${takeasygoStatus}`)
-
-    // ── 7. Notify customer (fire-and-forget) ──
-    if (isRapiboyTerminalStatus(Estado) || takeasygoStatus === 'en_ruta' || takeasygoStatus === 'arrived') {
-      try {
-        const sub = await PushSubscription.findOne({ clientToken: (order as any).clientToken }).lean()
-        if (sub) {
-          const messages: Record<string, { title: string; body: string }> = {
-            en_ruta: {
-              title: '🚀 ¡Tu delivery va en camino!',
-              body: `Pedido #${order.orderNumber} — ${NombreChofer || 'El repartidor'} está yendo a tu domicilio.`,
-            },
-            arrived: {
-              title: '📍 ¡Tu delivery llegó!',
-              body: `Pedido #${order.orderNumber} — ${NombreChofer || 'El repartidor'} está en tu domicilio.`,
-            },
-            delivered: {
-              title: '✅ ¡Pedido entregado!',
-              body: `Pedido #${order.orderNumber} fue entregado exitosamente.`,
-            },
-            cancelled: {
-              title: '❌ Pedido cancelado',
-              body: `Pedido #${order.orderNumber} fue cancelado. Contactá al restaurante para más info.`,
-            },
-          }
-
-          const msg = messages[takeasygoStatus]
-          if (msg) {
-            await sendPushToSubscription(
-              { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth, clientToken: (order as any).clientToken },
-              msg.title,
-              msg.body,
-              '/app',
-            )
-          }
-        }
-      } catch (pushErr: any) {
-        console.warn('[rapiboy-webhook] Push notification error:', pushErr?.message)
-      }
+    if (result.changed) {
+      console.log(`[rapiboy-webhook] pedido ${order.orderNumber}: estado Rapiboy ${estado}${result.newStatus ? ` → ${result.previousStatus} → ${result.newStatus}` : ''}`)
     }
-
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('[rapiboy-webhook] Error:', error)
+    console.error('[rapiboy-webhook] Error:', (error as Error)?.message)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

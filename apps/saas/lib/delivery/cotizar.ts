@@ -157,6 +157,11 @@ export interface RecotizarReadyInput {
   transferBuffer: number
   /** Método de pago del pedido */
   paymentMethod: string
+  /**
+   * Lo que el cliente pagó de envío (centavos; incluye margen y colchón).
+   * Si falta, se asume checkoutCost + transferBuffer.
+   */
+  paidByCustomer?: number
 }
 
 export interface RecotizarReadyResult {
@@ -168,7 +173,7 @@ export interface RecotizarReadyResult {
   costDifference: number
   /** Si es transferencia */
   isTransfer: boolean
-  /** Precio que pagó el cliente (centavos, incluye buffer si transfer) */
+  /** Precio que pagó el cliente de envío (centavos, incluye margen y buffer) */
   chargedToCustomer: number
 }
 
@@ -180,14 +185,17 @@ export async function recotizarParaReady(input: RecotizarReadyInput): Promise<Re
   const { origen, destino, rapiboyConfig, checkoutCost, transferBuffer, paymentMethod } = input
 
   const isTransfer = paymentMethod === 'transfer'
-  const chargedToCustomer = checkoutCost + transferBuffer
+  // Umbral para pedir aceptación: el costo de Rapiboy cubierto en el checkout
+  // (+ colchón). El margen de TakeasyGO no se usa para absorber subas.
+  const coveredCost = checkoutCost + transferBuffer
+  const chargedToCustomer = input.paidByCustomer && input.paidByCustomer > 0 ? input.paidByCustomer : coveredCost
 
   // Re-cotizar con Rapiboy
   const cotizacion = await cotizarOnDemand(origen, destino, rapiboyConfig)
   const newCost = cotizacion.precio
 
   // Comparar contra lo que pagó el cliente (checkoutCost + buffer)
-  const costDifference = newCost - chargedToCustomer
+  const costDifference = newCost - coveredCost
 
   if (costDifference <= 0) {
     // El precio bajó o se mantuvo → crear viaje automáticamente

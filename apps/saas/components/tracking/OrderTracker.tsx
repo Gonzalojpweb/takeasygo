@@ -236,6 +236,7 @@ export default function OrderTracker({
   const [deliveryConfStatus, setDeliveryConfStatus] = useState<string | null>(null)
   const [deliveryProviderType, setDeliveryProviderType] = useState<'own' | 'rapiboy' | null>(null)
   const [deliveryProviderTrackingUrl, setDeliveryProviderTrackingUrl] = useState<string | null>(null)
+  const [rapiboyPhase, setRapiboyPhase] = useState<string | null>(null)
   // ── Rapiboy price acceptance ──────────────────────────────────────
   const [rapiboyQuoteStatus, setRapiboyQuoteStatus] = useState<string>('none')
   const [rapiboyCheckoutCost, setRapiboyCheckoutCost] = useState(0)
@@ -325,8 +326,18 @@ export default function OrderTracker({
         headers: { 'Content-Type': 'application/json', 'x-tracking-token': trackingToken },
         body: JSON.stringify({ action: 'accept' }),
       })
+      if (res.status === 409) {
+        // El costo volvió a cambiar al re-cotizar: mostrar el nuevo y reiniciar el plazo.
+        const data = await res.json().catch(() => ({}))
+        if (typeof data.pendingQuoteCost === 'number') {
+          setRapiboyPendingQuoteCost(data.pendingQuoteCost)
+          setRapiboyPendingQuoteTimestamp(new Date().toISOString())
+        }
+        toast.info('El costo del envío cambió otra vez. Revisalo y confirmá.')
+        return
+      }
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
         throw new Error(err.error || 'Error')
       }
       const data = await res.json()
@@ -335,7 +346,7 @@ export default function OrderTracker({
         setDeliveryProviderType('rapiboy')
       }
       setRapiboyQuoteStatus('accepted')
-      toast.success('¡Precio aceptado! El delivery está en camino.')
+      toast.success('¡Precio aceptado! Ya pedimos el repartidor.')
       playNotification()
     } catch (err: any) {
       toast.error(err.message || 'Error al aceptar el precio')
@@ -418,6 +429,7 @@ export default function OrderTracker({
       setDeliveryConfStatus(data.deliveryConfirmation?.status ?? null)
       setDeliveryProviderType(data.deliveryProvider?.type ?? null)
       setDeliveryProviderTrackingUrl(data.deliveryProvider?.rapiboy?.trackingUrl ?? null)
+      setRapiboyPhase(data.deliveryProvider?.rapiboy?.phase ?? null)
       setRapiboyQuoteStatus(data.deliveryProvider?.rapiboy?.quoteStatus ?? 'none')
       setRapiboyCheckoutCost(data.deliveryProvider?.rapiboy?.checkoutCost ?? 0)
       setRapiboyPendingQuoteCost(data.deliveryProvider?.rapiboy?.pendingQuoteCost ?? 0)
@@ -1207,6 +1219,31 @@ export default function OrderTracker({
             {deliveryAddress.apt ? `, ${deliveryAddress.apt}` : ''}
             {deliveryAddress.city ? `, ${deliveryAddress.city}` : ''}
           </p>
+        </div>
+      )}
+
+      {/* Rapiboy: buscando repartidor / repartidor yendo al local */}
+      {status === 'ready' && orderMode === 'delivery' && deliveryProviderType === 'rapiboy'
+        && (rapiboyPhase === 'searching' || rapiboyPhase === 'to_pickup' || rapiboyPhase === 'at_store') && (
+        <div className="mb-8 rounded-2xl p-5 text-center"
+          style={{ backgroundColor: primaryColor + '10', border: `2px solid ${primaryColor}40` }}>
+          <div className="text-4xl mb-2">{rapiboyPhase === 'searching' ? '🔎' : '🛵'}</div>
+          <p className="font-bold text-lg mb-1">
+            {rapiboyPhase === 'searching' && 'Buscando repartidor'}
+            {rapiboyPhase === 'to_pickup' && 'Repartidor asignado'}
+            {rapiboyPhase === 'at_store' && 'El repartidor está retirando tu pedido'}
+          </p>
+          <p className="text-sm opacity-70">
+            {rapiboyPhase === 'searching' && 'Tu pedido está listo. En breve un repartidor lo va a retirar.'}
+            {rapiboyPhase === 'to_pickup' && `${deliveryPersonName || 'El repartidor'} va camino al local a buscar tu pedido.`}
+            {rapiboyPhase === 'at_store' && 'En unos minutos sale hacia tu domicilio.'}
+          </p>
+          {deliveryProviderTrackingUrl && (
+            <a href={deliveryProviderTrackingUrl} target="_blank" rel="noopener noreferrer"
+              className="mt-3 inline-block text-sm font-semibold underline" style={{ color: primaryColor }}>
+              Seguí tu delivery en tiempo real →
+            </a>
+          )}
         </div>
       )}
 

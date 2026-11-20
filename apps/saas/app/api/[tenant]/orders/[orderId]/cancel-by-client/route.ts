@@ -133,7 +133,7 @@ export async function POST(
         if (rapiboyLoc?.rapiboyConfig?.enabled) {
           await cancelarViaje(
             order.deliveryProvider.rapiboy.tripId,
-            2, // Motivo: Cancelado por cliente
+            12, // Motivo «Otro» (catálogo MotivosCancelado; el 2 es «DomicilioIncorrecto»)
             {
               apiToken: rapiboyLoc.rapiboyConfig.apiToken,
               environment: rapiboyLoc.rapiboyConfig.environment as 'production' | 'uat',

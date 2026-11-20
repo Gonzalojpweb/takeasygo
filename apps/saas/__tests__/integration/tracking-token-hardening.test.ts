@@ -27,8 +27,11 @@ vi.mock('@/lib/printing', () => ({
 }))
 
 const createTripMock = vi.fn()
-vi.mock('@/lib/rapiboy/client', () => ({
+const quoteMock = vi.fn()
+vi.mock('@/lib/rapiboy/client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/rapiboy/client')>()),
   crearViajeOnDemand: (...args: any[]) => createTripMock(...args),
+  cotizarOnDemand: (...args: any[]) => quoteMock(...args),
 }))
 
 // verifyMemberToken controlable por test
@@ -112,6 +115,7 @@ beforeEach(async () => {
     name: 'Centro',
     slug: 'centro',
     address: 'Av. Siempreviva 742',
+    geo: { type: 'Point', coordinates: [-58.39, -34.58] },
     rapiboyConfig: {
       enabled: true,
       apiToken: 'tok-rapiboy',
@@ -232,7 +236,8 @@ describe('rapiboy-price-accept — exige x-tracking-token (GET y POST)', () => {
     }
     await order.save()
 
-    createTripMock.mockResolvedValue({ tripId: 'viaje-1', trackingId: 'tr-1', trackingUrl: 'https://x/tr' })
+    quoteMock.mockResolvedValue({ precio: 5400, vigencia: 3 })
+    createTripMock.mockResolvedValue({ tripId: 'viaje-1', trackingId: 'tr-1', trackingUrl: 'https://x/tr', trackingEncriptado: '', estado: 10, precio: null })
 
     const res = await rapiboyPost(
       new Request(`http://x/api/${SLUG}/orders/${order._id}/rapiboy-price-accept`, {
@@ -246,7 +251,47 @@ describe('rapiboy-price-accept — exige x-tracking-token (GET y POST)', () => {
     const fresh = await Order.findById(order._id)
     expect(fresh!.deliveryProvider!.rapiboy!.quoteStatus).toBe('accepted')
     expect(fresh!.deliveryProvider!.rapiboy!.tripId).toBe('viaje-1')
+    expect(fresh!.deliveryProvider!.rapiboy!.quotedCost).toBe(5400)
+    expect(fresh!.deliveryProvider!.rapiboy!.phase).toBe('searching')
     expect(createTripMock).toHaveBeenCalledTimes(1)
+    // Se re-cotiza siempre antes de crear (la cotización de Rapiboy vale 3 min)
+    expect(quoteMock).toHaveBeenCalledTimes(1)
+    // Nombre y teléfono van descifrados/legibles a Rapiboy
+    expect(createTripMock.mock.calls[0][0].customerName).toBe('Juan Pérez')
+  })
+
+  it('POST 409 si al re-cotizar el costo superó lo aceptado (no crea el viaje)', async () => {
+    const order = await makeOrder()
+    order.deliveryProvider = {
+      type: 'rapiboy',
+      rapiboy: {
+        quoteStatus: 'pending_customer_accept',
+        pendingQuoteCost: 5500,
+        checkoutCost: 5000,
+        pendingQuoteTimestamp: new Date(),
+      },
+    }
+    order.deliveryAddress = {
+      street: 'Calle Falsa', number: '123', city: 'CABA',
+      coordinates: { lat: -34.6, lng: -58.4 },
+    }
+    await order.save()
+    quoteMock.mockResolvedValue({ precio: 6200, vigencia: 3 })
+
+    const res = await rapiboyPost(
+      new Request(`http://x/api/${SLUG}/orders/${order._id}/rapiboy-price-accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-tracking-token': TOKEN },
+        body: JSON.stringify({ action: 'accept' }),
+      }) as any,
+      orderParams(order._id.toString())
+    )
+    expect(res.status).toBe(409)
+    expect((await res.json()).pendingQuoteCost).toBe(6200)
+    const fresh = await Order.findById(order._id)
+    expect(fresh!.deliveryProvider!.rapiboy!.pendingQuoteCost).toBe(6200)
+    expect(fresh!.deliveryProvider!.rapiboy!.quoteStatus).toBe('pending_customer_accept')
+    expect(createTripMock).not.toHaveBeenCalled()
   })
 })
 

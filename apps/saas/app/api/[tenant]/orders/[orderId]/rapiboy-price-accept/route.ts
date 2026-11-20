@@ -8,7 +8,8 @@ import Order from '@/models/Order'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
-import { crearViajeOnDemand } from '@/lib/rapiboy/client'
+import { cotizarOnDemand } from '@/lib/rapiboy/client'
+import { buildTripParams, createTripForOrder, rapiboyConfigFromLocation, recordCreatedTrip } from '@/lib/rapiboy/trips'
 import { rateLimit } from '@/lib/rateLimit'
 
 const ACCEPT_WINDOW_MS = 15 * 60 * 1000 // 15 minutos
@@ -129,67 +130,57 @@ export async function POST(
       return NextResponse.json({ success: true, action: 'rejected' })
     }
 
-    // ── ACEPTAR: crear viaje Rapiboy ──
+    // ── ACEPTAR: re-cotizar y crear el viaje ──
+    // La cotización de Rapiboy vale 3 minutos y el cliente tiene 15 para
+    // aceptar: se vuelve a cotizar siempre. Si el costo volvió a subir por
+    // encima de lo que el cliente aceptó, se le muestra el nuevo (409).
+    if (rapiboy.tripId) {
+      return NextResponse.json({ success: true, action: 'accepted', tripId: rapiboy.tripId, trackingUrl: rapiboy.trackingUrl })
+    }
+
     const location = await Location.findById(order.locationId)
-      .select('rapiboyConfig geo address deliveryConfig')
+      .select('name phone rapiboyConfig geo address deliveryConfig')
       .lean() as any
 
-    if (!location?.rapiboyConfig?.enabled) {
-      return NextResponse.json({ error: 'Rapiboy no disponible' }, { status: 500 })
-    }
-
-    const rapiboyCfg = {
-      apiToken: location.rapiboyConfig.apiToken,
-      environment: location.rapiboyConfig.environment as 'production' | 'uat',
-      codigoPlataforma: location.rapiboyConfig.codigoPlataforma,
-    }
-
-    const origen = {
-      lat: location.geo?.coordinates?.[1] ?? 0,
-      lng: location.geo?.coordinates?.[0] ?? 0,
-      address: location.address || '',
-    }
-    const destino = {
-      lat: order.deliveryAddress.coordinates.lat,
-      lng: order.deliveryAddress.coordinates.lng,
-      address: `${order.deliveryAddress.street} ${order.deliveryAddress.number}, ${order.deliveryAddress.city}`,
+    const rapiboyCfg = location ? rapiboyConfigFromLocation(location) : null
+    const tripParams = rapiboyCfg ? buildTripParams(order, location) : null
+    if (!rapiboyCfg || !tripParams) {
+      return NextResponse.json({ error: 'Rapiboy no disponible' }, { status: 503 })
     }
 
     try {
-      const viaje = await crearViajeOnDemand({
-        orderNumber: String(order.orderNumber || orderId),
-        origen,
-        destino,
-        customerName: order.customer?.name || 'Cliente',
-        customerPhone: order.customer?.phone || '',
-        observaciones: order.notes || '',
-        tiempoCocina: 0,
-      }, rapiboyCfg)
+      const cotizacion = await cotizarOnDemand(tripParams.origen, tripParams.destino, rapiboyCfg)
+      if (cotizacion.precio > rapiboy.pendingQuoteCost) {
+        order.deliveryProvider!.rapiboy!.pendingQuoteCost = cotizacion.precio
+        order.deliveryProvider!.rapiboy!.pendingQuoteTimestamp = new Date()
+        await order.save()
+        return NextResponse.json({
+          error: 'El costo del envío cambió otra vez',
+          pendingQuoteCost: cotizacion.precio,
+        }, { status: 409 })
+      }
 
-      // Actualizar pedido con el nuevo precio
-      const newCost = rapiboy.pendingQuoteCost
-
-      order.deliveryProvider!.rapiboy!.tripId = viaje.tripId
-      order.deliveryProvider!.rapiboy!.trackingId = viaje.trackingId
-      order.deliveryProvider!.rapiboy!.trackingUrl = viaje.trackingUrl
-      order.deliveryProvider!.rapiboy!.quotedCost = newCost
-      order.deliveryProvider!.rapiboy!.margin = newCost - rapiboy.checkoutCost
-      order.deliveryProvider!.rapiboy!.quoteStatus = 'accepted'
-      order.deliveryProvider!.rapiboy!.environment = rapiboyCfg.environment
+      const viaje = await createTripForOrder(order, tripParams, rapiboyCfg)
+      const r = order.deliveryProvider!.rapiboy!
+      if (viaje) recordCreatedTrip(order, viaje)
+      r.quotedCost = cotizacion.precio
+      r.margin = (r.chargedToCustomer || 0) - cotizacion.precio
+      r.quoteStatus = 'accepted'
+      r.environment = rapiboyCfg.environment
 
       await order.save()
 
-      console.log(`[rapiboy-price-accept] Order ${orderId}: client accepted, trip created: ${viaje.tripId}`)
+      console.log(`[rapiboy-price-accept] Order ${orderId}: client accepted, trip created: ${r.tripId}`)
 
       return NextResponse.json({
         success: true,
         action: 'accepted',
-        tripId: viaje.tripId,
-        trackingUrl: viaje.trackingUrl,
+        tripId: r.tripId,
+        trackingUrl: r.trackingUrl,
       })
-    } catch (rapiboyErr) {
-      console.error(`[rapiboy-price-accept] Error creating trip for order ${orderId}:`, rapiboyErr)
-      return NextResponse.json({ error: 'Error al crear el viaje' }, { status: 500 })
+    } catch (rapiboyErr: any) {
+      console.error(`[rapiboy-price-accept] Error creating trip for order ${orderId}:`, rapiboyErr?.message, rapiboyErr?.apiMessage ?? '')
+      return NextResponse.json({ error: 'No pudimos pedir el repartidor. Probá de nuevo en un momento.' }, { status: 502 })
     }
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })

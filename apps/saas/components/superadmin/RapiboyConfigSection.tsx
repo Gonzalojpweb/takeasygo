@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Save, Eye, EyeOff } from 'lucide-react'
 
@@ -32,6 +32,8 @@ export default function RapiboyConfigSection({ tenantSlug, locationId, initialCo
   const [loading, setLoading] = useState(false)
   const [showApiToken, setShowApiToken] = useState(false)
   const [showWebhookSecret, setShowWebhookSecret] = useState(false)
+  const [origin, setOrigin] = useState('https://takeasygo.com')
+  useEffect(() => { setOrigin(window.location.origin) }, [])
 
   async function handleSave() {
     setLoading(true)
@@ -175,6 +177,15 @@ export default function RapiboyConfigSection({ tenantSlug, locationId, initialCo
                 {showWebhookSecret ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
             </div>
+            <p className="text-[10px] text-zinc-500 mt-1">
+              URL para darle a Rapiboy:{' '}
+              <span className="font-mono text-zinc-300 break-all">
+                {origin}/api/webhooks/rapiboy/{tenantSlug}
+              </span>
+              . El secreto va en el header <span className="font-mono">X-Rapiboy-Secret</span> (o{' '}
+              <span className="font-mono">Authorization: Bearer</span>). Si Rapiboy solo admite una URL, agregar{' '}
+              <span className="font-mono">?token=&lt;secreto&gt;</span>.
+            </p>
           </div>
 
           {/* Save button */}

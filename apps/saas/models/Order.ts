@@ -491,6 +491,19 @@ export interface IOrder extends Document {
       pendingQuoteCost: number
       /** Fecha/hora de la re-cotización */
       pendingQuoteTimestamp: Date | null
+      /** Tracking encriptado de Rapiboy (consultas por TrackingEncriptado). */
+      trackingEncriptado?: string
+      /** Último estado de Rapiboy (catálogo /v1/LastMile/Estados). */
+      estado?: number | null
+      estadoNombre?: string
+      /** Fase del viaje derivada del estado (lib/rapiboy/estados.ts). */
+      phase?: 'searching' | 'to_pickup' | 'at_store' | 'picked_up' | 'at_customer' | 'delivered' | 'failed' | 'cancelled' | null
+      /** Último aviso o consulta que cambió el estado del viaje. */
+      lastEventAt?: Date | null
+      /** Última consulta a GetQuery (para no consultar de más). */
+      lastSyncAt?: Date | null
+      /** Cuándo se avisó al local que el envío falló (una sola vez). */
+      failureNotifiedAt?: Date | null
     }
   }
   createdAt: Date
@@ -690,6 +703,13 @@ const DeliveryProviderSchema = new Schema({
       /** @storedAs cents */
       pendingQuoteCost:  { type: Number, default: 0 },
       pendingQuoteTimestamp: { type: Date, default: null },
+      trackingEncriptado: { type: String, default: '' },
+      estado:            { type: Number, default: null },
+      estadoNombre:      { type: String, default: '' },
+      phase:             { type: String, enum: ['searching', 'to_pickup', 'at_store', 'picked_up', 'at_customer', 'delivered', 'failed', 'cancelled', null], default: null },
+      lastEventAt:       { type: Date, default: null },
+      lastSyncAt:        { type: Date, default: null },
+      failureNotifiedAt: { type: Date, default: null },
     },
     default: null,
   },

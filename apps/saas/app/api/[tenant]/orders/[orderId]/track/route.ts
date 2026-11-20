@@ -12,6 +12,7 @@ import HiddenRewardClaim from '@/models/HiddenRewardClaim'
 import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { runAfterResponse } from '@/lib/after-response'
+import { shouldSyncTrip, syncRapiboyTrip } from '@/lib/rapiboy/trips'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -106,6 +107,18 @@ export async function POST(
       ).catch(() => {})
     }
 
+    // Rapiboy: si el viaje sigue activo, confirmar su estado con Rapiboy (como
+    // mucho 1 vez por minuto por pedido). Respaldo del webhook.
+    if (shouldSyncTrip(order)) {
+      const synced = await syncRapiboyTrip(order._id, tenant._id)
+      if (synced) {
+        order.status = synced.status
+        order.statusTimestamps = synced.statusTimestamps
+        order.deliveryProvider = synced.deliveryProvider?.toObject?.() ?? synced.deliveryProvider
+        order.deliveryConfirmation = synced.deliveryConfirmation?.toObject?.() ?? synced.deliveryConfirmation
+      }
+    }
+
     let currentStatus = order.status
 
     // Si es transferencia, no verificar MP — el flujo es manual
@@ -163,6 +176,7 @@ export async function POST(
             pendingQuoteTimestamp: order.deliveryProvider.rapiboy.pendingQuoteTimestamp,
             transferBuffer: order.deliveryProvider.rapiboy.transferBuffer,
             chargedToCustomer: order.deliveryProvider.rapiboy.chargedToCustomer,
+            phase: order.deliveryProvider.rapiboy.phase ?? null,
           } : null,
         } : null,
         payment: {
@@ -280,6 +294,7 @@ export async function POST(
           pendingQuoteTimestamp: order.deliveryProvider.rapiboy.pendingQuoteTimestamp,
           transferBuffer: order.deliveryProvider.rapiboy.transferBuffer,
           chargedToCustomer: order.deliveryProvider.rapiboy.chargedToCustomer,
+          phase: order.deliveryProvider.rapiboy.phase ?? null,
         } : null,
       } : null,
       payment: {
