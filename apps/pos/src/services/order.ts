@@ -9,7 +9,7 @@ import { issueOfflineInvoice, offlineCaeaWire, offlineSaleInfo, printOfflineInvo
 import type { OfflineOp } from "./offline/types"
 import { offlineApprovalHeaders, offlineDiscountApprovalHeaders } from "./offline/offline-auth"
 import { readCachedDiscountPolicy } from "./discount-policy"
-import { applyDiscount, applyVoidSentItem, distributeCents, grossOfLine, openRoundsOf, roundWeights } from "./offline/local-model"
+import { applyDiscount, applyTablePatch, applyVoidSentItem, distributeCents, grossOfLine, openRoundsOf, roundWeights } from "./offline/local-model"
 import {
   applyAddItem,
   applyFireCourse,
@@ -179,6 +179,41 @@ async function releaseLocalTable(
   })
 }
 
+/**
+ * 19/11/2026 — espejo de lib/pos-online/tableRelease del server: la mesa
+ * vuelve a libre (verde) cuando ya no le queda ninguna ronda abierta. Antes
+ * se quitaban todos los platos y la mesa quedaba amarilla con una ronda vacía.
+ */
+export async function releaseLocalTableIfIdle(tableId: string | undefined): Promise<void> {
+  if (!tableId) return
+  try {
+    const open = await db.orders
+      .where("tableId")
+      .equals(tableId)
+      .and((o) => o.status !== "delivered" && o.status !== "cancelled")
+      .toArray()
+    if (open.length > 0) return
+    const table = await db.diningTable.get(tableId)
+    if (!table || (table.status !== "occupied" && table.status !== "needs_attention")) return
+    await db.diningTable.put(applyTablePatch(table, { status: "free" }))
+  } catch (err) {
+    // Es solo el espejo local de lo que ya hizo el server: el polling lo
+    // corrige. Nunca debe hacer fallar (ni pasar a «sin internet») la operación.
+    console.warn("[order] no se pudo liberar la mesa local:", err)
+  }
+}
+
+/** Sin internet, como el server: la ronda que se queda sin platos se cancela. */
+function cancelIfEmpty(order: WireOrder, now: Date): WireOrder {
+  if (order.items.length > 0 || order.status === "cancelled" || order.status === "delivered") return order
+  return applyTransition(order, "cancelled", now)
+}
+
+/** Después de tocar platos: si la ronda quedó cancelada, la mesa puede quedar libre. */
+async function afterItemsChange(order: WireOrder): Promise<void> {
+  if (order.status === "cancelled") await releaseLocalTableIfIdle(order.tableId)
+}
+
 /** Transición de estado + refresco local + notify fire-and-forget a sync. */
 const STATUS_LABEL: Partial<Record<OrderStatus, string>> = {
   confirmed: "a cocina",
@@ -209,12 +244,14 @@ async function transition(
       online: async (headers) => {
         const order = await saveOrder(await patchOrder(tenantId, path, { status }, headers))
         if (releasesTable(status)) await releaseLocalTable(order.tableId, orderId)
+        if (status === "cancelled") await releaseLocalTableIfIdle(order.tableId)
         if (jwt) notifyStatusToSyncLayer(orderId, status, jwt).catch(() => {})
       },
       applyLocal: async () => {
         const order = applyTransition(await requireLocalOrder(orderId), status, new Date())
         await db.orders.put(order)
         if (releasesTable(status)) await releaseLocalTable(order.tableId, orderId)
+        if (status === "cancelled") await releaseLocalTableIfIdle(order.tableId)
       },
       // Etapa 4: confirmar = mandar a cocina. Sin internet, la comanda sale
       // por la red local (como onOrderConfirmed en el server).
@@ -498,7 +535,7 @@ export async function voidSentItem(
   // equipo (si el plato ya se mandó a cocina, como pide el server).
   const known = await db.orders.get(orderId)
   const needsApproval = known?.status === "confirmed"
-  await writeOrder({
+  const result = await writeOrder({
     tenantId,
     orderId,
     label: `${await placeLabel(known)} · quitar plato enviado`,
@@ -508,10 +545,11 @@ export async function voidSentItem(
     local: (o, now) => {
       const next = applyVoidSentItem(o, line.lineId, keepQuantity, now)
       if ("error" in next) throw new PosApiError(next.error, "validation", 400)
-      return next
+      return cancelIfEmpty(next, now)
     },
     ...(needsApproval ? { beforeLocal: () => offlineApprovalHeaders(tenantId, "Quitar productos que ya se mandaron a cocina necesita la aprobación de un encargado") } : {}),
   })
+  await afterItemsChange(result)
 }
 
 export async function removeItem(
@@ -519,14 +557,15 @@ export async function removeItem(
   orderId: string,
   productId: string
 ): Promise<void> {
-  await writeOrder({
+  const result = await writeOrder({
     tenantId,
     orderId,
     label: `${await placeLabel(await db.orders.get(orderId))} · quitar producto`,
     method: "DELETE",
     path: `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
-    local: (o, now) => applyRemoveItem(o, productId, now),
+    local: (o, now) => cancelIfEmpty(applyRemoveItem(o, productId, now), now),
   })
+  await afterItemsChange(result)
 }
 
 export async function updateItemQuantity(
@@ -539,15 +578,16 @@ export async function updateItemQuantity(
     throw new Error(`[order] Quantity cannot be negative`)
   }
 
-  await writeOrder({
+  const result = await writeOrder({
     tenantId,
     orderId,
     label: `${await placeLabel(await db.orders.get(orderId))} · cantidad ${quantity}`,
     method: "PATCH",
     path: `/orders/${encodeURIComponent(orderId)}/items/${encodeURIComponent(productId)}`,
     body: { quantity },
-    local: (o, now) => applyItemQuantity(o, productId, quantity, now),
+    local: (o, now) => cancelIfEmpty(applyItemQuantity(o, productId, quantity, now), now),
   })
+  await afterItemsChange(result)
 }
 
 export async function confirmOrder(
@@ -601,6 +641,26 @@ export async function voidOrder(
     )
     return { ...(await saveOrder(order)), fiscalNotice }
   })
+}
+
+/**
+ * Reimprime la COMANDA de una ronda ya enviada (19/11/2026). Distinto de
+ * reimprimir un comprobante fiscal (Facturación) o la precuenta (mesa): sale
+ * por las impresoras de cocina/barra marcada «REIMPRESIÓN · NO PREPARAR DE
+ * NUEVO». Sin `station`, a todas las estaciones con platos de la ronda. Al
+ * mozo, el server le pide el PIN de un admin/encargado (pos-api lo resuelve).
+ * Solo con internet: la cola de impresión vive en el server.
+ */
+export async function reprintComanda(
+  tenantId: string,
+  orderId: string,
+  station?: "kitchen" | "bar"
+): Promise<{ jobs: number; printers: string[] }> {
+  return posApi<{ ok: true; jobs: number; printers: string[] }>(
+    tenantId,
+    `/orders/${encodeURIComponent(orderId)}/reprint`,
+    { method: "POST", body: station ? { station } : {} }
+  )
 }
 
 export async function deliverOrder(

@@ -6,7 +6,8 @@ import { logAudit } from '@/lib/audit'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
-import { assertPosCapability, orderStatusCapability } from '@/lib/pos-online/permissions'
+import { orderStatusCapability } from '@/lib/pos-online/permissions'
+import { releaseTableIfIdle } from '@/lib/pos-online/tableRelease'
 import { isValidOrderTransition, allowedOrderTransitions } from '@takeasygo/business'
 import { toPosOrder, type PosOrderStatusValue } from '@/lib/pos-online/orderMapper'
 import { findPosOrder, assertPosId, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
@@ -16,7 +17,7 @@ import { encrypt, hashPhone } from '@/lib/crypto'
 import { addPointsFromOrder } from '@/lib/loyalty'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { runAfterResponse } from '@/lib/after-response'
-import { requireManagerApproval } from '@/lib/pos-online/approval'
+import { requireCapabilityOrApproval, requireManagerApproval } from '@/lib/pos-online/approval'
 import { printedOffline, trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 
 // ============================================================================
@@ -129,8 +130,9 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
     }
     from = current.status as PosOrderStatusValue
     to = nextStatus as PosOrderStatusValue
-    // El mozo solo manda a cocina; preparar/entregar/cancelar es del Counter.
-    assertPosCapability(ctx.user.role, orderStatusCapability(to))
+    // El mozo solo manda a cocina; preparar/entregar/cancelar es del Counter
+    // (19/11: o del mozo con el PIN de un admin/encargado).
+    await requireCapabilityOrApproval(ctx, orderStatusCapability(to))
 
     if (!isValidOrderTransition(from, to)) {
       // El POS no reimplementa el grafo: recibe los destinos legales.
@@ -254,6 +256,12 @@ export const PATCH = posRoute('orders.write', async (ctx, { id }) => {
   if (update.status !== undefined) {
     const synced = await Order.findOne({ tenantId: ctx.tenantId, locationId: ctx.locationId, posId }).lean()
     if (synced) await syncOrderConsumptionSafe(synced as never)
+  }
+
+  // 19/11: cancelar la ÚLTIMA ronda abierta libera la mesa aunque no sea la
+  // que quedó vinculada (mesas con varias rondas quedaban amarillas).
+  if (update.status === 'cancelled' && current.posTableId) {
+    await releaseTableIfIdle(ctx, current.posTableId)
   }
 
   if (

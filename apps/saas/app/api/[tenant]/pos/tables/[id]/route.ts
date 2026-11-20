@@ -10,10 +10,10 @@ import type { TableStatus } from '@takeasygo/types'
 import { posRoute, readPosBody } from '@/lib/pos-online/route'
 import { validateTableLayout } from '@takeasygo/business'
 import { PosError } from '@/lib/pos-online/errors'
-import { requireManagerApproval } from '@/lib/pos-online/approval'
+import { requireCapabilityOrApproval, requireManagerApproval } from '@/lib/pos-online/approval'
 import mongoose from 'mongoose'
 import { loadSectors, resolveSector } from '@/lib/pos-online/sectors'
-import { assertPosCapability, tableStatusCapability } from '@/lib/pos-online/permissions'
+import { tableStatusCapability } from '@/lib/pos-online/permissions'
 import { toPosTable, TABLE_STATUSES } from '@/lib/pos-online/tableMapper'
 import { findPosTable, assertTablePosId, type PosTableDoc } from '@/lib/pos-online/tableRepo'
 import { operatorName } from '@/lib/pos-online/operator'
@@ -110,7 +110,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
 
   // ── sector y capacidad (obs. 24/10): solo caja/encargado (tables.manage) ──
   if (body.spaceId !== undefined) {
-    assertPosCapability(ctx.user.role, 'tables.manage')
+    await requireCapabilityOrApproval(ctx, 'tables.manage')
     const sector = resolveSector(await loadSectors(ctx.tenantId, ctx.locationId), body.spaceId)
     update.spaceId = new mongoose.Types.ObjectId(sector.id)
     update.section = sector.name
@@ -118,7 +118,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
   }
   // ── plano del salón (30/10): posición, forma y giro — caja/encargado ──
   if (body.layout !== undefined) {
-    assertPosCapability(ctx.user.role, 'tables.manage')
+    await requireCapabilityOrApproval(ctx, 'tables.manage')
     if (body.layout === null) {
       update.layout = null
     } else {
@@ -129,7 +129,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     audit.layout = update.layout
   }
   if (body.capacity !== undefined) {
-    assertPosCapability(ctx.user.role, 'tables.manage')
+    await requireCapabilityOrApproval(ctx, 'tables.manage')
     if (typeof body.capacity !== 'number' || !Number.isInteger(body.capacity) || body.capacity < 1 || body.capacity > 999) {
       throw PosError.validation('capacity debe ser un entero entre 1 y 999')
     }
@@ -156,7 +156,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     // Counter (mover cuenta); el mozo solo vincula una mesa sin orden.
     const bound = (current as { currentOrderId?: string | null }).currentOrderId
     if (bound && body.currentOrderId !== bound) {
-      assertPosCapability(ctx.user.role, 'tables.manage')
+      await requireCapabilityOrApproval(ctx, 'tables.manage')
     }
     update.currentOrderId = assertOptionalString(body.currentOrderId, 'currentOrderId', 100)
     audit.currentOrderId = update.currentOrderId
@@ -170,7 +170,7 @@ export const PATCH = posRoute('tables.service', async (ctx, { id }) => {
     const from = current.status as TableStatus
     const to = body.status as TableStatus
     // Mozo: ocupar o llamar al encargado. Liberar/reservar/cerrar = Counter.
-    assertPosCapability(ctx.user.role, tableStatusCapability(to))
+    await requireCapabilityOrApproval(ctx, tableStatusCapability(to))
 
     if (!isValidTableTransition(from, to)) {
       throw PosError.transition(from, to, allowedTableTransitions(from))

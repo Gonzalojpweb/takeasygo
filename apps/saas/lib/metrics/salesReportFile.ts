@@ -86,6 +86,7 @@ export function buildSalesPdf(data: SalesFileData): Buffer {
   line('Descuentos', `-${pesos(m.totals.discounts)}`)
   line('Ventas anuladas', `${m.totals.voided.count} (${pesos(m.totals.voided.amount)})`)
   line('Platos quitados / merma', `${m.totals.itemVoids.count} (${pesos(m.totals.itemVoids.amount)} / ${pesos(m.totals.itemVoids.wasteAmount)})`)
+  line('Mesas anuladas sin cobrar / merma', `${m.totals.tableVoids.count} (${pesos(m.totals.tableVoids.amount)} / ${pesos(m.totals.tableVoids.wasteAmount)})`)
 
   if (data.extra) {
     const inv = data.extra.invoicing
@@ -151,6 +152,9 @@ export async function buildSalesXlsx(data: SalesFileData): Promise<Buffer> {
     { k: 'Ventas anuladas', v: m.totals.voided.count },
     { k: 'Monto anulado', v: p(m.totals.voided.amount) },
     { k: 'Merma (platos quitados)', v: p(m.totals.itemVoids.wasteAmount) },
+    { k: 'Mesas anuladas sin cobrar', v: m.totals.tableVoids.count },
+    { k: 'Monto de mesas anuladas', v: p(m.totals.tableVoids.amount) },
+    { k: 'Merma (mesas anuladas)', v: p(m.totals.tableVoids.wasteAmount) },
   ])
   header(summary)
 

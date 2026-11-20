@@ -5,7 +5,8 @@ import { answerApproval, subscribeApproval, type ApprovalPrompt } from "../../se
 /**
  * Teclado de PIN del encargado (Fase 1 de caja). Se monta una vez en la app y
  * aparece solo cuando una operación lo necesita (services/manager-approval).
- * El encargado tipea su PIN en el equipo del cajero; Enter aprueba, Esc cancela.
+ * El admin o encargado tipea su PIN en el equipo del mozo o cajero (sin cerrar
+ * su sesión, 19/11/2026); Enter aprueba, Esc cancela.
  */
 export function ManagerApprovalDialog() {
   const [prompt, setPrompt] = useState<ApprovalPrompt | null>(null)
@@ -41,7 +42,7 @@ export function ManagerApprovalDialog() {
       <div className="customer-modal approval-modal">
         <div className="approval-body">
           <ShieldCheck size={32} className="approval-icon" aria-hidden />
-          <div id="approval-title" className="approval-title">Aprobación de encargado</div>
+          <div id="approval-title" className="approval-title">Autorización de admin o encargado</div>
           <p className="approval-message">{prompt.message}</p>
           <input
             ref={inputRef}
@@ -50,8 +51,8 @@ export function ManagerApprovalDialog() {
             inputMode="numeric"
             autoComplete="off"
             maxLength={8}
-            placeholder="PIN del encargado"
-            aria-label="PIN del encargado"
+            placeholder="PIN del admin o encargado"
+            aria-label="PIN del admin o encargado"
             aria-invalid={Boolean(prompt.error)}
             value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}

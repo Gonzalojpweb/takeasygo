@@ -88,6 +88,14 @@ export {
   type VoidReason,
 } from "./cash-control"
 export {
+  TABLE_VOID_REASONS,
+  TABLE_VOID_REASON_INFO,
+  TABLE_VOID_NOTE_MAX,
+  isTableVoidReason,
+  tableVoidNeedsNote,
+  type TableVoidReason,
+} from "./table-void"
+export {
   RECEIVER_IVA_CONDITION_IDS,
   ISSUER_IVA_CONDITION_LABELS,
   RECEIVER_IVA_CONDITION_LABELS,

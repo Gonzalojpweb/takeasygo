@@ -377,14 +377,18 @@ describe('Fase C — quitar platos enviados: motivo, mozo y línea exacta', () =
     expect(res.status).toBe(400)
   })
 
-  it('el mozo no puede quitar platos enviados, ni con motivo', async () => {
+  it('el mozo quita platos enviados SOLO con el PIN de un encargado (19/11)', async () => {
     const orderId = await createOrder('confirmed')
-    const res = await REMOVE_ITEM(
-      req(`${BASE}/orders/${orderId}/items/${PRODUCT_ID}?reason=load_error`, undefined, { method: 'DELETE', role: 'waiter' }),
-      itemParams(orderId)
-    )
+    const url = `${BASE}/orders/${orderId}/items/${PRODUCT_ID}?reason=load_error`
+    const res = await REMOVE_ITEM(req(url, undefined, { method: 'DELETE', role: 'waiter' }), itemParams(orderId))
     expect(res.status).toBe(403)
+    expect((await res.json()).error.code).toBe('approval_required')
     expect((await Order.findOne({ posId: orderId }).lean())!.items).toHaveLength(1)
+
+    const ok = await REMOVE_ITEM(req(url, undefined, { method: 'DELETE', role: 'waiter', pin: MANAGER_PIN }), itemParams(orderId))
+    expect(ok.status).toBe(200)
+    const stored = await Order.findOne({ posId: orderId }).lean()
+    expect(stored!.itemVoids![0]).toMatchObject({ byRole: 'waiter', approvedBy: managerId })
   })
 
   it('encargado quita con «se cayó»: queda la anulación como merma', async () => {

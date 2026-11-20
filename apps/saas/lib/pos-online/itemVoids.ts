@@ -4,8 +4,8 @@ import type { PosRole } from './permissions'
 // ============================================================================
 // Quitar platos ya enviados a cocina — motivos (Fase C, 2026-10)
 // ============================================================================
-// Pedido 24/10: el mozo NO quita platos enviados; cajero, encargado y admin
-// sí, con motivo (el cajero además con el PIN de un encargado). El motivo
+// Pedido 24/10 (ajustado 19/11): encargado y admin quitan platos enviados
+// con motivo; mozo y cajero también, pero con el PIN de un admin/encargado. El motivo
 // decide qué pasa con los insumos:
 //   · no se preparó (error de carga, el cliente cambió, agotado) → los
 //     insumos vuelven al stock (reversión de la venta).
@@ -33,9 +33,13 @@ export function assertItemVoidReason(value: unknown): ItemVoidReason {
   return value as ItemVoidReason
 }
 
-/** El mozo nunca quita platos enviados (ni con PIN): lo hace la caja. */
+/**
+ * Rol desconocido: nunca. Mozo y cajero: sí, pero siempre con el PIN de un
+ * admin/encargado (lo pide requireManagerApproval). Desde el 19/11 el mozo
+ * también puede pedirlo desde su equipo: antes había que ir a la caja.
+ */
 export function assertCanVoidSentItems(role: PosRole | null): void {
-  if (role === 'waiter' || role === null) {
-    throw PosError.forbidden('Solo la caja o un encargado pueden quitar platos ya enviados a cocina')
+  if (role === null) {
+    throw PosError.forbidden('Tu usuario no puede quitar platos ya enviados a cocina')
   }
 }

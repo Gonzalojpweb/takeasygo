@@ -2497,6 +2497,17 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .void-reason-hint.waste { color: var(--error); font-weight: var(--font-weight-semibold); }
 .void-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); width: 100%; }
 .void-actions .btn { min-height: 48px; }
+.void-reason.active-stock { border-color: var(--primary-action); background: var(--primary-action-light); }
+/* Anular mesa / reimprimir comanda (19/11/2026) */
+.void-table-modal { width: 480px; max-height: calc(100dvh - 32px); overflow-y: auto; }
+.void-table-icon { color: var(--error); }
+.void-table-label { align-self: flex-start; font-weight: var(--font-weight-semibold); color: var(--text-primary); }
+.void-table-note { width: 100%; min-height: 64px; resize: vertical; font: inherit; padding: var(--sp-2) var(--sp-3); }
+.void-table-stock { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.reprint-stations { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); width: 100%; }
+.reprint-stations .btn { min-height: 48px; }
+.waiter-auth-actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.waiter-auth-actions .btn { min-height: 48px; justify-content: center; }
 
 /* ========================================
    FASE D (2026-10) — descuentos y dividir la cuenta

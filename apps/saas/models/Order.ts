@@ -171,6 +171,34 @@ export interface IOrderItemVoid {
   approvedBy: string | null
 }
 
+/**
+ * Anulación de una MESA entera sin cobrar (19/11/2026): cada ronda abierta
+ * queda `cancelled` con este registro. Write-once. Base del reporte de
+ * mesas anuladas y de la merma (lib/pos-online/tableVoid).
+ */
+export interface IOrderTableVoid {
+  at: Date
+  /** Usuario que la pidió (mozo, cajero, encargado o admin). */
+  by: string
+  byRole: string
+  /** Admin/encargado que la autorizó (el mismo `by` si ya lo era). */
+  approvedBy: string
+  /** true si la autorizó otra persona con su PIN. */
+  viaPin: boolean
+  reason: 'load_error' | 'customer_left' | 'complaint' | 'kitchen_issue' | 'training' | 'other'
+  note: string | null
+  /** true ⇒ lo que se mandó a cocina se preparó y va a merma. */
+  wasted: boolean
+  /** Importe de la ronda al anularla (centavos). */
+  amount: number
+  /** Estado de la ronda al anularla (pending = nunca fue a cocina). */
+  previousStatus: string
+  /** Identifica las rondas de una misma anulación. */
+  voidId: string
+  tablePosId: string
+  tableNumber: number | null
+}
+
 export interface IOrderVoid {
   at: Date
   /** Usuario que pidió la anulación. */
@@ -389,6 +417,8 @@ export interface IOrder extends Document {
   posPayments?: IPosPayment[]
   /** Anulación de la venta (null/ausente = no anulada). Write-once. */
   voided?: IOrderVoid | null
+  /** Anulación de la mesa sin cobrar (19/11/2026). Write-once. */
+  tableVoid?: IOrderTableVoid | null
   /**
    * Platos quitados o bajados DESPUÉS de mandarlos a cocina (Fase C,
    * 2026-10). Append-only: base de «anulaciones por operador» y de la merma.
@@ -988,6 +1018,31 @@ const OrderSchema = new Schema(
           reason: { type: String, enum: ['load_error', 'customer_left', 'complaint', 'other'], required: true },
           note: { type: String, default: null, maxlength: 200 },
           registerPosId: { type: String, required: true },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    },
+    tableVoid: {
+      type: new Schema<IOrderTableVoid>(
+        {
+          at: { type: Date, required: true },
+          by: { type: String, required: true },
+          byRole: { type: String, required: true },
+          approvedBy: { type: String, required: true },
+          viaPin: { type: Boolean, required: true },
+          reason: {
+            type: String,
+            enum: ['load_error', 'customer_left', 'complaint', 'kitchen_issue', 'training', 'other'],
+            required: true,
+          },
+          note: { type: String, default: null, maxlength: 200 },
+          wasted: { type: Boolean, required: true },
+          amount: { type: Number, required: true, min: 0 },
+          previousStatus: { type: String, required: true },
+          voidId: { type: String, required: true },
+          tablePosId: { type: String, required: true },
+          tableNumber: { type: Number, default: null },
         },
         { _id: false }
       ),

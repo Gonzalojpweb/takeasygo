@@ -163,7 +163,14 @@ export function buildOrderTicket<B extends EscPosBuilder = EscPosBuilder>(
   order: PrintOrder,
   printer: PrinterDoc,
   role: string,
-  options: { forceAllItems?: boolean } = {},
+  options: {
+    forceAllItems?: boolean
+    /**
+     * Reimpresión pedida a mano (POS o panel, 19/11/2026): el ticket sale con
+     * «REIMPRESIÓN» bien visible para que cocina/barra no lo preparen de nuevo.
+     */
+    reprint?: { at: Date; by?: string | null } | null
+  } = {},
   createBuilder: (opts: TicketBuilderOptions) => B = (opts) => new EscPosBuilder(opts) as B
 ): B | null {
   const allItems = order.items || []
@@ -242,6 +249,14 @@ export function buildOrderTicket<B extends EscPosBuilder = EscPosBuilder>(
     }
     const sectorName = role === 'bar' ? 'BARRA / BEBIDAS' : 'COCINA'
     t.text(`*** ${sectorName} ***`, { align: 'center' })
+  }
+
+  // ── Reimpresión: recuadro arriba de todo lo demás ───────────────────
+  if (options.reprint) {
+    t.box('REIMPRESIÓN', { align: 'center' })
+    if (role !== 'cashier') t.text('YA SE ENVIÓ - NO PREPARAR DE NUEVO', { align: 'center', bold: true })
+    const when = new Date(options.reprint.at).toLocaleString('es-AR', { timeZone: tz, day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+    t.text(`Reimpresa ${when}${options.reprint.by ? ` por ${options.reprint.by}` : ''}`, { align: 'center' })
   }
 
   // ── Separator + date ────────────────────────────────────────────────

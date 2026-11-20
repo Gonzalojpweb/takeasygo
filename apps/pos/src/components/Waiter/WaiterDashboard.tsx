@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal, canSeeSharedSurfaces, COURSE_SEQUENCE } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
-import { ChefHat, Users, BellRing, ReceiptText, Flame } from "lucide-react"
+import { ChefHat, Users, BellRing, ReceiptText, Flame, Ban, Printer, DoorOpen } from "lucide-react"
+import type { TableVoidReason } from "@takeasygo/business/browser"
 import { db } from "../../db/dexie"
 import { useAuth } from "../../hooks/useAuth"
 import { useTables } from "../../hooks/useTables"
@@ -15,7 +16,7 @@ import { useNow } from "../../hooks/useNow"
 import { usePopularProducts } from "../../hooks/usePopularProducts"
 import { useReservations } from "../../hooks/useReservations"
 import { sendWaiterOrderToKitchen, WAITER_SERVER_ID } from "../../services/waiter-order"
-import { printPrecuenta } from "../../services/table"
+import { printPrecuenta, voidTable } from "../../services/table"
 import { PosApiError } from "../../services/pos-api"
 import { useLayout } from "../layout/LayoutContext"
 import { ProductSelector } from "../shared/ProductSelector"
@@ -25,7 +26,9 @@ import { buildComboLines, comboWireFields, removeCartLine } from "../../utils/co
 import { scaleLineTotal, selectionsFromItem } from "../../utils/product-config"
 import { OrderPanel } from "../shared/OrderPanel"
 import { CourseHoldControl, useCourseHolds } from "../shared/Courses"
-import { fireCourse } from "../../services/order"
+import { fireCourse, reprintComanda } from "../../services/order"
+import { VoidTableDialog } from "../shared/VoidTableDialog"
+import { ReprintComandaDialog, type ComandaStation } from "../shared/ReprintComandaDialog"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { WaiterSectorGrid } from "./WaiterSectorGrid"
 import { SalonHeaderBar, useSalonView } from "../shared/SalonMap"
@@ -88,6 +91,13 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const [configuring, setConfiguring] = useState<{ product: Product; index: number | null; initial?: ProductConfigDraft } | null>(null)
   const [sending, setSending] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null)
+  // 19/11: anular mesa / reimprimir comanda — el mozo lo pide, lo autoriza
+  // un admin o encargado con su PIN en este equipo (sin cerrar sesión).
+  const [voidTableOpen, setVoidTableOpen] = useState(false)
+  const [voidTableBusy, setVoidTableBusy] = useState(false)
+  const [reprintOpen, setReprintOpen] = useState(false)
+  const [reprintBusy, setReprintBusy] = useState(false)
+  const canAuthorize = role === "admin" || role === "manager"
 
   const { setContextPanel, setActionBar, setHeaderCenter } = useLayout()
   const popularIds = usePopularProducts(tenantId)
@@ -314,6 +324,50 @@ export function WaiterDashboard({ role }: { role?: string }) {
     }
   }, [selectedTableId, markNeedsBill, showToast])
 
+  // 19/11: anular la mesa entera (o liberar una mesa sin productos).
+  const handleVoidTable = useCallback(async (input: { reason?: TableVoidReason; note?: string; wasted?: boolean }) => {
+    if (!tenantId || !selectedTableId || voidTableBusy) return
+    const number = tables.find((t) => t.id === selectedTableId)?.number
+    setVoidTableBusy(true)
+    try {
+      await voidTable(tenantId, selectedTableId, input)
+      setVoidTableOpen(false)
+      setCart([])
+      setSelectedTableId(null)
+      setScene("mesas")
+      showToast(input.reason ? `Mesa ${number ?? ""} anulada` : `Mesa ${number ?? ""} liberada`, "success")
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      showToast(err instanceof PosApiError && err.code === "network" ? err.message : describeError(err, "No se pudo anular la mesa"), "error")
+    } finally {
+      setVoidTableBusy(false)
+    }
+  }, [tenantId, selectedTableId, voidTableBusy, tables, showToast])
+
+  const sentRounds = useMemo(
+    () => [...tableOrders].filter((o) => o.status !== "pending" && o.items.length > 0).sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt)),
+    [tableOrders]
+  )
+
+  const handleReprint = useCallback(async (orderIds: string[], station: ComandaStation) => {
+    if (!tenantId || reprintBusy) return
+    setReprintBusy(true)
+    let done = 0
+    try {
+      for (const id of orderIds) {
+        await reprintComanda(tenantId, id, station === "all" ? undefined : station)
+        done++
+      }
+      setReprintOpen(false)
+      showToast(`Comanda reimpresa${done > 1 ? ` (${done})` : ""}`, "success")
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      showToast(describeError(err, "No se pudo reimprimir la comanda"), "error")
+    } finally {
+      setReprintBusy(false)
+    }
+  }, [tenantId, reprintBusy, showToast])
+
   const handleCallManager = useCallback(async () => {
     if (!selectedTableId) return
     try {
@@ -350,6 +404,31 @@ export function WaiterDashboard({ role }: { role?: string }) {
               activity={activity}
               now={now}
               reservation={selectedTable.status === "reserved" ? reservationsByTable.get(selectedTable.id) : undefined}
+              actions={(() => {
+                const hasPlates = tableOrders.some((o) => o.items.length > 0)
+                const anyPaid = tableOrders.some((o) => o.payments?.length)
+                const stuckEmpty = tableOrders.length > 0 && !hasPlates && !anyPaid
+                if (sentRounds.length === 0 && !hasPlates && !stuckEmpty) return undefined
+                return (
+                  <>
+                    {sentRounds.length > 0 && (
+                      <button type="button" className="btn btn-secondary" onClick={() => setReprintOpen(true)}>
+                        <Printer size={18} aria-hidden /> Reimprimir comanda
+                      </button>
+                    )}
+                    {stuckEmpty && (
+                      <button type="button" className="btn btn-danger" disabled={voidTableBusy} onClick={() => { void handleVoidTable({}) }}>
+                        <DoorOpen size={18} aria-hidden /> Liberar mesa
+                      </button>
+                    )}
+                    {hasPlates && !anyPaid && (
+                      <button type="button" className="btn btn-danger" disabled={voidTableBusy} onClick={() => setVoidTableOpen(true)}>
+                        <Ban size={18} aria-hidden /> Anular mesa
+                      </button>
+                    )}
+                  </>
+                )
+              })()}
             />
           ),
           openOnMobile: true,
@@ -433,7 +512,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
         break
 
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, activeCourse, courseHolds, firingCourse, handleFireCourse])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, activeCourse, courseHolds, firingCourse, handleFireCourse, sentRounds, voidTableBusy, handleVoidTable])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.
@@ -583,6 +662,32 @@ export function WaiterDashboard({ role }: { role?: string }) {
           />
         )
       })()}
+
+      {voidTableOpen && selectedTable && (
+        <VoidTableDialog
+          tableNumber={selectedTable.number}
+          summary={{
+            rounds: tableOrders.length,
+            units: tableOrders.reduce((s, o) => s + o.items.filter((i) => !(i.comboInstanceId && !i.comboComponent)).reduce((n, i) => n + i.quantity, 0), 0),
+            total: tableOrders.reduce((s, o) => s + o.total, 0),
+            sentToKitchen: sentRounds.length > 0,
+          }}
+          canAuthorize={canAuthorize}
+          busy={voidTableBusy}
+          onConfirm={(input) => { void handleVoidTable(input) }}
+          onCancel={() => setVoidTableOpen(false)}
+        />
+      )}
+      {reprintOpen && selectedTable && sentRounds.length > 0 && (
+        <ReprintComandaDialog
+          title={`Mesa ${selectedTable.number}`}
+          rounds={sentRounds}
+          needsPin={!canAuthorize}
+          busy={reprintBusy}
+          onConfirm={(ids, station) => { void handleReprint(ids, station) }}
+          onCancel={() => setReprintOpen(false)}
+        />
+      )}
 
       {toast && (
         <div className="toast-container" role="status">

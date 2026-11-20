@@ -7,6 +7,9 @@ import { applyTablePatch, type TablePatch } from "./offline/local-model"
 import { isOfflineError } from "./offline/executor"
 import { getOfflineStatus } from "./offline/status"
 import { printPrecuentaLocally } from "./offline/local-precuenta"
+import { rehydrateOrder } from "./pos-wire"
+import type { Order } from "@takeasygo/types"
+import type { TableVoidReason } from "@takeasygo/business/browser"
 
 // ============================================================================
 // Server-first (V1 POS Online)
@@ -292,6 +295,57 @@ export async function freeTable(
   tableId: string
 ): Promise<void> {
   await patchTable(tenantId, tableId, { status: "free" })
+}
+
+export interface VoidTableInput {
+  /** Obligatorio si la mesa tiene platos cargados. */
+  reason?: TableVoidReason
+  note?: string
+  /** true = lo que se mandó a cocina se preparó y va a merma. */
+  wasted?: boolean
+}
+
+export interface VoidTableResult {
+  rounds: number
+  /** Importe anulado (centavos). */
+  amount: number
+  wasted: boolean
+  /** Avisos «ANULADA» enviados a cocina/barra. */
+  printed: number
+}
+
+/**
+ * Anula la mesa entera sin cobrar (19/11/2026): todas sus rondas abiertas
+ * quedan canceladas con motivo y la mesa vuelve a libre. La autoriza un admin
+ * o encargado: si quien opera no lo es, el server pide el PIN y pos-api abre
+ * el teclado (sin cerrar sesión). Con la mesa sin platos = liberar. Solo con
+ * internet: el registro y el inventario los resuelve el server.
+ */
+export async function voidTable(tenantId: string, tableId: string, input: VoidTableInput = {}): Promise<VoidTableResult> {
+  return runMutation(async () => {
+    try {
+      const res = await posApi<{ table: WireTable; orders: Order[]; voided: VoidTableResult }>(
+        tenantId,
+        `/tables/${encodeURIComponent(tableId)}/void`,
+        {
+          method: "POST",
+          body: {
+            ...(input.reason ? { reason: input.reason } : {}),
+            ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+            ...(input.wasted !== undefined ? { wasted: input.wasted } : {}),
+          },
+        }
+      )
+      for (const order of res.orders) await db.orders.put(rehydrateOrder(order))
+      await applyServerTable(res.table)
+      return res.voided
+    } catch (err) {
+      if (isOfflineError(err)) {
+        throw new PosApiError("Sin internet no se puede anular la mesa: probá de nuevo cuando vuelva la conexión", "network", 0)
+      }
+      throw err
+    }
+  })
 }
 
 export async function reserveTable(

@@ -35,6 +35,8 @@ export type PosCapability =
   /** Cualquier otra transición (preparar, entregar, cancelar). */
   | 'orders.status.manage'
   | 'orders.pay'
+  /** Reimprimir comandas (cocina/barra) de una ronda ya enviada (19/11). */
+  | 'orders.reprint'
   | 'cash.read'
   | 'cash.write'
   /** Configuración del POS: impresoras, cajas, turnos, deliverys (admin y encargado). */
@@ -58,6 +60,7 @@ const COUNTER: readonly PosCapability[] = [
   'tables.manage',
   'orders.status.manage',
   'orders.pay',
+  'orders.reprint',
   'cash.read',
   'cash.write',
 ]
@@ -109,4 +112,36 @@ const SERVICE_TABLE_TARGETS = new Set(['occupied', 'needs_attention'])
 
 export function tableStatusCapability(to: string): PosCapability {
   return SERVICE_TABLE_TARGETS.has(to) ? 'tables.service' : 'tables.manage'
+}
+
+// ============================================================================
+// Elevación con PIN de admin/encargado (19/11/2026)
+// ============================================================================
+// Pedido del dueño: lo que un mozo o un cajero no puede hacer solo (liberar
+// o anular una mesa, cancelar un pedido, reimprimir una comanda…) lo
+// autoriza un admin o encargado tipeando SU PIN en ese mismo equipo, sin
+// cerrar la sesión del mozo/cajero. La operación queda a nombre de quien la
+// pidió y la aprobación a nombre de quien puso el PIN (auditoría).
+//
+// Solo capacidades de OPERACIÓN del salón. Nunca cobrar (`orders.pay`: la
+// plata la maneja la caja), ni la caja (abrir/cerrar/retirar es de quien la
+// tiene a su nombre), ni configuración (impresoras, fiscal, turnos), ni
+// lecturas.
+// ============================================================================
+
+const ELEVATION_LABEL: Partial<Record<PosCapability, string>> = {
+  'tables.manage': 'Liberar, reservar o cerrar mesas',
+  'orders.status.manage': 'Cambiar el estado o cancelar pedidos',
+  'orders.reprint': 'Reimprimir comandas',
+}
+
+/** ¿Un admin/encargado puede autorizar esta capacidad con su PIN? */
+export function isElevatableCapability(capability: PosCapability): boolean {
+  return Object.prototype.hasOwnProperty.call(ELEVATION_LABEL, capability)
+}
+
+/** Texto arriba del teclado de PIN cuando el rol no alcanza. */
+export function elevationMessage(capability: PosCapability): string {
+  const label = ELEVATION_LABEL[capability] ?? 'Esta operación'
+  return `${label} no está habilitado para tu usuario: que un admin o encargado ingrese su PIN para autorizarlo`
 }

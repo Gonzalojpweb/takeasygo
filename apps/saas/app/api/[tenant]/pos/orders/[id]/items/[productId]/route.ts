@@ -18,6 +18,7 @@ import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, recomputeOrderTotals, type SaasOrderItemDraft } from '@/lib/pos-online/orderMapper'
 import { withQuantityKeepingDiscount } from '@/lib/pos-online/discounts'
 import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
+import { cancelRoundIfEmpty } from '@/lib/pos-online/tableRelease'
 
 // ============================================================================
 // PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad
@@ -36,6 +37,10 @@ import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/
 //     insumos vuelven al stock o van a merma.
 //   · queda registrado en Order.itemVoids + auditoría.
 // Antes de mandar a cocina (`pending`) se edita libre.
+//
+// Ronda que se queda SIN platos (19/11/2026): se cancela sola y, si la mesa
+// no tiene otra ronda abierta, vuelve a libre (lib/pos-online/tableRelease).
+// Antes la mesa quedaba ocupada (amarilla) con una ronda vacía.
 // ============================================================================
 
 type Ctx = Parameters<Parameters<typeof posRoute>[1]>[0]
@@ -221,6 +226,7 @@ export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => 
 
   const saved = await saveItems(ctx, current.posId as string, current.updatedAt, items, voids)
   await applyWaste(ctx, waste, saved)
+  const final = await cancelRoundIfEmpty(ctx, saved)
 
   await logAudit({
     tenantId: ctx.tenantId,
@@ -233,7 +239,7 @@ export const PATCH = posRoute('orders.write', async (ctx, { id, productId }) => 
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ order: toPosOrder(saved) })
+  return NextResponse.json({ order: toPosOrder(final) })
 })
 
 export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) => {
@@ -264,6 +270,7 @@ export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) =>
   const items = before.filter((i) => !matches.includes(i))
   const saved = await saveItems(ctx, current.posId as string, current.updatedAt, items, voids)
   await applyWaste(ctx, waste, saved)
+  const final = await cancelRoundIfEmpty(ctx, saved)
 
   await logAudit({
     tenantId: ctx.tenantId,
@@ -276,5 +283,5 @@ export const DELETE = posRoute('orders.write', async (ctx, { id, productId }) =>
     userRole: ctx.user.role,
   })
 
-  return NextResponse.json({ order: toPosOrder(saved) })
+  return NextResponse.json({ order: toPosOrder(final) })
 })

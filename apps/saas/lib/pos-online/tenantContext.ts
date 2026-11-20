@@ -39,6 +39,11 @@ export interface PosContext {
    * V2). La completa posRoute; ausente en las peticiones online normales.
    */
   offline?: import('./opReceipt').OfflineOpContext | null
+  /**
+   * PIN de admin/encargado ya verificado en ESTA petición (19/11). Lo
+   * completa requireManagerApproval; vive lo que dura la petición.
+   */
+  approval?: import('./approval').Approval | null
 }
 
 const SLUG_RE = /^[a-z0-9-]{2,50}$/

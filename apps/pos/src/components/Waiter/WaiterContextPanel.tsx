@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { Order, Table } from "@takeasygo/types"
 import { Clock, Users } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
@@ -29,9 +30,14 @@ interface WaiterContextPanelProps {
   now: number
   /** Obs. 24/10: reserva asignada a la mesa (el mozo la ve; no la opera). */
   reservation?: { time: string; name: string; partySize: number; notes?: string; spaceName?: string | null }
+  /**
+   * 19/11: acciones que el mozo PIDE y autoriza un admin/encargado con su PIN
+   * en este mismo equipo (anular la mesa, reimprimir la comanda).
+   */
+  actions?: ReactNode
 }
 
-export function WaiterContextPanel({ table, orders, activity, now, reservation }: WaiterContextPanelProps) {
+export function WaiterContextPanel({ table, orders, activity, now, reservation, actions }: WaiterContextPanelProps) {
   const sorted = [...orders].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
 
   return (
@@ -92,6 +98,13 @@ export function WaiterContextPanel({ table, orders, activity, now, reservation }
               <strong>{formatCurrency(activity.total)}</strong>
             </div>
           )}
+        </div>
+      )}
+
+      {actions && (
+        <div className="waiter-auth-actions">
+          <div className="text-sm text-muted">Con PIN de admin o encargado</div>
+          {actions}
         </div>
       )}
     </div>

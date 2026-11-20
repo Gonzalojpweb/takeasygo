@@ -41,12 +41,15 @@ import { actOnReservation, markReservationsSeen, type PosReservation, type Reser
 import { isAppOrder, isExternalDeliveryOrder, DELIVERY_PLATFORMS } from "../../services/channels"
 import { GuestsDialog } from "../shared/GuestsDialog"
 import { VoidItemDialog } from "../shared/VoidItemDialog"
+import { VoidTableDialog } from "../shared/VoidTableDialog"
+import { ReprintComandaDialog, type ComandaStation } from "../shared/ReprintComandaDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { useDiscountPolicy, evaluateForCurrentUser } from "../../services/discount-policy"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS } from "../../services/order"
-import { printPrecuenta } from "../../services/table"
+import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS, reprintComanda } from "../../services/order"
+import { printPrecuenta, voidTable } from "../../services/table"
+import type { TableVoidReason } from "@takeasygo/business/browser"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
 import { useKitchenCommands } from "../../hooks/useKitchenCommands"
 import { PosApiError } from "../../services/pos-api"
@@ -55,7 +58,7 @@ import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import {
   UtensilsCrossed, Store, Calendar, Smartphone, Bike, PackageCheck,
-  Plus, Users, Receipt, Unlock, Printer, Split, Percent, Flame, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink,
+  Plus, Users, Receipt, Unlock, Printer, Split, Percent, Flame, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink, Ban,
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
@@ -229,6 +232,13 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Fase C: quitar plato enviado (con motivo), cambiar / unir mesas.
   const [voidTarget, setVoidTarget] = useState<{ order: Order; item: OrderItem } | null>(null)
   const [voidBusy, setVoidBusy] = useState(false)
+  // 19/11: anular la mesa entera y reimprimir comandas desde el POS.
+  const [voidTableOpen, setVoidTableOpen] = useState(false)
+  const [voidTableBusy, setVoidTableBusy] = useState(false)
+  const [reprintTarget, setReprintTarget] = useState<{ title: string; rounds: Order[] } | null>(null)
+  const [reprintBusy, setReprintBusy] = useState(false)
+  /** Admin/encargado: autoriza solo; el resto, con el PIN de uno (sin cerrar sesión). */
+  const canAuthorize = role === "admin" || role === "manager"
   const [joinTargetId, setJoinTargetId] = useState<string | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
   // Fase D: descuento a la cuenta de la mesa o a un plato.
@@ -799,6 +809,54 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       showToast(`${prefix}. No se imprimió la precuenta: ${describePosError(err, "error de impresión")}`, "error")
     }
   }, [tenantId, selectedTableId, showToast])
+
+  // ── 19/11: anular la mesa entera (sin cobrar) o liberar una mesa vacía ──
+  const handleVoidTable = useCallback(async (input: { reason?: TableVoidReason; note?: string; wasted?: boolean }) => {
+    if (!tenantId || !selectedTableId || voidTableBusy) return
+    const number = tables.find((t) => t.id === selectedTableId)?.number
+    setVoidTableBusy(true)
+    try {
+      const res = await voidTable(tenantId, selectedTableId, input)
+      setVoidTableOpen(false)
+      setCart([])
+      setSelectedTableId(null)
+      setScene("salon")
+      showToast(
+        res.rounds === 0 || !input.reason
+          ? `Mesa ${number ?? ""} liberada`
+          : `Mesa ${number ?? ""} anulada (${formatCurrency(res.amount)})${res.wasted ? " · a merma" : ""}${res.printed ? " · aviso a cocina" : ""}`,
+        "success"
+      )
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      showToast(describePosError(err, "No se pudo anular la mesa"), "error")
+    } finally {
+      setVoidTableBusy(false)
+    }
+  }, [tenantId, selectedTableId, voidTableBusy, tables, showToast])
+
+  // ── 19/11: reimprimir comandas (cocina/barra), distinto de precuenta/factura ──
+  const handleReprintComanda = useCallback(async (orderIds: string[], station: ComandaStation) => {
+    if (!tenantId || reprintBusy) return
+    setReprintBusy(true)
+    const printers = new Set<string>()
+    let done = 0
+    try {
+      for (const id of orderIds) {
+        const res = await reprintComanda(tenantId, id, station === "all" ? undefined : station)
+        res.printers.forEach((p) => printers.add(p))
+        done++
+      }
+      setReprintTarget(null)
+      showToast(`Comanda reimpresa${done > 1 ? ` (${done})` : ""} → ${[...printers].join(", ")}`, "success")
+    } catch (err) {
+      if (err instanceof PosApiError && err.code === "approval_cancelled") return
+      const prefix = done > 0 ? `Se reimprimieron ${done} de ${orderIds.length}. ` : ""
+      showToast(prefix + describePosError(err, "No se pudo reimprimir la comanda"), "error")
+    } finally {
+      setReprintBusy(false)
+    }
+  }, [tenantId, reprintBusy, showToast])
 
   // ── Obs. 24/10: operar reservas (asignar mesa, sentar, no vino, soltar) ──
   const handleReservationAction = useCallback(async (r: PosReservation, action: ReservationAction, tablePosId?: string) => {
@@ -1415,6 +1473,14 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // Mesa reservada por una reserva: se suelta desde la reserva (no «Liberar»).
         const canRelease = !activity && !tableReservation && (selectedTable.status === "reserved" || occupied)
         const resBusy = tableReservation ? reservationBusyId === tableReservation.id : false
+        // 19/11: rondas ya enviadas (comanda reimprimible) y anulación de mesa.
+        const sentRounds = [...tableOrders]
+          .filter((o) => o.status !== "pending" && o.items.length > 0)
+          .sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+        const hasPlates = tableOrders.some((o) => o.items.length > 0)
+        const anyPaid = tableOrders.some((o) => o.payments?.length)
+        // Mesa amarilla sin nada cargado (rondas vacías): se libera, sin motivo.
+        const stuckEmpty = Boolean(activity) && !hasPlates && !anyPaid
         // Piloto 06/11: tiempos en espera de la mesa ⇒ «Marcha» arriba de todo.
         const heldOnTable = COURSE_SEQUENCE.filter((c) => tableOrders.some((o) => (o.heldCourses ?? []).includes(c)))
         const platesHeld = (c: ItemCourse) => tableOrders
@@ -1456,6 +1522,13 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
             ],
           },
           {
+            title: "Impresión",
+            actions: sentRounds.length > 0
+              ? [{ id: "reprint-comanda", label: "Reimprimir comanda", hint: canAuthorize || role === "cashier" ? "Cocina / barra" : "PIN de encargado", icon: Printer, tone: "blue" as const,
+                  onClick: () => setReprintTarget({ title: `Mesa ${selectedTable.number}`, rounds: sentRounds }) }]
+              : [],
+          },
+          {
             title: "Cuenta",
             actions: unpaid > 0
               ? [
@@ -1472,6 +1545,10 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               ...(occupied ? [{ id: "move", label: "Cambiar / unir", icon: ArrowLeftRight, tone: "blue" as const, onClick: () => setScene("mover") }] : []),
               ...(selectedTable.status === "free" ? [{ id: "reserve", label: "Reservar", icon: CalendarClock, tone: "violet" as const, onClick: () => handleTableTransition("reserve") }] : []),
               ...(canRelease ? [{ id: "release", label: "Liberar mesa", icon: DoorOpen, tone: "red" as const, onClick: () => handleTableTransition("free") }] : []),
+              ...(stuckEmpty ? [{ id: "release-empty", label: "Liberar mesa", hint: "No tiene productos", icon: DoorOpen, tone: "red" as const, disabled: voidTableBusy, onClick: () => { void handleVoidTable({}) } }] : []),
+              ...(hasPlates && !anyPaid
+                ? [{ id: "void-table", label: "Anular mesa", hint: canAuthorize ? "Sin cobrar · con motivo" : "PIN de admin/encargado", icon: Ban, tone: "red" as const, disabled: voidTableBusy, onClick: () => setVoidTableOpen(true) }]
+                : []),
             ],
           },
           {
@@ -1838,7 +1915,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder, activeCourse, courseHolds.held, firingCourse, handleFireCourse])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder, activeCourse, courseHolds.held, firingCourse, handleFireCourse, canAuthorize, role, voidTableBusy, handleVoidTable])
 
   // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
   // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
@@ -2025,6 +2102,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                       <div className="pickup-items">{order.items.map((i) => `${i.quantity}× ${i.name}`).join(" · ")}</div>
                       <div className="pickup-foot">
                         <span className="pickup-total">{formatCurrency(order.total)}</span>
+                        <button type="button" className="btn btn-secondary" title="Reimprimir comanda (cocina/barra)" onClick={() => setReprintTarget({ title: `Pedido #${order.id.slice(0, 6).toUpperCase()}`, rounds: [order] })}>
+                          <Printer size={18} aria-hidden /> Comanda
+                        </button>
                         <button type="button" className="btn btn-primary" onClick={() => { void handleHandOver(order.id) }}>
                           <PackageCheck size={18} aria-hidden /> Entregado
                         </button>
@@ -2202,6 +2282,31 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       )}
 
       {/* Modals */}
+      {voidTableOpen && selectedTable && (
+        <VoidTableDialog
+          tableNumber={selectedTable.number}
+          summary={{
+            rounds: tableOrders.length,
+            units: tableOrders.reduce((s, o) => s + o.items.filter((i) => !(i.comboInstanceId && !i.comboComponent)).reduce((n, i) => n + i.quantity, 0), 0),
+            total: tableOrders.reduce((s, o) => s + o.total, 0),
+            sentToKitchen: tableOrders.some((o) => o.status !== "pending" && o.items.length > 0),
+          }}
+          canAuthorize={canAuthorize}
+          busy={voidTableBusy}
+          onConfirm={(input) => { void handleVoidTable(input) }}
+          onCancel={() => setVoidTableOpen(false)}
+        />
+      )}
+      {reprintTarget && (
+        <ReprintComandaDialog
+          title={reprintTarget.title}
+          rounds={reprintTarget.rounds}
+          needsPin={!canAuthorize && role !== "cashier"}
+          busy={reprintBusy}
+          onConfirm={(ids, station) => { void handleReprintComanda(ids, station) }}
+          onCancel={() => setReprintTarget(null)}
+        />
+      )}
       {voidTarget && (
         <VoidItemDialog
           name={voidTarget.item.name}

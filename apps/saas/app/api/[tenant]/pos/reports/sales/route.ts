@@ -21,7 +21,7 @@ import { loadSalesMetrics, type SalesMetrics } from '@/lib/metrics/sales'
 function redactRevenue(m: SalesMetrics) {
   const hide = <T extends object>(o: T, keys: (keyof T)[]) => ({ ...o, ...Object.fromEntries(keys.map((k) => [k, null])) })
   return {
-    totals: { ...hide(m.totals, ['revenue', 'discounts', 'perGuest']), voided: { count: m.totals.voided.count, amount: null }, itemVoids: { count: m.totals.itemVoids.count, amount: null, wasteAmount: null } },
+    totals: { ...hide(m.totals, ['revenue', 'discounts', 'perGuest']), voided: { count: m.totals.voided.count, amount: null }, itemVoids: { count: m.totals.itemVoids.count, amount: null, wasteAmount: null }, tableVoids: { count: m.totals.tableVoids.count, amount: null, wasteAmount: null } },
     byChannel: Object.fromEntries(Object.entries(m.byChannel).map(([k, v]) => [k, hide(v, ['revenue'])])),
     byPayment: m.byPayment.map((p) => ({ ...p, amount: null })),
     byCategory: m.byCategory.map((c) => ({ ...c, revenue: null })),

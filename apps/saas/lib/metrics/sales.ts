@@ -62,6 +62,8 @@ export interface MetricOrder {
     comboComponent?: boolean | null
   }[]
   itemVoids?: { quantity: number; unitPrice: number; wasted: boolean }[] | null
+  /** Mesa anulada sin cobrar (19/11/2026): una entrada por ronda. */
+  tableVoid?: { amount: number; wasted: boolean; voidId: string } | null
 }
 
 export interface ChannelMetrics {
@@ -77,6 +79,8 @@ export interface SalesMetrics {
     discounts: number
     voided: { count: number; amount: number }
     itemVoids: { count: number; amount: number; wasteAmount: number }
+    /** Mesas anuladas sin cobrar: cuántas mesas, importe y lo que fue a merma. */
+    tableVoids: { count: number; amount: number; wasteAmount: number }
   }
   byChannel: Record<SaleChannel, ChannelMetrics>
   byPayment: { method: string; amount: number; count: number }[]
@@ -190,8 +194,18 @@ export function computeSalesMetrics(
   let discounts = 0
   const voided = { count: 0, amount: 0 }
   const itemVoids = { count: 0, amount: 0, wasteAmount: 0 }
+  const tableVoids = { count: 0, amount: 0, wasteAmount: 0 }
+  const tableVoidIds = new Set<string>()
 
   for (const order of orders) {
+    if (order.tableVoid) {
+      if (!tableVoidIds.has(order.tableVoid.voidId)) {
+        tableVoidIds.add(order.tableVoid.voidId)
+        tableVoids.count++
+      }
+      tableVoids.amount += order.tableVoid.amount
+      if (order.tableVoid.wasted) tableVoids.wasteAmount += order.tableVoid.amount
+    }
     for (const v of order.itemVoids ?? []) {
       itemVoids.count += v.quantity
       itemVoids.amount += v.quantity * v.unitPrice
@@ -270,6 +284,7 @@ export function computeSalesMetrics(
       discounts,
       voided,
       itemVoids,
+      tableVoids,
     },
     byChannel,
     byPayment: [...payments.entries()].map(([method, v]) => ({ method, ...v })).sort((a, b) => b.amount - a.amount),
@@ -309,7 +324,7 @@ function nextDay(date: string): string {
 
 const METRIC_FIELDS =
   'source posTableId channel status total discountAmount guests createdAt payment.method payment.status posPayments voided ' +
-  'items.menuItemId items.name items.categoryName items.quantity items.subtotal items.posDiscount.amountCents items.itemType items.comboId items.comboComponent itemVoids'
+  'items.menuItemId items.name items.categoryName items.quantity items.subtotal items.posDiscount.amountCents items.itemType items.comboId items.comboComponent itemVoids tableVoid.amount tableVoid.wasted tableVoid.voidId'
 
 /**
  * Carga y calcula las métricas de una sede para un rango de días (zona de la

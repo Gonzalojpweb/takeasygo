@@ -87,9 +87,13 @@ export async function buildPrintPayload(
      * comprobante sale al cobrar, y solo si se pide.
      */
     skipCashierTicket?: boolean
+    /** Quién pidió la reimpresión (sale en el ticket junto a «REIMPRESIÓN»). */
+    reprintBy?: string | null
   } = {}
 ): Promise<IPrintJob[]> {
   const { onlyRole, isReprint = false, forceAllItems = false, skipCashierTicket = false } = options
+  // 19/11: toda reimpresión sale marcada en el papel (cocina no la duplica).
+  const reprint = isReprint ? { at: new Date(), by: options.reprintBy ?? null } : null
   // Desencriptar PII una sola vez
   const customer: DecryptedCustomer = order.customer
     ? {
@@ -128,7 +132,7 @@ export async function buildPrintPayload(
         : printer.roles?.[0]
       if (!role) continue
 
-      const buffer = renderOrderTicket(orderData, printer, role, { forceAllItems: true })
+      const buffer = renderOrderTicket(orderData, printer, role, { forceAllItems: true, reprint })
       if (!buffer) continue
 
       printJobs.push({
@@ -159,7 +163,7 @@ export async function buildPrintPayload(
       )
       if (!hasItemsForRole) continue
 
-      const buffer = renderOrderTicket(orderData, printer, role)
+      const buffer = renderOrderTicket(orderData, printer, role, { reprint })
       if (!buffer) continue
 
       printJobs.push({

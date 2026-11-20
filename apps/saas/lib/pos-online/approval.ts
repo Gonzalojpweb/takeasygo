@@ -6,7 +6,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { isApproverRole } from '@takeasygo/business'
 import { posPinLookup, resolvePosPinPepper } from '@takeasygo/business/pos-pin'
 import { PosError } from './errors'
-import { resolvePosRole } from './permissions'
+import { assertPosCapability, elevationMessage, hasPosCapability, isElevatableCapability, resolvePosRole, type PosCapability, type PosRole } from './permissions'
 import type { PosContext } from './tenantContext'
 import { trustedOfflineAt } from './offlineReplay'
 
@@ -52,6 +52,8 @@ export interface Approval {
   approverName: string | null
   /** true si hizo falta el PIN de otra persona. */
   viaPin: boolean
+  /** Rol POS de quien aprobó (para reusar la aprobación en la misma petición). */
+  approverRole?: PosRole | null
 }
 
 interface ApproverDoc {
@@ -96,6 +98,18 @@ export async function requireManagerApproval(
 ): Promise<Approval> {
   if (!options.requireOther && isApproverRole(resolvePosRole(ctx.user.role))) {
     return { approvedBy: ctx.user.id, approverName: null, viaPin: false }
+  }
+
+  // 19/11: una misma petición puede pedir aprobación dos veces (la elevación
+  // del rol en posRoute y la regla propia de la operación). El PIN ya se
+  // verificó: se reusa sin volver a consultar ni gastar intentos.
+  const cached = ctx.approval
+  if (
+    cached?.viaPin &&
+    (!options.approverCheck || options.approverCheck(cached.approverRole ?? null)) &&
+    (!options.requireOther || cached.approvedBy !== ctx.user.id)
+  ) {
+    return cached
   }
 
   const pin = ctx.request.headers.get(MANAGER_PIN_HEADER)?.trim() ?? ''
@@ -155,7 +169,24 @@ export async function requireManagerApproval(
     userRole: ctx.user.role,
   })
 
-  return { approvedBy: String(approver._id), approverName: approver.name ?? null, viaPin: true }
+  const granted: Approval = { approvedBy: String(approver._id), approverName: approver.name ?? null, viaPin: true, approverRole }
+  ctx.approval = granted
+  return granted
+}
+
+/**
+ * Exige la capacidad del rol; si no la tiene y es una operación que un
+ * admin/encargado puede autorizar (permissions.isElevatableCapability), pide
+ * su PIN en vez de negar: el mozo o el cajero no tienen que cerrar sesión.
+ * Devuelve la aprobación (null = el rol ya alcanzaba).
+ */
+export async function requireCapabilityOrApproval(ctx: PosContext, capability: PosCapability): Promise<Approval | null> {
+  if (hasPosCapability(ctx.user.role, capability)) return null
+  // Rol desconocido o capacidad no delegable: el 403 de siempre.
+  if (resolvePosRole(ctx.user.role) === null || !isElevatableCapability(capability)) {
+    assertPosCapability(ctx.user.role, capability)
+  }
+  return requireManagerApproval(ctx, `elevate:${capability}`, elevationMessage(capability))
 }
 
 /**
@@ -203,5 +234,7 @@ async function offlineApproval(ctx: PosContext, action: string, approverId: stri
     userId: ctx.user.id,
     userRole: ctx.user.role,
   })
-  return { approvedBy: String(approver._id), approverName: approver.name ?? null, viaPin: true }
+  const granted: Approval = { approvedBy: String(approver._id), approverName: approver.name ?? null, viaPin: true, approverRole }
+  ctx.approval = granted
+  return granted
 }

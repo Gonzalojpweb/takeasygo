@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { resolvePosContext, type PosContext } from './tenantContext'
 import { PosError, toPosErrorResponse } from './errors'
 import { assertPosCapability, type PosCapability } from './permissions'
+import { requireCapabilityOrApproval } from './approval'
 import { readOfflineOp, withOpReceipt } from './opReceipt'
 
 // ============================================================================
@@ -10,7 +11,7 @@ import { readOfflineOp, withOpReceipt } from './opReceipt'
 // ============================================================================
 // Encapsula el orden de operación y el contrato de errores en un solo lugar:
 //
-//   tenant → auth → sede → ROL → handler (body)   ← todo dentro de `try`
+//   tenant → auth → sede → ROL (o PIN de encargado) → handler   ← en `try`
 //                              └── cualquier throw → toPosErrorResponse()
 //
 // Así ninguna ruta de dinero puede "olvidarse" de un guard ni devolver un
@@ -31,13 +32,17 @@ export function posRoute<T extends RouteParams = RouteParams>(
     try {
       const resolved = await params
       const ctx = await resolvePosContext(request, resolved.tenant)
-      // Antes del body: un rol sin permiso nunca recibe errores de validación.
-      assertPosCapability(ctx.user.role, capability)
+      const isRead = request.method === 'GET' || request.method === 'HEAD'
       // POS offline (12/11): una operación reenviada con X-Pos-Op-Id se aplica
       // una sola vez; el handler ve el momento real en ctx.offline.
-      const op = request.method === 'GET' || request.method === 'HEAD' ? null : readOfflineOp(request)
+      const op = isRead ? null : readOfflineOp(request)
+      if (op) ctx.offline = op
+      // Antes del body: un rol sin permiso nunca recibe errores de validación.
+      // 19/11: en escrituras, lo que un admin/encargado puede autorizar pide
+      // su PIN (approval_required) en vez de negar; las lecturas, nunca.
+      if (isRead) assertPosCapability(ctx.user.role, capability)
+      else await requireCapabilityOrApproval(ctx, capability)
       if (!op) return await handler(ctx, resolved)
-      ctx.offline = op
       return await withOpReceipt(ctx.tenantId, request, op, () => handler(ctx, resolved))
     } catch (error) {
       return toPosErrorResponse(error)

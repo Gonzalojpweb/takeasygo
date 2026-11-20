@@ -15,7 +15,7 @@ export function renderOrderTicket(
   order: PrintOrder,
   printer: PrinterDoc,
   role: string,
-  options: { forceAllItems?: boolean } = {}
+  options: { forceAllItems?: boolean; reprint?: { at: Date; by?: string | null } | null } = {}
 ): Buffer | null {
   // Sin timezone de la sede se usa America/Argentina/Buenos_Aires (= DEFAULT_TIMEZONE).
   const t = buildOrderTicket(order, printer, role, options, (opts) => new TicketBuilder(opts))
