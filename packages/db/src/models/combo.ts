@@ -18,6 +18,8 @@ export interface IComboDocument extends Document {
   availabilitySchedule?: Record<string, any>
   sortOrder: number
   visibility: ComboVisibility
+  /** 20/11/2026: canales donde vale (lib/sales-channels). Vacío = según visibility. */
+  channels?: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -108,6 +110,11 @@ export const ComboSchema = new Schema<IComboDocument>(
       type: String,
       enum: ['dine-in', 'takeaway', 'both'],
       default: 'both',
+    },
+    channels: {
+      type: [String],
+      enum: ['delivery', 'takeaway', 'dine-in'],
+      default: [],
     },
   },
   {

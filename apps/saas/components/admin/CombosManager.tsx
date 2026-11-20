@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { ArrowDown, ArrowUp, Loader2, Pause, Pencil, Play, Plus, Trash2, Upload, X } from 'lucide-react'
 import ComboReportPanel from './ComboReportPanel'
+import ChannelPicker from './ChannelPicker'
+import { channelBadge, comboChannels, type SalesChannel } from '@/lib/sales-channels'
 
 export interface ComboMenuItem {
   id: string
@@ -29,6 +31,7 @@ interface ComboDoc {
   availabilitySchedule?: { days?: number[]; from?: string; to?: string } | null
   sortOrder: number
   visibility: 'dine-in' | 'takeaway' | 'both'
+  channels?: SalesChannel[]
 }
 
 interface Props {
@@ -58,7 +61,8 @@ function emptyDraft(locationId: string) {
     imageUrl: '',
     bgColor: '',
     textColor: '',
-    visibility: 'both' as ComboDoc['visibility'],
+    /** 20/11/2026: [] = todos los canales (delivery, retiro, salón) */
+    channels: [] as SalesChannel[],
     days: [] as number[],
     from: '',
     to: '',
@@ -126,7 +130,7 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
       imageUrl: combo.style?.imageUrl ?? '',
       bgColor: combo.style?.bgColor ?? '',
       textColor: combo.style?.textColor ?? '',
-      visibility: combo.visibility,
+      channels: comboChannels(combo),
       days: combo.availabilitySchedule?.days ?? [],
       from: combo.availabilitySchedule?.from ?? '',
       to: combo.availabilitySchedule?.to ?? '',
@@ -148,7 +152,7 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
         maxItems: draft.plates,
         allowRepeat: draft.allowRepeat,
         chargeCustomizationExtras: draft.chargeCustomizationExtras,
-        visibility: draft.visibility,
+        channels: draft.channels,
         style: { badgeLabel: draft.badgeLabel, urgencyLabel: draft.urgencyLabel, imageUrl: draft.imageUrl, bgColor: draft.bgColor, textColor: draft.textColor },
         availabilitySchedule: draft.days.length || draft.from ? { days: draft.days, from: draft.from, to: draft.to } : null,
       }
@@ -232,15 +236,11 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
               <label className="space-y-1"><span className="text-xs font-bold">Precio del combo ($)</span><input className={input} type="number" min={0} value={draft.pesos} onChange={(e) => set({ pesos: e.target.value })} /></label>
             )}
             <label className="space-y-1"><span className="text-xs font-bold">Cantidad de platos</span><input className={input} type="number" min={1} max={10} value={draft.plates} onChange={(e) => set({ plates: Math.max(1, Math.min(10, Number(e.target.value) || 1)) })} /></label>
-            <label className="space-y-1">
-              <span className="text-xs font-bold">Se ofrece en</span>
-              <select className={input} value={draft.visibility} onChange={(e) => set({ visibility: e.target.value as Draft['visibility'] })}>
-                <option value="both">Salón y para llevar</option>
-                <option value="dine-in">Solo salón</option>
-                <option value="takeaway">Solo para llevar</option>
-              </select>
-            </label>
           </div>
+          <fieldset className="space-y-2">
+            <legend className="text-xs font-bold">Disponible en</legend>
+            <ChannelPicker kind="combo" value={draft.channels} onChange={(channels) => set({ channels })} />
+          </fieldset>
           <div className="flex flex-wrap gap-5 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={draft.allowRepeat} onChange={(e) => set({ allowRepeat: e.target.checked })} /> Se puede repetir el mismo plato</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={draft.chargeCustomizationExtras} onChange={(e) => set({ chargeCustomizationExtras: e.target.checked })} /> Cobrar los extras de personalización</label>
@@ -310,7 +310,14 @@ export default function CombosManager({ tenantSlug, locations, itemsByLocation, 
         {visible.map((combo, index) => (
           <div key={combo._id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4">
             <div className="min-w-0 flex-1">
-              <p className="font-bold">{combo.name}{!combo.isActive && <span className="ml-2 text-xs font-bold text-muted-foreground">PAUSADO</span>}</p>
+              <p className="font-bold">
+                {combo.name}
+                {!combo.isActive && <span className="ml-2 text-xs font-bold text-muted-foreground">PAUSADO</span>}
+                {(() => {
+                  const tag = channelBadge(comboChannels(combo))
+                  return tag ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{tag.emoji} {tag.text}</span> : null
+                })()}
+              </p>
               <p className="text-xs text-muted-foreground">
                 {combo.priceMode === 'fixed' ? money(combo.fixedPrice ?? 0) : 'Suma de productos'} · {combo.maxItems} platos · {combo.itemPool.map((id) => nameOf.get(id) ?? 'Producto eliminado').join(', ')}
               </p>

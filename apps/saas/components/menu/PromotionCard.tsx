@@ -8,6 +8,7 @@ import { toPesos } from '@takeasygo/business/browser'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
 import { toast } from 'sonner'
+import { channelBadge, promotionChannels } from '@/lib/sales-channels'
 
 // ── Countdown helper ────────────────────────────────────────────────
 function formatCountdown(endDate: Date): { text: string; urgent: boolean; expired: boolean } {
@@ -77,6 +78,8 @@ interface PromotionCardProps {
     originalPrice?: number
     conditions?: string
     isFeatured?: boolean
+    /** 20/11/2026: canales donde vale ([] = todos) → etiqueta «Solo delivery». */
+    channels?: string[]
     scheduledEnd?: Date | string | null
     ctaText?: string
     ctaLink?: string
@@ -127,6 +130,7 @@ export function PromotionCard({
 }: PromotionCardProps) {
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false)
   const isFeatured = variant === 'featured' || (variant === undefined && promotion.isFeatured)
+  const channelTag = channelBadge(promotionChannels(promotion))
   const cardRef = useRef<HTMLDivElement>(null)
   const countdown = usePromoCountdown(promotion.scheduledEnd)
 
@@ -241,6 +245,11 @@ export function PromotionCard({
               >
                 {promotion.title}
               </h3>
+              {channelTag && (
+                <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold text-white">
+                  {channelTag.emoji} {channelTag.text}
+                </span>
+              )}
               {promotion.shortDescription && (
                 <p className="text-[11px] leading-snug mt-0.5 opacity-90 break-words" style={{ color: 'rgba(255,255,255,0.80)' }}>
                   {promotion.shortDescription}
@@ -468,6 +477,14 @@ export function PromotionCard({
             >
               {promotion.title}
             </h3>
+            {channelTag && (
+              <span
+                className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{ backgroundColor: 'rgba(0,0,0,0.06)', color: titleColor }}
+              >
+                {channelTag.emoji} {channelTag.text}
+              </span>
+            )}
             {promotion.shortDescription && (
               <p
                 className="text-xs leading-snug line-clamp-2"

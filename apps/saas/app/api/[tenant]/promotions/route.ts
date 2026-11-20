@@ -5,6 +5,7 @@ import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
+import { normalizeChannels } from '@/lib/sales-channels'
 
 export async function GET(
   request: NextRequest,
@@ -112,6 +113,18 @@ export async function POST(
     // Pertenencia y alcance de plataforma (scope global / targetTenants)
     // no se asignan desde el panel del tenant.
     const { _id: _ignoredId, tenantId: _ignoredTenant, scope: _ignoredScope, targetTenants: _ignoredTargets, ...data } = body
+
+    // 20/11/2026: canales donde vale la promo ([] = todos). El viejo
+    // `visibility` nunca se respetó: queda en 'both' para no confundir.
+    if ('channels' in data || 'visibility' in data) {
+      const channels = normalizeChannels(data.channels)
+      if (channels === null) {
+        return NextResponse.json({ error: 'Canales inválidos: elegí delivery, para retirar o en el salón' }, { status: 400 })
+      }
+      data.channels = channels
+      data.visibility = 'both'
+    }
+
     const promotion = await Promotion.create({
       ...data,
       tenantId: tenant._id,

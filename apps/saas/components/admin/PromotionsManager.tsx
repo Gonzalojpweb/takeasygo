@@ -21,6 +21,8 @@ import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
 import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
+import ChannelPicker from '@/components/admin/ChannelPicker'
+import { channelBadge, channelSummary, promotionChannels, type SalesChannel } from '@/lib/sales-channels'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
 
@@ -70,6 +72,7 @@ interface Promotion {
   ctaText?: string
   ctaLink?: string
   visibility: 'both' | 'takeaway' | 'dine-in'
+  channels?: SalesChannel[]
   isActive: boolean
   isFeatured: boolean
   scheduledStart?: string
@@ -136,6 +139,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     ctaText: string
     ctaLink: string
     visibility: 'both' | 'takeaway' | 'dine-in'
+    /** 20/11/2026: [] = todos los canales */
+    channels: SalesChannel[]
     isActive: boolean
     isFeatured: boolean
     scheduledStart: string
@@ -171,6 +176,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     ctaText: '',
     ctaLink: '',
     visibility: 'both' as 'both' | 'takeaway' | 'dine-in',
+    channels: [] as SalesChannel[],
     isActive: true,
     isFeatured: false,
     scheduledStart: '',
@@ -468,6 +474,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       ctaText: '',
       ctaLink: '',
       visibility: 'both',
+      channels: [],
       isActive: true,
       isFeatured: false,
       scheduledStart: '',
@@ -510,6 +517,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       ctaText: promotion.ctaText || '',
       ctaLink: promotion.ctaLink || '',
       visibility: promotion.visibility,
+      channels: promotionChannels(promotion),
       isActive: promotion.isActive,
       isFeatured: promotion.isFeatured,
       scheduledStart: promotion.scheduledStart ? promotion.scheduledStart.split('T')[0] : '',
@@ -709,11 +717,21 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       )}
                     </div>
                   )}
-                  {(promotion.type === 'sale' || promotion.type === 'info') && (
-                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
-                      {promotion.visibility === 'both' ? '🍽️🚀' : promotion.visibility === 'dine-in' ? '🍽️' : '🚀'}
-                    </span>
-                  )}
+                  {(promotion.type === 'sale' || promotion.type === 'info') && (() => {
+                    const channels = promotionChannels(promotion)
+                    const tag = channelBadge(channels)
+                    return (
+                      <span
+                        className={cn(
+                          'text-[10px] px-1.5 py-0.5 rounded-full',
+                          tag ? 'bg-amber-100 text-amber-800 font-semibold' : 'text-muted-foreground bg-muted'
+                        )}
+                        title={channelSummary(channels)}
+                      >
+                        {tag ? `${tag.emoji} ${tag.text}` : '🛵🥡🍽️ Todos los canales'}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
@@ -1557,27 +1575,11 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   </div>
                 )}
 
-                {/* Visibility only for sale and info */}
+                {/* 20/11/2026: canales donde vale (antes «Publicar en», que no se respetaba) */}
                 {(form.type === 'sale' || form.type === 'info') && (
                   <div>
-                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Publicar en</Label>
-                    <div className="flex gap-3">
-                      {(['both', 'dine-in', 'takeaway'] as const).map(v => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => setForm({ ...form, visibility: v })}
-                          className={cn(
-                            'flex-1 py-3 px-4 rounded-xl border-2 font-bold text-sm transition-all',
-                            form.visibility === v
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border text-muted-foreground hover:border-primary/50'
-                          )}
-                        >
-                          {v === 'both' ? '🍽️ + 🚀 Ambos' : v === 'dine-in' ? '🍽️ Dine-in' : '🚀 Takeaway'}
-                        </button>
-                      ))}
-                    </div>
+                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Disponible en</Label>
+                    <ChannelPicker value={form.channels} onChange={(channels) => setForm({ ...form, channels })} />
                   </div>
                 )}
 

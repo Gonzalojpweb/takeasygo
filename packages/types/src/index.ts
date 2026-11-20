@@ -192,6 +192,8 @@ export interface Combo {
   availabilitySchedule?: { days?: number[]; from?: string; to?: string } | null
   sortOrder: number
   visibility: ComboVisibility
+  /** 20/11/2026: canales donde vale (delivery/takeaway/dine-in). Vacío = según visibility. */
+  channels?: Array<"delivery" | "takeaway" | "dine-in">
   createdAt?: Date | string
   updatedAt?: Date | string
 }

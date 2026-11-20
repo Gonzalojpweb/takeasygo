@@ -6,6 +6,7 @@ import { trackComboImpression } from '@/lib/track'
 import { Layers } from 'lucide-react'
 import { cloudinaryUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
+import { channelBadge, type SalesChannel } from '@/lib/sales-channels'
 
 // ============================================================================
 // Carrusel de Combos — separado de Promociones y de Más vendidos
@@ -24,6 +25,8 @@ export interface PublicCombo {
   allowRepeat: boolean
   chargeCustomizationExtras: boolean
   style?: { bgColor?: string; textColor?: string; badgeLabel?: string; urgencyLabel?: string; imageUrl?: string }
+  /** 20/11/2026: canales donde vale ([] = todos) → «Solo delivery». */
+  channels?: SalesChannel[]
   items: any[]
 }
 
@@ -90,6 +93,12 @@ export default function ComboCarousel({ combos, settings, primary, textColor, on
                   <span className="inline-block rounded px-1.5 py-0.5 text-[10px] font-black uppercase text-white" style={{ backgroundColor: settings?.style?.badgeColor || accent }}>{combo.style.badgeLabel}</span>
                 )}
                 <p className="text-sm font-bold leading-tight">{combo.name}</p>
+                {(() => {
+                  const tag = channelBadge(combo.channels ?? [])
+                  return tag ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold">{tag.emoji} {tag.text}</span>
+                  ) : null
+                })()}
                 <p className="line-clamp-2 text-xs opacity-70">{combo.description || combo.items.map((i) => i.name).join(' · ')}</p>
                 {combo.style?.urgencyLabel && <p className="text-xs font-bold" style={{ color: accent }}>{combo.style.urgencyLabel}</p>}
                 <p className="pt-1 text-sm font-black" style={{ color: accent }}>

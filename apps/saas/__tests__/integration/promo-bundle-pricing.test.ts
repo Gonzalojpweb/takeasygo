@@ -449,3 +449,28 @@ describe('legacy (líneas por unidad, sin _bundle) — carts viejos y re-pedidos
     expect(body.error).toMatch(/inconsistentes/i)
   })
 })
+
+describe('20/11 — canal de la promo', () => {
+  it('una promo «Solo en el salón» no entra en un pedido para retirar', async () => {
+    await Promotion.updateOne({ _id: promo._id }, { $set: { channels: ['dine-in'] } })
+    const res = await post([bundleLine([unit(itemA, 'Cachapa L'), unit(itemB, 'Cachapa M')])])
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.code).toBe('OFFER_CHANNEL')
+    expect(body.promotionId).toBe(promo._id.toString())
+    expect(body.error).toContain('es solo para consumir en el salón')
+    expect(await Order.countDocuments({ tenantId: tenant._id })).toBe(0)
+  })
+
+  it('«Delivery y para retirar» sí vale para retirar', async () => {
+    await Promotion.updateOne({ _id: promo._id }, { $set: { channels: ['delivery', 'takeaway'] } })
+    const res = await post([bundleLine([unit(itemA, 'Cachapa L'), unit(itemB, 'Cachapa M')])])
+    expect(res.ok).toBe(true)
+  })
+
+  it('el visibility viejo ya no limita (las promos quedan en Todos)', async () => {
+    await Promotion.updateOne({ _id: promo._id }, { $set: { visibility: 'dine-in' } })
+    const res = await post([bundleLine([unit(itemA, 'Cachapa L'), unit(itemB, 'Cachapa M')])])
+    expect(res.ok).toBe(true)
+  })
+})

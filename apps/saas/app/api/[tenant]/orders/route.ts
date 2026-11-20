@@ -27,6 +27,7 @@ import { resolveHalfPriceCustomizations } from '@takeasygo/business'
 import Combo from '@/models/Combo'
 import { DEFAULT_TIMEZONE as COMBO_DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-lines'
+import { channelMismatchMessage, isOfferedInMode, promotionChannels } from '@/lib/sales-channels'
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { getBaseUrl } from '@/lib/site-url'
@@ -899,6 +900,23 @@ export async function POST(
         isActive: true,
       }).lean()
       for (const p of foundPromos) promotionsById.set(p._id.toString(), p)
+
+      // 20/11/2026: canal de la promo (delivery / para retirar / salón). El
+      // checkout ya lo avisa; esto cubre carritos viejos o armados a mano.
+      for (const p of foundPromos) {
+        const channels = promotionChannels(p)
+        if (!isOfferedInMode(channels, body.mode ?? 'takeaway')) {
+          return NextResponse.json(
+            {
+              error: `${channelMismatchMessage('promo', (p as any).title, channels)} Cambiá la modalidad o quitala del pedido.`,
+              code: 'OFFER_CHANNEL',
+              promotionId: String(p._id),
+              channels,
+            },
+            { status: 400 }
+          )
+        }
+      }
 
       for (const [promoId, lines] of promoLinesByPromo) {
         const promotion = promotionsById.get(String(promoId))

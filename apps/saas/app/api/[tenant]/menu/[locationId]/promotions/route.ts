@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
+import { isVisibleInMenu, promotionChannels } from '@/lib/sales-channels'
 import Menu from '@/models/Menu'
 import Location from '@/models/Location'
 import mongoose from 'mongoose'
@@ -21,7 +22,9 @@ export async function GET(
     }
 
     const { searchParams } = new URL(request.url)
-    const mode = searchParams.get('mode') || 'takeaway'
+    // Sin ?mode (panel: mapeo del POS) se listan todas; con mode, solo las
+    // del canal de ese menú (20/11/2026: antes se ignoraba).
+    const mode = searchParams.get('mode')
 
     const now = new Date()
 
@@ -184,7 +187,7 @@ export async function GET(
     }
 
     const promotionsWithSlots = promotions.map(p => {
-      const promo: any = { ...p }
+      const promo: any = { ...p, channels: promotionChannels(p) }
 
       if (p.type === 'sale' && Array.isArray(p.slots) && p.slots.length > 0) {
         const promoOverrideGroups = p.overrideCustomizationGroups ?? []
@@ -203,6 +206,8 @@ export async function GET(
       : null
     const timeZone = loc?.timezone || (tenant as { timezone?: string }).timezone || undefined
     const filteredPromotions = promotionsWithSlots.filter((p: any) => {
+      return !mode || isVisibleInMenu(p.channels, mode)
+    }).filter((p: any) => {
       return isPromoWithinDates(p, timeZone, now)
     }).filter((p: any) => {
       return isPromoActiveToday(p.activeDays, timeZone, now)

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { normalizeChannels } from '@/lib/sales-channels'
 
 // ============================================================================
 // Validación de lo que el panel manda al crear o editar un combo
@@ -125,6 +126,14 @@ export function parseComboInput(body: unknown, current?: Record<string, any>): R
   if (b.visibility !== undefined) {
     if (!['dine-in', 'takeaway', 'both'].includes(b.visibility as string)) throw new ComboInputError('Visibilidad inválida')
     out.visibility = b.visibility
+  }
+  // 20/11/2026: canales explícitos (con delivery). Mandarlos deja el viejo
+  // `visibility` en 'both' para que «todos» ([]) signifique todos.
+  if (b.channels !== undefined) {
+    const channels = normalizeChannels(b.channels)
+    if (channels === null) throw new ComboInputError('Canales inválidos: elegí delivery, para retirar o en el salón')
+    out.channels = channels
+    out.visibility = 'both'
   }
   if (b.sortOrder !== undefined) {
     if (!Number.isInteger(b.sortOrder)) throw new ComboInputError('Orden inválido')

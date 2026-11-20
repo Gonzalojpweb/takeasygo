@@ -51,7 +51,10 @@ export interface IPromotion {
   details?: string
   ctaText?: string
   ctaLink?: string
+  /** @deprecated Nunca se respetó; las promos usan `channels` (lib/sales-channels). */
   visibility: 'both' | 'takeaway' | 'dine-in'
+  /** 20/11/2026: canales donde vale la promo (delivery/takeaway/dine-in). Vacío = todos. */
+  channels: Array<'delivery' | 'takeaway' | 'dine-in'>
   isActive: boolean
   isFeatured: boolean
   scheduledStart?: Date
@@ -188,6 +191,11 @@ const PromotionSchema = new Schema<IPromotion>(
       type: String,
       enum: ['both', 'takeaway', 'dine-in'],
       default: 'both',
+    },
+    channels: {
+      type: [String],
+      enum: ['delivery', 'takeaway', 'dine-in'],
+      default: [],
     },
     isActive: {
       type: Boolean,

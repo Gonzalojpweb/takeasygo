@@ -28,6 +28,8 @@ import {
 } from '@/lib/cart-items'
 import { evaluateRewardRedemption } from '@takeasygo/business'
 import { formatDeliveryTimeRange } from '@/lib/delivery-time'
+import OfferChannelNotice, { useOfferChannelConflicts } from './OfferChannelNotice'
+import type { SalesChannel } from '@/lib/sales-channels'
 
 const RETRY_SECONDS = 180
 
@@ -209,6 +211,9 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
   const [deliveryMode, setDeliveryMode] = useState(mode === 'delivery')
 
   const currentMode = deliveryMode ? 'delivery' : mode
+  // 20/11/2026: promos/combos que no valen en la modalidad elegida.
+  const offerConflicts = useOfferChannelConflicts(tenantSlug, locationId, cart, currentMode)
+  const switchableChannels: SalesChannel[] = mode === 'takeaway' || mode === 'delivery' ? ['delivery', 'takeaway'] : []
   const modeDelay = estimatedTimeInfo?.delayAnnouncement?.[currentMode]
   const delayEnabled = modeDelay?.enabled ?? false
   const extraMinutes = modeDelay?.extraMinutes ?? 0
@@ -623,6 +628,14 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     setCart(prev => prev.filter(i => i.cartItemId !== cartItemId))
   }
 
+  function removeOfferLines(cartItemIds: string[]) {
+    for (const id of cartItemIds) {
+      const item = cart.find(i => i.cartItemId === id)
+      if (item) trackCartRemove({ menuItemId: item.menuItemId, name: item.name, quantity: item.quantity, locationId })
+    }
+    setCart(prev => prev.filter(i => !cartItemIds.includes(i.cartItemId)))
+  }
+
   function addHintToCart(item: any) {
     const plainId = `${item._id}:plain`
     setCart(prev => {
@@ -673,6 +686,7 @@ async function handleSubmit(e: React.FormEvent) {
   if (joinClub && form.email.trim() && !/^[^\s@]+@[^\s@]+$/.test(form.email.trim())) return toast.error('Formato de email inválido')
   if (scheduleOrder && !scheduledPickupAt) return toast.error('Seleccioná una fecha y hora para retirar')
   if (!selectedPaymentMethod) return toast.error('Seleccioná un método de pago')
+  if (offerConflicts.length > 0) return toast.error('Revisá tu pedido: hay una promo que no vale en esta modalidad')
   setLoading(true)
 
     trackCheckoutSubmitted({ total, itemsCount: cart.length, orderMode: mode, locationId })
@@ -1114,6 +1128,21 @@ async function handleSubmit(e: React.FormEvent) {
             </div>
           </div>
         )}
+
+        <OfferChannelNotice
+          conflicts={offerConflicts}
+          switchable={switchableChannels}
+          onSwitch={(channel) => {
+            if (channel === 'delivery') {
+              setDeliveryMode(true)
+            } else {
+              setDeliveryMode(false)
+              setDeliveryQuote({ loading: false, cost: 0, distance: 0, withinRange: false, error: null })
+              setDeliveryConfirmed(false)
+            }
+          }}
+          onRemove={removeOfferLines}
+        />
 
         {/* Formulario de dirección para delivery */}
         {deliveryMode && (
@@ -1778,10 +1807,10 @@ async function handleSubmit(e: React.FormEvent) {
 
           <button
             type="submit"
-            disabled={loading || cart.length === 0}
+            disabled={loading || cart.length === 0 || offerConflicts.length > 0}
             className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
           >
-            {loading ? 'Procesando...' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? `🚚 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}` : `💳 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}`}
+            {loading ? 'Procesando...' : offerConflicts.length > 0 ? 'Revisá la promo marcada arriba' : scheduleOrder ? `📅 Programar y pagar` : mode === 'business' && businessInfo?.paymentMode !== 'cash_mp' ? '✅ Confirmar pedido' : deliveryMode ? `🚚 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}` : `💳 Pagar con ${selectedPaymentMethod === 'kripton' ? 'Kripton' : selectedPaymentMethod === 'transfer' ? 'Transferencia' : 'MercadoPago'}`}
           </button>
 
           {/* Términos y Privacidad */}

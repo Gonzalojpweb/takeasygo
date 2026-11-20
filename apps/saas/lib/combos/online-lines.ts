@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { calculateComboPrice, isComboAvailable, isComboOnSchedule, validateComboSelection } from '@takeasygo/business'
+import { channelMismatchMessage, comboChannels, isOfferedInMode } from '@/lib/sales-channels'
 
 // ============================================================================
 // Líneas de un combo en un pedido online — el server calcula todo
@@ -42,9 +43,13 @@ function modePrice(source: any, mode: string): number {
 
 export function buildOnlineComboLines(ctx: ComboOrderContext): any[] {
   const { combo, units, menuItemMap } = ctx
-  const offeredIn = ctx.mode === 'dine-in' ? 'dine-in' : 'takeaway'
-  if (!combo || !combo.isActive || !['both', offeredIn].includes(combo.visibility)) {
+  if (!combo || !combo.isActive) {
     throw new ComboOrderError('El combo no está disponible')
+  }
+  // 20/11/2026: canal del combo (delivery / para retirar / salón).
+  const channels = comboChannels(combo)
+  if (!isOfferedInMode(channels, ctx.mode)) {
+    throw new ComboOrderError(`${channelMismatchMessage('combo', combo.name, channels)} Cambiá la modalidad o quitalo del pedido.`)
   }
   if (!isComboOnSchedule(combo.availabilitySchedule, ctx.now ?? new Date(), ctx.timezone)) {
     throw new ComboOrderError(`El combo "${combo.name}" no está disponible en este horario`)

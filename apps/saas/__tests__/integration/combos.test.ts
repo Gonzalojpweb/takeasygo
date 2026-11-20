@@ -168,6 +168,13 @@ describe('Menú público', () => {
     await Menu.updateOne({ tenantId }, { $set: { 'categories.0.isAvailable': false } })
     expect(await read('dine-in')).toEqual([])
   })
+
+  it('20/11: «Solo delivery» se ve en el menú online con su canal, no en el QR de mesa', async () => {
+    await Combo.updateOne({ _id: comboId }, { $set: { visibility: 'both', channels: ['delivery'] } })
+    const [combo] = await read('takeaway')
+    expect(combo.channels).toEqual(['delivery'])
+    expect(await read('dine-in')).toEqual([])
+  })
 })
 
 describe('Pedido online', () => {
@@ -191,6 +198,11 @@ describe('Pedido online', () => {
     expect(buildOnlineComboLines(base({ priceMode: 'fixed', fixedPrice: 100_000 }))[0].subtotal).toBe(100_000)
     expect(buildOnlineComboLines(base({ priceMode: 'sumItems' }))[0].subtotal).toBe(140_000)
     expect(buildOnlineComboLines(base({ priceMode: 'sumItems' }, { mode: 'dine-in' }))[0].subtotal).toBe(130_000)
+  })
+
+  it('20/11: un combo «Solo delivery» no entra en un pedido para retirar', () => {
+    expect(() => buildOnlineComboLines(base({ priceMode: 'fixed', fixedPrice: 100_000, channels: ['delivery'] }))).toThrow(/solo para delivery/)
+    expect(buildOnlineComboLines(base({ priceMode: 'fixed', fixedPrice: 100_000, channels: ['delivery'] }, { mode: 'delivery' }))[0].subtotal).toBe(100_000)
   })
 
   it('cantidad 2 son dos combos separados', () => {

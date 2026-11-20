@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { isComboAvailable, isComboOnSchedule } from '@takeasygo/business'
+import { comboChannels, isVisibleInMenu } from '@/lib/sales-channels'
 
 // ============================================================================
 // GET /api/[tenant]/menu/[locationId]/combos?mode= — público: lo lee el menú
@@ -25,14 +26,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
 
     const mode = new URL(request.url).searchParams.get('mode') || 'takeaway'
-    const visibility = mode === 'dine-in' ? 'dine-in' : 'takeaway'
     const takeawayLike = mode === 'takeaway' || mode === 'delivery'
 
     const rawCombos = await Combo.find({
       tenantId: tenant._id,
       isActive: true,
       $or: [{ locationId: null }, { locationId: { $exists: false } }, { locationId }],
-      visibility: { $in: [visibility, 'both'] },
     })
       .sort({ sortOrder: 1, createdAt: -1 })
       .lean()
@@ -73,7 +72,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       for (const sub of category.subcategories ?? []) for (const item of sub.items ?? []) add(item, category, sub)
     }
 
+    // 20/11/2026: canal (con delivery) — el menú online muestra los de
+    // delivery y los de retiro; el QR de mesa, los de salón.
     const combos = rawCombos
+      .filter((combo) => isVisibleInMenu(comboChannels(combo as any), mode))
       .filter((combo) => isComboOnSchedule((combo as any).availabilitySchedule, new Date(), timezone) && isComboAvailable(combo as any, catalog))
       .map((combo: any) => ({
         _id: String(combo._id),
@@ -86,6 +88,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         allowRepeat: combo.allowRepeat,
         chargeCustomizationExtras: combo.chargeCustomizationExtras,
         style: combo.style ?? {},
+        channels: comboChannels(combo),
         items: combo.itemPool.map((id: string) => {
           const { isAvailable: _a, stockPortions: _s, ...item } = catalog.get(id)!
           return item
