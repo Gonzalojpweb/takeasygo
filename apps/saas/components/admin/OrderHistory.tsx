@@ -28,6 +28,7 @@ import {
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { posChannelLabel } from '@/lib/order-visibility'
 import {
   Dialog,
   DialogContent,
@@ -105,6 +106,8 @@ interface OrderSummary {
   locationId: string
   locationName: string
   orderMode?: string
+  /** 19/11: venta del POS → «POS · Mesa 5» / «POS · Mostrador» (null = pedido del SaaS). */
+  channelLabel?: string | null
   deliveryAddress?: {
     street: string
     number: string
@@ -183,6 +186,8 @@ export default function OrderHistory({
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [q, setQ] = useState('')
+  // 19/11: las ventas del POS se operan en el POS; acá se ven solo si se piden.
+  const [includePos, setIncludePos] = useState(false)
 
   // ── Detalle de pedido ──────────────────────────────────────────────
   const [detailOrder, setDetailOrder] = useState<OrderSummary | null>(null)
@@ -289,10 +294,11 @@ export default function OrderHistory({
   }, [activeLocationId])
 
   const load = useCallback(
-    async (p: number, loc: string, st: string, frm: string, t: string, query: string) => {
+    async (p: number, loc: string, st: string, frm: string, t: string, query: string, pos = false) => {
       setLoading(true)
       try {
         const sp = new URLSearchParams({ page: String(p) })
+        if (pos) sp.set('includePos', '1')
         if (loc) sp.set('locationId', loc)
         if (st) sp.set('status', st)
         if (frm) sp.set('from', frm)
@@ -318,12 +324,12 @@ export default function OrderHistory({
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setPage(1)
-    load(1, locationId, status, from, to, q)
+    load(1, locationId, status, from, to, q, includePos)
   }
 
   const goPage = (p: number) => {
     setPage(p)
-    load(p, locationId, status, from, to, q)
+    load(p, locationId, status, from, to, q, includePos)
   }
 
   return (
@@ -383,6 +389,19 @@ export default function OrderHistory({
               />
             </div>
           </div>
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none h-10">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-primary"
+              checked={includePos}
+              onChange={e => {
+                setIncludePos(e.target.checked)
+                setPage(1)
+                load(1, locationId, status, from, to, q, e.target.checked)
+              }}
+            />
+            Incluir ventas del POS
+          </label>
           <div className="flex gap-2">
             <Button type="submit" variant="outline" disabled={loading}>
               <Search size={16} className="mr-2" />
@@ -393,7 +412,7 @@ export default function OrderHistory({
               variant="ghost"
               size="icon"
               disabled={loading}
-              onClick={() => load(page, locationId, status, from, to, q)}
+              onClick={() => load(page, locationId, status, from, to, q, includePos)}
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             </Button>
@@ -449,8 +468,15 @@ export default function OrderHistory({
                         {order.orderNumber}
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium text-foreground leading-none">{order.customer.name}</p>
-                        {order.customer.phone && (
+                        {order.channelLabel ? (
+                          <p className="font-medium text-foreground leading-none">
+                            <span className="mr-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">POS</span>
+                            {order.channelLabel.replace(/^POS · /, '')}
+                          </p>
+                        ) : (
+                          <p className="font-medium text-foreground leading-none">{order.customer.name}</p>
+                        )}
+                        {!order.channelLabel && order.customer.phone && (
                           <p className="text-xs text-muted-foreground mt-0.5">{order.customer.phone}</p>
                         )}
                       </td>
@@ -708,7 +734,7 @@ export default function OrderHistory({
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground truncate">
-                      {detail.customer?.name || '—'}
+                      {posChannelLabel(detail) ?? (detail.customer?.name || '—')}
                     </p>
                     {detail.customer?.phone && (
                       <p className="text-xs text-muted-foreground">{detail.customer.phone}</p>

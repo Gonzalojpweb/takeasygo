@@ -14,6 +14,7 @@ import { type Plan, canAccess, PLAN_LABELS } from '@/lib/plans'
 import { Lock } from 'lucide-react'
 import { safeDecrypt } from '@/lib/crypto'
 import { resolvePrintLeadMinutes, getPrintNotBefore } from '@/lib/printing/printTiming'
+import { SAAS_ORDERS_ONLY } from '@/lib/order-visibility'
 
 export default async function OrdersPage() {
   const session = await getAdminSession()
@@ -61,7 +62,8 @@ export default async function OrdersPage() {
   const userAssignedLocations = session?.user?.assignedLocations ?? []
   const isFullScopeUser = userRole === 'admin' || userRole === 'superadmin'
 
-  const ordersQuery: Record<string, unknown> = { tenantId, deletedAt: null }
+  // 19/11: solo pedidos del SaaS — las ventas del POS se operan en el POS.
+  const ordersQuery: Record<string, unknown> = { tenantId, deletedAt: null, ...SAAS_ORDERS_ONLY }
   if (!isFullScopeUser && userAssignedLocations.length > 0) {
     ordersQuery.locationId = { $in: userAssignedLocations }
   }

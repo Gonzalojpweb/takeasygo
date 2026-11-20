@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { SAAS_ORDERS_ONLY } from '@/lib/order-visibility'
 import { isOptionSoldOut, soldOutKeysFor } from '@/lib/menu/sold-out-options'
 import { connectDB } from '@/lib/mongoose'
 import { menuItemNamesOf, unavailableItemMessage } from '@/lib/orders/unavailable-item'
@@ -361,7 +362,8 @@ export async function GET(
     const authError = await requireAuth(request, tenant._id.toString())
     if (authError) return authError
 
-    const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null, status: { $nin: ['cancelled', 'open'] } }
+    // 19/11: el panel de pedidos del SaaS no lista las ventas del POS (se operan en el POS).
+    const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null, status: { $nin: ['cancelled', 'open'] }, ...SAAS_ORDERS_ONLY }
     if (locationId) filter.locationId = locationId
 
     const sessionUser = await getSessionUser(request)

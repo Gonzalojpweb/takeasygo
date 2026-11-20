@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { SAAS_ORDERS_ONLY, posChannelLabel } from '@/lib/order-visibility'
 import Order from '@/models/Order'
 import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
@@ -35,9 +36,12 @@ export async function GET(
     const from = sp.get('from') ?? ''
     const to = sp.get('to') ?? ''
     const q = sp.get('q') ?? ''
+    // 19/11: las ventas del POS solo con el filtro «Incluir ventas del POS».
+    const includePos = sp.get('includePos') === '1'
 
     const filter: Record<string, any> = { tenantId: tenant._id, deletedAt: null }
 
+    if (!includePos) Object.assign(filter, SAAS_ORDERS_ONLY)
     if (locationId) filter.locationId = locationId
     if (status) filter.status = status
 
@@ -72,7 +76,7 @@ export async function GET(
         .sort({ createdAt: -1 })
         .skip((page - 1) * PAGE_SIZE)
         .limit(PAGE_SIZE)
-        .select('orderNumber status total customer notes payment printed createdAt locationId orderMode deliveryAddress')
+        .select('orderNumber status total customer notes payment printed createdAt locationId orderMode deliveryAddress source posTableId posTableNumber channel')
         .lean(),
       Order.countDocuments(filter),
       Location.find({ tenantId: tenant._id }).select('_id name').lean(),
@@ -89,6 +93,8 @@ export async function GET(
         email: safeDecrypt(o.customer.email ?? ''),
       } : o.customer,
       locationName: locationMap[o.locationId?.toString()] ?? '—',
+      // Venta del POS: se muestra por canal, no como «Consumidor final».
+      channelLabel: posChannelLabel(o),
     }))
 
     return NextResponse.json({
