@@ -22,6 +22,8 @@ import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
 import PromoPickerPreview from '@/components/admin/PromoPickerPreview'
 import ChannelPicker from '@/components/admin/ChannelPicker'
+import PromoTimeField from '@/components/admin/PromoTimeField'
+import { describePromoDays, describePromoHours } from '@/lib/promo-schedule'
 import { channelBadge, channelSummary, promotionChannels, type SalesChannel } from '@/lib/sales-channels'
 
 type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
@@ -729,6 +731,16 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                         title={channelSummary(channels)}
                       >
                         {tag ? `${tag.emoji} ${tag.text}` : '🛵🥡🍽️ Todos los canales'}
+                      </span>
+                    )
+                  })()}
+                  {(() => {
+                    const days = describePromoDays((promotion as any).activeDays)
+                    const hours = describePromoHours(promotion.activeTimeStart, promotion.activeTimeEnd)
+                    if (days === 'todos los días' && hours === 'todo el día') return null
+                    return (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-800 font-semibold" title="Días y horario en que se ve">
+                        🕒 {days}, {hours}
                       </span>
                     )
                   })()}
@@ -1608,24 +1620,25 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Horario de disponibilidad</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Input
-                        type="time"
+                      <span className="pl-1 text-[11px] font-semibold text-muted-foreground">Desde</span>
+                      <PromoTimeField
+                        ariaLabel="Hora de inicio"
                         value={form.activeTimeStart}
-                        onChange={e => setForm({ ...form, activeTimeStart: e.target.value })}
-                        className="mt-1.5"
+                        onChange={v => setForm(f => ({ ...f, activeTimeStart: v }))}
                       />
                     </div>
                     <div>
-                      <Input
-                        type="time"
+                      <span className="pl-1 text-[11px] font-semibold text-muted-foreground">Hasta</span>
+                      <PromoTimeField
+                        ariaLabel="Hora de fin"
                         value={form.activeTimeEnd}
-                        onChange={e => setForm({ ...form, activeTimeEnd: e.target.value })}
-                        className="mt-1.5"
+                        onChange={v => setForm(f => ({ ...f, activeTimeEnd: v }))}
                       />
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
-                    Si ambos campos están vacíos, la promo está disponible todo el día.
+                  <p className="text-[10px] text-muted-foreground/70 font-medium leading-relaxed pl-1">
+                    Podés escribir en 24 h (18:30) o 12 h (6:30 pm). Sin horas, vale el día entero de los días elegidos.
+                    Solo «desde» = hasta el cierre del día; solo «hasta» = desde las 00:00. Si «hasta» es menor que «desde», sigue después de medianoche.
                   </p>
                 </div>
 
@@ -1655,6 +1668,18 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   <p className="text-[10px] text-muted-foreground/50 font-medium leading-relaxed pl-1">
                     Si no seleccionás ningún día, la promo aplica todos los días.
                   </p>
+                </div>
+
+                {/* 20/11/2026: resumen en lenguaje simple de cuándo se ve la promo */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 px-3 py-2.5 text-xs leading-relaxed">
+                  <span className="font-bold text-foreground">Se ve en el menú: </span>
+                  <span className="text-muted-foreground">
+                    {describePromoDays(form.activeDays)}, {describePromoHours(form.activeTimeStart, form.activeTimeEnd)}
+                    {form.scheduledStart || form.scheduledEnd
+                      ? `, ${form.scheduledStart ? `desde el ${form.scheduledStart.split('-').reverse().join('/')}` : ''}${form.scheduledStart && form.scheduledEnd ? ' ' : ''}${form.scheduledEnd ? `hasta el ${form.scheduledEnd.split('-').reverse().join('/')} inclusive` : ''}`
+                      : ''}{'. '}
+                    Fuera de ese horario se oculta sola y no se puede pedir.
+                  </span>
                 </div>
 
                 {/* Terms only for sale */}

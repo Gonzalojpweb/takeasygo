@@ -115,15 +115,75 @@ export function isPromoActiveToday(
   return isPromoActiveOnDay(activeDays, localDayMinutes(now, timeZone).day)
 }
 
-const toMinutes = (hhmm: string): number | null => {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())
+// ── Horas: 12 h o 24 h (20/11/2026) ─────────────────────────────────────────
+// El dueño puede escribir «18:30», «18.30», «18hs», «6:30 pm», «6 p. m.» o
+// «12 am». Se guarda siempre «HH:MM» (24 h). Fin EXCLUSIVO: «de 18 a 23» vale
+// hasta las 22:59; «23:59» = hasta el final del día.
+
+/** Minuto del día (0–1439) de una hora escrita en 12 h o 24 h. null = no se entiende. */
+export function parseTimeOfDay(input: string | null | undefined): number | null {
+  if (input == null) return null
+  const raw = String(input).trim().toLowerCase().replace(/\s+/g, ' ')
+  if (!raw) return null
+  const m = /^(\d{1,2})(?:[:.h](\d{2}))?\s*(?:hs?|horas?)?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?$/.exec(raw)
   if (!m) return null
-  return Number(m[1]) * 60 + Number(m[2])
+  let h = Number(m[1])
+  const min = m[2] != null ? Number(m[2]) : 0
+  const ampm = m[3]?.replace(/[\s.]/g, '')
+  if (min > 59) return null
+  if (ampm) {
+    if (h < 1 || h > 12) return null
+    if (ampm === 'am') h = h === 12 ? 0 : h
+    else h = h === 12 ? 12 : h + 12
+  } else if (h > 23) {
+    // «24:00» = fin del día
+    if (h === 24 && min === 0) return 1439
+    return null
+  }
+  return h * 60 + min
+}
+
+const pad = (v: number) => String(v).padStart(2, '0')
+
+/** «HH:MM» (24 h) o null si está vacío / no se entiende. */
+export function normalizeTimeOfDay(input: string | null | undefined): string | null {
+  const minutes = parseTimeOfDay(input)
+  return minutes == null ? null : `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
+}
+
+/** «18:30» → «6:30 p. m.» */
+export function formatTime12(hhmm: string | null | undefined): string {
+  const minutes = parseTimeOfDay(hhmm)
+  if (minutes == null) return ''
+  const h = Math.floor(minutes / 60)
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${pad(minutes % 60)} ${h < 12 ? 'a. m.' : 'p. m.'}`
+}
+
+/**
+ * Ventana horaria efectiva en minutos [start, end). Sin horas = todo el día.
+ * Solo inicio = desde esa hora hasta el final del día; solo fin = desde las
+ * 00:00 hasta esa hora. end < start = cruza la medianoche. null = algo mal
+ * cargado (no se oculta la promo por eso).
+ */
+export function promoTimeWindow(
+  activeTimeStart: string | null | undefined,
+  activeTimeEnd: string | null | undefined,
+): { start: number; end: number; allDay: boolean; crossesMidnight: boolean } | null {
+  const hasStart = !!activeTimeStart?.trim()
+  const hasEnd = !!activeTimeEnd?.trim()
+  if (!hasStart && !hasEnd) return { start: 0, end: 1440, allDay: true, crossesMidnight: false }
+  const start = hasStart ? parseTimeOfDay(activeTimeStart) : 0
+  let end = hasEnd ? parseTimeOfDay(activeTimeEnd) : 1440
+  if (start == null || end == null) return null
+  if (end === 1439) end = 1440 // 23:59 = hasta el final del día
+  if (start === end) return { start: 0, end: 1440, allDay: true, crossesMidnight: false }
+  return { start, end, allDay: start === 0 && end === 1440, crossesMidnight: end < start }
 }
 
 /**
  * ¿La promo está dentro de la ventana horaria activa (hora de la sede)?
- * Si activeTimeStart/End son null → se considera activa todo el día.
+ * Sin horarios → todo el día. Una sola hora → desde / hasta esa hora.
  * Si el fin es menor que el inicio, la ventana cruza la medianoche.
  */
 export function isPromoInTimeWindow(
@@ -132,23 +192,25 @@ export function isPromoInTimeWindow(
   now: Date = new Date(),
   timeZone: string | null | undefined = DEFAULT_PROMO_TIMEZONE,
 ): boolean {
-  if (!activeTimeStart || !activeTimeEnd) return true
-  const start = toMinutes(activeTimeStart)
-  const end = toMinutes(activeTimeEnd)
-  if (start === null || end === null) return true // horario mal cargado: no ocultar la promo
+  const w = promoTimeWindow(activeTimeStart, activeTimeEnd)
+  if (!w || w.allDay) return true
   const current = localDayMinutes(now, timeZone).minutes
-  if (start <= end) return current >= start && current <= end
-  return current >= start || current <= end
+  if (!w.crossesMidnight) return current >= w.start && current < w.end
+  return current >= w.start || current < w.end
 }
 
 /**
  * Evaluación completa de scheduling: fecha + día de semana + horario.
  * Retorna true si la promo debería estar activa ahora en la sede.
+ *
+ * Días + ventana que cruza la medianoche: la madrugada pertenece al día en
+ * que empezó la ventana. «Lun a Mié de 20:00 a 02:00» vale el jueves a la
+ * 01:00 (noche del miércoles) y NO el lunes a la 01:00 (noche del domingo).
  */
 export function isPromoScheduledNow(
   promo: {
-    scheduledStart?: Date | null
-    scheduledEnd?: Date | null
+    scheduledStart?: Date | string | null
+    scheduledEnd?: Date | string | null
     activeDays?: number[] | null
     activeTimeStart?: string | null
     activeTimeEnd?: string | null
@@ -159,11 +221,68 @@ export function isPromoScheduledNow(
   // Rango de fechas: una fecha sin hora vale todo ese día en la sede.
   if (!isPromoWithinDates(promo, timeZone, now)) return false
 
-  // Día de la semana
-  if (!isPromoActiveToday(promo.activeDays, timeZone, now)) return false
-
   // Ventana horaria
   if (!isPromoInTimeWindow(promo.activeTimeStart, promo.activeTimeEnd, now, timeZone)) return false
 
-  return true
+  // Día de la semana (la madrugada de una ventana nocturna cuenta para el día anterior)
+  const { day, minutes } = localDayMinutes(now, timeZone)
+  const w = promoTimeWindow(promo.activeTimeStart, promo.activeTimeEnd)
+  const windowDay = w && w.crossesMidnight && minutes < w.end ? (day + 6) % 7 : day
+  return isPromoActiveOnDay(promo.activeDays, windowDay)
+}
+
+const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'] as const
+
+/** «lunes a miércoles» / «lunes, miércoles y viernes» / «todos los días». */
+export function describePromoDays(activeDays: number[] | null | undefined): string {
+  const days = [...new Set((activeDays ?? []).filter((d) => d >= 0 && d <= 6))].sort()
+  if (days.length === 0 || days.length === 7) return 'todos los días'
+  // Rango consecutivo (de lunes a domingo, el domingo al final)
+  const order = [1, 2, 3, 4, 5, 6, 0]
+  const idx = days.map((d) => order.indexOf(d)).sort((a, b) => a - b)
+  const consecutive = idx.length >= 3 && idx.every((v, i) => i === 0 || v === idx[i - 1] + 1)
+  if (consecutive) return `${DAY_NAMES[order[idx[0]]]} a ${DAY_NAMES[order[idx[idx.length - 1]]]}`
+  const names = idx.map((i) => DAY_NAMES[order[i]])
+  return names.length === 1 ? `solo los ${names[0]}` : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`
+}
+
+/** «de 18:00 a 23:00» / «desde las 18:00» / «todo el día». */
+export function describePromoHours(activeTimeStart: string | null | undefined, activeTimeEnd: string | null | undefined): string {
+  const w = promoTimeWindow(activeTimeStart, activeTimeEnd)
+  if (!w || w.allDay) return 'todo el día'
+  const fmt = (m: number) => (m >= 1440 ? '24:00' : `${pad(Math.floor(m / 60))}:${pad(m % 60)}`)
+  if (w.start === 0) return `hasta las ${fmt(w.end)}`
+  if (w.end === 1440) return `desde las ${fmt(w.start)}`
+  return `de ${fmt(w.start)} a ${fmt(w.end)}${w.crossesMidnight ? ' (del día siguiente)' : ''}`
+}
+
+/**
+ * Valida y normaliza lo que manda el panel al guardar una promo (20/11/2026).
+ * Horas en 12 h o 24 h → «HH:MM»; vacías → null (todo el día). Días 0–6 sin
+ * repetir ([] = todos). Devuelve un mensaje de error o null si está bien.
+ * Modifica `data` en el lugar (solo las claves presentes).
+ */
+export function sanitizePromoScheduleInput(data: Record<string, unknown>): string | null {
+  for (const [key, label] of [['activeTimeStart', 'inicio'], ['activeTimeEnd', 'fin']] as const) {
+    if (!(key in data)) continue
+    const raw = data[key]
+    if (raw == null || String(raw).trim() === '') {
+      data[key] = null
+      continue
+    }
+    const normalized = normalizeTimeOfDay(String(raw))
+    if (!normalized) return `Hora de ${label} inválida: escribila como 18:30 o 6:30 pm`
+    data[key] = normalized
+  }
+  if ('activeDays' in data) {
+    const days = Array.isArray(data.activeDays) ? data.activeDays : []
+    if (days.some((d) => !Number.isInteger(d) || (d as number) < 0 || (d as number) > 6)) return 'Días de la semana inválidos'
+    data.activeDays = [...new Set(days as number[])].sort((a, b) => a - b)
+  }
+  const start = data.scheduledStart ? new Date(String(data.scheduledStart)) : null
+  const end = data.scheduledEnd ? new Date(String(data.scheduledEnd)) : null
+  if (start && end && !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end < start) {
+    return 'La fecha de fin es anterior a la de inicio'
+  }
+  return null
 }

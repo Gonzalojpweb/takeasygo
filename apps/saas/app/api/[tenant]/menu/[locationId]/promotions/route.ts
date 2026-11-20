@@ -5,7 +5,7 @@ import Menu from '@/models/Menu'
 import Location from '@/models/Location'
 import mongoose from 'mongoose'
 import { NextRequest, NextResponse } from 'next/server'
-import { isPromoActiveToday, isPromoInTimeWindow, isPromoWithinDates, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
+import { isPromoScheduledNow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
 export async function GET(
   request: NextRequest,
@@ -208,11 +208,9 @@ export async function GET(
     const filteredPromotions = promotionsWithSlots.filter((p: any) => {
       return !mode || isVisibleInMenu(p.channels, mode)
     }).filter((p: any) => {
-      return isPromoWithinDates(p, timeZone, now)
-    }).filter((p: any) => {
-      return isPromoActiveToday(p.activeDays, timeZone, now)
-    }).filter((p: any) => {
-      return isPromoInTimeWindow(p.activeTimeStart, p.activeTimeEnd, now, timeZone)
+      // Fechas + horario + días en la hora de la sede (una sola regla, la
+      // misma que valida el pedido: lib/promo-schedule).
+      return isPromoScheduledNow(p, timeZone, now)
     })
 
     return NextResponse.json({ promotions: filteredPromotions })

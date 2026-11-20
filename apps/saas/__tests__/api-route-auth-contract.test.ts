@@ -50,6 +50,7 @@ const OPEN_BY_DESIGN = new Set([
   'menu/items/[itemId]/route.ts',
   'menu/[locationId]/promotions/route.ts',
   'menu/[locationId]/combos/route.ts', // carta pública: solo lo que el menú muestra
+  'menu/[locationId]/offer-channels/route.ts', // checkout público: solo título y canales de las promos/combos del carrito
   'payment-methods/route.ts',
   'qr-promo/route.ts',
   'referrals/code/[code]/route.ts', // link de invitación: solo nombre e inicial del que invita; rate limit 30/min por IP

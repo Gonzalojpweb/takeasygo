@@ -164,13 +164,27 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
   }, [tenant.slug, location._id])
 
   useEffect(() => {
-    fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
-      .then(r => r.ok ? r.json() : { promotions: [] })
-      .then(data => {
-        setPromotions(data.promotions || [])
-        setPromotionsLoading(false)
-      })
-      .catch(() => setPromotionsLoading(false))
+    // 20/11/2026: las promos entran y salen solas según su horario. Con el
+    // menú abierto se vuelven a pedir cada minuto y al volver a la pestaña.
+    let alive = true
+    const load = () =>
+      fetch(`/api/${tenant.slug}/menu/${location._id}/promotions?mode=dine-in`)
+        .then(r => r.ok ? r.json() : { promotions: [] })
+        .then(data => {
+          if (!alive) return
+          setPromotions(data.promotions || [])
+          setPromotionsLoading(false)
+        })
+        .catch(() => { if (alive) setPromotionsLoading(false) })
+    load()
+    const timer = setInterval(load, 60_000)
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      alive = false
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [tenant.slug, location._id])
 
   useEffect(() => {

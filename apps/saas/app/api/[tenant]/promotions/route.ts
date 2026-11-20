@@ -6,6 +6,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 import { normalizeChannels } from '@/lib/sales-channels'
+import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
 
 export async function GET(
   request: NextRequest,
@@ -113,6 +114,10 @@ export async function POST(
     // Pertenencia y alcance de plataforma (scope global / targetTenants)
     // no se asignan desde el panel del tenant.
     const { _id: _ignoredId, tenantId: _ignoredTenant, scope: _ignoredScope, targetTenants: _ignoredTargets, ...data } = body
+
+    // 20/11/2026: horario en 12 h o 24 h → «HH:MM»; sin horas = todo el día.
+    const scheduleError = sanitizePromoScheduleInput(data)
+    if (scheduleError) return NextResponse.json({ error: scheduleError }, { status: 400 })
 
     // 20/11/2026: canales donde vale la promo ([] = todos). El viejo
     // `visibility` nunca se respetó: queda en 'both' para no confundir.

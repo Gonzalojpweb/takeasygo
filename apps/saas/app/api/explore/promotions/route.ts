@@ -4,7 +4,7 @@ import Tenant from '@/models/Tenant'
 import Promotion from '@/models/Promotion'
 import RestaurantDirectory from '@/models/RestaurantDirectory'
 import { NextRequest, NextResponse } from 'next/server'
-import { isPromoActiveToday, SCHEDULE_QUERY_SLACK_MS, isPromoWithinDates } from '@/lib/promo-schedule'
+import { SCHEDULE_QUERY_SLACK_MS, isPromoScheduledNow } from '@/lib/promo-schedule'
 
 const SEARCH_RADIUS_M = 20000
 
@@ -125,9 +125,10 @@ export async function GET(request: NextRequest) {
       ],
     }).sort({ isFeatured: -1, sortOrder: 1 }).lean()
 
-    // ── Day-of-week filter ─────────────────────────────────────────────
-    // Fechas sin hora valen todo ese día en Argentina (la base filtró con margen).
-    const promotionsWithDayFilter = promotionsRaw.filter(p => isPromoWithinDates(p as never) && isPromoActiveToday(p.activeDays))
+    // ── Fechas, días y horario (hora de Argentina) ─────────────────────
+    // Fechas sin hora valen todo ese día (la base filtró con margen). 20/11:
+    // también la franja horaria, que acá no se miraba.
+    const promotionsWithDayFilter = promotionsRaw.filter(p => isPromoScheduledNow(p as never))
 
     const seenGlobalIds = new Set<string>()
     const promotions = promotionsWithDayFilter.flatMap(p => {

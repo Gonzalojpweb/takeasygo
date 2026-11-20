@@ -6,7 +6,7 @@ import StoreItem from '@/models/StoreItem'
 import { NextRequest, NextResponse } from 'next/server'
 import { logExploreEvent, generateSessionId } from '@/lib/explore-tracking'
 import { checkIsOpenNow } from '@/lib/service-hours'
-import { getNowInTimezone } from '@/lib/restaurant-time'
+import { isPromoScheduledNow } from '@/lib/promo-schedule'
 import { rateLimit } from '@/lib/rateLimit'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import type { RestaurantCardData } from '@/types/restaurant-card'
@@ -212,28 +212,10 @@ export async function GET(request: NextRequest) {
       const tid = p.tenantId?.toString()
       if (!tid) return
 
-      // Filtro de franja horaria: si activeTimeStart/End existen,
-      // verificar que la hora actual del restaurante esté dentro
-      if (p.activeTimeStart && p.activeTimeEnd) {
-        const tz = tenantTimezoneMap.get(tid)
-        const { minutes: nowMinutes } = getNowInTimezone(tz || DEFAULT_TZ)
-        const [startH, startM] = p.activeTimeStart.split(':').map(Number)
-        const [endH, endM] = p.activeTimeEnd.split(':').map(Number)
-        const startMinutes = startH * 60 + startM
-        const endMinutes = endH * 60 + endM
-
-        // Handle windows that cross midnight (e.g. 23:51 → 01:51 stored as 23:51 → 25:51)
-        if (endMinutes > 1440) {
-          const effectiveEnd = endMinutes - 1440
-          if (nowMinutes < startMinutes && nowMinutes > effectiveEnd) {
-            return
-          }
-        } else {
-          if (nowMinutes < startMinutes || nowMinutes > endMinutes) {
-            return
-          }
-        }
-      }
+      // Franja horaria y día en la hora del restaurante (20/11/2026: lib
+      // promo-schedule — antes las ventanas que cruzan la medianoche, p. ej.
+      // 20:00 → 02:00, se ocultaban, y una sola hora cargada se ignoraba).
+      if (!isPromoScheduledNow(p as never, tenantTimezoneMap.get(tid) || DEFAULT_TZ)) return
 
       const types = promosByTenantMap.get(tid) || []
       if (!types.includes(p.type)) types.push(p.type)

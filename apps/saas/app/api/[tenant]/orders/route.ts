@@ -29,7 +29,7 @@ import { DEFAULT_TIMEZONE as COMBO_DEFAULT_TIMEZONE } from '@/lib/restaurant-tim
 import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-lines'
 import { channelMismatchMessage, isOfferedInMode, promotionChannels } from '@/lib/sales-channels'
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
-import { isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
+import { describePromoDays, describePromoHours, isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
 import { getBaseUrl } from '@/lib/site-url'
 import { getIdentitySession } from '@/lib/tenant-access'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
@@ -1037,10 +1037,15 @@ export async function POST(
           )
         }
 
-        // Day-of-week + schedule check
-        if (!isPromoScheduledNow(promotion as any)) {
+        // Fechas + días + horario en la hora de la sede
+        if (!isPromoScheduledNow(promotion as any, (location as any)?.timezone || (tenant as any)?.timezone)) {
+          const p = promotion as any
           return NextResponse.json(
-            { error: `La promoción "${promotion.title}" no está disponible hoy` },
+            {
+              error: `La promoción "${promotion.title}" no está disponible en este momento: vale ${describePromoDays(p.activeDays)}, ${describePromoHours(p.activeTimeStart, p.activeTimeEnd)}. Quitala del pedido para continuar.`,
+              code: 'PROMO_OUT_OF_SCHEDULE',
+              promotionId: String(p._id),
+            },
             { status: 400 }
           )
         }
