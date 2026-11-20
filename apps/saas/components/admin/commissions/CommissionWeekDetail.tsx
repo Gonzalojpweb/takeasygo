@@ -123,6 +123,7 @@ export default function CommissionWeekDetail({ tenantSlug, weekKey, canPay }: { 
           <Row label="Tus productos (precio de carta)" value={pesos(t.productsCents)} strong />
           <Row label="Envíos" value={pesos(t.deliveryCents)} />
           <Row label="Comisión TakeasyGO de la semana" value={pesos(t.commissionCents)} strong />
+          {(t.deliveryPlatformFeeCents ?? 0) > 0 && <Row label="…de la cual es por gestión de envíos Rapiboy (incluida en el envío)" value={pesos(t.deliveryPlatformFeeCents)} />}
           {t.paidByCustomerCents > 0 && <Row label="…de la cual pagaron los clientes (cargo por usar la app)" value={pesos(t.paidByCustomerCents)} />}
           {t.paidByRestaurantCents > 0 && <Row label="…de la cual salió del total de los pedidos" value={pesos(t.paidByRestaurantCents)} />}
           {t.unknownOriginCents > 0 && <Row label="…de pedidos anteriores al desglose" value={pesos(t.unknownOriginCents)} />}
@@ -196,10 +197,16 @@ function Ticket({ t }: { t: CommissionTicket }) {
         <Line label="Tus productos (precio de carta)" value={pesos(t.productsCents)} />
         {ownSurcharge > 0 && <Line label="Tu recargo por transferencia" value={pesos(ownSurcharge)} />}
         {t.deliveryCents > 0 && <Line label="Envío" value={pesos(t.deliveryCents)} />}
-        {t.paidByCustomerCents !== null && t.paidByCustomerCents > 0 && <Line label="Cargo por usar la app (lo pagó el cliente)" value={pesos(t.paidByCustomerCents)} />}
+        {t.customerFeeCents !== null && t.customerFeeCents > 0 && <Line label="Cargo por usar la app (lo pagó el cliente)" value={pesos(t.customerFeeCents)} />}
         <Line label="Total que te transfirió el cliente" value={pesos(t.totalPaidCents)} strong />
       </dl>
       <dl className="space-y-0.5 border-t border-dashed border-border pt-2">
+        {(t.deliveryPlatformFeeCents ?? 0) > 0 && (
+          <>
+            <Line label="Comisión sobre el pedido" value={pesos(t.commissionCents - t.deliveryPlatformFeeCents)} />
+            <Line label="Comisión por gestión del envío" value={pesos(t.deliveryPlatformFeeCents)} />
+          </>
+        )}
         <Line label="Comisión TakeasyGO" value={pesos(t.commissionCents)} strong />
         <Line label="Te queda" value={pesos(t.restaurantKeepsCents)} />
       </dl>

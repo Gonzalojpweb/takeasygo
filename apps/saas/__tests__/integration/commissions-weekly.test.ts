@@ -107,17 +107,17 @@ beforeEach(async () => {
 describe('pricing: quién paga la comisión de una transferencia (delivery)', () => {
   it('con % de plataforma en el comercio, la paga el cliente; el recargo propio queda en el negocio', () => {
     const r = calculateFinalTotal(1_150_000, 'transfer', { transfer: { commissionPercent: 5 }, paymentSurcharges: { transfer: { feePercent: 2 } } }, {}, undefined, 'delivery', 150_000)
-    expect(r.platformFeeAmount).toBe(50_000) // 5 % de 10.000 (sin envío)
-    expect(r.surchargeAmount).toBe(70_000) // 7 % que paga el cliente
-    expect(r.platformFeeCustomerAmount).toBe(50_000)
+    expect(r.platformFeeAmount).toBe(57_500) // 5 % de 11.500 (con envío, igual que MP)
+    expect(r.surchargeAmount).toBe(77_500) // comisión + 2 % propio sobre productos
+    expect(r.platformFeeCustomerAmount).toBe(57_500)
     expect(r.merchantSurchargeAmount).toBe(20_000)
   })
   it('sin % propio en el comercio, el cliente paga la comisión con el % de la plataforma (nunca el restaurante)', () => {
     const r = calculateFinalTotal(1_150_000, 'transfer', {}, { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 4 } }, undefined, 'delivery', 150_000)
-    expect(r.platformFeeAmount).toBe(40_000)
-    expect(r.surchargeAmount).toBe(40_000)
-    expect(r.platformFeeCustomerAmount).toBe(40_000)
-    expect(r.finalTotal).toBe(1_190_000)
+    expect(r.platformFeeAmount).toBe(46_000)
+    expect(r.surchargeAmount).toBe(46_000)
+    expect(r.platformFeeCustomerAmount).toBe(46_000)
+    expect(r.finalTotal).toBe(1_196_000)
   })
   it('take away por transferencia: sin comisión', () => {
     const r = calculateFinalTotal(1_000_000, 'transfer', { transfer: { commissionPercent: 5 } }, {}, undefined, 'takeaway', 0)

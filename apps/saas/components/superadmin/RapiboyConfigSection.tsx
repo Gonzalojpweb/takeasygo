@@ -124,7 +124,7 @@ export default function RapiboyConfigSection({ tenantSlug, locationId, initialCo
           {/* Margen */}
           <div>
             <label className="block text-xs font-medium text-zinc-400 mb-1">
-              Margen (% sobre costo real de Rapiboy)
+              Comisión de envío TakeasyGO (% sobre el costo de Rapiboy)
             </label>
             <input
               type="number"
@@ -135,7 +135,7 @@ export default function RapiboyConfigSection({ tenantSlug, locationId, initialCo
               step={1}
             />
             <p className="text-[10px] text-zinc-600 mt-1">
-              Sin mínimo ni máximo. Ajustable desde este panel.
+              Se suma al precio de Rapiboy que paga el cliente y es ingreso de TakeasyGO: va en el split de Mercado Pago o en el saldo semanal de comisiones (transferencia/efectivo). El comercio la ve como parte de la comisión TakeasyGO.
             </p>
           </div>
 

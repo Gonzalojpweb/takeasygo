@@ -1,5 +1,6 @@
 import { TrendingUp } from 'lucide-react'
 import PlatformRevenuePanel from '@/components/superadmin/PlatformRevenuePanel'
+import RapiboyDeliveryBreakdown from '@/components/superadmin/RapiboyDeliveryBreakdown'
 
 // Ingresos de la plataforma: comisiones por semana o mes, por medio de pago y
 // cuánto aporta cada comercio. El layout del superadmin exige el rol; la API también.
@@ -20,6 +21,7 @@ export default function SuperAdminIngresosPage() {
         </p>
       </div>
       <PlatformRevenuePanel />
+      <RapiboyDeliveryBreakdown />
     </div>
   )
 }

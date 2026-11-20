@@ -1970,6 +1970,9 @@ export async function POST(
       checkoutQuoteTimestamp: Date
       transferBuffer: number
       environment: 'production' | 'uat'
+      /** Comisión de envío de TakeasyGO (centavos) y su % */
+      platformFee: number
+      platformFeePercent: number
     } | null
 
     if (isDeliveryOrder && body.deliveryAddress) {
@@ -2005,12 +2008,16 @@ export async function POST(
         // vio el cliente al cotizar); el colchón se calcula sobre el costo real.
         deliveryCostCalc = deliveryResult.cost + transferBuffer
 
-        // Guardar datos de checkout para la re-cotización en "ready"
+        // Guardar datos de checkout para la re-cotización en "ready".
+        // Comisión de envío de TakeasyGO = lo que se sumó al precio de Rapiboy
+        // (el «Margen» de la sede). Va al split de MP o al saldo de comisiones.
         rapiboyCheckoutData = {
           checkoutCost: deliveryResult.rapiboyCost,
           checkoutQuoteTimestamp: new Date(),
           transferBuffer,
           environment: loc?.rapiboyConfig?.environment === 'production' ? 'production' : 'uat',
+          platformFee: Math.max(0, deliveryResult.cost - deliveryResult.rapiboyCost),
+          platformFeePercent: loc?.rapiboyConfig?.margen ?? 0,
         }
       }
     }
@@ -2114,12 +2121,14 @@ export async function POST(
     }
 
     // ── Calcular pricing dinámico ────────────────────────────────────
-    // deliveryCostCalc se pasa para que el recargo de transferencia se calcule
-    // solo sobre subtotal (sin delivery) — el delivery es passthrough al repartidor.
+    // deliveryCostCalc: en transferencia el envío entra en la base de la
+    // comisión (igual que MP); el recargo propio del comercio es solo sobre
+    // productos. La comisión de envío de TakeasyGO (Rapiboy) se suma a la
+    // comisión del pedido en todos los medios.
     const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean() as any
     // Recargos con override por sede (sede propia > tenant).
     const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, location.settings)
-    const pricing = calculateFinalTotal(total, paymentMethod as any, pricingTenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc)
+    const pricing = calculateFinalTotal(total, paymentMethod as any, pricingTenant, platformConfig || {}, undefined, body.mode, deliveryCostCalc, rapiboyCheckoutData?.platformFee ?? 0)
 
     // ── orderNumber: perLocation (flag ON + prefijos completos) o legacy ──
     let orderNumber: string
@@ -2177,6 +2186,7 @@ export async function POST(
       // Desglose de quién paga la comisión (transferencia delivery): cliente vs comercio.
       'payment.platformFeeCustomerAmount': pricing.platformFeeCustomerAmount ?? null,
       'payment.merchantSurchargeAmount': pricing.merchantSurchargeAmount ?? null,
+      'payment.deliveryPlatformFeeAmount': pricing.deliveryPlatformFeeAmount,
       'payment.transferAccount': resolvedTransferAccount,
       notes: body.notes || '',
       trackingToken: crypto.randomUUID(),
@@ -2210,7 +2220,8 @@ export async function POST(
               driverName: '',
               quotedCost: rapiboyCheckoutData.checkoutCost,
               chargedToCustomer: deliveryCostCalc,
-              margin: deliveryCostCalc - rapiboyCheckoutData.checkoutCost,
+              margin: rapiboyCheckoutData.platformFee,
+              platformFeePercent: rapiboyCheckoutData.platformFeePercent,
               environment: rapiboyCheckoutData.environment,
               checkoutCost: rapiboyCheckoutData.checkoutCost,
               checkoutQuoteTimestamp: rapiboyCheckoutData.checkoutQuoteTimestamp,

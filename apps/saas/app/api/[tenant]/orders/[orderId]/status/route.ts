@@ -208,23 +208,23 @@ export async function PATCH(
             if (recotizacion.action === 'create_trip') {
               const viaje = await createTripForOrder(order, tripParams, rapiboyCfg)
               if (viaje) {
-                // TakeasyGO se queda la diferencia positiva entre lo cobrado y el costo real.
-                const finalSurplus = Math.max(0, recotizacion.chargedToCustomer - recotizacion.newCost)
+                // La comisión de envío de TakeasyGO quedó fijada en el checkout
+                // (payment.deliveryPlatformFeeAmount, ya incluida en la comisión
+                // del pedido). Lo que sobra entre lo cobrado y el costo real del
+                // viaje (colchón, baja de precio) es del comercio, que es quien
+                // le paga a Rapiboy. Se registra solo para el desglose.
+                const tgoDeliveryFee = order.payment?.deliveryPlatformFeeAmount ?? 0
+                const finalSurplus = Math.max(0, recotizacion.chargedToCustomer - tgoDeliveryFee - recotizacion.newCost)
                 const r = order.deliveryProvider!.rapiboy!
                 r.quotedCost = recotizacion.newCost
                 r.chargedToCustomer = recotizacion.chargedToCustomer
-                r.margin = recotizacion.chargedToCustomer - recotizacion.newCost
                 r.environment = rapiboyCfg.environment
                 r.quoteStatus = 'none'
                 r.pendingQuoteCost = 0
                 r.pendingQuoteTimestamp = null
                 recordCreatedTrip(order, viaje)
 
-                if (finalSurplus > 0) {
-                  order.payment = order.payment || {} as any
-                  order.payment.rapiboySurplus = finalSurplus
-                  order.payment.platformFeeAmount = (order.payment.platformFeeAmount || 0) + finalSurplus
-                }
+                if (order.payment) order.payment.rapiboySurplus = finalSurplus
                 console.log(`[status] Rapiboy trip created for order ${orderId}: ${viaje.tripId} (surplus: ${finalSurplus})`)
               }
             } else {

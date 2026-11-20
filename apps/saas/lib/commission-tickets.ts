@@ -39,8 +39,10 @@ export interface CommissionTicket {
   items: Array<{ name: string; quantity: number; unitCents: number; totalCents: number }>
   /** Productos a precio de carta (con descuentos aplicados). @storedAs cents */
   productsCents: number
-  /** @storedAs cents */
+  /** Envío que pagó el cliente (incluye la comisión de envío). @storedAs cents */
   deliveryCents: number
+  /** De la comisión, la parte por gestionar el envío (Rapiboy). @storedAs cents */
+  deliveryPlatformFeeCents: number
   /** Recargo por uso de la app que pagó el cliente (comisión). @storedAs cents */
   customerFeeCents: number | null
   /** Recargo propio del restaurante (queda en el negocio). @storedAs cents */
@@ -91,6 +93,7 @@ interface RawOrder {
     platformFeeAmount: number
     platformFeeCustomerAmount?: number | null
     merchantSurchargeAmount?: number | null
+    deliveryPlatformFeeAmount?: number | null
   }
 }
 
@@ -110,7 +113,12 @@ export function ticketFromOrder(o: RawOrder, settled: boolean): CommissionTicket
     items: (o.items ?? []).map((i) => ({ name: i.name, quantity: i.quantity, unitCents: i.price, totalCents: i.subtotal })),
     productsCents: Math.max(0, base - delivery),
     deliveryCents: delivery,
-    customerFeeCents: o.payment.platformFeeCustomerAmount ?? null,
+    deliveryPlatformFeeCents: o.payment.deliveryPlatformFeeAmount ?? 0,
+    // Recargo por usar la app: la parte de la comisión que el cliente pagó como
+    // recargo (la comisión de envío va dentro del envío, no es recargo).
+    customerFeeCents: o.payment.platformFeeCustomerAmount == null
+      ? null
+      : Math.max(0, o.payment.platformFeeCustomerAmount - (o.payment.deliveryPlatformFeeAmount ?? 0)),
     merchantSurchargeCents: o.payment.merchantSurchargeAmount ?? null,
     surchargeCents: surcharge,
     totalPaidCents: o.total,
@@ -134,6 +142,7 @@ export interface WeekTickets {
     totalPaidCents: number
     productsCents: number
     deliveryCents: number
+    deliveryPlatformFeeCents: number
     commissionCents: number
     paidByCustomerCents: number
     paidByRestaurantCents: number
@@ -148,7 +157,7 @@ export async function loadWeekTickets(tenantId: Types.ObjectId | string, key: st
   const tid = typeof tenantId === 'string' ? new mongoose.Types.ObjectId(tenantId) : tenantId
   const [orders, settlements] = await Promise.all([
     Order.find(commissionableFilter(tid, { createdAt: { $gte: weekStart, $lt: weekEnd } }))
-      .select('_id orderNumber createdAt total deliveryCost items.name items.quantity items.price items.subtotal payment.baseTotal payment.surchargeAmount payment.platformFeeAmount payment.platformFeeCustomerAmount payment.merchantSurchargeAmount')
+      .select('_id orderNumber createdAt total deliveryCost items.name items.quantity items.price items.subtotal payment.baseTotal payment.surchargeAmount payment.platformFeeAmount payment.platformFeeCustomerAmount payment.merchantSurchargeAmount payment.deliveryPlatformFeeAmount')
       .sort({ createdAt: 1 })
       .lean<RawOrder[]>(),
     CommissionSettlement.find({ tenantId: tid }).select('orderIds').lean<Array<{ orderIds?: string[] }>>(),
@@ -167,6 +176,7 @@ export async function loadWeekTickets(tenantId: Types.ObjectId | string, key: st
       totalPaidCents: sum((t) => t.totalPaidCents),
       productsCents: sum((t) => t.productsCents),
       deliveryCents: sum((t) => t.deliveryCents),
+      deliveryPlatformFeeCents: sum((t) => t.deliveryPlatformFeeCents),
       commissionCents: sum((t) => t.commissionCents),
       paidByCustomerCents: sum((t) => t.paidByCustomerCents ?? 0),
       paidByRestaurantCents: sum((t) => t.paidByRestaurantCents ?? 0),

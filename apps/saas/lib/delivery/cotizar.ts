@@ -198,8 +198,9 @@ export async function recotizarParaReady(input: RecotizarReadyInput): Promise<Re
   const costDifference = newCost - coveredCost
 
   if (costDifference <= 0) {
-    // El precio bajó o se mantuvo → crear viaje automáticamente
-    // TakeasyGO se queda la diferencia como margen
+    // El precio bajó o se mantuvo → crear viaje automáticamente.
+    // La comisión de envío de TakeasyGO ya quedó fijada en el checkout; lo que
+    // sobra es del comercio (es quien le paga a Rapiboy).
     return {
       action: 'create_trip',
       newCost,

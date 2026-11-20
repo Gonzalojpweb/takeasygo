@@ -322,7 +322,7 @@ export async function syncRapiboyTrip(orderId: unknown, tenantId: unknown): Prom
   if (!claimed) return null
 
   try {
-    const location = await Location.findOne({ _id: claimed.locationId, tenantId }).select('rapiboyConfig').lean() as any
+    const location = await Location.findOne({ _id: claimed.locationId as any, tenantId: tenantId as any }).select('rapiboyConfig').lean() as any
     const cfg = location ? rapiboyConfigFromLocation(location) : null
     if (!cfg) return null
     const pedido = await consultarViaje({ idPedido: claimed.deliveryProvider!.rapiboy!.tripId }, cfg)

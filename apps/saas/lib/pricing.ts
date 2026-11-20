@@ -14,6 +14,12 @@ export interface PricingResult {
   platformFeeCustomerAmount?: number
   /** Transferencia: recargo propio del comercio (queda en el negocio). @storedAs cents */
   merchantSurchargeAmount?: number
+  /**
+   * Comisión de TakeasyGO por gestionar el envío tercerizado (Rapiboy): el %
+   * que se suma al precio de Rapiboy. YA está incluida en platformFeeAmount;
+   * se informa aparte para el desglose. @storedAs cents
+   */
+  deliveryPlatformFeeAmount: number
 }
 
 export type PaymentMethod = 'mercadopago' | 'kripton' | 'transfer' | 'cash'
@@ -92,9 +98,23 @@ export function calculateFinalTotal(
   overridePlatformFeePercent?: number,
   /** Order mode (takeaway/delivery/etc). Transfer commission only applies to delivery orders. */
   orderMode?: string,
-  /** Delivery cost in cents. For transfer, the surcharge is calculated on (baseTotal - deliveryCost) — delivery is a passthrough and excluded from the commission base. */
-  deliveryCost?: number
+  /**
+   * Costo de envío en centavos (ya incluido en baseTotal).
+   *  - Transferencia (20/11/2026): el envío ENTRA en la base de la comisión,
+   *    igual que en Mercado Pago. El recargo propio del comercio sigue siendo
+   *    solo sobre productos.
+   *  - Efectivo: el envío sigue fuera de la base de la comisión.
+   */
+  deliveryCost?: number,
+  /**
+   * Comisión de envío de TakeasyGO (centavos), ya incluida en el precio del
+   * envío que paga el cliente. Se suma a platformFeeAmount en TODOS los medios
+   * (en MP viaja en el marketplace_fee; en transferencia/efectivo entra en el
+   * saldo de comisiones). No lleva comisión encima y no es un recargo.
+   */
+  deliveryPlatformFee = 0
 ): PricingResult {
+  const deliveryPlatformFeeAmount = Math.max(0, Math.round(deliveryPlatformFee || 0))
   // ── Efectivo / Transferencia: comisión MANUAL (lib/commission-rules) ──
   // Qué combinaciones medio × modo pagan comisión y con qué % lo decide el
   // superadmin; si se recarga al cliente o la absorbe el comercio, el admin.
@@ -104,18 +124,24 @@ export function calculateFinalTotal(
   //    EXACTAMENTE ese monto si le corresponde (platformFeeCustomerAmount).
   //  - recargo propio del comercio por transferencia (paymentSurcharges.
   //    transfer.feePercent): queda en el negocio; como antes, solo delivery.
-  // Base: subtotal sin envío (el delivery es passthrough al repartidor).
+  // Base de la comisión:
+  //  - transferencia: productos + envío (sin la comisión de envío de TakeasyGO,
+  //    para no cobrar comisión sobre la comisión) — igual que Mercado Pago.
+  //  - efectivo: productos sin envío (regla histórica).
   if (paymentMethod === 'transfer' || paymentMethod === 'cash') {
     const commission = resolveManualCommission(paymentMethod as ManualCommissionMethod, orderMode, tenant, platformConfig, overridePlatformFeePercent)
     const merchantFeePercent = paymentMethod === 'transfer' && orderMode === 'delivery'
       ? (tenant.paymentSurcharges?.transfer?.feePercent ?? 0)
       : 0
 
-    const subtotal = Math.max(0, baseTotal - (deliveryCost ?? 0))
-    const platformFeeAmount = commission.percent > 0 ? Math.ceil(subtotal * commission.percent / 100) : 0
-    const platformFeeCustomerAmount = commission.payer === 'customer' ? platformFeeAmount : 0
-    const merchantSurchargeAmount = Math.round(subtotal * merchantFeePercent / 100)
-    const surchargeAmount = platformFeeCustomerAmount + merchantSurchargeAmount
+    const productsSubtotal = Math.max(0, baseTotal - (deliveryCost ?? 0))
+    const commissionBase = paymentMethod === 'transfer'
+      ? Math.max(0, baseTotal - deliveryPlatformFeeAmount)
+      : productsSubtotal
+    const orderFee = commission.percent > 0 ? Math.ceil(commissionBase * commission.percent / 100) : 0
+    const orderFeeCustomer = commission.payer === 'customer' ? orderFee : 0
+    const merchantSurchargeAmount = Math.round(productsSubtotal * merchantFeePercent / 100)
+    const surchargeAmount = orderFeeCustomer + merchantSurchargeAmount
     const surchargePercent = merchantFeePercent + (commission.payer === 'customer' ? commission.percent : 0)
 
     return {
@@ -123,9 +149,11 @@ export function calculateFinalTotal(
       surchargePercent,
       surchargeAmount,
       finalTotal: baseTotal + surchargeAmount,
-      platformFeeAmount,
-      platformFeeCustomerAmount,
+      platformFeeAmount: orderFee + deliveryPlatformFeeAmount,
+      // La comisión de envío la paga siempre el cliente (va dentro del envío).
+      platformFeeCustomerAmount: orderFeeCustomer + deliveryPlatformFeeAmount,
       merchantSurchargeAmount,
+      deliveryPlatformFeeAmount,
     }
   }
 
@@ -137,7 +165,8 @@ export function calculateFinalTotal(
       surchargePercent: 0,
       surchargeAmount: 0,
       finalTotal: baseTotal,
-      platformFeeAmount: 0,
+      platformFeeAmount: deliveryPlatformFeeAmount,
+      deliveryPlatformFeeAmount,
     }
   }
 
@@ -147,7 +176,7 @@ export function calculateFinalTotal(
   const finalTotal = Math.ceil(baseTotal / (1 - totalFees))
   const surchargeAmount = finalTotal - baseTotal
   const surchargePercent = baseTotal > 0 ? Math.round((surchargeAmount / baseTotal) * 10000) / 100 : 0
-  const platformFeeAmount = Math.ceil(finalTotal * platformFee)
+  const platformFeeAmount = Math.ceil(finalTotal * platformFee) + deliveryPlatformFeeAmount
 
   return {
     baseTotal,
@@ -155,15 +184,15 @@ export function calculateFinalTotal(
     surchargeAmount,
     finalTotal,
     platformFeeAmount,
+    deliveryPlatformFeeAmount,
   }
 }
 
 /**
- * Agrega el surplus de Rapiboy (diferencia positiva) al platformFeeAmount.
- * Cuando Rapiboy cobra MENOS de lo que el cliente pagó, la diferencia es para TakeasyGO.
- * Se suma al platformFeeAmount para que el restaurante pague la comisión total.
+ * Comisión de envío de TakeasyGO sobre el costo real de Rapiboy (centavos).
+ * Es el % que se suma al precio de Rapiboy («Margen» de la sede).
  */
-export function addRapiboySurplus(platformFeeAmount: number, rapiboySurplus: number): number {
-  if (rapiboySurplus <= 0) return platformFeeAmount
-  return platformFeeAmount + rapiboySurplus
+export function deliveryPlatformFeeOf(rapiboyCostCents: number, percent: number): number {
+  if (!(rapiboyCostCents > 0) || !(percent > 0)) return 0
+  return Math.round(rapiboyCostCents * (percent / 100))
 }

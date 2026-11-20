@@ -16,16 +16,17 @@ import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
 import { chargedManualMethods, resolveManualCommission, sanitizeCommissionRules } from '@/lib/commission-rules'
 
 const PLATFORM = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 4, takeasygoCashCommissionPercent: 2 } }
-// $11.500 con $1.500 de envío ⇒ base de comisión $10.000 (centavos).
+// $11.500 con $1.500 de envío (centavos). Transferencia: base $11.500 (con
+// envío, desde 20/11/2026). Efectivo: base $10.000 (sin envío).
 const BASE = 1_150_000
 const DELIVERY = 150_000
 
 describe('sin matriz activada: regla histórica sin cambios', () => {
   it('transferencia + delivery: la paga el cliente con el % global', () => {
     const r = calculateFinalTotal(BASE, 'transfer', {}, PLATFORM, undefined, 'delivery', DELIVERY)
-    expect(r.platformFeeAmount).toBe(40_000)
-    expect(r.platformFeeCustomerAmount).toBe(40_000)
-    expect(r.finalTotal).toBe(BASE + 40_000)
+    expect(r.platformFeeAmount).toBe(46_000) // 4 % de $11.500 (con envío)
+    expect(r.platformFeeCustomerAmount).toBe(46_000)
+    expect(r.finalTotal).toBe(BASE + 46_000)
   })
   it('transferencia take away y efectivo: sin comisión', () => {
     expect(calculateFinalTotal(1_000_000, 'transfer', { transfer: { commissionPercent: 5 } }, PLATFORM, undefined, 'takeaway', 0).platformFeeAmount).toBe(0)
@@ -35,7 +36,7 @@ describe('sin matriz activada: regla histórica sin cambios', () => {
   })
   it('el admin no puede absorberla todavía: commissionPayer se ignora sin matriz', () => {
     const r = calculateFinalTotal(BASE, 'transfer', { commissionPayer: { transfer: 'merchant' } }, PLATFORM, undefined, 'delivery', DELIVERY)
-    expect(r.platformFeeCustomerAmount).toBe(40_000)
+    expect(r.platformFeeCustomerAmount).toBe(46_000)
   })
 })
 
@@ -72,9 +73,9 @@ describe('con matriz del superadmin', () => {
   it('transferencia absorbida: el recargo propio del comercio sigue (delivery), la comisión no se recarga', () => {
     const t = { commissionRules: { enabled: true, transfer: { modes: ['delivery'] } }, commissionPayer: { transfer: 'merchant' as const }, transfer: { commissionPercent: 5 }, paymentSurcharges: { transfer: { feePercent: 2 } } }
     const r = calculateFinalTotal(BASE, 'transfer', t, PLATFORM, undefined, 'delivery', DELIVERY)
-    expect(r.platformFeeAmount).toBe(50_000)
+    expect(r.platformFeeAmount).toBe(57_500) // 5 % de $11.500 (con envío)
     expect(r.platformFeeCustomerAmount).toBe(0)
-    expect(r.merchantSurchargeAmount).toBe(20_000)
+    expect(r.merchantSurchargeAmount).toBe(20_000) // 2 % solo de productos
     expect(r.surchargeAmount).toBe(20_000)
   })
 

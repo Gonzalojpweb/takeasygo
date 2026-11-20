@@ -19,13 +19,14 @@ describe('calculateFinalTotal - transferencia', () => {
     expect(r.platformFeeAmount).toBe(1050) // 1.5% de 70000
   })
 
-  it('Transferencia + Delivery con deliveryCost → recargo SOLO sobre subtotal (sin delivery)', () => {
+  it('Transferencia + Delivery con deliveryCost → la comisión incluye el envío (igual que Mercado Pago, 20/11/2026)', () => {
     // baseTotal = 70000 (subtotal 68000 + delivery 2000)
     const r = calculateFinalTotal(70000, 'transfer', tenant, platformConfig, undefined, 'delivery', 2000)
-    // surcharge = 1.5% de 68000 (subtotal) = 1020, NO de 70000
-    expect(r.surchargeAmount).toBe(1020)
-    expect(r.platformFeeAmount).toBe(1020) // platformFeeAmount = surchargeAmount
-    expect(r.finalTotal).toBe(71020) // 70000 + 1020
+    // 1.5% de 70000 (productos + envío) = 1050
+    expect(r.surchargeAmount).toBe(1050)
+    expect(r.platformFeeAmount).toBe(1050)
+    expect(r.finalTotal).toBe(71050)
+    expect(r.deliveryPlatformFeeAmount).toBe(0)
   })
 
   it('Transferencia + Delivery + recargo propio del comercio → cliente paga ambos, a TakeasyGO solo le corresponde su comisión', () => {
@@ -86,12 +87,12 @@ describe('calculateFinalTotal - transferencia', () => {
     const pcConDefault = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 1 } } // 1% default transfer
     // baseTotal = 50000 (subtotal 48000 + delivery 2000)
     const r = calculateFinalTotal(50000, 'transfer', tenantNoSurcharge, pcConDefault, undefined, 'delivery', 2000)
-    expect(r.platformFeeAmount).toBe(480) // 1 % de 48000 (sin envío)
-    expect(r.surchargeAmount).toBe(480) // lo paga el cliente
+    expect(r.platformFeeAmount).toBe(500) // 1 % de 50000 (con envío)
+    expect(r.surchargeAmount).toBe(500) // lo paga el cliente
     expect(r.surchargePercent).toBe(1)
-    expect(r.platformFeeCustomerAmount).toBe(480)
+    expect(r.platformFeeCustomerAmount).toBe(500)
     expect(r.merchantSurchargeAmount).toBe(0)
-    expect(r.finalTotal).toBe(50480)
+    expect(r.finalTotal).toBe(50500)
   })
 
   it('Transferencia + delivery: el cliente paga EXACTAMENTE la comisión (nunca el restaurante), con o sin recargo propio', () => {

@@ -88,7 +88,7 @@ export interface ILocation extends Document {
     /** Token de API de Rapiboy, cifrado con AES-256-GCM. @storedAs encrypted */
     apiToken: string
     environment: 'production' | 'uat'
-    /** Porcentaje de margen que TakeasyGO cobra sobre la diferencia entre el costo real de Rapiboy y lo que se le cobra al cliente. Dinámico, sin mínimo ni máximo en código. @storedAs percent */
+    /** Comisión de envío de TakeasyGO: % sobre el costo de Rapiboy que se suma al precio del envío y se cobra como comisión (split MP / saldo semanal). @storedAs percent */
     margen: number
     /** Código fijo de TakeasyGO en la plataforma de Rapiboy */
     codigoPlataforma: string

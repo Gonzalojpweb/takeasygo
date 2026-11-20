@@ -72,7 +72,12 @@ if (!success) {
       ? account.commissionPercent
       : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
     const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, locationSettings)
-    const pricing = calculateFinalTotal(order.payment.baseTotal || order.total, 'mercadopago', pricingTenant, platformConfig || {}, platformFeePercent)
+    const pricing = calculateFinalTotal(
+      order.payment.baseTotal || order.total, 'mercadopago', pricingTenant, platformConfig || {}, platformFeePercent,
+      order.orderMode, order.deliveryCost ?? 0,
+      // Comisión de envío de TakeasyGO (Rapiboy): viaja en el mismo split.
+      order.payment.deliveryPlatformFeeAmount ?? 0,
+    )
 
     // ── Usar token de OAuth si está vigente, sino el propio del tenant ────────
     const rawToken = oauthValid
@@ -130,10 +135,18 @@ if (!success) {
     // ── Save mpAccountId BEFORE creating preference (prevent race condition) ──
     //    If we save after, the webhook can arrive before the Order has mpAccountId,
     //    and try-all-secrets won't know which account to persist.
+    // Lo que efectivamente se le descuenta al comercio en el split queda
+    // registrado en el pedido (reportes y desglose del superadmin).
+    let paymentDirty = false
+    if (marketplaceFee !== undefined && order.payment.platformFeeAmount !== marketplaceFee) {
+      order.payment.platformFeeAmount = marketplaceFee
+      paymentDirty = true
+    }
     if (!order.payment.mpAccountId) {
       order.payment.mpAccountId = account.accountId || null
-      await order.save()
+      paymentDirty = true
     }
+    if (paymentDirty) await order.save()
 
     // ── Crear preferencia, con rollback si falla ────────────────────────────
     // La orden YA existe (se creó antes, en POST /orders). Si la preferencia

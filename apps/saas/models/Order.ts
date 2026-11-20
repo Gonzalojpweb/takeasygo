@@ -314,6 +314,11 @@ export interface IOrder extends Document {
     platformFeeCustomerAmount?: number | null
     /** Recargo propio del comercio (null = sin desglose). @storedAs cents */
     merchantSurchargeAmount?: number | null
+    /**
+     * Comisión de envío de TakeasyGO (el % sumado al precio de Rapiboy). Ya
+     * está incluida en platformFeeAmount y en deliveryCost. @storedAs cents
+     */
+    deliveryPlatformFeeAmount?: number
     // ── Transferencia ────────────────────────────────────────────────────
     transferConfirmed: boolean
     transferConfirmedAt: Date | null
@@ -338,7 +343,7 @@ export interface IOrder extends Document {
     cashAdjustmentAppliedAt: Date | null
     cashAdjustmentAppliedBy: string | null
     // ── Rapiboy surplus ────────────────────────────────────────────────
-    /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
+    /** Sobrante del envío para el COMERCIO (cobrado − comisión de envío TGO − costo real). Solo auditoría, no es comisión. @storedAs cents */
     rapiboySurplus: number
     // ── Idempotencia de comisión ───────────────────────────────────────
     /** true si el platformFeeAmount ya fue sumado a tenant.commissionBalance.transfer. Evita doble incremento. */
@@ -504,6 +509,8 @@ export interface IOrder extends Document {
       lastSyncAt?: Date | null
       /** Cuándo se avisó al local que el envío falló (una sola vez). */
       failureNotifiedAt?: Date | null
+      /** % de comisión de envío de TakeasyGO aplicado en el checkout. @storedAs percent */
+      platformFeePercent?: number
     }
   }
   createdAt: Date
@@ -710,6 +717,7 @@ const DeliveryProviderSchema = new Schema({
       lastEventAt:       { type: Date, default: null },
       lastSyncAt:        { type: Date, default: null },
       failureNotifiedAt: { type: Date, default: null },
+      platformFeePercent: { type: Number, default: 0 },
     },
     default: null,
   },
@@ -860,6 +868,8 @@ const OrderSchema = new Schema(
       platformFeeCustomerAmount: { type: Number, default: null, min: 0 },
       /** Recargo propio del comercio (queda en el negocio). null = sin desglose. @storedAs cents */
       merchantSurchargeAmount: { type: Number, default: null, min: 0 },
+      /** Comisión de envío de TakeasyGO (incluida en platformFeeAmount). @storedAs cents */
+      deliveryPlatformFeeAmount: { type: Number, default: 0, min: 0 },
       // ── Transferencia ───────────────────────────────────────────────
       transferConfirmed: { type: Boolean, default: false },
       transferConfirmedAt: { type: Date, default: null },
@@ -871,7 +881,7 @@ const OrderSchema = new Schema(
       cashAdjustmentAppliedAt: { type: Date, default: null },
       cashAdjustmentAppliedBy: { type: String, default: null },
       // ── Rapiboy surplus ──────────────────────────────────────────
-      /** Diferencia positiva de Rapiboy (centavos). Para auditoría. @storedAs cents */
+      /** Sobrante del envío para el COMERCIO (cobrado − comisión de envío TGO − costo real). Solo auditoría, no es comisión. @storedAs cents */
       rapiboySurplus: { type: Number, default: 0, min: 0 },
       // ── Idempotencia de comisión ─────────────────────────────────
       /** true si platformFeeAmount ya fue sumado a tenant.commissionBalance.transfer. Evita doble incremento. */
