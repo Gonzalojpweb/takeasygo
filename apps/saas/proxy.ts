@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import NextAuth from 'next-auth'
 import { authConfig } from '@/lib/auth.config'
 import { decidePosCors } from '@/lib/pos-cors'
+import { decideDisplayCors } from '@/lib/display-cors'
 import { parseLegacyMenuPath } from '@/lib/menu/location-ref'
 
 const { auth } = NextAuth(authConfig)
@@ -27,6 +28,9 @@ const EXCLUDED_PATHS = [
   // Multi-marca PR 9b: panel de organización (no es un comercio).
   '/grupo',
   '/api/grupo',
+  // Pantallas: API del reproductor y destino del QR de vinculación (no son un comercio).
+  '/api/display',
+  '/pantalla/',
 ]
 
 const SLUG_REGEX = /^[a-z0-9-]{2,50}$/
@@ -51,12 +55,16 @@ export async function proxy(request: NextRequest) {
 
   // ── CORS del POS (lib/pos-cors.ts) — antes que cualquier exclusión: ─────
   // /api/auth/logout está en EXCLUDED_PATHS y también lo llama el POS.
-  const cors = decidePosCors(
+  const posCors = decidePosCors(
     request.method,
     pathname,
     request.headers.get('origin'),
     request.nextUrl.origin
   )
+  // Pantallas (display.takeasygo.com → /api/display/*): mismo criterio que el POS.
+  const cors = posCors.kind !== 'not-applicable'
+    ? posCors
+    : decideDisplayCors(request.method, pathname, request.headers.get('origin'), request.nextUrl.origin)
   if (cors.kind === 'reject') {
     return NextResponse.json(
       { error: { code: 'forbidden', message: 'Origen no permitido' } },

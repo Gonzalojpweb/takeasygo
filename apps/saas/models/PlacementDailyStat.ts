@@ -17,6 +17,7 @@ export const PLACEMENTS = [
   'menu_promo_card',     // PromotionCard / PromotionCarousel del menú
   'menu_promo_story',    // círculo «Promociones» + PromotionStories del menú
   'explore_promo_card',  // ExplorePromoCard en Descubrí (/app)
+  'screen',              // pantallas del comercio (solo vía /api/display/stats con token del equipo)
 ] as const
 export type Placement = (typeof PLACEMENTS)[number]
 
@@ -46,6 +47,10 @@ export interface PlacementCounters {
   exits?: Partial<Record<ExitReason, number>>
   /** Índice de la pieza donde se salió del visor: { '0': n, '1': n, … } */
   exitsAt?: Record<string, number>
+  /** Pantallas: reproducciones completas, milisegundos en pantalla y errores. */
+  plays?: number
+  playMs?: number
+  errors?: number
 }
 
 export interface IPlacementDailyStat {

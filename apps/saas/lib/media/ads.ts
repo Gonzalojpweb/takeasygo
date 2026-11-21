@@ -24,6 +24,17 @@ export const PENDING_TAG = 'pending'
 const VIDEO_DELIVERY = { crop: 'limit', width: 720, height: 1280, quality: 'auto', video_codec: 'h264' } as const
 const VIDEO_POSTER = { crop: 'limit', width: 720, height: 1280, start_offset: '0' } as const
 
+/**
+ * Pantallas (21/11/2026): 1080p a 4 Mbps y 720p a 2 Mbps, SIN audio (no hay
+ * sonido y pesa menos), y portada. c_limit con caja de 1920×1920 (o 1280)
+ * sirve igual para horizontal y vertical.
+ */
+const SCREEN_1080 = { crop: 'limit', width: 1920, height: 1920, quality: 'auto', video_codec: 'h264', bit_rate: '4m', audio_codec: 'none' } as const
+const SCREEN_720 = { crop: 'limit', width: 1280, height: 1280, quality: 'auto', video_codec: 'h264', bit_rate: '2m', audio_codec: 'none' } as const
+const SCREEN_POSTER = { crop: 'limit', width: 1920, height: 1920, start_offset: '0' } as const
+const SCREEN_IMG_1080 = { crop: 'limit', width: 1920, height: 1920, quality: 'auto' } as const
+const SCREEN_IMG_720 = { crop: 'limit', width: 1280, height: 1280, quality: 'auto' } as const
+
 export type MediaOwner = { kind: 'platform' } | { kind: 'tenant'; tenantId: string }
 
 export function ownerSegment(owner: MediaOwner): string {
@@ -50,14 +61,14 @@ export function signUpload(owner: MediaOwner, surface: MediaSurface, kind: Media
     timestamp: Math.floor(now / 1000),
     public_id: publicId,
     asset_folder: folder,
-    upload_preset: adsPreset(kind),
+    upload_preset: surface === 'screen' && kind === 'video' ? adsPreset('screen_video') : adsPreset(kind),
     tags: PENDING_TAG,
   }
   if (kind === 'video') {
-    params.eager = (cloudinary.utils as unknown as { build_eager: (e: object[]) => string }).build_eager([
-      { ...VIDEO_DELIVERY, format: 'mp4' },
-      { ...VIDEO_POSTER, format: 'jpg' },
-    ])
+    const buildEager = (cloudinary.utils as unknown as { build_eager: (e: object[]) => string }).build_eager
+    params.eager = surface === 'screen'
+      ? buildEager([{ ...SCREEN_1080, format: 'mp4' }, { ...SCREEN_720, format: 'mp4' }, { ...SCREEN_POSTER, format: 'jpg' }])
+      : buildEager([{ ...VIDEO_DELIVERY, format: 'mp4' }, { ...VIDEO_POSTER, format: 'jpg' }])
     params.eager_async = 'true'
   }
   const signature = cloudinary.utils.api_sign_request(params, creds.api_secret)
@@ -89,6 +100,8 @@ export interface VerifiedMedia {
   durationMs: number | null
   /** Aviso (no rechazo): la imagen tiene otra proporción y se va a recortar al mostrarla. */
   warning: string | null
+  /** Solo pantalla: variante 720p (equipos débiles o pantallas chicas). */
+  url720?: string | null
 }
 
 export type VerifyResult =
@@ -148,6 +161,15 @@ export function cloudinaryAdsApi(): AdsApi {
   }
 }
 
+/** URLs de pantalla (1080p, 720p y portada) a partir del public_id. */
+export function screenUrls(publicId: string, kind: MediaKind): { url: string; url720: string; posterUrl: string | null } {
+  const { cloud_name } = adsCreds()
+  const u = (t: object, rt: MediaKind, format?: string) =>
+    cloudinary.url(publicId, { cloud_name, secure: true, resource_type: rt, transformation: [t], ...(format ? { format } : {}), urlAnalytics: false } as never)
+  if (kind === 'image') return { url: u(SCREEN_IMG_1080, 'image'), url720: u(SCREEN_IMG_720, 'image'), posterUrl: null }
+  return { url: u(SCREEN_1080, 'video', 'mp4'), url720: u(SCREEN_720, 'video', 'mp4'), posterUrl: u(SCREEN_POSTER, 'video', 'jpg') }
+}
+
 export function deliveryUrls(publicId: string, kind: MediaKind, secureUrl?: string): { url: string; posterUrl: string | null } {
   const { cloud_name } = adsCreds()
   if (kind === 'image') {
@@ -165,6 +187,8 @@ export async function verifyUpload(
   kind: MediaKind,
   publicId: string,
   api: AdsApi = cloudinaryAdsApi(),
+  /** Tope extra (p. ej., biblioteca de pantallas del comercio): null = pasa; texto = se rechaza y se borra. */
+  quota?: (bytes: number) => Promise<string | null>,
 ): Promise<VerifyResult> {
   if (!belongsTo(publicId, owner, surface)) {
     // Nunca se toca un archivo ajeno.
@@ -179,7 +203,13 @@ export async function verifyUpload(
     await api.destroy(publicId, kind).catch(() => {})
     return { ok: false, status: 422, error: problem, deleted: true }
   }
-  const { url, posterUrl } = deliveryUrls(publicId, kind, info.secure_url)
+  const over = quota ? await quota(facts.bytes) : null
+  if (over) {
+    await api.destroy(publicId, kind).catch(() => {})
+    return { ok: false, status: 409, error: over, deleted: true }
+  }
+  const screen = surface === 'screen' ? screenUrls(publicId, kind) : null
+  const { url, posterUrl } = screen ?? deliveryUrls(publicId, kind, info.secure_url)
   return {
     ok: true,
     media: {
@@ -187,6 +217,7 @@ export async function verifyUpload(
       width: facts.width, height: facts.height, bytes: facts.bytes,
       durationMs: kind === 'video' && facts.duration !== null ? Math.round(facts.duration * 1000) : null,
       warning: kind === 'image' ? cropWarning(surface, facts.width, facts.height) : null,
+      ...(screen ? { url720: screen.url720 } : {}),
     },
   }
 }

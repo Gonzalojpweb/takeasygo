@@ -33,6 +33,9 @@ export function effectiveOwner(doc: { owner?: Partial<StoryOwner> | null }): { k
 
 /** Superficies efectivas (las viejas, sin campo o vacías, son menu_story). */
 export function effectiveSurfaces(doc: { surfaces?: string[] | null }): StorySurface[] {
+  // Pieza de pantalla: NO es story de ninguna superficie (antes caía al
+  // valor por defecto menu_story por no reconocer 'screen').
+  if ((doc.surfaces ?? []).includes('screen')) return []
   const list = (doc.surfaces ?? []).filter((s): s is StorySurface => (STORY_SURFACES as readonly string[]).includes(s))
   return list.length ? list : [...DEFAULT_STORY_SURFACES]
 }

@@ -102,7 +102,8 @@ export function adsFolderRoot(): string {
   return envClean('CLOUDINARY_ADS_FOLDER_ROOT') || 'ads'
 }
 
-export function adsPreset(kind: 'image' | 'video'): string {
+export function adsPreset(kind: 'image' | 'video' | 'screen_video'): string {
+  if (kind === 'screen_video') return envClean('CLOUDINARY_ADS_SCREEN_VIDEO_PRESET') || 'tgo_ads_screen_video'
   return (kind === 'image' ? envClean('CLOUDINARY_ADS_IMAGE_PRESET') : envClean('CLOUDINARY_ADS_VIDEO_PRESET'))
     || (kind === 'image' ? 'tgo_ads_image' : 'tgo_ads_video')
 }

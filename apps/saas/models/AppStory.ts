@@ -5,7 +5,8 @@ export type AppStoryType = 'feature' | 'tutorial' | 'promotion' | 'announcement'
 // CP2 (20/11/2026): dueño y superficies. Valores por defecto y SIN migración:
 // las stories viejas no tienen estos campos y cuentan como plataforma +
 // menu_story (ver lib/app-story-owner.ts → effectiveOwner/effectiveSurfaces).
-export type AppStorySurface = 'menu_story' | 'app_story' | 'home_banner'
+// 21/11/2026: 'screen' = pantallas del comercio (solo contenido propio; nunca story del menú).
+export type AppStorySurface = 'menu_story' | 'app_story' | 'home_banner' | 'screen'
 export interface AppStoryOwner {
   kind: 'platform' | 'tenant'
   tenantId: mongoose.Types.ObjectId | null
@@ -35,6 +36,10 @@ export interface IAppStory {
   }
   owner?: AppStoryOwner
   surfaces?: AppStorySurface[]
+  /** Pantallas: tiempo en pantalla de una imagen (ms, 5–60 s). */
+  displayDurationMs?: number | null
+  /** Pantallas: datos del archivo verificado (orientación, peso, variante 720p). */
+  media?: { publicId?: string; width?: number; height?: number; bytes?: number; orientation?: 'landscape' | 'portrait' } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -107,8 +112,19 @@ const AppStorySchema = new Schema<IAppStory>(
     },
     // Lista abierta: sumar una superficie = agregar el valor acá y en lib/app-story-owner.ts.
     surfaces: {
-      type: [{ type: String, enum: ['menu_story', 'app_story', 'home_banner'] }],
+      type: [{ type: String, enum: ['menu_story', 'app_story', 'home_banner', 'screen'] }],
       default: ['menu_story'],
+    },
+    displayDurationMs: { type: Number, default: null, min: 5_000, max: 60_000 },
+    media: {
+      type: new Schema({
+        publicId: { type: String, maxlength: 200 },
+        width: { type: Number, min: 0 },
+        height: { type: Number, min: 0 },
+        bytes: { type: Number, min: 0 },
+        orientation: { type: String, enum: ['landscape', 'portrait'] },
+      }, { _id: false }),
+      default: null,
     },
   },
   {

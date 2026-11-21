@@ -24,6 +24,7 @@ export const PLACEMENT_LABELS: Record<Placement, string> = {
   menu_promo_card: 'Tarjetas de promo del menú',
   menu_promo_story: 'Stories de promos del menú',
   explore_promo_card: 'Promos en Descubrí',
+  screen: 'Pantallas',
 }
 
 export interface Counters {
@@ -36,6 +37,9 @@ export interface Counters {
   tapsUnique: number
   tapsBy: Record<string, number>
   exitsBy: Record<string, number>
+  /** Pantallas: reproducciones completas y milisegundos en pantalla. */
+  plays: number
+  playMs: number
 }
 
 export interface PieceRow extends Counters {
@@ -69,12 +73,13 @@ export interface ReportFilter {
   placement?: Placement | null
 }
 
-const empty = (): Counters => ({ impressions: 0, reach: 0, opens: 0, views: 0, completes: 0, taps: 0, tapsUnique: 0, tapsBy: {}, exitsBy: {} })
+const empty = (): Counters => ({ impressions: 0, reach: 0, opens: 0, views: 0, completes: 0, taps: 0, tapsUnique: 0, tapsBy: {}, exitsBy: {}, plays: 0, playMs: 0 })
 const rate = (num: number, den: number) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null)
 
 type RawGroup = {
   _id: { placement: Placement; kind: PieceKind; pieceId: mongoose.Types.ObjectId | null }
   impressions: number; reach: number; opens: number; views: number; completes: number; taps: number; tapsUnique: number
+  plays: number; playMs: number
 } & Record<string, unknown>
 
 export async function buildMarketingReport(f: ReportFilter): Promise<MarketingReport> {
@@ -93,6 +98,7 @@ export async function buildMarketingReport(f: ReportFilter): Promise<MarketingRe
         _id: { placement: '$placement', kind: '$kind', pieceId: '$pieceId' },
         impressions: sum('impressions'), reach: sum('impressionsUnique'), opens: sum('opens'),
         views: sum('views'), completes: sum('completes'), taps: sum('ctaTaps'), tapsUnique: sum('ctaTapsUnique'),
+        plays: sum('plays'), playMs: sum('playMs'),
         ...tapFields, ...exitFields,
       } },
     ]),
@@ -120,12 +126,12 @@ export async function buildMarketingReport(f: ReportFilter): Promise<MarketingRe
 
   const toCounters = (g: RawGroup): Counters => ({
     impressions: g.impressions, reach: g.reach, opens: g.opens, views: g.views, completes: g.completes,
-    taps: g.taps, tapsUnique: g.tapsUnique,
+    taps: g.taps, tapsUnique: g.tapsUnique, plays: g.plays ?? 0, playMs: g.playMs ?? 0,
     tapsBy: Object.fromEntries(TAP_ACTIONS.map((a) => [a, Number(g[`tap_${a}`]) || 0]).filter(([, v]) => (v as number) > 0)),
     exitsBy: Object.fromEntries(EXIT_REASONS.map((r) => [r, Number(g[`exit_${r}`]) || 0]).filter(([, v]) => (v as number) > 0)),
   })
   const add = (a: Counters, b: Counters) => {
-    for (const k of ['impressions', 'reach', 'opens', 'views', 'completes', 'taps', 'tapsUnique'] as const) a[k] += b[k]
+    for (const k of ['impressions', 'reach', 'opens', 'views', 'completes', 'taps', 'tapsUnique', 'plays', 'playMs'] as const) a[k] += b[k]
     for (const [k, v] of Object.entries(b.tapsBy)) a.tapsBy[k] = (a.tapsBy[k] ?? 0) + v
     for (const [k, v] of Object.entries(b.exitsBy)) a.exitsBy[k] = (a.exitsBy[k] ?? 0) + v
   }
@@ -145,13 +151,14 @@ export async function buildMarketingReport(f: ReportFilter): Promise<MarketingRe
       continue
     }
     add(totals, c)
-    const isStory = c.views > 0 || placement === 'menu_story' || placement === 'app_story' || placement === 'menu_promo_story'
+    const isScreen = placement === 'screen'
+    const isStory = !isScreen && (c.views > 0 || placement === 'menu_story' || placement === 'app_story' || placement === 'menu_promo_story')
     const pid = g._id.pieceId ? String(g._id.pieceId) : null
     pieces.push({
       ...c, placement, placementLabel: PLACEMENT_LABELS[placement], kind: g._id.kind, pieceId: pid,
       name: (pid && names.get(pid)) || (g._id.kind === 'app_story' ? 'Story eliminada' : 'Promo eliminada'),
       completionRate: isStory ? rate(c.completes, c.views) : null,
-      ctr: isStory ? rate(c.taps, c.views) : rate(c.tapsUnique, c.reach),
+      ctr: isScreen ? null : isStory ? rate(c.taps, c.views) : rate(c.tapsUnique, c.reach),
     })
   }
   pieces.sort((a, b) => (b.views + b.impressions) - (a.views + a.impressions))

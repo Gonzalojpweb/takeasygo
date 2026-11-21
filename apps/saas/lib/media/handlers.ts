@@ -5,7 +5,7 @@ import { signUpload, verifyUpload, cloudinaryAdsApi, type AdsApi, type MediaOwne
 import type { MediaSurface } from '@/lib/media/spec'
 
 const signSchema = z.object({
-  surface: z.enum(['story', 'promo_card', 'home_banner', 'club_card', 'qr_promo']),
+  surface: z.enum(['story', 'promo_card', 'home_banner', 'club_card', 'qr_promo', 'screen']),
   kind: z.enum(['image', 'video']),
 })
 const confirmSchema = signSchema.extend({ publicId: z.string().min(1).max(200) })
@@ -27,14 +27,21 @@ export async function handleSign(owner: MediaOwner, allowed: readonly MediaSurfa
   }
 }
 
-export async function handleConfirm(owner: MediaOwner, allowed: readonly MediaSurface[], body: unknown, api: AdsApi = cloudinaryAdsApi()) {
+export async function handleConfirm(
+  owner: MediaOwner,
+  allowed: readonly MediaSurface[],
+  body: unknown,
+  api: AdsApi = cloudinaryAdsApi(),
+  /** Tope extra por superficie (pantallas: 20 activas y 1,5 GB por comercio). */
+  quotaFor?: (surface: MediaSurface) => ((bytes: number) => Promise<string | null>) | undefined,
+) {
   const parsed = confirmSchema.safeParse(body)
   if (!parsed.success || !allowed.includes(parsed.data.surface)) {
     return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
   }
   const { surface, kind, publicId } = parsed.data
   try {
-    const r = await verifyUpload(owner, surface, kind, publicId, api)
+    const r = await verifyUpload(owner, surface, kind, publicId, api, quotaFor?.(surface))
     if (!r.ok) return NextResponse.json({ error: r.error, deleted: r.deleted }, { status: r.status })
     return NextResponse.json({ media: r.media })
   } catch (e) {

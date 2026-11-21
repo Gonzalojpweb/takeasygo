@@ -23,6 +23,8 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // (/api/{slug}/…) tapadas por la carpeta (multi-marca PR 8)
   'agent', 'app-stories', 'business', 'cis', 'crm', 'cron', 'delivery', 'directory', 'internal', 'leads',
   'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'placements', 'push', 'tia', 'user', 'visits', 'wallet', 'webhooks',
+  // Pantallas y publicidad (21/11/2026)
+  'display', 'ads', 'publicidad', 'pantalla', 'pantallas',
   // Panel de organización (multi-marca)
   'grupo', 'grupos', 'org', 'orgs', 'organizacion', 'organizaciones',
   // Plataforma

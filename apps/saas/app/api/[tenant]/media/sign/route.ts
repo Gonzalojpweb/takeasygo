@@ -12,7 +12,7 @@ import { rateLimit } from '@/lib/rateLimit'
 import { handleSign } from '@/lib/media/handlers'
 
 // Promos, tarjetas de la tienda del club e ícono de QrPromo (todas bajo promotions.write).
-const SURFACES = ['promo_card', 'club_card', 'qr_promo'] as const
+const SURFACES = ['promo_card', 'club_card', 'qr_promo', 'screen'] as const
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params

@@ -23,7 +23,8 @@ export async function GET() {
 
     await connectDB()
 
-    const stories = await AppStory.find()
+    // Las piezas de pantalla son del comercio (panel «Pantallas»), no stories.
+    const stories = await AppStory.find({ surfaces: { $ne: 'screen' } })
       .sort({ sortOrder: 1, createdAt: -1 })
       .lean()
 

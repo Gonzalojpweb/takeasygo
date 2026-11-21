@@ -27,7 +27,7 @@ export async function GET(
     const { id } = await params
     await connectDB()
 
-    const story = await AppStory.findById(id).lean()
+    const story = await AppStory.findOne({ _id: id, surfaces: { $ne: 'screen' } }).lean()
     if (!story) {
       return NextResponse.json({ error: 'Story no encontrada' }, { status: 404 })
     }
@@ -63,7 +63,7 @@ export async function PUT(
     await connectDB()
 
     // 20/11/2026: link del CTA validado; el mismo link viejo inválido pasa con aviso.
-    const current = await AppStory.findById(id).select('ctaLink owner surfaces').lean<{ ctaLink?: string; owner?: any; surfaces?: string[] }>()
+    const current = await AppStory.findOne({ _id: id, surfaces: { $ne: 'screen' } }).select('ctaLink owner surfaces').lean<{ ctaLink?: string; owner?: any; surfaces?: string[] }>()
     if (!current) {
       return NextResponse.json({ error: 'Story no encontrada' }, { status: 404 })
     }
@@ -143,7 +143,7 @@ export async function DELETE(
     const { id } = await params
     await connectDB()
 
-    const story = await AppStory.findByIdAndDelete(id)
+    const story = await AppStory.findOneAndDelete({ _id: id, surfaces: { $ne: 'screen' } })
     if (!story) {
       return NextResponse.json({ error: 'Story no encontrada' }, { status: 404 })
     }

@@ -52,7 +52,7 @@ export function effectiveGrant(m: MembershipLite, tenantId: string): Grant | nul
 /** Segmentos de /api/* que NO son un comercio (carpetas fijas de app/api). */
 export const NON_TENANT_API_SEGMENTS: ReadonlySet<string> = new Set([
   'agent', 'app-stories', 'auth', 'business', 'cis', 'crm', 'cron', 'delivery', 'directory', 'explore',
-  'internal', 'leads', 'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'placements', 'push', 'superadmin',
+  'display', 'internal', 'leads', 'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'placements', 'push', 'superadmin',
   'tgo', 'tia', 'user', 'visits', 'wallet', 'webhooks',
   // Futuras (panel de organización)
   'grupo',

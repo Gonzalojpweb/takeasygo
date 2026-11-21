@@ -67,6 +67,8 @@ export function dedupKey(sid: string, pieceId: string, placement: string, event:
 
 /** ¿El tipo de evento tiene sentido en esa superficie y tipo de pieza? */
 export function isCoherent(e: PlacementEventInput): boolean {
+  // Pantallas: solo entran por /api/display/stats (token del equipo), nunca acá.
+  if (e.placement === 'screen') return false
   const story = STORY_PLACEMENTS.includes(e.placement)
   if (e.kind === 'entry') {
     // El círculo de stories en sí: solo se ve y se toca, sin pieza.

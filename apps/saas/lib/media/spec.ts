@@ -23,7 +23,7 @@
 // (de 9:16 a 4:5; horizontal se rechaza) · mínimo 720×1280.
 // ============================================================================
 
-export type MediaSurface = 'story' | 'promo_card' | 'home_banner' | 'club_card' | 'qr_promo'
+export type MediaSurface = 'story' | 'promo_card' | 'home_banner' | 'club_card' | 'qr_promo' | 'screen'
 export type MediaKind = 'image' | 'video'
 
 export interface SurfaceSpec {
@@ -36,6 +36,12 @@ export interface SurfaceSpec {
   kinds: MediaKind[]
   /** Zona segura (solo story): px libres arriba y abajo sobre 1920 de alto. */
   safeZone?: { top: number; bottom: number }
+  /** Límites propios de video (si no, los de story). */
+  video?: { minS: number; maxS: number; maxBytes: number; orientation: 'vertical' | 'any' }
+  /** Peso máximo de imagen (si no, 8 MB). */
+  imageMaxBytes?: number
+  /** Acepta horizontal y vertical: la proporción recomendada es la más cercana. */
+  bothOrientations?: boolean
 }
 
 export const IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'webp', 'heic'] as const
@@ -83,6 +89,18 @@ export const SURFACE_SPECS: Record<MediaSurface, SurfaceSpec> = {
     min: { w: 600, h: 450 },
     kinds: ['image'],
   },
+  // 21/11/2026: pantallas del comercio (tótem, TV, tablet). Horizontal o vertical.
+  screen: {
+    label: 'Pantalla',
+    howShown: 'Pantalla completa del tótem, TV o tablet; cada equipo muestra las de su orientación.',
+    ratioLabel: '16:9 (horizontal) o 9:16 (vertical)',
+    recommended: { w: 1920, h: 1080 },
+    min: { w: 1280, h: 720 },
+    kinds: ['image', 'video'],
+    video: { minS: 5, maxS: 60, maxBytes: 100 * 1024 * 1024, orientation: 'any' },
+    imageMaxBytes: 10 * 1024 * 1024,
+    bothOrientations: true,
+  },
   qr_promo: {
     label: 'Ícono de QrPromo',
     howShown: 'Cuadrado de 80×80 arriba del título de la promo QR.',
@@ -94,9 +112,18 @@ export const SURFACE_SPECS: Record<MediaSurface, SurfaceSpec> = {
 }
 
 /** Proporción ancho/alto recomendada de cada superficie. */
-export function recommendedRatio(surface: MediaSurface): number {
-  const r = SURFACE_SPECS[surface]?.recommended
-  return r ? r.w / r.h : 1
+export function recommendedRatio(surface: MediaSurface, width?: number, height?: number): number {
+  const spec = SURFACE_SPECS[surface]
+  const r = spec?.recommended
+  if (!r) return 1
+  // Pantallas: horizontal o vertical, según cómo venga el archivo.
+  if (spec.bothOrientations && width && height && height > width) return r.h / r.w
+  return r.w / r.h
+}
+
+/** Orientación de un archivo (cuadrado cuenta como horizontal). */
+export function orientationOf(width: number, height: number): 'landscape' | 'portrait' {
+  return height > width ? 'portrait' : 'landscape'
 }
 
 /**
@@ -105,7 +132,7 @@ export function recommendedRatio(surface: MediaSurface): number {
  */
 export function cropWarning(surface: MediaSurface, width: number, height: number): string | null {
   if (!width || !height) return null
-  const want = recommendedRatio(surface)
+  const want = recommendedRatio(surface, width, height)
   const got = width / height
   if (Math.abs(got - want) / want <= 0.15) return null
   const spec = SURFACE_SPECS[surface]
@@ -136,19 +163,31 @@ export function checkMedia(surface: MediaSurface, f: MediaFacts): string | null 
 
   if (f.kind === 'image') {
     if (!(IMAGE_FORMATS as readonly string[]).includes(format)) return `Formato «${format || 'desconocido'}» no admitido. Usá JPG, PNG, WebP o HEIC.`
-    if (f.bytes > IMAGE_MAX_BYTES) return `La imagen pesa ${mb(f.bytes)}; el máximo es 8 MB.`
+    const maxImg = spec.imageMaxBytes ?? IMAGE_MAX_BYTES
+    if (f.bytes > maxImg) return `La imagen pesa ${mb(f.bytes)}; el máximo es ${Math.round(maxImg / 1048576)} MB.`
     if (f.width > IMAGE_MAX_SIDE || f.height > IMAGE_MAX_SIDE) return `La imagen mide ${f.width}×${f.height}; el máximo es ${IMAGE_MAX_SIDE} px por lado.`
   } else {
     if (!(VIDEO_FORMATS as readonly string[]).includes(format)) return `Formato «${format || 'desconocido'}» no admitido. Usá MP4, MOV o WebM.`
-    if (f.bytes > VIDEO_MAX_BYTES) return `El video pesa ${mb(f.bytes)}; el máximo es 30 MB.`
+    const lim = spec.video ?? { minS: VIDEO_MIN_SECONDS, maxS: VIDEO_MAX_SECONDS, maxBytes: VIDEO_MAX_BYTES, orientation: 'vertical' as const }
+    if (f.bytes > lim.maxBytes) return `El video pesa ${mb(f.bytes)}; el máximo es ${Math.round(lim.maxBytes / 1048576)} MB.`
     const d = typeof f.duration === 'number' ? f.duration : NaN
     if (!Number.isFinite(d)) return 'No se pudo leer la duración del video.'
-    if (d < VIDEO_MIN_SECONDS) return `El video dura ${d.toFixed(1).replace('.', ',')} s; el mínimo es ${VIDEO_MIN_SECONDS} s.`
-    // Tolerancia: un reel que el celular muestra «0:15» puede durar 15,9 s (el visor corta en 15).
-    if (d >= VIDEO_MAX_SECONDS + 1) return `El video dura ${Math.round(d)} s; el máximo es ${VIDEO_MAX_SECONDS} s.`
-    const ratio = f.height > 0 ? f.width / f.height : 0
-    if (ratio > 1) return `El video es horizontal (${f.width}×${f.height}); tiene que ser vertical.`
-    if (ratio < VIDEO_RATIO_MIN || ratio > VIDEO_RATIO_MAX) return `El video mide ${f.width}×${f.height}; tiene que ser vertical entre 9:16 y 4:5.`
+    if (d < lim.minS) return `El video dura ${d.toFixed(1).replace('.', ',')} s; el mínimo es ${lim.minS} s.`
+    // Tolerancia: un reel que el celular muestra «0:15» puede durar 15,9 s (el visor corta en el máximo).
+    if (d >= lim.maxS + 1) return `El video dura ${Math.round(d)} s; el máximo es ${lim.maxS} s.`
+    if (lim.orientation === 'vertical') {
+      const ratio = f.height > 0 ? f.width / f.height : 0
+      if (ratio > 1) return `El video es horizontal (${f.width}×${f.height}); tiene que ser vertical.`
+      if (ratio < VIDEO_RATIO_MIN || ratio > VIDEO_RATIO_MAX) return `El video mide ${f.width}×${f.height}; tiene que ser vertical entre 9:16 y 4:5.`
+    } else {
+      // Horizontal o vertical: lado corto ≥ 720 y lado largo ≥ 1280.
+      const short = Math.min(f.width, f.height)
+      const long = Math.max(f.width, f.height)
+      if (short < Math.min(spec.min.w, spec.min.h) || long < Math.max(spec.min.w, spec.min.h)) {
+        return `El video mide ${f.width}×${f.height}; para ${spec.label.toLowerCase()} el mínimo es 1280×720 (o 720×1280 vertical).`
+      }
+      return null
+    }
   }
   if (f.kind === 'image') {
     // Imagen: cualquier proporción, con el lado corto al menos el mínimo de la superficie.

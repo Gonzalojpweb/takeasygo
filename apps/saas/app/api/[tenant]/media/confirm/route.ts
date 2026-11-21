@@ -10,9 +10,11 @@ import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { rateLimit } from '@/lib/rateLimit'
 import { handleConfirm } from '@/lib/media/handlers'
+import { cloudinaryAdsApi } from '@/lib/media/ads'
+import { screenUploadQuota } from '@/lib/display/quota'
 
 // Promos, tarjetas de la tienda del club e ícono de QrPromo (todas bajo promotions.write).
-const SURFACES = ['promo_card', 'club_card', 'qr_promo'] as const
+const SURFACES = ['promo_card', 'club_card', 'qr_promo', 'screen'] as const
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params
@@ -28,5 +30,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { success } = await rateLimit(`media-confirm:${tenant._id}`, 60, 60_000)
   if (!success) return NextResponse.json({ error: 'Demasiados pedidos' }, { status: 429 })
   const body = await request.json().catch(() => null)
-  return handleConfirm({ kind: 'tenant', tenantId: tenant._id.toString() }, SURFACES, body)
+  // Pantallas: tope de 20 piezas activas y 1,5 GB por comercio.
+  return handleConfirm({ kind: 'tenant', tenantId: tenant._id.toString() }, SURFACES, body, cloudinaryAdsApi(), (s) => (s === 'screen' ? screenUploadQuota(tenant._id.toString()) : undefined))
 }
