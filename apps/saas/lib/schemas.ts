@@ -71,6 +71,10 @@ const orderItemSchema = z.object({
   _slotName: z.string().max(100).optional(),
   // Bundle de promo: selección completa de slots (modelo nuevo)
   _bundle: z.array(promoBundleSlotSchema).max(20).optional(),
+  // 21/11/2026: descuento % de carta con el que el carrito mostró el precio.
+  // Nunca define el precio: si ya no vale, el server avisa (MENU_DISCOUNT_CHANGED).
+  menuDiscountPromotionId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
+  menuDiscountPercent: z.number().min(0).max(100).optional(),
 })
 
 const deliveryAddressSchema = z.object({

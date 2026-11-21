@@ -1,5 +1,6 @@
 'use client'
 
+import { withMenuDiscountClaims } from '@/lib/menu-discounts'
 import { useState, useCallback } from 'react'
 import { useCheckout } from '@/contexts/CheckoutContext'
 import { toast } from 'sonner'
@@ -126,7 +127,8 @@ export default function CheckoutPaymentFooter() {
           email: form.email,
           ...(joinClub && form.birthDate && { birthDate: form.birthDate }),
         },
-        items: cart,
+        // 21/11/2026: las líneas con descuento % de carta avisan con qué promo se mostraron.
+        items: withMenuDiscountClaims(cart),
         mode: deliveryMode ? 'delivery' : mode,
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,

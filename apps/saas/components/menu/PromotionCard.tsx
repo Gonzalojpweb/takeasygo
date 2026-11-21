@@ -73,11 +73,13 @@ function darkenColor(hex?: string, amount = 20): string {
 interface PromotionCardProps {
   promotion: {
     _id: string
-    type?: 'sale' | 'info' | 'announcement' | 'loyalty'
+    type?: 'sale' | 'info' | 'announcement' | 'loyalty' | 'discount'
     title: string
     shortDescription?: string
     imageUrl?: string
     price: number
+    /** Solo type 'discount': % por categoría/plato/variante. */
+    discountTargets?: Array<{ percent?: number }>
     originalPrice?: number
     conditions?: string
     isFeatured?: boolean
@@ -167,6 +169,10 @@ export function PromotionCard({
 
   const promoType = promotion.type || 'sale'
   const canAddToCart = promoType === 'sale'
+  // 21/11/2026: descuento % de carta — el % mayor de la promo ya se ve en los platos.
+  const maxDiscountPct = promoType === 'discount'
+    ? Math.max(0, ...((promotion.discountTargets ?? []) as Array<{ percent?: number }>).map(t => Number(t.percent) || 0))
+    : 0
 
   // ==================== FEATURED CARD (Banner estilo PedidosYA) ====================
   if (isFeatured) {
@@ -279,6 +285,12 @@ export function PromotionCard({
                     </span>
                   )}
                 </div>
+              )}
+
+              {maxDiscountPct > 0 && (
+                <span className="rounded-full bg-white px-2.5 py-1 text-xs font-black" style={{ color: cardBgColor }}>
+                  Hasta -{maxDiscountPct}%
+                </span>
               )}
 
               <div className="ml-auto">
@@ -533,6 +545,10 @@ export function PromotionCard({
                   </button>
                 )}
               </>
+            ) : maxDiscountPct > 0 ? (
+              <span className="px-3 py-1.5 rounded-full text-xs font-black" style={{ backgroundColor: accent + '18', color: accent, border: `1px solid ${accent}30` }}>
+                Hasta -{maxDiscountPct}%
+              </span>
             ) : (
               <button
                 onClick={(e) => {

@@ -1,6 +1,7 @@
 'use client'
 
-import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback, useMemo } from 'react'
+import { applyMenuDiscounts, cartMenuDiscountFor, dropExpiredMenuDiscounts, menuCardDiscount, menuDiscountKey } from '@/lib/menu-discounts'
 import Image from 'next/image'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
@@ -152,7 +153,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [translating, setTranslating] = useState(false)
   // menuData is kept in state so we can update it after bulk translation
-  const [menuData, setMenuData] = useState(menu)
+  // (baseMenuData = carta tal cual; menuData = con los descuentos % vigentes)
+  const [baseMenuData, setMenuData] = useState(menu)
 
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
@@ -219,6 +221,11 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [promotions, setPromotions] = useState<any[]>([])
   const [combos, setCombos] = useState<PublicCombo[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
+  // 21/11/2026: descuento % de carta (promos type 'discount') sobre platos y variantes.
+  // Solo se recalcula si cambió algún descuento (las promos se vuelven a pedir cada minuto).
+  const discountKey = menuDiscountKey(promotions)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const menuData = useMemo(() => applyMenuDiscounts(baseMenuData, promotions, mode), [baseMenuData, discountKey, mode])
   const [memberPoints, setMemberPoints] = useState(0)
   // Canje en checkout (store.maxRewardsPerOrder / store.enableCheckoutRedemption)
   const [checkoutRedemption, setCheckoutRedemption] = useState<{ enabled: boolean; maxPerOrder: number }>({
@@ -307,6 +314,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [tenant.slug, location._id, mode])
+
+  // 21/11/2026: si terminó un descuento % de carta, el carrito vuelve al precio de lista.
+  useEffect(() => {
+    if (promotionsLoading) return
+    setCart(prev => dropExpiredMenuDiscounts(prev, promotions))
+  }, [promotions, promotionsLoading])
 
   useEffect(() => {
     // CP2: stories de la plataforma + las de este comercio (o esta sede).
@@ -527,7 +540,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       observers.push(obs)
     })
     return () => observers.forEach(o => o.disconnect())
-  }, [menuData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseMenuData])
 
   // Auto-scroll nav circle to active
   useEffect(() => {
@@ -638,6 +652,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         type: 'menuItem',
         originalPrice: item.originalPrice,
         takeawayOriginalPrice: item.takeawayOriginalPrice,
+        menuDiscount: cartMenuDiscountFor(item, mode),
       }]
     })
     if (triggerUpsell && isNew && !upsellDismissedRef.current) {
@@ -1365,7 +1380,12 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         tags={item.tags || []}
         likesCount={item.likesCount ?? 0}
         price={getItemPrice(item)}
-        clubPrice={getClubDiscountedPrice(item, category._id, subcategoryId)}
+        clubPrice={(() => {
+          // Descuento de carta no acumulable: el Club no se suma encima.
+          const promo = menuCardDiscount(item, mode)
+          return promo && !promo.stackable ? null : getClubDiscountedPrice(item, category._id, subcategoryId)
+        })()}
+        promoPrice={menuCardDiscount(item, mode)}
         primary={primary}
         borderStyle={borderStyle}
         logoUrl={branding.logoUrl}

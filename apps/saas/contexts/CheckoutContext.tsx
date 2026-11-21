@@ -4,6 +4,7 @@ import { createContext, useContext, useCallback, useRef, useReducer, useEffect, 
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type { CartItem } from '@/types/cart'
+import { blocksOtherDiscounts, repriceLineForMode } from '@/lib/menu-discounts'
 import { trackCartRemove, trackCartAdd, trackRewardInteraction } from '@/lib/track'
 import {
   normalizeStoredCart,
@@ -730,15 +731,27 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
   const delayMessage = modeDelay?.message ?? ''
   const effectiveTime = (state.estimatedTimeInfo?.baseTime ?? 0) + (delayEnabled ? extraMinutes : 0)
 
+  // 21/11/2026: el menú online muestra juntos delivery y retiro. Un descuento
+  // % de carta de un solo canal vuelve al precio de lista en el otro.
+  useEffect(() => {
+    const cart = stateRef.current.cart
+    const next = cart.map(l => repriceLineForMode(l, currentMode))
+    if (next.some((l, i) => l !== cart[i])) dispatch({ type: 'SET_CART', cart: next })
+  }, [currentMode, state.cart])
+
   const subtotal = state.cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
 
-  const qrEligibleSubtotal = state.cart
+  // Descuento de carta NO acumulable: queda afuera de QR, Club, premio escondido y efectivo (igual que el server).
+  const stackableCart = state.cart.filter(i => !blocksOtherDiscounts(i))
+  const stackableSubtotal = stackableCart.reduce((sum, i) => sum + i.price * i.quantity, 0)
+
+  const qrEligibleSubtotal = stackableCart
     .filter(i => i.type !== 'promotion')
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const hiddenRewardDiscount = !state.activeQrPromo && state.hiddenRewardClaims.length > 0
     ? state.hiddenRewardClaims.reduce((sum, claim) => {
-        const cartItem = state.cart.find(i => i.menuItemId === claim.menuItemId)
+        const cartItem = stackableCart.find(i => i.menuItemId === claim.menuItemId)
         return cartItem ? sum + Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100)) : sum
       }, 0)
     : 0
@@ -761,7 +774,7 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
     // Compute eligible subtotal based on scope
     const cd = state.clubDiscount
     let eligibleSubtotal = 0
-    for (const item of state.cart) {
+    for (const item of stackableCart) {
       if (item.type === 'promotion') continue
       const lookup = menuItemsMap[item.menuItemId ?? '']
       let eligible = false
@@ -783,7 +796,7 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
   // Cash discount: only applies when cash is selected, computed on subtotal (before delivery)
   // The actual application happens server-side — this is for display only
   const cashDiscount = state.selectedPaymentMethod === 'cash' && state.cashDiscountPercent > 0
-    ? Math.floor(subtotal * (state.cashDiscountPercent / 100))
+    ? Math.floor(stackableSubtotal * (state.cashDiscountPercent / 100))
     : 0
 
   // Premios en el carrito: el carrito es la única fuente de verdad de qué se canjea.

@@ -9,6 +9,8 @@ interface VariantInfo {
   price: number
   takeawayPrice?: number
   businessPrice?: number
+  /** 21/11/2026: descuento % de carta (lib/menu-discounts). */
+  _menuDiscount?: { percent: number; list: { price: number; takeawayPrice?: number; businessPrice?: number } }
 }
 
 interface VariantPillsProps {
@@ -38,6 +40,14 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
               : Number(v.price) || 0
 
           const isSelected = selectedVariant?.name === v.name
+          const listPrice = v._menuDiscount
+            ? (mode === 'takeaway'
+              ? (Number(v._menuDiscount.list.takeawayPrice ?? v._menuDiscount.list.price) || 0)
+              : mode === 'business'
+                ? (Number(v._menuDiscount.list.businessPrice ?? v._menuDiscount.list.price) || 0)
+                : Number(v._menuDiscount.list.price) || 0)
+            : 0
+          const hasDiscount = listPrice > variantPrice
 
           return (
             <button
@@ -60,9 +70,19 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
                 </div>
                 <span className="text-sm font-medium text-zinc-800 truncate">{v.name}</span>
               </div>
-              <span className="text-sm font-bold flex-shrink-0 ml-2" style={{ color: primaryColor }}>
-                ${toPesos(variantPrice).toLocaleString('es-AR')}
-              </span>
+              {hasDiscount ? (
+                <span className="flex flex-col items-end flex-shrink-0 ml-2 leading-tight">
+                  <span className="text-[11px] text-zinc-400 line-through">${toPesos(listPrice).toLocaleString('es-AR')}</span>
+                  <span className="text-sm font-bold text-green-600">
+                    ${toPesos(variantPrice).toLocaleString('es-AR')}
+                    <span className="ml-1 text-[10px] font-black">-{v._menuDiscount!.percent}%</span>
+                  </span>
+                </span>
+              ) : (
+                <span className="text-sm font-bold flex-shrink-0 ml-2" style={{ color: primaryColor }}>
+                  ${toPesos(variantPrice).toLocaleString('es-AR')}
+                </span>
+              )}
             </button>
           )
         })}

@@ -21,6 +21,8 @@ interface Props {
   price: number
   /** Precio con descuento del club, si aplica (centavos). */
   clubPrice: { original: number; discounted: number } | null
+  /** 21/11/2026: descuento % de carta (precio de lista, con descuento y % mayor). */
+  promoPrice?: { original: number; discounted: number; percent: number; stackable?: boolean } | null
   primary: string
   borderStyle: string
   logoUrl?: string
@@ -33,13 +35,26 @@ const ars = (cents: number) => `$${toPesos(cents).toLocaleString('es-AR')}`
 
 /** Tarjeta de producto del menú takeaway / delivery / business, en lista, grilla o carrusel. */
 export function TakeawayItemCard({
-  layout, name, description, imageUrl, isVeg, tags, likesCount, price, clubPrice,
+  layout, name, description, imageUrl, isVeg, tags, likesCount, price, clubPrice, promoPrice,
   primary, borderStyle, logoUrl, onOpen, action,
 }: Props) {
+  // El descuento de carta ya viene en `price`; el del Club se calcula sobre él.
+  const percentTag = promoPrice ? (
+    <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">-{promoPrice.percent}%</span>
+  ) : null
   const priceBlock = clubPrice ? (
     <>
-      <span className="text-xs line-through opacity-50 text-zinc-400">{ars(clubPrice.original)}</span>
+      <span className="text-xs line-through opacity-50 text-zinc-400">{ars(promoPrice && promoPrice.original > clubPrice.original ? promoPrice.original : clubPrice.original)}</span>
       <span className="font-bold text-sm text-green-600">{ars(clubPrice.discounted)}</span>
+      {percentTag}
+    </>
+  ) : promoPrice ? (
+    <>
+      {promoPrice.original > promoPrice.discounted && (
+        <span className="text-xs line-through opacity-50 text-zinc-400">{ars(promoPrice.original)}</span>
+      )}
+      <span className="font-bold text-sm text-green-600">{ars(price)}</span>
+      {percentTag}
     </>
   ) : (
     <span className="font-bold text-sm" style={{ color: primary }}>{ars(price)}</span>

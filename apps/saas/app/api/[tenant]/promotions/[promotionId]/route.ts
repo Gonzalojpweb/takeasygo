@@ -9,6 +9,7 @@ import { resolveCtaLinkUpdate } from '@/lib/cta-link'
 import { markSaved } from '@/lib/media/ads'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
+import { sanitizeDiscountTargets } from '@/lib/menu-discounts'
 
 export async function GET(
   request: NextRequest,
@@ -87,9 +88,29 @@ export async function PUT(
     }
 
     const existing = await Promotion.findOne({ _id: promotionId, tenantId: tenant._id })
-      .select('locationId ctaLink').lean<{ locationId?: unknown; ctaLink?: string }>()
+      .select('locationId ctaLink type').lean<{ locationId?: unknown; ctaLink?: string; type?: string }>()
     if (!existing) {
       return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+    }
+
+    // 21/11/2026: descuento % por categoría, subcategoría, plato o variante.
+    const effectiveType = data.type ?? existing.type
+    if (effectiveType === 'discount') {
+      if ('discountTargets' in data || data.type === 'discount') {
+        const targets = sanitizeDiscountTargets(data.discountTargets)
+        if (!targets.ok) return NextResponse.json({ error: targets.error, field: 'discountTargets' }, { status: 400 })
+        data.discountTargets = targets.targets
+      }
+      if ('stackable' in data) data.stackable = data.stackable === true
+      if (data.type === 'discount') {
+        data.price = 0
+        data.originalPrice = null
+        data.slots = []
+      }
+    } else {
+      if (data.type) data.discountTargets = []
+      else delete data.discountTargets
+      delete data.stackable
     }
     const sedeError = await guardSharedOrLocation(request, existing.locationId ?? null, 'Promoción no encontrada')
     if (sedeError) return sedeError

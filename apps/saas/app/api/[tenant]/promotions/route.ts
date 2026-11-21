@@ -9,6 +9,7 @@ import { validateCtaLink } from '@/lib/cta-link'
 import { markSaved } from '@/lib/media/ads'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
+import { sanitizeDiscountTargets } from '@/lib/menu-discounts'
 
 export async function GET(
   request: NextRequest,
@@ -130,6 +131,20 @@ export async function POST(
       }
       data.channels = channels
       data.visibility = 'both'
+    }
+
+    // 21/11/2026: descuento % por categoría, subcategoría, plato o variante.
+    if (data.type === 'discount') {
+      const targets = sanitizeDiscountTargets(data.discountTargets)
+      if (!targets.ok) return NextResponse.json({ error: targets.error, field: 'discountTargets' }, { status: 400 })
+      data.discountTargets = targets.targets
+      data.stackable = data.stackable === true
+      data.price = 0
+      data.originalPrice = null
+      data.slots = []
+    } else {
+      delete data.discountTargets
+      delete data.stackable
     }
 
     // 20/11/2026: link del botón solo https o ruta interna.

@@ -62,6 +62,17 @@ export interface IOrderItem {
   slotName?: string            // Nombre del slot para ticket cocina
   /** Si true, el item tenía descuento de categoría (originalPrice definido en el menú). El QR no aplicó sobre él. */
   hasCategoryDiscount?: boolean
+  /**
+   * 21/11/2026: descuento % de carta (promo type 'discount'). `basePrice` ya
+   * viene rebajado; `listBasePrice` es el precio del plato/variante sin el %.
+   */
+  menuDiscount?: {
+    promotionId: string
+    title: string
+    percent: number
+    stackable: boolean
+    listBasePrice: number
+  } | null
   /** Curso (POS, Fase C): entrada / principal / postre. null = sin curso. */
   course?: 'entrada' | 'principal' | 'postre' | null
   /**
@@ -617,6 +628,19 @@ const OrderItemSchema = new Schema<IOrderItem>({
   promotionTitle: { type: String, default: null },
   slotName: { type: String, default: null },
     hasCategoryDiscount: { type: Boolean, default: false },
+    menuDiscount: {
+      type: new Schema(
+        {
+          promotionId: { type: String, required: true },
+          title: { type: String, default: '' },
+          percent: { type: Number, required: true },
+          stackable: { type: Boolean, default: false },
+          listBasePrice: { type: Number, required: true },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
     notes: { type: String, default: null },
     course: { type: String, enum: ['entrada', 'principal', 'postre', null], default: null },
     posDiscount: {

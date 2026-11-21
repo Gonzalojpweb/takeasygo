@@ -30,6 +30,7 @@ import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-line
 import { channelMismatchMessage, isOfferedInMode, promotionChannels } from '@/lib/sales-channels'
 import { resolveMaxRewardsPerOrder } from '@/lib/cart-items'
 import { describePromoDays, describePromoHours, isPromoActiveToday, isPromoScheduledNow } from '@/lib/promo-schedule'
+import { applyPercent, resolveMenuDiscount, type MenuDiscountMatch } from '@/lib/menu-discounts'
 import { getBaseUrl } from '@/lib/site-url'
 import { getIdentitySession } from '@/lib/tenant-access'
 import { validateScheduledPickupTime } from '@/lib/scheduled-orders'
@@ -842,6 +843,7 @@ export async function POST(
               ...item.toObject(),
               categoryName: subcategory.name,
               categoryId: category._id,
+              subcategoryId: subcategory._id,
               categoryCustomizationGroups: [
                 ...(category.customizationGroups || []),
                 ...(subcategory.customizationGroups || []),
@@ -986,6 +988,18 @@ export async function POST(
         }
       }
     }
+
+    // ── 21/11/2026: descuento % de carta (promos type 'discount') ──────────
+    // Vigentes en la sede, en fecha/día/horario de la sede y en el canal del
+    // pedido. El % va sobre el precio del plato o variante (no los agregados).
+    const orderTz = (location as any)?.timezone || (tenant as any)?.timezone
+    const menuDiscountPromos = (await Promotion.find({
+      tenantId: tenant._id,
+      type: 'discount',
+      isActive: true,
+      ...(orderLocScope ?? {}),
+    }).select('title type channels activeDays activeTimeStart activeTimeEnd scheduledStart scheduledEnd discountTargets stackable').lean())
+      .filter((p: any) => isPromoScheduledNow(p, orderTz) && isOfferedInMode(promotionChannels(p), body.mode ?? 'takeaway'))
 
     // Validar cada item del pedido y calcular precios desde la DB
     const comboIds = body.items.filter((i: any) => i.type === 'combo').map((i: any) => i.comboId)
@@ -1452,6 +1466,36 @@ export async function POST(
           }
         }
 
+        // ── Descuento % de carta: solo sobre el plato/variante (los agregados
+        // suman su precio normal). Mitad y mitad (basePrice 0) no participa.
+        let menuDiscount: (MenuDiscountMatch & { listBasePrice: number }) | null = null
+        if (basePrice > 0 && menuDiscountPromos.length > 0) {
+          const match = resolveMenuDiscount(menuDiscountPromos, {
+            categoryId: menuItem.categoryId,
+            subcategoryId: menuItem.subcategoryId,
+            itemId: menuItem._id,
+            variantName: resolvedSelectedVariant?.name ?? null,
+          })
+          if (match) {
+            menuDiscount = { ...match, listBasePrice: basePrice }
+            basePrice = applyPercent(basePrice, match.percent)
+          }
+        }
+        // El carrito cobró con un descuento que ya no vale (terminó el horario,
+        // se editó el % o se pausó): mejor avisar que cobrar otro precio.
+        const claimedDiscount = (clientItem as any).menuDiscountPromotionId as string | undefined
+        if (claimedDiscount && (!menuDiscount || menuDiscount.promotionId !== claimedDiscount
+          || ((clientItem as any).menuDiscountPercent != null && Number((clientItem as any).menuDiscountPercent) !== menuDiscount.percent))) {
+          return NextResponse.json(
+            {
+              error: `Cambió el precio de "${menuItem.name}": el descuento que tenía en tu carrito ya no está vigente. Quitalo y volvé a agregarlo para ver el precio actual.`,
+              code: 'MENU_DISCOUNT_CHANGED',
+              menuItemId: String(menuItem._id),
+            },
+            { status: 409 }
+          )
+        }
+
         const price = basePrice + extraPrice
         const subtotal = price * quantity
 
@@ -1472,13 +1516,29 @@ export async function POST(
           selectedVariant: resolvedSelectedVariant,
           printRole: menuItem.printRole || 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
-          hasCategoryDiscount: false,
+          // Descuento de carta no acumulable: el QR (y Mercado Pago) no lo vuelven a rebajar.
+          hasCategoryDiscount: !!menuDiscount && !menuDiscount.stackable,
+          ...(menuDiscount ? {
+            menuDiscount: {
+              promotionId: menuDiscount.promotionId,
+              title: menuDiscount.title,
+              percent: menuDiscount.percent,
+              stackable: menuDiscount.stackable,
+              listBasePrice: menuDiscount.listBasePrice,
+            },
+          } : {}),
         })
       }
     }
 
     // Total calculado 100% en el servidor
     const subtotal = resolvedItems.reduce((sum, item) => sum + item.subtotal, 0)
+    // 21/11/2026: un plato con descuento de carta NO acumulable queda afuera
+    // de Club, cupón QR, premio escondido y descuento por efectivo.
+    const blocksOtherDiscounts = (item: any) => !!item.menuDiscount && !item.menuDiscount.stackable
+    const stackableSubtotal = resolvedItems
+      .filter(item => !blocksOtherDiscounts(item))
+      .reduce((sum, item) => sum + item.subtotal, 0)
     const paymentMethod = body.paymentMethod || 'mercadopago'
     let discountAmount = 0
     let clubDiscountApplied = false
@@ -1490,7 +1550,7 @@ export async function POST(
     let cashDiscount = 0
     const cashConfig = resolveCashConfig((tenant as any)?.cash, (location as any)?.settings?.cash)
     if (paymentMethod === 'cash' && cashConfig.discountPercent > 0) {
-      cashDiscount = Math.floor(subtotal * (cashConfig.discountPercent / 100))
+      cashDiscount = Math.floor(stackableSubtotal * (cashConfig.discountPercent / 100))
       discountAmount += cashDiscount
     }
 
@@ -1548,17 +1608,17 @@ export async function POST(
       let eligibleSubtotal = 0
       if (activeQrPromo.clubScope === 'all') {
         eligibleSubtotal = resolvedItems
-          .filter(item => !['promotion', 'combo'].includes(item.itemType))
+          .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item))
           .reduce((sum, item) => sum + item.subtotal, 0)
       } else if (activeQrPromo.clubScope === 'category' && activeQrPromo.clubScopeCategoryIds?.length) {
         const eligibleCategoryIds = new Set(activeQrPromo.clubScopeCategoryIds.map(id => id.toString()))
         eligibleSubtotal = resolvedItems
-          .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.categoryId && eligibleCategoryIds.has(item.categoryId.toString()))
+          .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item) && item.categoryId && eligibleCategoryIds.has(item.categoryId.toString()))
           .reduce((sum, item) => sum + item.subtotal, 0)
       } else if (activeQrPromo.clubScope === 'item' && activeQrPromo.clubScopeItemIds?.length) {
         const eligibleItemIds = new Set(activeQrPromo.clubScopeItemIds.map(id => id.toString()))
         eligibleSubtotal = resolvedItems
-          .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.menuItemId && eligibleItemIds.has(item.menuItemId.toString()))
+          .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item) && item.menuItemId && eligibleItemIds.has(item.menuItemId.toString()))
           .reduce((sum, item) => sum + item.subtotal, 0)
       }
 
@@ -1627,22 +1687,22 @@ export async function POST(
             let eligibleSubtotal = 0
             if (clubDiscount.scope === 'all') {
               eligibleSubtotal = resolvedItems
-                .filter(item => !['promotion', 'combo'].includes(item.itemType))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'category' && clubDiscount.categoryIds?.length) {
               const eligibleIds = new Set(clubDiscount.categoryIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.categoryId && eligibleIds.has(item.categoryId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item) && item.categoryId && eligibleIds.has(item.categoryId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'subcategory' && clubDiscount.subcategoryIds?.length) {
               const eligibleIds = new Set(clubDiscount.subcategoryIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item) && item.subcategoryId && eligibleIds.has(item.subcategoryId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             } else if (clubDiscount.scope === 'item' && clubDiscount.itemIds?.length) {
               const eligibleIds = new Set(clubDiscount.itemIds.map(id => id.toString()))
               eligibleSubtotal = resolvedItems
-                .filter(item => !['promotion', 'combo'].includes(item.itemType) && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
+                .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item) && item.menuItemId && eligibleIds.has(item.menuItemId.toString()))
                 .reduce((sum, item) => sum + item.subtotal, 0)
             }
 
@@ -1673,7 +1733,7 @@ export async function POST(
 
     if (paymentMethod !== 'cash' && activeQrPromo && (activeQrPromo.discountPercentage || 0) > 0) {
       const qrEligibleSubtotal = resolvedItems
-        .filter(item => !['promotion', 'combo'].includes(item.itemType))
+        .filter(item => !['promotion', 'combo'].includes(item.itemType) && !blocksOtherDiscounts(item))
         .reduce((sum, item) => sum + item.subtotal, 0)
       discountAmount = Math.floor(qrEligibleSubtotal * (activeQrPromo.discountPercentage / 100))
       qrPromoApplied = true
@@ -1754,6 +1814,7 @@ export async function POST(
       // Para cada item del carrito que tiene claim, reservar atómicamente
       for (const item of resolvedItems) {
         if (item.itemType !== 'menuItem') continue
+        if (blocksOtherDiscounts(item)) continue
         const claim = claimsByMenuItemId.get(item.menuItemId?.toString())
         if (!claim) continue
 

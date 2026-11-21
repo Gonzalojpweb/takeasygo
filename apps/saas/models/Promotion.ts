@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose'
 import type { ICustomizationGroup } from './Menu'
 import { type SlotCustomizationMode, resolveSlotCustomizationMode } from '@/lib/promotion-helpers'
+import type { MenuDiscountTarget } from '@/lib/menu-discounts'
 
-export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
+export type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty' | 'discount'
 
 // Re-export for backward compatibility
 export { type SlotCustomizationMode, resolveSlotCustomizationMode }
@@ -86,6 +87,14 @@ export interface IPromotion {
   chargeCustomizationExtras?: boolean
   /** A nivel promo, se fusiona con el de cada slot */
   overrideCustomizationGroups?: ICustomizationGroup[]
+  /**
+   * 21/11/2026 — solo type === 'discount': % de descuento por categoría,
+   * subcategoría, plato o variante (lib/menu-discounts). Va sobre el precio
+   * del plato/variante; los agregados suman su precio normal.
+   */
+  discountTargets?: MenuDiscountTarget[]
+  /** Solo 'discount': true = se acumula con Club, cupón QR, premio escondido y efectivo. */
+  stackable?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -107,6 +116,15 @@ const PromotionSlotSchema = new Schema<IPromotionSlot>({
     }],
     default: [],
   },
+}, { _id: false })
+
+const DiscountTargetSchema = new Schema({
+  kind: { type: String, enum: ['category', 'subcategory', 'item', 'variant'], required: true },
+  categoryId: { type: Schema.Types.ObjectId, default: null },
+  subcategoryId: { type: Schema.Types.ObjectId, default: null },
+  itemId: { type: Schema.Types.ObjectId, default: null },
+  variantName: { type: String, default: null, trim: true },
+  percent: { type: Number, required: true, min: 0, max: 95 },
 }, { _id: false })
 
 const PromotionSchema = new Schema<IPromotion>(
@@ -135,7 +153,7 @@ const PromotionSchema = new Schema<IPromotion>(
     },
     type: {
       type: String,
-      enum: ['sale', 'info', 'announcement', 'loyalty'],
+      enum: ['sale', 'info', 'announcement', 'loyalty', 'discount'],
       default: 'sale',
     },
     title: {
@@ -257,6 +275,14 @@ const PromotionSchema = new Schema<IPromotion>(
     overrideCustomizationGroups: {
       type: [Schema.Types.Mixed],
       default: [],
+    },
+    discountTargets: {
+      type: [DiscountTargetSchema],
+      default: [],
+    },
+    stackable: {
+      type: Boolean,
+      default: false,
     },
   },
   {

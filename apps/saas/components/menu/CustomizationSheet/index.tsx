@@ -1,5 +1,6 @@
 'use client'
 
+import { cartMenuDiscountFor } from '@/lib/menu-discounts'
 import { useState, useMemo, useEffect } from 'react'
 import { trackDishViewed } from '@/lib/track'
 import { calculateHalfHalfPrice } from '@takeasygo/business/browser'
@@ -492,7 +493,10 @@ export default function CustomizationSheet({
       takeawayOriginalPrice: item.takeawayOriginalPrice,
       // Promos: mitad y mitad no suma sus precios como «agregados».
       _isHalf: isHalfMode,
+      // 21/11/2026: descuento % de carta del plato o de la variante elegida.
+      menuDiscount: isHalfMode ? undefined : cartMenuDiscountFor((hasVariants ? selectedVariant : item) as any, mode),
     }
+    delete cartItem._menuDiscount
     onConfirm(cartItem)
   }
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { withMenuDiscountClaims } from '@/lib/menu-discounts'
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle, Copy, Check, Banknote, MapPin, Loader2, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -702,7 +703,8 @@ async function handleSubmit(e: React.FormEvent) {
           email: form.email,
           ...(joinClub && form.birthDate && { birthDate: form.birthDate })
         },
-        items: cart,
+        // 21/11/2026: las líneas con descuento % de carta avisan con qué promo se mostraron.
+        items: withMenuDiscountClaims(cart),
         mode: deliveryMode ? 'delivery' : mode,
         notes: form.notes,
         clientToken: localStorage.getItem('tgo-client-token') ?? undefined,

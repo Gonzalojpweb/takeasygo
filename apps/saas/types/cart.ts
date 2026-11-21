@@ -1,3 +1,5 @@
+import type { CartMenuDiscount } from '@/lib/menu-discounts'
+
 export interface SelectedCustomizationOption {
   name: string
   extraPrice: number
@@ -67,4 +69,6 @@ export interface CartItem {
   originalPrice?: number
   /** Precio takeaway original de lista del menú. Si existe, significa que el item tiene descuento de categoría en modo takeaway y el QR no aplica sobre él. */
   takeawayOriginalPrice?: number
+  /** 21/11/2026: descuento % de carta (promo type 'discount') con el que se agregó la línea. */
+  menuDiscount?: CartMenuDiscount
 }

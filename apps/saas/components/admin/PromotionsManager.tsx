@@ -9,7 +9,7 @@ import {
   Plus, Edit2, Trash2, Eye, EyeOff, Star,
   Tag, Palette, X, DollarSign,
   Info, Megaphone, Heart, Search, GripVertical,
-  ArrowUpDown,
+  ArrowUpDown, Percent,
 } from 'lucide-react'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -27,8 +27,10 @@ import ChannelPicker from '@/components/admin/ChannelPicker'
 import PromoTimeField from '@/components/admin/PromoTimeField'
 import { describePromoDays, describePromoHours } from '@/lib/promo-schedule'
 import { channelBadge, channelSummary, promotionChannels, type SalesChannel } from '@/lib/sales-channels'
+import DiscountTargetsEditor from '@/components/admin/DiscountTargetsEditor'
+import type { MenuDiscountTarget } from '@/lib/menu-discounts'
 
-type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty'
+type PromotionType = 'sale' | 'info' | 'announcement' | 'loyalty' | 'discount'
 
 interface Location {
   _id: string
@@ -98,6 +100,9 @@ interface Promotion {
   slots?: Slot[]
   allowCustomization?: boolean
   overrideCustomizationGroups?: OverrideGroup[]
+  /** 21/11/2026: solo 'discount' */
+  discountTargets?: MenuDiscountTarget[]
+  stackable?: boolean
 }
 
 interface MenuCategory {
@@ -157,6 +162,9 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     allowCustomization: boolean
     chargeCustomizationExtras: boolean
     overrideCustomizationGroups: OverrideGroup[]
+    /** 21/11/2026: promo «Descuento %» */
+    discountTargets: MenuDiscountTarget[]
+    stackable: boolean
     customStyles: {
       backgroundColor: string
       textColor: string
@@ -193,6 +201,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     allowCustomization: true,
     chargeCustomizationExtras: true,
     overrideCustomizationGroups: [] as OverrideGroup[],
+    discountTargets: [] as MenuDiscountTarget[],
+    stackable: false,
     customStyles: {
       backgroundColor: '#1a1a1a',
       textColor: '#ffffff',
@@ -466,6 +476,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       allowCustomization: true,
       chargeCustomizationExtras: true,
       overrideCustomizationGroups: [],
+      discountTargets: [],
+      stackable: false,
       customStyles: {
         backgroundColor: '#1a1a1a',
         textColor: '#ffffff',
@@ -509,6 +521,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       allowCustomization: promotion.allowCustomization ?? true,
       chargeCustomizationExtras: (promotion as any).chargeCustomizationExtras ?? true,
       overrideCustomizationGroups: promotion.overrideCustomizationGroups || [],
+      discountTargets: (promotion.discountTargets || []).map(t => ({ ...t, categoryId: t.categoryId ? String(t.categoryId) : null, subcategoryId: t.subcategoryId ? String(t.subcategoryId) : null, itemId: t.itemId ? String(t.itemId) : null })),
+      stackable: promotion.stackable === true,
       customStyles: {
         backgroundColor: promotion.customStyles?.backgroundColor || '#1a1a1a',
         textColor: promotion.customStyles?.textColor || '#ffffff',
@@ -623,7 +637,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
     return Math.round(((promotion.originalPrice - promotion.price) / promotion.originalPrice) * 100)
   }
 
-  const isSaveDisabled = loading || !form.title || (form.type === 'sale' && form.price <= 0) || (
+  const isSaveDisabled = loading || !form.title || (form.type === 'discount' && (form.discountTargets.length === 0 || !form.locationId)) || (form.type === 'sale' && form.price <= 0) || (
     form.type === 'sale' && (
       form.slots.length === 0 ||
       form.slots.some(s => !s.name || s.requiredQuantity < 1 || (s.categoryIds.length === 0 && s.itemIds.length === 0))
@@ -661,7 +675,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                   )}
                 </div>
               )}
-              {!promotion.imageUrl && promotion.type !== 'sale' && (
+              {!promotion.imageUrl && promotion.type !== 'sale' && promotion.type !== 'discount' && (
                 <div className="w-20 h-20 rounded-lg bg-muted relative overflow-hidden shrink-0 flex items-center justify-center">
                   {promotion.type === 'info' && <Info size={24} className="text-purple-400/50" />}
                   {promotion.type === 'announcement' && <Megaphone size={24} className="text-amber-400/50" />}
@@ -676,8 +690,10 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                     promotion.type === 'info' && 'bg-purple-500/10 text-purple-500',
                     promotion.type === 'announcement' && 'bg-amber-500/10 text-amber-500',
                     promotion.type === 'loyalty' && 'bg-emerald-500/10 text-emerald-500',
+                    promotion.type === 'discount' && 'bg-green-500/10 text-green-600',
                   )}>
-                    {promotion.type === 'sale' ? '💰 Venta' :
+                    {promotion.type === 'discount' ? '🏷️ Descuento %' :
+                      promotion.type === 'sale' ? '💰 Venta' :
                       promotion.type === 'info' ? 'ℹ️ Info' :
                         promotion.type === 'announcement' ? '📢 Anuncio' :
                           '⭐ Club'}
@@ -708,7 +724,19 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       )}
                     </div>
                   )}
-                  {(promotion.type === 'sale' || promotion.type === 'info') && (() => {
+                  {promotion.type === 'discount' && (() => {
+                    const targets = promotion.discountTargets ?? []
+                    const max = Math.max(0, ...targets.map(t => Number(t.percent) || 0))
+                    return (
+                      <span className="text-sm font-black text-green-600">
+                        Hasta -{max}%
+                        <span className="ml-1.5 text-[10px] font-semibold text-muted-foreground">
+                          {targets.length} {targets.length === 1 ? 'objetivo' : 'objetivos'}{promotion.stackable ? ' · acumulable' : ''}
+                        </span>
+                      </span>
+                    )
+                  })()}
+                  {(promotion.type === 'sale' || promotion.type === 'info' || promotion.type === 'discount') && (() => {
                     const channels = promotionChannels(promotion)
                     const tag = channelBadge(channels)
                     return (
@@ -847,9 +875,10 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 {/* Tipo de promocion */}
                 <div>
                   <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Tipo de Promoción</Label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                     {([
                       { value: 'sale' as PromotionType, label: 'Venta', icon: DollarSign, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500' },
+                      { value: 'discount' as PromotionType, label: 'Descuento %', icon: Percent, color: 'text-green-600', bg: 'bg-green-500/10 border-green-500' },
                       { value: 'info' as PromotionType, label: 'Info', icon: Info, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500' },
                       { value: 'announcement' as PromotionType, label: 'Anuncio', icon: Megaphone, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500' },
                       { value: 'loyalty' as PromotionType, label: 'Club', icon: Heart, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500' },
@@ -883,6 +912,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                       value={form.title}
                       onChange={e => setForm({ ...form, title: e.target.value })}
                       placeholder={
+                        form.type === 'discount' ? 'ej: Día de la arepa' :
                         form.type === 'sale' ? 'ej: 2x1 en Hamburgesas' :
                           form.type === 'info' ? 'ej: Hoy cerramos a las 18hs' :
                             form.type === 'announcement' ? 'ej: Nuevo menú de verano' :
@@ -987,6 +1017,65 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                         className="mt-1.5"
                       />
                     </div>
+                  </div>
+                )}
+
+                {/* ── 21/11/2026: Descuento % por categoría, plato o variante ── */}
+                {form.type === 'discount' && (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">
+                        Qué se descuenta
+                        <span className="font-normal normal-case tracking-normal text-muted-foreground/60">
+                          {' '}(categorías, platos o variantes, cada uno con su %)
+                        </span>
+                      </Label>
+                      <DiscountTargetsEditor
+                        tenantSlug={tenantSlug}
+                        locationId={form.locationId || selectedLocation}
+                        locations={locations}
+                        onLocationChange={(locationId) => setForm(prev => ({ ...prev, locationId, discountTargets: [] }))}
+                        value={form.discountTargets}
+                        onChange={(discountTargets) => setForm(prev => ({ ...prev, discountTargets }))}
+                      />
+                    </div>
+
+                    {(() => {
+                      // Sugerencia: si ya hay otro descuento de carta activo en la sede, no acumular.
+                      const others = promotions.filter(p =>
+                        p.type === 'discount' && p.isActive && p._id !== editingPromotion?._id &&
+                        (!p.locationId || !form.locationId || p.locationId === form.locationId))
+                      const othersText = others.map(o => '«' + o.title + '»').join(', ')
+                      const hint = others.length > 0
+                        ? 'Sugerencia: no acumular. Ya tenés ' + (others.length === 1 ? 'otro descuento activo' : others.length + ' descuentos activos') + ' (' + othersText + '); si un plato está en los dos, vale el de mayor %.'
+                        : form.stackable
+                          ? 'Un cliente del Club o con cupón va a sumar los dos descuentos sobre el mismo plato.'
+                          : 'Sugerencia: dejarlo sin acumular, así un plato no queda con dos descuentos encima.'
+                      return (
+                        <div className="px-4 py-3 rounded-xl border border-border bg-muted/10 space-y-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <Label className="text-xs font-bold text-foreground">Se acumula con otros descuentos</Label>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Club, cupón QR, premio escondido y descuento por pago en efectivo. Apagado: esos platos se cobran solo con este descuento.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={form.stackable}
+                              onClick={() => setForm(prev => ({ ...prev, stackable: !prev.stackable }))}
+                              className={cn('relative w-10 h-6 rounded-full transition-colors flex-shrink-0', form.stackable ? 'bg-primary' : 'bg-muted')}
+                            >
+                              <span className={cn('absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all', form.stackable ? 'left-5' : 'left-1')} />
+                            </button>
+                          </div>
+                          <p className={cn('text-[11px] font-medium', form.stackable ? 'text-amber-700' : 'text-muted-foreground')}>
+                            💡 {hint}
+                          </p>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
 
@@ -1558,7 +1647,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 )}
 
                 {/* 20/11/2026: canales donde vale (antes «Publicar en», que no se respetaba) */}
-                {(form.type === 'sale' || form.type === 'info') && (
+                {(form.type === 'sale' || form.type === 'info' || form.type === 'discount') && (
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground mb-3 block">Disponible en</Label>
                     <ChannelPicker value={form.channels} onChange={(channels) => setForm({ ...form, channels })} />
@@ -1653,7 +1742,7 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                 </div>
 
                 {/* Terms only for sale */}
-                {form.type === 'sale' && (
+                {(form.type === 'sale' || form.type === 'discount') && (
                   <div>
                     <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Términos y Condiciones</Label>
                     <Textarea
@@ -1763,7 +1852,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                           color: form.customStyles.textColor
                         }}
                       >
-                        {form.type === 'sale' ? '💰 VENTA' :
+                        {form.type === 'discount' ? '🏷️ DESCUENTO' :
+                          form.type === 'sale' ? '💰 VENTA' :
                           form.type === 'info' ? 'ℹ️ INFO' :
                             form.type === 'announcement' ? '📢 ANUNCIO' :
                               '⭐ CLUB'}

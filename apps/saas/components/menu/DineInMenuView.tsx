@@ -1,6 +1,7 @@
 'use client'
 
-import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback } from 'react'
+import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback, useMemo } from 'react'
+import { applyMenuDiscounts, dropExpiredMenuDiscounts, menuCardDiscount, menuDiscountKey } from '@/lib/menu-discounts'
 import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
 import { DineInItemCard } from '@/components/menu/items/DineInItemCard'
 import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
@@ -114,12 +115,17 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
   const [locale, setLocale] = useState<'es' | 'en'>('es')
   const [activeLegal, setActiveLegal] = useState<'terminos' | 'privacidad' | null>(null)
   const [translating, setTranslating] = useState(false)
-  const [menuData, setMenuData] = useState(menu)
+  // baseMenuData = carta tal cual; menuData = con los descuentos % de carta vigentes (21/11/2026)
+  const [baseMenuData, setMenuData] = useState(menu)
   const [activeCategory, setActiveCategory] = useState<string>('')
   const [modalItem, setModalItem] = useState<any | null>(null)
   const [promotions, setPromotions] = useState<any[]>([])
   const [combos, setCombos] = useState<PublicCombo[]>([])
   const [promotionsLoading, setPromotionsLoading] = useState(true)
+  // Solo se recalcula si cambió algún descuento (las promos se vuelven a pedir cada minuto).
+  const discountKey = menuDiscountKey(promotions)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const menuData = useMemo(() => applyMenuDiscounts(baseMenuData, promotions, 'dine-in'), [baseMenuData, discountKey])
   const [showCartPopup, setShowCartPopup] = useState(false)
   const [cart, setCart] = useState<CartItem[]>(() => {
     if (typeof window === 'undefined') return []
@@ -186,6 +192,12 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [tenant.slug, location._id])
+
+  // 21/11/2026: si terminó un descuento % de carta, el carrito vuelve al precio de lista.
+  useEffect(() => {
+    if (promotionsLoading) return
+    setCart(prev => dropExpiredMenuDiscounts(prev, promotions))
+  }, [promotions, promotionsLoading])
 
   useEffect(() => {
     trackMenuOpened(location._id)
@@ -464,7 +476,8 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
       observers.push(obs)
     })
     return () => observers.forEach(o => o.disconnect())
-  }, [menuData])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [baseMenuData])
 
   function scrollToCategory(id: string) {
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -520,6 +533,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
         tags={item.tags ?? []}
         price={item.price}
         variantPrices={(item.variants ?? []).map((v: any) => v.price)}
+        promoPrice={menuCardDiscount(item, 'dine-in')}
         customizable={(item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0}
         primary={branding.primaryColor}
         text={text}

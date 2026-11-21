@@ -5,11 +5,21 @@ import { useCheckout } from '@/contexts/CheckoutContext'
 import { cn } from '@/lib/utils'
 import { isServiceOpen } from '@/lib/availability'
 import { toast } from 'sonner'
+import { isOfferedInMode, SALES_CHANNEL_INFO } from '@/lib/sales-channels'
 
 export default function DeliveryModeToggle() {
   const router = useRouter()
   const { state, dispatch } = useCheckout()
   const { deliveryMode, tenantSlug, locationPath, serviceHours, timezone, deliveryConfig } = state
+
+  // 21/11/2026: descuentos % de carta que no valen en la modalidad elegida (el
+  // carrito ya volvió al precio de lista: acá se explica por qué).
+  const currentMode = deliveryMode ? 'delivery' : 'takeaway'
+  const lostDiscounts = Array.from(new Map(
+    state.cart
+      .filter(l => l.menuDiscount && !isOfferedInMode(l.menuDiscount.channels, currentMode))
+      .map(l => [l.menuDiscount!.promotionId, l.menuDiscount!] as const)
+  ).values())
 
   const deliveryEnabled = deliveryConfig?.enabled !== false
   const deliveryBySchedule = isServiceOpen(serviceHours?.delivery, timezone)
@@ -78,6 +88,11 @@ export default function DeliveryModeToggle() {
           🕐 No hay delivery disponible en este horario
         </p>
       )}
+      {lostDiscounts.map(d => (
+        <p key={d.promotionId} className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 font-medium mt-2">
+          🏷️ El descuento «{d.title}» es solo {d.channels.map(c => SALES_CHANNEL_INFO[c].short).join(' y ')}: con esta modalidad esos platos van a precio normal.
+        </p>
+      ))}
     </div>
   )
 }

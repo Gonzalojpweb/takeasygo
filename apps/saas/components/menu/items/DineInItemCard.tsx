@@ -15,6 +15,8 @@ interface Props {
   /** Precio (centavos) o variantes para mostrar «Desde $…». */
   price: number
   variantPrices: number[]
+  /** 21/11/2026: descuento % de carta (precio de lista, con descuento y % mayor). */
+  promoPrice?: { original: number; discounted: number; percent: number } | null
   /** El plato se puede personalizar: muestra el «+» sobre la foto. */
   customizable: boolean
   primary: string
@@ -39,7 +41,7 @@ function priceLabel(price: number, variantPrices: number[]): string {
 
 /** Tarjeta informativa del menú de salón (sin carrito), en lista, grilla o carrusel. */
 export function DineInItemCard({
-  layout, name, description, imageUrl, tags, price, variantPrices, customizable,
+  layout, name, description, imageUrl, tags, price, variantPrices, promoPrice, customizable,
   primary, text, mutedText, cardBg, cardBorder, logoUrl, onOpen,
 }: Props) {
   const stacked = layout !== 'list'
@@ -84,7 +86,13 @@ export function DineInItemCard({
             {name}
           </p>
           <p className={cn('font-bold flex-shrink-0', carousel ? 'text-sm' : 'text-base')} style={{ color: primary }}>
+            {promoPrice && promoPrice.original > promoPrice.discounted && (
+              <span className="mr-1 text-xs font-normal line-through opacity-50">${toPesos(promoPrice.original).toLocaleString('es-AR')}</span>
+            )}
             {priceLabel(price, variantPrices)}
+            {promoPrice && (
+              <span className="ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 align-middle">-{promoPrice.percent}%</span>
+            )}
           </p>
         </div>
         {description && (
