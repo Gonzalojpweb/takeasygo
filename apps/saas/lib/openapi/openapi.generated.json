@@ -5750,6 +5750,93 @@
     }
    }
   },
+  "/api/{tenant}/pos/menu/options/{optionId}": {
+   "patch": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "patch_api_tenant_pos_menu_options_optionId",
+    "summary": "sabor agotado / repuesto «Disponibles hoy» desde el POS (definido 19/11): caja, encargado y admin (capacidad orders.pay, la misma de los…",
+    "description": "PATCH /api/[tenant]/pos/menu/options/[optionId] — sabor agotado / repuesto\n«Disponibles hoy» desde el POS (definido 19/11): caja, encargado y admin\n(capacidad orders.pay, la misma de los faltantes de Fase J) marcan una\nopción como agotada o la reponen. Queda así hasta que alguien la repone.\nBody: { soldOut: boolean }. Mismo menú que el SaaS: el cliente lo ve en gris.\n\nFuente: `apps/saas/app/api/[tenant]/pos/menu/options/[optionId]/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "optionId",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/{tenant}/pos/offline/devices": {
    "get": {
     "tags": [
@@ -6521,7 +6608,7 @@
     ],
     "operationId": "post_api_tenant_pos_orders_id_discounts",
     "summary": "descuento (Fase D)",
-    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       { lines: [{ lineId, kind, value, reason, note? }] } (20/11/2026) ⇒\n       varios platos de una vez, con un solo PIN (Mostrador al cobrar).\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -6606,7 +6693,7 @@
     ],
     "operationId": "delete_api_tenant_pos_orders_id_discounts",
     "summary": "quita el descuento de ese plato (o de toda la orden sin lineId).",
-    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
+    "description": "POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)\n       { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }\n       lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.\n       { lines: [{ lineId, kind, value, reason, note? }] } (20/11/2026) ⇒\n       varios platos de una vez, con un solo PIN (Mostrador al cobrar).\n       finalCents ⇒ modo «importe final» (kind amount; el server verifica\n       que el total que queda sea exactamente ese).\nDELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento\n       de ese plato (o de toda la orden sin lineId).\nQuién puede y con qué PIN: política del comercio (discountService).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/discounts/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -6857,7 +6944,7 @@
     ],
     "operationId": "patch_api_tenant_pos_orders_id_items_productId",
     "summary": "cambia la cantidad",
-    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
+    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nRonda que se queda SIN platos (19/11/2026): se cancela sola y, si la mesa\nno tiene otra ronda abierta, vuelve a libre (lib/pos-online/tableRelease).\nAntes la mesa quedaba ocupada (amarilla) con una ronda vacía.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -6950,7 +7037,7 @@
     ],
     "operationId": "delete_api_tenant_pos_orders_id_items_productId",
     "summary": "quita el producto",
-    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
+    "description": "PATCH  /api/[tenant]/pos/orders/[id]/items/[productId] — cambia la cantidad\nDELETE /api/[tenant]/pos/orders/[id]/items/[productId] — quita el producto\nIdentificación de la línea (Fase C, 2026-10):\n  · `lineId` (Order.items._id, viaja en el contrato POS) — PREFERIDO: dos\n    líneas del mismo producto con distinta nota u opciones son distintas.\n  · sin lineId: todas las líneas del producto (compatibilidad).\n  PATCH lo recibe en el body; DELETE en la query (?lineId=&reason=).\n\nQuitar o bajar DESPUÉS de mandar a cocina (`confirmed`):\n  · el mozo no puede (403); cajero con PIN de encargado; encargado/admin\n    directo.\n  · `reason` obligatorio (lib/pos-online/itemVoids): define si los\n    insumos vuelven al stock o van a merma.\n  · queda registrado en Order.itemVoids + auditoría.\nAntes de mandar a cocina (`pending`) se edita libre.\n\nRonda que se queda SIN platos (19/11/2026): se cancela sola y, si la mesa\nno tiene otra ronda abierta, vuelve a libre (lib/pos-online/tableRelease).\nAntes la mesa quedaba ocupada (amarilla) con una ronda vacía.\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/items/[productId]/route.ts`",
     "parameters": [
      {
       "name": "tenant",
@@ -7103,6 +7190,93 @@
      }
     ],
     "x-pos-capability": "orders.pay",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/orders/{id}/reprint": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_orders_id_reprint",
+    "summary": "reimprimir la COMANDA",
+    "description": "POST /api/[tenant]/pos/orders/[id]/reprint — reimprimir la COMANDA\nPedido 19/11/2026: la reimpresión de comandas existía solo en el panel del\nSaaS. En el POS va separada de la de comprobantes:\n  · COMANDA (esta ruta): el ticket de cocina/barra de una ronda ya enviada.\n    Se puede reimprimir cuantas veces haga falta; sale con «REIMPRESIÓN ·\n    NO PREPARAR DE NUEVO» para que la estación no la cocine dos veces.\n  · COMPROBANTE fiscal: no se reimprime como venta nueva — se reimprime el\n    autorizado desde Facturación (POST /pos/fiscal/documents/[id]/reprint).\n  · PRECUENTA: desde la mesa (POST /pos/tables/[id]/precuenta).\n\nBody (opcional): { station?: 'kitchen' | 'bar' }  — sin station: todas las\nestaciones que recibieron platos de la ronda. Nunca genera ticket de caja.\nQuién: caja/encargado/admin directo; el mozo con el PIN de un admin o\nencargado (capacidad `orders.reprint`, delegable).\n\nFuente: `apps/saas/app/api/[tenant]/pos/orders/[id]/reprint/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "orders.reprint",
     "requestBody": {
      "required": true,
      "content": {
@@ -8963,6 +9137,93 @@
     "operationId": "post_api_tenant_pos_tables_id_precuenta",
     "summary": "imprime la precuenta (Fase E)",
     "description": "POST /api/[tenant]/pos/tables/[id]/precuenta — imprime la precuenta (Fase E)\nRondas sin cobrar de la mesa → impresora de caja (lib/pos-online/precuenta).\n`tables.service`: la pide quien pide la cuenta (mozo o caja). Se puede\nreimprimir (no cambia nada en la orden). 409 si no hay impresora de caja\no nada para cobrar: el POS lo avisa sin frenar el «pedir cuenta».\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/precuenta/route.ts`",
+    "parameters": [
+     {
+      "name": "tenant",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      },
+      "description": "Slug o id del comercio (el JWT del POS debe ser de ese comercio)."
+     },
+     {
+      "name": "id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "OK",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "400": {
+      "description": "Validación",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "401": {
+      "description": "Sin autenticación o token vencido",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     },
+     "403": {
+      "description": "Rol o capability insuficiente, o sede ajena",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PosError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "PosBearer": []
+     }
+    ],
+    "x-pos-capability": "tables.service",
+    "requestBody": {
+     "required": true,
+     "content": {
+      "application/json": {
+       "schema": {
+        "type": "object"
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/{tenant}/pos/tables/{id}/void": {
+   "post": {
+    "tags": [
+     "POS online (SaaS)"
+    ],
+    "operationId": "post_api_tenant_pos_tables_id_void",
+    "summary": "anular la MESA entera (sin cobrar)",
+    "description": "POST /api/[tenant]/pos/tables/[id]/void — anular la MESA entera (sin cobrar)\nPedido 19/11/2026: se abrió la mesa, se comandó y la venta no va. Antes no\nhabía forma de anularla entera: había que quitar plato por plato y la\nmesa quedaba amarilla. Ahora, en un solo paso:\n\n  · Quién: lo pide cualquiera del salón (mozo, cajero), lo AUTORIZA un\n    admin o encargado — directo si es él quien opera, o con su PIN en el\n    equipo del mozo/cajero (sin cerrar sesión).\n  · Qué: todas las rondas abiertas SIN COBRAR quedan `cancelled` con su\n    registro (Order.tableVoid: motivo, nota, quién pidió, quién autorizó,\n    importe, si fue a merma) y la mesa vuelve a libre (verde).\n  · Inventario (`wasted`, lo elige el operador; cada motivo propone):\n      false → «no se llegó a preparar»: los insumos vuelven al stock\n              (reversión de la venta en el ledger, como una cancelación).\n      true  → «se preparó y se pierde»: los insumos de lo que ya se mandó\n              a cocina van a MERMA (WasteRecorded con el motivo).\n    Una ronda que nunca fue a cocina (`pending`) no descontó nada.\n  · Cocina/barra: cada estación que recibió la comanda imprime «ANULADA ·\n    NO PREPARAR» con los platos (no frena la anulación si falla).\n  · Una ronda YA COBRADA no se anula acá: se anula la venta (devuelve la\n    plata en la caja) desde Ventas → 409 con ese aviso.\n  · Mesa ocupada sin nada cargado (o con rondas vacías): «liberar» sin\n    motivo; la caja lo hace sola, el mozo con el PIN.\n\nBody: { reason, note?, wasted? }   (reason/note opcionales si no hay platos)\nRespuesta: { table, orders, voided: { rounds, amount, wasted, printed } }\n\nFuente: `apps/saas/app/api/[tenant]/pos/tables/[id]/void/route.ts`",
     "parameters": [
      {
       "name": "tenant",
