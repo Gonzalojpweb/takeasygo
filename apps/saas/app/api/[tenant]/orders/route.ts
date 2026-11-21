@@ -1481,11 +1481,12 @@ export async function POST(
             basePrice = applyPercent(basePrice, match.percent)
           }
         }
-        // El carrito cobró con un descuento que ya no vale (terminó el horario,
-        // se editó el % o se pausó): mejor avisar que cobrar otro precio.
+        // El carrito mostró un descuento que ya no vale o que hoy es menor
+        // (terminó el horario, se bajó el %, se pausó): mejor avisar que cobrar
+        // MÁS de lo que vio el cliente. Si ahora le toca uno igual o mejor, se aplica.
         const claimedDiscount = (clientItem as any).menuDiscountPromotionId as string | undefined
-        if (claimedDiscount && (!menuDiscount || menuDiscount.promotionId !== claimedDiscount
-          || ((clientItem as any).menuDiscountPercent != null && Number((clientItem as any).menuDiscountPercent) !== menuDiscount.percent))) {
+        const claimedPercent = Number((clientItem as any).menuDiscountPercent ?? 0)
+        if (claimedDiscount && (!menuDiscount || menuDiscount.percent < claimedPercent)) {
           return NextResponse.json(
             {
               error: `Cambió el precio de "${menuItem.name}": el descuento que tenía en tu carrito ya no está vigente. Quitalo y volvé a agregarlo para ver el precio actual.`,
@@ -1505,6 +1506,9 @@ export async function POST(
           itemType: 'menuItem',
           categoryName: menuItem.categoryName || '',
           categoryId: menuItem.categoryId || null,
+          // 21/11/2026: el descuento del Club «por subcategoría» nunca aplicaba
+          // porque la línea no traía su subcategoría.
+          subcategoryId: menuItem.subcategoryId || null,
           name: menuItem.name,
           description: menuItem.description || '',
           basePrice,

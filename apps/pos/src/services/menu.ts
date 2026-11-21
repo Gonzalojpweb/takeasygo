@@ -1,4 +1,4 @@
-import type { Product, MenuCategory } from "@takeasygo/types"
+import type { Product, MenuCategory, PosMenuDiscount } from "@takeasygo/types"
 import { db } from "../db/dexie"
 import { posApi } from "./pos-api"
 
@@ -23,6 +23,8 @@ export interface MenuSnapshot {
   signature: string
   /** Presente en la respuesta del SaaS; opcional para no romper lectores viejos. */
   serverTime?: string
+  /** 21/11/2026: promos «Descuento %» vigentes ahora en la sede. */
+  menuDiscounts?: PosMenuDiscount[]
 }
 
 export async function fetchMenuSnapshot(
@@ -51,6 +53,7 @@ export async function syncMenu(tenantId: string, jwt?: string): Promise<boolean>
     categories: snapshot.categories,
     version: snapshot.version,
     signature: snapshot.signature,
+    menuDiscounts: snapshot.menuDiscounts ?? [],
     updatedAt: new Date(),
   })
   return true

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { posPromoLineDiscount } from '@takeasygo/business'
+import { withQuantityKeepingDiscount } from '@/lib/pos-online/discounts'
 import {
+  annotateMenuItem,
   applyMenuDiscounts, applyPercent, blocksOtherDiscounts, cartMenuDiscountFor, dropExpiredMenuDiscounts,
   repriceLineForMode, resolveMenuDiscount, sanitizeDiscountTargets,
 } from '@/lib/menu-discounts'
@@ -65,5 +68,38 @@ describe('menu-discounts', () => {
     expect(sanitizeDiscountTargets([]).ok).toBe(false)
     expect(sanitizeDiscountTargets([{ kind: 'category', categoryId: CAT, percent: 99 }]).ok).toBe(false)
     expect(sanitizeDiscountTargets([{ kind: 'variant', itemId: ITEM, variantName: '1 sabor', percent: 40 }]).ok).toBe(true)
+  })
+
+  it('dos promos por modalidad: al pasar a retirar aplica la otra, no la lista', () => {
+    const all = { _id: 'pa', type: 'discount', title: 'Todos', channels: [], discountTargets: [{ kind: 'item' as const, itemId: ITEM, percent: 20 }] }
+    const del = { _id: 'pd', type: 'discount', title: 'Delivery', channels: ['delivery'], discountTargets: [{ kind: 'item' as const, itemId: ITEM, percent: 40 }] }
+    const item = annotateMenuItem({ _id: ITEM, price: 1_000_000 }, CAT, null, [all, del], 'takeaway') as any
+    expect(item.price).toBe(600_000)
+    const d = cartMenuDiscountFor(item, 'takeaway')!
+    const line = { type: 'menuItem', basePrice: d.discountedBasePrice, extraPrice: 0, price: d.discountedBasePrice, menuDiscount: d }
+    const tk = repriceLineForMode(line, 'takeaway')
+    expect(tk.price).toBe(800_000)
+    expect(tk.menuDiscount!.promotionId).toBe('pa')
+    expect(repriceLineForMode(tk, 'delivery').price).toBe(600_000)
+  })
+
+  it('POS: descuento solo del plato/variante, por canal, sin mitad y mitad', () => {
+    const rules = [{ ...arepaPromo, channels: ['dine-in'] }]
+    const line = { productId: ITEM, categoryId: CAT, unitPrice: 500_000, quantity: 2, modifiers: [{ name: 'Variante: 1 sabor', price: 0 }, { name: 'Extras: Queso', price: 100_000 }] }
+    const hit = posPromoLineDiscount(line, rules, 'dine-in')!
+    expect(hit.percent).toBe(40)
+    expect(hit.perUnitCents).toBe(200_000)
+    expect(hit.amountCents).toBe(400_000)
+    expect(posPromoLineDiscount(line, rules, 'takeaway')).toBeNull()
+    expect(posPromoLineDiscount({ ...line, modifiers: [{ name: 'Primera mitad: A', price: 1 }] }, rules, 'dine-in')).toBeNull()
+    const three = posPromoLineDiscount({ ...line, quantity: 1, modifiers: [{ name: 'Variante: 3 sabores', price: 400_000 }] }, rules, 'dine-in')!
+    expect(three.perUnitCents).toBe(270_000)
+  })
+
+  it('POS: el descuento de promo acompaña a la cantidad', () => {
+    const item: any = { basePrice: 500_000, extraPrice: 0, quantity: 1, subtotal: 300_000, posDiscount: { kind: 'amount', value: 200_000, amountCents: 200_000, scope: 'item', reason: 'promotion', by: 'promo:p1' } }
+    const three = withQuantityKeepingDiscount(item, 3)
+    expect(three.posDiscount!.amountCents).toBe(600_000)
+    expect(three.subtotal).toBe(900_000)
   })
 })

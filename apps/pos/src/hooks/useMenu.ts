@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { useLiveQuery } from "dexie-react-hooks"
-import type { Product, MenuCategory } from "@takeasygo/types"
+import type { Product, MenuCategory, PosMenuDiscount } from "@takeasygo/types"
 import { useAuth } from "./useAuth"
 import { syncMenu } from "../services/menu"
 import { db } from "../db/dexie"
@@ -55,6 +55,8 @@ export function useMenu() {
 
   const products = useMemo(() => (cached?.products ?? []) as Product[], [cached])
   const categories = useMemo(() => (cached?.categories ?? []) as MenuCategory[], [cached])
+  // 21/11/2026: promos «Descuento %» vigentes (el server las filtra por horario).
+  const menuDiscounts = useMemo(() => (cached?.menuDiscounts ?? []) as PosMenuDiscount[], [cached])
 
   // Fase J (decisión 24/10): un artículo pausado u oculto NO desaparece del
   // POS: se muestra como «Faltante» / «Sin inventario» en el mismo selector
@@ -72,6 +74,8 @@ export function useMenu() {
 
   return {
     products: availableProducts,
+    allProducts: products,
+    menuDiscounts,
     combos,
     categories: visibleCategories,
     getProductsByCategory,

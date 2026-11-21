@@ -3,6 +3,7 @@ import type { ItemCourse, OrderItem } from "@takeasygo/types"
 import { MessageSquare, SlidersHorizontal } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { CourseChip, CourseGroupHeader, CoursePicker, groupByCourse, hasCourses } from "./Courses"
+import type { CartPromo } from "../../utils/menu-promos"
 
 // ============================================================================
 // Carrito de la ronda
@@ -46,6 +47,8 @@ interface OrderPanelProps {
   onActiveCourse?: (course: ItemCourse | undefined) => void
   /** Tiempos que van a esperar la marcha (encabezado «Espera la marcha»). */
   heldCourses?: ItemCourse[]
+  /** 21/11/2026: promo «Descuento %» de cada línea (el total ya la descuenta). */
+  promoOf?: (index: number) => CartPromo | null
 }
 
 function NoteEditor({ initial, initialCourse, onSave, onCancel }: {
@@ -121,6 +124,7 @@ export function OrderPanel({
   activeCourse,
   onActiveCourse,
   heldCourses = [],
+  promoOf,
 }: OrderPanelProps) {
   const [editing, setEditing] = useState<number | null>(null)
   // Obs. UX 30/10 (táctil): al agregar, respuesta inmediata acá — sin modal.
@@ -187,6 +191,11 @@ export function OrderPanel({
                           {m.name}{m.price > 0 ? ` (+${formatCurrency(m.price)})` : ""}
                         </span>
                       ))}
+                    </div>
+                  )}
+                  {promoOf?.(idx) && (
+                    <div className="order-item-notes text-success">
+                      🏷️ {promoOf(idx)!.label} −{formatCurrency(promoOf(idx)!.cents)}
                     </div>
                   )}
                   {item.notes && editing !== idx && (

@@ -7,6 +7,7 @@ import Location from '@/models/Location'
 import Table from '@/models/Table'
 import Order from '@/models/Order'
 import Menu from '@/models/Menu'
+import Promotion from '@/models/Promotion'
 import { signJwt } from '@takeasygo/business/jwt'
 import { __resetPosJwtKeyCacheForTests } from '@/lib/posJwt'
 import { auth } from '@/lib/auth'
@@ -565,3 +566,35 @@ describe('POST /pos/orders — precios contra el catálogo vigente (S1-2)', () =
     expect(await Order.countDocuments({ tenantId })).toBe(1)
   })
 })
+
+describe('POST /pos/orders — promo «Descuento %» (21/11/2026)', () => {
+  it('mostrador: la línea lleva el descuento «Promoción del local» y el total baja', async () => {
+    await Promotion.create({
+      tenantId, type: 'discount', title: 'Día de la hamburguesa', isActive: true, channels: ['takeaway'],
+      discountTargets: [{ kind: 'item', itemId: PRODUCT_ID, percent: 20 }],
+    })
+    const payload = orderPayload({
+      items: [{ productId: PRODUCT_ID, name: 'Hamburguesa', quantity: 2, unitPrice: 1500, total: 3400, modifiers: [{ name: 'Extras: Papas', price: 200 }] }],
+    })
+    const res = await POST(req(URL_, payload, bearer(token('cashier'))), params)
+    expect(res.status).toBe(201)
+    const body = await res.json()
+    // 20 % solo sobre el plato (1500 → 300 por unidad), las papas a precio normal.
+    expect(body.order.total).toBe(3400 - 600)
+    expect(body.order.items[0].discount).toMatchObject({ reason: 'promotion', amount: 600 })
+    const stored = await Order.findOne({ tenantId, posId: payload.id }).lean()
+    expect(stored!.total).toBe(2800)
+    expect(stored!.items[0].posDiscount?.by).toMatch(/^promo:/)
+  })
+
+  it('una promo solo de salón no aplica en el mostrador', async () => {
+    await Promotion.create({
+      tenantId, type: 'discount', title: 'Salón', isActive: true, channels: ['dine-in'],
+      discountTargets: [{ kind: 'item', itemId: PRODUCT_ID, percent: 20 }],
+    })
+    const res = await POST(req(URL_, orderPayload(), bearer(token('cashier'))), params)
+    expect(res.status).toBe(201)
+    expect((await res.json()).order.total).toBe(3000)
+  })
+})
+

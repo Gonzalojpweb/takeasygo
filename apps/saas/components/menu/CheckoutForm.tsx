@@ -1,7 +1,7 @@
 'use client'
 
-import { withMenuDiscountClaims } from '@/lib/menu-discounts'
-import { useState, useEffect, useCallback } from 'react'
+import { annotateMenuItem, blocksOtherDiscounts, cartMenuDiscountFor, repriceLineForMode, withMenuDiscountClaims, type MenuDiscountPromoLike } from '@/lib/menu-discounts'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle, Copy, Check, Banknote, MapPin, Loader2, CheckCircle2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -523,14 +523,41 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
       .catch(() => {})
   }, [loyaltyMember, tenantSlug, loyaltyConfig?.enabled, phoneLookupSettled])
 
+  // 21/11/2026: descuento % de carta — precio según la modalidad elegida.
+  useEffect(() => {
+    setCart(prev => {
+      const next = prev.map(l => repriceLineForMode(l, currentMode))
+      return next.some((l, i) => l !== prev[i]) ? next : prev
+    })
+  }, [currentMode, cart])
+
+  // Sugerencias del checkout con el mismo descuento que tendrían en el menú.
+  const hintPricingRef = useRef<{ map: Record<string, { categoryId?: string; subcategoryId?: string }>; promos: MenuDiscountPromoLike[] }>({ map: {}, promos: [] })
+  useEffect(() => {
+    const menuMode = mode === 'delivery' ? 'takeaway' : mode
+    Promise.all([
+      fetch(`/api/${tenantSlug}/menu/${locationId}/promotions?mode=${menuMode}`).then(r => (r.ok ? r.json() : { promotions: [] })).catch(() => ({ promotions: [] })),
+      fetch(`/api/${tenantSlug}/menu?locationId=${locationId}`).then(r => (r.ok ? r.json() : { menu: null })).catch(() => ({ menu: null })),
+    ]).then(([promoData, menuData]) => {
+      const map: Record<string, { categoryId?: string; subcategoryId?: string }> = {}
+      for (const cat of menuData.menu?.categories ?? []) {
+        for (const it of cat.items ?? []) map[it._id] = { categoryId: cat._id }
+        for (const sub of cat.subcategories ?? []) for (const it of sub.items ?? []) map[it._id] = { categoryId: cat._id, subcategoryId: sub._id }
+      }
+      hintPricingRef.current = { map, promos: promoData.promotions ?? [] }
+    })
+  }, [tenantSlug, locationId, mode])
+
   const subtotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const qrEligibleSubtotal = cart
+  // Descuento de carta NO acumulable: fuera del QR y del premio escondido (igual que el server).
+  const stackableCart = cart.filter(i => !blocksOtherDiscounts(i))
+  const qrEligibleSubtotal = stackableCart
     .filter(i => i.type !== 'promotion')
     .reduce((sum, i) => sum + i.price * i.quantity, 0)
 
   const hiddenRewardDiscount = !activeQrPromo && hiddenRewardClaims.length > 0
     ? hiddenRewardClaims.reduce((sum, claim) => {
-        const cartItem = cart.find(i => i.menuItemId === claim.menuItemId)
+        const cartItem = stackableCart.find(i => i.menuItemId === claim.menuItemId)
         return cartItem ? sum + Math.floor(cartItem.price * cartItem.quantity * (claim.discountPercentage / 100)) : sum
       }, 0)
     : 0
@@ -637,8 +664,16 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     setCart(prev => prev.filter(i => !cartItemIds.includes(i.cartItemId)))
   }
 
-  function addHintToCart(item: any) {
-    const plainId = `${item._id}:plain`
+  function addHintToCart(rawItem: any) {
+    const plainId = `${rawItem._id}:plain`
+    const menuMode = mode === 'delivery' ? 'takeaway' : mode
+    const ref = hintPricingRef.current.map[rawItem._id] ?? {}
+    const item = annotateMenuItem(rawItem, ref.categoryId, ref.subcategoryId, hintPricingRef.current.promos, menuMode)
+    const unitPrice = menuMode === 'takeaway'
+      ? Number(item.takeawayPrice ?? item.price) || 0
+      : menuMode === 'business'
+        ? Number(item.businessPrice ?? item.price) || 0
+        : Number(item.price) || 0
     setCart(prev => {
       const existing = prev.find(i => i.cartItemId === plainId)
       if (existing) return prev.map(i => i.cartItemId === plainId ? { ...i, quantity: i.quantity + 1 } : i)
@@ -646,9 +681,9 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         cartItemId: plainId,
         menuItemId: item._id,
         name: item.name,
-        basePrice: item.price,
+        basePrice: unitPrice,
         extraPrice: 0,
-        price: item.price,
+        price: unitPrice,
         quantity: 1,
         customizations: [],
         customizationSummary: '',
@@ -656,9 +691,10 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
         type: 'menuItem',
         originalPrice: item.originalPrice,
         takeawayOriginalPrice: item.takeawayOriginalPrice,
+        menuDiscount: cartMenuDiscountFor(item, menuMode),
       }]
     })
-    trackCartAdd({ menuItemId: item._id, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId })
+    trackCartAdd({ menuItemId: item._id, name: item.name, price: unitPrice, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId })
     setUpsellHints(prev => prev.filter(h => h._id !== item._id))
   }
 

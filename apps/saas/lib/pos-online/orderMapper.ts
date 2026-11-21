@@ -486,6 +486,7 @@ export function toPosOrder(doc: {
               amount: i.posDiscount.amountCents,
               scope: i.posDiscount.scope,
               reason: i.posDiscount.reason,
+              ...(i.posDiscount.note ? { note: i.posDiscount.note } : {}),
             },
           }
         : {}),

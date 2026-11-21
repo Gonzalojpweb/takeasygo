@@ -9,7 +9,9 @@ import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
 import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder, toSaasOrderItem, recomputeOrderTotals, type PosOrderItemInput } from '@/lib/pos-online/orderMapper'
 import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
-import { assertItemAgainstCatalog } from '@/lib/pos-online/catalogPrices'
+import { assertItemMatchesCatalog, loadPosCatalog } from '@/lib/pos-online/catalogPrices'
+import { applyPosMenuPromos, loadPosMenuDiscounts } from '@/lib/pos-online/menuPromos'
+import { trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { assertNotPaid, findPosOrder, type PosOrderDoc } from '@/lib/pos-online/orderRepo'
 
 // ============================================================================
@@ -39,11 +41,15 @@ export const POST = posRoute('orders.write', async (ctx, { id }) => {
   const body = await readPosBody(ctx.request)
   // Forma e interna primero (400), después el catálogo vigente (409).
   const item = toSaasOrderItem(body as unknown as PosOrderItemInput)
-  await assertItemAgainstCatalog(
-    body as unknown as PosOrderItemInput,
-    ctx.tenantId,
-    ctx.locationId
-  )
+  const products = await loadPosCatalog(ctx.tenantId, ctx.locationId)
+  assertItemMatchesCatalog(body as unknown as PosOrderItemInput, products)
+
+  // 21/11/2026: promo «Descuento %» vigente → descuento de la línea. Un plato
+  // cargado sin internet queda como lo cobró el equipo (sin promo).
+  if (!(await trustedOfflineAt(ctx))) {
+    const rules = await loadPosMenuDiscounts(ctx.tenantId, ctx.locationId)
+    applyPosMenuPromos([item], [body as unknown as PosOrderItemInput], products, rules, current.posTableId ? 'dine-in' : 'takeaway')
+  }
 
   // Cocina o barra (Fase B): la estación sale de la carta, nunca del POS.
   withPrintRoles([item], await printRolesForLocation(ctx.tenantId, ctx.locationId))

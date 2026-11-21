@@ -11,7 +11,8 @@ import {
   type PosOrderInput,
   type SaasOrderDraft,
 } from '@/lib/pos-online/orderMapper'
-import { assertOrderAgainstCatalog } from '@/lib/pos-online/catalogPrices'
+import { assertOrderAgainstCatalog, loadPosCatalog } from '@/lib/pos-online/catalogPrices'
+import { applyPosMenuPromos, loadPosMenuDiscounts, totalsAfterPromos } from '@/lib/pos-online/menuPromos'
 import { printedOffline, trustedOfflineAt } from '@/lib/pos-online/offlineReplay'
 import { printRolesForLocation, withPrintRoles } from '@/lib/pos-online/printRoles'
 
@@ -206,6 +207,17 @@ export const POST = posRoute('orders.write', async (ctx) => {
     if (draft.statusTimestamps?.confirmedAt) draft.statusTimestamps.confirmedAt = offlineAt
   } else {
     await assertOrderAgainstCatalog(input.items, ctx.tenantId, ctx.locationId)
+    // 21/11/2026: promos «Descuento %» vigentes → descuento de la línea.
+    const rules = await loadPosMenuDiscounts(ctx.tenantId, ctx.locationId)
+    if (rules.length > 0) {
+      const products = await loadPosCatalog(ctx.tenantId, ctx.locationId)
+      if (applyPosMenuPromos(draft.items, input.items, products, rules, draft.orderMode)) {
+        const { subtotal, total, baseTotal } = totalsAfterPromos(draft.items)
+        draft.subtotal = subtotal
+        draft.total = total
+        draft.payment.baseTotal = baseTotal
+      }
+    }
   }
   // Fase G: comensales de la mesa en su PRIMERA ronda abierta (KPI del POS).
   // Si otra ronda abierta de la mesa ya los tiene, esta no los repite.

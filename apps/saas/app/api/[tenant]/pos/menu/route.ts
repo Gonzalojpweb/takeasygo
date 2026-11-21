@@ -7,6 +7,7 @@ import Location from '@/models/Location'
 import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import type { Product } from '@takeasygo/types'
 import { posRoute } from '@/lib/pos-online/route'
+import { loadPosMenuDiscounts } from '@/lib/pos-online/menuPromos'
 
 // ============================================================================
 // GET /api/[tenant]/pos/menu — snapshot aplanado para el POS
@@ -93,8 +94,13 @@ export const GET = posRoute('catalog.read', async (ctx) => {
 
   const allProducts = [...flat.products, ...comboProducts]
 
+  // 21/11/2026: promos «Descuento %» vigentes ahora (el POS muestra el precio
+  // antes de cobrar). Entran en la firma: al empezar o terminar una promo el
+  // POS vuelve a bajar la carta.
+  const menuDiscounts = await loadPosMenuDiscounts(ctx.tenantId, ctx.locationId)
+
   const signature = createHash('sha256')
-    .update(JSON.stringify({ p: allProducts, c: flat.categories }))
+    .update(JSON.stringify({ p: allProducts, c: flat.categories, d: menuDiscounts }))
     .digest('hex')
 
   return NextResponse.json({
@@ -104,6 +110,7 @@ export const GET = posRoute('catalog.read', async (ctx) => {
     tenantId: ctx.tenantId,
     products: allProducts,
     categories: flat.categories,
+    menuDiscounts,
     createdAt: new Date().toISOString(),
     signature,
     serverTime: new Date().toISOString(),

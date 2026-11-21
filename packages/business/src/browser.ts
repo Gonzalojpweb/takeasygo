@@ -154,6 +154,23 @@ export {
   type DiscountSummaryInput,
 } from "./discount-policy"
 export {
+  DISCOUNT_TARGET_KINDS,
+  MAX_DISCOUNT_PERCENT,
+  POS_PROMO_DISCOUNT_BY_PREFIX,
+  menuDiscountPercentFor,
+  bestMenuDiscount,
+  applyDiscountPercent,
+  menuDiscountOffered,
+  posPromoLineDiscount,
+  type DiscountTargetKind,
+  type MenuDiscountTarget,
+  type MenuDiscountRule,
+  type MenuDiscountRef,
+  type MenuDiscountHit,
+  type PosPromoLineInput,
+  type PosPromoLineDiscount,
+} from "./menu-discount"
+export {
   TIP_RELATED_SUFFIX,
   TIP_METHODS,
   TIP_PERCENTS,

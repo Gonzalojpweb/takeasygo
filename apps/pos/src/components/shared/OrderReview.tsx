@@ -2,6 +2,7 @@ import type { ItemCourse, OrderItem } from "@takeasygo/types"
 import { Percent, Plus, Send, Wallet } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { CourseChip, CourseGroupHeader, CourseHoldControl, groupByCourse, hasCourses } from "./Courses"
+import type { CartPromo } from "../../utils/menu-promos"
 
 // ============================================================================
 // Revisión del pedido (observación UI/UX 24/10)
@@ -41,9 +42,15 @@ interface OrderReviewProps {
     total: number
     general: boolean
   }
+  /**
+   * 21/11/2026: promo «Descuento %» de cada línea. `cartTotal` llega YA neto
+   * de promos; acá solo se muestra el detalle.
+   */
+  promoOf?: (index: number) => CartPromo | null
 }
 
-export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge, courseHold, onSetCourse, lineDiscount }: OrderReviewProps) {
+export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge, courseHold, onSetCourse, lineDiscount, promoOf }: OrderReviewProps) {
+  const promoTotal = promoOf ? items.reduce((s, _i, idx) => s + (promoOf(idx)?.cents ?? 0), 0) : 0
   const units = items.reduce((n, i) => n + i.quantity, 0)
   const discountTotal = lineDiscount?.total ?? 0
   const chargeTotal = cartTotal + sentTotal - discountTotal
@@ -71,6 +78,11 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
                   <span className="review-mods">{item.modifiers.map((m) => m.name).join(" · ")}</span>
                 )}
                 {item.notes && <span className="review-note">{item.notes}</span>}
+                {promoOf?.(idx) && (
+                  <span className="review-discount text-success">
+                    🏷️ {promoOf(idx)!.label} −{formatCurrency(promoOf(idx)!.cents)}
+                  </span>
+                )}
                 {lineDiscount && lineDiscount.amountOf(idx) > 0 && (
                   <span className="review-discount text-success">
                     Desc. {lineDiscount.labelOf(idx)} −{formatCurrency(lineDiscount.amountOf(idx))}
@@ -104,6 +116,12 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
         </div>
         <dl className="review-totals">
           <div><dt>Esta ronda</dt><dd>{formatCurrency(cartTotal)}</dd></div>
+          {promoTotal > 0 && (
+            <div className="text-success">
+              <dt>Incluye promos de la carta</dt>
+              <dd>−{formatCurrency(promoTotal)}</dd>
+            </div>
+          )}
           {sentTotal > 0 && <div><dt>Ya enviado a cocina</dt><dd>{formatCurrency(sentTotal)}</dd></div>}
           {discountTotal > 0 && (
             <div className="text-success">

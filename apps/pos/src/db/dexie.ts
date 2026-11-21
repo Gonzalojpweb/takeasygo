@@ -83,6 +83,8 @@ export interface MenuSnapshotRecord {
   version: number
   /** sha256 del server: si no cambió, el polling no reescribe (sin re-render). */
   signature?: string
+  /** 21/11/2026: promos «Descuento %» vigentes (PosMenuDiscount[]). */
+  menuDiscounts?: unknown[]
   updatedAt: Date
 }
 

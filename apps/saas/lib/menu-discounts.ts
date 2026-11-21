@@ -26,21 +26,18 @@
 
 import { isOfferedInMode, isVisibleInMenu, promotionChannels, type SalesChannel } from '@/lib/sales-channels'
 
-export const DISCOUNT_TARGET_KINDS = ['category', 'subcategory', 'item', 'variant'] as const
-export type DiscountTargetKind = (typeof DISCOUNT_TARGET_KINDS)[number]
+import {
+  DISCOUNT_TARGET_KINDS,
+  MAX_DISCOUNT_PERCENT,
+  applyDiscountPercent,
+  menuDiscountPercentFor,
+  type DiscountTargetKind,
+  type MenuDiscountTarget,
+} from '@takeasygo/business/browser'
 
-/** Tope del %: un plato a $0 no se puede cobrar con Mercado Pago. */
-export const MAX_DISCOUNT_PERCENT = 95
+// Núcleo compartido con el POS (@takeasygo/business/menu-discount).
+export { DISCOUNT_TARGET_KINDS, MAX_DISCOUNT_PERCENT, type DiscountTargetKind, type MenuDiscountTarget }
 export const MAX_DISCOUNT_TARGETS = 200
-
-export interface MenuDiscountTarget {
-  kind: DiscountTargetKind
-  categoryId?: string | null
-  subcategoryId?: string | null
-  itemId?: string | null
-  variantName?: string | null
-  percent: number
-}
 
 export interface MenuDiscountPromoLike {
   _id?: unknown
@@ -67,40 +64,16 @@ export interface MenuDiscountMatch {
   channels: SalesChannel[]
 }
 
-const SPECIFICITY: Record<DiscountTargetKind, number> = { variant: 4, item: 3, subcategory: 2, category: 1 }
-
 const idStr = (v: unknown): string => (v == null ? '' : String(v))
 
 export function isDiscountPromo(p: { type?: string } | null | undefined): boolean {
   return p?.type === 'discount'
 }
 
-function targetMatches(t: MenuDiscountTarget, ref: MenuDiscountRef): boolean {
-  switch (t.kind) {
-    case 'category':
-      return !!t.categoryId && idStr(t.categoryId) === idStr(ref.categoryId)
-    case 'subcategory':
-      return !!t.subcategoryId && idStr(t.subcategoryId) === idStr(ref.subcategoryId)
-    case 'item':
-      return !!t.itemId && idStr(t.itemId) === idStr(ref.itemId)
-    case 'variant':
-      return !!t.itemId && idStr(t.itemId) === idStr(ref.itemId) && !!ref.variantName && t.variantName === ref.variantName
-    default:
-      return false
-  }
-}
-
 /** % de UNA promo para ese plato (objetivo más específico), o null. */
 export function promoPercentFor(promo: MenuDiscountPromoLike, ref: MenuDiscountRef): number | null {
-  let best: { spec: number; percent: number } | null = null
-  for (const t of promo.discountTargets ?? []) {
-    const pct = Number(t?.percent)
-    if (!Number.isFinite(pct) || pct <= 0) continue
-    if (!targetMatches(t, ref)) continue
-    const spec = SPECIFICITY[t.kind] ?? 0
-    if (!best || spec > best.spec || (spec === best.spec && pct > best.percent)) best = { spec, percent: pct }
-  }
-  return best ? Math.min(best.percent, MAX_DISCOUNT_PERCENT) : null
+  // Solo los objetivos importan para el %: los canales se filtran aparte.
+  return menuDiscountPercentFor({ type: promo.type, discountTargets: promo.discountTargets }, ref)
 }
 
 /**
@@ -128,10 +101,7 @@ export function resolveMenuDiscount(promos: readonly MenuDiscountPromoLike[], re
 
 /** Precio con el % aplicado. Precios en pesos enteros quedan en pesos enteros. */
 export function applyPercent(cents: number, percent: number): number {
-  const n = Number(cents) || 0
-  if (n <= 0 || !(percent > 0)) return n
-  const raw = (n * (100 - percent)) / 100
-  return n % 100 === 0 ? Math.round(raw / 100) * 100 : Math.round(raw)
+  return applyDiscountPercent(cents, percent)
 }
 
 // ── Menú público: anotar precios rebajados ──────────────────────────────────
@@ -140,6 +110,11 @@ export function applyPercent(cents: number, percent: number): number {
 export interface MenuDiscountApplied extends MenuDiscountMatch {
   /** Precios de lista antes del % (centavos). */
   list: { price: number; takeawayPrice?: number; businessPrice?: number }
+  /**
+   * Menú online (delivery + retiro juntos): el descuento que corresponde a
+   * cada modalidad (puede ser otra promo, o ninguna).
+   */
+  byMode?: Record<string, MenuDiscountMatch | null>
 }
 
 type PricedNode = {
@@ -152,7 +127,7 @@ type PricedNode = {
   [k: string]: unknown
 }
 
-function discountNode<T extends PricedNode>(node: T, match: MenuDiscountMatch): T {
+function discountNode<T extends PricedNode>(node: T, match: MenuDiscountMatch, byMode?: Record<string, MenuDiscountMatch | null>): T {
   const price = Number(node.price) || 0
   const tk = node.takeawayPrice != null ? Number(node.takeawayPrice) : null
   const bz = node.businessPrice != null ? Number(node.businessPrice) : null
@@ -161,6 +136,7 @@ function discountNode<T extends PricedNode>(node: T, match: MenuDiscountMatch): 
     price: applyPercent(price, match.percent),
     _menuDiscount: {
       ...match,
+      ...(byMode ? { byMode } : {}),
       list: {
         price,
         ...(tk != null ? { takeawayPrice: tk } : {}),
@@ -194,21 +170,34 @@ export function applyMenuDiscounts<M extends { categories?: any[] }>(
   const promos = promotions.filter((p) => isDiscountPromo(p) && isVisibleInMenu(promotionChannels(p), menuMode))
   if (promos.length === 0 || !menu?.categories) return menu
 
+  // Menú online: delivery y retiro se eligen recién en el checkout.
+  const onlineModes = menuMode === 'takeaway' ? (['takeaway', 'delivery'] as const) : null
+  const promosByMode = onlineModes
+    ? Object.fromEntries(onlineModes.map((m) => [m, promos.filter((p) => isOfferedInMode(promotionChannels(p), m))]))
+    : null
+  const matchFor = (ref: MenuDiscountRef) => {
+    const m = resolveMenuDiscount(promos, ref)
+    if (!m || !promosByMode) return { m, byMode: undefined }
+    const byMode: Record<string, MenuDiscountMatch | null> = {}
+    for (const [mode, list] of Object.entries(promosByMode)) byMode[mode] = resolveMenuDiscount(list, ref)
+    return { m, byMode }
+  }
+
   const mapItem = (item: any, categoryId: unknown, subcategoryId: unknown) => {
     const base = { categoryId, subcategoryId, itemId: item._id }
     const variants: any[] = item.variants ?? []
     if (variants.length > 0) {
       let changed = false
       const nextVariants = variants.map((v) => {
-        const m = resolveMenuDiscount(promos, { ...base, variantName: v.name })
+        const { m, byMode } = matchFor({ ...base, variantName: v.name })
         if (!m) return v
         changed = true
-        return discountNode(v, m)
+        return discountNode(v, m, byMode)
       })
       return changed ? { ...item, variants: nextVariants } : item
     }
-    const m = resolveMenuDiscount(promos, base)
-    return m ? discountNode(item, m) : item
+    const { m, byMode } = matchFor(base)
+    return m ? discountNode(item, m, byMode) : item
   }
 
   return {
@@ -243,6 +232,8 @@ export interface CartMenuDiscount {
   listBasePrice: number
   /** Precio del plato/variante con el % (centavos). */
   discountedBasePrice: number
+  /** Menú online: el descuento de cada modalidad (null = esa modalidad va a precio de lista). */
+  byMode?: Record<string, Omit<CartMenuDiscount, 'listBasePrice' | 'byMode'> | null>
 }
 
 /** Datos del descuento para la línea del carrito (plato o variante elegida). */
@@ -255,6 +246,16 @@ export function cartMenuDiscountFor(
   const listBasePrice = modePrice(d.list, mode)
   const discountedBasePrice = modePrice(node!, mode)
   if (!(listBasePrice > discountedBasePrice)) return undefined
+  const byMode = d.byMode
+    ? Object.fromEntries(Object.entries(d.byMode).map(([m, hit]) => [m, hit ? {
+        promotionId: hit.promotionId,
+        title: hit.title,
+        percent: hit.percent,
+        stackable: hit.stackable,
+        channels: hit.channels,
+        discountedBasePrice: applyPercent(listBasePrice, hit.percent),
+      } : null]))
+    : undefined
   return {
     promotionId: d.promotionId,
     title: d.title,
@@ -263,6 +264,7 @@ export function cartMenuDiscountFor(
     channels: d.channels,
     listBasePrice,
     discountedBasePrice,
+    ...(byMode ? { byMode } : {}),
   }
 }
 
@@ -295,9 +297,21 @@ export function menuCardDiscount(item: any, mode: MenuMode): { original: number;
 export function repriceLineForMode<L extends { type?: string; basePrice: number; extraPrice: number; price: number; menuDiscount?: CartMenuDiscount }>(line: L, mode: string): L {
   const d = line.menuDiscount
   if (!d || (line.type && line.type !== 'menuItem')) return line
+  const extra = Number(line.extraPrice) || 0
+  if (d.byMode && mode in d.byMode) {
+    const hit = d.byMode[mode]
+    if (!hit) {
+      // Esa modalidad no tiene descuento: precio de lista (se conserva la
+      // promo original para avisar y para volver si cambia de modalidad).
+      if (line.basePrice === d.listBasePrice) return line
+      return { ...line, basePrice: d.listBasePrice, price: d.listBasePrice + extra }
+    }
+    if (line.basePrice === hit.discountedBasePrice && d.promotionId === hit.promotionId) return line
+    return { ...line, basePrice: hit.discountedBasePrice, price: hit.discountedBasePrice + extra, menuDiscount: { ...d, ...hit } }
+  }
   const base = isOfferedInMode(d.channels, mode) ? d.discountedBasePrice : d.listBasePrice
   if (base === line.basePrice) return line
-  return { ...line, basePrice: base, price: base + (Number(line.extraPrice) || 0) }
+  return { ...line, basePrice: base, price: base + extra }
 }
 
 /** ¿El descuento de esta línea deja afuera los otros (Club, QR, efectivo…)? */
@@ -397,4 +411,26 @@ export function menuDiscountKey(promotions: readonly MenuDiscountPromoLike[]): s
       .filter(isDiscountPromo)
       .map((p) => [idStr(p._id), p.title ?? '', p.stackable === true, promotionChannels(p), p.discountTargets ?? []]),
   )
+}
+
+/**
+ * Un plato suelto (p. ej. una sugerencia del checkout) con el descuento de
+ * carta que le toca, igual que si viniera del menú.
+ */
+export function annotateMenuItem<T extends { _id?: unknown }>(
+  item: T,
+  categoryId: unknown,
+  subcategoryId: unknown,
+  promotions: readonly MenuDiscountPromoLike[],
+  menuMode: string,
+): T {
+  const fake = {
+    categories: [{
+      _id: categoryId,
+      items: subcategoryId ? [] : [item],
+      subcategories: subcategoryId ? [{ _id: subcategoryId, items: [item] }] : [],
+    }],
+  }
+  const cat = applyMenuDiscounts(fake, promotions, menuMode).categories[0] as any
+  return (subcategoryId ? cat.subcategories[0].items[0] : cat.items[0]) as T
 }

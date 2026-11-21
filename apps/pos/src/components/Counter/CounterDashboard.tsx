@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useOfflineStatus } from "../../hooks/useOfflineStatus"
+import { cartPromoDiscounts, productPromoPercent } from "../../utils/menu-promos"
 import type { ComponentType } from "react"
 import type { ItemCourse, Product, OrderItem, CustomerProfile, Order } from "@takeasygo/types"
 import { calculateItemTotal, allocatePayments, tipRelatedOrderId, COURSE_SEQUENCE, type CheckoutPart, type AllocatedPayment } from "@takeasygo/business/browser"
@@ -264,7 +266,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [guestsBusy, setGuestsBusy] = useState(false)
   const tableActivity = useTableActivity(tenantId)
   const now = useNow()
-  const { products, combos, categories } = useMenu()
+  const { products, combos, categories, menuDiscounts: snapshotDiscounts } = useMenu()
+  // 21/11/2026: sin internet la ronda se guarda como la cobra el equipo (sin
+  // promo): el carrito tampoco la muestra, así el total siempre cierra.
+  const { online: promosOnline } = useOfflineStatus()
+  const menuDiscounts = useMemo(() => (promosOnline ? snapshotDiscounts : []), [promosOnline, snapshotDiscounts])
   const [buildingCombo, setBuildingCombo] = useState<{ combo: Product; scene: string } | null>(null)
   const { processPayment } = usePayments()
   const { createOrder, confirmOrder } = useOrders()
@@ -544,6 +550,21 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     [cart]
   )
 
+  // 21/11/2026: promos «Descuento %» de la carta. El plato va a precio de
+  // lista y el server le pone a la línea el descuento «Promoción del local»
+  // al crear la ronda; acá se calcula lo mismo para cobrar el total correcto.
+  // Un descuento manual en el Mostrador reemplaza la promo de esa línea (o de
+  // toda la venta), como en el server: una línea tiene un solo descuento.
+  const cartPromos = useMemo(
+    () => cartPromoDiscounts(cart, products, menuDiscounts, selectedTableId ? "dine-in" : "takeaway",
+      (idx) => view === "mostrador" && (Boolean(mostradorDiscount) || Boolean(mostradorLineDiscounts[idx]))),
+    [cart, products, menuDiscounts, selectedTableId, view, mostradorDiscount, mostradorLineDiscounts]
+  )
+  const cartPromoCents = useMemo(() => cartPromos.reduce((s, p) => s + (p?.cents ?? 0), 0), [cartPromos])
+  /** Lo que suma el carrito con las promos de la carta. */
+  const cartNetTotal = cartTotal - cartPromoCents
+  const promoOf = useCallback((idx: number) => cartPromos[idx] ?? null, [cartPromos])
+
   // Órdenes POS abiertas de la mesa elegida (rondas que ya se mandaron a
   // cocina — desde el Salón del cajero o desde la terminal del mozo). Antes
   // el Counter abría la mesa con el carrito vacío y no había forma de
@@ -571,9 +592,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   )
 
   /** Lo que se cobra: rondas sin cobrar de la mesa + el carrito actual. */
+  /** Rondas ya enviadas a cocina y sin cobrar. */
+  const sentTotal = useMemo(() => unpaidTableOrders.reduce((sum, o) => sum + o.total, 0), [unpaidTableOrders])
   const chargeTotal = useMemo(
-    () => cartTotal + unpaidTableOrders.reduce((sum, o) => sum + o.total, 0),
-    [cartTotal, unpaidTableOrders]
+    () => cartNetTotal + sentTotal,
+    [cartNetTotal, sentTotal]
   )
 
   // Fuera de los bloques por vista (ahí TS ya acotó `view`).
@@ -628,10 +651,10 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       ...unpaidTableOrders.flatMap((o) =>
         o.items.map((i, idx) => ({ key: i.lineId ?? `${o.id}-${idx}`, name: i.name, quantity: i.quantity, total: i.total }))
       ),
-      ...cart.map((i, idx) => ({ key: `cart-${idx}`, name: i.name, quantity: i.quantity, total: i.total })),
+      ...cart.map((i, idx) => ({ key: `cart-${idx}`, name: i.name, quantity: i.quantity, total: i.total - (cartPromos[idx]?.cents ?? 0) })),
     ]
     return lines.reduce((s, l) => s + l.total, 0) === chargeTotal ? lines : undefined
-  }, [unpaidTableOrders, cart, chargeTotal])
+  }, [unpaidTableOrders, cart, chargeTotal, cartPromos])
 
   // Si el carrito cambia, la orden del próximo intento es otra.
   useEffect(() => {
@@ -1726,11 +1749,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // sin carrito ni botón de cobro (Auditoría §4.1).
         const isMostrador = scene === "mostrador_rapido"
         const title = isMostrador ? "Mostrador" : `Mesa ${selectedTable?.number ?? "?"}`
-        const openTotal = chargeTotal - cartTotal
+        const openTotal = sentTotal
         setContextPanel({
           title,
           subtitle: cart.length > 0
-            ? `${cart.length} items — ${formatCurrency(cartTotal)}`
+            ? `${cart.length} items — ${formatCurrency(cartNetTotal)}`
             : openTotal > 0 ? `Cuenta abierta — ${formatCurrency(openTotal)}` : "Sin productos",
           body: (
             <>
@@ -1758,7 +1781,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 onEditNote={handleEditNote}
                 onEditOptions={handleEditOptions}
                 isConfigurable={isConfigurableLine}
-                total={cartTotal}
+                total={cartNetTotal}
+                promoOf={promoOf}
                 primaryAction={{
                   label: cart.length > 0 ? "Revisar pedido" : "Cobrar cuenta",
                   onClick: () => setScene(cart.length > 0 ? "revision" : "cobro"),
@@ -1799,8 +1823,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               <div className="mesa-panel-account">
                 <div className="mesa-panel-account-label">Total de la cuenta</div>
                 <div className="mesa-panel-account-total">{formatCurrency(chargeTotal)}</div>
-                {chargeTotal !== cartTotal && (
-                  <div className="text-sm text-muted">Incluye {formatCurrency(chargeTotal - cartTotal)} ya enviado a cocina</div>
+                {sentTotal > 0 && (
+                  <div className="text-sm text-muted">Incluye {formatCurrency(sentTotal)} ya enviado a cocina</div>
                 )}
               </div>
             </div>
@@ -1844,7 +1868,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               <div style={{ fontSize: "var(--font-size-2xl)", fontWeight: 700 }}>
                 {formatCurrency(chargeTotal)}
               </div>
-              {chargeTotal !== cartTotal && (
+              {sentTotal > 0 && (
                 <div className="text-sm text-muted" style={{ marginTop: "var(--sp-2)" }}>
                   Incluye {unpaidTableOrders.length} {unpaidTableOrders.length === 1 ? "ronda enviada" : "rondas enviadas"} a cocina
                 </div>
@@ -1971,7 +1995,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         })
         break
     }
-  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder, activeCourse, courseHolds.held, firingCourse, handleFireCourse, canAuthorize, role, voidTableBusy, handleVoidTable])
+  }, [scene, view, selectedTable, tableActivity, now, handleTableTransition, cart, cartTotal, cartNetTotal, sentTotal, promoOf, chargeTotal, tableOrders, unpaidTableOrders, paying, lastSale, handleSendToKitchen, customer, entrantesSubView, connected, selectedOrder, selectedKanbanOrder, rejectingId, appOrderBusyId, setContextPanel, setActionBar, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, handleBillRequest, handlePrintPrecuenta, moveBusy, pickupOrders, reservationsByTable, reservationBusyId, handleReservationAction, handleNewSale, handleRejectOrder, handleAcceptOrder, handleConfirmTransfer, handleAdvanceAppOrder, activeCourse, courseHolds.held, firingCourse, handleFireCourse, canAuthorize, role, voidTableBusy, handleVoidTable])
 
   // Hoja de personalización: misma para Salón y Mostrador, sobre la grilla.
   // Si se cambió de pantalla con la hoja abierta, no vuelve a aparecer sola.
@@ -2059,6 +2083,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           {scene === "productos" && (
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <ProductSelector
+                promoPercentOf={(product) => productPromoPercent(product, menuDiscounts, selectedTableId ? "dine-in" : "takeaway")}
                 showImages={showProductImages}
                 products={products}
                 categories={categories}
@@ -2087,8 +2112,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 customer ? customer.name : null,
               ].filter(Boolean).join(" · ") || undefined}
               items={cart}
-              cartTotal={cartTotal}
-              sentTotal={chargeTotal - cartTotal}
+              cartTotal={cartNetTotal}
+              sentTotal={sentTotal}
+              promoOf={promoOf}
               busy={paying}
               onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
               onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}
@@ -2175,6 +2201,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           {scene === "mostrador_rapido" && (
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
               <ProductSelector
+                promoPercentOf={(product) => productPromoPercent(product, menuDiscounts, selectedTableId ? "dine-in" : "takeaway")}
                 showImages={showProductImages}
                 products={products}
                 categories={categories}
@@ -2199,8 +2226,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                 customer ? customer.name : null,
               ].filter(Boolean).join(" · ") || undefined}
               items={cart}
-              cartTotal={cartTotal}
-              sentTotal={chargeTotal - cartTotal}
+              cartTotal={cartNetTotal}
+              sentTotal={sentTotal}
+              promoOf={promoOf}
               busy={paying}
               onAddMore={() => setScene(isMostradorView ? "mostrador_rapido" : "productos")}
               onSendToKitchen={!isMostradorView && cart.length > 0 ? () => { void handleSendToKitchen() } : undefined}

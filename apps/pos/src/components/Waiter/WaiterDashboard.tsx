@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
+import { useOfflineStatus } from "../../hooks/useOfflineStatus"
+import { cartPromoDiscounts, productPromoPercent } from "../../utils/menu-promos"
 import type { ItemCourse, Order, OrderItem, Product } from "@takeasygo/types"
 import { calculateItemTotal, canSeeSharedSurfaces, COURSE_SEQUENCE } from "@takeasygo/business/browser"
 import { useLiveQuery } from "dexie-react-hooks"
@@ -110,7 +112,11 @@ export function WaiterDashboard({ role }: { role?: string }) {
   const [guestsPrompt, setGuestsPrompt] = useState<{ tableId: string; mode: "open" | "edit" } | null>(null)
   const [guestsBusy, setGuestsBusy] = useState(false)
   const { createOrder, confirmOrder } = useOrders()
-  const { products, combos, categories } = useMenu()
+  const { products, combos, categories, menuDiscounts: snapshotDiscounts } = useMenu()
+  // 21/11/2026: sin internet la ronda se guarda como la cobra el equipo (sin
+  // promo): el carrito tampoco la muestra, así el total siempre cierra.
+  const { online: promosOnline } = useOfflineStatus()
+  const menuDiscounts = useMemo(() => (promosOnline ? snapshotDiscounts : []), [promosOnline, snapshotDiscounts])
   const [buildingCombo, setBuildingCombo] = useState<Product | null>(null)
   const { confirmAndSendToKitchen } = useKitchenCommands()
   const tableActivity = useTableActivity(tenantId)
@@ -129,7 +135,14 @@ export function WaiterDashboard({ role }: { role?: string }) {
   )
   const readyCount = useMemo(() => activeOrders.filter((o) => o.status === "ready").length, [activeOrders])
   const salonView = useSalonView(tables)
-  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.total, 0), [cart])
+  // 21/11/2026: promos «Descuento %» (salón): el server las pone en la línea al
+  // mandar la ronda; acá se muestra el mismo total antes de enviarla.
+  const cartPromos = useMemo(() => cartPromoDiscounts(cart, products, menuDiscounts, "dine-in"), [cart, products, menuDiscounts])
+  const promoOf = useCallback((idx: number) => cartPromos[idx] ?? null, [cartPromos])
+  const cartTotal = useMemo(
+    () => cart.reduce((sum, item) => sum + item.total, 0) - cartPromos.reduce((s, p) => s + (p?.cents ?? 0), 0),
+    [cart, cartPromos]
+  )
   const cartUnits = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart])
 
   const showToast = useCallback((message: string, type: "success" | "error" | "info") => {
@@ -489,6 +502,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
               onEditOptions={handleEditOptions}
               isConfigurable={isConfigurableLine}
               total={cartTotal}
+              promoOf={promoOf}
               activeCourse={activeCourse}
               onActiveCourse={setActiveCourse}
               heldCourses={courseHolds.held}
@@ -512,7 +526,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
         break
 
     }
-  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, activeCourse, courseHolds, firingCourse, handleFireCourse, sentRounds, voidTableBusy, handleVoidTable])
+  }, [scene, selectedTable, tableOrders, tableActivity, now, reservationsByTable, cart, cartTotal, promoOf, cartUnits, sending, setContextPanel, setActionBar, backToTables, handleRequestBill, handleReopen, handleCallManager, handleSendToKitchen, handleUpdateQuantity, handleRemoveItem, handleEditNote, handleEditOptions, isConfigurableLine, activeCourse, courseHolds, firingCourse, handleFireCourse, sentRounds, voidTableBusy, handleVoidTable])
 
   // ── Cocina: rondas de todas las mesas, lo listo primero ─────────────────
   // Esc = volver (obs. UX 25/10): lo mismo que el «Volver» visible.
@@ -572,6 +586,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
       {scene === "pedido" && (
         <div className="workspace-scene">
           <ProductSelector
+                promoPercentOf={(product) => productPromoPercent(product, menuDiscounts, "dine-in")}
             products={products}
             categories={categories}
             selectedCategory={selectedCategory}

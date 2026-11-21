@@ -219,6 +219,8 @@ export interface Product {
   halfPrice?: number
   /** Nombre de la categoría de PRIMER nivel (también para ítems de subcategoría). */
   category: string
+  /** id de la categoría de PRIMER nivel (21/11/2026: promos de descuento por categoría). */
+  categoryId?: string
   /** id de la subcategoría (MenuCategory con parentId), si el ítem vive en una. */
   subcategoryId?: string
   /**
@@ -305,6 +307,29 @@ export interface MenuSnapshot {
   categories: MenuCategory[]
   createdAt: Date
   signature: string
+  /**
+   * 21/11/2026: promos «Descuento %» vigentes AHORA en la sede (fechas, días
+   * y horario ya filtrados por el server). El POS las aplica como descuento
+   * de la línea con @takeasygo/business/menu-discount.
+   */
+  menuDiscounts?: PosMenuDiscount[]
+}
+
+export interface PosMenuDiscount {
+  _id: string
+  type: "discount"
+  title: string
+  /** [] = todos los canales ('delivery' | 'takeaway' | 'dine-in'). */
+  channels: string[]
+  stackable: boolean
+  discountTargets: Array<{
+    kind: "category" | "subcategory" | "item" | "variant"
+    categoryId?: string | null
+    subcategoryId?: string | null
+    itemId?: string | null
+    variantName?: string | null
+    percent: number
+  }>
 }
 
 export interface MenuCategory {
@@ -486,6 +511,8 @@ export interface OrderItemDiscount {
   amount: number
   scope: "item" | "order"
   reason: string
+  /** Nota del descuento (21/11/2026: nombre de la promo «Descuento %»). */
+  note?: string
 }
 
 export interface OrderItemModifier {

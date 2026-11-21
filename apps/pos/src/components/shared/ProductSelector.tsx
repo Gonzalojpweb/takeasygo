@@ -39,6 +39,8 @@ const GAP = 10
 interface ProductSelectorProps {
   products: Product[]
   categories: MenuCategory[]
+  /** 21/11/2026: % de la promo «Descuento %» vigente del producto (etiqueta en la tarjeta). */
+  promoPercentOf?: (product: Product) => number | null
   selectedCategory: string | null
   onSelectCategory: (category: string | null) => void
   onSelectProduct: (product: Product) => void
@@ -117,6 +119,7 @@ function isTypingTarget(el: Element | null): boolean {
 export function ProductSelector({
   products,
   categories,
+  promoPercentOf,
   selectedCategory,
   onSelectCategory,
   onSelectProduct,
@@ -462,6 +465,9 @@ export function ProductSelector({
                 )}
                 <span className="psel-tile-foot">
                   <span className="psel-tile-price">{formatCurrency(product.price)}</span>
+                  {!pauseMode && promoPercentOf?.(product) ? (
+                    <span className="psel-tile-cat text-success" style={{ fontWeight: 800 }}>🏷️ −{promoPercentOf(product)}%</span>
+                  ) : null}
                   {pauseMode && <span className="psel-tile-cat">{product.isAvailable ? "Tocá para pausar" : "Tocá para reanudar"}</span>}
                   {!pauseMode && query && <span className="psel-tile-cat">{product.category}</span>}
                   {!pauseMode && !query && product.modifiers && product.modifiers.length > 0 && (

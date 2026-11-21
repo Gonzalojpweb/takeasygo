@@ -177,6 +177,13 @@ export function withQuantityKeepingDiscount(item: DiscountedItem, quantity: numb
   const d = item.posDiscount
   if (!d) return { ...resized, subtotal: grossOf(resized) }
   const gross = grossOf(resized)
-  const amountCents = d.kind === 'percent' ? lineDiscountCents(gross, 'percent', d.value) : Math.min(gross, d.amountCents)
+  // 21/11/2026: promo «Descuento %» (by = promo:<id>): `value` es el
+  // descuento por unidad, así que acompaña a la cantidad.
+  const isPromo = typeof d.by === 'string' && d.by.startsWith('promo:')
+  const amountCents = d.kind === 'percent'
+    ? lineDiscountCents(gross, 'percent', d.value)
+    : isPromo
+      ? Math.min(gross, d.value * quantity)
+      : Math.min(gross, d.amountCents)
   return withDiscount(resized, { ...d, amountCents })
 }

@@ -203,7 +203,9 @@ function flattenItem(
   /** Etapa 4 del POS offline: estación de la comanda (como printRoles.ts del server). */
   printRole: 'kitchen' | 'bar' | 'both' = 'kitchen',
   /** Agotadas de la categoría: se suman a las del ítem. */
-  categorySoldOut: readonly string[] = []
+  categorySoldOut: readonly string[] = [],
+  /** 21/11/2026: id de la categoría de primer nivel (promos de descuento). */
+  categoryId?: string
 ): Product {
   const disabledGroups = item.disabledGroupIds ?? []
   const disabledOptions = item.disabledOptionIds ?? []
@@ -270,6 +272,7 @@ function flattenItem(
     product.unavailableReason = item.isAvailable === false && item.pausedReason === 'stock' ? 'stock' : 'manual'
   }
   if (typeof item.stockPortions === 'number') product.stockPortions = item.stockPortions
+  if (categoryId) product.categoryId = categoryId
   if (subcategoryId) product.subcategoryId = subcategoryId
   if (item.halfPrice !== undefined && item.halfPrice !== null) {
     product.halfPrice = item.halfPrice
@@ -297,7 +300,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
 
     const categoryAvailable = cat.isAvailable ?? true
     for (const item of cat.items ?? []) {
-      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable, cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? []))
+      products.push(flattenItem(item, inheritedGroups, tenantId, cat.name, undefined, categoryAvailable, cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? [], categoryId))
     }
 
     // D13 — subcategorías: cada una es una MenuCategory con `parentId`. Sus
@@ -315,7 +318,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
       })
       const subGroups = [...inheritedGroups, ...(sub.customizationGroups ?? [])]
       for (const item of sub.items ?? []) {
-        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable, sub.printRole ?? cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? []))
+        products.push(flattenItem(item, subGroups, tenantId, cat.name, subId, categoryAvailable, sub.printRole ?? cat.printRole ?? 'kitchen', cat.soldOutOptionIds ?? [], categoryId))
       }
     }
   }

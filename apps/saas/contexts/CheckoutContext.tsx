@@ -4,7 +4,7 @@ import { createContext, useContext, useCallback, useRef, useReducer, useEffect, 
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type { CartItem } from '@/types/cart'
-import { blocksOtherDiscounts, repriceLineForMode } from '@/lib/menu-discounts'
+import { annotateMenuItem, blocksOtherDiscounts, cartMenuDiscountFor, repriceLineForMode, type MenuDiscountPromoLike } from '@/lib/menu-discounts'
 import { trackCartRemove, trackCartAdd, trackRewardInteraction } from '@/lib/track'
 import {
   normalizeStoredCart,
@@ -568,6 +568,16 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
 
   // Club Discount: fetch active discount + menu items for scope lookup
   const [menuItemsMap, setMenuItemsMap] = useState<Record<string, { categoryId?: string; subcategoryId?: string }>>({})
+  // 21/11/2026: promos «Descuento %» vigentes, para las sugerencias que se
+  // agregan desde el checkout (mismo precio que si vinieran del menú).
+  const hintPricingRef = useRef<{ map: Record<string, { categoryId?: string; subcategoryId?: string }>; promos: MenuDiscountPromoLike[] }>({ map: {}, promos: [] })
+  useEffect(() => { hintPricingRef.current.map = menuItemsMap }, [menuItemsMap])
+  useEffect(() => {
+    fetch(`/api/${tenantSlug}/menu/${locationId}/promotions?mode=takeaway`)
+      .then(r => (r.ok ? r.json() : { promotions: [] }))
+      .then(data => { hintPricingRef.current.promos = data.promotions ?? [] })
+      .catch(() => {})
+  }, [tenantSlug, locationId])
 
   useEffect(() => {
     Promise.all([
@@ -876,9 +886,13 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
     dispatch({ type: 'SET_CART', cart: stateRef.current.cart.filter(i => i.cartItemId !== cartItemId) })
   }, [])
 
-  const addHintToCart = useCallback((item: any) => {
-    const plainId = `${item._id}:plain`
+  const addHintToCart = useCallback((rawItem: any) => {
+    const plainId = `${rawItem._id}:plain`
     const prev = stateRef.current
+    // Descuento % de carta vigente (si la promo lo alcanza), como en el menú.
+    const ref = hintPricingRef.current.map[rawItem._id] ?? {}
+    const item = annotateMenuItem(rawItem, ref.categoryId, ref.subcategoryId, hintPricingRef.current.promos, 'takeaway')
+    const unitPrice = Number(item.takeawayPrice ?? item.price) || 0
     const existing = prev.cart.find(i => i.cartItemId === plainId)
     if (existing) {
       dispatch({ type: 'SET_CART', cart: prev.cart.map(i =>
@@ -889,9 +903,9 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
         cartItemId: plainId,
         menuItemId: item._id,
         name: item.name,
-        basePrice: item.price,
+        basePrice: unitPrice,
         extraPrice: 0,
-        price: item.price,
+        price: unitPrice,
         quantity: 1,
         customizations: [],
         customizationSummary: '',
@@ -899,9 +913,10 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
         type: 'menuItem' as const,
         originalPrice: item.originalPrice,
         takeawayOriginalPrice: item.takeawayOriginalPrice,
+        menuDiscount: cartMenuDiscountFor(item, 'takeaway'),
       }] })
     }
-    trackCartAdd({ menuItemId: item._id, name: item.name, price: item.price, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId: prev.locationId })
+    trackCartAdd({ menuItemId: item._id, name: item.name, price: unitPrice, quantity: 1, hasCustomizations: false, source: 'checkout_banner', locationId: prev.locationId })
     dispatch({ type: 'SET_UPSERT_HINTS', hints: prev.upsellHints.filter(h => h._id !== item._id) })
   }, [])
 
