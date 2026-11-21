@@ -2735,6 +2735,12 @@ button.context-panel-header { width: 100%; background: none; text-align: left; c
 .review-mods { font-size: var(--font-size-sm); color: var(--text-secondary); }
 .review-note { font-size: var(--font-size-sm); color: var(--brand-orange-text); font-style: italic; }
 .review-price { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
+/* 20/11/2026: descuento por plato en el Mostrador */
+.review-line--discount { grid-template-columns: 40px 1fr auto 40px; }
+.review-discount { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.review-discount-btn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--success); cursor: pointer; }
+.review-discount-btn:hover, .review-discount-btn.active { background: var(--success-light); border-color: var(--success); }
+.review-discount-btn:disabled { opacity: .5; cursor: default; }
 .review-summary { display: flex; flex-direction: column; gap: var(--sp-3); align-self: start; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: var(--sp-4); }
 .review-title { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); }
 .review-totals { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: var(--sp-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }

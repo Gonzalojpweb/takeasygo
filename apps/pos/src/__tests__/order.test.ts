@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { createOrder, addItem, removeItem, updateItemQuantity, voidSentItem, discountOrderLine } from "../services/order"
+import { createOrder, addItem, removeItem, updateItemQuantity, voidSentItem, discountOrderLine, discountOrderLines } from "../services/order"
 import { PosApiError, SESSION_CACHE_KEY } from "../services/pos-api"
 
 /**
@@ -251,6 +251,26 @@ describe("edición de items", () => {
     expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/orders/${ORDER}/discounts`)
     expect(req.method).toBe("POST")
     expect(req.body).toEqual({ kind: "percent", value: 10, reason: "regular", lineId: "64b0000000000000000000c1" })
+  })
+
+  it("discountOrderLines → un solo POST con todos los platos (Mostrador, 20/11)", async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ order: serverOrder(), discountedCents: 800 }))
+
+    await discountOrderLines(TENANT, ORDER, [
+      { lineId: "64b0000000000000000000c1", discount: { kind: "percent", value: 10, reason: "regular" } },
+      { lineId: "64b0000000000000000000c2", discount: { kind: "amount", value: 500, reason: "other", note: "se quemó" } },
+    ])
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const req = lastRequest()
+    expect(req.url).toBe(`${BASE}/api/${TENANT}/pos/orders/${ORDER}/discounts`)
+    expect(req.method).toBe("POST")
+    expect(req.body).toEqual({
+      lines: [
+        { kind: "percent", value: 10, reason: "regular", lineId: "64b0000000000000000000c1" },
+        { kind: "amount", value: 500, reason: "other", note: "se quemó", lineId: "64b0000000000000000000c2" },
+      ],
+    })
   })
 
   it("quantity 0 viaja igual: el server lo interpreta como quitar", async () => {

@@ -470,3 +470,46 @@ describe('panel admin: política y exportación', () => {
     expect(csv).toContain('ana')
   })
 })
+
+describe('20/11 — varios platos de una vez (Mostrador al cobrar)', () => {
+  it('un solo PIN para todos; cada plato con su descuento y su evento', async () => {
+    await setPolicy(policy({ cashier: { autonomyPercent: 10, maxPercent: 50 } }))
+    const posId = await newOrder()
+    const [pizza, empanada] = (await orderOf(posId))!.items
+    const body = {
+      lines: [
+        { lineId: String(pizza._id), kind: 'percent', value: 50, reason: 'courtesy' }, // −$50
+        { lineId: String(empanada._id), kind: 'amount', value: 5000, reason: 'regular' }, // −$50
+      ],
+    }
+    // $100 de $350 = 28,6 % > 10 % → PIN (uno solo para los dos platos)
+    const noPin = await disc(posId, body)
+    expect((await errorOf(noPin)).code).toBe('approval_required')
+    expect((await orderOf(posId))!.total).toBe(35000)
+
+    const ok = await disc(posId, body, { headers: { 'x-manager-pin': MANAGER_PIN } })
+    expect(ok.status).toBe(200)
+    const order = (await orderOf(posId))!
+    expect(order.total).toBe(25000)
+    expect(order.items.map((i) => i.posDiscount?.amountCents)).toEqual([5000, 5000])
+    expect(order.items.every((i) => i.posDiscount?.approvedBy === managerId)).toBe(true)
+
+    const events = await PosDiscountEvent.find({ tenantId, orderPosId: posId }).sort({ createdAt: 1 }).lean<Array<{ scope: string; groupId: string; discountDeltaCents: number; reason: string; approvalMode: string }>>()
+    expect(events).toHaveLength(2)
+    expect(events.map((e) => e.scope)).toEqual(['item', 'item'])
+    expect(new Set(events.map((e) => e.groupId)).size).toBe(1)
+    expect(events.map((e) => e.discountDeltaCents)).toEqual([5000, 5000])
+    expect(events.map((e) => e.reason)).toEqual(['courtesy', 'regular'])
+    expect(events.every((e) => e.approvalMode === 'pin')).toBe(true)
+  })
+
+  it('valida: plato repetido, sin lineId e importe final por plato', async () => {
+    const posId = await newOrder()
+    const [pizza] = (await orderOf(posId))!.items
+    const line = { lineId: String(pizza._id), kind: 'percent', value: 10, reason: 'courtesy' }
+    expect((await disc(posId, { lines: [line, line] }, { role: 'manager' })).status).toBe(400)
+    expect((await disc(posId, { lines: [{ kind: 'percent', value: 10, reason: 'courtesy' }] }, { role: 'manager' })).status).toBe(400)
+    expect((await disc(posId, { lines: [{ ...line, finalCents: 5000, kind: 'amount', value: 5000 }] }, { role: 'manager' })).status).toBe(400)
+    expect((await orderOf(posId))!.total).toBe(35000)
+  })
+})

@@ -47,7 +47,7 @@ import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
 import { useDiscountPolicy, evaluateForCurrentUser } from "../../services/discount-policy"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, expectedDiscountCents, DISCOUNT_REASONS, reprintComanda } from "../../services/order"
+import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, discountOrderLines, expectedDiscountCents, DISCOUNT_REASONS, reprintComanda } from "../../services/order"
 import { printPrecuenta, voidTable } from "../../services/table"
 import type { TableVoidReason } from "@takeasygo/business/browser"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
@@ -251,6 +251,12 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Importe final (14/11/2026): sobre qué total se eligió. Si la venta cambia,
   // el importe final deja de tener sentido y se descarta (no se cobra de menos).
   const [mostradorDiscountBase, setMostradorDiscountBase] = useState<number | null>(null)
+  // 20/11/2026: descuentos POR PLATO del Mostrador (índice del carrito →
+  // descuento). Se aplican al cobrar, apenas se crea la orden, en un solo
+  // envío (un solo PIN). Plato o general, no los dos (igual que en Salón).
+  const [mostradorLineDiscounts, setMostradorLineDiscounts] = useState<Record<number, DiscountRequest>>({})
+  const [mostradorLineSig, setMostradorLineSig] = useState<string | null>(null)
+  const [lineDiscountIdx, setLineDiscountIdx] = useState<number | null>(null)
   // Política de descuentos del comercio (copia del equipo + server).
   const { policy: discountPolicy } = useDiscountPolicy(tenantId)
   // Fase B: abrir la mesa pide comensales; también se corrigen desde la mesa.
@@ -573,10 +579,37 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   // Fuera de los bloques por vista (ahí TS ya acotó `view`).
   const isMostradorView = view === "mostrador"
 
-  const mostradorDiscountCents = useMemo(
-    () => (view === "mostrador" && mostradorDiscount && cart.length > 0 ? expectedDiscountCents(cart.map((i) => i.total), mostradorDiscount) : 0),
-    [view, mostradorDiscount, cart]
+  const lineDiscountCentsOf = useCallback(
+    (idx: number) => {
+      const d = mostradorLineDiscounts[idx]
+      const line = cart[idx]
+      return d && line ? expectedDiscountCents([line.total], d) : 0
+    },
+    [mostradorLineDiscounts, cart]
   )
+  const mostradorLineDiscountCents = useMemo(
+    () => (view === "mostrador" ? Object.keys(mostradorLineDiscounts).reduce((sum, k) => sum + lineDiscountCentsOf(Number(k)), 0) : 0),
+    [view, mostradorLineDiscounts, lineDiscountCentsOf]
+  )
+  const mostradorDiscountCents = useMemo(
+    () =>
+      view === "mostrador" && cart.length > 0
+        ? mostradorDiscount
+          ? expectedDiscountCents(cart.map((i) => i.total), mostradorDiscount)
+          : mostradorLineDiscountCents
+        : 0,
+    [view, mostradorDiscount, cart, mostradorLineDiscountCents]
+  )
+  const cartSignature = useMemo(() => cart.map((i) => `${i.productId}:${i.quantity}:${i.total}`).join("|"), [cart])
+
+  // Si el carrito cambia (se agrega, quita o edita un plato), los descuentos
+  // por plato se descartan: el índice ya no apunta al mismo plato.
+  useEffect(() => {
+    if (mostradorLineSig === null || mostradorLineSig === cartSignature) return
+    setMostradorLineDiscounts({})
+    setMostradorLineSig(null)
+    showToast("Cambió la venta: volvé a cargar los descuentos por plato", "info")
+  }, [cartSignature, mostradorLineSig, showToast])
 
   // Importe final del Mostrador elegido sobre otro total: se descarta y se avisa.
   useEffect(() => {
@@ -1221,6 +1254,12 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         return
       }
 
+      const lineDiscountEntries = !selectedTableId && !mostradorDiscount ? Object.entries(mostradorLineDiscounts) : []
+      if (lineDiscountEntries.length > 0 && !getOfflineStatus().online) {
+        showErrorToast("Sin internet no se puede descontar por plato: quitá esos descuentos y usá «Descuento» a toda la venta.")
+        return
+      }
+
       const toCharge: Order[] = [...unpaidTableOrders]
 
       if (cart.length > 0) {
@@ -1251,6 +1290,19 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
         // si es cajero); el cobro sigue contra el total que él devuelve.
         if (!selectedTableId && mostradorDiscount) {
           order = await discountOrder(tenantId, order.id, mostradorDiscount)
+        } else if (lineDiscountEntries.length > 0) {
+          // 20/11/2026: cada plato del carrito es la línea del mismo índice
+          // en la orden recién creada (el server le puso su lineId).
+          const created = order
+          const lines = lineDiscountEntries.map(([k, discount]) => {
+            const idx = Number(k)
+            const line = created.items[idx]
+            if (!line?.lineId || line.productId !== cart[idx]?.productId) {
+              throw new Error("No se pudo ubicar un plato para el descuento. Revisá la venta y cobrá de nuevo.")
+            }
+            return { lineId: line.lineId, discount }
+          })
+          order = await discountOrderLines(tenantId, order.id, lines)
         }
         if (!toCharge.some((o) => o.id === order.id)) toCharge.push(order)
       }
@@ -1383,6 +1435,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       pendingOrderIdRef.current = null
       setCart([])
       setMostradorDiscount(null)
+      setMostradorLineDiscounts({})
+      setMostradorLineSig(null)
       setScene("cierre")
     } catch (err) {
       console.error("[Counter] Payment failed:", err)
@@ -1395,7 +1449,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       setPaying(false)
       setCharging(null)
     }
-  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled, mostradorDiscount])
+  }, [tenantId, paying, view, sendToKitchen, clubPhone, selectedTableId, selectedTable, unpaidTableOrders, tableOrders, cart.length, cartToOrderItems, createOrder, occupyTable, bindTableOrder, freeTable, processPayment, jwt, showErrorToast, fiscalConfig, invoiceChoice, pointEnabled, mostradorDiscount, mostradorLineDiscounts, cart])
 
   const handleNewSale = useCallback(() => {
     maybeFreeDraft(selectedTableId)
@@ -1407,6 +1461,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     setSendToKitchen(true)
     setClubPhone("")
     setMostradorDiscount(null)
+    setMostradorLineDiscounts({})
+    setMostradorLineSig(null)
     const defaults: Record<string, Scene> = {
       salon: "salon",
       mostrador: "mostrador_rapido",
@@ -2151,6 +2207,16 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
               onCharge={() => setScene("cobro")}
               courseHold={isMostradorView ? undefined : { holdable: courseHolds.holdable, held: courseHolds.held, onToggle: courseHolds.toggle }}
               onSetCourse={isMostradorView ? undefined : (idx, course) => handleEditNote(idx, cart[idx]?.notes ?? "", course)}
+              lineDiscount={isMostradorView ? {
+                amountOf: lineDiscountCentsOf,
+                labelOf: (idx) => {
+                  const d = mostradorLineDiscounts[idx]
+                  return d ? `${d.kind === "percent" ? `${d.value}% · ` : ""}${DISCOUNT_REASONS.find((r) => r.id === d.reason)?.label ?? ""}` : undefined
+                },
+                onEdit: (idx) => setLineDiscountIdx(idx),
+                total: mostradorDiscountCents,
+                general: Boolean(mostradorDiscount),
+              } : undefined}
             />
           )}
 
@@ -2167,7 +2233,9 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                     label: mostradorDiscount
                       ? (mostradorDiscount.kind === "percent" ? `${mostradorDiscount.value}%` : mostradorDiscount.finalCents !== undefined ? "importe final" : "") +
                         ` (${DISCOUNT_REASONS.find((r) => r.id === mostradorDiscount.reason)?.label ?? ""})`
-                      : undefined,
+                      : mostradorLineDiscountCents > 0
+                        ? `por plato (${Object.keys(mostradorLineDiscounts).length})`
+                        : undefined,
                     onEdit: () => setMostradorDiscountOpen(true),
                   }}
                   sendToKitchen={{ value: sendToKitchen, onChange: setSendToKitchen }}
@@ -2324,11 +2392,49 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           allowFinal
           policy={discountPolicy}
           evaluate={(off) => evaluateForCurrentUser(discountPolicy, { grossCents: cartTotal, discountCents: off, previousDiscountCents: 0 })}
-          onConfirm={(d) => { setMostradorDiscount(d); setMostradorDiscountBase(cartTotal); setMostradorDiscountOpen(false) }}
+          onConfirm={(d) => {
+            if (Object.keys(mostradorLineDiscounts).length > 0) showToast("Se reemplazaron los descuentos por plato por uno a toda la venta", "info")
+            setMostradorLineDiscounts({})
+            setMostradorLineSig(null)
+            setMostradorDiscount(d)
+            setMostradorDiscountBase(cartTotal)
+            setMostradorDiscountOpen(false)
+          }}
           onRemove={() => { setMostradorDiscount(null); setMostradorDiscountBase(null); setMostradorDiscountOpen(false) }}
           onCancel={() => setMostradorDiscountOpen(false)}
         />
       )}
+      {lineDiscountIdx !== null && cart[lineDiscountIdx] && (() => {
+        const idx = lineDiscountIdx
+        const line = cart[idx]
+        const others = mostradorLineDiscountCents - lineDiscountCentsOf(idx)
+        return (
+          <DiscountDialog
+            target={`${line.quantity}× ${line.name}`}
+            base={line.total}
+            hasDiscount={Boolean(mostradorLineDiscounts[idx])}
+            policy={discountPolicy}
+            evaluate={(off) => evaluateForCurrentUser(discountPolicy, { grossCents: cartTotal, discountCents: others + off, previousDiscountCents: 0 })}
+            onConfirm={(d) => {
+              if (mostradorDiscount) showToast("Se reemplazó el descuento a toda la venta por descuentos por plato", "info")
+              setMostradorDiscount(null)
+              setMostradorDiscountBase(null)
+              setMostradorLineDiscounts((prev) => ({ ...prev, [idx]: d }))
+              setMostradorLineSig(cartSignature)
+              setLineDiscountIdx(null)
+            }}
+            onRemove={() => {
+              setMostradorLineDiscounts((prev) => {
+                const next = { ...prev }
+                delete next[idx]
+                return next
+              })
+              setLineDiscountIdx(null)
+            }}
+            onCancel={() => setLineDiscountIdx(null)}
+          />
+        )
+      })()}
       {discountTarget && selectedTable && (() => {
         // Base = importe SIN descuentos (el nuevo reemplaza a los anteriores).
         const gross = (i: OrderItem) => i.total + (i.discount?.amount ?? 0)

@@ -4,12 +4,14 @@ import { PosError } from '@/lib/pos-online/errors'
 import { toPosOrder } from '@/lib/pos-online/orderMapper'
 import { findPosOrder } from '@/lib/pos-online/orderRepo'
 import { parseDiscountInput } from '@/lib/pos-online/discounts'
-import { assertDiscountable, discountOrder, removeOrderDiscount } from '@/lib/pos-online/discountService'
+import { assertDiscountable, discountOrder, discountOrderLines, removeOrderDiscount } from '@/lib/pos-online/discountService'
 
 // ============================================================================
 // POST   /api/[tenant]/pos/orders/[id]/discounts — descuento (Fase D)
 //        { lineId?, kind: 'percent'|'amount', value, reason, note?, finalCents? }
 //        lineId ⇒ solo ese plato; sin lineId ⇒ toda la orden.
+//        { lines: [{ lineId, kind, value, reason, note? }] } (20/11/2026) ⇒
+//        varios platos de una vez, con un solo PIN (Mostrador al cobrar).
 //        finalCents ⇒ modo «importe final» (kind amount; el server verifica
 //        que el total que queda sea exactamente ese).
 // DELETE /api/[tenant]/pos/orders/[id]/discounts?lineId= — quita el descuento
@@ -27,6 +29,18 @@ export const POST = posRoute('orders.pay', async (ctx, { id }) => {
   const order = await findPosOrder(ctx, id)
   assertDiscountable(order)
   const body = await readPosBody(ctx.request)
+  if (Array.isArray(body.lines)) {
+    if (body.lines.length === 0 || body.lines.length > 50) throw PosError.validation('Entre 1 y 50 descuentos por plato')
+    const entries = (body.lines as unknown[]).map((raw) => {
+      if (!raw || typeof raw !== 'object') throw PosError.validation('Descuento por plato inválido')
+      const line = raw as Record<string, unknown>
+      const lineId = optionalLineId(line.lineId)
+      if (!lineId) throw PosError.validation('Cada descuento por plato necesita su lineId')
+      return { lineId, input: parseDiscountInput(line) }
+    })
+    const { order: saved, discountedCents } = await discountOrderLines(ctx, order, entries)
+    return NextResponse.json({ order: toPosOrder(saved), discountedCents })
+  }
   const input = parseDiscountInput(body)
   const lineId = optionalLineId(body.lineId)
   const { order: saved, discountedCents } = await discountOrder(ctx, order, input, lineId)

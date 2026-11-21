@@ -371,6 +371,72 @@ export async function discountOrder(
 }
 
 /**
+ * 20/11/2026 — Varios descuentos POR PLATO en una sola operación (Mostrador:
+ * los platos del carrito se descuentan al cobrar, cuando la orden recién se
+ * creó). La política se evalúa sobre el descuento RESULTANTE de toda la
+ * orden y un solo PIN autoriza todo (requireManagerApproval reusa el PIN
+ * verificado dentro de la petición). Cada plato queda como su propio evento
+ * del reporte, con el mismo groupId.
+ */
+export async function discountOrderLines(
+  ctx: PosContext,
+  order: OrderDoc,
+  entries: Array<{ lineId: string; input: DiscountInput }>
+): Promise<{ order: OrderDoc; discountedCents: number }> {
+  assertDiscountable(order)
+  if (entries.length === 0) throw PosError.validation('No hay descuentos para aplicar')
+  const seen = new Set<string>()
+  for (const e of entries) {
+    if (e.input.finalCents !== null) throw PosError.validation('El importe final es para toda la cuenta, no para un plato')
+    if (seen.has(e.lineId)) throw PosError.validation('Un plato aparece dos veces en los descuentos')
+    seen.add(e.lineId)
+  }
+  await assertNotInvoiced(ctx, [order])
+
+  const at = (await trustedOfflineAt(ctx)) ?? new Date()
+  let dryItems = order.items as DiscountedItem[]
+  for (const e of entries) {
+    dryItems = applyDiscount(dryItems, e.input, { lineId: e.lineId, by: ctx.user.id, approvedBy: null, at }).items
+  }
+  if (sameDiscounts(order.items as DiscountedItem[], dryItems)) return { order, discountedCents: 0 }
+
+  const rounds = order.posTableId ? await openTableRounds(ctx, order.posTableId) : []
+  const account = rounds.some((r) => r.posId === order.posId)
+    ? accountAmounts(rounds, new Map([[String(order.posId), dryItems]]))
+    : accountAmounts([order], new Map([[String(order.posId), dryItems]]))
+
+  // Cada motivo se valida con la política; el PIN (si hace falta) se pide una vez.
+  const auths: DiscountAuthorization[] = []
+  for (const e of entries) auths.push(await authorizeDiscount(ctx, e.input, account))
+
+  const stages: DiscountedItem[][] = [order.items as DiscountedItem[]]
+  const perLine: number[] = []
+  entries.forEach((e, i) => {
+    const auth = auths[i]
+    const res = applyDiscount(stages[i], e.input, {
+      lineId: e.lineId,
+      by: ctx.user.id,
+      approvedBy: auth.mode === 'self' ? null : auth.approval.approvedBy,
+      at,
+    })
+    stages.push(res.items)
+    perLine.push(res.discountedCents)
+  })
+  const saved = await saveDiscountedItems(ctx, order, stages[stages.length - 1])
+
+  const groupId = randomUUID()
+  const byName = await operatorName(ctx, null)
+  for (let i = 0; i < entries.length; i++) {
+    const meta: EventMeta = { groupId, scope: 'item', lineId: entries[i].lineId, account, auth: auths[i], byName }
+    const before = { ...order, items: stages[i] } as OrderDoc
+    const after = { ...saved, items: stages[i + 1] } as OrderDoc
+    await recordEvent(ctx, 'apply', before, after, entries[i].input, meta)
+    await auditApply(ctx, before, after, entries[i].input, meta, perLine[i])
+  }
+  return { order: saved, discountedCents: perLine.reduce((a, b) => a + b, 0) }
+}
+
+/**
  * Descuento a TODA la cuenta de la mesa. % igual en cada ronda; un monto se
  * reparte entre rondas por su importe (al centavo). Un solo PIN autoriza todo.
  */

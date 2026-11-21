@@ -803,6 +803,33 @@ export async function discountOrderLine(
   })
 }
 
+/**
+ * 20/11/2026 — Varios descuentos POR PLATO de una vez (Mostrador: los platos
+ * del carrito se descuentan al cobrar, apenas se crea la orden). Un solo
+ * envío ⇒ si hace falta, un solo PIN del encargado.
+ */
+export async function discountOrderLines(
+  tenantId: string,
+  orderId: string,
+  lines: Array<{ lineId: string; discount: DiscountRequest }>
+): Promise<Order> {
+  const applyAll = (o: WireOrder, now: Date) => lines.reduce((acc, l) => localDiscount(acc, l.discount, l.lineId, now), o)
+  return writeOrder({
+    tenantId,
+    orderId,
+    label: `${await placeLabel(await db.orders.get(orderId))} · descuento por plato`,
+    method: "POST",
+    path: `/orders/${encodeURIComponent(orderId)}/discounts`,
+    body: { lines: lines.map((l) => ({ ...discountBody({ ...l.discount, finalCents: undefined }), lineId: l.lineId })) },
+    local: applyAll,
+    beforeLocal: async () => {
+      const order = await requireLocalOrder(orderId)
+      const next = applyAll(order, new Date())
+      return offlineDiscountApprovalHeaders(tenantId, readCachedDiscountPolicy(tenantId).policy, accountOf([order], new Map([[order.id, next]])))
+    },
+  })
+}
+
 function localDiscount(o: WireOrder, discount: DiscountRequest, lineId: string | null, now: Date): WireOrder {
   const next = applyDiscount(o, { kind: discount.kind, value: discount.value, reason: discount.reason }, lineId, now)
   if ("error" in next) throw new PosApiError(next.error, "conflict", 409)

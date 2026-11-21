@@ -1,5 +1,5 @@
 import type { ItemCourse, OrderItem } from "@takeasygo/types"
-import { Plus, Send, Wallet } from "lucide-react"
+import { Percent, Plus, Send, Wallet } from "lucide-react"
 import { formatCurrency } from "../../utils/format"
 import { CourseChip, CourseGroupHeader, CourseHoldControl, groupByCourse, hasCourses } from "./Courses"
 
@@ -29,11 +29,24 @@ interface OrderReviewProps {
   courseHold?: { holdable: ItemCourse[]; held: ItemCourse[]; onToggle: (c: ItemCourse) => void }
   /** Cambiar el tiempo de una línea con un toque. */
   onSetCourse?: (index: number, course: ItemCourse | undefined) => void
+  /**
+   * 20/11/2026 (Mostrador): descuento por plato antes de cobrar. total = lo
+   * que se descuenta en la venta (por plato o general); general = hay un
+   * descuento a toda la venta (cargar uno por plato lo reemplaza).
+   */
+  lineDiscount?: {
+    amountOf: (index: number) => number
+    labelOf: (index: number) => string | undefined
+    onEdit: (index: number) => void
+    total: number
+    general: boolean
+  }
 }
 
-export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge, courseHold, onSetCourse }: OrderReviewProps) {
+export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy, onAddMore, onSendToKitchen, onCharge, courseHold, onSetCourse, lineDiscount }: OrderReviewProps) {
   const units = items.reduce((n, i) => n + i.quantity, 0)
-  const chargeTotal = cartTotal + sentTotal
+  const discountTotal = lineDiscount?.total ?? 0
+  const chargeTotal = cartTotal + sentTotal - discountTotal
 
   return (
     <div className="review">
@@ -47,7 +60,7 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
         {hasCourses(items) && <CourseGroupHeader course={group.course} held={group.course ? Boolean(courseHold?.held.includes(group.course)) : false} />}
         <ul className="review-list">
           {group.entries.map(({ item, idx }) => (
-            <li key={`${item.productId}-${idx}`} className="review-line">
+            <li key={`${item.productId}-${idx}`} className={`review-line${lineDiscount ? " review-line--discount" : ""}`}>
               <span className="review-qty">{item.quantity}</span>
               <div className="review-line-main">
                 <span className="review-name">
@@ -58,8 +71,25 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
                   <span className="review-mods">{item.modifiers.map((m) => m.name).join(" · ")}</span>
                 )}
                 {item.notes && <span className="review-note">{item.notes}</span>}
+                {lineDiscount && lineDiscount.amountOf(idx) > 0 && (
+                  <span className="review-discount text-success">
+                    Desc. {lineDiscount.labelOf(idx)} −{formatCurrency(lineDiscount.amountOf(idx))}
+                  </span>
+                )}
               </div>
               <span className="review-price">{formatCurrency(item.total)}</span>
+              {lineDiscount && item.total > 0 && (
+                <button
+                  type="button"
+                  className={`review-discount-btn${lineDiscount.amountOf(idx) > 0 ? " active" : ""}`}
+                  onClick={() => lineDiscount.onEdit(idx)}
+                  disabled={busy}
+                  aria-label={`Descuento en ${item.name}`}
+                  title="Descuento en este plato"
+                >
+                  <Percent size={16} aria-hidden />
+                </button>
+              )}
             </li>
           ))}
         </ul>
@@ -75,6 +105,12 @@ export function OrderReview({ title, subtitle, items, cartTotal, sentTotal, busy
         <dl className="review-totals">
           <div><dt>Esta ronda</dt><dd>{formatCurrency(cartTotal)}</dd></div>
           {sentTotal > 0 && <div><dt>Ya enviado a cocina</dt><dd>{formatCurrency(sentTotal)}</dd></div>}
+          {discountTotal > 0 && (
+            <div className="text-success">
+              <dt>{lineDiscount?.general ? "Descuento a toda la venta" : "Descuentos por plato"}</dt>
+              <dd>−{formatCurrency(discountTotal)}</dd>
+            </div>
+          )}
           <div className="review-grand"><dt>Total de la cuenta</dt><dd>{formatCurrency(chargeTotal)}</dd></div>
         </dl>
 
