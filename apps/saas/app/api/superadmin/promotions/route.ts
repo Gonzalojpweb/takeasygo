@@ -5,6 +5,7 @@ import Tenant from '@/models/Tenant'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { validateCtaLink } from '@/lib/cta-link'
+import { markSaved } from '@/lib/media/ads'
 
 export async function GET(request: NextRequest) {
   try {
@@ -92,6 +93,8 @@ export async function POST(request: NextRequest) {
       redemptionsCount: 0,
       sortOrder: sortOrder || 0,
     })
+
+    await markSaved([promotion.imageUrl])
 
     logAudit({
       tenantId: null,

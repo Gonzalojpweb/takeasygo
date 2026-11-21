@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { validateCtaLink, CTA_LINK_ERROR } from '@/lib/cta-link'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 import {
   Plus, Edit2, Trash2, Eye, EyeOff, Star,
-  Tag, Upload, Palette, X, DollarSign,
+  Tag, Palette, X, DollarSign,
   Info, Megaphone, Heart, Search, GripVertical,
   ArrowUpDown,
 } from 'lucide-react'
@@ -121,7 +122,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null)
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all')
-  const [uploading, setUploading] = useState(false)
 
   const selectedLocation = activeLocationId ?? locations[0]?._id ?? ''
   const [categories, setCategories] = useState<MenuCategory[]>([])
@@ -434,31 +434,6 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       groups[groupIndex] = { ...groups[groupIndex], options }
       return { ...prev, overrideCustomizationGroups: groups }
     })
-  }
-
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploading(true)
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-
-      const res = await fetch(`/api/${tenantSlug}/upload`, {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setForm(prev => ({ ...prev, imageUrl: data.url }))
-      toast.success('Imagen subida')
-    } catch {
-      toast.error('Error al subir imagen')
-    } finally {
-      setUploading(false)
-    }
   }
 
   function openCreateModal() {
@@ -936,39 +911,14 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                     />
                   </div>
                   <div>
-                    <Label className="text-xs uppercase font-black tracking-wider text-muted-foreground">Imagen</Label>
-                    <p className="text-[11px] text-muted-foreground mt-1">Ideal: 800×1000px (vertical) u 1000×800px (horizontal). Evitá imágenes cuadradas.</p>
-                    <div className="mt-1.5 flex items-center gap-3">
-                      <label className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg cursor-pointer transition-colors">
-                        {uploading ? (
-                          <span className="text-sm font-medium">Subiendo...</span>
-                        ) : (
-                          <>
-                            <Upload size={16} />
-                            <span className="text-sm font-medium">Seleccionar</span>
-                          </>
-                        )}
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          disabled={uploading}
-                          className="hidden"
-                        />
-                      </label>
-                      {form.imageUrl && (
-                        <div className="relative w-16 h-16 rounded-lg overflow-hidden border">
-                          <img src={form.imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                          <button
-                            type="button"
-                            onClick={() => setForm(prev => ({ ...prev, imageUrl: '' }))}
-                            className="absolute top-0 right-0 bg-destructive text-white p-1 rounded-bl-lg"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* CP3: imagen sin recorte, subida a la cuenta ads (no a la de las fotos del menú). */}
+                    <AdsMediaUpload
+                      endpointBase={`/api/${tenantSlug}/media`}
+                      surface="promo_card"
+                      value={form.imageUrl ? { kind: 'image', url: form.imageUrl } : null}
+                      onChange={(m) => setForm(prev => ({ ...prev, imageUrl: m?.url ?? '' }))}
+                      label="Imagen"
+                    />
                   </div>
                 </div>
 

@@ -4,6 +4,7 @@ import Promotion from '@/models/Promotion'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { resolveCtaLinkUpdate } from '@/lib/cta-link'
+import { markSaved } from '@/lib/media/ads'
 
 export async function GET(
   request: NextRequest,
@@ -72,6 +73,7 @@ export async function PUT(
     if (body.targetTenants !== undefined) promotion.targetTenants = body.targetTenants
 
     await promotion.save()
+    await markSaved([promotion.imageUrl])
 
     logAudit({
       tenantId: null,

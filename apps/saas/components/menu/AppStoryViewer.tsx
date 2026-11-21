@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { X, ExternalLink } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, ExternalLink, Play } from 'lucide-react'
+import { cloudinaryUrl } from '@/lib/utils'
 import { safeCtaHref } from '@/lib/cta-link'
 import { trackPlacement, trackPlacementOnce, type Placement } from '@/lib/placement-track'
 import { markStorySeen } from '@/lib/story-seen'
@@ -14,6 +15,9 @@ export interface AppStoryItem {
   shortDescription?: string
   imageUrl?: string
   videoUrl?: string
+  /** CP3: portada y duración real del video (ms). */
+  videoPosterUrl?: string
+  videoDurationMs?: number | null
   ctaText?: string
   ctaLink?: string
   type?: string
@@ -38,14 +42,32 @@ interface Props {
 }
 
 const DURATION = 7000
+const VIDEO_MAX_MS = 15_000
+
+/** Ahorro de datos del navegador o red muy lenta: el video no arranca solo. */
+function prefersDataSaving(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const c = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+  return Boolean(c?.saveData) || /(^|-)2g$/.test(c?.effectiveType ?? '')
+}
 
 export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366f1', placement = 'menu_story', tenantSlug, locationId, initialIndex = 0 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const ctx = { placement, kind: 'app_story' as const, tenantSlug, locationId }
+  // CP3: duración real de cada video (la guardada o la que informa el archivo).
+  const [measured, setMeasured] = useState<Record<number, number>>({})
+  const [saveData] = useState(prefersDataSaving)
+  const [playRequested, setPlayRequested] = useState<Record<number, boolean>>({})
+  const durationFor = (i: number) => {
+    const s = stories[i]
+    if (!s?.videoUrl) return DURATION
+    const d = s.videoDurationMs || measured[i]
+    return d ? Math.min(d, VIDEO_MAX_MS) : VIDEO_MAX_MS
+  }
 
-  const { index: currentIndex, progress, paused, goTo, close, handlers } = useStoryPlayer({
+  const { index: currentIndex, progress, pauseReasons, goTo, close, handlers, hold } = useStoryPlayer({
     count: stories.length,
-    durationMs: DURATION,
+    durationMs: durationFor,
     initialIndex,
     onClose,
     // Vista = 1 s en pantalla: cuenta para métricas y marca «visto» (solo en este navegador).
@@ -59,12 +81,33 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
     onExit: (reason, i) => { if (stories[i]) trackPlacement({ ...ctx, type: 'exit', pieceId: stories[i]._id, reason, index: i }) },
   })
 
+  // El video se pausa solo por el usuario (mantener apretado, segundo plano),
+  // nunca por «cargando» (si no, no arrancaría nunca).
+  const userPaused = pauseReasons.some((r) => r === 'hold' || r === 'hidden')
   useEffect(() => {
     if (videoRef.current) {
-      if (paused) videoRef.current.pause()
+      if (userPaused) videoRef.current.pause()
       else videoRef.current.play().catch(() => {})
     }
-  }, [paused, currentIndex])
+  }, [userPaused, currentIndex])
+
+  // Video: el reloj espera mientras carga; con ahorro de datos, hasta que se toque «reproducir».
+  const current = stories[currentIndex]
+  const waitingForTap = !!current?.videoUrl && saveData && !playRequested[currentIndex]
+  useEffect(() => {
+    hold('loading', !!current?.videoUrl && !waitingForTap)
+    hold('saveData', waitingForTap)
+    return () => { hold('loading', false); hold('saveData', false) }
+  }, [currentIndex, current?.videoUrl, waitingForTap, hold])
+
+  // Precarga solo la imagen siguiente (los videos no se precargan).
+  useEffect(() => {
+    const next = stories[currentIndex + 1]
+    if (next?.imageUrl && !next.videoUrl && typeof Image !== 'undefined') {
+      const img = new Image()
+      img.src = cloudinaryUrl(next.imageUrl, { w: 1080 })
+    }
+  }, [currentIndex, stories])
 
   if (stories.length === 0) return null
 
@@ -115,19 +158,39 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
         className="flex-1 flex items-center justify-center relative select-none overflow-hidden"
         {...handlers}
       >
-        {story.videoUrl ? (
+        {story.videoUrl && waitingForTap ? (
+          <div className="relative w-full h-full">
+            {story.videoPosterUrl && <img src={story.videoPosterUrl} alt={story.title} className="w-full h-full object-cover" draggable={false} />}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setPlayRequested((p) => ({ ...p, [currentIndex]: true })) }}
+              aria-label="Reproducir video"
+              className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-black/60 flex items-center justify-center"
+            >
+              <Play size={28} className="text-white" />
+            </button>
+          </div>
+        ) : story.videoUrl ? (
           <video
             key={story._id}
             ref={videoRef}
             src={story.videoUrl}
+            poster={story.videoPosterUrl || undefined}
             className="w-full h-full object-cover"
-            loop
             muted
             playsInline
             autoPlay
+            preload="metadata"
+            onLoadedMetadata={(e) => {
+              const d = e.currentTarget.duration
+              if (Number.isFinite(d) && d > 0) setMeasured((m) => ({ ...m, [currentIndex]: Math.round(d * 1000) }))
+            }}
+            onPlaying={() => hold('loading', false)}
+            onWaiting={() => hold('loading', true)}
+            onError={() => hold('loading', false)}
           />
         ) : story.imageUrl ? (
-          <img src={story.imageUrl} alt={story.title} className="w-full h-full object-cover" draggable={false} />
+          <img src={cloudinaryUrl(story.imageUrl, { w: 1080 })} alt={story.title} className="w-full h-full object-cover" draggable={false} />
         ) : (
           <div className="w-full h-full flex items-center justify-center p-8" style={{ backgroundColor: bgColor }}>
             <div className="text-center max-w-md">

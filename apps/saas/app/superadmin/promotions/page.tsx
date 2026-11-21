@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 
 interface Promotion {
   _id: string
@@ -341,10 +342,15 @@ export default function GlobalPromotionsPage() {
                     className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">URL de imagen</label>
-                  <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                <div className="col-span-2">
+                  {/* CP3: imagen sin recorte, subida a la cuenta ads. */}
+                  <AdsMediaUpload
+                    endpointBase="/api/superadmin/media"
+                    surface="promo_card"
+                    value={imageUrl ? { kind: 'image', url: imageUrl } : null}
+                    onChange={(m) => setImageUrl(m?.url ?? '')}
+                    label="Imagen de la promoción"
+                  />
                 </div>
 
                 <div>

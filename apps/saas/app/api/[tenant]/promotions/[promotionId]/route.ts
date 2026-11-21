@@ -6,6 +6,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 import { resolveCtaLinkUpdate } from '@/lib/cta-link'
+import { markSaved } from '@/lib/media/ads'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
 
@@ -114,6 +115,7 @@ export async function PUT(
     if (!promotion) {
       return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
     }
+    await markSaved([promotion.imageUrl])
 
     logAudit({ 
       tenantId: tenant._id.toString(), 

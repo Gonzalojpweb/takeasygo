@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Smartphone, Eye, EyeOff, GripVertical, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { validateCtaLink, CTA_LINK_ERROR } from '@/lib/cta-link'
+import AdsMediaUpload, { type AdsMediaValue } from '@/components/media/AdsMediaUpload'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -15,6 +16,8 @@ interface AppStory {
   shortDescription?: string
   imageUrl?: string
   videoUrl?: string
+  videoPosterUrl?: string
+  videoDurationMs?: number | null
   type: 'feature' | 'tutorial' | 'promotion' | 'announcement'
   ctaText?: string
   ctaLink?: string
@@ -58,6 +61,19 @@ export default function AppStoriesPage() {
   const [shortDescription, setShortDescription] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [videoUrl, setVideoUrl] = useState('')
+  const [videoPosterUrl, setVideoPosterUrl] = useState('')
+  const [videoDurationMs, setVideoDurationMs] = useState<number | null>(null)
+  const [showUrlFields, setShowUrlFields] = useState(false)
+  // CP3: un archivo por story (imagen o video), subido a la cuenta ads.
+  const mediaValue: AdsMediaValue | null = videoUrl
+    ? { kind: 'video', url: videoUrl, posterUrl: videoPosterUrl || null, durationMs: videoDurationMs }
+    : imageUrl ? { kind: 'image', url: imageUrl } : null
+  const setMedia = (m: AdsMediaValue | null) => {
+    setImageUrl(m?.kind === 'image' ? m.url : '')
+    setVideoUrl(m?.kind === 'video' ? m.url : '')
+    setVideoPosterUrl(m?.kind === 'video' ? m.posterUrl ?? '' : '')
+    setVideoDurationMs(m?.kind === 'video' ? m.durationMs ?? null : null)
+  }
   const [type, setType] = useState<string>('feature')
   const [ctaText, setCtaText] = useState('')
   const [ctaLink, setCtaLink] = useState('')
@@ -115,6 +131,8 @@ export default function AppStoriesPage() {
       setShortDescription(story.shortDescription || '')
       setImageUrl(story.imageUrl || '')
       setVideoUrl(story.videoUrl || '')
+      setVideoPosterUrl(story.videoPosterUrl || '')
+      setVideoDurationMs(story.videoDurationMs ?? null)
       setType(story.type)
       setCtaText(story.ctaText || '')
       setCtaLink(story.ctaLink || '')
@@ -137,6 +155,8 @@ export default function AppStoriesPage() {
       setShortDescription('')
       setImageUrl('')
       setVideoUrl('')
+      setVideoPosterUrl('')
+      setVideoDurationMs(null)
       setType('feature')
       setCtaText('')
       setCtaLink('')
@@ -160,7 +180,7 @@ export default function AppStoriesPage() {
     setSaving(true)
 
     const payload: any = {
-      title, description, shortDescription, imageUrl, videoUrl,
+      title, description, shortDescription, imageUrl, videoUrl, videoPosterUrl, videoDurationMs,
       type, ctaText, ctaLink, isActive, sortOrder,
       scheduledStart: scheduledStart ? new Date(scheduledStart).toISOString() : null,
       scheduledEnd: scheduledEnd ? new Date(scheduledEnd).toISOString() : null,
@@ -395,22 +415,24 @@ export default function AppStoriesPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">URL de imagen</label>
-                  <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
-                    placeholder="https://... (imagen de fondo de la story)" />
-                  {imageUrl && (
-                    <div className="mt-2 relative w-32 h-56 rounded-xl overflow-hidden border border-zinc-200">
-                      <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <AdsMediaUpload
+                    endpointBase="/api/superadmin/media"
+                    surface={surfaces.length === 1 && surfaces[0] === 'home_banner' ? 'home_banner' : 'story'}
+                    value={mediaValue}
+                    onChange={setMedia}
+                    label="Imagen o video de la story"
+                  />
+                  <button type="button" onClick={() => setShowUrlFields(v => !v)} className="mt-2 text-xs text-zinc-500 underline">
+                    {showUrlFields ? 'Ocultar URLs' : 'Pegar una URL a mano (avanzado)'}
+                  </button>
+                  {showUrlFields && (
+                    <div className="mt-2 grid gap-2">
+                      <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-sm" placeholder="URL de imagen (https://…)" />
+                      <input type="text" value={videoUrl} onChange={e => { setVideoUrl(e.target.value); setVideoPosterUrl(''); setVideoDurationMs(null) }}
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-sm" placeholder="URL de video MP4 (https://…)" />
                     </div>
                   )}
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">URL de video (opcional)</label>
-                  <input type="text" value={videoUrl} onChange={e => setVideoUrl(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
-                    placeholder="https://... (mp4, se reproduce como fondo)" />
                 </div>
 
                 <div>

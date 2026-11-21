@@ -6,6 +6,7 @@ import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
 import { validateCtaLink } from '@/lib/cta-link'
+import { markSaved } from '@/lib/media/ads'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
 
@@ -142,6 +143,8 @@ export async function POST(
       ...data,
       tenantId: tenant._id,
     })
+
+    await markSaved([promotion.imageUrl])
 
     logAudit({ 
       tenantId: tenant._id.toString(), 

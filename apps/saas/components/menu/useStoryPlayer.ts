@@ -62,7 +62,8 @@ export function useStoryPlayer({
   onExit,
 }: {
   count: number
-  durationMs: number
+  /** Duración por pieza (ms): fija o según el índice (video = duración real). */
+  durationMs: number | ((index: number) => number)
   initialIndex?: number
   onClose: () => void
   onView?: (index: number) => void
@@ -72,6 +73,8 @@ export function useStoryPlayer({
   const [index, setIndex] = useState(() => Math.min(Math.max(0, initialIndex), Math.max(0, count - 1)))
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
+  /** Motivos de pausa activos (hold, hidden, loading, saveData…). */
+  const [pauseList, setPauseList] = useState<string[]>([])
 
   const indexRef = useRef(index)
   indexRef.current = index
@@ -87,6 +90,12 @@ export function useStoryPlayer({
 
   const cbs = useRef({ onClose, onView, onComplete, onExit })
   cbs.current = { onClose, onView, onComplete, onExit }
+  const durRef = useRef(durationMs)
+  durRef.current = durationMs
+  const durationOf = (i: number) => {
+    const d = typeof durRef.current === 'function' ? durRef.current(i) : durRef.current
+    return Number.isFinite(d) && d > 0 ? d : 7000
+  }
 
   const elapsedNow = () => clockRef.current!.read()
 
@@ -95,10 +104,12 @@ export function useStoryPlayer({
     pauseReasons.current.add(reason)
     clockRef.current!.pause()
     setPaused(true)
+    setPauseList([...pauseReasons.current])
   }, [])
 
   const removePause = useCallback((reason: string) => {
     if (!pauseReasons.current.delete(reason)) return
+    setPauseList([...pauseReasons.current])
     if (pauseReasons.current.size === 0) {
       clockRef.current!.resume()
       setPaused(false)
@@ -143,7 +154,7 @@ export function useStoryPlayer({
         viewedRef.current.add(i)
         cbs.current.onView?.(i)
       }
-      const pct = Math.min(elapsed / durationMs, 1)
+      const pct = Math.min(elapsed / durationOf(i), 1)
       setProgress(pct)
       if (pct >= 1) {
         cbs.current.onComplete?.(i)
@@ -156,7 +167,7 @@ export function useStoryPlayer({
     if (!paused) raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, paused, count, durationMs, goTo])
+  }, [index, paused, count, goTo])
 
   // Segundo plano: pausa y cuenta como salida (una vez por apertura).
   useEffect(() => {
@@ -208,5 +219,8 @@ export function useStoryPlayer({
     },
   }
 
-  return { index, progress, paused, goTo, close, handlers }
+  /** Pausa externa (p. ej., el video está cargando). */
+  const hold = useCallback((reason: string, on: boolean) => { if (on) addPause(reason); else removePause(reason) }, [addPause, removePause])
+
+  return { index, progress, paused, pauseReasons: pauseList, goTo, close, handlers, hold }
 }

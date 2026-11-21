@@ -5,6 +5,16 @@ import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { validateCtaLink } from '@/lib/cta-link'
 import { normalizeOwner, normalizeSurfaces, dbOwnerLookups } from '@/lib/app-story-owner'
+import { markSaved } from '@/lib/media/ads'
+
+/** CP3: portada (solo URL https de Cloudinary) y duración del video (ms, 3–15 s). */
+function sanitizeVideoMeta(body: { videoUrl?: unknown; videoPosterUrl?: unknown; videoDurationMs?: unknown }) {
+  const hasVideo = typeof body.videoUrl === 'string' && body.videoUrl.trim() !== ''
+  const poster = typeof body.videoPosterUrl === 'string' && /^https:\/\/res\.cloudinary\.com\//.test(body.videoPosterUrl) ? body.videoPosterUrl : ''
+  const d = Number(body.videoDurationMs)
+  const durationMs = hasVideo && Number.isFinite(d) && d >= 1000 ? Math.min(Math.round(d), 15_000) : null
+  return { videoPosterUrl: hasVideo ? poster : '', videoDurationMs: durationMs }
+}
 
 export async function GET() {
   try {
@@ -67,7 +77,10 @@ export async function POST(request: NextRequest) {
       customStyles: customStyles || {},
       owner: owner.value,
       surfaces: surfaces.value,
+      ...sanitizeVideoMeta(body),
     })
+    // CP3: los archivos subidos a la cuenta ads dejan de estar «pendientes».
+    await markSaved([story.imageUrl, story.videoUrl])
 
     logAudit({
       tenantId: null,

@@ -18,6 +18,9 @@ export interface IAppStory {
   shortDescription?: string
   imageUrl?: string
   videoUrl?: string
+  /** CP3: portada del video y duración real (ms, tope 15 s). */
+  videoPosterUrl?: string
+  videoDurationMs?: number | null
   type: AppStoryType
   ctaText?: string
   ctaLink?: string
@@ -61,6 +64,8 @@ const AppStorySchema = new Schema<IAppStory>(
       type: String,
       default: '',
     },
+    videoPosterUrl: { type: String, default: '' },
+    videoDurationMs: { type: Number, default: null, min: 0, max: 15_000 },
     type: {
       type: String,
       enum: ['feature', 'tutorial', 'promotion', 'announcement'],
