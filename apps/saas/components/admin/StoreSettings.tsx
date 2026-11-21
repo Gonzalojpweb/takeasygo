@@ -91,8 +91,8 @@ export default function StoreSettings({ tenantSlug }: Props) {
 
   if (loading) {
     return (
-      <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-        <CardContent className="p-8">
+      <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+        <CardContent className="p-4 sm:p-8">
           <div className="text-center py-12 text-muted-foreground">Cargando...</div>
         </CardContent>
       </Card>
@@ -100,8 +100,8 @@ export default function StoreSettings({ tenantSlug }: Props) {
   }
 
   return (
-    <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
+    <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+      <CardHeader className="p-4 sm:p-8 border-b border-border/40 bg-muted/5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
             <Settings size={24} strokeWidth={2.5} />
@@ -115,10 +115,10 @@ export default function StoreSettings({ tenantSlug }: Props) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-8 space-y-8">
+      <CardContent className="p-4 sm:p-8 space-y-6 sm:space-y-8">
         <BannerContext module="tienda" />
 
-        <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+        <div className="flex items-center justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-muted/30 border border-border/40">
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
               config.enabled ? 'bg-purple-500/10 text-purple-500' : 'bg-muted text-muted-foreground'
@@ -210,7 +210,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
             tenantSlug={tenantSlug}
           />
 
-          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+          <div className="flex items-center justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-muted/30 border border-border/40">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Clock size={24} />
@@ -234,7 +234,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
             />
           </div>
 
-          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+          <div className="flex items-center justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-muted/30 border border-border/40">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <span className="text-xl font-black">$0</span>
@@ -258,7 +258,7 @@ export default function StoreSettings({ tenantSlug }: Props) {
             />
           </div>
 
-          <div className="flex items-center justify-between p-6 rounded-2xl bg-muted/30 border border-border/40">
+          <div className="flex items-center justify-between gap-4 p-4 sm:p-6 rounded-2xl bg-muted/30 border border-border/40">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <Settings size={20} />

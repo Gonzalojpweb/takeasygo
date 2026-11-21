@@ -222,7 +222,7 @@ export default function GlobalStoreItemsPage() {
         </div>
         <button
           onClick={() => openModal()}
-          className="bg-zinc-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-800 transition flex items-center gap-2"
+          className="w-full sm:w-auto min-h-[44px] justify-center bg-zinc-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-800 transition flex items-center gap-2"
         >
           <Plus size={16} />
           Nueva Oferta Global
@@ -231,8 +231,47 @@ export default function GlobalStoreItemsPage() {
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
         {items.length === 0 ? (
-          <div className="p-12 text-center text-zinc-500">No hay ofertas globales creadas.</div>
+          <div className="p-8 sm:p-12 text-center text-zinc-500">No hay ofertas globales creadas.</div>
         ) : (
+          <>
+            {/* Mobile: tarjetas (20/11/2026: la tabla de 7 columnas se cortaba). */}
+            <ul className="md:hidden divide-y divide-zinc-100">
+              {items.map(item => (
+                <li key={item._id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" className="w-20 h-[60px] rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-20 h-[60px] rounded-lg bg-zinc-100 flex-shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-zinc-900 break-words">{item.name}</p>
+                      {item.description && <p className="text-zinc-500 text-xs mt-0.5 line-clamp-2 break-words">{item.description}</p>}
+                      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                        <span className="font-mono font-semibold text-zinc-800">{item.pointsCost} pts</span>
+                        <span>{CATEGORY_LABELS[item.category] || item.category}</span>
+                        <span>Stock: {item.stock ?? '∞'}</span>
+                        <span className="flex items-center gap-1">
+                          {item.targetTenants?.length === 0 ? <><Users size={12} /> Todos</> : <><Target size={12} /> {item.targetTenants.length} comercio(s)</>}
+                        </span>
+                        <span className={item.isActive ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{item.isActive ? 'Activo' : 'Inactivo'}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <button onClick={() => openModal(item)} className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700">
+                      <Edit2 size={16} /> Editar
+                    </button>
+                    <button onClick={() => handleDelete(item._id)} aria-label="Eliminar oferta" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border border-zinc-200 text-red-600">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desde tablet: tabla (con scroll horizontal si no entra). */}
+            <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase border-b border-zinc-200">
               <tr>
@@ -291,34 +330,37 @@ export default function GlobalStoreItemsPage() {
               ))}
             </tbody>
           </table>
+            </div>
+          </>
         )}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="p-6 border-b border-zinc-100 flex justify-between items-center sticky top-0 bg-white">
-              <h2 className="text-xl font-bold">
-                {editingId ? 'Editar Oferta Global' : 'Nueva Oferta Global'}
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-stretch sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true">
+          <div className="bg-white w-full sm:max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-2xl shadow-xl flex flex-col overflow-hidden">
+            <div className="px-4 py-3 sm:p-6 border-b border-zinc-100 flex justify-between items-center gap-3 shrink-0">
+              <h2 className="text-lg sm:text-xl font-bold truncate">
+                {editingId ? 'Editar oferta global' : 'Nueva oferta global'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">✕</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Cerrar" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+            <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre</label>
                   <input required type="text" value={name} onChange={e => setName(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
                   <textarea required rows={3} value={description} onChange={e => setDescription(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   {/* CP3: imagen de la tarjeta del club, subida a la cuenta ads. */}
                   <AdsMediaUpload
                     endpointBase="/api/superadmin/media"
@@ -332,21 +374,21 @@ export default function GlobalStoreItemsPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Costo en puntos</label>
                   <input required type="number" min="1" value={pointsCost} onChange={e => setPointsCost(Number(e.target.value))}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     {...pointsCostFocus} />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Valor referencia ($)</label>
                   <input type="number" min="0" value={cashValue ?? ''} onChange={e => setCashValue(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     {...cashValueFocus} />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Categoría</label>
                   <select value={category} onChange={e => setCategory(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400">
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400">
                     <option value="food">Comida</option>
                     <option value="drink">Bebida</option>
                     <option value="merch">Merch</option>
@@ -357,7 +399,7 @@ export default function GlobalStoreItemsPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Nivel mínimo</label>
                   <select value={tierRequirement} onChange={e => setTierRequirement(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400">
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400">
                     <option value="none">Sin nivel</option>
                     <option value="bronze">Bronce</option>
                     <option value="silver">Plata</option>
@@ -368,28 +410,28 @@ export default function GlobalStoreItemsPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Stock</label>
                   <input type="number" min="0" value={stock ?? ''} onChange={e => setStock(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" placeholder="Ilimitado" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" placeholder="Ilimitado" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Máx. por miembro</label>
                   <input type="number" min="1" value={maxPerMember ?? ''} onChange={e => setMaxPerMember(e.target.value ? Number(e.target.value) : null)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" placeholder="Ilimitado" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" placeholder="Ilimitado" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Orden</label>
                   <input type="number" min="0" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Tags (separados por coma)</label>
                   <input type="text" value={tags} onChange={e => setTags(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" placeholder="Ej: popular, nuevo, vegano" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" placeholder="Ej: popular, nuevo, vegano" />
                 </div>
 
-                <div className="flex items-center gap-6 pt-2">
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2 pt-2">
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)}
                       className="rounded border-zinc-300" />
@@ -402,7 +444,7 @@ export default function GlobalStoreItemsPage() {
                   </label>
                 </div>
 
-                <div className="col-span-2 border-t border-zinc-200 pt-4">
+                <div className="sm:col-span-2 border-t border-zinc-200 pt-4">
                   <label className="block text-sm font-medium text-zinc-700 mb-2">
                     <Target size={16} className="inline mr-1" />
                     Tenants destino
@@ -413,9 +455,9 @@ export default function GlobalStoreItemsPage() {
                     Aplicar a TODOS los tenants
                   </label>
                   {!targetAll && (
-                    <div className="max-h-40 overflow-y-auto border border-zinc-200 rounded-xl p-2 space-y-1">
+                    <div className="max-h-56 overflow-y-auto border border-zinc-200 rounded-xl p-2 space-y-1">
                       {tenants.map(t => (
-                        <label key={t._id} className="flex items-center gap-2 text-sm px-2 py-1 hover:bg-zinc-50 rounded-lg cursor-pointer">
+                        <label key={t._id} className="flex items-center gap-2 text-sm px-2 py-2 min-h-[40px] hover:bg-zinc-50 rounded-lg cursor-pointer break-all">
                           <input type="checkbox" checked={targetTenants.includes(t._id)} onChange={() => toggleTenant(t._id)}
                             className="rounded border-zinc-300" />
                           {t.name} <span className="text-zinc-400 text-xs">({t.slug})</span>
@@ -425,14 +467,15 @@ export default function GlobalStoreItemsPage() {
                   )}
                 </div>
               </div>
+              </div>
 
-              <div className="pt-4 border-t border-zinc-100 flex justify-end gap-3">
+              <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-zinc-100 bg-white flex gap-3 sm:justify-end" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl transition">
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl border border-zinc-200 sm:border-0 transition">
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl transition disabled:opacity-50">
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl transition disabled:opacity-50">
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

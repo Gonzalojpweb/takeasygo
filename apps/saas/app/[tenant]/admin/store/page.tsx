@@ -71,33 +71,34 @@ export default async function StorePage({ params }: PageProps) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8 min-w-0">
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Tienda de Recompensas</h1>
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Tienda de Recompensas</h1>
         <p className="text-muted-foreground mt-1">
           Gestiona los artículos canjeables por puntos y valida los canjes de los clientes.
         </p>
       </div>
 
       <Tabs defaultValue="pending" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-8">
-          <TabsTrigger value="pending" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+        {/* Mobile: fila con scroll horizontal (las 5 pestañas no entran); desde md, grilla. */}
+        <TabsList className="flex md:grid w-full md:grid-cols-5 justify-start overflow-x-auto [scrollbar-width:none] h-auto md:h-14 p-1 bg-muted/50 rounded-2xl border border-border/40 mb-6 sm:mb-8">
+          <TabsTrigger value="pending" className="shrink-0 min-h-[44px] px-4 md:px-2 rounded-xl font-bold uppercase tracking-wider md:tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Inbox className="mr-2 h-4 w-4" />
             Solicitudes
           </TabsTrigger>
-          <TabsTrigger value="validator" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="validator" className="shrink-0 min-h-[44px] px-4 md:px-2 rounded-xl font-bold uppercase tracking-wider md:tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <QrCode className="mr-2 h-4 w-4" />
             Validar Canje
           </TabsTrigger>
-          <TabsTrigger value="inventory" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="inventory" className="shrink-0 min-h-[44px] px-4 md:px-2 rounded-xl font-bold uppercase tracking-wider md:tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Package className="mr-2 h-4 w-4" />
             Inventario
           </TabsTrigger>
-          <TabsTrigger value="history" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="history" className="shrink-0 min-h-[44px] px-4 md:px-2 rounded-xl font-bold uppercase tracking-wider md:tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <History className="mr-2 h-4 w-4" />
             Historial
           </TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-xl font-bold uppercase tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsTrigger value="settings" className="shrink-0 min-h-[44px] px-4 md:px-2 rounded-xl font-bold uppercase tracking-wider md:tracking-widest text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm">
             <Settings className="mr-2 h-4 w-4" />
             Configuración
           </TabsTrigger>

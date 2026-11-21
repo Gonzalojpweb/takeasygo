@@ -89,8 +89,8 @@ export default function RedemptionValidator({ tenantSlug }: Props) {
   }
 
   return (
-    <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden mb-8">
-      <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
+    <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-hidden mb-8">
+      <CardHeader className="p-4 sm:p-8 border-b border-border/40 bg-muted/5">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
             <QrCode size={24} strokeWidth={2.5} />
@@ -104,7 +104,7 @@ export default function RedemptionValidator({ tenantSlug }: Props) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-8">
         <form onSubmit={handleSearch} className="flex gap-3 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />

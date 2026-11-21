@@ -282,7 +282,7 @@ export default function AppStoriesPage() {
         </div>
         <button
           onClick={() => openModal()}
-          className="bg-zinc-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-800 transition flex items-center gap-2"
+          className="w-full sm:w-auto min-h-[44px] justify-center bg-zinc-900 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-zinc-800 transition flex items-center gap-2"
         >
           <Plus size={16} />
           Nueva Story
@@ -291,8 +291,63 @@ export default function AppStoriesPage() {
 
       <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
         {stories.length === 0 ? (
-          <div className="p-12 text-center text-zinc-500">No hay stories creadas. Creá la primera para promocionar la app.</div>
+          <div className="p-8 sm:p-12 text-center text-zinc-500">No hay stories creadas. Creá la primera para promocionar la app.</div>
         ) : (
+          <>
+            {/* Mobile: tarjetas (20/11/2026: la tabla de 7 columnas se cortaba). */}
+            <ul className="md:hidden divide-y divide-zinc-100">
+              {stories.map(story => (
+                <li key={story._id} className="p-4">
+                  <div className="flex items-start gap-3">
+                    {story.imageUrl ? (
+                      <img src={story.imageUrl} alt="" className="w-14 h-20 rounded-lg object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-14 h-20 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                        {story.videoUrl ? <Play size={16} className="text-zinc-400" /> : <span className="text-zinc-400 text-xs">IMG</span>}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-zinc-900 break-words">{story.title}</p>
+                      {story.description && <p className="text-zinc-500 text-xs mt-0.5 line-clamp-2 break-words">{story.description}</p>}
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className={cn('px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider', TYPE_LABELS[story.type]?.color || 'bg-zinc-100 text-zinc-700')}>
+                          {TYPE_LABELS[story.type]?.label || story.type}
+                        </span>
+                        <span className="text-[11px] text-zinc-500">
+                          {story.owner?.kind === 'tenant'
+                            ? `Comercio: ${tenants.find(t => t._id === String(story.owner?.tenantId))?.name ?? '—'}`
+                            : 'TakeasyGO'}
+                        </span>
+                        {story.videoUrl && <span className="text-[11px] text-zinc-500">· Video</span>}
+                        {story.ctaText && <span className="text-[11px] text-zinc-500 break-all">· CTA: {story.ctaText}</span>}
+                      </div>
+                      <p className="mt-1 text-[11px] text-zinc-400">{format(new Date(story.createdAt), "d MMM, yyyy", { locale: es })}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <button
+                      onClick={() => toggleActive(story._id, story.isActive)}
+                      className={cn(
+                        'flex-1 min-h-[44px] flex items-center justify-center gap-1.5 text-sm font-medium rounded-xl border transition',
+                        story.isActive ? 'text-green-700 border-green-200 bg-green-50' : 'text-red-600 border-red-200 bg-red-50'
+                      )}
+                    >
+                      {story.isActive ? <Eye size={16} /> : <EyeOff size={16} />}
+                      {story.isActive ? 'Activa' : 'Inactiva'}
+                    </button>
+                    <button onClick={() => openModal(story)} aria-label="Editar story" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border border-zinc-200 text-zinc-600">
+                      <Edit2 size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(story._id)} aria-label="Eliminar story" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border border-zinc-200 text-red-600">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desde tablet: tabla (con scroll horizontal si no entra). */}
+            <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase border-b border-zinc-200">
               <tr>
@@ -378,43 +433,46 @@ export default function AppStoriesPage() {
               ))}
             </tbody>
           </table>
+            </div>
+          </>
         )}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="p-6 border-b border-zinc-100 flex justify-between items-center sticky top-0 bg-white">
-              <h2 className="text-xl font-bold">
-                {editingId ? 'Editar Story de la App' : 'Crear Story de la App'}
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-stretch sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true">
+          <div className="bg-white w-full sm:max-w-3xl h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:rounded-2xl shadow-xl flex flex-col overflow-hidden">
+            <div className="px-4 py-3 sm:p-6 border-b border-zinc-100 flex justify-between items-center gap-3 shrink-0">
+              <h2 className="text-lg sm:text-xl font-bold truncate">
+                {editingId ? 'Editar story' : 'Nueva story'}
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-600">✕</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} aria-label="Cerrar" className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100">✕</button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+            <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Título *</label>
                   <input required type="text" value={title} onChange={e => setTitle(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     placeholder="Ej: Descubrí TakeasyGo" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción</label>
                   <textarea rows={3} value={description} onChange={e => setDescription(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     placeholder="Contenido de la story para educar al cliente sobre la app" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Descripción corta</label>
                   <input type="text" value={shortDescription} onChange={e => setShortDescription(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     placeholder="Texto breve que aparece en el overlay" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <AdsMediaUpload
                     endpointBase="/api/superadmin/media"
                     surface={surfaces.length === 1 && surfaces[0] === 'home_banner' ? 'home_banner' : 'story'}
@@ -428,9 +486,9 @@ export default function AppStoriesPage() {
                   {showUrlFields && (
                     <div className="mt-2 grid gap-2">
                       <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-sm" placeholder="URL de imagen (https://…)" />
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-base sm:text-sm" placeholder="URL de imagen (https://…)" />
                       <input type="text" value={videoUrl} onChange={e => { setVideoUrl(e.target.value); setVideoPosterUrl(''); setVideoDurationMs(null) }}
-                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-sm" placeholder="URL de video MP4 (https://…)" />
+                        className="w-full border border-zinc-200 rounded-xl px-4 py-2.5 text-base sm:text-sm" placeholder="URL de video MP4 (https://…)" />
                     </div>
                   )}
                 </div>
@@ -438,7 +496,7 @@ export default function AppStoriesPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Tipo</label>
                   <select value={type} onChange={e => setType(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400">
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400">
                     <option value="feature">Función de la app</option>
                     <option value="tutorial">Tutorial / Cómo usar</option>
                     <option value="promotion">Promo TakeasyGo</option>
@@ -449,27 +507,27 @@ export default function AppStoriesPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Orden</label>
                   <input type="number" min="0" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">CTA Texto (botón)</label>
                   <input type="text" value={ctaText} onChange={e => setCtaText(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     placeholder="Ej: Descubrí más, Ver tutorial" />
                 </div>
 
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-zinc-700 mb-1">CTA Link</label>
                   <input type="text" value={ctaLink} onChange={e => setCtaLink(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400"
                     placeholder="https://… o ruta interna /…" />
                   {ctaLink && !validateCtaLink(ctaLink).ok && (
                     <p className="mt-1 text-xs font-semibold text-red-600">{CTA_LINK_ERROR} Si es un link viejo, no se muestra hasta corregirlo.</p>
                   )}
                 </div>
 
-                <div className="col-span-2 rounded-xl border border-zinc-200 p-4 space-y-3">
+                <div className="sm:col-span-2 rounded-xl border border-zinc-200 p-4 space-y-3">
                   <p className="text-sm font-medium text-zinc-700">Dueño de la story</p>
                   <div className="flex flex-wrap gap-4 text-sm">
                     <label className="flex items-center gap-2">
@@ -484,12 +542,12 @@ export default function AppStoriesPage() {
                   {ownerKind === 'tenant' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <select value={ownerTenantId} onChange={e => { setOwnerTenantId(e.target.value); setOwnerLocationId('') }}
-                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm">
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-base sm:text-sm">
                         <option value="">Elegí el comercio…</option>
                         {tenants.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
                       </select>
                       <select value={ownerLocationId} onChange={e => setOwnerLocationId(e.target.value)} disabled={!ownerTenantId}
-                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm disabled:opacity-50">
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-base sm:text-sm disabled:opacity-50">
                         <option value="">Todas las sedes</option>
                         {locations.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}
                       </select>
@@ -518,18 +576,18 @@ export default function AppStoriesPage() {
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Inicio programado</label>
                   <input type="datetime-local" value={scheduledStart} onChange={e => setScheduledStart(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Fin programado</label>
                   <input type="datetime-local" value={scheduledEnd} onChange={e => setScheduledEnd(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-base sm:text-sm focus:outline-none focus:border-zinc-400" />
                 </div>
 
-                <div className="col-span-2 border-t border-zinc-200 pt-4">
+                <div className="sm:col-span-2 border-t border-zinc-200 pt-4">
                   <p className="text-sm font-medium text-zinc-700 mb-3">Estilos personalizados (opcional)</p>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4">
                     <div>
                       <label className="block text-xs text-zinc-500 mb-1">Color de fondo</label>
                       <input type="color" value={bgColor || '#000000'} onChange={e => setBgColor(e.target.value)}
@@ -548,14 +606,15 @@ export default function AppStoriesPage() {
                   </div>
                 </div>
               </div>
+              </div>
 
-              <div className="pt-4 border-t border-zinc-100 flex justify-end gap-3">
+              <div className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-t border-zinc-100 bg-white flex gap-3 sm:justify-end" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
                 <button type="button" onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl transition">
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-xl border border-zinc-200 sm:border-0 transition">
                   Cancelar
                 </button>
                 <button type="submit" disabled={saving}
-                  className="px-5 py-2.5 text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl transition disabled:opacity-50">
+                  className="flex-1 sm:flex-none min-h-[44px] px-5 text-sm font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl transition disabled:opacity-50">
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
               </div>

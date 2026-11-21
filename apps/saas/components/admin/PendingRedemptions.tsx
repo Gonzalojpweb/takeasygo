@@ -85,11 +85,11 @@ export default function PendingRedemptions({ tenantSlug }: Props) {
   }
 
   return (
-    <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+    <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+      <CardHeader className="p-4 sm:p-8 border-b border-border/40 bg-muted/5">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="w-12 h-12 shrink-0 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
               <Inbox size={24} strokeWidth={2.5} />
             </div>
             <div>
@@ -106,7 +106,7 @@ export default function PendingRedemptions({ tenantSlug }: Props) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-8">
         {loading ? (
           <p className="text-sm text-muted-foreground text-center py-12">Cargando solicitudes…</p>
         ) : items.length === 0 ? (

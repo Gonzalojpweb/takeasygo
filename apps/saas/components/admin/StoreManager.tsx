@@ -159,11 +159,11 @@ export default function StoreManager({ tenantSlug }: Props) {
   }
 
   return (
-    <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+    <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
+      <CardHeader className="p-4 sm:p-8 border-b border-border/40 bg-muted/5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="w-12 h-12 shrink-0 rounded-2xl bg-purple-500/10 flex items-center justify-center text-purple-500">
               <Package size={24} strokeWidth={2.5} />
             </div>
             <div>
@@ -178,15 +178,15 @@ export default function StoreManager({ tenantSlug }: Props) {
               setEditingItem(null)
               setShowForm(true)
             }}
-            className="bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest px-6 h-12 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest px-6 h-12 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95"
           >
             <Plus size={16} className="mr-2" />
             Nuevo Item
           </Button>
         </div>
 
-        <div className="flex items-center gap-4 mt-6">
-          <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mt-4 sm:mt-6">
+          <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1 [scrollbar-width:none] [&>*]:shrink-0">
             <Button
               size="sm"
               variant={filterCategory === 'all' ? 'default' : 'outline'}
@@ -205,11 +205,15 @@ export default function StoreManager({ tenantSlug }: Props) {
               </Button>
             ))}
           </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <label className="text-sm text-muted-foreground">Mostrar inactivos:</label>
+          <div className="flex items-center justify-between sm:justify-start gap-2 sm:ml-auto min-h-[44px]">
+            <span id="store-show-inactive" className="text-sm text-muted-foreground">Mostrar inactivos</span>
             <button
+              type="button"
+              role="switch"
+              aria-checked={showInactive}
+              aria-labelledby="store-show-inactive"
               onClick={() => setShowInactive(!showInactive)}
-              className={`w-12 h-6 rounded-full transition-colors ${
+              className={`w-12 h-6 shrink-0 rounded-full transition-colors ${
                 showInactive ? 'bg-primary' : 'bg-muted'
               }`}
             >
@@ -223,7 +227,7 @@ export default function StoreManager({ tenantSlug }: Props) {
         </div>
       </CardHeader>
 
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-8">
         {loading ? (
           <div className="text-center py-12 text-muted-foreground">Cargando...</div>
         ) : items.length === 0 ? (
@@ -242,7 +246,7 @@ export default function StoreManager({ tenantSlug }: Props) {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {items.map(item => (
               <Card
                 key={item._id}
@@ -250,7 +254,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                   !item.isActive ? 'opacity-60' : ''
                 }`}
               >
-                <div className="relative h-48 bg-muted">
+                <div className="relative h-40 sm:h-48 bg-muted">
                   {item.imageUrl ? (
                     <img
                       src={item.imageUrl}
@@ -275,16 +279,16 @@ export default function StoreManager({ tenantSlug }: Props) {
                   </Badge>
                 </div>
                 <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-base">{item.name}</h3>
-                    <Badge variant="outline">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="font-semibold text-base min-w-0 break-words">{item.name}</h3>
+                    <Badge variant="outline" className="shrink-0 whitespace-nowrap">
                       {CATEGORIES.find(c => c.value === item.category)?.icon} {item.pointsCost} pts
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
                     {item.description}
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mb-4">
                     {item.scope === 'global' ? (
                       <span>Stock: {item.stock ?? '∞'}</span>
                     ) : item.stock !== null ? (
@@ -351,7 +355,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                       Ítem de la plataforma · solo lectura
                     </p>
                   ) : (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 [&>button]:min-h-[40px]">
                     <Button
                       size="sm"
                       variant="outline"
@@ -367,6 +371,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                     <Button
                       size="sm"
                       variant="ghost"
+                      aria-label={item.isActive ? 'Desactivar' : 'Activar'}
                       onClick={() => handleToggle(item)}
                     >
                       {item.isActive ? (
@@ -378,6 +383,7 @@ export default function StoreManager({ tenantSlug }: Props) {
                     <Button
                       size="sm"
                       variant="ghost"
+                      aria-label="Eliminar"
                       onClick={() => handleDelete(item)}
                     >
                       <Trash2 size={18} className="text-red-500" />
@@ -524,13 +530,13 @@ function StoreItemForm({
   }
 
   return (
-    <Card className="border-2 border-border/60 rounded-[2.5rem] overflow-hidden">
-      <CardHeader className="p-8 border-b border-border/40 bg-muted/5">
+    <Card className="border-2 border-border/60 rounded-2xl sm:rounded-[2.5rem] overflow-clip">
+      <CardHeader className="p-4 sm:p-8 border-b border-border/40 bg-muted/5">
         <CardTitle className="text-xl font-bold tracking-tight">
           {item ? 'Editar Item' : 'Nuevo Item'}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-8">
+      <CardContent className="p-4 sm:p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -662,7 +668,7 @@ function StoreItemForm({
           </div>
 
           {/* ── Configuración de recurrencia (opcional) ── */}
-          <div className="bg-muted/20 p-5 rounded-2xl border border-border/40 space-y-4">
+          <div className="bg-muted/20 p-4 sm:p-5 rounded-2xl border border-border/40 space-y-4">
             <div className="flex items-center gap-2">
               <Package size={16} className="text-primary" />
               <label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
@@ -732,7 +738,7 @@ function StoreItemForm({
                 <div className="max-h-64 overflow-y-auto rounded-xl border-2 border-border/60 divide-y divide-border/40">
                   {filteredCategories.map(cat => (
                     <div key={cat._id}>
-                      <div className="flex items-center gap-2 px-3 py-2.5 hover:bg-muted/30 transition-colors">
+                      <div className="flex items-center gap-2 px-3 py-3 min-h-[44px] hover:bg-muted/30 transition-colors">
                         <button
                           type="button"
                           onClick={() => toggleCategory(cat._id)}
@@ -749,14 +755,14 @@ function StoreItemForm({
                       </div>
 
                       {expandedCategories.has(cat._id) && (
-                        <div className="ml-8 border-l border-border/40 pl-2 pb-1">
+                        <div className="ml-4 sm:ml-8 border-l border-border/40 pl-2 pb-1">
                           {cat.items.length === 0 ? (
                             <p className="px-3 py-2 text-xs text-muted-foreground">Sin productos</p>
                           ) : (
                             cat.items.map(menuItem => (
                               <div
                                 key={menuItem._id}
-                                className="flex items-center gap-2 px-3 py-2 hover:bg-muted/30 transition-colors rounded-lg cursor-pointer"
+                                className="flex items-center gap-2 px-3 py-2.5 min-h-[40px] hover:bg-muted/30 transition-colors rounded-lg cursor-pointer"
                                 onClick={() => toggleItemSelection(menuItem._id)}
                               >
                                 <div className={`
@@ -791,8 +797,8 @@ function StoreItemForm({
             />
           </div>
 
-          <div className="flex items-center gap-6">
-            <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={formData.isActive}
@@ -801,7 +807,7 @@ function StoreItemForm({
               />
               <span className="text-sm font-medium">Activo</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={formData.isFeatured}
@@ -812,19 +818,20 @@ function StoreItemForm({
             </label>
           </div>
 
-          <div className="flex gap-3 pt-4">
+          {/* Botonera: fija abajo en mobile para no tener que bajar hasta el final. */}
+          <div className="sticky bottom-0 z-10 -mx-4 sm:mx-0 px-4 sm:px-0 py-3 sm:py-0 sm:pt-4 bg-card border-t sm:border-t-0 border-border/40 flex gap-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
-              className="flex-1"
+              className="flex-1 min-h-[44px]"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest"
+              className="flex-1 min-h-[44px] bg-primary hover:bg-primary/90 text-white font-bold uppercase tracking-widest"
             >
               {loading ? 'Guardando...' : 'Guardar'}
             </Button>
