@@ -25,6 +25,7 @@ import PlacementDailyStat, {
   type Placement, type PieceKind,
 } from '@/models/PlacementDailyStat'
 import PlacementSeen, { PLACEMENT_SEEN_TTL_MS } from '@/models/PlacementSeen'
+import { effectiveOwner, effectiveSurfaces } from '@/lib/app-story-owner'
 
 export const PLACEMENT_EVENT_TYPES = ['impression', 'entry_open', 'story_view', 'story_complete', 'cta_tap', 'exit'] as const
 export type PlacementEventType = (typeof PLACEMENT_EVENT_TYPES)[number]
@@ -88,7 +89,8 @@ type Resolved = { kind: PieceKind; placement: Placement; pieceId: string | null;
 
 interface Lookups {
   tenantsBySlug: Map<string, string>
-  stories: Set<string>
+  /** Dueño y superficies efectivos de cada story (CP2). */
+  stories: Map<string, { ownerTenantId: string | null; ownerLocationId: string | null; surfaces: string[] }>
   promos: Map<string, { scope: string; tenantId: string | null; targetTenants: string[] }>
   locations: Map<string, string> // locationId → tenantId
 }
@@ -101,13 +103,16 @@ async function loadLookups(events: PlacementEventInput[]): Promise<Lookups> {
 
   const [tenants, stories, promos, locs] = await Promise.all([
     slugs.length ? Tenant.find({ slug: { $in: slugs }, isActive: true }).select('_id slug').lean<Array<{ _id: unknown; slug: string }>>() : [],
-    storyIds.length ? AppStory.find({ _id: { $in: storyIds } }).select('_id').lean<Array<{ _id: unknown }>>() : [],
+    storyIds.length ? AppStory.find({ _id: { $in: storyIds } }).select('_id owner surfaces').lean<Array<{ _id: unknown; owner?: any; surfaces?: string[] }>>() : [],
     promoIds.length ? Promotion.find({ _id: { $in: promoIds } }).select('_id scope tenantId targetTenants').lean<Array<{ _id: unknown; scope?: string; tenantId?: unknown; targetTenants?: unknown[] }>>() : [],
     locIds.length ? Location.find({ _id: { $in: locIds } }).select('_id tenantId').lean<Array<{ _id: unknown; tenantId: unknown }>>() : [],
   ])
   return {
     tenantsBySlug: new Map<string, string>(tenants.map((t) => [t.slug, String(t._id)] as [string, string])),
-    stories: new Set(stories.map((s) => String(s._id))),
+    stories: new Map(stories.map((s) => {
+      const o = effectiveOwner(s)
+      return [String(s._id), { ownerTenantId: o.tenantId, ownerLocationId: o.locationId, surfaces: effectiveSurfaces(s) }] as [string, { ownerTenantId: string | null; ownerLocationId: string | null; surfaces: string[] }]
+    })),
     promos: new Map(promos.map((p) => [String(p._id), {
       scope: p.scope ?? 'tenant',
       tenantId: p.tenantId ? String(p.tenantId) : null,
@@ -141,8 +146,18 @@ export function resolveEvent(e: PlacementEventInput, lk: Lookups): Resolved | nu
   }
 
   if (e.kind === 'app_story') {
-    if (!lk.stories.has(e.pieceId!)) return null
-    return { kind: 'app_story', placement: e.placement, pieceId: e.pieceId!, tenantId: ctxTenant, locationId }
+    const st = lk.stories.get(e.pieceId!)
+    if (!st) return null
+    // La story tiene que estar publicada en esa superficie.
+    if (!st.surfaces.includes(e.placement)) return null
+    if (inMenu) {
+      // Story de un comercio: solo cuenta en el menú de ese comercio (y de su sede, si tiene).
+      if (st.ownerTenantId && st.ownerTenantId !== ctxTenant) return null
+      if (st.ownerLocationId && locationId && st.ownerLocationId !== locationId) return null
+      return { kind: 'app_story', placement: e.placement, pieceId: e.pieceId!, tenantId: ctxTenant, locationId }
+    }
+    // App / banner del inicio: el comercio es el dueño de la story (plataforma → null).
+    return { kind: 'app_story', placement: e.placement, pieceId: e.pieceId!, tenantId: st.ownerTenantId, locationId: null }
   }
 
   const promo = lk.promos.get(e.pieceId!)

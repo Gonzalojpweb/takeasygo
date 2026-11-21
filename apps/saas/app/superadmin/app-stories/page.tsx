@@ -27,8 +27,17 @@ interface AppStory {
     textColor?: string
     accentColor?: string
   }
+  owner?: { kind: 'platform' | 'tenant'; tenantId?: string | null; locationId?: string | null }
+  surfaces?: string[]
   createdAt: string
 }
+
+// CP2 (20/11/2026): superficies donde se publica la story.
+const SURFACE_OPTIONS: Array<{ value: string; label: string; hint: string }> = [
+  { value: 'menu_story', label: 'Stories del menú', hint: 'Círculo «TGO APP» en el menú de los comercios' },
+  { value: 'app_story', label: 'Stories de la app', hint: 'Reservado: todavía no se muestra' },
+  { value: 'home_banner', label: 'Banner del inicio', hint: 'Reservado: todavía no se muestra' },
+]
 
 const TYPE_LABELS: Record<string, { label: string; color: string }> = {
   feature: { label: 'Función', color: 'bg-blue-100 text-blue-700' },
@@ -59,6 +68,27 @@ export default function AppStoriesPage() {
   const [bgColor, setBgColor] = useState('')
   const [textColor, setTextColor] = useState('')
   const [accentColor, setAccentColor] = useState('')
+  const [ownerKind, setOwnerKind] = useState<'platform' | 'tenant'>('platform')
+  const [ownerTenantId, setOwnerTenantId] = useState('')
+  const [ownerLocationId, setOwnerLocationId] = useState('')
+  const [surfaces, setSurfaces] = useState<string[]>(['menu_story'])
+  const [tenants, setTenants] = useState<Array<{ _id: string; name: string; slug: string }>>([])
+  const [locations, setLocations] = useState<Array<{ _id: string; name: string }>>([])
+
+  useEffect(() => {
+    fetch('/api/superadmin/tenants')
+      .then(r => r.ok ? r.json() : { tenants: [] })
+      .then(d => setTenants((d.tenants || []).map((t: any) => ({ _id: String(t._id), name: t.name, slug: t.slug }))))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (ownerKind !== 'tenant' || !ownerTenantId) { setLocations([]); return }
+    fetch(`/api/superadmin/tenants/${ownerTenantId}/locations`)
+      .then(r => r.ok ? r.json() : { locations: [] })
+      .then(d => setLocations(d.locations || []))
+      .catch(() => setLocations([]))
+  }, [ownerKind, ownerTenantId])
 
   useEffect(() => {
     fetchStories()
@@ -95,6 +125,11 @@ export default function AppStoriesPage() {
       setBgColor(story.customStyles?.backgroundColor || '')
       setTextColor(story.customStyles?.textColor || '')
       setAccentColor(story.customStyles?.accentColor || '')
+      // Stories viejas sin dueño ni superficies: plataforma + menú.
+      setOwnerKind(story.owner?.kind === 'tenant' ? 'tenant' : 'platform')
+      setOwnerTenantId(story.owner?.kind === 'tenant' && story.owner.tenantId ? String(story.owner.tenantId) : '')
+      setOwnerLocationId(story.owner?.kind === 'tenant' && story.owner.locationId ? String(story.owner.locationId) : '')
+      setSurfaces(story.surfaces?.length ? story.surfaces : ['menu_story'])
     } else {
       setEditingId(null)
       setTitle('')
@@ -112,6 +147,10 @@ export default function AppStoriesPage() {
       setBgColor('')
       setTextColor('')
       setAccentColor('')
+      setOwnerKind('platform')
+      setOwnerTenantId('')
+      setOwnerLocationId('')
+      setSurfaces(['menu_story'])
     }
     setIsModalOpen(true)
   }
@@ -130,6 +169,20 @@ export default function AppStoriesPage() {
         textColor: textColor || undefined,
         accentColor: accentColor || undefined,
       },
+      owner: ownerKind === 'tenant'
+        ? { kind: 'tenant', tenantId: ownerTenantId, locationId: ownerLocationId || null }
+        : { kind: 'platform' },
+      surfaces,
+    }
+    if (ownerKind === 'tenant' && !ownerTenantId) {
+      toast.error('Elegí el comercio dueño de la story')
+      setSaving(false)
+      return
+    }
+    if (surfaces.length === 0) {
+      toast.error('Elegí al menos una superficie')
+      setSaving(false)
+      return
     }
 
     const url = editingId ? `/api/superadmin/app-stories/${editingId}` : '/api/superadmin/app-stories'
@@ -180,7 +233,9 @@ export default function AppStoriesPage() {
       const res = await fetch(`/api/superadmin/app-stories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !current, title: stories.find(s => s._id === id)?.title }),
+        // El PUT reemplaza la story entera: se manda completa (antes solo
+        // isActive + title, y activar/desactivar borraba el resto).
+        body: JSON.stringify({ ...stories.find(s => s._id === id), isActive: !current }),
       })
       if (res.ok) {
         setStories(prev => prev.map(s => s._id === id ? { ...s, isActive: !current } : s))
@@ -261,6 +316,11 @@ export default function AppStoriesPage() {
                     <span className={cn('px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider', TYPE_LABELS[story.type]?.color || 'bg-zinc-100 text-zinc-700')}>
                       {TYPE_LABELS[story.type]?.label || story.type}
                     </span>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      {story.owner?.kind === 'tenant'
+                        ? `Comercio: ${tenants.find(t => t._id === String(story.owner?.tenantId))?.name ?? '—'}`
+                        : 'TakeasyGO'}
+                    </p>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -385,6 +445,44 @@ export default function AppStoriesPage() {
                   {ctaLink && !validateCtaLink(ctaLink).ok && (
                     <p className="mt-1 text-xs font-semibold text-red-600">{CTA_LINK_ERROR} Si es un link viejo, no se muestra hasta corregirlo.</p>
                   )}
+                </div>
+
+                <div className="col-span-2 rounded-xl border border-zinc-200 p-4 space-y-3">
+                  <p className="text-sm font-medium text-zinc-700">Dueño de la story</p>
+                  <div className="flex flex-wrap gap-4 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="owner" checked={ownerKind === 'platform'} onChange={() => setOwnerKind('platform')} />
+                      TakeasyGO (se ve en todos los menús)
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="radio" name="owner" checked={ownerKind === 'tenant'} onChange={() => setOwnerKind('tenant')} />
+                      Un comercio (solo en su menú)
+                    </label>
+                  </div>
+                  {ownerKind === 'tenant' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select value={ownerTenantId} onChange={e => { setOwnerTenantId(e.target.value); setOwnerLocationId('') }}
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm">
+                        <option value="">Elegí el comercio…</option>
+                        {tenants.map(t => <option key={t._id} value={t._id}>{t.name}</option>)}
+                      </select>
+                      <select value={ownerLocationId} onChange={e => setOwnerLocationId(e.target.value)} disabled={!ownerTenantId}
+                        className="w-full border border-zinc-200 rounded-xl px-3 py-2.5 text-sm disabled:opacity-50">
+                        <option value="">Todas las sedes</option>
+                        {locations.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}
+                      </select>
+                    </div>
+                  )}
+                  <p className="text-sm font-medium text-zinc-700 pt-1">Dónde se publica</p>
+                  <div className="space-y-1.5">
+                    {SURFACE_OPTIONS.map(o => (
+                      <label key={o.value} className="flex items-start gap-2 text-sm">
+                        <input type="checkbox" className="mt-0.5 rounded border-zinc-300" checked={surfaces.includes(o.value)}
+                          onChange={e => setSurfaces(prev => e.target.checked ? [...prev, o.value] : prev.filter(v => v !== o.value))} />
+                        <span><span className="font-medium">{o.label}</span> <span className="text-xs text-zinc-500">· {o.hint}</span></span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-6 pt-2">

@@ -4,6 +4,7 @@ import AppStory from '@/models/AppStory'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { resolveCtaLinkUpdate } from '@/lib/cta-link'
+import { normalizeOwner, normalizeSurfaces, dbOwnerLookups, effectiveOwner, effectiveSurfaces } from '@/lib/app-story-owner'
 
 export async function GET(
   _request: NextRequest,
@@ -42,6 +43,7 @@ export async function PUT(
       title, description, shortDescription, imageUrl, videoUrl,
       type, ctaText, ctaLink, isActive, sortOrder,
       scheduledStart, scheduledEnd, customStyles,
+      owner: ownerInput, surfaces: surfacesInput,
     } = body
 
     if (!title?.trim()) {
@@ -51,7 +53,7 @@ export async function PUT(
     await connectDB()
 
     // 20/11/2026: link del CTA validado; el mismo link viejo inválido pasa con aviso.
-    const current = await AppStory.findById(id).select('ctaLink').lean<{ ctaLink?: string }>()
+    const current = await AppStory.findById(id).select('ctaLink owner surfaces').lean<{ ctaLink?: string; owner?: any; surfaces?: string[] }>()
     if (!current) {
       return NextResponse.json({ error: 'Story no encontrada' }, { status: 404 })
     }
@@ -59,6 +61,20 @@ export async function PUT(
     if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
     const nextCtaLink = cta.changed ? cta.value : (current.ctaLink ?? '')
     const warnings = !cta.changed && cta.warning ? [cta.warning] : []
+
+    // CP2: dueño y superficies solo cambian si llegan en el cuerpo.
+    const extra: Record<string, unknown> = {}
+    if (surfacesInput !== undefined) {
+      const surfaces = normalizeSurfaces(surfacesInput)
+      if (!surfaces.ok) return NextResponse.json({ error: surfaces.error, field: 'surfaces' }, { status: 400 })
+      extra.surfaces = surfaces.value
+    }
+    if (ownerInput !== undefined) {
+      const owner = await normalizeOwner(ownerInput, await dbOwnerLookups())
+      if (!owner.ok) return NextResponse.json({ error: owner.error, field: 'owner' }, { status: 400 })
+      extra.owner = owner.value
+    }
+    const before = { owner: effectiveOwner(current), surfaces: effectiveSurfaces(current) }
 
     const story = await AppStory.findByIdAndUpdate(
       id,
@@ -76,6 +92,7 @@ export async function PUT(
         scheduledStart: scheduledStart || null,
         scheduledEnd: scheduledEnd || null,
         customStyles: customStyles || {},
+        ...extra,
       },
       { new: true }
     )
@@ -88,7 +105,11 @@ export async function PUT(
       tenantId: null,
       action: 'appstory.updated',
       entity: 'appStory',
-      details: { storyId: story._id, title: story.title },
+      details: {
+        storyId: story._id, title: story.title,
+        before,
+        after: { owner: effectiveOwner(story), surfaces: effectiveSurfaces(story) },
+      },
       request,
     })
 

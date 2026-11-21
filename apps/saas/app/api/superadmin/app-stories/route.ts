@@ -4,6 +4,7 @@ import AppStory from '@/models/AppStory'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
 import { validateCtaLink } from '@/lib/cta-link'
+import { normalizeOwner, normalizeSurfaces, dbOwnerLookups } from '@/lib/app-story-owner'
 
 export async function GET() {
   try {
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       title, description, shortDescription, imageUrl, videoUrl,
       type, ctaText, ctaLink, isActive, sortOrder,
       scheduledStart, scheduledEnd, customStyles,
+      owner: ownerInput, surfaces: surfacesInput,
     } = body
 
     if (!title?.trim()) {
@@ -42,6 +44,12 @@ export async function POST(request: NextRequest) {
     if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
 
     await connectDB()
+
+    // CP2: dueño (plataforma o comercio/sede) y superficies. Sin aprobación.
+    const surfaces = normalizeSurfaces(surfacesInput)
+    if (!surfaces.ok) return NextResponse.json({ error: surfaces.error, field: 'surfaces' }, { status: 400 })
+    const owner = await normalizeOwner(ownerInput, await dbOwnerLookups())
+    if (!owner.ok) return NextResponse.json({ error: owner.error, field: 'owner' }, { status: 400 })
 
     const story = await AppStory.create({
       title: title.trim(),
@@ -57,13 +65,15 @@ export async function POST(request: NextRequest) {
       scheduledStart: scheduledStart || null,
       scheduledEnd: scheduledEnd || null,
       customStyles: customStyles || {},
+      owner: owner.value,
+      surfaces: surfaces.value,
     })
 
     logAudit({
       tenantId: null,
       action: 'appstory.created',
       entity: 'appStory',
-      details: { storyId: story._id, title: story.title },
+      details: { storyId: story._id, title: story.title, owner: owner.value, surfaces: surfaces.value },
       request,
     })
 

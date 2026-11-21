@@ -309,11 +309,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   }, [tenant.slug, location._id, mode])
 
   useEffect(() => {
-    fetch('/api/app-stories')
+    // CP2: stories de la plataforma + las de este comercio (o esta sede).
+    const qs = new URLSearchParams({ surface: 'menu_story', tenant: tenant.slug, locationId: String(location._id) })
+    fetch(`/api/app-stories?${qs}`)
       .then(r => r.ok ? r.json() : { stories: [] })
       .then(data => setAppStories(data.stories || []))
       .catch(() => {})
-  }, [])
+  }, [tenant.slug, location._id])
 
   useEffect(() => {
     trackMenuOpened(location._id)
