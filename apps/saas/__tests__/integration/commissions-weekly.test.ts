@@ -52,6 +52,7 @@ import { GET as weekGet } from '@/app/api/[tenant]/commissions/weeks/[key]/route
 import { GET as weeksGet } from '@/app/api/[tenant]/commissions/weeks/route'
 import { POST as payPost } from '@/app/api/[tenant]/commissions/pay/route'
 import { POST as webhook } from '@/app/api/webhooks/mercadopago/commission/route'
+import { SUPERADMIN_DB_FIELDS, superAdminSession } from '../fixtures/superadmin-session'
 
 const SLUG = 'com-sem'
 // Martes 20/10/2026 12:00 ART (día de pago). Semanas: 19/10 (en curso),
@@ -334,8 +335,8 @@ describe('permisos y validaciones', () => {
       expect(week.autoCollected, role).toBeUndefined()
       expect(JSON.stringify([list, week]), role).not.toContain('12345')
     }
-    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'superadmin', tenantId: null })
-    vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as any)
+    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, tenantId: null, ...SUPERADMIN_DB_FIELDS })
+    vi.mocked(auth).mockResolvedValue(superAdminSession(String(sa._id)) as any)
     const list = await (await weeksGet(new NextRequest(`http://localhost/api/${SLUG}/commissions/weeks`), P)).json()
     const week = await (await weekGet(new NextRequest(`http://localhost/x`), PK)).json()
     expect(list.autoCollected).toBeUndefined()
@@ -391,8 +392,8 @@ describe('calendario: cierra el lunes, se paga el martes, vencida desde el miér
     // El superadmin marca la semana como cobrada (como lo hace su panel).
     await syncWeeklyStatements(tenant._id, { now: new Date('2026-10-29T15:00:00Z') })
     const stmt: any = await WeeklyCommissionStatement.findOne({ tenantId: tenant._id, orderIds: String(thisWeek._id) }).lean()
-    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'superadmin', tenantId: null })
-    vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as any)
+    const sa = await User.create({ name: 'SA', email: `sa-${Date.now()}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, tenantId: null, ...SUPERADMIN_DB_FIELDS })
+    vi.mocked(auth).mockResolvedValue(superAdminSession(String(sa._id)) as any)
     const res = await superadminSettle(new NextRequest('http://localhost/api/superadmin/commissions', {
       method: 'POST',
       body: JSON.stringify({ tenantId: String(tenant._id), from: stmt.weekStart, to: stmt.weekEnd, statementId: String(stmt._id) }),

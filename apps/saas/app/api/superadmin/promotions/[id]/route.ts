@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import Promotion from '@/models/Promotion'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { resolveCtaLinkUpdate } from '@/lib/cta-link'
 
 export async function GET(
   request: NextRequest,
@@ -55,7 +56,11 @@ export async function PUT(
     if (body.conditions !== undefined) promotion.conditions = body.conditions
     if (body.details !== undefined) promotion.details = body.details
     if (body.ctaText !== undefined) promotion.ctaText = body.ctaText
-    if (body.ctaLink !== undefined) promotion.ctaLink = body.ctaLink
+    // 20/11/2026: link validado; el mismo link viejo inválido pasa con aviso.
+    const cta = resolveCtaLinkUpdate(body.ctaLink, promotion.ctaLink)
+    if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
+    if (cta.changed) promotion.ctaLink = cta.value
+    const warnings = !cta.changed && cta.warning ? [cta.warning] : []
     if (body.visibility !== undefined) promotion.visibility = body.visibility
     if (body.isActive !== undefined) promotion.isActive = body.isActive
     if (body.isFeatured !== undefined) promotion.isFeatured = body.isFeatured
@@ -76,7 +81,7 @@ export async function PUT(
       request,
     })
 
-    return NextResponse.json({ promotion })
+    return NextResponse.json(warnings.length ? { promotion, warnings } : { promotion })
   } catch (error) {
     console.error('[superadmin/promotions/[id] PUT]', error)
     return NextResponse.json({ error: 'Error al actualizar la promoción' }, { status: 500 })

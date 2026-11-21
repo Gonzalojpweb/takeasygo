@@ -6,6 +6,7 @@ import { Tag, Plus, Percent, Info, Megaphone, Heart, ExternalLink, ChevronRight 
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
+import { safeCtaHref } from '@/lib/cta-link'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
 import { toast } from 'sonner'
 import { channelBadge, promotionChannels } from '@/lib/sales-channels'
@@ -310,8 +311,11 @@ export function PromotionCard({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (promotion.ctaLink) {
-                        window.open(promotion.ctaLink, '_blank');
+                      // Link inválido (incluidos los viejos) → se ignora.
+                      const cta = safeCtaHref(promotion.ctaLink)
+                      if (cta) {
+                        if (cta.external) window.open(cta.href, '_blank', 'noopener,noreferrer')
+                        else window.location.assign(cta.href)
                       } else if (promotion.conditions || promotion.shortDescription) {
                         toast(promotion.title, { description: `${promotion.shortDescription || ''}\nCondiciones: ${promotion.conditions || 'Ninguna'}` })
                       }
@@ -319,7 +323,7 @@ export function PromotionCard({
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md flex-shrink-0"
                     style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: '#ffffff' }}
                   >
-                    {promotion.ctaText || 'Ver más'} {promotion.ctaLink ? <ExternalLink size={12} /> : <ChevronRight size={13} />}
+                    {promotion.ctaText || 'Ver más'} {safeCtaHref(promotion.ctaLink)?.external ? <ExternalLink size={12} /> : <ChevronRight size={13} />}
                   </button>
                 )}
               </div>

@@ -13,6 +13,7 @@ import AnalyticsTabBar from '@/components/superadmin/AnalyticsTabBar'
 import RevenueVisibilityWidget from '@/components/superadmin/RevenueVisibilityWidget'
 import { toPesos } from '@takeasygo/business'
 import { queryPostHog } from '@/lib/tia/posthog'
+import { EXPLORE_PAGEVIEW_VERSION } from '@/lib/explore-entry'
 
 export default async function SuperAdminAnalyticsPage() {
   await connectDB()
@@ -104,7 +105,8 @@ export default async function SuperAdminAnalyticsPage() {
       {
         $group: {
           _id: null,
-          pageviews: { $sum: { $cond: [{ $eq: ['$eventType', 'pageview'] }, 1, 0] } },
+          // Corte por versión (20/11/2026): solo entradas v2, una por sesión.
+          pageviews: { $sum: { $cond: [{ $and: [{ $eq: ['$eventType', 'pageview'] }, { $eq: ['$metadata.v', EXPLORE_PAGEVIEW_VERSION] }] }, 1, 0] } },
           restaurantViews: { $sum: { $cond: [{ $eq: ['$eventType', 'restaurant_view'] }, 1, 0] } },
           menuClicks: { $sum: { $cond: [{ $eq: ['$eventType', 'click_menu'] }, 1, 0] } },
           searches: { $sum: { $cond: [{ $eq: ['$eventType', 'search'] }, 1, 0] } },

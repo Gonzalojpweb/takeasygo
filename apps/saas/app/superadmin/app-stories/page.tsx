@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Smartphone, Eye, EyeOff, GripVertical, Play } from 'lucide-react'
 import { toast } from 'sonner'
+import { validateCtaLink, CTA_LINK_ERROR } from '@/lib/cta-link'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
@@ -141,6 +142,10 @@ export default function AppStoriesPage() {
         body: JSON.stringify(payload),
       })
       if (res.ok) {
+        const data = await res.json().catch(() => null)
+        if (Array.isArray(data?.warnings) && data.warnings.includes('ctaLink')) {
+          toast.warning('El link guardado no es válido y no se muestra. Corregilo o borralo.')
+        }
         toast.success(editingId ? 'Story actualizada' : 'Story creada')
         setIsModalOpen(false)
         fetchStories()
@@ -376,7 +381,10 @@ export default function AppStoriesPage() {
                   <label className="block text-sm font-medium text-zinc-700 mb-1">CTA Link</label>
                   <input type="text" value={ctaLink} onChange={e => setCtaLink(e.target.value)}
                     className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400"
-                    placeholder="https://takeasygo.app o URL externa" />
+                    placeholder="https://… o ruta interna /…" />
+                  {ctaLink && !validateCtaLink(ctaLink).ok && (
+                    <p className="mt-1 text-xs font-semibold text-red-600">{CTA_LINK_ERROR} Si es un link viejo, no se muestra hasta corregirlo.</p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-6 pt-2">

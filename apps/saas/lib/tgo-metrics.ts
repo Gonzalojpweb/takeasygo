@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import ExploreEvent from '@/models/ExploreEvent'
+import { ENTRY_PAGEVIEW_MATCH, EXPLORE_PAGEVIEW_VERSION } from '@/lib/explore-entry'
 
 export interface TgoMetrics {
   summary: {
@@ -21,6 +22,14 @@ export interface TgoMetrics {
   searchWithResults: number
   searchWithoutResults: number
   trafficSources: Array<{ source: string; sessions: number }>
+  /** Origen de las sesiones según el pageview de entrada v2 (uno por sesión). */
+  entrySources: Array<{ source: string; sessions: number }>
+  /**
+   * Corte por versión: los pageviews se cuentan solo desde la v2 (20/11/2026).
+   * `since` = primer pageview v2 del período; `legacyPageviews` = pageviews
+   * viejos del período (cargas del servidor, no sesiones), solo informativo.
+   */
+  pageviewTracking: { version: number; since: string | null; legacyPageviews: number }
   deviceBreakdown: Array<{ device: string; sessions: number }>
 }
 
@@ -44,6 +53,8 @@ export async function getTgoMetrics(days = 30): Promise<TgoMetrics> {
     searchWithoutRes,
     sourcesData,
     deviceData,
+    entryData,
+    legacyPageviews,
   ] = await Promise.all([
     ExploreEvent.countDocuments(match),
     ExploreEvent.distinct('sessionId', match),
@@ -117,13 +128,27 @@ export async function getTgoMetrics(days = 30): Promise<TgoMetrics> {
       { $group: { _id: { s: '$sessionId', device: '$deviceType' } } },
       { $group: { _id: '$_id.device', sessions: { $sum: 1 } } },
     ]),
+
+    // Pageviews de entrada v2: sesiones con pageview, origen y desde cuándo.
+    ExploreEvent.aggregate([
+      { $match: { ...match, ...ENTRY_PAGEVIEW_MATCH } },
+      { $group: { _id: '$sessionId', source: { $first: '$source' }, at: { $min: '$createdAt' } } },
+      { $group: { _id: '$source', sessions: { $sum: 1 }, since: { $min: '$at' } } },
+      { $sort: { sessions: -1 } },
+    ]),
+
+    ExploreEvent.countDocuments({ ...match, eventType: 'pageview', 'metadata.v': { $ne: EXPLORE_PAGEVIEW_VERSION } }),
   ])
 
   const funnelMap: Record<string, number> = {}
   for (const f of funnelData) funnelMap[f._id as string] = f.count
 
+  const entrySessions = entryData.reduce((s: number, e: any) => s + e.sessions, 0)
+  const entrySince = entryData.reduce((min: Date | null, e: any) => (!min || e.since < min ? e.since : min), null as Date | null)
+
   const funnel = {
-    sessionsWithPageview: funnelMap.pageview ?? 0,
+    // Corte por versión: solo pageviews de entrada v2 (uno por sesión).
+    sessionsWithPageview: entrySessions,
     sessionsWithSearch: funnelMap.search ?? 0,
     sessionsWithRestaurantView: funnelMap.restaurant_view ?? 0,
     sessionsWithMenuClick: funnelMap.click_menu ?? 0,
@@ -148,6 +173,12 @@ export async function getTgoMetrics(days = 30): Promise<TgoMetrics> {
     searchWithResults: searchWithRes,
     searchWithoutResults: searchWithoutRes,
     trafficSources: sourcesData.map((s: any) => ({ source: s._id, sessions: s.sessions })),
+    entrySources: entryData.map((e: any) => ({ source: e._id, sessions: e.sessions })),
+    pageviewTracking: {
+      version: EXPLORE_PAGEVIEW_VERSION,
+      since: entrySince ? new Date(entrySince).toISOString() : null,
+      legacyPageviews,
+    },
     deviceBreakdown: deviceData.map((d: any) => ({ device: d._id, sessions: d.sessions })),
   }
 }

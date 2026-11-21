@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import AppStory from '@/models/AppStory'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { validateCtaLink } from '@/lib/cta-link'
 
 export async function GET() {
   try {
@@ -37,6 +38,8 @@ export async function POST(request: NextRequest) {
     if (!title?.trim()) {
       return NextResponse.json({ error: 'El título es obligatorio' }, { status: 400 })
     }
+    const cta = validateCtaLink(ctaLink)
+    if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
 
     await connectDB()
 
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
       videoUrl: videoUrl || '',
       type: type || 'feature',
       ctaText: ctaText || '',
-      ctaLink: ctaLink || '',
+      ctaLink: cta.value,
       isActive: isActive !== undefined ? isActive : true,
       sortOrder: sortOrder || 0,
       scheduledStart: scheduledStart || null,

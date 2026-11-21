@@ -32,6 +32,7 @@ import { alertCopy } from '@/lib/commissions-ui'
 import { POST as superadminSettle } from '@/app/api/superadmin/commissions/route'
 import { GET as locksGet } from '@/app/api/superadmin/commissions/transfer-locks/route'
 import { POST as createOrder } from '@/app/api/[tenant]/orders/route'
+import { SUPERADMIN_DB_FIELDS, superAdminSession } from '../fixtures/superadmin-session'
 
 const SLUG = 'lock-tr'
 // Martes 20/10/2026 12:00 ART (día de pago). Semanas:
@@ -64,8 +65,8 @@ async function transferEnabled(mode: 'delivery' | 'takeaway') {
 }
 
 async function asSuperadmin() {
-  const sa = await User.create({ name: 'SA', email: `sa-${Math.random().toString(36).slice(2, 8)}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role: 'superadmin', tenantId: null })
-  vi.mocked(auth).mockResolvedValue({ user: { id: String(sa._id), role: 'superadmin', tenantId: null, assignedLocations: [] }, expires: '' } as never)
+  const sa = await User.create({ name: 'SA', email: `sa-${Math.random().toString(36).slice(2, 8)}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, tenantId: null, ...SUPERADMIN_DB_FIELDS })
+  vi.mocked(auth).mockResolvedValue(superAdminSession(String(sa._id)) as never)
 }
 
 beforeEach(async () => {

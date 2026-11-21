@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ShoppingCart, Gift } from 'lucide-react'
 import Link from 'next/link'
+import { safeCtaHref } from '@/lib/cta-link'
 import { toPesos } from '@takeasygo/business/browser'
 
 interface StoryPromotion {
@@ -182,11 +183,11 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
                 <Gift size={16} />
                 Unite al Club
               </Link>
-            ) : promo.ctaText ? (
+            ) : promo.ctaText && safeCtaHref(promo.ctaLink) ? (
+              // Link inválido (incluidos los viejos) → sin botón.
               <a
-                href={promo.ctaLink || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={safeCtaHref(promo.ctaLink)!.href}
+                {...(safeCtaHref(promo.ctaLink)!.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
                 style={{ backgroundColor: primaryColor, color: 'white' }}
               >

@@ -4,6 +4,7 @@ import Order from '@/models/Order'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { Types } from 'mongoose'
+import { EXPLORE_PAGEVIEW_VERSION } from '@/lib/explore-entry'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,7 +78,8 @@ export async function GET(request: NextRequest) {
         {
           $group: {
             _id: null,
-            totalPageviews: { $sum: { $cond: [{ $eq: ['$eventType', 'pageview'] }, 1, 0] } },
+            // Corte por versión (20/11/2026): solo pageviews de entrada v2, uno por sesión.
+            totalPageviews: { $sum: { $cond: [{ $and: [{ $eq: ['$eventType', 'pageview'] }, { $eq: ['$metadata.v', EXPLORE_PAGEVIEW_VERSION] }] }, 1, 0] } },
             totalSearches: { $sum: { $cond: [{ $eq: ['$eventType', 'search'] }, 1, 0] } },
             totalRestaurantViews: { $sum: { $cond: [{ $eq: ['$eventType', 'restaurant_view'] }, 1, 0] } },
             totalMenuClicks: { $sum: { $cond: [{ $eq: ['$eventType', 'click_menu'] }, 1, 0] } },

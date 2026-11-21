@@ -25,6 +25,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useTenant } from '@/contexts/TenantContext'
 import { Button } from '@/components/ui/button'
 import { useHaptic } from '@/components/tgo/useHaptic'
+import { classifyEntrySource, ENTRY_TRACKED_KEY, EXPLORE_PAGEVIEW_VERSION } from '@/lib/explore-entry'
 
 // La ciudad viva: un solo mapa para «Inicio» y «Mapa» (components/city).
 const CityFeed = dynamic(() => import('@/components/city/CityFeed'), {
@@ -164,21 +165,41 @@ function ExploreClientInner() {
     sidRef.current = getOrCreateSessionId()
   }, [])
 
-  // ── Track invite QR scans (source=invitacion) ────────────────────────
+  // ── Pageview de entrada: uno por sesión de pestaña (v2, 20/11/2026) ──
+  // Desde el 13/11 el inicio no registraba sesiones (ver lib/explore-entry.ts).
+  // Lleva la vista de entrada y el origen clasificado; nunca la URL del
+  // referrer. Si se entra por invitación, también marca ese escaneo
+  // (source 'invitacion'), que lee Superadmin › Escaneos de invitación.
   useEffect(() => {
-    const source = searchParams.get('source')
-    if (source === 'invitacion') {
-      const tracked = sessionStorage.getItem('tgo_invite_tracked')
-      if (!tracked) {
+    try {
+      const source = classifyEntrySource({
+        sourceParam: searchParams.get('source'),
+        utmSource: searchParams.get('utm_source'),
+        referrer: document.referrer,
+        selfHost: window.location.hostname,
+      })
+      const v = searchParams.get('view')
+      const entryView: View = v === 'map' ? 'map' : v === 'list' ? 'list' : v === 'orders' ? 'orders' : 'home'
+      if (!sessionStorage.getItem(ENTRY_TRACKED_KEY)) {
+        trackExploreEvent({
+          eventType: 'pageview',
+          source,
+          view: entryView,
+          metadata: { v: EXPLORE_PAGEVIEW_VERSION, entry: true, landingPath: window.location.pathname },
+        })
+        sessionStorage.setItem(ENTRY_TRACKED_KEY, '1')
+        if (source === 'invitacion') sessionStorage.setItem('tgo_invite_tracked', '1')
+      } else if (source === 'invitacion' && !sessionStorage.getItem('tgo_invite_tracked')) {
+        // Ya había entrado en esta pestaña y ahora escaneó una invitación.
         trackExploreEvent({
           eventType: 'pageview',
           source: 'invitacion',
           view: 'home',
-          metadata: { referrer: document.referrer || null, landingPath: window.location.pathname },
+          metadata: { landingPath: window.location.pathname },
         })
         sessionStorage.setItem('tgo_invite_tracked', '1')
       }
-    }
+    } catch { /* sessionStorage bloqueado: sin pageview */ }
   }, [searchParams])
 
   // Check onboarding status client-side only (avoids hydration mismatch)
@@ -198,7 +219,8 @@ function ExploreClientInner() {
     // Fire data promises immediately — timing controlled by splash button
     dataLoadRef.current = Promise.allSettled([
       fetch('/api/auth/session').then(() => {}).catch(() => {}),
-      fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000').then(() => {}).catch(() => {}),
+      // Precarga de caché: no es una búsqueda real, la ruta no la registra.
+      fetch('/api/explore/nearby?lat=-34.6037&lng=-58.3816&radius=2000', { headers: { 'x-tgo-prefetch': '1' } }).then(() => {}).catch(() => {}),
       new Promise<void>((resolve) => {
         if ('geolocation' in navigator) {
           navigator.geolocation.getCurrentPosition(

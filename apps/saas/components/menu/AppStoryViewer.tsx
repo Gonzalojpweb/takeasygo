@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ExternalLink } from 'lucide-react'
+import { safeCtaHref } from '@/lib/cta-link'
 
 export interface AppStoryItem {
   _id: string
@@ -102,7 +103,9 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
   const bgColor = story.customStyles?.backgroundColor || '#000'
   const txtColor = story.customStyles?.textColor || '#fff'
   const accent = story.customStyles?.accentColor || primaryColor
-  const hasCta = story.ctaText && story.ctaLink
+  // Link inválido (incluidos los viejos guardados) → sin CTA.
+  const cta = story.ctaText ? safeCtaHref(story.ctaLink) : null
+  const hasCta = !!cta
 
   return (
     <div className="fixed inset-0 z-[200] bg-black flex flex-col">
@@ -183,9 +186,8 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
           {hasCta && (
             <div className="mt-4" onClick={(e) => e.stopPropagation()}>
               <a
-                href={story.ctaLink}
-                target="_blank"
-                rel="noopener noreferrer"
+                href={cta!.href}
+                {...(cta!.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
                 style={{ backgroundColor: accent, color: 'white' }}
               >

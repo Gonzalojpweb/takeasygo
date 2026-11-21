@@ -25,14 +25,15 @@ import { loadCommissionWeeks } from '@/lib/commission-weeks'
 import { incrementCommissionBalance } from '@/lib/commission-balance'
 import { GET as rulesGet, PUT as rulesPut } from '@/app/api/superadmin/tenants/[tenantId]/commission-rules/route'
 import { GET as payerGet, PUT as payerPut } from '@/app/api/[tenant]/commissions/payer/route'
+import { SUPERADMIN_DB_FIELDS, superAdminSession } from '../fixtures/superadmin-session'
 
 const SLUG = 'com-rules'
 let tenant: any
 let other: any
 
 async function as(role: string, tenantId: unknown = tenant._id) {
-  const u = await User.create({ name: `U ${role}`, email: `${role}-${Math.random().toString(36).slice(2, 8)}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role, tenantId: role === 'superadmin' ? undefined : tenantId })
-  vi.mocked(auth).mockResolvedValue({ user: { id: String(u._id), role, tenantId: role === 'superadmin' ? null : String(tenantId), assignedLocations: [] }, expires: '' } as any)
+  const u = await User.create({ name: `U ${role}`, email: `${role}-${Math.random().toString(36).slice(2, 8)}@t.test`, password: 'x'.repeat(20), phone: `+54911${Math.floor(Math.random() * 1e8)}`, role, tenantId: role === 'superadmin' ? undefined : tenantId, ...(role === 'superadmin' ? SUPERADMIN_DB_FIELDS : {}) })
+  vi.mocked(auth).mockResolvedValue((role === 'superadmin' ? superAdminSession(String(u._id)) : { user: { id: String(u._id), role, tenantId: String(tenantId), assignedLocations: [] }, expires: '' }) as any)
 }
 
 const json = (url: string, method: string, body?: unknown) =>

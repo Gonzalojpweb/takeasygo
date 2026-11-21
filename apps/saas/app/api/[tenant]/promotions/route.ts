@@ -5,6 +5,7 @@ import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
+import { validateCtaLink } from '@/lib/cta-link'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
 
@@ -128,6 +129,13 @@ export async function POST(
       }
       data.channels = channels
       data.visibility = 'both'
+    }
+
+    // 20/11/2026: link del botón solo https o ruta interna.
+    if ('ctaLink' in data) {
+      const cta = validateCtaLink(data.ctaLink)
+      if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
+      data.ctaLink = cta.value
     }
 
     const promotion = await Promotion.create({

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+import { validateCtaLink, CTA_LINK_ERROR } from '@/lib/cta-link'
 import {
   Plus, Edit2, Trash2, Eye, EyeOff, Star,
   Tag, Upload, Palette, X, DollarSign,
@@ -546,6 +547,13 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
   }
 
   async function handleSave() {
+    // 20/11/2026: link del botón solo https o ruta interna. El link viejo
+    // inválido que no se tocó lo acepta la API con aviso.
+    const unchangedLegacy = !!editingPromotion && (form.ctaLink || '').trim() === (editingPromotion.ctaLink || '').trim()
+    if (!unchangedLegacy && !validateCtaLink(form.ctaLink).ok) {
+      toast.error(CTA_LINK_ERROR)
+      return
+    }
     setLoading(true)
     try {
       const cleanForm = { ...form }
@@ -568,9 +576,15 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
         body: JSON.stringify(payload),
       })
 
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await res.json().catch(() => null)
+        throw new Error(err?.error || 'Error al guardar')
+      }
 
       const data = await res.json()
+      if (Array.isArray(data.warnings) && data.warnings.includes('ctaLink')) {
+        toast.warning('El link guardado no es válido y no se muestra en el menú. Corregilo o borralo.')
+      }
 
       if (editingPromotion) {
         setPromotions(prev => prev.map(p => p._id === editingPromotion._id ? data.promotion : p))
@@ -581,8 +595,8 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
       }
 
       setIsModalOpen(false)
-    } catch {
-      toast.error('Error al guardar')
+    } catch (e) {
+      toast.error((e as Error)?.message || 'Error al guardar')
     } finally {
       setLoading(false)
     }
@@ -979,6 +993,9 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                           placeholder="ej: https://..."
                           className="mt-1.5"
                         />
+                        {form.ctaLink && !validateCtaLink(form.ctaLink).ok && (
+                          <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">{CTA_LINK_ERROR}</p>
+                        )}
                       </div>
                     )}
                     {form.type === 'loyalty' && (
@@ -990,6 +1007,9 @@ export default function PromotionsManager({ tenantSlug, locations, promotions: i
                           placeholder="ej: /app/profile/club/{slug}"
                           className="mt-1.5"
                         />
+                        {form.ctaLink && !validateCtaLink(form.ctaLink).ok && (
+                          <p className="mt-1 text-xs font-semibold text-red-600 dark:text-red-400">{CTA_LINK_ERROR}</p>
+                        )}
                       </div>
                     )}
                   </div>

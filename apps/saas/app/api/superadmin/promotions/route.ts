@@ -4,6 +4,7 @@ import Promotion from '@/models/Promotion'
 import Tenant from '@/models/Tenant'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { validateCtaLink } from '@/lib/cta-link'
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +54,8 @@ export async function POST(request: NextRequest) {
     if (type === 'sale' && (price === undefined || price === null || price < 0)) {
       return NextResponse.json({ error: 'El precio es obligatorio para promociones de venta' }, { status: 400 })
     }
+    const cta = validateCtaLink(ctaLink)
+    if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
 
     await connectDB()
 
@@ -78,7 +81,7 @@ export async function POST(request: NextRequest) {
       conditions: conditions || '',
       details: details || '',
       ctaText: ctaText || '',
-      ctaLink: ctaLink || '',
+      ctaLink: cta.value,
       visibility: visibility || 'both',
       isActive: isActive !== undefined ? isActive : true,
       isFeatured: isFeatured || false,

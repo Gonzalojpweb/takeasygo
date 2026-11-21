@@ -748,7 +748,9 @@ export async function GET(request: NextRequest) {
 
     const searchQuery = request.nextUrl.searchParams.get('q') || undefined
 
-    logExploreEvent({
+    // La precarga del splash (x-tgo-prefetch) solo calienta la caché: no es
+    // una búsqueda ni una sesión, no se registra (20/11/2026).
+    if (request.headers.get('x-tgo-prefetch') !== '1') logExploreEvent({
       sessionId: request.headers.get('x-session-id') || generateSessionId(),
       eventType: 'search',
       view: 'list',

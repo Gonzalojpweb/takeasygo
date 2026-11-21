@@ -100,7 +100,7 @@ export default async function TgoAnalyticsPage() {
               <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60 mb-3">Funnel de conversión <InfoTooltip description="Embudo de sesiones únicas por tipo de evento. Cada paso muestra cuántas sesiones llegaron a ese punto. Los datos están deduplicados por sessionId." /></p>
               <div className="space-y-2">
                 {[
-                  { label: 'Pageviews', value: tgoMetrics.funnel.sessionsWithPageview },
+                  { label: 'Entradas a la app', value: tgoMetrics.funnel.sessionsWithPageview },
                   { label: 'Búsquedas', value: tgoMetrics.funnel.sessionsWithSearch },
                   { label: 'Vista restaurante', value: tgoMetrics.funnel.sessionsWithRestaurantView },
                   { label: 'Click a menú', value: tgoMetrics.funnel.sessionsWithMenuClick },
@@ -121,6 +121,23 @@ export default async function TgoAnalyticsPage() {
                   )
                 })}
               </div>
+              <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
+                {tgoMetrics.pageviewTracking.since
+                  ? <>Entradas medidas desde el {new Date(tgoMetrics.pageviewTracking.since).toLocaleDateString('es-AR')} (una por sesión).</>
+                  : <>Todavía no hay entradas medidas con el registro nuevo.</>}
+                {' '}Del 13/11 al 20/11/2026 el inicio no registró entradas; los {tgoMetrics.pageviewTracking.legacyPageviews} pageviews viejos del período no cuentan como sesiones.
+              </p>
+              {tgoMetrics.entrySources.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-muted-foreground/60">Origen de las entradas</p>
+                  {tgoMetrics.entrySources.map((s) => (
+                    <div key={s.source} className="flex justify-between text-xs">
+                      <span className="font-bold">{s.source}</span>
+                      <span className="tabular-nums">{s.sessions}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 

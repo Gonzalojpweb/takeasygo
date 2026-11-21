@@ -3,6 +3,7 @@ import { connectDB } from '@/lib/mongoose'
 import AppStory from '@/models/AppStory'
 import { requireSuperAdmin } from '@/lib/apiAuth'
 import { logAudit } from '@/lib/audit'
+import { resolveCtaLinkUpdate } from '@/lib/cta-link'
 
 export async function GET(
   _request: NextRequest,
@@ -49,6 +50,16 @@ export async function PUT(
 
     await connectDB()
 
+    // 20/11/2026: link del CTA validado; el mismo link viejo inválido pasa con aviso.
+    const current = await AppStory.findById(id).select('ctaLink').lean<{ ctaLink?: string }>()
+    if (!current) {
+      return NextResponse.json({ error: 'Story no encontrada' }, { status: 404 })
+    }
+    const cta = resolveCtaLinkUpdate(ctaLink ?? '', current.ctaLink)
+    if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
+    const nextCtaLink = cta.changed ? cta.value : (current.ctaLink ?? '')
+    const warnings = !cta.changed && cta.warning ? [cta.warning] : []
+
     const story = await AppStory.findByIdAndUpdate(
       id,
       {
@@ -59,7 +70,7 @@ export async function PUT(
         videoUrl: videoUrl || '',
         type: type || 'feature',
         ctaText: ctaText || '',
-        ctaLink: ctaLink || '',
+        ctaLink: nextCtaLink,
         isActive: isActive !== undefined ? isActive : true,
         sortOrder: sortOrder || 0,
         scheduledStart: scheduledStart || null,
@@ -81,7 +92,7 @@ export async function PUT(
       request,
     })
 
-    return NextResponse.json({ story })
+    return NextResponse.json(warnings.length ? { story, warnings } : { story })
   } catch (error) {
     console.error('[superadmin/app-stories/[id] PUT]', error)
     return NextResponse.json({ error: 'Error al actualizar la story' }, { status: 500 })

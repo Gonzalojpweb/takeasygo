@@ -5,6 +5,7 @@ import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardSharedOrLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
+import { resolveCtaLinkUpdate } from '@/lib/cta-link'
 import { normalizeChannels } from '@/lib/sales-channels'
 import { sanitizePromoScheduleInput } from '@/lib/promo-schedule'
 
@@ -85,7 +86,7 @@ export async function PUT(
     }
 
     const existing = await Promotion.findOne({ _id: promotionId, tenantId: tenant._id })
-      .select('locationId').lean<{ locationId?: unknown }>()
+      .select('locationId ctaLink').lean<{ locationId?: unknown; ctaLink?: string }>()
     if (!existing) {
       return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
     }
@@ -95,6 +96,14 @@ export async function PUT(
       const targetError = await guardSharedOrLocation(request, data.locationId ?? null, 'Sede no encontrada')
       if (targetError) return targetError
     }
+
+    // 20/11/2026: link validado; el mismo link viejo inválido pasa sin
+    // cambios y con aviso (para no trabar la edición de otros campos).
+    const cta = resolveCtaLinkUpdate(data.ctaLink, existing.ctaLink)
+    if (!cta.ok) return NextResponse.json({ error: cta.error, field: 'ctaLink' }, { status: 400 })
+    if (cta.changed) data.ctaLink = cta.value
+    else delete data.ctaLink
+    const warnings = !cta.changed && cta.warning ? [cta.warning] : []
 
     const promotion = await Promotion.findOneAndUpdate(
       { _id: promotionId, tenantId: tenant._id },
@@ -114,7 +123,7 @@ export async function PUT(
       request 
     })
 
-    return NextResponse.json({ promotion })
+    return NextResponse.json(warnings.length ? { promotion, warnings } : { promotion })
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
