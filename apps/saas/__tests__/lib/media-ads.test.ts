@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { v2 as cloudinary } from 'cloudinary'
 import { checkMedia, cropWarning, storyVideoDurationMs } from '@/lib/media/spec'
 import { explainCloudinaryError } from '@/components/media/AdsMediaUpload'
-import { signUpload, belongsTo, verifyUpload, adsAssetFromUrl, markSaved, folderFor, type AdsApi } from '@/lib/media/ads'
+import { signUpload, belongsTo, verifyUpload, adsAssetFromUrl, markSaved, folderFor, factsFromResource, type AdsApi } from '@/lib/media/ads'
 
 beforeEach(() => {
   process.env.CLOUDINARY_ADS_CLOUD_NAME = 'tgoads'
@@ -173,5 +173,31 @@ describe('al guardar: quitar pending solo a archivos de la cuenta ads', () => {
     const api = fakeApi(null)
     await markSaved(['https://res.cloudinary.com/tgoads/image/upload/v1/ads/platform/story/a.jpg'], api)
     expect(api.removePendingTag).not.toHaveBeenCalled()
+  })
+})
+
+describe('video: duración y rotación desde media_metadata (21/11/2026)', () => {
+  it('la duración viene en video_metadata (la consulta simple no la trae)', () => {
+    expect(factsFromResource({ format: 'mp4', bytes: 1, width: 1080, height: 1920, video_metadata: { duration: 15.03 } }, 'video').duration).toBe(15.03)
+    expect(factsFromResource({ format: 'mp4', width: 1080, height: 1920 }, 'video').duration).toBeNull()
+  })
+  it('reel vertical guardado «rotado 90°» (1920×1080) cuenta como vertical', () => {
+    const f = factsFromResource({ format: 'mov', width: 1920, height: 1080, video_metadata: { duration: 12, rotation: 90 } }, 'video')
+    expect([f.width, f.height]).toEqual([1080, 1920])
+    expect(checkMedia('story', { kind: 'video', ...f })).toBeNull()
+  })
+  it('un reel «0:15» (15,9 s) pasa; 16 s no', () => {
+    const v = { kind: 'video' as const, format: 'mp4', bytes: 1000, width: 1080, height: 1920 }
+    expect(checkMedia('story', { ...v, duration: 15.9 })).toBeNull()
+    expect(checkMedia('story', { ...v, duration: 16 })).toMatch(/máximo es 15 s/)
+  })
+  it('verificación de punta a punta con video_metadata: no se borra y devuelve la duración', async () => {
+    const P = { kind: 'platform' as const }
+    const pid = `${folderFor(P, 'story')}/${'b'.repeat(18)}`
+    const api = fakeApi({ format: 'mp4', bytes: 9_000_000, width: 1080, height: 1920, video_metadata: { duration: 15.03 } })
+    const r = await verifyUpload(P, 'story', 'video', pid, api)
+    expect(r.ok).toBe(true)
+    expect((r as { media: { durationMs: number } }).media.durationMs).toBe(15030)
+    expect(api.destroyed).toEqual([])
   })
 })

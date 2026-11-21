@@ -95,7 +95,30 @@ export type VerifyResult =
   | { ok: true; media: VerifiedMedia }
   | { ok: false; status: number; error: string; deleted: boolean }
 
-type ResourceInfo = { format?: string; bytes?: number; width?: number; height?: number; duration?: number; secure_url?: string; public_id?: string }
+type ResourceInfo = {
+  format?: string; bytes?: number; width?: number; height?: number; duration?: number; secure_url?: string; public_id?: string
+  /** Con media_metadata: duración y rotación del video. */
+  video_metadata?: { duration?: number; format_duration?: number; rotation?: number; width?: number; height?: number }
+}
+
+/**
+ * Datos reales del archivo. Video: la duración viene en video_metadata (la
+ * consulta simple no la trae) y, si el celular lo guardó «rotado 90°» (un
+ * reel vertical que figura 1920×1080), se intercambian ancho y alto.
+ */
+export function factsFromResource(info: ResourceInfo, kind: MediaKind) {
+  let width = info.width ?? 0
+  let height = info.height ?? 0
+  let duration: number | null = null
+  if (kind === 'video') {
+    const vm = info.video_metadata ?? {}
+    const d = info.duration ?? vm.duration ?? vm.format_duration
+    duration = typeof d === 'number' && Number.isFinite(d) ? d : null
+    const rot = Math.abs(Number(vm.rotation) || 0) % 360
+    if (rot === 90 || rot === 270) [width, height] = [height, width]
+  }
+  return { format: info.format ?? '', bytes: info.bytes ?? 0, width, height, duration }
+}
 
 /** Dependencias de Cloudinary (inyectables para tests). */
 export interface AdsApi {
@@ -108,7 +131,8 @@ export function cloudinaryAdsApi(): AdsApi {
   return {
     async resource(publicId, kind) {
       try {
-        return await cloudinary.api.resource(publicId, { ...adsCreds(), resource_type: kind }) as ResourceInfo
+        // media_metadata: sin esto la Admin API no devuelve la duración del video.
+        return await cloudinary.api.resource(publicId, { ...adsCreds(), resource_type: kind, ...(kind === 'video' ? { media_metadata: true } : {}) } as never) as ResourceInfo
       } catch (e) {
         const code = (e as { error?: { http_code?: number } })?.error?.http_code
         if (code === 404) return null
@@ -149,14 +173,8 @@ export async function verifyUpload(
   const info = await api.resource(publicId, kind)
   if (!info) return { ok: false, status: 404, error: 'No se encontró el archivo subido. Probá de nuevo.', deleted: false }
 
-  const problem = checkMedia(surface, {
-    kind,
-    format: info.format ?? '',
-    bytes: info.bytes ?? 0,
-    width: info.width ?? 0,
-    height: info.height ?? 0,
-    duration: info.duration ?? null,
-  })
+  const facts = factsFromResource(info, kind)
+  const problem = checkMedia(surface, { kind, ...facts })
   if (problem) {
     await api.destroy(publicId, kind).catch(() => {})
     return { ok: false, status: 422, error: problem, deleted: true }
@@ -166,9 +184,9 @@ export async function verifyUpload(
     ok: true,
     media: {
       kind, url, posterUrl, publicId,
-      width: info.width ?? 0, height: info.height ?? 0, bytes: info.bytes ?? 0,
-      durationMs: kind === 'video' && typeof info.duration === 'number' ? Math.round(info.duration * 1000) : null,
-      warning: kind === 'image' ? cropWarning(surface, info.width ?? 0, info.height ?? 0) : null,
+      width: facts.width, height: facts.height, bytes: facts.bytes,
+      durationMs: kind === 'video' && facts.duration !== null ? Math.round(facts.duration * 1000) : null,
+      warning: kind === 'image' ? cropWarning(surface, facts.width, facts.height) : null,
     },
   }
 }

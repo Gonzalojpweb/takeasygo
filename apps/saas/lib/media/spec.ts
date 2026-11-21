@@ -144,7 +144,8 @@ export function checkMedia(surface: MediaSurface, f: MediaFacts): string | null 
     const d = typeof f.duration === 'number' ? f.duration : NaN
     if (!Number.isFinite(d)) return 'No se pudo leer la duración del video.'
     if (d < VIDEO_MIN_SECONDS) return `El video dura ${d.toFixed(1).replace('.', ',')} s; el mínimo es ${VIDEO_MIN_SECONDS} s.`
-    if (d > VIDEO_MAX_SECONDS + 0.5) return `El video dura ${Math.round(d)} s; el máximo es ${VIDEO_MAX_SECONDS} s.`
+    // Tolerancia: un reel que el celular muestra «0:15» puede durar 15,9 s (el visor corta en 15).
+    if (d >= VIDEO_MAX_SECONDS + 1) return `El video dura ${Math.round(d)} s; el máximo es ${VIDEO_MAX_SECONDS} s.`
     const ratio = f.height > 0 ? f.width / f.height : 0
     if (ratio > 1) return `El video es horizontal (${f.width}×${f.height}); tiene que ser vertical.`
     if (ratio < VIDEO_RATIO_MIN || ratio > VIDEO_RATIO_MAX) return `El video mide ${f.width}×${f.height}; tiene que ser vertical entre 9:16 y 4:5.`
