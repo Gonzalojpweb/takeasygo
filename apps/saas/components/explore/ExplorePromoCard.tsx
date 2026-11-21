@@ -7,6 +7,9 @@
 
 import { useHaptic } from '@/components/tgo/useHaptic'
 import Image from 'next/image'
+import { useRef } from 'react'
+import { useImpression } from '@/hooks/useImpression'
+import { trackPlacement, trackPlacementOnce } from '@/lib/placement-track'
 
 export interface ExplorePromo {
   id: string
@@ -22,6 +25,14 @@ export interface ExplorePromo {
   tenantName?: string
   tenantSlug?: string
   tenantLogo?: string
+  /** Promos globales: la API arma `id` = `${_id}-${tenantId}`; este es el _id real. */
+  originalPromoId?: string
+}
+
+/** _id de la promo para métricas (24 hex) o null. */
+export function explorePromoPieceId(promo: Pick<ExplorePromo, 'id' | 'originalPromoId'>): string | null {
+  const raw = promo.originalPromoId ?? promo.id
+  return typeof raw === 'string' && /^[a-f0-9]{24}$/i.test(raw) ? raw : null
 }
 
 interface Props {
@@ -67,6 +78,12 @@ function getTypeColor(type?: string): string {
 
 export default function ExplorePromoCard({ promo, onClick }: Props) {
   const haptic = useHaptic()
+  // Métricas (20/11/2026): impresión al 50 % durante 1 s y toque. El comercio
+  // de la métrica lo decide el servidor desde la promo.
+  const ref = useRef<HTMLButtonElement>(null)
+  const pieceId = explorePromoPieceId(promo)
+  const ctx = { placement: 'explore_promo_card' as const, kind: 'promotion' as const, pieceId }
+  useImpression(ref, () => trackPlacementOnce({ ...ctx, type: 'impression' }), { enabled: !!pieceId })
 
   const hasDiscount = promo.originalPrice != null && promo.price != null && promo.originalPrice > promo.price
   const discountPercent = hasDiscount ? getDiscountPercent(promo.originalPrice!, promo.price!) : 0
@@ -75,7 +92,8 @@ export default function ExplorePromoCard({ promo, onClick }: Props) {
 
   return (
     <button
-      onClick={() => { haptic.impact('light'); onClick?.() }}
+      ref={ref}
+      onClick={() => { haptic.impact('light'); if (pieceId) trackPlacement({ ...ctx, type: 'cta_tap', action: 'open' }); onClick?.() }}
       className="text-left active:scale-[0.98] transition-transform relative w-full overflow-hidden"
       style={{
         height: 140,

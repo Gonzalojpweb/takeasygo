@@ -51,6 +51,9 @@ import LocationBar from '@/components/menu/LocationBar'
 import OrderLookupByPhone from '@/components/menu/OrderLookupByPhone'
 import PromotionStories from '@/components/menu/PromotionStories'
 import AppStoryViewer, { type AppStoryItem } from '@/components/menu/AppStoryViewer'
+import { useImpression } from '@/hooks/useImpression'
+import { trackPlacement, trackPlacementOnce } from '@/lib/placement-track'
+import { allStoriesSeen, firstUnseenIndex } from '@/lib/story-seen'
 import { SectionContainer } from '@/components/menu/SectionContainer'
 import { menuHref } from '@/lib/menu/location-ref'
 
@@ -235,6 +238,25 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [showStories, setShowStories] = useState(false)
   const [appStories, setAppStories] = useState<AppStoryItem[]>([])
   const [showAppStories, setShowAppStories] = useState(false)
+  // Stories TGO (20/11/2026): «visto» solo en este navegador + métricas del círculo.
+  const [appStoriesStart, setAppStoriesStart] = useState(0)
+  const [appStoriesAllSeen, setAppStoriesAllSeen] = useState(false)
+  const appStoriesRingRef = useRef<HTMLButtonElement>(null)
+  const promoStoriesRingRef = useRef<HTMLButtonElement>(null)
+  useImpression(appStoriesRingRef, () => trackPlacementOnce({ type: 'impression', placement: 'menu_story', kind: 'entry', tenantSlug: tenant.slug, locationId: location._id }), { enabled: appStories.length > 0 })
+  useImpression(promoStoriesRingRef, () => trackPlacementOnce({ type: 'impression', placement: 'menu_promo_story', kind: 'entry', tenantSlug: tenant.slug, locationId: location._id }), { enabled: promotions.length > 0 })
+  useEffect(() => {
+    if (!showAppStories) setAppStoriesAllSeen(allStoriesSeen(appStories))
+  }, [appStories, showAppStories])
+  const openAppStories = () => {
+    trackPlacement({ type: 'entry_open', placement: 'menu_story', kind: 'entry', tenantSlug: tenant.slug, locationId: location._id })
+    setAppStoriesStart(firstUnseenIndex(appStories))
+    setShowAppStories(true)
+  }
+  const openPromoStories = () => {
+    trackPlacement({ type: 'entry_open', placement: 'menu_promo_story', kind: 'entry', tenantSlug: tenant.slug, locationId: location._id })
+    setShowStories(true)
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1470,11 +1492,13 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           <div className="flex gap-5 px-4 py-3 min-w-max">
             {appStories.length > 0 && !isAdminCorp && (
               <button
-                onClick={() => setShowAppStories(true)}
+                ref={appStoriesRingRef}
+                onClick={openAppStories}
+                aria-label={appStoriesAllSeen ? 'Stories de TGO (vistas)' : 'Stories de TGO (nuevas)'}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 transition-opacity hover:opacity-80"
-                style={{ opacity: 0.85 }}>
+                style={{ opacity: appStoriesAllSeen ? 0.6 : 0.85 }}>
                 <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
-                  style={{ border: `2.5px solid ${primary}`, backgroundColor: primary + '15' }}>
+                  style={{ border: `2.5px solid ${appStoriesAllSeen ? '#9ca3af' : primary}`, backgroundColor: primary + '15' }}>
                   <span className="text-[10px] font-bold" style={{ color: primary }}>TGO</span>
                 </div>
                 <span className="text-xs font-medium text-center leading-tight"
@@ -1485,7 +1509,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
             )}
             {promotions.length > 0 && !isAdminCorp && (
               <button
-                onClick={() => setShowStories(true)}
+                ref={promoStoriesRingRef}
+                onClick={openPromoStories}
                 className="flex flex-col items-center gap-1.5 flex-shrink-0 transition-opacity hover:opacity-80"
                 style={{ opacity: 0.85 }}>
                 <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
@@ -2186,6 +2211,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           primaryColor={primary}
           onAddToCart={addPromotionToCart}
           tenantSlug={tenant.slug}
+          locationId={location._id}
         />
       )}
 
@@ -2194,6 +2220,10 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           stories={appStories}
           onClose={() => setShowAppStories(false)}
           primaryColor={primary}
+          placement="menu_story"
+          tenantSlug={tenant.slug}
+          locationId={location._id}
+          initialIndex={appStoriesStart}
         />
       )}
 

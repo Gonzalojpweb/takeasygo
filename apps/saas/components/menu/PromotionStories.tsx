@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, ShoppingCart, Gift } from 'lucide-react'
 import Link from 'next/link'
 import { safeCtaHref } from '@/lib/cta-link'
+import { trackPlacement, trackPlacementOnce } from '@/lib/placement-track'
+import { useStoryPlayer } from './useStoryPlayer'
 import { toPesos } from '@takeasygo/business/browser'
 
 interface StoryPromotion {
@@ -26,77 +27,31 @@ interface Props {
   primaryColor?: string
   onAddToCart?: (promotion: any) => void
   tenantSlug?: string
+  /** Métricas (20/11/2026): sede del menú donde se abre. */
+  locationId?: string
 }
 
 function formatPrice(n: number): string {
   return '$' + toPesos(n).toLocaleString('es-AR')
 }
 
-export default function PromotionStories({ promotions, onClose, primaryColor = '#000', onAddToCart, tenantSlug }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const animRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number>(Date.now())
+export default function PromotionStories({ promotions, onClose, primaryColor = '#000', onAddToCart, tenantSlug, locationId }: Props) {
   const DURATION = 5000
+  const ctx = { placement: 'menu_promo_story' as const, kind: 'promotion' as const, tenantSlug, locationId }
 
-  const hasPrev = currentIndex > 0
-  const hasNext = currentIndex < promotions.length - 1
-
-  const goTo = useCallback((index: number) => {
-    setCurrentIndex(index)
-    setProgress(0)
-    startTimeRef.current = Date.now()
-  }, [])
-
-  const goNext = useCallback(() => {
-    if (hasNext) goTo(currentIndex + 1)
-    else onClose()
-  }, [hasNext, currentIndex, goTo, onClose])
-
-  const goPrev = useCallback(() => {
-    if (hasPrev) goTo(currentIndex - 1)
-  }, [hasPrev, currentIndex, goTo])
-
-  useEffect(() => {
-    if (paused || promotions.length === 0) return
-    startTimeRef.current = Date.now()
-    const tick = () => {
-      const elapsed = Date.now() - startTimeRef.current
-      const pct = Math.min(elapsed / DURATION, 1)
-      setProgress(pct)
-      if (pct >= 1) { goNext(); return }
-      animRef.current = requestAnimationFrame(tick)
-    }
-    animRef.current = requestAnimationFrame(tick)
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
-  }, [currentIndex, paused, promotions.length, goNext])
-
-  const handleTap = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    if (x < rect.width * 0.3) goPrev()
-    else goNext()
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX)
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return
-    const diff = e.changedTouches[0].clientX - touchStart
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goPrev()
-      else goNext()
-    }
-    setTouchStart(null)
-  }
+  const { index: currentIndex, progress, goTo, close, handlers } = useStoryPlayer({
+    count: promotions.length,
+    durationMs: DURATION,
+    onClose,
+    onView: (i) => { if (promotions[i]) trackPlacementOnce({ ...ctx, type: 'story_view', pieceId: promotions[i]._id }) },
+    onComplete: (i) => { if (promotions[i]) trackPlacementOnce({ ...ctx, type: 'story_complete', pieceId: promotions[i]._id }) },
+    onExit: (reason, i) => { if (promotions[i]) trackPlacement({ ...ctx, type: 'exit', pieceId: promotions[i]._id, reason, index: i }) },
+  })
 
   function handleAddToCart(e: React.MouseEvent) {
     e.stopPropagation()
     const promo = promotions[currentIndex]
+    if (promo) trackPlacement({ ...ctx, type: 'cta_tap', pieceId: promo._id, action: 'add' })
     if (onAddToCart && promo) {
       onAddToCart(promo)
       onClose()
@@ -127,7 +82,8 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
       </div>
 
       <button
-        onClick={onClose}
+        onClick={() => close('close')}
+        aria-label="Cerrar"
         className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center"
       >
         <X size={18} className="text-white" />
@@ -135,12 +91,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
 
       <div
         className="flex-1 flex items-center justify-center relative select-none overflow-hidden"
-        onMouseDown={() => setPaused(true)}
-        onMouseUp={() => setPaused(false)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleTap}
+        {...handlers}
       >
         {promo.imageUrl ? (
           <img src={promo.imageUrl} alt={promo.title} className="w-full h-full object-cover" draggable={false} />
@@ -178,6 +129,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
             ) : hasLoyalty ? (
               <Link
                 href={`/${tenantSlug}/club/lookup`}
+                onClick={() => trackPlacement({ ...ctx, type: 'cta_tap', pieceId: promo._id, action: 'loyalty' })}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm border-2 border-white/50 text-white active:scale-[0.97] transition-transform"
               >
                 <Gift size={16} />
@@ -188,6 +140,7 @@ export default function PromotionStories({ promotions, onClose, primaryColor = '
               <a
                 href={safeCtaHref(promo.ctaLink)!.href}
                 {...(safeCtaHref(promo.ctaLink)!.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                onClick={() => trackPlacement({ ...ctx, type: 'cta_tap', pieceId: promo._id, action: 'link' })}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
                 style={{ backgroundColor: primaryColor, color: 'white' }}
               >

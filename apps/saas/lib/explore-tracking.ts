@@ -38,10 +38,8 @@ export async function logExploreEvent(options: LogExploreEventOptions): Promise<
       userId = (session?.user as any)?.id ?? null
     }
 
-    const ip =
-      options.request?.headers.get('x-forwarded-for') ??
-      options.request?.headers.get('x-real-ip') ??
-      null
+    // 20/11/2026: los eventos nuevos NO guardan IP ni user agent; del user
+    // agent solo se deriva el tipo de dispositivo. Lo ya guardado no se toca.
     const userAgent = options.request?.headers.get('user-agent') ?? null
     const referrer = options.referrer ?? options.request?.headers.get('referer') ?? null
 
@@ -55,8 +53,8 @@ export async function logExploreEvent(options: LogExploreEventOptions): Promise<
       searchQuery: options.searchQuery ?? null,
       filters: options.filters ?? null,
       coordinates: options.coordinates ?? null,
-      ip,
-      userAgent,
+      ip: null,
+      userAgent: null,
       deviceType: getDeviceType(userAgent),
       source: options.source ?? 'direct',
       referrer,

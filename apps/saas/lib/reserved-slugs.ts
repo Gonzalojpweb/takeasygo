@@ -22,7 +22,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   // Carpetas fijas de app/api: un comercio con ese slug tendría sus APIs
   // (/api/{slug}/…) tapadas por la carpeta (multi-marca PR 8)
   'agent', 'app-stories', 'business', 'cis', 'crm', 'cron', 'delivery', 'directory', 'internal', 'leads',
-  'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'push', 'tia', 'user', 'visits', 'wallet', 'webhooks',
+  'menu-link', 'mp-oauth', 'network', 'og', 'onboarding', 'placements', 'push', 'tia', 'user', 'visits', 'wallet', 'webhooks',
   // Panel de organización (multi-marca)
   'grupo', 'grupos', 'org', 'orgs', 'organizacion', 'organizaciones',
   // Plataforma

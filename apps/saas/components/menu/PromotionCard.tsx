@@ -7,6 +7,8 @@ import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import { toPesos } from '@takeasygo/business/browser'
 import { capturePromotionViewed, capturePromotionClicked, capturePromotionApplied } from '@/lib/tia/events'
 import { safeCtaHref } from '@/lib/cta-link'
+import { trackPlacement, trackPlacementOnce, type TapAction } from '@/lib/placement-track'
+import { useImpression } from '@/hooks/useImpression'
 import ClubOnboardingModal from '../club/ClubOnboardingModal'
 import { toast } from 'sonner'
 import { channelBadge, promotionChannels } from '@/lib/sales-channels'
@@ -135,6 +137,11 @@ export function PromotionCard({
   const cardRef = useRef<HTMLDivElement>(null)
   const countdown = usePromoCountdown(promotion.scheduledEnd)
 
+  // Métricas (20/11/2026): impresión = 50 % visible durante 1 s; toques por acción.
+  const placementCtx = { placement: 'menu_promo_card' as const, kind: 'promotion' as const, pieceId: promotion._id, tenantSlug, locationId }
+  useImpression(cardRef, () => trackPlacementOnce({ ...placementCtx, type: 'impression' }))
+  const tap = (action: TapAction) => trackPlacement({ ...placementCtx, type: 'cta_tap', action })
+
   useEffect(() => {
     const el = cardRef.current
     if (!el) return
@@ -173,6 +180,7 @@ export function PromotionCard({
           ref={cardRef}
           onClick={() => {
             capturePromotionClicked({ _id: promotion._id, type: promotion.type })
+            tap(canAddToCart ? 'add' : promoType === 'loyalty' ? 'loyalty' : 'card')
             if (canAddToCart) {
               onAdd?.(promotion)
             } else if (promoType === 'loyalty') {
@@ -277,7 +285,7 @@ export function PromotionCard({
                 {promoType === 'sale' ? (
                   mode === 'takeaway' || (mode === 'dine-in' && onAdd) ? (
                     <button
-                      onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
+                      onClick={(e) => { e.stopPropagation(); tap('add'); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex-shrink-0"
                       style={{ backgroundColor: '#ffffff', color: cardBgColor }}
                     >
@@ -287,6 +295,7 @@ export function PromotionCard({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        tap('detail')
                         if (promotion.conditions || promotion.shortDescription) {
                           toast(promotion.title, { description: `${promotion.shortDescription || ''}\nCondiciones: ${promotion.conditions || 'Ninguna'}` })
                         } else {
@@ -301,7 +310,7 @@ export function PromotionCard({
                   )
                 ) : promoType === 'loyalty' ? (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setShowLoyaltyModal(true) }}
+                    onClick={(e) => { e.stopPropagation(); tap('loyalty'); setShowLoyaltyModal(true) }}
                     className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold shadow-md active:scale-95 transition-all flex-shrink-0"
                     style={{ backgroundColor: '#ffffff', color: cardBgColor }}
                   >
@@ -313,6 +322,7 @@ export function PromotionCard({
                       e.stopPropagation();
                       // Link inválido (incluidos los viejos) → se ignora.
                       const cta = safeCtaHref(promotion.ctaLink)
+                      tap(cta ? 'link' : 'detail')
                       if (cta) {
                         if (cta.external) window.open(cta.href, '_blank', 'noopener,noreferrer')
                         else window.location.assign(cta.href)
@@ -394,6 +404,7 @@ export function PromotionCard({
         ref={cardRef}
         onClick={() => {
           capturePromotionClicked({ _id: promotion._id, type: promotion.type })
+          tap(canAddToCart ? 'add' : 'card')
           if (canAddToCart) onAdd?.(promotion)
         }}
         className={cn(
@@ -514,7 +525,7 @@ export function PromotionCard({
                 </div>
                 {(mode === 'takeaway' || (mode === 'dine-in' && onAdd)) && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
+                      onClick={(e) => { e.stopPropagation(); tap('add'); onAdd?.(promotion); capturePromotionApplied({ _id: promotion._id, type: promotion.type, title: promotion.title }, discount) }}
                       className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm active:scale-90 transition-all flex-shrink-0"
                       style={{ backgroundColor: accent, color: isLightColor(accent) ? '#111' : '#fff' }}
                     >
@@ -526,6 +537,7 @@ export function PromotionCard({
               <button
                 onClick={(e) => {
                   e.stopPropagation()
+                  tap(promoType === 'loyalty' ? 'loyalty' : 'detail')
                   if (promoType === 'loyalty') setShowLoyaltyModal(true)
                 }}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold active:scale-[0.97] transition-all"

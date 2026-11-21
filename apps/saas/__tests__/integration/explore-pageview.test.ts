@@ -48,6 +48,19 @@ describe('pageview de entrada v2', () => {
   const post = (body: Record<string, unknown>) =>
     track(new NextRequest('http://localhost/api/explore/track', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }))
 
+  it('eventos nuevos sin IP ni user agent; solo el tipo de dispositivo (20/11/2026)', async () => {
+    await track(new NextRequest('http://localhost/api/explore/track', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9', 'user-agent': 'Mozilla/5.0 (iPhone; Mobile)' },
+      body: JSON.stringify({ sessionId: 'priv', eventType: 'pageview', view: 'home', metadata: { v: 2 } }),
+    }))
+    const ev = await ExploreEvent.collection.findOne({ sessionId: 'priv' }) as any
+    expect(ev.ip).toBeNull()
+    expect(ev.userAgent).toBeNull()
+    expect(ev.deviceType).toBe('mobile')
+    expect(JSON.stringify(ev)).not.toContain('203.0.113.9')
+  })
+
   it('se guarda con la vista de entrada, el origen y metadata.v = 2', async () => {
     const res = await post({ sessionId: 's1', eventType: 'pageview', view: 'home', source: 'whatsapp', metadata: { v: 2, entry: true, landingPath: '/app' } })
     expect(res.status).toBe(200)
@@ -73,5 +86,15 @@ describe('pageview de entrada v2', () => {
     expect(m.pageviewTracking.since).not.toBeNull()
     expect(m.entrySources).toEqual(expect.arrayContaining([{ source: 'whatsapp', sessions: 2 }, { source: 'direct', sessions: 1 }]))
     expect(m.funnel.conversionRate).toBeCloseTo(33.3, 1)
+  })
+})
+
+describe('Descubrí: id de la promo para métricas', () => {
+  it('global usa originalPromoId; id compuesto o inválido → null', async () => {
+    const { explorePromoPieceId } = await import('@/components/explore/ExplorePromoCard')
+    const id = 'b'.repeat(24)
+    expect(explorePromoPieceId({ id })).toBe(id)
+    expect(explorePromoPieceId({ id: `${id}-${'c'.repeat(24)}`, originalPromoId: id })).toBe(id)
+    expect(explorePromoPieceId({ id: `${id}-${'c'.repeat(24)}` })).toBeNull()
   })
 })

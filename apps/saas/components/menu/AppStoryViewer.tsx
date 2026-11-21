@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { X, ExternalLink } from 'lucide-react'
 import { safeCtaHref } from '@/lib/cta-link'
+import { trackPlacement, trackPlacementOnce, type Placement } from '@/lib/placement-track'
+import { markStorySeen } from '@/lib/story-seen'
+import { useStoryPlayer } from './useStoryPlayer'
 
 export interface AppStoryItem {
   _id: string
@@ -14,6 +17,7 @@ export interface AppStoryItem {
   ctaText?: string
   ctaLink?: string
   type?: string
+  updatedAt?: string
   customStyles?: {
     backgroundColor?: string
     textColor?: string
@@ -25,49 +29,35 @@ interface Props {
   stories: AppStoryItem[]
   onClose: () => void
   primaryColor?: string
+  /** Métricas (20/11/2026): superficie y contexto donde se abre el visor. */
+  placement?: Placement
+  tenantSlug?: string
+  locationId?: string
+  /** Pieza con la que abre (la primera sin ver). */
+  initialIndex?: number
 }
 
-export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366f1' }: Props) {
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const [paused, setPaused] = useState(false)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const animRef = useRef<number | null>(null)
-  const startTimeRef = useRef<number>(Date.now())
+const DURATION = 7000
+
+export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366f1', placement = 'menu_story', tenantSlug, locationId, initialIndex = 0 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const DURATION = 7000
+  const ctx = { placement, kind: 'app_story' as const, tenantSlug, locationId }
 
-  const hasPrev = currentIndex > 0
-  const hasNext = currentIndex < stories.length - 1
-
-  const goTo = useCallback((index: number) => {
-    setCurrentIndex(index)
-    setProgress(0)
-    startTimeRef.current = Date.now()
-  }, [])
-
-  const goNext = useCallback(() => {
-    if (hasNext) goTo(currentIndex + 1)
-    else onClose()
-  }, [hasNext, currentIndex, goTo, onClose])
-
-  const goPrev = useCallback(() => {
-    if (hasPrev) goTo(currentIndex - 1)
-  }, [hasPrev, currentIndex, goTo])
-
-  useEffect(() => {
-    if (paused || stories.length === 0) return
-    startTimeRef.current = Date.now()
-    const tick = () => {
-      const elapsed = Date.now() - startTimeRef.current
-      const pct = Math.min(elapsed / DURATION, 1)
-      setProgress(pct)
-      if (pct >= 1) { goNext(); return }
-      animRef.current = requestAnimationFrame(tick)
-    }
-    animRef.current = requestAnimationFrame(tick)
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current) }
-  }, [currentIndex, paused, stories.length, goNext])
+  const { index: currentIndex, progress, paused, goTo, close, handlers } = useStoryPlayer({
+    count: stories.length,
+    durationMs: DURATION,
+    initialIndex,
+    onClose,
+    // Vista = 1 s en pantalla: cuenta para métricas y marca «visto» (solo en este navegador).
+    onView: (i) => {
+      const s = stories[i]
+      if (!s) return
+      markStorySeen(s._id)
+      trackPlacementOnce({ ...ctx, type: 'story_view', pieceId: s._id })
+    },
+    onComplete: (i) => { if (stories[i]) trackPlacementOnce({ ...ctx, type: 'story_complete', pieceId: stories[i]._id }) },
+    onExit: (reason, i) => { if (stories[i]) trackPlacement({ ...ctx, type: 'exit', pieceId: stories[i]._id, reason, index: i }) },
+  })
 
   useEffect(() => {
     if (videoRef.current) {
@@ -75,27 +65,6 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
       else videoRef.current.play().catch(() => {})
     }
   }, [paused, currentIndex])
-
-  const handleTap = (e: React.MouseEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    if (x < rect.width * 0.3) goPrev()
-    else goNext()
-  }
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX)
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return
-    const diff = e.changedTouches[0].clientX - touchStart
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) goPrev()
-      else goNext()
-    }
-    setTouchStart(null)
-  }
 
   if (stories.length === 0) return null
 
@@ -126,7 +95,8 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
 
       {/* Close button */}
       <button
-        onClick={onClose}
+        onClick={() => close('close')}
+        aria-label="Cerrar"
         className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-black/40 flex items-center justify-center"
       >
         <X size={18} className="text-white" />
@@ -143,12 +113,7 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
       {/* Story content */}
       <div
         className="flex-1 flex items-center justify-center relative select-none overflow-hidden"
-        onMouseDown={() => setPaused(true)}
-        onMouseUp={() => setPaused(false)}
-        onMouseLeave={() => setPaused(false)}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        onClick={handleTap}
+        {...handlers}
       >
         {story.videoUrl ? (
           <video
@@ -188,6 +153,7 @@ export default function AppStoryViewer({ stories, onClose, primaryColor = '#6366
               <a
                 href={cta!.href}
                 {...(cta!.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                onClick={() => trackPlacement({ ...ctx, type: 'cta_tap', pieceId: story._id, action: 'link' })}
                 className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm shadow-lg active:scale-[0.97] transition-transform"
                 style={{ backgroundColor: accent, color: 'white' }}
               >
