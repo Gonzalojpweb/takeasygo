@@ -10,13 +10,20 @@
 //  promo_card          destacada 48 % × 172 px; compacta 108 px ~1:1        800×800      400×400
 //                      (Descubrí usa la misma imagen a 64×64)
 //  home_banner         todavía no existe (propuesta)            2:1         1200×600     900×450
+//  club_card           tienda del club h-48 a lo ancho (~16:9)  4:3         1200×900     600×450
+//                      y riel del menú 132×112 (~1:1)
+//  qr_promo            ícono de 80×80 en la QrPromo             1:1         400×400      200×200
+//
+// 21/11/2026: las IMÁGENES se aceptan con cualquier proporción si el lado
+// corto alcanza el mínimo (una foto horizontal sirve para una story: se
+// recorta al mostrarla y se avisa). Los VIDEOS siguen exigiendo vertical.
 //
 // Imagen: JPG, PNG, WebP o HEIC · hasta 8 MB · hasta 6000 px por lado.
 // Video (solo story): MP4, MOV o WebM · 3 a 15 s · hasta 30 MB · vertical
 // (de 9:16 a 4:5; horizontal se rechaza) · mínimo 720×1280.
 // ============================================================================
 
-export type MediaSurface = 'story' | 'promo_card' | 'home_banner'
+export type MediaSurface = 'story' | 'promo_card' | 'home_banner' | 'club_card' | 'qr_promo'
 export type MediaKind = 'image' | 'video'
 
 export interface SurfaceSpec {
@@ -68,6 +75,41 @@ export const SURFACE_SPECS: Record<MediaSurface, SurfaceSpec> = {
     min: { w: 900, h: 450 },
     kinds: ['image'],
   },
+  club_card: {
+    label: 'Tarjeta del club',
+    howShown: 'Tienda del club: a lo ancho, 192 px de alto (~16:9). Menú: tarjeta de 132×112.',
+    ratioLabel: '4:3',
+    recommended: { w: 1200, h: 900 },
+    min: { w: 600, h: 450 },
+    kinds: ['image'],
+  },
+  qr_promo: {
+    label: 'Ícono de QrPromo',
+    howShown: 'Cuadrado de 80×80 arriba del título de la promo QR.',
+    ratioLabel: '1:1 (cuadrada)',
+    recommended: { w: 400, h: 400 },
+    min: { w: 200, h: 200 },
+    kinds: ['image'],
+  },
+}
+
+/** Proporción ancho/alto recomendada de cada superficie. */
+export function recommendedRatio(surface: MediaSurface): number {
+  const r = SURFACE_SPECS[surface]?.recommended
+  return r ? r.w / r.h : 1
+}
+
+/**
+ * Aviso (no rechazo) si la imagen tiene otra proporción: se va a recortar al
+ * mostrarla. null si la proporción es parecida (±15 %).
+ */
+export function cropWarning(surface: MediaSurface, width: number, height: number): string | null {
+  if (!width || !height) return null
+  const want = recommendedRatio(surface)
+  const got = width / height
+  if (Math.abs(got - want) / want <= 0.15) return null
+  const spec = SURFACE_SPECS[surface]
+  return `La imagen es ${width}×${height}; para ${spec.label.toLowerCase()} se usa ${spec.ratioLabel}, así que se va a recortar al mostrarla (mirá la vista previa).`
 }
 
 export interface MediaFacts {
@@ -107,8 +149,16 @@ export function checkMedia(surface: MediaSurface, f: MediaFacts): string | null 
     if (ratio > 1) return `El video es horizontal (${f.width}×${f.height}); tiene que ser vertical.`
     if (ratio < VIDEO_RATIO_MIN || ratio > VIDEO_RATIO_MAX) return `El video mide ${f.width}×${f.height}; tiene que ser vertical entre 9:16 y 4:5.`
   }
+  if (f.kind === 'image') {
+    // Imagen: cualquier proporción, con el lado corto al menos el mínimo de la superficie.
+    const minShort = Math.min(spec.min.w, spec.min.h)
+    if (Math.min(f.width, f.height) < minShort) {
+      return `La imagen mide ${f.width}×${f.height}; para ${spec.label.toLowerCase()} el lado más corto tiene que tener al menos ${minShort} px (recomendado ${spec.recommended.w}×${spec.recommended.h}).`
+    }
+    return null
+  }
   if (f.width < spec.min.w || f.height < spec.min.h) {
-    return `${f.kind === 'image' ? 'La imagen' : 'El video'} mide ${f.width}×${f.height}; para ${spec.label.toLowerCase()} el mínimo es ${spec.min.w}×${spec.min.h} (recomendado ${spec.recommended.w}×${spec.recommended.h}).`
+    return `El video mide ${f.width}×${f.height}; para ${spec.label.toLowerCase()} el mínimo es ${spec.min.w}×${spec.min.h} (recomendado ${spec.recommended.w}×${spec.recommended.h}).`
   }
   return null
 }

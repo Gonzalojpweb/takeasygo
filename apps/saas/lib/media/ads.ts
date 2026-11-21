@@ -16,7 +16,7 @@
 
 import { randomBytes } from 'node:crypto'
 import { adsCreds, adsFolderRoot, adsPreset, cloudinarySdk as cloudinary } from '@/lib/cloudinary'
-import { checkMedia, SURFACE_SPECS, type MediaKind, type MediaSurface } from '@/lib/media/spec'
+import { checkMedia, cropWarning, SURFACE_SPECS, type MediaKind, type MediaSurface } from '@/lib/media/spec'
 
 export const PENDING_TAG = 'pending'
 
@@ -87,6 +87,8 @@ export interface VerifiedMedia {
   bytes: number
   /** Solo video. */
   durationMs: number | null
+  /** Aviso (no rechazo): la imagen tiene otra proporción y se va a recortar al mostrarla. */
+  warning: string | null
 }
 
 export type VerifyResult =
@@ -166,6 +168,7 @@ export async function verifyUpload(
       kind, url, posterUrl, publicId,
       width: info.width ?? 0, height: info.height ?? 0, bytes: info.bytes ?? 0,
       durationMs: kind === 'video' && typeof info.duration === 'number' ? Math.round(info.duration * 1000) : null,
+      warning: kind === 'image' ? cropWarning(surface, info.width ?? 0, info.height ?? 0) : null,
     },
   }
 }

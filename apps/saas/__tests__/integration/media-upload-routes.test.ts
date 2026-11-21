@@ -67,7 +67,13 @@ describe('comercio', () => {
     expect(body.fields.signature).toBeTruthy()
     expect(JSON.stringify(body)).not.toContain('secreto-de-prueba')
 
-    for (const bad of [{ surface: 'story', kind: 'image' }, { surface: 'promo_card', kind: 'video' }, { surface: 'pantalla', kind: 'image' }]) {
+    // Tarjetas del club e ícono de QrPromo también (21/11).
+    for (const surface of ['club_card', 'qr_promo']) {
+      const r = await tenantSign(req('/api/media-a/media/sign', { surface, kind: 'image' }), p('media-a'))
+      expect(r.status).toBe(200)
+      expect((await r.json()).publicId).toMatch(new RegExp(`^ads/t-${A._id}/${surface}/`))
+    }
+    for (const bad of [{ surface: 'story', kind: 'image' }, { surface: 'home_banner', kind: 'image' }, { surface: 'promo_card', kind: 'video' }, { surface: 'pantalla', kind: 'image' }]) {
       expect((await tenantSign(req('/api/media-a/media/sign', bad), p('media-a'))).status).toBe(400)
     }
   })
@@ -131,5 +137,21 @@ describe('SuperAdmin', () => {
     delete process.env.CLOUDINARY_ADS_API_SECRET
     const res = await saSign(req('/api/superadmin/media/sign', { surface: 'story', kind: 'image' }))
     expect(res.status).toBe(503)
+  })
+})
+
+describe('limpieza: lo usado no se borra', () => {
+  it('detecta los archivos ads usados en stories, promos, tarjetas del club y QrPromos', async () => {
+    const { referencedPublicIds } = await import('@/lib/media/cleanup')
+    const AppStory = (await import('@/models/AppStory')).default
+    const StoreItem = (await import('@/models/StoreItem')).default
+    const QrPromo = (await import('@/models/QrPromo')).default
+    const base = 'https://res.cloudinary.com/tgoads'
+    await AppStory.create({ title: 'S', videoUrl: `${base}/video/upload/c_limit,h_1280,q_auto,vc_h264,w_720/v1/ads/platform/story/aaa.mp4` })
+    await StoreItem.collection.insertOne({ tenantId: A._id, name: 'T', imageUrl: `${base}/image/upload/v1/ads/t-${A._id}/club_card/bbb.jpg` })
+    await QrPromo.collection.insertOne({ tenantId: A._id, slug: 'q', imageUrl: `${base}/image/upload/v1/ads/t-${A._id}/qr_promo/ccc.png` })
+    const ids = ['ads/platform/story/aaa', `ads/t-${A._id}/club_card/bbb`, `ads/t-${A._id}/qr_promo/ccc`, 'ads/platform/story/huerfano']
+    const used = await referencedPublicIds(ids)
+    expect([...used].sort()).toEqual(ids.slice(0, 3).sort())
   })
 })

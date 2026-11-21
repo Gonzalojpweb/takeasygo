@@ -8,7 +8,7 @@ import { requireSuperAdmin } from '@/lib/apiAuth'
 import { rateLimit } from '@/lib/rateLimit'
 import { handleSign } from '@/lib/media/handlers'
 
-const SURFACES = ['story', 'promo_card', 'home_banner'] as const
+const SURFACES = ['story', 'promo_card', 'home_banner', 'club_card', 'qr_promo'] as const
 
 export async function POST(request: NextRequest) {
   const authError = await requireSuperAdmin()

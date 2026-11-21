@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { Save, Percent, ToggleLeft, ToggleRight, Info, QrCode, Gift, AlertCircle, ArrowRight, ImageIcon, MessageSquare, Tag, Loader, ShoppingCart, AlertTriangle, Plus, Trash2, Copy, Edit3, X, MapPin, Star, Globe, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import ImageUpload from './ImageUpload'
 import { cn } from '@/lib/utils'
 
 interface QrPromoConfigProps {
@@ -45,6 +44,7 @@ interface QrPromoItem {
 }
 
 import { menuHref, locationPathSegment } from '@/lib/menu/location-ref'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 
 interface LocationOption {
   _id: string
@@ -612,10 +612,12 @@ function PromoEditor({ data, tenantSlug, onChange, onSave, saving }: PromoEditor
           Imagen del Banner
         </label>
         <div className="max-w-xs">
-          <ImageUpload
-            value={data.imageUrl || ''}
-            tenantSlug={tenantSlug}
-            onChange={(url) => onChange({ imageUrl: url })}
+          {/* CP3: ícono de la QrPromo, subido a la cuenta ads (sin recorte). */}
+          <AdsMediaUpload
+            endpointBase={`/api/${tenantSlug}/media`}
+            surface="qr_promo"
+            value={data.imageUrl ? { kind: 'image', url: data.imageUrl } : null}
+            onChange={(m) => onChange({ imageUrl: m?.url ?? '' })}
           />
         </div>
       </div>

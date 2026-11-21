@@ -76,10 +76,18 @@ export function uploadBuffer(
 // Cuenta propia para no consumir la cuota de las fotos de los menús. Mismo
 // criterio: sin credenciales → error, nunca otra cuenta.
 
+/** Valor de entorno sin espacios, saltos de línea ni comillas pegadas al copiar. */
+function envClean(name: string): string | undefined {
+  const v = process.env[name]
+  if (v === undefined) return undefined
+  const t = v.trim().replace(/^["']|["']$/g, '').trim()
+  return t || undefined
+}
+
 export function adsCreds(): CloudinaryCredentials {
-  const cloud_name = process.env.CLOUDINARY_ADS_CLOUD_NAME
-  const api_key = process.env.CLOUDINARY_ADS_API_KEY
-  const api_secret = process.env.CLOUDINARY_ADS_API_SECRET
+  const cloud_name = envClean('CLOUDINARY_ADS_CLOUD_NAME')
+  const api_key = envClean('CLOUDINARY_ADS_API_KEY')
+  const api_secret = envClean('CLOUDINARY_ADS_API_SECRET')
   const missing = [
     !cloud_name && 'CLOUDINARY_ADS_CLOUD_NAME',
     !api_key && 'CLOUDINARY_ADS_API_KEY',
@@ -91,11 +99,11 @@ export function adsCreds(): CloudinaryCredentials {
 
 /** Raíz de carpetas de la cuenta ads (prod 'ads'; staging, p. ej., 'ads-stg'). */
 export function adsFolderRoot(): string {
-  return process.env.CLOUDINARY_ADS_FOLDER_ROOT || 'ads'
+  return envClean('CLOUDINARY_ADS_FOLDER_ROOT') || 'ads'
 }
 
 export function adsPreset(kind: 'image' | 'video'): string {
-  return (kind === 'image' ? process.env.CLOUDINARY_ADS_IMAGE_PRESET : process.env.CLOUDINARY_ADS_VIDEO_PRESET)
+  return (kind === 'image' ? envClean('CLOUDINARY_ADS_IMAGE_PRESET') : envClean('CLOUDINARY_ADS_VIDEO_PRESET'))
     || (kind === 'image' ? 'tgo_ads_image' : 'tgo_ads_video')
 }
 

@@ -15,7 +15,7 @@
 import { useRef, useState } from 'react'
 import { Upload, Loader2, X, Film, ImageIcon } from 'lucide-react'
 import {
-  SURFACE_SPECS, checkMedia, IMAGE_MAX_BYTES, VIDEO_MAX_BYTES, VIDEO_MIN_SECONDS, VIDEO_MAX_SECONDS,
+  SURFACE_SPECS, checkMedia, cropWarning, IMAGE_MAX_BYTES, VIDEO_MAX_BYTES, VIDEO_MIN_SECONDS, VIDEO_MAX_SECONDS,
   type MediaKind, type MediaSurface,
 } from '@/lib/media/spec'
 
@@ -67,6 +67,17 @@ function readFacts(file: File, kind: MediaKind): Promise<{ width: number; height
   })
 }
 
+/** Mensaje claro para los errores de Cloudinary más comunes. */
+export function explainCloudinaryError(message: string | undefined, kind: MediaKind): string {
+  const m = (message || '').toLowerCase()
+  if (m.includes('invalid signature')) return 'Cloudinary rechazó la firma: el API Secret de la cuenta ads en el servidor (Vercel) no coincide. Revisá CLOUDINARY_ADS_API_SECRET y volvé a desplegar.'
+  if (m.includes('invalid api_key') || m.includes('unknown api_key')) return 'Cloudinary no reconoce la API Key de la cuenta ads en el servidor (Vercel). Revisá CLOUDINARY_ADS_API_KEY y CLOUDINARY_ADS_CLOUD_NAME.'
+  if (m.includes('upload preset') && m.includes('not found')) return 'No existe el preset de subida en la cuenta ads. Revisá CLOUDINARY_ADS_IMAGE_PRESET / CLOUDINARY_ADS_VIDEO_PRESET.'
+  if (m.includes('file size') || m.includes('too large')) return `El archivo supera el máximo (${kind === 'image' ? '8' : '30'} MB).`
+  if (m.includes('stale request')) return 'La firma venció (el reloj del servidor o la subida tardaron demasiado). Probá de nuevo.'
+  return `Cloudinary rechazó el archivo: ${message || 'error desconocido'}`
+}
+
 function uploadWithProgress(url: string, form: FormData, onProgress: (pct: number) => void): Promise<{ public_id?: string; error?: { message?: string } }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
@@ -85,6 +96,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
   const [busy, setBusy] = useState<null | 'checking' | 'uploading' | 'verifying'>(null)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
 
   const accept = [
     ...(allowed.includes('image') ? ['image/jpeg', 'image/png', 'image/webp', 'image/heic', '.heic'] : []),
@@ -93,6 +105,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
 
   async function handleFile(file: File) {
     setError(null)
+    setWarning(null)
     const kind: MediaKind = file.type.startsWith('video/') ? 'video' : 'image'
     if (!allowed.includes(kind)) { setError(`${spec.label}: solo acepta ${allowed.includes('image') ? 'imágenes' : 'videos'}.`); return }
     const format = extOf(file)
@@ -121,7 +134,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       for (const [k, v] of Object.entries(signed.fields as Record<string, string>)) form.append(k, v)
       form.append('file', file)
       const up = await uploadWithProgress(signed.uploadUrl, form, setProgress)
-      if (up.error) throw new Error(up.error.message?.includes('File size') ? `El archivo supera el máximo (${kind === 'image' ? '8' : '30'} MB).` : `Cloudinary rechazó el archivo: ${up.error.message ?? ''}`)
+      if (up.error) throw new Error(explainCloudinaryError(up.error.message, kind))
 
       setBusy('verifying')
       const confRes = await fetch(`${endpointBase}/confirm`, {
@@ -130,6 +143,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       const conf = await confRes.json()
       if (!confRes.ok) throw new Error(conf?.error || 'El archivo no cumple los requisitos')
       onChange({ kind, url: conf.media.url, posterUrl: conf.media.posterUrl, durationMs: conf.media.durationMs })
+      setWarning(conf.media.warning ?? (facts && kind === 'image' ? cropWarning(surface, facts.width, facts.height) : null))
     } catch (e) {
       setError((e as Error).message || 'No se pudo subir el archivo')
     } finally {
@@ -150,7 +164,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
           {allowed.includes('video') && <>Video: MP4, MOV o WebM, vertical, de {VIDEO_MIN_SECONDS} a {VIDEO_MAX_SECONDS} s, hasta {VIDEO_MAX_BYTES / 1024 / 1024} MB (se reproduce sin sonido).</>}
         </p>
         {spec.safeZone && <p>Dejá libres arriba ~{spec.safeZone.top}px y abajo ~{spec.safeZone.bottom}px (barras, textos y botón).</p>}
-        <p>No se recorta al subir: cada lugar la encuadra al mostrarla (ver vista previa).</p>
+        <p>No se recorta al subir: cada lugar la encuadra al mostrarla (ver vista previa). Una imagen con otra proporción se acepta igual, con aviso.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -178,6 +192,7 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       </div>
 
       {error && <p role="alert" className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</p>}
+      {warning && !error && <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">{warning}</p>}
 
       {value && <MediaPreview surface={surface} value={value} />}
     </div>
@@ -221,6 +236,24 @@ export function MediaPreview({ surface, value }: { surface: MediaSurface; value:
             </figure>
             <span className="text-[10px] text-muted-foreground">Descubrí (64×64)</span>
           </>
+        )}
+        {surface === 'club_card' && (
+          <>
+            <figure className="relative h-[68px] w-[120px] overflow-hidden rounded-xl bg-muted">
+              {media('h-full w-full object-cover')}
+              <figcaption className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-white">Tienda del club</figcaption>
+            </figure>
+            <figure className="relative h-[56px] w-[66px] overflow-hidden rounded-xl bg-muted">
+              {media('h-full w-full object-cover')}
+              <figcaption className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-white">Menú</figcaption>
+            </figure>
+          </>
+        )}
+        {surface === 'qr_promo' && (
+          <figure className="relative h-[80px] w-[80px] overflow-hidden rounded-2xl bg-muted">
+            {media('h-full w-full object-cover')}
+            <figcaption className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-white">QrPromo</figcaption>
+          </figure>
         )}
         {surface === 'home_banner' && (
           <figure className="relative w-[240px] overflow-hidden rounded-xl bg-muted" style={{ aspectRatio: '2 / 1' }}>

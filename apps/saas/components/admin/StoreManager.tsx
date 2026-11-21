@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Package, ToggleLeft, ToggleRight, Edit, Trash2, Image as ImageIcon, Search, ChevronDown, ChevronRight } from 'lucide-react'
 import { toast } from 'sonner'
-import ImageUpload from './ImageUpload'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { FieldHint } from '@/components/ui/inline-guide'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 
 interface StoreItem {
   _id: string
@@ -571,12 +571,13 @@ function StoreItemForm({
             />
           </div>
 
-          <ImageUpload
-            value={formData.imageUrl || ''}
-            onChange={value => setFormData({ ...formData, imageUrl: value })}
-            label="URL de Imagen"
-            placeholder="https://..."
-            tenantSlug={tenantSlug}
+          {/* CP3: imagen de la tarjeta del club, subida a la cuenta ads (sin recorte). */}
+          <AdsMediaUpload
+            endpointBase={`/api/${tenantSlug}/media`}
+            surface="club_card"
+            value={formData.imageUrl ? { kind: 'image', url: formData.imageUrl } : null}
+            onChange={(m) => setFormData({ ...formData, imageUrl: m?.url ?? '' })}
+            label="Imagen de la tarjeta"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

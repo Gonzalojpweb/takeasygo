@@ -3,7 +3,8 @@
 // La API de Cloudinary se simula: no se sube ni se borra nada real.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { v2 as cloudinary } from 'cloudinary'
-import { checkMedia, storyVideoDurationMs } from '@/lib/media/spec'
+import { checkMedia, cropWarning, storyVideoDurationMs } from '@/lib/media/spec'
+import { explainCloudinaryError } from '@/components/media/AdsMediaUpload'
 import { signUpload, belongsTo, verifyUpload, adsAssetFromUrl, markSaved, folderFor, type AdsApi } from '@/lib/media/ads'
 
 beforeEach(() => {
@@ -30,8 +31,29 @@ describe('checkMedia (medidas y límites)', () => {
     expect(checkMedia('story', { ...img, format: 'gif' })).toMatch(/gif.*JPG, PNG, WebP o HEIC/)
     expect(checkMedia('story', { ...img, bytes: 9 * 1024 * 1024 })).toMatch(/9,0 MB; el máximo es 8 MB/)
     expect(checkMedia('story', { ...img, width: 7000, height: 9000 })).toMatch(/6000 px/)
-    expect(checkMedia('story', { ...img, width: 600, height: 1000 })).toMatch(/600×1000.*mínimo es 720×1280/)
-    expect(checkMedia('promo_card', { ...img, width: 300, height: 300 })).toMatch(/mínimo es 400×400/)
+    expect(checkMedia('story', { ...img, width: 600, height: 1000 })).toMatch(/600×1000.*lado más corto.*720 px/)
+    expect(checkMedia('promo_card', { ...img, width: 300, height: 300 })).toMatch(/al menos 400 px/)
+  })
+
+  it('imagen con otra proporción se ACEPTA (con aviso de recorte); el lado corto manda', () => {
+    // Una foto horizontal común sirve para una story (antes se rechazaba).
+    expect(checkMedia('story', { ...img, width: 1920, height: 1080 })).toBeNull()
+    expect(cropWarning('story', 1920, 1080)).toMatch(/1920×1080.*9:16.*recortar/)
+    expect(cropWarning('story', 1080, 1920)).toBeNull()
+    expect(cropWarning('promo_card', 1000, 900)).toBeNull() // ±15 %
+    expect(checkMedia('club_card', { ...img, width: 1200, height: 900 })).toBeNull()
+    expect(checkMedia('club_card', { ...img, width: 800, height: 400 })).toMatch(/al menos 450 px/)
+    expect(checkMedia('qr_promo', { ...img, width: 400, height: 400 })).toBeNull()
+    expect(checkMedia('qr_promo', { ...img, width: 150, height: 300 })).toMatch(/al menos 200 px/)
+    expect(checkMedia('club_card', vid)).toMatch(/solo acepta imágenes/)
+  })
+
+  it('errores de Cloudinary con mensaje claro (firma, key, preset, peso)', () => {
+    expect(explainCloudinaryError('Invalid Signature 2b3c... String to sign', 'image')).toMatch(/CLOUDINARY_ADS_API_SECRET/)
+    expect(explainCloudinaryError('Invalid api_key 123', 'image')).toMatch(/CLOUDINARY_ADS_API_KEY/)
+    expect(explainCloudinaryError('Upload preset not found', 'image')).toMatch(/preset/)
+    expect(explainCloudinaryError('File size too large. Got 99. Maximum is 8.', 'video')).toMatch(/30 MB/)
+    expect(explainCloudinaryError('otra cosa', 'image')).toMatch(/otra cosa/)
   })
 
   it('video: solo en story, duración 3–15 s, peso, vertical entre 9:16 y 4:5', () => {

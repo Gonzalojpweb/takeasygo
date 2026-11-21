@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 
 interface QrPromoItem {
   _id: string
@@ -591,9 +592,14 @@ export default function GlobalQrPromosPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">URL de imagen</label>
-                  <input type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                  {/* CP3: ícono de la QrPromo, subido a la cuenta ads. */}
+                  <AdsMediaUpload
+                    endpointBase="/api/superadmin/media"
+                    surface="qr_promo"
+                    value={imageUrl ? { kind: 'image', url: imageUrl } : null}
+                    onChange={(m) => setImageUrl(m?.url ?? '')}
+                    label="Imagen de la QrPromo"
+                  />
                 </div>
 
                 <div className="col-span-2 border-t border-zinc-200 pt-4">

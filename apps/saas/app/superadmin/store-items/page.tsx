@@ -8,6 +8,7 @@ import { es } from 'date-fns/locale'
 import { cn } from '@/lib/utils'
 import { toCents, toPesos } from '@takeasygo/business/browser'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
+import AdsMediaUpload from '@/components/media/AdsMediaUpload'
 
 interface StoreItem {
   _id: string
@@ -318,9 +319,14 @@ export default function GlobalStoreItemsPage() {
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block text-sm font-medium text-zinc-700 mb-1">URL de imagen</label>
-                  <input required type="text" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                    className="w-full border border-zinc-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-zinc-400" />
+                  {/* CP3: imagen de la tarjeta del club, subida a la cuenta ads. */}
+                  <AdsMediaUpload
+                    endpointBase="/api/superadmin/media"
+                    surface="club_card"
+                    value={imageUrl ? { kind: 'image', url: imageUrl } : null}
+                    onChange={(m) => setImageUrl(m?.url ?? '')}
+                    label="Imagen de la tarjeta"
+                  />
                 </div>
 
                 <div>
