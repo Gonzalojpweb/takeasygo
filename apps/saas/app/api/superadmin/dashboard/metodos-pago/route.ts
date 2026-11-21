@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
+import { SAAS_ORDERS_ONLY } from '@/lib/order-visibility'
 
 function startOfDay(d: Date): Date {
   const r = new Date(d)
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
     let metodosPago: Array<{ method: string; count: number; totalCents: number }> = []
     try {
       const raw = await Order.aggregate([
-        { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' }, 'payment.status': 'approved' } },
+        { $match: { ...SAAS_ORDERS_ONLY, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' }, 'payment.status': 'approved' } },
         { $group: { _id: '$payment.method', count: { $sum: 1 }, total: { $sum: '$total' } } },
       ])
       metodosPago = raw.map((m: any) => ({ method: m._id || 'unknown', count: m.count, totalCents: m.total }))

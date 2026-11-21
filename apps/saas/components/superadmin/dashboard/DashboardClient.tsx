@@ -11,6 +11,8 @@ import TendenciaChart from './TendenciaChart'
 import SaludRed from './SaludRed'
 import FeedbackPanel from './FeedbackPanel'
 import MetodosPago from './MetodosPago'
+import PosSalones, { type PosSalonRow } from './PosSalones'
+import type { ActiveOrderRow } from './PedidosActivos'
 import CommissionsOverview from './CommissionsOverview'
 
 export interface DashboardData {
@@ -29,16 +31,7 @@ export interface DashboardData {
     plan: string
     isOpen: boolean
     isOperational: boolean
-    activeOrders: Array<{
-      orderId: string
-      orderNumber: number
-      status: string
-      createdAt: string
-      minutesInStatus: number
-      estimatedReadyAt?: string
-      isStuck: boolean
-      stuckReason?: string
-    }>
+    activeOrders: ActiveOrderRow[]
     statusCounts: Record<string, number>
     needsAttention: boolean
     attentionReasons: string[]
@@ -99,7 +92,11 @@ export interface DashboardData {
     method: string
     count: number
     totalCents: number
+    commissionCents?: number
+    pendingCount?: number
+    pendingCents?: number
   }>
+  posSalones: PosSalonRow[]
   comisiones: {
     transfer: { pending: number; overdue: number; settled: number; statementCount: number }
     mercadopago: { autoSplit: number; noSplit: number; note: string }
@@ -156,6 +153,7 @@ export default function DashboardClient() {
         actividadReciente: json.actividadReciente,
         tendencia7Dias: json.tendencia7Dias,
         metodosPago: json.metodosPago,
+        posSalones: json.posSalones ?? [],
         comisiones: json.comisiones,
         lastUpdated: new Date().toISOString(),
       })
@@ -226,8 +224,11 @@ export default function DashboardClient() {
       {/* Layer 1: AHORA EN TGO */}
       <AhoraEnTGO data={data.ahora} />
 
-      {/* Layer 2: PEDIDOS ACTIVOS */}
+      {/* Layer 2: PEDIDOS ACTIVOS de la app, con cuánto y por dónde pagó cada uno */}
       <PedidosActivos items={data.pedidosActivos} />
+
+      {/* Layer 2b: cobros de hoy por medio (app) — antes abajo, en una torta */}
+      <MetodosPago data={data.metodosPago} />
 
       {/* Layer 3: ACTIVIDAD RECIENTE */}
       <ActividadReciente items={data.actividadReciente} />
@@ -241,11 +242,11 @@ export default function DashboardClient() {
       {/* Layer 6: SALUD DE LA RED */}
       <SaludRed data={data.saludRed} />
 
-      {/* Layer 7 + 8: Feedback + Métodos de pago */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <FeedbackPanel data={data.feedback} />
-        <MetodosPago data={data.metodosPago} />
-      </div>
+      {/* Layer 6b: SALONES (POS) — aparte de la app */}
+      <PosSalones data={data.posSalones} />
+
+      {/* Layer 7: Feedback */}
+      <FeedbackPanel data={data.feedback} />
 
       {/* Layer 9: COMISIONES */}
       <CommissionsOverview data={data.comisiones} />

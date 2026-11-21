@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
+import { SAAS_ORDERS_ONLY, POS_ORDER_SOURCE } from '@/lib/order-visibility'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,10 +49,32 @@ function isOpenForTenant(loc: any, checkIsOpenNow: any): boolean {
   return false
 }
 
+/**
+ * 20/11/2026 — Estado del cobro de un pedido, en criollo:
+ *  paid = cobrado (MP/transferencia/Kripton aprobado) · cash = se cobra en
+ *  efectivo al entregar · awaiting = esperando el pago (MP sin pagar) ·
+ *  transfer_pending = transferencia sin confirmar por el comercio.
+ */
+function paymentStateOf(order: any): 'paid' | 'cash' | 'awaiting' | 'transfer_pending' {
+  const method = order.payment?.method
+  if (order.payment?.status === 'approved' && method !== 'cash') return 'paid'
+  if (method === 'transfer') return order.payment?.transferConfirmed ? 'paid' : 'transfer_pending'
+  if (method === 'cash') return 'cash'
+  return 'awaiting'
+}
+
 function isStuckOrder(order: any): { stuck: boolean; reason?: string } {
   try {
     const status = order.status
     const ts = order.statusTimestamps || {}
+    if (status === 'awaiting_payment' || status === 'awaiting_confirmation') {
+      const age = minutesSince(new Date(order.createdAt))
+      if (age > 20) {
+        const isTransfer = order.payment?.method === 'transfer'
+        return { stuck: true, reason: `${Math.round(age)}min ${isTransfer ? 'con transferencia sin confirmar' : 'esperando el pago'}` }
+      }
+    }
+
     if (status === 'pending') {
       const age = minutesSince(order.createdAt)
       if (age > 30) return { stuck: true, reason: `${Math.round(age)}min sin confirmar` }
@@ -110,6 +133,9 @@ export async function GET(request: NextRequest) {
     const WeeklyCommissionStatement = WCSMod.default
 
     const ACTIVE_STATUSES = ['pending', 'confirmed', 'preparing', 'ready', 'en_ruta', 'arrived']
+    // 20/11/2026: también los que esperan el pago (MP sin pagar, transferencia
+    // sin confirmar): son justo los que el superadmin necesita ver.
+    const AWAITING_PAYMENT = ['awaiting_payment', 'awaiting_confirmation']
     const now = new Date()
     const todayStart = startOfDay(now)
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
@@ -119,10 +145,20 @@ export async function GET(request: NextRequest) {
     const [tenants, locations, activeOrders, todayOrders] = await Promise.all([
       Tenant.find({ isActive: true, status: 'active' }).select('name slug plan isOperational mpOAuth.isConnected').lean(),
       Location.find({ status: 'active' }).select('tenantId serviceHours timezone settings.acceptsOrders').lean(),
-      Order.find({ status: { $in: ACTIVE_STATUSES as any } })
-        .select('tenantId locationId status orderNumber createdAt statusTimestamps total orderMode')
+      // 20/11/2026: solo pedidos de la app/SaaS. Las ventas del POS se operan
+      // en el salón y van en su propia sección (posSalones).
+      Order.find({
+        ...SAAS_ORDERS_ONLY,
+        deletedAt: null,
+        $or: [
+          { status: { $in: ACTIVE_STATUSES as any } },
+          // Esperando pago: solo las últimas 3 h (lo más viejo es un checkout abandonado).
+          { status: { $in: AWAITING_PAYMENT as any }, createdAt: { $gte: new Date(now.getTime() - 3 * 60 * 60 * 1000) } },
+        ],
+      })
+        .select('tenantId locationId status orderNumber createdAt statusTimestamps total orderMode deliveryCost payment.method payment.status payment.platformFeeAmount payment.transferConfirmed')
         .sort({ createdAt: -1 }).lean(),
-      Order.find({ createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } })
+      Order.find({ ...SAAS_ORDERS_ONLY, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } })
         .select('tenantId total payment.method payment.status createdAt status').lean(),
     ])
 
@@ -181,6 +217,13 @@ export async function GET(request: NextRequest) {
           activeOrders: orders.map((o: any) => ({
             orderId: o._id.toString(), orderNumber: o.orderNumber, status: o.status,
             createdAt: toDateStr(o.createdAt),
+            // 20/11/2026: cuánto y por dónde pagó, sin entrar al comercio.
+            totalCents: o.total || 0,
+            deliveryCents: o.deliveryCost || 0,
+            orderMode: o.orderMode || null,
+            paymentMethod: o.payment?.method || null,
+            paymentState: paymentStateOf(o),
+            commissionCents: o.payment?.platformFeeAmount || 0,
             minutesInStatus: o.statusTimestamps
               ? minutesSince(new Date(o.statusTimestamps.preparingAt || o.statusTimestamps.confirmedAt || o.createdAt))
               : 0,
@@ -255,12 +298,12 @@ export async function GET(request: NextRequest) {
       // Feedback - feedback
       Feedback.find({ createdAt: { $gte: todayStart } }).select('tenantId satisfaction comment event createdAt').lean(),
       // Actividad reciente
-      Order.find({ createdAt: { $gte: twoHoursAgo } })
+      Order.find({ ...SAAS_ORDERS_ONLY, createdAt: { $gte: twoHoursAgo } })
         .select('tenantId status orderNumber createdAt statusTimestamps')
         .sort({ createdAt: -1 }).limit(30).lean(),
       // Tendencia
       Order.aggregate([
-        { $match: { createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
+        { $match: { ...SAAS_ORDERS_ONLY, createdAt: { $gte: sevenDaysAgo }, status: { $ne: 'cancelled' } } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -270,10 +313,19 @@ export async function GET(request: NextRequest) {
         },
         { $sort: { _id: 1 } },
       ]),
-      // Metodos de pago
+      // Métodos de pago (app): cobrado hoy y lo que todavía espera el pago
       Order.aggregate([
-        { $match: { createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' }, 'payment.status': 'approved' } },
-        { $group: { _id: '$payment.method', count: { $sum: 1 }, total: { $sum: '$total' } } },
+        { $match: { ...SAAS_ORDERS_ONLY, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+        {
+          $group: {
+            _id: '$payment.method',
+            count: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, 1, 0] } },
+            total: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, '$total', 0] } },
+            commission: { $sum: { $cond: [{ $eq: ['$payment.status', 'approved'] }, '$payment.platformFeeAmount', 0] } },
+            pendingCount: { $sum: { $cond: [{ $in: ['$status', AWAITING_PAYMENT] }, 1, 0] } },
+            pendingTotal: { $sum: { $cond: [{ $in: ['$status', AWAITING_PAYMENT] }, '$total', 0] } },
+          },
+        },
       ]),
       // Comisiones - transfer (WeeklyCommissionStatement)
       WeeklyCommissionStatement.aggregate([{
@@ -364,9 +416,60 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Process metodos de pago ──
-    const metodosPago = metodosPagoRaw.map((m: any) => ({
-      method: m._id || 'unknown', count: m.count, totalCents: m.total,
-    }))
+    const metodosPago = metodosPagoRaw
+      .map((m: any) => ({
+        method: m._id || 'unknown', count: m.count, totalCents: m.total,
+        commissionCents: m.commission || 0,
+        pendingCount: m.pendingCount || 0, pendingCents: m.pendingTotal || 0,
+      }))
+      .filter((m: any) => m.count > 0 || m.pendingCount > 0)
+
+    // ── Salones (POS): aparte, solo para dimensionar el movimiento ──
+    const posSalones = await (async () => {
+      try {
+        const [openNow, today] = await Promise.all([
+          Order.find({ source: POS_ORDER_SOURCE, deletedAt: null, status: { $nin: ['delivered', 'cancelled'] }, createdAt: { $gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } })
+            .select('tenantId total posTableId posTableNumber channel orderMode').lean(),
+          Order.aggregate([
+            { $match: { source: POS_ORDER_SOURCE, deletedAt: null, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } } },
+            { $group: { _id: '$tenantId', ventas: { $sum: 1 }, total: { $sum: '$total' } } },
+          ]),
+        ])
+        const byTenant = new Map<string, { abiertas: number; abiertasCents: number; mesas: Set<string>; mostrador: number; ventasHoy: number; ventasHoyCents: number }>()
+        const entry = (tid: string) => {
+          if (!byTenant.has(tid)) byTenant.set(tid, { abiertas: 0, abiertasCents: 0, mesas: new Set(), mostrador: 0, ventasHoy: 0, ventasHoyCents: 0 })
+          return byTenant.get(tid)!
+        }
+        for (const o of openNow as any[]) {
+          const e = entry(o.tenantId.toString())
+          e.abiertas++
+          e.abiertasCents += o.total || 0
+          if (o.posTableId) e.mesas.add(String(o.posTableId))
+          else e.mostrador++
+        }
+        for (const t of today as any[]) {
+          const e = entry(String(t._id))
+          e.ventasHoy = t.ventas
+          e.ventasHoyCents = t.total
+        }
+        return [...byTenant.entries()]
+          .map(([tid, e]) => ({
+            tenantId: tid,
+            name: tenantMap.get(tid)?.name || '?',
+            slug: tenantMap.get(tid)?.slug || '',
+            mesasAbiertas: e.mesas.size,
+            mostradorAbiertas: e.mostrador,
+            abiertasCents: e.abiertasCents,
+            ventasHoy: e.ventasHoy,
+            ventasHoyCents: e.ventasHoyCents,
+          }))
+          .filter((t) => tenantMap.has(t.tenantId))
+          .sort((a, b) => b.mesasAbiertas + b.mostradorAbiertas - (a.mesasAbiertas + a.mostradorAbiertas) || b.ventasHoyCents - a.ventasHoyCents)
+      } catch (err) {
+        console.error('[dashboard/summary] posSalones', err)
+        return []
+      }
+    })()
 
     // ── Process comisiones ──
     const tenantsWithSplit = new Set(
@@ -437,6 +540,7 @@ export async function GET(request: NextRequest) {
       actividadReciente,
       tendencia7Dias,
       metodosPago,
+      posSalones,
       comisiones,
     })
   } catch (error: unknown) {

@@ -3,8 +3,34 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { AlertTriangle, CheckCircle2, Clock } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
+import { ORDER_MODE_LABEL, PAYMENT_STATE_INFO, methodInfo, money, type PaymentState } from './payment-labels'
+
+// ============================================================================
+// Pedidos activos de la APP (20/11/2026)
+// ============================================================================
+// Solo pedidos que nacen en la app/SaaS: las ventas del POS van en «Salones».
+// Cada pedido muestra cuánto se pagó, por dónde y si ya está cobrado, para no
+// tener que entrar al comercio a mirarlo.
+// ============================================================================
+
+export interface ActiveOrderRow {
+  orderId: string
+  orderNumber: number | string
+  status: string
+  createdAt: string
+  minutesInStatus: number
+  estimatedReadyAt?: string
+  isStuck: boolean
+  stuckReason?: string
+  totalCents?: number
+  deliveryCents?: number
+  orderMode?: string | null
+  paymentMethod?: string | null
+  paymentState?: PaymentState
+  commissionCents?: number
+}
 
 interface PedidosActivosProps {
   items: Array<{
@@ -14,16 +40,7 @@ interface PedidosActivosProps {
     plan: string
     isOpen: boolean
     isOperational: boolean
-    activeOrders: Array<{
-      orderId: string
-      orderNumber: number
-      status: string
-      createdAt: string
-      minutesInStatus: number
-      estimatedReadyAt?: string
-      isStuck: boolean
-      stuckReason?: string
-    }>
+    activeOrders: ActiveOrderRow[]
     statusCounts: Record<string, number>
     needsAttention: boolean
     attentionReasons: string[]
@@ -31,6 +48,8 @@ interface PedidosActivosProps {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  awaiting_payment: 'esperando pago',
+  awaiting_confirmation: 'por confirmar',
   pending: 'pendiente',
   confirmed: 'confirmado',
   preparing: 'preparando',
@@ -40,6 +59,8 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 const STATUS_COLORS: Record<string, string> = {
+  awaiting_payment: 'bg-red-500/10 text-red-600 border-red-500/20',
+  awaiting_confirmation: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
   pending: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   confirmed: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
   preparing: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
@@ -48,12 +69,51 @@ const STATUS_COLORS: Record<string, string> = {
   arrived: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
 }
 
+function OrderPaymentRow({ order }: { order: ActiveOrderRow }) {
+  const method = methodInfo(order.paymentMethod)
+  const state = order.paymentState ? PAYMENT_STATE_INFO[order.paymentState] : null
+  return (
+    <li className="rounded-lg border border-border/50 bg-background/60 px-2.5 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-xs font-bold text-foreground">#{order.orderNumber}</span>
+        <span className="shrink-0 whitespace-nowrap text-sm font-black tabular-nums text-foreground">{money(order.totalCents ?? 0)}</span>
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        <span className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold" style={{ backgroundColor: `${method.color}1a`, color: method.color }}>
+          {method.emoji} {method.label}
+        </span>
+        {state && (
+          <span className={cn('rounded-md border px-1.5 py-0.5 text-[10px] font-bold', state.className)}>{state.label}</span>
+        )}
+        {order.orderMode && ORDER_MODE_LABEL[order.orderMode] && (
+          <span className="text-[10px] text-muted-foreground">{ORDER_MODE_LABEL[order.orderMode]}</span>
+        )}
+        <Badge variant="outline" className={cn('px-1.5 py-0 text-[10px] font-bold', STATUS_COLORS[order.status])}>
+          {STATUS_LABELS[order.status] || order.status}
+        </Badge>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-3 text-[10px] text-muted-foreground tabular-nums">
+        {(order.deliveryCents ?? 0) > 0 && <span>envío {money(order.deliveryCents!)}</span>}
+        {(order.commissionCents ?? 0) > 0 && <span>comisión TGO {money(order.commissionCents!)}</span>}
+        {order.isStuck && order.stuckReason && <span className="font-semibold text-amber-600">⏱ {order.stuckReason}</span>}
+      </div>
+    </li>
+  )
+}
+
 export default function PedidosActivos({ items }: PedidosActivosProps) {
+  const allOrders = items.flatMap((t) => t.activeOrders)
+  const paidCents = allOrders.filter((o) => o.paymentState === 'paid').reduce((s, o) => s + (o.totalCents ?? 0), 0)
+  const cashCents = allOrders.filter((o) => o.paymentState === 'cash').reduce((s, o) => s + (o.totalCents ?? 0), 0)
+  const waitingCents = allOrders
+    .filter((o) => o.paymentState === 'awaiting' || o.paymentState === 'transfer_pending')
+    .reduce((s, o) => s + (o.totalCents ?? 0), 0)
+
   if (items.length === 0) {
     return (
       <Card className="bg-card border-2 border-border/60 shadow-lg rounded-2xl overflow-hidden">
         <CardHeader className="p-4 md:p-6 pb-2">
-          <CardTitle className="text-sm font-bold text-foreground uppercase tracking-widest">Pedidos Activos</CardTitle>
+          <CardTitle className="text-sm font-bold text-foreground uppercase tracking-widest">Pedidos activos de la app</CardTitle>
         </CardHeader>
         <CardContent className="p-4 md:p-6 pt-0">
           <p className="text-sm text-muted-foreground py-6 text-center">No hay pedidos activos en este momento</p>
@@ -65,74 +125,56 @@ export default function PedidosActivos({ items }: PedidosActivosProps) {
   return (
     <Card className="bg-card border-2 border-border/60 shadow-lg rounded-2xl overflow-hidden">
       <CardHeader className="p-4 md:p-6 pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <CardTitle className="text-sm font-bold text-foreground uppercase tracking-widest">
-            Pedidos Activos
+            Pedidos activos de la app
           </CardTitle>
-          <Badge variant="secondary" className="text-xs font-bold">
-            {items.reduce((sum, t) => sum + t.activeOrders.length, 0)} pedidos
-          </Badge>
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold">
+            <Badge variant="secondary" className="text-xs font-bold">{allOrders.length} pedidos</Badge>
+            <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-emerald-700">Pagado {money(paidCents)}</span>
+            {cashCents > 0 && <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-700">Efectivo al entregar {money(cashCents)}</span>}
+            {waitingCents > 0 && <span className="rounded-md border border-red-500/30 bg-red-500/10 px-2 py-0.5 text-red-700">Sin cobrar {money(waitingCents)}</span>}
+          </div>
         </div>
+        <p className="text-[11px] text-muted-foreground">Solo pedidos que entran por la app. Las ventas del POS están en «Salones (POS)».</p>
       </CardHeader>
       <CardContent className="p-4 md:p-6 pt-0">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {items.map(tenant => (
-            <Link
+            <div
               key={tenant.tenantId}
-              href={`/${tenant.slug}/admin/orders`}
               className={cn(
-                'block rounded-xl border p-4 transition-all hover:shadow-md',
-                tenant.needsAttention
-                  ? 'border-amber-400/40 bg-amber-500/5'
-                  : 'border-border/60 bg-background hover:border-primary/30'
+                'rounded-xl border p-3 transition-all',
+                tenant.needsAttention ? 'border-amber-400/40 bg-amber-500/5' : 'border-border/60 bg-background'
               )}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   {tenant.needsAttention ? (
-                    <AlertTriangle size={14} className="text-amber-500" />
+                    <AlertTriangle size={14} className="shrink-0 text-amber-500" />
                   ) : (
-                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    <CheckCircle2 size={14} className="shrink-0 text-emerald-500" />
                   )}
-                  <span className="text-sm font-bold text-foreground truncate">{tenant.name}</span>
+                  <span className="truncate text-sm font-bold text-foreground" title={tenant.name}>{tenant.name}</span>
+                  <span className="shrink-0 rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground">{tenant.activeOrders.length}</span>
                 </div>
-                <div className={cn(
-                  'w-2 h-2 rounded-full',
-                  tenant.isOpen ? 'bg-emerald-500' : 'bg-muted-foreground/30'
-                )} />
+                <Link
+                  href={`/${tenant.slug}/admin/orders`}
+                  className="inline-flex shrink-0 items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                >
+                  Abrir <ExternalLink size={11} />
+                </Link>
               </div>
 
-              {/* Status line */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className={cn(
-                  'text-xs font-medium',
-                  tenant.needsAttention ? 'text-amber-600' : tenant.isOpen ? 'text-emerald-600' : 'text-muted-foreground'
-                )}>
-                  {tenant.needsAttention ? 'Requiere atención' : tenant.isOpen ? 'Operando' : 'Cerrado'}
-                </span>
-                <span className="text-muted-foreground/40">·</span>
-                <span className="text-xs text-muted-foreground">
-                  {tenant.activeOrders.length} activo{tenant.activeOrders.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-
-              {/* Status breakdown */}
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {Object.entries(tenant.statusCounts).map(([status, count]) => (
-                  <Badge
-                    key={status}
-                    variant="outline"
-                    className={cn('text-[10px] font-bold px-1.5 py-0', STATUS_COLORS[status])}
-                  >
-                    {count} {STATUS_LABELS[status] || status}
-                  </Badge>
+              {/* Muchos pedidos: la tarjeta no crece sin fin, la lista scrollea */}
+              <ul className="max-h-80 space-y-1.5 overflow-y-auto pr-0.5">
+                {tenant.activeOrders.map((order) => (
+                  <OrderPaymentRow key={order.orderId} order={order} />
                 ))}
-              </div>
+              </ul>
 
-              {/* Attention reasons */}
-              {tenant.needsAttention && (
-                <div className="mt-2 pt-2 border-t border-amber-400/20">
+              {tenant.needsAttention && tenant.attentionReasons.length > 0 && (
+                <div className="mt-2 border-t border-amber-400/20 pt-2">
                   {tenant.attentionReasons.slice(0, 2).map((reason, i) => (
                     <div key={i} className="flex items-center gap-1.5 text-xs text-amber-600">
                       <Clock size={10} />
@@ -141,7 +183,7 @@ export default function PedidosActivos({ items }: PedidosActivosProps) {
                   ))}
                 </div>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       </CardContent>

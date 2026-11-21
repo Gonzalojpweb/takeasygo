@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperAdminByToken } from '@/lib/superadmin-token-guard'
+import { SAAS_ORDERS_ONLY } from '@/lib/order-visibility'
 
 function toDateStr(v: any): string {
   if (!v) return ''
@@ -77,14 +78,15 @@ export async function GET(request: NextRequest) {
     const tenants = await Tenant.find({ isActive: true, status: 'active' })
       .select('name slug plan isOperational').lean()
 
-    const activeOrders = await Order.find({ status: { $in: ACTIVE_STATUSES as any } })
+    // 20/11/2026: solo pedidos de la app (las ventas del POS van aparte).
+    const activeOrders = await Order.find({ ...SAAS_ORDERS_ONLY, status: { $in: ACTIVE_STATUSES as any } })
       .select('tenantId locationId status orderNumber createdAt statusTimestamps total orderMode')
       .sort({ createdAt: -1 }).lean()
 
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
-    const todayOrders = await Order.find({ createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } })
+    const todayOrders = await Order.find({ ...SAAS_ORDERS_ONLY, createdAt: { $gte: todayStart }, status: { $ne: 'cancelled' } })
       .select('tenantId total payment.method payment.status createdAt status').lean()
 
     const tenantMap = new Map<string, any>()
