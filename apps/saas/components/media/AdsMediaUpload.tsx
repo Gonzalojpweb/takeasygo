@@ -24,6 +24,11 @@ export interface AdsMediaValue {
   url: string
   posterUrl?: string | null
   durationMs?: number | null
+  /** Datos del archivo verificado (pantallas: orientación, peso, public_id). */
+  publicId?: string
+  width?: number
+  height?: number
+  bytes?: number
 }
 
 interface Props {
@@ -142,7 +147,10 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       })
       const conf = await confRes.json()
       if (!confRes.ok) throw new Error(conf?.error || 'El archivo no cumple los requisitos')
-      onChange({ kind, url: conf.media.url, posterUrl: conf.media.posterUrl, durationMs: conf.media.durationMs })
+      onChange({
+        kind, url: conf.media.url, posterUrl: conf.media.posterUrl, durationMs: conf.media.durationMs,
+        publicId: conf.media.publicId, width: conf.media.width, height: conf.media.height, bytes: conf.media.bytes,
+      })
       setWarning(conf.media.warning ?? (facts && kind === 'image' ? cropWarning(surface, facts.width, facts.height) : null))
     } catch (e) {
       setError((e as Error).message || 'No se pudo subir el archivo')
@@ -160,8 +168,11 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
         <p><b>{spec.label}</b> · {spec.ratioLabel} · recomendado <b>{spec.recommended.w}×{spec.recommended.h}</b> · mínimo {spec.min.w}×{spec.min.h}</p>
         <p>{spec.howShown}</p>
         <p>
-          {allowed.includes('image') && <>Imagen: JPG, PNG, WebP o HEIC, hasta {IMAGE_MAX_BYTES / 1024 / 1024} MB. </>}
-          {allowed.includes('video') && <>Video: MP4, MOV o WebM, vertical, de {VIDEO_MIN_SECONDS} a {VIDEO_MAX_SECONDS} s, hasta {VIDEO_MAX_BYTES / 1024 / 1024} MB (se reproduce sin sonido).</>}
+          {allowed.includes('image') && <>Imagen: JPG, PNG, WebP o HEIC, hasta {Math.round((spec.imageMaxBytes ?? IMAGE_MAX_BYTES) / 1048576)} MB. </>}
+          {allowed.includes('video') && (() => {
+            const v = spec.video ?? { minS: VIDEO_MIN_SECONDS, maxS: VIDEO_MAX_SECONDS, maxBytes: VIDEO_MAX_BYTES, orientation: 'vertical' as const }
+            return <>Video: MP4, MOV o WebM, {v.orientation === 'vertical' ? 'vertical' : 'horizontal o vertical'}, de {v.minS} a {v.maxS} s, hasta {Math.round(v.maxBytes / 1048576)} MB (se reproduce sin sonido).</>
+          })()}
         </p>
         {spec.safeZone && <p>Dejá libres arriba ~{spec.safeZone.top}px y abajo ~{spec.safeZone.bottom}px (barras, textos y botón).</p>}
         <p>No se recorta al subir: cada lugar la encuadra al mostrarla (ver vista previa). Una imagen con otra proporción se acepta igual, con aviso.</p>
@@ -255,6 +266,15 @@ export function MediaPreview({ surface, value }: { surface: MediaSurface; value:
             <figcaption className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-white">QrPromo</figcaption>
           </figure>
         )}
+        {surface === 'screen' && (() => {
+          const portrait = (value.height ?? 0) > (value.width ?? 0)
+          return (
+            <figure className="relative overflow-hidden rounded-xl bg-black" style={{ width: portrait ? 90 : 240, aspectRatio: portrait ? '9 / 16' : '16 / 9' }}>
+              {media('absolute inset-0 h-full w-full object-cover')}
+              <figcaption className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-[9px] text-white">{portrait ? 'Pantalla vertical' : 'Pantalla horizontal'}</figcaption>
+            </figure>
+          )
+        })()}
         {surface === 'home_banner' && (
           <figure className="relative w-[240px] overflow-hidden rounded-xl bg-muted" style={{ aspectRatio: '2 / 1' }}>
             {media('absolute inset-0 h-full w-full object-cover')}

@@ -131,8 +131,10 @@ export default function MarketingMetrics({ endpoint, tenantFilter }: Props) {
 
 function Report({ data, metric, setMetric, loading }: { data: MarketingReport; metric: MetricKey; setMetric: (m: MetricKey) => void; loading: boolean }) {
   const t = data.totals
-  const stories = data.pieces.filter((p) => p.views > 0 || p.placement === 'menu_story' || p.placement === 'menu_promo_story' || p.placement === 'app_story')
-  const cards = data.pieces.filter((p) => !stories.includes(p))
+  const screens = data.pieces.filter((p) => p.placement === 'screen')
+  const stories = data.pieces.filter((p) => p.placement !== 'screen' && (p.views > 0 || p.placement === 'menu_story' || p.placement === 'menu_promo_story' || p.placement === 'app_story'))
+  const cards = data.pieces.filter((p) => p.placement !== 'screen' && !stories.includes(p))
+  const minutes = (ms: number) => Math.round(ms / 60000)
 
   return (
     <div className={`space-y-5 ${loading ? 'opacity-60' : ''}`}>
@@ -143,6 +145,13 @@ function Report({ data, metric, setMetric, loading }: { data: MarketingReport; m
         <Stat icon={<BarChart3 size={15} />} label="Completadas" value={pct(t.completionRate)} hint={`${fmt(t.completes)} stories vistas hasta el final`} />
         <Stat icon={<MousePointerClick size={15} />} label="Toques" value={fmt(t.taps)} hint={`${fmt(t.tapsUnique)} únicos por sesión y día`} />
       </dl>
+
+      {t.plays > 0 && (
+        <dl className="grid grid-cols-2 gap-3">
+          <Stat icon={<PlayCircle size={15} />} label="Reproducciones en pantallas" value={fmt(t.plays)} hint="Piezas que se vieron completas en tótems, TV y tablets" />
+          <Stat icon={<BarChart3 size={15} />} label="Minutos en pantalla" value={fmt(minutes(t.playMs))} hint="Tiempo total mostrado en las pantallas" />
+        </dl>
+      )}
 
       <DailyChart data={data.daily} metric={metric} setMetric={setMetric} />
 
@@ -162,6 +171,21 @@ function Report({ data, metric, setMetric, loading }: { data: MarketingReport; m
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {screens.length > 0 && (
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <h3 className="font-bold">Pantallas</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Reproducciones completas y minutos en pantalla por pieza.</p>
+          <ul className="mt-3 divide-y divide-border">
+            {screens.map((r) => (
+              <li key={r.pieceId ?? r.name} className="flex flex-wrap items-baseline justify-between gap-2 py-2 text-sm">
+                <span className="font-semibold break-words">{r.name}</span>
+                <span className="tabular-nums text-muted-foreground">{fmt(r.plays)} reproducciones · {fmt(minutes(r.playMs))} min</span>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

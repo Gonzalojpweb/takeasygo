@@ -38,6 +38,8 @@ export interface IAppStory {
   surfaces?: AppStorySurface[]
   /** Pantallas: tiempo en pantalla de una imagen (ms, 5–60 s). */
   displayDurationMs?: number | null
+  /** Pantallas: franja horaria (días 0–6 y «HH:MM»; from > to cruza la medianoche). */
+  daypart?: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Pantallas: datos del archivo verificado (orientación, peso, variante 720p). */
   media?: { publicId?: string; width?: number; height?: number; bytes?: number; orientation?: 'landscape' | 'portrait' } | null
   createdAt: Date
@@ -116,6 +118,14 @@ const AppStorySchema = new Schema<IAppStory>(
       default: ['menu_story'],
     },
     displayDurationMs: { type: Number, default: null, min: 5_000, max: 60_000 },
+    daypart: {
+      type: new Schema({
+        days: { type: [Number], default: undefined, validate: { validator: (v: number[]) => v.every((d) => Number.isInteger(d) && d >= 0 && d <= 6), message: 'Días inválidos' } },
+        from: { type: String, default: null, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+        to: { type: String, default: null, match: /^([01]\d|2[0-3]):[0-5]\d$/ },
+      }, { _id: false }),
+      default: null,
+    },
     media: {
       type: new Schema({
         publicId: { type: String, maxlength: 200 },

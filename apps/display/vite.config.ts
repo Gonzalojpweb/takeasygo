@@ -62,7 +62,7 @@ export default defineConfig({
       injectManifest: {
         // index.html sí se guarda: la pantalla tiene que abrir sin internet.
         // El SW lo sirve NetworkFirst (versión publicada con red; copia sin red).
-        globPatterns: ["**/*.{js,css,html,svg}"],
+        globPatterns: ["**/*.{js,css,html,svg,mp4}"],
       },
       devOptions: { enabled: false },
     }),

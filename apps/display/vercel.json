@@ -7,7 +7,7 @@
     }
   },
   "rewrites": [
-    { "source": "/((?!assets/|sw\.js|version\.json|manifest\.webmanifest|icon\.svg|workbox-).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|sw\.js|version\.json|manifest\.webmanifest|icon\.svg|keepalive\.mp4|workbox-).*)", "destination": "/index.html" }
   ],
   "headers": [
     { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }] },
