@@ -60,7 +60,11 @@ async function navigation(req: Request): Promise<Response> {
       fetch(req),
       new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), NAV_TIMEOUT_MS)),
     ])
-    if (res.ok) await pages.put('/index.html', res.clone())
+    // /diagnostico llega con COOP/COEP (aislamiento para medir memoria): esa
+    // respuesta NO se guarda como copia sin internet, para que el reproductor
+    // nunca abra con esos encabezados.
+    const isolated = res.headers.has('cross-origin-embedder-policy') || res.headers.has('cross-origin-opener-policy')
+    if (res.ok && !isolated) await pages.put('/index.html', res.clone())
     return res
   } catch {
     const cached = (await pages.match('/index.html')) || (await caches.match('/index.html')) || (await caches.match('index.html'))

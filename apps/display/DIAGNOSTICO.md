@@ -65,6 +65,24 @@ Versión probada: `4ed85e41` (antes de las correcciones de esta tanda).
   pestaña en segundo plano, una pausa del sistema). Ahora el informe lista
   cada corte con su instante, duración y motivo; hay que repetir la prueba.
 
+### Verificación del aislamiento de /diagnostico (Chrome local, sin interfaz)
+
+- **Cloudinary no se bloquea**. Con COOP/COEP (`credentialless`):
+  - la descarga CORS completa da 9.955.378 bytes;
+  - reproduce desde blob (opción B) y también directo desde Cloudinary;
+  - la memoria de la página se mide: `crossOriginIsolated = true`.
+- **El reproductor no queda afectado**. En `/` no hay aislamiento
+  (`crossOriginIsolated = false`) y la raíz publicada no manda esos
+  encabezados. El service worker no guarda la respuesta aislada de
+  `/diagnostico` como copia sin internet. La API acepta el origen
+  `display.takeasygo.com`.
+- **Opción A**: en esa misma prueba local el service worker guarda el video
+  y responde bien a pedidos con Range (206 con `Content-Range`), pero el
+  `<video>` no reproduce la respuesta (MEDIA_ERR_SRC_NOT_SUPPORTED). Falla
+  igual **con y sin aislamiento**, así que no es por COOP/COEP. Hay que
+  confirmarlo en los equipos. El reproductor usa la opción B, que no depende
+  de esto.
+
 ## Qué mide cada cosa (versión nueva)
 
 - **Corte**: evento `waiting` del video, es decir, se quedó sin cuadros y se

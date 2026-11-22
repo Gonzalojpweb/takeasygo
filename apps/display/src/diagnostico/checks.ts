@@ -306,6 +306,9 @@ export function listenSwMedia() {
     else if (d.status === 416) swMediaCounts.s416++
     else swMediaCounts.s200++
   })
+  // Con addEventListener los mensajes del SW quedan en cola hasta startMessages():
+  // sin esto los contadores 200/206 daban siempre 0.
+  navigator.serviceWorker?.startMessages?.()
 }
 
 function swCall(msg: Record<string, unknown>): Promise<{ ok: boolean; bytes?: number; error?: string }> {
