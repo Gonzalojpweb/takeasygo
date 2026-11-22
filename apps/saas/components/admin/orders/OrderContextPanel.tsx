@@ -623,7 +623,7 @@ function DetallesTab({ item, waLink, tenantSlug }: { item: OrderItem; waLink: st
         {item.payment?.baseTotal != null && item.payment.baseTotal > 0 && item.payment.surchargeAmount ? (
           <div className="mt-2 space-y-1 pl-5 text-[10px]">
             <div className="flex items-center justify-between gap-2">
-              <span className="text-muted-foreground/70 truncate">Precio de carta</span>
+              <span className="text-muted-foreground/70 truncate">Cobrado (sin recargo)</span>
               <span className="text-muted-foreground/80 tabular-nums shrink-0">${fmtMoney(item.payment.baseTotal)}</span>
             </div>
             {item.orderMode === 'delivery' && (item.deliveryCost ?? 0) > 0 && (

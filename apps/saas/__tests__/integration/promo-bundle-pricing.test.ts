@@ -525,3 +525,33 @@ describe('21/11 — descuento % de carta: la comisión va sobre el precio de car
     expect(order.payment.commissionListTotal).toBe(950_000 + 500_000)
   })
 })
+
+describe('21/11 — caso Que Cachapa #QUE-261121-3740 (variante, delivery, transferencia)', () => {
+  it('arepa «2 Ingredientes» $14.000 −40 % = $8.400: la base es $14.000', async () => {
+    const arepa = new mongoose.Types.ObjectId()
+    const sub = new mongoose.Types.ObjectId()
+    const cat = new mongoose.Types.ObjectId()
+    await Menu.updateOne({ tenantId: tenant._id }, { $push: { categories: {
+      _id: cat, name: 'Arepas', isAvailable: true, items: [],
+      subcategories: [{ _id: sub, name: 'Arepa', items: [{
+        _id: arepa, name: 'Arepa', price: 0, isAvailable: true,
+        variants: [{ name: '1 Ingrediente', price: 1_200_000 }, { name: '2 Ingredientes', price: 1_400_000 }],
+      }] }],
+    } } })
+    await Promotion.create({
+      tenantId: tenant._id, locationId: location._id, type: 'discount', title: 'Arepas -40',
+      isActive: true, channels: [], discountTargets: [{ kind: 'category', categoryId: cat, percent: 40 }],
+    })
+    const res = await createOrderPOST(createReq({
+      locationId: location._id.toString(),
+      items: [{ menuItemId: arepa.toString(), quantity: 3, customizations: [], selectedVariant: { name: '2 Ingredientes', price: 840_000 } }],
+      customer: { name: 'Cliente', phone: '' },
+      mode: 'takeaway',
+      paymentMethod: 'transfer',
+    }), createParams)
+    expect(res.ok).toBe(true)
+    const order = await Order.findOne({ tenantId: tenant._id }).lean<any>()
+    expect(order.items[0].basePrice).toBe(840_000)
+    expect(order.payment.commissionListTotal).toBe(3 * 1_400_000)
+  })
+})

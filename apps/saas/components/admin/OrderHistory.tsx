@@ -921,13 +921,37 @@ export default function OrderHistory({
                       {PAYMENT_STATUS[detail.payment?.status] ?? detail.payment?.status ?? '—'}
                     </Badge>
                   </div>
+                  {/* 21/11/2026: antes decía «Precio de carta» pero mostraba lo que
+                      pagó el cliente (baseTotal). La comisión de TakeasyGO va
+                      sobre el precio de carta (lib/commission-base): se muestra. */}
                   {detail.payment?.baseTotal > 0 && (
                     <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="text-muted-foreground">Precio de carta</span>
+                      <span className="text-muted-foreground">Cobrado (sin recargo)</span>
                       <span className="tabular-nums text-muted-foreground">
                         ${fmtMoney(detail.payment.baseTotal)}
                       </span>
                     </div>
+                  )}
+                  {detail.payment?.commissionListTotal != null && (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">Precio de carta{(detail.deliveryCost ?? 0) > 0 ? ' + envío' : ''}</span>
+                      <span className="tabular-nums text-muted-foreground">
+                        ${fmtMoney(detail.payment.commissionListTotal + (detail.orderMode === 'delivery' ? (detail.deliveryCost ?? 0) - (detail.payment.deliveryPlatformFeeAmount ?? 0) : 0))}
+                      </span>
+                    </div>
+                  )}
+                  {(detail.payment?.platformFeeAmount ?? 0) > 0 && (
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">Comisión TakeasyGO</span>
+                      <span className="tabular-nums font-semibold text-foreground">
+                        ${fmtMoney(detail.payment.platformFeeAmount)}
+                      </span>
+                    </div>
+                  )}
+                  {(detail.payment?.commissionListGapAmount ?? 0) > 0 && (
+                    <p className="text-[10px] leading-snug text-muted-foreground">
+                      La comisión va sobre el precio de carta: las promos de este pedido (${fmtMoney(detail.payment.commissionListGapAmount)}) no la bajan.
+                    </p>
                   )}
                 </div>
               </DetailSection>
