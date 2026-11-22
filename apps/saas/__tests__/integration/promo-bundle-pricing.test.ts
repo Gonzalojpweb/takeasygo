@@ -488,3 +488,40 @@ describe('20/11 — comisión a precio de lista', () => {
     expect(call[8]).toBe(1_850_000)
   })
 })
+
+describe('21/11 — descuento % de carta: la comisión va sobre el precio de carta', () => {
+  it('plato de $12.500 con 40 %: se cobra $7.500 pero la base de comisión es $12.500', async () => {
+    await Menu.updateOne(
+      { tenantId: tenant._id, 'categories.items._id': itemC },
+      { $set: { 'categories.$[].items.$[it].price': 1_250_000 } },
+      { arrayFilters: [{ 'it._id': itemC }] },
+    )
+    await Promotion.create({
+      tenantId: tenant._id, locationId: location._id, type: 'discount', title: 'Día de la arepa',
+      isActive: true, channels: [], discountTargets: [{ kind: 'item', itemId: itemC, percent: 40 }],
+    })
+    const res = await post([{ menuItemId: itemC.toString(), quantity: 1, customizations: [] }])
+    expect(res.ok).toBe(true)
+    const order = await Order.findOne({ tenantId: tenant._id }).lean<any>()
+    expect(order.total).toBe(750_000)
+    expect(order.items[0].menuDiscount).toMatchObject({ percent: 40, listBasePrice: 1_250_000 })
+    expect(order.payment.commissionListTotal).toBe(1_250_000)
+    const { calculateFinalTotal } = await import('@/lib/pricing')
+    expect(vi.mocked(calculateFinalTotal).mock.calls.at(-1)![8]).toBe(1_250_000)
+  })
+
+  it('con agregados: el % no toca los extras y la base es carta + extras', async () => {
+    await Promotion.create({
+      tenantId: tenant._id, locationId: location._id, type: 'discount', title: 'Cachapas -40',
+      isActive: true, channels: [], discountTargets: [{ kind: 'item', itemId: itemA, percent: 40 }],
+    })
+    const res = await post([{
+      menuItemId: itemA.toString(), quantity: 1,
+      customizations: [{ groupName: 'Queso', selectedOptions: [{ name: 'Extra queso', extraPrice: 500_000 }] }],
+    }])
+    expect(res.ok).toBe(true)
+    const order = await Order.findOne({ tenantId: tenant._id }).lean<any>()
+    expect(order.total).toBe(570_000 + 500_000) // 9.500 −40 % + queso a precio normal
+    expect(order.payment.commissionListTotal).toBe(950_000 + 500_000)
+  })
+})

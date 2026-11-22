@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { calculateFinalTotal } from '@/lib/pricing'
 import { posPromoLineDiscount } from '@takeasygo/business'
 import { withQuantityKeepingDiscount } from '@/lib/pos-online/discounts'
 import {
@@ -102,4 +103,24 @@ describe('menu-discounts', () => {
     expect(three.posDiscount!.amountCents).toBe(600_000)
     expect(three.subtotal).toBe(900_000)
   })
+
+  it('comisión: plato de $12.500 con 40 % — la de TakeasyGO va sobre $12.500 en todos los medios', () => {
+    const PLATFORM = { platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 4, takeasygoCashCommissionPercent: 2 } }
+    const cobrado = applyPercent(1_250_000, 40)
+    expect(cobrado).toBe(750_000)
+    const lista = 1_250_000
+    // Transferencia (delivery con envío $1.500): 4 % de ($7.500 + $1.500 + $5.000 descontados)
+    const t = calculateFinalTotal(cobrado + 150_000, 'transfer', {}, PLATFORM, undefined, 'delivery', 150_000, 0, lista)
+    expect(t.commissionListGapAmount).toBe(500_000)
+    expect(t.platformFeeAmount).toBe(Math.ceil((lista + 150_000) * 0.04))
+    // Mercado Pago: el marketplace_fee suma los $5.000 descontados
+    const sinPromo = calculateFinalTotal(cobrado, 'mercadopago', {}, PLATFORM)
+    const mp = calculateFinalTotal(cobrado, 'mercadopago', {}, PLATFORM, undefined, 'takeaway', 0, 0, lista)
+    expect(mp.platformFeeAmount).toBe(Math.ceil((sinPromo.finalTotal + 500_000) * 0.01))
+    // Efectivo con comisión: 2 % de $12.500, no de $7.500
+    const rules = { enabled: true, cash: { modes: ['takeaway'], percent: null }, transfer: { modes: [] } }
+    const c = calculateFinalTotal(cobrado, 'cash', { commissionRules: rules } as never, PLATFORM, undefined, 'takeaway', 0, 0, lista)
+    expect(c.platformFeeAmount).toBe(25_000)
+  })
 })
+
