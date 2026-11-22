@@ -22,14 +22,19 @@ import mongoose from 'mongoose'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
 
+// Con tsx el script corre como módulo ES (no hay __dirname): se busca el
+// .env.local desde la carpeta donde se lo llama (apps/saas o la raíz).
 function loadEnv() {
-  try {
-    const content = readFileSync(resolve(__dirname, '../.env.local'), 'utf-8')
-    for (const line of content.split('\n')) {
+  const candidates = [resolve(process.cwd(), '.env.local'), resolve(process.cwd(), 'apps/saas/.env.local')]
+  for (const file of candidates) {
+    let content: string
+    try { content = readFileSync(file, 'utf-8') } catch { continue }
+    for (const line of content.split(/\r?\n/)) {
       const m = line.match(/^\s*([A-Z_]+)\s*=\s*(.+)$/)
       if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim().replace(/^["']|["']$/g, '')
     }
-  } catch {}
+    return
+  }
 }
 loadEnv()
 
@@ -104,6 +109,13 @@ async function main() {
     console.log(`  carta guardada ${pesos(storedList)} · carta según líneas ${pesos(charged + menuGap)} (promos ${pesos(menuGap)})`)
     console.log(`  comisión guardada ${pesos(oldFee)} · comisión a precio de carta ${pesos(newFee)}${settled ? ' · YA PAGADA a TakeasyGO' : ''}`)
 
+    for (const l of lines) {
+      const v = l.selectedVariant?.name ? ` (${l.selectedVariant.name})` : ''
+      const d = l.menuDiscount
+        ? ` · promo «${l.menuDiscount.title}» −${l.menuDiscount.percent}% sobre ${pesos(l.menuDiscount.listBasePrice)}`
+        : ' · sin descuento de carta registrado'
+      console.log(`    ${l.quantity}× ${l.name}${v}: base ${pesos(l.basePrice)} + extras ${pesos(l.extraPrice ?? 0)}${d}`)
+    }
     if (diff <= 0) { console.log('  ✔ correcto'); continue }
     if (MANUAL.has(method) && !settled && p.status === 'approved') {
       fixable++
