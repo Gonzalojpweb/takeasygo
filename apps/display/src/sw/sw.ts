@@ -17,6 +17,10 @@ import { parseRangeHeader, contentRange } from '../shared/range'
 declare const self: ServiceWorkerGlobalScope & { __WB_MANIFEST: Array<{ url: string; revision: string | null }> }
 
 const PRECACHE = self.__WB_MANIFEST
+// Sin repetidos: cache.addAll() rechaza la lista entera si una URL aparece dos
+// veces (pasó con icon.svg en 4ed85e41 → el SW nunca se instalaba y la
+// opción A del diagnóstico fallaba con «todavía no controla la página»).
+const SHELL_URLS = Array.from(new Set(PRECACHE.map((e) => e.url)))
 const SHELL = `tgd-shell-${hash(JSON.stringify(PRECACHE))}`
 const PAGES = 'tgd-pages'
 const MEDIA_A = 'tgd-media-a'
@@ -31,7 +35,7 @@ function hash(s: string): string {
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(SHELL)
-    await cache.addAll(PRECACHE.map((e) => e.url))
+    await cache.addAll(SHELL_URLS)
     await self.skipWaiting()
   })())
 })
@@ -131,6 +135,10 @@ self.addEventListener('message', (event) => {
         port.postMessage({ ok: false, error: (e as Error).message || 'error' })
       }
     })())
+  }
+  // La página pide control cuando abrió sin SW (primera visita o recarga forzada).
+  if (data?.type === 'claim') {
+    event.waitUntil(self.clients.claim())
   }
   if (data?.type === 'clear-a' && port) {
     event.waitUntil(caches.delete(MEDIA_A).then(() => port.postMessage({ ok: true })))

@@ -49,10 +49,19 @@ describe('qué se puede mostrar', () => {
     }).map((i) => i.id)
     expect(shown).toEqual(['a'])
   })
-  it('calidad: 720p en pantallas chicas o equipos de ≤ 2 GB', () => {
-    expect(chooseQuality(1920, 1080, 1, 4)).toBe('1080')
-    expect(chooseQuality(1280, 720, 1, null)).toBe('720')
-    expect(chooseQuality(960, 540, 2, null)).toBe('1080') // TV que reporta 960×540 a 2x
-    expect(chooseQuality(1920, 1080, 1, 2)).toBe('720')
+  it('calidad: 720p si el lado largo real mide menos de 1920 px o 1080p no es fluido', () => {
+    expect(chooseQuality(1920, 1080, 1)).toBe('1080')
+    expect(chooseQuality(1280, 720, 1)).toBe('720') // TV o monitor HD
+    expect(chooseQuality(1366, 768, 1)).toBe('720')
+    expect(chooseQuality(1600, 900, 1)).toBe('720') // antes daba 1080 (umbral 1600)
+    expect(chooseQuality(1080, 1920, 1)).toBe('1080') // tótem vertical Full HD
+    expect(chooseQuality(960, 540, 2)).toBe('1080') // TV que reporta 960×540 a 2x
+    // Informe IdeaPad → TV BGH: 1281×720 a 1,5x = 1921×1080 reales (Windows al 150 %).
+    expect(chooseQuality(1281, 720, 1.5)).toBe('1080')
+    expect(chooseQuality(1279, 720, 1.5)).toBe('1080') // redondeo de la escala
+    expect(chooseQuality(1281, 720, 1)).toBe('720') // la misma TV sin escala
+    expect(chooseQuality(1920, 1080, 1, false)).toBe('720') // 1080p no fluido
+    expect(chooseQuality(1920, 1080, 1, true)).toBe('1080')
+    expect(chooseQuality(1920, 1080, 1, null)).toBe('1080') // sin dato → por pantalla
   })
 })

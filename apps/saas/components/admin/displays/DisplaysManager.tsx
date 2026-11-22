@@ -169,7 +169,7 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
                 <dt className="text-muted-foreground">Último contacto</dt><dd>{fmtAgo(d.lastSeenAt)}</dd>
                 <dt className="text-muted-foreground">Versión</dt><dd>{d.appVersion ?? '—'}</dd>
                 <dt className="text-muted-foreground">Resolución</dt><dd>{d.screen ? `${d.screen.width}×${d.screen.height}` : '—'}</dd>
-                <dt className="text-muted-foreground">Guardado</dt><dd>{d.cache ? `${d.cache.items} archivos · ${gb(d.cache.bytes)}${d.cache.persisted ? '' : ' (no persistente)'}` : '—'}</dd>
+                <dt className="text-muted-foreground">Guardado</dt><dd>{d.cache ? `${d.cache.items} archivos · ${gb(d.cache.bytes)}${d.cache.persisted ? '' : ' (no persistente: conviene instalarla como app en Chrome)'}` : '—'}</dd>
               </dl>
               {d.lastError && (
                 <p className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-800 dark:text-amber-200 break-words">

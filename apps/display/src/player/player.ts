@@ -18,7 +18,7 @@ import { ensureCached, cachedObjectUrl, removeCached, MEDIA_CACHE, MediaCacheErr
 import { computeOffset, correctedNow, saveOffset } from '../shared/clock'
 import { getManifest, postJson } from './api'
 import { store, StatsAccumulator, type StatsBatch } from './store'
-import { playableItems, chooseQuality, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
+import { playableItems, chooseQuality, canDecode1080Smooth, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
 import { CURRENT_BUILD } from '../build'
 
 const HEARTBEAT_MS = 5 * 60_000
@@ -37,8 +37,8 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
 
   let manifest: Manifest | null = store.manifest()
   let etag: string | null = manifest?.version ?? null
-  const nav = navigator as Navigator & { deviceMemory?: number }
-  const quality = chooseQuality(screen.width, screen.height, window.devicePixelRatio, nav.deviceMemory ?? null)
+  // Se ajusta al arrancar si el navegador dice que 1080p no es fluido.
+  let quality = chooseQuality(screen.width, screen.height, window.devicePixelRatio)
   const cached = new Set<string>()
   const penaltyUntil = new Map<string, number>()
   const errorStreak = new Map<string, number>()
@@ -99,17 +99,39 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void keepAwake() })
   void keepAwake()
 
+  // ── Almacenamiento persistente ──────────────────────────────────────────
+  // Chrome no pregunta: concede persist() solo (página instalada como app,
+  // en favoritos, con mucho uso o con notificaciones permitidas). Se pide al
+  // arrancar y otra vez con el primer toque o tecla. Sin persistencia el
+  // navegador puede borrar lo guardado si le falta espacio: se detecta
+  // (caché vacía cuando había archivos), se informa en el latido y se vuelve
+  // a bajar lo que falte sin cortar la reproducción.
+  let persisted = false
+  async function askPersist() {
+    try { persisted = (await navigator.storage?.persisted?.()) || (await navigator.storage?.persist?.()) || false } catch { /* */ }
+  }
+  const persistOnInteraction = () => { if (!persisted) void askPersist() }
+  window.addEventListener('pointerdown', persistOnInteraction, { once: true })
+  window.addEventListener('keydown', persistOnInteraction, { once: true })
+
   // ── Caché ───────────────────────────────────────────────────────────────
   async function refreshCachedSet() {
+    const before = cached.size
     cached.clear()
     if (typeof caches === 'undefined') return
     for (const req of await (await caches.open(MEDIA_CACHE)).keys()) cached.add(req.url)
+    const expected = Math.max(before, store.expectedMedia())
+    if (expected > 0 && cached.size === 0) {
+      reportError('storage_evicted', `El navegador borró los ${expected} archivos guardados (almacenamiento ${persisted ? 'persistente' : 'no persistente'}); se vuelven a bajar`)
+    }
   }
 
   async function syncMedia() {
     if (downloading || !manifest) return
     downloading = true
     try {
+      // Se relee la caché: si el navegador borró archivos, se vuelven a bajar.
+      await refreshCachedSet()
       const now = correctedNow()
       const wanted = manifest.items.filter((i) => !i.endsAt || Date.parse(i.endsAt) > now).map((i) => urlFor(i, quality))
       // Lo que ya no está en el manifiesto se borra del equipo.
@@ -125,6 +147,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
           if (e instanceof MediaCacheError && e.code === 'quota') break
         }
       }
+      store.setExpectedMedia(cached.size)
     } finally {
       downloading = false
     }
@@ -143,8 +166,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         const serverMs = Date.parse(manifest.serverTime)
         if (Number.isFinite(serverMs)) saveOffset({ offsetMs: computeOffset(serverMs, r.sentAt, r.receivedAt), measuredAt: Date.now() })
         next = (manifest.pollAfterS || 60) * 1000
-        void syncMedia()
       }
+      // También con 304: repone lo que el navegador haya borrado.
+      if (r.status === 200 || r.status === 304) void syncMedia()
     } catch {
       next = 30_000 // sin internet: se sigue con lo guardado y se reintenta
     }
@@ -177,7 +201,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     if (!item) { currentId = null; showIdle(); later(playNext, IDLE_RETRY_MS); return }
     currentId = item.id
     const objUrl = await cachedObjectUrl(urlFor(item, quality))
-    if (!objUrl) { cached.delete(urlFor(item, quality)); later(playNext, 0); return }
+    if (!objUrl) { cached.delete(urlFor(item, quality)); void syncMedia(); later(playNext, 0); return }
 
     const el = item.kind === 'video' ? document.createElement('video') : document.createElement('img')
     el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s'
@@ -228,7 +252,6 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   // ── Latido y estadísticas ───────────────────────────────────────────────
   async function heartbeat() {
     let quotaBytes = 0
-    let persisted = false
     try { quotaBytes = (await navigator.storage?.estimate?.())?.quota ?? 0 } catch { /* */ }
     try { persisted = (await navigator.storage?.persisted?.()) ?? false } catch { /* */ }
     let bytes = 0
@@ -297,7 +320,8 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
 
   // ── Arranque ────────────────────────────────────────────────────────────
   void (async () => {
-    try { await navigator.storage?.persist?.() } catch { /* */ }
+    await askPersist()
+    if (quality === '1080' && (await canDecode1080Smooth()) === false) quality = '720'
     await refreshCachedSet()
     void syncMedia()
     void pollManifest()

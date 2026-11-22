@@ -16,6 +16,56 @@
   </head>
   <body>
     <div id="app"></div>
+    <!--
+      Chequeo previo SIN tecnología moderna (ES3: var, function, sin módulos).
+      Los navegadores integrados de TV viejos no ejecutan el reproductor y
+      quedaban en blanco: acá se detecta qué falta y se muestra un mensaje.
+      Si el reproductor no arranca en 20 s (p. ej. no entiende la sintaxis),
+      se muestra «no se pudo iniciar».
+    -->
+    <script>
+      (function () {
+        var missing = [];
+        function has(fn) { try { return !!fn(); } catch (e) { return false; } }
+        if (!has(function () { return 'noModule' in document.createElement('script'); })) missing.push('módulos de JavaScript');
+        if (!has(function () { return window.Promise; })) missing.push('Promise');
+        if (!has(function () { return window.fetch; })) missing.push('fetch');
+        if (!has(function () { return window.caches || window.indexedDB; })) missing.push('Cache API o IndexedDB');
+        if (!has(function () { return window.URL && window.URL.createObjectURL; })) missing.push('URL.createObjectURL');
+        if (!has(function () { return window.localStorage; })) missing.push('localStorage');
+        if (!has(function () { return window.AbortController; })) missing.push('AbortController');
+        if (!has(function () { var v = document.createElement('video'); return v.canPlayType && v.canPlayType('video/mp4; codecs="avc1.4d401f"'); })) missing.push('video H.264 (MP4)');
+
+        function show(title, intro, items) {
+          var root = document.getElementById('app');
+          if (!root) return;
+          var list = '';
+          for (var i = 0; i < items.length; i++) list += '<li>' + items[i] + '</li>';
+          root.innerHTML =
+            '<div style="max-width:760px;margin:0 auto;padding:24px;font-family:Arial,Helvetica,sans-serif;color:#fff;background:#000;font-size:20px;line-height:1.4">' +
+            '<h1 style="font-size:28px;margin:0 0 12px">' + title + '</h1>' +
+            '<p style="margin:0 0 12px">' + intro + '</p>' +
+            (list ? '<ul style="margin:0 0 16px;color:#ccc">' + list + '</ul>' : '') +
+            '<p style="margin:0 0 8px"><b>Usá alguno de estos equipos:</b></p>' +
+            '<ul style="margin:0 0 16px;color:#ccc">' +
+            '<li>PC o notebook con Google Chrome actualizado (conectada a la TV por HDMI)</li>' +
+            '<li>TV Box Android con Google Chrome actualizado</li>' +
+            '<li>Dispositivo tipo Chromecast con Google TV con un navegador basado en Chrome</li>' +
+            '</ul>' +
+            '<p style="margin:0;color:#999;font-size:16px">Los navegadores que vienen integrados en los televisores viejos no sirven para TakeasyGO Pantallas.</p>' +
+            '</div>';
+        }
+
+        if (missing.length) {
+          window.__tgdUnsupported = true;
+          show('Este equipo no es compatible', 'Al navegador de este equipo le falta:', missing);
+        } else {
+          setTimeout(function () {
+            if (!window.__tgdBooted) show('No se pudo iniciar el reproductor', 'El navegador de este equipo no pudo cargar TakeasyGO Pantallas. Probablemente es demasiado viejo.', []);
+          }, 20000);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

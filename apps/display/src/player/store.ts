@@ -11,6 +11,7 @@ const K = {
   pendingStats: 'tgd:pending-stats',
   lastDailyReload: 'tgd:last-daily-reload',
   lastError: 'tgd:last-error',
+  expectedMedia: 'tgd:expected-media',
 }
 
 function get(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
@@ -48,6 +49,10 @@ export const store = {
 
   lastDailyReload: () => get(K.lastDailyReload),
   setLastDailyReload: (day: string) => set(K.lastDailyReload, day),
+
+  /** Cuántos archivos había guardados en la última sincronización (para detectar si el navegador los borró). */
+  expectedMedia: () => Number(get(K.expectedMedia)) || 0,
+  setExpectedMedia: (n: number) => set(K.expectedMedia, String(n)),
 
   lastError: () => getJson<{ code: string; message: string; at: string }>(K.lastError),
   setLastError: (code: string, message: string) => set(K.lastError, JSON.stringify({ code, message: message.slice(0, 200), at: new Date().toISOString() })),

@@ -46,7 +46,9 @@ export default defineConfig({
       filename: "sw.ts",
       injectRegister: false,
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg"],
+      // icon.svg ya entra por globPatterns: sumarlo como asset o ícono del manifiesto
+      // lo duplicaba en la precache y cache.addAll() rechazaba toda la instalación.
+      includeManifestIcons: false,
       manifest: {
         name: "TakeasyGO Pantallas",
         short_name: "Pantallas",

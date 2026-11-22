@@ -93,11 +93,29 @@ export function playableItems(items: ManifestItem[], ctx: PlayableContext): Mani
   )
 }
 
-/** 720p si la pantalla es chica o el equipo es débil; si no, 1080p. */
-export function chooseQuality(screenW: number, screenH: number, dpr: number, deviceMemoryGB: number | null): '720' | '1080' {
+/**
+ * Calidad del video según la pantalla, en píxeles REALES (CSS × escala):
+ * lado largo < 1920 → 720p; si no, 1080p. Tolerancia de 1 % por el redondeo de
+ * la escala (1279 × 1,5 = 1918,5 es una pantalla de 1920).
+ * Si el navegador dice que 1080p NO se decodifica fluido (mediaCapabilities),
+ * 720p. No se usa navigator.deviceMemory: el navegador lo limita por
+ * privacidad (tope 8 GB, redondeado) y no sirve para decidir.
+ */
+export const FULL_HD_LONG_SIDE = 1920
+export function chooseQuality(screenW: number, screenH: number, dpr: number, smooth1080: boolean | null = null): '720' | '1080' {
   const longSide = Math.max(screenW, screenH) * (dpr || 1)
-  if (deviceMemoryGB !== null && deviceMemoryGB > 0 && deviceMemoryGB <= 2) return '720'
-  return longSide < 1600 ? '720' : '1080'
+  if (smooth1080 === false) return '720'
+  return longSide < FULL_HD_LONG_SIDE * 0.99 ? '720' : '1080'
+}
+
+/** ¿El equipo decodifica 1080p H.264 fluido? null si el navegador no lo informa. */
+export async function canDecode1080Smooth(): Promise<boolean | null> {
+  const mc = (navigator as Navigator & { mediaCapabilities?: MediaCapabilities }).mediaCapabilities
+  if (!mc?.decodingInfo) return null
+  try {
+    const r = await mc.decodingInfo({ type: 'file', video: { contentType: 'video/mp4; codecs="avc1.640028"', width: 1920, height: 1080, bitrate: 4_000_000, framerate: 30 } })
+    return r.supported ? r.smooth : false
+  } catch { return null }
 }
 
 export const urlFor = (i: ManifestItem, q: '720' | '1080') => (q === '720' ? i.url720 : i.url1080)

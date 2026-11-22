@@ -8,6 +8,10 @@
 import { ensureCached, cachedObjectUrl, removeCached, MediaCacheError } from '../shared/media-cache'
 import { computeOffset, isActiveAt } from '../shared/clock'
 import type { Sample } from './samples'
+import {
+  classifyEvents, recordEvents, measureMemory, summarizeSoak, soakVerdict, formatCut, MEMORY_SOURCE_LABEL,
+  type PlaybackEvent, type CutSummary, type SoakMinute, type MemorySource,
+} from './monitor'
 
 export type Status = 'ok' | 'warn' | 'fail' | 'skip'
 export interface CheckResult { id: string; title: string; status: Status; detail: string; data?: Record<string, unknown> }
@@ -24,11 +28,42 @@ export function installErrorCapture() {
 
 const MEDIA_ERROR: Record<number, string> = { 1: 'MEDIA_ERR_ABORTED', 2: 'MEDIA_ERR_NETWORK', 3: 'MEDIA_ERR_DECODE', 4: 'MEDIA_ERR_SRC_NOT_SUPPORTED' }
 
-// ── Memoria ─────────────────────────────────────────────────────────────────
+// ── Memoria (solo heap de JS, redondeado; ver monitor.ts) ───────────────────
 export function memorySnapshot(): { usedMB: number | null; limitMB: number | null } {
   const m = (performance as Performance & { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory
   if (!m) return { usedMB: null, limitMB: null }
   return { usedMB: Math.round(m.usedJSHeapSize / 1048576), limitMB: Math.round(m.jsHeapSizeLimit / 1048576) }
+}
+
+const INSTALLED_QUERY = '(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)'
+const isInstalled = () => { try { return matchMedia(INSTALLED_QUERY).matches } catch { return false } }
+
+// ── Service worker ──────────────────────────────────────────────────────────
+function swState(): string {
+  if (!('serviceWorker' in navigator)) return 'no disponible'
+  if (navigator.serviceWorker.controller) return 'controla la página'
+  const err = window.__tgdSwError
+  return err ? `error: ${err}` : 'todavía no controla la página'
+}
+
+/**
+ * Espera a que el service worker controle la página sin pedirle nada a quien
+ * prueba: 1) espera a que se active (instalación de la primera visita);
+ * 2) si está activo pero no controla (p. ej. recarga forzada), le pide que
+ * tome el control (clients.claim). Devuelve null si controla, o el motivo.
+ */
+export async function ensureSwControl(timeoutMs = 20_000): Promise<string | null> {
+  if (!('serviceWorker' in navigator)) return 'el navegador no tiene service worker'
+  const sw = navigator.serviceWorker
+  if (sw.controller) return null
+  const controlled = new Promise<void>((res) => sw.addEventListener('controllerchange', () => res(), { once: true }))
+  const wait = <T>(ms: number, v: T) => new Promise<T>((res) => setTimeout(() => res(v), ms))
+  const reg = await Promise.race([sw.ready, wait<ServiceWorkerRegistration | null>(timeoutMs, null)])
+  if (!reg) return window.__tgdSwError ?? `el service worker no se activó en ${timeoutMs / 1000} s`
+  if (sw.controller) return null
+  reg.active?.postMessage({ type: 'claim' })
+  await Promise.race([controlled, wait(5000, undefined)])
+  return sw.controller ? null : 'el service worker está activo pero no tomó el control'
 }
 
 // ── Equipo y navegador ──────────────────────────────────────────────────────
@@ -40,29 +75,38 @@ export function deviceInfo(): CheckResult {
   }
   const brands = nav.userAgentData?.brands?.filter((b) => !/Not.?A.?Brand/i.test(b.brand)).map((b) => `${b.brand} ${b.version}`).join(', ')
   const mem = memorySnapshot()
+  const perf = performance as Performance & { memory?: unknown; measureUserAgentSpecificMemory?: unknown }
+  const memSource: MemorySource = window.crossOriginIsolated && typeof perf.measureUserAgentSpecificMemory === 'function'
+    ? 'pagina' : perf.memory ? 'heap_js' : 'no_disponible'
   const data = {
     navegador: brands || '(sin userAgentData)',
     userAgent: navigator.userAgent,
     plataforma: nav.userAgentData?.platform ?? navigator.platform,
     movil: nav.userAgentData?.mobile ?? null,
-    memoriaDelEquipoGB: nav.deviceMemory ?? null,
+    'memoriaDelEquipoGB (tope del navegador por privacidad: NO sirve para decidir)': nav.deviceMemory ?? null,
     nucleos: navigator.hardwareConcurrency ?? null,
     pantalla: `${screen.width}×${screen.height} @${window.devicePixelRatio}x`,
+    pantallaPixelesReales: `${Math.round(screen.width * (window.devicePixelRatio || 1))}×${Math.round(screen.height * (window.devicePixelRatio || 1))}`,
     ventana: `${window.innerWidth}×${window.innerHeight}`,
+    memoriaMedible: MEMORY_SOURCE_LABEL[memSource],
     heapLimiteMB: mem.limitMB,
     red: nav.connection ? `${nav.connection.effectiveType ?? '?'} · ${nav.connection.downlink ?? '?'} Mbps · ahorro=${nav.connection.saveData ?? false}` : '(sin Network Information)',
     serviceWorker: 'serviceWorker' in navigator,
+    serviceWorkerEstado: swState(),
     cacheStorage: typeof caches !== 'undefined',
     indexedDB: typeof indexedDB !== 'undefined',
     wakeLock: 'wakeLock' in navigator,
     fullscreen: !!document.documentElement.requestFullscreen,
     contextoSeguro: window.isSecureContext,
+    instaladaComoApp: isInstalled(),
   }
   const missing = (['serviceWorker', 'cacheStorage', 'contextoSeguro'] as const).filter((k) => !data[k])
   return {
     id: 'device', title: 'Equipo y navegador',
     status: missing.length ? 'fail' : 'ok',
-    detail: missing.length ? `Falta: ${missing.join(', ')}` : `${data.navegador} · ${data.pantalla} · ${data.memoriaDelEquipoGB ?? '?'} GB`,
+    detail: missing.length
+      ? `Falta: ${missing.join(', ')}`
+      : `${data.navegador} · ${data.pantalla} (${data.pantallaPixelesReales} reales) · ${data.nucleos ?? '?'} núcleos · service worker: ${data.serviceWorkerEstado}`,
     data,
   }
 }
@@ -108,11 +152,17 @@ export async function storageCheck(): Promise<CheckResult> {
   let previousMarker: string | null = null
   try { previousMarker = localStorage.getItem(MARKER_KEY); localStorage.setItem(MARKER_KEY, new Date().toISOString()) } catch { /* */ }
   const gb = (n: number | null) => (n === null ? '?' : `${(n / 1073741824).toFixed(2)} GB`)
+  // Condiciones que Chrome mira para conceder persist() sin preguntar.
+  const installed = isInstalled()
+  let notifications = 'no disponible'
+  try { if (typeof Notification !== 'undefined') notifications = Notification.permission } catch { /* */ }
+  const ok = !!(granted || persisted)
+  const hint = ok ? '' : ' · Chrome la concede solo si la página está instalada como app (menú ⋮ → «Instalar»), está en favoritos o se usa seguido. Sin persistencia el reproductor funciona igual: si el navegador borra lo guardado, lo vuelve a bajar y lo informa en el latido.'
   return {
     id: 'storage', title: 'Almacenamiento persistente',
-    status: granted || persisted ? 'ok' : 'warn',
-    detail: `persistente: ${granted ?? persisted ?? 'desconocido'} · espacio ${gb(quota)} · usado ${gb(usage)}${previousMarker ? ` · datos de la corrida anterior (${previousMarker}) siguen presentes` : ''}`,
-    data: { persistedAntes: persisted, persistConcedido: granted, cuotaBytes: quota, usoBytes: usage, marcadorAnterior: previousMarker },
+    status: ok ? 'ok' : 'warn',
+    detail: `persistente: ${granted ?? persisted ?? 'desconocido'} · instalada como app: ${installed ? 'sí' : 'no'} · espacio ${gb(quota)} · usado ${gb(usage)}${previousMarker ? ` · datos de la corrida anterior (${previousMarker}) siguen presentes` : ''}${hint}`,
+    data: { persistedAntes: persisted, persistConcedido: granted, instaladaComoApp: installed, notificaciones: notifications, cuotaBytes: quota, usoBytes: usage, marcadorAnterior: previousMarker },
   }
 }
 
@@ -123,14 +173,17 @@ interface PlaybackStats {
   dropped: number | null
   total: number | null
   droppedPct: number | null
-  stalls: number
+  /** Cortes con su motivo (ver monitor.ts). */
+  cuts: CutSummary
+  /** Tiempo del salto al 50 % (informativo: el reproductor real no salta). */
   seekMs: number | null
   mediaError: string | null
-  memBeforeMB: number | null
-  memAfterMB: number | null
 }
 
-/** Reproduce `src` en un <video> visible durante `seconds`, mide primer cuadro, cuadros perdidos, cortes y un salto al 50 %. */
+/**
+ * Reproduce `src` en un <video> visible durante `seconds`: primer cuadro,
+ * cuadros perdidos, cortes con su motivo y un salto al 50 % (informativo).
+ */
 export function measurePlayback(host: HTMLElement, src: string, seconds: number): Promise<PlaybackStats> {
   return new Promise((resolve) => {
     const v = document.createElement('video')
@@ -140,29 +193,32 @@ export function measurePlayback(host: HTMLElement, src: string, seconds: number)
     v.preload = 'auto'
     v.style.cssText = 'width:100%;max-height:40vh;background:#000;border-radius:12px'
     host.replaceChildren(v)
-    const memBefore = memorySnapshot().usedMB
     const t0 = performance.now()
-    let ttff: number | null = null
-    let stalls = 0
+    const events: PlaybackEvent[] = []
+    let firstFrameAt: number | null = null
     let seekMs: number | null = null
     let done = false
     let timer: ReturnType<typeof setTimeout> | null = null
+    const stopRecording = recordEvents(v, events, t0)
     const finish = (mediaError: string | null) => {
       if (done) return
       done = true
       if (timer) clearTimeout(timer)
+      const endT = performance.now() - t0
+      stopRecording() // antes de pausar: la pausa del final no es del equipo
       const q = v.getVideoPlaybackQuality?.()
+      // Los cortes se cuentan desde el primer cuadro (antes es la carga inicial).
+      const since = firstFrameAt
+      const fromFirst = since === null ? [] : events.filter((e) => e.t >= since)
       const stats: PlaybackStats = {
-        ttffMs: ttff,
+        ttffMs: since === null ? null : Math.round(since),
         playedS: Math.round(v.currentTime * 10) / 10,
         dropped: q?.droppedVideoFrames ?? null,
         total: q?.totalVideoFrames ?? null,
         droppedPct: q && q.totalVideoFrames > 0 ? Math.round((q.droppedVideoFrames / q.totalVideoFrames) * 1000) / 10 : null,
-        stalls,
+        cuts: classifyEvents(fromFirst, endT),
         seekMs,
         mediaError,
-        memBeforeMB: memBefore,
-        memAfterMB: memorySnapshot().usedMB,
       }
       v.pause()
       v.removeAttribute('src')
@@ -171,9 +227,12 @@ export function measurePlayback(host: HTMLElement, src: string, seconds: number)
       resolve(stats)
     }
     v.addEventListener('playing', () => {
-      if (ttff === null) {
-        ttff = Math.round(performance.now() - t0)
-        // Mitad de la prueba: salto al 50 % del video (mide Range / blob).
+      if (firstFrameAt === null) {
+        firstFrameAt = performance.now() - t0
+        // Mitad de la prueba: salto al 50 % del video. El navegador decodifica
+        // desde el cuadro clave anterior (en las muestras de 720p hay ~6 s de
+        // video entre ese cuadro clave y el 50 %), así que mide potencia de
+        // decodificación, no la caché. El reproductor real nunca salta.
         setTimeout(() => {
           if (done || !Number.isFinite(v.duration)) return
           const s0 = performance.now()
@@ -183,14 +242,13 @@ export function measurePlayback(host: HTMLElement, src: string, seconds: number)
         timer = setTimeout(() => finish(null), seconds * 1000)
       }
     })
-    v.addEventListener('waiting', () => { if (ttff !== null) stalls++ })
     v.addEventListener('error', () => {
       const code = v.error?.code ?? 0
       const name = MEDIA_ERROR[code] ?? `MEDIA_ERR_${code}`
       captureError(name, v.error?.message || 'error de reproducción')
       finish(name)
     })
-    setTimeout(() => { if (ttff === null) { captureError('ttff_timeout', 'No arrancó en 20 s'); finish('no_arranco_20s') } }, 20_000)
+    setTimeout(() => { if (firstFrameAt === null) { captureError('ttff_timeout', 'No arrancó en 20 s'); finish('no_arranco_20s') } }, 20_000)
     v.src = src
     v.play().catch((e) => { captureError('play_rejected', (e as Error).message) })
   })
@@ -198,12 +256,25 @@ export function measurePlayback(host: HTMLElement, src: string, seconds: number)
 
 function playbackStatus(p: PlaybackStats): Status {
   if (p.mediaError) return 'fail'
-  if ((p.droppedPct ?? 0) > 5 || p.stalls > 1) return 'warn'
+  // Solo cuentan los cortes del equipo; los del salto o de la pantalla oculta no.
+  if ((p.droppedPct ?? 0) > 5 || p.cuts.device > 0 || p.cuts.pauses > 0) return 'warn'
   return 'ok'
 }
 function playbackDetail(p: PlaybackStats, extra = ''): string {
   if (p.mediaError) return `error ${p.mediaError}${extra}`
-  return `primer cuadro ${p.ttffMs ?? '?'} ms · cuadros perdidos ${p.droppedPct ?? '?'} % · cortes ${p.stalls} · salto ${p.seekMs ?? '?'} ms · memoria ${p.memBeforeMB ?? '?'}→${p.memAfterMB ?? '?'} MB${extra}`
+  const c = p.cuts
+  const others = [
+    c.bySeek ? `${c.bySeek} por el salto` : '',
+    c.byHidden ? `${c.byHidden} con pantalla oculta` : '',
+    c.stalled ? `stalled ${c.stalled}` : '',
+  ].filter(Boolean).join(', ')
+  return `primer cuadro ${p.ttffMs ?? '?'} ms · cuadros perdidos ${p.droppedPct ?? '?'} % · cortes del equipo ${c.device}${c.device ? ` (${c.deviceMs} ms)` : ''}${c.pauses ? ` · pausas ${c.pauses}` : ''}${others ? ` · no cuentan: ${others}` : ''} · salto al 50 % ${p.seekMs ?? '?'} ms (informativo)${extra}`
+}
+
+/** Cada corte con su motivo, para el informe. */
+export function cutLines(data: Record<string, unknown> | undefined): string[] {
+  const cuts = (data?.cuts as CutSummary | undefined)?.cuts
+  return cuts?.length ? cuts.map(formatCut) : []
 }
 
 /** Opción B: descarga completa, Cache Storage, reproducción desde blob. */
@@ -240,7 +311,7 @@ export function listenSwMedia() {
 function swCall(msg: Record<string, unknown>): Promise<{ ok: boolean; bytes?: number; error?: string }> {
   return new Promise((resolve) => {
     const ctrl = navigator.serviceWorker?.controller
-    if (!ctrl) { resolve({ ok: false, error: 'el service worker todavía no controla la página (recargá una vez)' }); return }
+    if (!ctrl) { resolve({ ok: false, error: 'el service worker no controla la página' }); return }
     const ch = new MessageChannel()
     ch.port1.onmessage = (e) => resolve(e.data)
     ctrl.postMessage(msg, [ch.port2])
@@ -251,6 +322,11 @@ function swCall(msg: Record<string, unknown>): Promise<{ ok: boolean; bytes?: nu
 export async function playbackA(host: HTMLElement, sample: Sample, seconds: number): Promise<CheckResult> {
   const id = `a-${sample.id}`
   const title = `Opción A (SW + 206) · ${sample.label}`
+  const notControlled = await ensureSwControl()
+  if (notControlled) {
+    captureError('a_sw', notControlled)
+    return { id, title, status: 'fail', detail: `Service worker: ${notControlled}` }
+  }
   const saved = await swCall({ type: 'cache-a', url: sample.url })
   if (!saved.ok) {
     captureError('a_cache', saved.error ?? 'error')
@@ -325,38 +401,125 @@ export async function fullscreenAndWakeLock(): Promise<CheckResult> {
   }
 }
 
-// ── Prueba larga: bucle con memoria por minuto ──────────────────────────────
+// ── Prueba larga ────────────────────────────────────────────────────────────
+// Registra por minuto: memoria (con su fuente), cuadros perdidos, cortes del
+// equipo y su duración, congelamientos (el video no avanza ≥ 10 s sin estar
+// en pausa ni oculto) y si la pantalla estuvo oculta. Guarda un punto de
+// control por minuto: si la página se recarga o se cierra en el medio (falta
+// de memoria, reinicio del navegador), al volver a abrir /diagnostico el
+// informe dice en qué minuto se interrumpió.
+export const SOAK_KEY = 'tgd:diag-soak'
+interface SoakCheckpoint {
+  label: string
+  plannedMinutes: number
+  startedAt: string
+  timeline: SoakMinute[]
+  memSource: MemorySource
+  errors: number
+  finished: boolean
+}
+
+function saveSoak(c: SoakCheckpoint) { try { localStorage.setItem(SOAK_KEY, JSON.stringify(c)) } catch { /* */ } }
+
+function soakResult(c: SoakCheckpoint, interrupted: boolean, extra: Record<string, unknown> = {}): CheckResult {
+  const s = summarizeSoak(c.timeline, c.plannedMinutes)
+  const mem = s.memStartMB === null
+    ? 'memoria: el navegador no la informa'
+    : `memoria ${s.memStartMB}→${s.memEndMB} MB (pico ${s.memPeakMB}${s.memSlopeMBh !== null ? `, ${s.memSlopeMBh >= 0 ? '+' : ''}${s.memSlopeMBh} MB/h` : ''}; ${MEMORY_SOURCE_LABEL[c.memSource]})`
+  return {
+    id: 'soak',
+    title: `Prueba larga (${c.label})`,
+    status: soakVerdict(s, interrupted, c.errors),
+    detail: `${interrupted ? `INTERRUMPIDA después del minuto ${s.minutes} (la página se recargó o se cerró) · ` : ''}${s.minutes} de ${c.plannedMinutes} min · cortes del equipo ${s.cutsPerHour}/h (${s.stuckSeconds} s trabado) · cuadros perdidos ${s.droppedPct ?? '?'} % · congelado ${s.frozenMinutes} min · oculta ${s.hiddenMinutes} min · errores ${c.errors} · ${mem}`,
+    data: { timeline: c.timeline, summary: s, interrupted, errors: c.errors, startedAt: c.startedAt, memSource: c.memSource, ...extra },
+  }
+}
+
+/** Si quedó una prueba larga sin terminar (la página se recargó o se cerró), su resultado como interrumpida. */
+export function interruptedSoak(): CheckResult | null {
+  try {
+    const raw = localStorage.getItem(SOAK_KEY)
+    if (!raw) return null
+    const c = JSON.parse(raw) as SoakCheckpoint
+    if (c.finished) return null
+    c.finished = true
+    saveSoak(c)
+    return soakResult(c, true)
+  } catch { return null }
+}
+
 export async function soakTest(host: HTMLElement, sample: Sample, minutes: number, onTick: (msg: string) => void): Promise<CheckResult> {
   const objUrl = await cachedObjectUrl(sample.url)
   if (!objUrl) return { id: 'soak', title: 'Prueba larga', status: 'fail', detail: `Primero corré el diagnóstico (no está guardado ${sample.label}).` }
   const v = document.createElement('video')
   v.muted = true; v.playsInline = true; v.loop = true; v.src = objUrl
+  v.setAttribute('playsinline', '')
   v.style.cssText = 'width:100%;max-height:40vh;background:#000;border-radius:12px'
   host.replaceChildren(v)
-  let stalls = 0; let errors = 0; let hidden = 0
-  v.addEventListener('waiting', () => stalls++)
-  v.addEventListener('error', () => { errors++; captureError(MEDIA_ERROR[v.error?.code ?? 0] ?? 'media_error', 'en prueba larga') })
-  const onVis = () => { if (document.visibilityState === 'hidden') hidden++ }
-  document.addEventListener('visibilitychange', onVis)
+
+  const checkpoint: SoakCheckpoint = {
+    label: `${minutes} min, ${sample.label}`, plannedMinutes: minutes, startedAt: new Date().toISOString(),
+    timeline: [], memSource: 'no_disponible', errors: 0, finished: false,
+  }
+  v.addEventListener('error', () => { checkpoint.errors++; captureError(MEDIA_ERROR[v.error?.code ?? 0] ?? 'media_error', 'en prueba larga') })
+  const t0 = performance.now()
+  const events: PlaybackEvent[] = []
+  const stopRecording = recordEvents(v, events, t0)
+  saveSoak(checkpoint)
   await v.play().catch((e) => captureError('play_rejected', (e as Error).message))
-  const timeline: Array<{ min: number; usedMB: number | null; dropped: number | null }> = []
+
+  // Congelamiento: cada 2 s se mira si currentTime avanzó.
+  let lastTime = -1
+  let stillSince: number | null = null
+  let frozenThisMinute = false
+  const freezeTimer = setInterval(() => {
+    const now = performance.now()
+    const moving = v.currentTime !== lastTime
+    lastTime = v.currentTime
+    if (moving || v.paused || document.visibilityState === 'hidden') { stillSince = null; return }
+    if (stillSince === null) stillSince = now
+    else if (now - stillSince >= 10_000) frozenThisMinute = true
+  }, 2000)
+
+  let prevDropped = 0
+  let prevFrames = 0
   for (let m = 1; m <= minutes; m++) {
+    const minuteStart = performance.now() - t0
+    let hiddenThisMinute = document.visibilityState === 'hidden'
+    const onVis = () => { if (document.visibilityState === 'hidden') hiddenThisMinute = true }
+    document.addEventListener('visibilitychange', onVis)
     await new Promise((r) => setTimeout(r, 60_000))
+    document.removeEventListener('visibilitychange', onVis)
     const q = v.getVideoPlaybackQuality?.()
-    timeline.push({ min: m, usedMB: memorySnapshot().usedMB, dropped: q?.droppedVideoFrames ?? null })
-    onTick(`Prueba larga: minuto ${m} de ${minutes} · memoria ${memorySnapshot().usedMB ?? '?'} MB · cortes ${stalls}`)
+    // Se clasifica con todo el historial (un salto o una pantalla oculta del minuto anterior cuentan).
+    const all = classifyEvents(events, performance.now() - t0)
+    const own = all.cuts.filter((c) => c.at >= minuteStart && c.kind === 'waiting' && c.cause === 'equipo')
+    const mem = await measureMemory()
+    checkpoint.memSource = mem.source
+    checkpoint.timeline.push({
+      min: m,
+      memMB: mem.mb,
+      dropped: q ? q.droppedVideoFrames - prevDropped : null,
+      frames: q ? q.totalVideoFrames - prevFrames : null,
+      cuts: own.length,
+      cutMs: own.reduce((a, c) => a + (c.ms ?? 0), 0),
+      frozen: frozenThisMinute,
+      hidden: hiddenThisMinute,
+    })
+    if (q) { prevDropped = q.droppedVideoFrames; prevFrames = q.totalVideoFrames }
+    frozenThisMinute = false
+    // Los eventos viejos ya clasificados se recortan (2 h de bucles son muchos).
+    if (events.length > 2000) events.splice(0, events.length - 200)
+    saveSoak(checkpoint)
+    const sum = summarizeSoak(checkpoint.timeline, minutes)
+    onTick(`Prueba larga: minuto ${m} de ${minutes} · cortes del equipo ${sum.cutsPerHour}/h · congelado ${sum.frozenMinutes} min · memoria ${mem.mb ?? '?'} MB (${MEMORY_SOURCE_LABEL[mem.source]})`)
   }
-  document.removeEventListener('visibilitychange', onVis)
+  clearInterval(freezeTimer)
+  stopRecording()
   v.pause(); host.replaceChildren(); URL.revokeObjectURL(objUrl)
-  const first = timeline[0]?.usedMB ?? null
-  const last = timeline[timeline.length - 1]?.usedMB ?? null
-  const growth = first !== null && last !== null ? last - first : null
-  return {
-    id: 'soak', title: `Prueba larga (${minutes} min, ${sample.label})`,
-    status: errors > 0 || (growth ?? 0) > 150 ? 'fail' : stalls > 3 || hidden > 0 ? 'warn' : 'ok',
-    detail: `memoria ${first ?? '?'}→${last ?? '?'} MB · cortes ${stalls} · errores ${errors} · pantalla oculta ${hidden} veces · bloqueo de suspensión ${wakeLock && !wakeLock.released ? 'activo' : 'no'}`,
-    data: { timeline, stalls, errors, hidden },
-  }
+  checkpoint.finished = true
+  saveSoak(checkpoint)
+  return soakResult(checkpoint, false, { wakeLock: wakeLock && !wakeLock.released ? 'activo' : 'no' })
 }
 
 /** Borra los videos guardados por el diagnóstico (opciones A y B). */

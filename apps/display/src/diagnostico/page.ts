@@ -5,6 +5,7 @@ import { SAMPLES } from './samples'
 import {
   capturedErrors, installErrorCapture, listenSwMedia, deviceInfo, codecSupport, storageCheck,
   playbackA, playbackB, offlineCheck, expiryCheck, fullscreenAndWakeLock, soakTest, clearDiagnosticCaches,
+  ensureSwControl, interruptedSoak,
   type CheckResult,
 } from './checks'
 import { buildReport } from './report'
@@ -38,6 +39,12 @@ export function mountDiagnostico(root: HTMLElement) {
   installErrorCapture()
   listenSwMedia()
   const results = loadResults()
+  // Una prueba larga que quedó a medias (la página se recargó o se cerró) se
+  // informa como interrumpida, con el minuto en que se cortó.
+  const cut = interruptedSoak()
+  if (cut) { results.set(cut.id, cut); saveResults(results) }
+  // El service worker toma el control solo (sin «recargá una vez»).
+  void ensureSwControl()
 
   root.innerHTML = ''
   const wrap = el('main', { style: 'max-width:880px;margin:0 auto;padding:16px 16px 48px' })
