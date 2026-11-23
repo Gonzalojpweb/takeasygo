@@ -21,9 +21,9 @@ export type ModuleType = (typeof MODULE_TYPES)[number]
 
 export const moduleSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('brand-header'), config: z.object({ tagline: z.string().trim().max(80).default(''), showLogo: z.boolean().default(true) }) }),
-  z.object({ type: z.literal('hero-product'), config: z.object({ productId: z.string().refine(OID, 'Producto inválido'), priceChannel: channel, badge: z.string().trim().max(20).default('') }) }),
+  z.object({ type: z.literal('hero-product'), config: z.object({ productId: z.string().refine(OID, 'Producto inválido'), priceChannel: channel, badge: z.string().trim().max(30).default('') }) }),
   z.object({ type: z.literal('product-grid'), config: z.object({ productIds: z.array(z.string().refine(OID, 'Producto inválido')).min(1, 'Elegí al menos un producto').max(8), priceChannel: channel, showDescriptions: z.boolean().default(false) }) }),
-  z.object({ type: z.literal('combo-highlight'), config: z.object({ comboId: z.string().refine(OID, 'Combo inválido'), badge: z.string().trim().max(20).default('') }) }),
+  z.object({ type: z.literal('combo-highlight'), config: z.object({ comboId: z.string().refine(OID, 'Combo inválido'), badge: z.string().trim().max(30).default('') }) }),
   z.object({ type: z.literal('promo-banner'), config: z.object({ promotionId: z.string().refine(OID, 'Promo inválida'), headline: z.string().trim().max(60).default('') }) }),
   z.object({ type: z.literal('drinks-row'), config: z.object({ productIds: z.array(z.string().refine(OID, 'Producto inválido')).min(1, 'Elegí al menos una bebida').max(10), priceChannel: channel }) }),
   z.object({ type: z.literal('price-list'), config: z.object({ categoryIds: z.array(z.string().refine(OID, 'Categoría inválida')).min(1, 'Elegí al menos una categoría').max(10), priceChannel: channel, showSubcategories: z.boolean().default(true) }) }),

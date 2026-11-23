@@ -155,3 +155,12 @@ describe('composiciones', () => {
     expect(compositionVisible(comp([{ type: 'brand-header', config: { tagline: '', showLogo: true } }, { type: 'qr-cta', config: { headline: 'x', subtext: '' } }]), MON_13, TZ)).toEqual([])
   })
 })
+
+describe('reparto de módulos en páginas', () => {
+  it('agrega mientras entra; lo que no entra pasa a la página siguiente; un módulo enorme va solo', async () => {
+    const { packModules } = await import('./board')
+    expect(packModules([300, 200, 250, 250], 900)).toEqual([[0, 1, 2], [3]])
+    expect(packModules([300, 200], 900)).toEqual([[0, 1]])
+    expect(packModules([1200, 100, 100], 900)).toEqual([[0], [1, 2]])
+  })
+})

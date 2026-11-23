@@ -170,7 +170,7 @@ export default function CompositionForm({ tenantSlug, locations, piece, onClose,
             <option value="">Elegí el producto</option>
             {c?.products.map((p) => <option key={p._id} value={p._id}>{p.name} — {p.category}{p.hasPhoto ? '' : ' (sin foto)'}</option>)}
           </select>
-          <input value={m.config.badge} onChange={(e) => update(i, { ...m, config: { ...m.config, badge: e.target.value } })} maxLength={20} placeholder="Etiqueta: NUEVO, MÁS PEDIDA…" aria-label="Etiqueta" className={inputCls} />
+          <input value={m.config.badge} onChange={(e) => update(i, { ...m, config: { ...m.config, badge: e.target.value } })} maxLength={30} placeholder="Etiqueta: NUEVO, MÁS PEDIDA…" aria-label="Etiqueta" className={inputCls} />
           {channelSel(m.config.priceChannel, (v) => update(i, { ...m, config: { ...m.config, priceChannel: v } }))}
         </div>
       )
@@ -189,7 +189,7 @@ export default function CompositionForm({ tenantSlug, locations, piece, onClose,
             <option value="">{c && !c.combos.length ? 'No hay combos activos' : 'Elegí el combo'}</option>
             {c?.combos.map((x) => <option key={x._id} value={x._id}>{x.name}</option>)}
           </select>
-          <input value={m.config.badge} onChange={(e) => update(i, { ...m, config: { ...m.config, badge: e.target.value } })} maxLength={20} placeholder="Etiqueta: 2×1, SOLO HOY…" aria-label="Etiqueta" className={inputCls} />
+          <input value={m.config.badge} onChange={(e) => update(i, { ...m, config: { ...m.config, badge: e.target.value } })} maxLength={30} placeholder="Etiqueta: 2×1, SOLO HOY…" aria-label="Etiqueta" className={inputCls} />
         </div>
       )
       case 'promo-banner': return (

@@ -291,3 +291,22 @@ export function promoBoardAssets(board: PromoBoard): string[] {
   for (const p of board.promos) if (p.image) out.add(p.image)
   return [...out]
 }
+
+/**
+ * Reparte módulos en páginas según su alto natural (px). Greedy y en orden:
+ * se agrega a la página mientras entre; un módulo que solo no entra va en su
+ * propia página (y ahí cede alto: la lista de precios recorta filas).
+ * Devuelve índices por página. `budget` = alto disponible sin el encabezado.
+ */
+export function packModules(heights: number[], budget: number): number[][] {
+  const pages: number[][] = []
+  let cur: number[] = []
+  let used = 0
+  heights.forEach((hgt, i) => {
+    if (cur.length && used + hgt > budget) { pages.push(cur); cur = []; used = 0 }
+    cur.push(i)
+    used += hgt
+  })
+  if (cur.length) pages.push(cur)
+  return pages
+}

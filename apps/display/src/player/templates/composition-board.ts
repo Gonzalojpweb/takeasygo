@@ -12,7 +12,7 @@
 import { qrBadge, qrInline } from './qr'
 import type { TapInfo } from './detail'
 import QRCode from 'qrcode'
-import { boardColors, compositionVisible, formatPrice, promoWhen, type BoardColors, type CompositionBoard, type CompositionProduct, type Freshness, type ResolvedModule } from '../board'
+import { boardColors, compositionVisible, formatPrice, packModules, promoWhen, type BoardColors, type CompositionBoard, type CompositionProduct, type Freshness, type ResolvedModule } from '../board'
 
 export interface PlayCompositionOptions {
   host: HTMLElement
@@ -254,32 +254,71 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
   async function render() {
     await injectFonts(o.board, o.objectUrl)
     if (cancelled) return
-    const view = h('div', 'position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;transition:opacity .5s')
-    const hasPriceList = modules.some((m) => m.type === 'price-list')
+    // 1. Dibujar cada módulo una vez (el encabezado aparte: se repite en cada página).
+    let header: HTMLElement | null = null
+    const items: Array<{ m: ResolvedModule; el: HTMLElement }> = []
     for (const m of modules) {
       const el = await renderModule(m).catch(() => null)
       if (!el) continue
-      // Alto natural primero (el texto nunca se recorta); lo que sobra se
-      // reparte según el peso. Solo la lista de precios y las grillas ceden
-      // alto si no entra todo (recortan filas, no textos a la mitad).
-      // Con lista de precios, el resto queda en su alto natural y la lista se lleva lo que sobra.
-      const w = hasPriceList && m.type !== 'price-list' ? 0 : WEIGHT[m.type]
-      const shrinks = m.type === 'price-list' || m.type === 'product-grid' || m.type === 'drinks-row' || m.type === 'illustration-block'
-      el.style.flex = `${w} ${shrinks ? 1 : 0} ${m.type === 'price-list' ? '0' : 'auto'}`
-      el.style.minHeight = shrinks ? '0' : ''
-      view.append(el)
+      el.style.overflow = 'hidden' // nada se sale de su módulo
+      if (m.type === 'brand-header' && !header) header = el
+      else if (m.type !== 'brand-header') items.push({ m, el })
     }
+    if (cancelled) return
+    if (!items.length) { finish(true); return }
+
+    // 2. Medir el alto natural de cada uno (oculto) y repartir en páginas.
+    const probe = h('div', 'position:absolute;inset:0;visibility:hidden;display:flex;flex-direction:column;pointer-events:none')
+    if (header) { header.style.flex = '0 0 auto'; probe.append(header) }
+    for (const it of items) { it.el.style.flex = '0 0 auto'; probe.append(it.el) }
+    o.host.append(probe)
+    const available = o.host.clientHeight || window.innerHeight
+    const headerH = header ? header.offsetHeight : 0
+    const heights = items.map((it) => it.el.offsetHeight)
+    probe.remove()
+    const pages = packModules(heights, Math.max(available - headerH, available * 0.4))
+
+    // 3. Cada página: encabezado + sus módulos. Lo que sobra se reparte por peso;
+    //    con lista de precios, la lista se lleva lo que sobra.
+    const views = pages.map((idxs, pi) => {
+      const view = h('div', 'position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;transition:opacity .5s')
+      if (header) view.append(pi === 0 ? header : (header.cloneNode(true) as HTMLElement))
+      const pageItems = idxs.map((i) => items[i])
+      const hasPriceList = pageItems.some((it) => it.m.type === 'price-list')
+      const alone = pageItems.length === 1
+      for (const it of pageItems) {
+        // Sola en su página (y no es una lista): centrada en su alto natural, no estirada.
+        const centered = alone && it.m.type !== 'price-list' && it.m.type !== 'product-grid'
+        const w = centered || (hasPriceList && it.m.type !== 'price-list') ? 0 : WEIGHT[it.m.type]
+        if (centered) { it.el.style.marginTop = 'auto'; it.el.style.marginBottom = 'auto' }
+        // Solo cede alto si está sola en la página y aun así no entra (lista larga).
+        const shrinks = alone || it.m.type === 'price-list'
+        it.el.style.flex = `${w} ${shrinks ? 1 : 0} auto`
+        it.el.style.minHeight = centered ? '60%' : shrinks ? '0' : ''
+        view.append(it.el)
+      }
+      if (pages.length > 1) view.append(h('div', 'position:absolute;left:50%;bottom:1.4vmin;transform:translateX(-50%);display:flex;gap:1vmin', pages.map((_, k) =>
+        h('span', `width:1.4vmin;height:1.4vmin;border-radius:50%;background:${k === pi ? colors.accent : colors.muted};opacity:${k === pi ? 1 : 0.35}`))))
+      return view
+    })
     if (wantsGlobalQr && !qrPlaced) {
       const qr = await qrBadge(o.orderUrl, colors as BoardColors)
-      if (qr) view.append(qr)
+      if (qr) for (const v of views) v.append(qr.cloneNode(true))
     }
-    if (o.freshness === 'stale') view.append(h('div', `position:absolute;left:4vmin;bottom:1vmin;font-size:1.9vmin;color:${colors.muted}`, ['Sujeto a disponibilidad. Consultá en el mostrador.']))
+    if (o.freshness === 'stale') for (const v of views) v.append(h('div', `position:absolute;left:4vmin;bottom:1vmin;font-size:1.9vmin;color:${colors.muted}`, ['Sujeto a disponibilidad. Consultá en el mostrador.']))
     if (cancelled) return
-    o.host.append(view)
-    requestAnimationFrame(() => { view.style.opacity = '1' })
-    o.host.style.opacity = '1'
-    o.onShown()
-    timer = setTimeout(() => finish(true), o.board.pageMs)
+
+    // 4. Mostrar las páginas en orden, pageMs cada una.
+    const show = (k: number) => {
+      if (cancelled) return
+      const view = views[k]
+      o.host.append(view)
+      requestAnimationFrame(() => { view.style.opacity = '1' })
+      for (const old of [...o.host.children]) if (old !== view) setTimeout(() => old.remove(), 600)
+      if (k === 0) { o.host.style.opacity = '1'; o.onShown() }
+      timer = setTimeout(() => (k + 1 < views.length ? show(k + 1) : finish(true)), o.board.pageMs)
+    }
+    show(0)
   }
 
   void render()
