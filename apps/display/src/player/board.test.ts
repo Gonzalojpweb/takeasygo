@@ -132,3 +132,26 @@ describe('lo más pedido', () => {
     expect(featuredVisible(b, MON_13, TZ).map((p) => p.id)).toEqual(['2', '4'])
   })
 })
+
+describe('composiciones', () => {
+  const comp = (modules: any[]) => ({ kind: 'composition' as const, style: 'dark' as const, pageMs: 10000, brand: { name: 'A', logo: null, primary: '#E85D2A', background: null, text: null, fontHeading: null, fontBody: null, fontFiles: [] }, modules })
+  const cp = (over: any = {}) => ({ ...prod(over), badge: null })
+  it('saca lo pausado, fuera de horario y la promo fuera de franja; un módulo vacío desaparece', async () => {
+    const { compositionVisible } = await import('./board')
+    const b = comp([
+      { type: 'brand-header', config: { tagline: '', showLogo: true } },
+      { type: 'hero-product', config: { badge: '' }, product: cp({ available: false }) },
+      { type: 'product-grid', config: { showDescriptions: false }, products: [cp({ id: 'a' }), cp({ id: 'b', schedules: [[{ days: [5], from: '20:00', to: '23:00' }]] })] },
+      { type: 'promo-banner', config: { headline: '' }, promo: { id: 'p', title: 'P', text: null, image: null, price: 1, originalPrice: null, percent: null, startsAt: null, endsAt: null, days: [5], from: null, to: null } },
+      { type: 'price-list', sections: [{ id: 's', name: 'Vinos', parent: null, products: [{ id: 'v', name: 'Malbec', price: 100, fromPrice: false, available: false, schedules: [] }] }] },
+      { type: 'qr-cta', config: { headline: 'x', subtext: '' } },
+    ])
+    const v = compositionVisible(b, MON_13, TZ)
+    expect(v.map((m) => m.type)).toEqual(['brand-header', 'product-grid', 'qr-cta'])
+    expect((v[1] as any).products.map((p: any) => p.id)).toEqual(['a'])
+  })
+  it('solo encabezado y QR no alcanza: no se muestra', async () => {
+    const { compositionVisible } = await import('./board')
+    expect(compositionVisible(comp([{ type: 'brand-header', config: { tagline: '', showLogo: true } }, { type: 'qr-cta', config: { headline: 'x', subtext: '' } }]), MON_13, TZ)).toEqual([])
+  })
+})

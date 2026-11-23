@@ -19,6 +19,7 @@
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import mongoose from 'mongoose'
+import { compositionConfigSchema } from '@/lib/display/composition-schema'
 
 const OID = (v: string) => mongoose.Types.ObjectId.isValid(v)
 
@@ -71,11 +72,13 @@ export const templateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('menu'), config: menuConfigSchema }),
   z.object({ kind: z.literal('promos'), config: promosConfigSchema }),
   z.object({ kind: z.literal('featured'), config: featuredConfigSchema }),
+  // Élite · composiciones con módulos (lib/display/composition.ts). Conviven con las demás.
+  z.object({ kind: z.literal('composition'), config: compositionConfigSchema }),
 ])
 export type TemplateInput = z.infer<typeof templateSchema>
 
 /** Plantillas que dependen de la carta de UNA sede (las demás pueden ir a todas las sedes). */
-export const TEMPLATES_NEED_LOCATION = new Set(['menu', 'featured'])
+export const TEMPLATES_NEED_LOCATION = new Set(['menu', 'featured', 'composition'])
 
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -146,7 +149,7 @@ export interface MenuBoard {
 
 // ── Armado ──────────────────────────────────────────────────────────────────
 
-type AnyDoc = Record<string, any>
+export type AnyDoc = Record<string, any>
 
 const HEX = /^#[0-9a-f]{6}$/i
 const cleanColor = (c: unknown): string | null => (typeof c === 'string' && HEX.test(c.trim()) ? c.trim() : null)
@@ -160,7 +163,7 @@ export function boardImageUrl(url: unknown, w: number, h: number, mode: 'fill' |
   return `${m[1]}${t}/${m[2]}`
 }
 
-function slotsOf(node: AnyDoc): Slot[] | null {
+export function slotsOf(node: AnyDoc): Slot[] | null {
   if (node?.availabilityMode !== 'scheduled') return null
   const list = Array.isArray(node.availabilitySchedule) ? node.availabilitySchedule : []
   return list
@@ -168,7 +171,7 @@ function slotsOf(node: AnyDoc): Slot[] | null {
     .map((s: AnyDoc) => ({ days: (Array.isArray(s.days) ? s.days : []).filter((d: unknown) => Number.isInteger(d)), from: s.timeStart, to: s.timeEnd }))
 }
 
-function priceOf(item: AnyDoc, channel: MenuConfig['priceChannel']): { price: number; fromPrice: boolean; originalPrice: number | null } {
+export function priceOf(item: AnyDoc, channel: MenuConfig['priceChannel']): { price: number; fromPrice: boolean; originalPrice: number | null } {
   const disabled = new Set<string>(Array.isArray(item.disabledVariantNames) ? item.disabledVariantNames : [])
   const variants = (Array.isArray(item.variants) ? item.variants : []).filter((v: AnyDoc) => !disabled.has(v?.name))
   const pick = (n: AnyDoc) => (channel === 'takeaway' ? (n.takeawayPrice ?? n.price) : n.price)

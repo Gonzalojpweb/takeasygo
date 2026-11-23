@@ -189,7 +189,65 @@ export function featuredVisible(b: FeaturedBoard, nowMs: number, timeZone?: stri
   return b.products.filter((p) => productState(p, { unavailable: 'hide' }, nowMs, timeZone) === 'show').slice(0, b.maxItems)
 }
 
-export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard
+// ── Composiciones (Élite) ───────────────────────────────────────────────────
+
+export interface CompositionProduct extends BoardProduct { badge: string | null }
+export interface CompositionCombo { id: string; name: string; description: string | null; price: number | null; image: string | null; includes: string[] }
+export interface CompositionRow { id: string; name: string; price: number; fromPrice: boolean; available: boolean; schedules: Slot[][] }
+export interface CompositionSection { id: string; name: string; parent: string | null; products: CompositionRow[] }
+export type ResolvedModule =
+  | { type: 'brand-header'; config: { tagline: string; showLogo: boolean } }
+  | { type: 'hero-product'; config: { badge: string }; product: CompositionProduct | null }
+  | { type: 'product-grid'; config: { showDescriptions: boolean }; products: CompositionProduct[] }
+  | { type: 'combo-highlight'; config: { badge: string }; combo: CompositionCombo | null }
+  | { type: 'promo-banner'; config: { headline: string }; promo: BoardPromo | null }
+  | { type: 'drinks-row'; products: CompositionProduct[] }
+  | { type: 'price-list'; sections: CompositionSection[] }
+  | { type: 'illustration-block'; config: { text: string; imagePosition: 'left' | 'right' | 'top' | 'bottom' }; imageUrl: string | null }
+  | { type: 'qr-cta'; config: { headline: string; subtext: string } }
+export interface CompositionBoard {
+  kind: 'composition'
+  showQr?: boolean
+  style: 'brand' | 'dark' | 'light'
+  pageMs: number
+  brand: MenuBoard['brand'] & { fontHeading: string | null; fontBody: string | null; fontFiles: Array<{ family: string; url: string; role: 'heading' | 'body' }> }
+  modules: ResolvedModule[]
+}
+
+const showNow = (p: { available: boolean; schedules: Slot[][] }, nowMs: number, tz?: string | null) =>
+  p.available && p.schedules.every((slots) => slotsOpen(slots, nowMs, tz))
+
+/**
+ * Módulos a dibujar AHORA (también sin internet): lo pausado o fuera de
+ * horario se saca; la promo vencida o fuera de franja, también. Un módulo que
+ * se queda sin nada desaparece y el resto ocupa su lugar.
+ */
+export function compositionVisible(b: CompositionBoard, nowMs: number, tz?: string | null): ResolvedModule[] {
+  const out: ResolvedModule[] = []
+  for (const m of b.modules) {
+    switch (m.type) {
+      case 'hero-product': if (m.product && showNow(m.product, nowMs, tz)) out.push(m); break
+      case 'product-grid': case 'drinks-row': {
+        const products = m.products.filter((p) => showNow(p, nowMs, tz))
+        if (products.length) out.push({ ...m, products } as ResolvedModule)
+        break
+      }
+      case 'combo-highlight': if (m.combo) out.push(m); break
+      case 'promo-banner': if (m.promo && promoActive(m.promo, nowMs, tz)) out.push(m); break
+      case 'price-list': {
+        const sections = m.sections.map((s) => ({ ...s, products: s.products.filter((p) => showNow(p, nowMs, tz)) })).filter((s) => s.products.length)
+        if (sections.length) out.push({ ...m, sections })
+        break
+      }
+      case 'illustration-block': if (m.imageUrl || m.config.text) out.push(m); break
+      default: out.push(m)
+    }
+  }
+  // Solo encabezado o solo QR no alcanza para ocupar la pantalla.
+  return out.some((m) => m.type !== 'brand-header' && m.type !== 'qr-cta') ? out : []
+}
+
+export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
 
 /**
  * ¿La promo vale ahora en la sede? Fechas (ventana efectiva que manda el

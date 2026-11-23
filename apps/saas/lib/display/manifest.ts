@@ -24,6 +24,9 @@ import { buildMenuBoard, boardAssets, boardHash, estimateBoardMs, parseMenuConfi
 import Promotion from '@/models/Promotion'
 import { buildFeaturedBoard, featuredAssets, sellableCombos, topItemIds, type FeaturedBoard } from '@/lib/display/featured'
 import { parseFeaturedConfig } from '@/lib/display/templates'
+import { buildCompositionBoard, compositionAssets, compositionHasContent, googleFamiliesToResolve, type CompositionBoard } from '@/lib/display/composition'
+import { parseCompositionConfig } from '@/lib/display/composition-schema'
+import { resolveGoogleFonts } from '@/lib/display/fonts'
 import Location from '@/models/Location'
 import { effectiveScheduleWindow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
@@ -43,7 +46,7 @@ export interface ManifestItem {
   bytes: number | null
   daypart: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Solo plantillas: datos para dibujarla y archivos (fotos, logo) a guardar. */
-  template?: MenuBoard | PromoBoard | FeaturedBoard
+  template?: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
   assets?: string[]
 }
 
@@ -97,6 +100,8 @@ export interface TemplateCtx {
   promos: Record<string, any>[]
   ranking: string[]
   combos: Record<string, any>[]
+  /** URL del archivo de las fuentes de Google de la marca (composiciones). */
+  fonts: Record<string, string | null>
   timezone: string
   orientation: DisplayOrientation
 }
@@ -111,7 +116,7 @@ function maxDiscountPercent(p: Record<string, any>): number | null {
 /** Pieza automática → ítem del manifiesto (datos resueltos con la sede del equipo). */
 export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | null {
   if (!ctx.tenant) return null
-  let board: MenuBoard | PromoBoard | FeaturedBoard
+  let board: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
   let assets: string[]
   let durationMs: number
   if (p.screenTemplate?.kind === 'menu') {
@@ -126,6 +131,13 @@ export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | nu
     const b = buildFeaturedBoard(ctx.menu, ctx.tenant, parseFeaturedConfig(p.screenTemplate.config), ctx.ranking, ctx.combos)
     if (!b.products.length && !b.combos.length) return null
     board = b; assets = featuredAssets(b); durationMs = (b.combos.length ? 2 : 1) * b.pageMs
+  } else if (p.screenTemplate?.kind === 'composition') {
+    const cfg = parseCompositionConfig(p.screenTemplate.config)
+    if (!cfg) return null // config rota: se saltea esta pieza, nunca se cae el manifiesto
+    const promoBoard = buildPromoBoard(ctx.promos, ctx.tenant, parsePromosConfig({}), (s, e) => effectiveScheduleWindow(s as Date, e as Date, ctx.timezone), maxDiscountPercent)
+    const b = buildCompositionBoard(ctx.menu, ctx.tenant, cfg, ctx.combos, promoBoard.promos, ctx.fonts)
+    if (!compositionHasContent(b)) return null
+    board = b; assets = compositionAssets(b); durationMs = b.pageMs
   } else {
     return null
   }
@@ -195,12 +207,12 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     const tenantId = new mongoose.Types.ObjectId(String(device.tenantId))
     const locationId = device.locationId ? new mongoose.Types.ObjectId(String(device.locationId)) : null
     const [menu, tenant, loc, promos] = await Promise.all([
-      (kinds.has('menu') || kinds.has('featured')) && locationId
+      (kinds.has('menu') || kinds.has('featured') || kinds.has('composition')) && locationId
         ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
         : null,
-      Tenant.findById(String(device.tenantId)).select('name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor').lean<Record<string, any>>(),
+      Tenant.findById(String(device.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
       locationId ? Location.findById(locationId).select('timezone').lean<{ timezone?: string }>() : null,
-      kinds.has('promos')
+      (kinds.has('promos') || kinds.has('composition'))
         ? Promotion.find({
           tenantId,
           scope: { $ne: 'global' },
@@ -218,11 +230,13 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
         : [],
     ])
     const timezone = loc?.timezone || 'America/Argentina/Buenos_Aires'
-    const wantsFeatured = kinds.has('featured') && !!locationId
-    const [ranking, combos] = wantsFeatured
-      ? await Promise.all([topItemIds(tenantId, locationId), sellableCombos(tenantId, locationId, menu ?? null, timezone)])
-      : [[], []]
-    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, timezone, orientation: device.orientation }
+    const wantsCombos = (kinds.has('featured') || kinds.has('composition')) && !!locationId
+    const [ranking, combos, fonts] = await Promise.all([
+      kinds.has('featured') && locationId ? topItemIds(tenantId, locationId) : [],
+      wantsCombos ? sellableCombos(tenantId, locationId, menu ?? null, timezone) : [],
+      kinds.has('composition') && tenant ? resolveGoogleFonts(googleFamiliesToResolve(tenant)) : {},
+    ])
+    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, fonts, timezone, orientation: device.orientation }
   }
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))

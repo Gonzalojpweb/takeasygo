@@ -24,10 +24,11 @@ import { getManifest, postJson } from './api'
 import { store, StatsAccumulator, type StatsBatch } from './store'
 import { playableItems, chooseQuality, canDecode1080Smooth, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
 import { CURRENT_BUILD } from '../build'
-import { activePromos, boardFreshness, boardPages, featuredVisible } from './board'
+import { activePromos, boardFreshness, boardPages, compositionVisible, featuredVisible } from './board'
 import { playMenuBoard } from './templates/menu-board'
 import { playPromoBoard } from './templates/promo-board'
 import { playFeaturedBoard } from './templates/featured-board'
+import { playCompositionBoard } from './templates/composition-board'
 import { mountControls } from './controls'
 import { showDetail, type TapInfo } from './templates/detail'
 import { boardColors } from './board'
@@ -140,6 +141,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     if (i.kind !== 'template') return cached.has(urlFor(i, quality))
     if (!i.template || freshness() === 'expired') return false
     if (i.template.kind === 'promos') return activePromos(i.template, correctedNow(), manifest?.timezone).length > 0
+    if (i.template.kind === 'composition') return compositionVisible(i.template, correctedNow(), manifest?.timezone).length > 0
     if (i.template.kind === 'featured') return featuredVisible(i.template, correctedNow(), manifest?.timezone).length > 0 || i.template.combos.length > 0
     return boardPages(i.template, correctedNow(), manifest?.timezone, 100).length > 0
   }
@@ -345,7 +347,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       ? playPromoBoard({ ...common, board: tpl })
       : tpl.kind === 'featured'
         ? playFeaturedBoard({ ...common, board: tpl })
-        : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
+        : tpl.kind === 'composition'
+          ? playCompositionBoard({ ...common, board: tpl })
+          : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
     // Tope: una vuelta de la carta nunca frena la pantalla más de 10 min.
     guard = setTimeout(() => cancel(), 10 * 60_000)
   }
