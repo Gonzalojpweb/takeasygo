@@ -397,11 +397,19 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
     const items: Array<{ m: ResolvedModule; el: HTMLElement }> = []
     // Una lista de precios larga se parte por secciones (de a 2 en horizontal):
     // así sigue en la página siguiente en lugar de saltar entera.
+    // Una sección larga (más de 6 filas) se parte en tandas con el mismo título.
+    const ROWS = 6
     const expanded: ResolvedModule[] = modules.flatMap((m) => {
-      if (m.type !== 'price-list' || m.sections.length <= 1) return [m]
+      if (m.type !== 'price-list') return [m]
+      const chunks = m.sections.flatMap((sec) => {
+        if (sec.products.length <= ROWS) return [sec]
+        const parts = []
+        for (let i = 0; i < sec.products.length; i += ROWS) parts.push({ ...sec, products: sec.products.slice(i, i + ROWS) })
+        return parts
+      })
       const per = portrait ? 1 : 2
       const out: ResolvedModule[] = []
-      for (let i = 0; i < m.sections.length; i += per) out.push({ ...m, sections: m.sections.slice(i, i + per) })
+      for (let i = 0; i < chunks.length; i += per) out.push({ ...m, sections: chunks.slice(i, i + per) })
       return out
     })
     for (const m of expanded) {
