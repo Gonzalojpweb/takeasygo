@@ -18,6 +18,11 @@ export default defineConfig({
     // pos-cash-control, inventory-v3 (31/10/2026). Un límite por test persigue
     // síntomas; este es global y sigue cortando un test realmente colgado.
     testTimeout: 30_000,
+    // Windows (PC de desarrollo, 4 núcleos): con todos los archivos en paralelo
+    // cada uno levanta su mongod y el barrido de aislamiento pasaba de ~30 s a
+    // >15 min; al cortarlo, el cierre de mongod fallaba con EPERM y la corrida
+    // no terminaba (22/11/2026). Dos a la vez alcanza. En CI (Linux) no cambia.
+    ...(process.platform === 'win32' ? { maxWorkers: 2 } : {}),
   },
   resolve: {
     alias: {
