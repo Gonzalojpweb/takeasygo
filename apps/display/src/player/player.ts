@@ -255,9 +255,23 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     stage.replaceChildren(idle)
   }
 
+  // Pestaña oculta (otra ventana encima, pantalla apagada o suspendida): Chrome
+  // pausa los videos sin sonido para ahorrar energía. No se arranca nada nuevo
+  // hasta que vuelva a verse; no es un error de la pieza.
+  let waitingVisible = false
+  const whenVisible = () => {
+    if (waitingVisible) return
+    waitingVisible = true
+    const go = () => { if (document.visibilityState !== 'visible') return; document.removeEventListener('visibilitychange', go); waitingVisible = false; void playNext() }
+    document.addEventListener('visibilitychange', go)
+  }
+  /** play() rechazado por ahorro de energía o por pestaña oculta (no por el archivo). */
+  const powerSaving = (e: unknown) => document.visibilityState === 'hidden' || (e as Error)?.name === 'AbortError' || /power|background|interrupted/i.test(String((e as Error)?.message ?? ''))
+
   async function playNext() {
     if (stopped) return
     if (reloadReason) { await flushStats(true); location.reload(); return }
+    if (document.visibilityState === 'hidden') { whenVisible(); return }
     const item = pickNext()
     if (!item || manifest?.paused) { currentId = null; showIdle(); later(playNext, IDLE_RETRY_MS); return }
     currentId = item.id
@@ -269,11 +283,13 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s'
     let shownAt = 0
     let finished = false
-    const done = (ok: boolean, reason?: string) => {
+    const done = (ok: boolean | 'skip', reason?: string) => {
       if (finished) return
       finished = true
+      document.removeEventListener('visibilitychange', resume)
       if (shownAt) stats.addTime(item.id, performance.now() - shownAt)
-      if (ok) { stats.addPlay(item.id); errorStreak.delete(item.id) }
+      if (ok === 'skip') { /* ahorro de energía o pestaña oculta: ni error ni penalización */ }
+      else if (ok) { stats.addPlay(item.id); errorStreak.delete(item.id) }
       else {
         stats.addError(item.id)
         reportError('playback', `${item.id}: ${reason ?? 'error'}`)
@@ -291,17 +307,21 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       for (const old of [...stage.children]) if (old !== el) setTimeout(() => old.remove(), 450)
     }
 
+    // Si Chrome pausó el video con la pestaña oculta, al volver sigue.
+    const resume = () => { if (document.visibilityState === 'visible' && el instanceof HTMLVideoElement && el.paused && !finished) el.play().catch(() => {}) }
+    document.addEventListener('visibilitychange', resume)
+
     if (el instanceof HTMLVideoElement) {
       el.muted = true; el.playsInline = true; el.setAttribute('playsinline', ''); el.preload = 'auto'
       el.addEventListener('playing', () => { if (!shownAt) onShown() }, { once: true })
       el.addEventListener('ended', () => done(true))
       el.addEventListener('error', () => done(false, `MEDIA_ERR_${el.error?.code ?? 0}`))
       // Tope: duración informada + 3 s (un video trabado no frena la pantalla).
-      setTimeout(() => { if (!finished) done(!!shownAt, 'tiempo excedido') }, item.durationMs + 3000)
-      setTimeout(() => { if (!shownAt && !finished) done(false, 'no arrancó en 10 s') }, 10_000)
+      setTimeout(() => { if (!finished) done(document.visibilityState === 'hidden' ? 'skip' : !!shownAt, 'tiempo excedido') }, item.durationMs + 3000)
+      setTimeout(() => { if (!shownAt && !finished) done(document.visibilityState === 'hidden' ? 'skip' : false, 'no arrancó en 10 s') }, 10_000)
       el.src = objUrl
       stage.append(el)
-      el.play().catch((e) => done(false, `play: ${(e as Error).message}`))
+      el.play().catch((e) => done(powerSaving(e) ? 'skip' : false, `play: ${(e as Error).message}`))
     } else {
       el.alt = ''
       el.addEventListener('load', () => { onShown(); setTimeout(() => done(true), item.durationMs) }, { once: true })
