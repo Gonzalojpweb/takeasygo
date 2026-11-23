@@ -23,6 +23,12 @@ import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
 import Promotion from '@/models/Promotion'
+import Order from '@/models/Order'
+import Combo from '@/models/Combo'
+import PlacementDailyStat from '@/models/PlacementDailyStat'
+import { GET as attribution } from '@/app/api/[tenant]/displays/attribution/route'
+import { __clearTopCache } from '@/lib/display/featured'
+import { dayInArgentina } from '@/lib/placements/ingest'
 import AppStory from '@/models/AppStory'
 import DisplayDevice from '@/models/DisplayDevice'
 import { GET as listPieces } from '@/app/api/[tenant]/screen-pieces/route'
@@ -260,5 +266,63 @@ describe('promos por horario', () => {
     asUser('admin', A)
     expect((await createBoard(promosPiece({}, null))).status).toBe(201)
     expect((await createBoard({ ...board(), locationId: null })).status).toBe(400)
+  })
+})
+
+describe('lo más pedido y QR con atribución', () => {
+  const feat = (config: Record<string, unknown> = {}) => ({ title: 'Top', locationId: String(locA1._id), template: { kind: 'featured', config } })
+  let seq = 0
+  const order = (extra: Record<string, unknown>) => ({ tenantId: A._id, locationId: locA1._id, orderNumber: ++seq, status: 'delivered', total: 100000, createdAt: new Date(), items: [], ...extra })
+
+  beforeEach(() => __clearTopCache())
+
+  it('ranking de la sede (14 días, sin cancelados), destacados después, combos vendibles; sin pausados', async () => {
+    asUser('admin', A)
+    await Order.collection.insertMany([
+      order({ items: [{ menuItemId: ids.coca, quantity: 5 }, { menuItemId: ids.fugazza, quantity: 1 }] }),
+      order({ items: [{ menuItemId: ids.fugazza, quantity: 3 }] }),
+      order({ items: [{ menuItemId: ids.agua, quantity: 50 }] }),
+      order({ status: 'cancelled', items: [{ menuItemId: ids.flan, quantity: 99 }] }),
+      order({ createdAt: new Date(Date.now() - 20 * 86_400_000), items: [{ menuItemId: ids.flan, quantity: 99 }] }),
+      order({ locationId: locA2._id, items: [{ menuItemId: ids.flan, quantity: 99 }] }),
+    ])
+    await Combo.collection.insertOne({ tenantId: A._id, locationId: null, name: 'Combo pizza', priceMode: 'fixed', fixedPrice: 1500000, itemPool: [String(ids.fugazza)], isActive: true, minItems: 1, maxItems: 1, sortOrder: 0, createdAt: new Date() })
+    expect((await createBoard({ ...feat(), locationId: null })).status).toBe(400)
+    expect((await createBoard(feat())).status).toBe(201)
+    const m = await (await getManifest()).json()
+    const t = m.items[0].template
+    expect(t.kind).toBe('featured')
+    // Coca 5 > Fugazza 4; Agua está pausada pero el ranking la trae: la pantalla la oculta (available=false).
+    expect(t.products.slice(0, 3).map((p: any) => [p.name, p.reason])).toEqual([['Agua', 'top'], ['Coca', 'top'], ['Fugazza', 'top']])
+    expect(t.products.find((p: any) => p.name === 'Agua').available).toBe(false)
+    expect(t.products.find((p: any) => p.name === 'Muzza')).toMatchObject({ reason: 'featured' })
+    expect(t.products.find((p: any) => p.name === 'Flan')).toBeUndefined()
+    expect(t.combos).toEqual([expect.objectContaining({ name: 'Combo pizza', price: 1500000 })])
+  })
+
+  it('el manifiesto trae el QR al menú de la sede con el origen de la pantalla', async () => {
+    const m = await (await getManifest()).json()
+    expect(m.orderUrl).toBe(`https://www.takeasygo.com/sb-a/menu/a1?source=pantalla.${device._id}`)
+  })
+
+  it('reporte: pedidos por pantalla y por sede cruzados con reproducciones; solo agregados', async () => {
+    asUser('admin', A)
+    await Order.collection.insertMany([
+      order({ source: `pantalla.${device._id}`, total: 250000 }),
+      order({ source: `pantalla.${device._id}`, total: 150000 }),
+      order({ source: 'pantalla.123', total: 999 }),
+      order({ source: 'qr', total: 777 }),
+      order({ source: `pantalla.${device._id}`, status: 'cancelled', total: 5 }),
+    ])
+    await PlacementDailyStat.create({ day: dayInArgentina(new Date()), placement: 'screen', kind: 'app_story', pieceId: new mongoose.Types.ObjectId(), tenantId: A._id, locationId: locA1._id, c: { plays: 400 } })
+    const r = await attribution(json('/api/sb-a/displays/attribution?days=30', 'GET'), p('sb-a'))
+    expect(r.status).toBe(200)
+    const d = await r.json()
+    expect(d.totals).toMatchObject({ orders: 2, revenue: 400000, plays: 400 })
+    expect(d.devices[0]).toMatchObject({ name: 'TV', orders: 2, revenue: 400000, locationName: 'A1' })
+    expect(d.locations[0]).toMatchObject({ locationName: 'A1', plays: 400, orders: 2, ordersPer1000Plays: 5 })
+    expect(JSON.stringify(d)).not.toMatch(/phone|customer|email/i)
+    await Tenant.updateOne({ _id: A._id }, { plan: 'full' })
+    expect((await attribution(json('/api/sb-a/displays/attribution', 'GET'), p('sb-a'))).status).toBe(403)
   })
 })

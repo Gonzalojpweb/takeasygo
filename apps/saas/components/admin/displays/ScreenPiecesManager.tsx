@@ -9,18 +9,19 @@
 // 22/11/2026: piezas automáticas (carta en pantalla) en la misma lista.
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play, UtensilsCrossed, Clock } from 'lucide-react'
+import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play, UtensilsCrossed, Clock, Flame } from 'lucide-react'
 import { toast } from 'sonner'
 import AdsMediaUpload, { type AdsMediaValue } from '@/components/media/AdsMediaUpload'
 import MenuBoardForm, { type MenuBoardPiece } from './MenuBoardForm'
 import PromosBoardForm, { type PromosPiece } from './PromosBoardForm'
+import FeaturedBoardForm, { type FeaturedPiece } from './FeaturedBoardForm'
 
 interface Piece {
   _id: string
   title: string
   kind: 'image' | 'video' | 'template'
   url: string | null
-  template: MenuBoardPiece['template'] | PromosPiece['template']
+  template: MenuBoardPiece['template'] | PromosPiece['template'] | FeaturedPiece['template']
   posterUrl: string | null
   durationMs: number | null
   locationId: string | null
@@ -64,6 +65,8 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   /** Carta en pantalla: null = cerrado; 'new' = nueva; si no, la pieza a editar. */
   const [board, setBoard] = useState<Piece | 'new' | null>(null)
   const [promos, setPromos] = useState<Piece | 'new' | null>(null)
+  const [featured, setFeatured] = useState<Piece | 'new' | null>(null)
+  const closeAll = () => { setForm(null); setBoard(null); setPromos(null); setFeatured(null) }
 
   const load = useCallback(async () => {
     try {
@@ -79,8 +82,8 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   }, [tenantSlug, load])
 
   function edit(p: Piece) {
-    if (p.kind === 'template') { setForm(null); if (p.template?.kind === 'promos') { setBoard(null); setPromos(p) } else { setPromos(null); setBoard(p) } return }
-    setBoard(null); setPromos(null)
+    if (p.kind === 'template') { closeAll(); if (p.template?.kind === 'promos') setPromos(p); else if (p.template?.kind === 'featured') setFeatured(p); else setBoard(p); return }
+    closeAll()
     setForm({
       id: p._id, title: p.title,
       media: { kind: p.kind, url: p.url ?? '', posterUrl: p.posterUrl, durationMs: p.kind === 'video' ? p.durationMs : null, width: p.media?.width, height: p.media?.height, bytes: p.media?.bytes, publicId: p.media?.publicId },
@@ -151,7 +154,10 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
           </p>
         )}
         <div className="flex flex-col gap-2 sm:flex-row">
-          <button type="button" onClick={() => { setForm(null); setBoard(null); setPromos('new') }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary px-4 text-sm font-bold text-primary">
+          <button type="button" onClick={() => { closeAll(); setFeatured('new') }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary px-4 text-sm font-bold text-primary">
+            <Flame size={16} aria-hidden /> Lo más pedido
+          </button>
+          <button type="button" onClick={() => { closeAll(); setPromos('new') }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary px-4 text-sm font-bold text-primary">
             <Clock size={16} aria-hidden /> Promos por horario
           </button>
           <button type="button" onClick={() => { setForm(null); setPromos(null); setBoard('new') }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary px-4 text-sm font-bold text-primary">
@@ -171,6 +177,16 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
           piece={board === 'new' ? null : (board as MenuBoardPiece)}
           onClose={() => setBoard(null)}
           onSaved={() => { setBoard(null); load() }}
+        />
+      )}
+      {featured && (
+        <FeaturedBoardForm
+          key={featured === 'new' ? 'new-featured' : featured._id}
+          tenantSlug={tenantSlug}
+          locations={locations}
+          piece={featured === 'new' ? null : (featured as FeaturedPiece)}
+          onClose={() => setFeatured(null)}
+          onSaved={() => { setFeatured(null); load() }}
         />
       )}
       {promos && (
@@ -247,9 +263,9 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
                 {p.kind === 'template'
                   ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-neutral-800 to-neutral-950 p-4 text-center text-white">
-                      {p.template?.kind === 'promos' ? <Clock size={28} aria-hidden /> : <UtensilsCrossed size={28} aria-hidden />}
-                      <span className="text-sm font-semibold">{p.template?.kind === 'promos' ? 'Promos por horario' : 'Carta automática'}</span>
-                      <span className="text-xs text-white/70">{p.template?.kind === 'promos'
+                      {p.template?.kind === 'promos' ? <Clock size={28} aria-hidden /> : p.template?.kind === 'featured' ? <Flame size={28} aria-hidden /> : <UtensilsCrossed size={28} aria-hidden />}
+                      <span className="text-sm font-semibold">{p.template?.kind === 'promos' ? 'Promos por horario' : p.template?.kind === 'featured' ? 'Lo más pedido' : 'Carta automática'}</span>
+                      <span className="text-xs text-white/70">{p.template?.kind === 'featured' ? 'Ranking de la sede + combos' : p.template?.kind === 'promos'
                         ? `Hasta ${(p.template.config as { maxItems?: number }).maxItems ?? 6} promos vigentes por vuelta`
                         : `${(p.template?.config as { categoryIds?: string[] })?.categoryIds?.length ? `${(p.template!.config as { categoryIds: string[] }).categoryIds.length} categorías` : 'Toda la carta'} · ${(p.template?.config as { unavailable?: string })?.unavailable === 'mark' ? 'agotados marcados' : 'agotados ocultos'}`}</span>
                     </div>

@@ -39,6 +39,8 @@ export const menuConfigSchema = z.object({
   unavailable: z.enum(['hide', 'mark']).default('hide'),
   /** Segundos por página de productos. */
   pageSeconds: z.number().int().min(5).max(30).default(8),
+  /** QR «Pedí desde tu celular» con atribución a esta pantalla. */
+  showQr: z.boolean().default(true),
 })
 export type MenuConfig = z.infer<typeof menuConfigSchema>
 
@@ -49,17 +51,31 @@ export const promosConfigSchema = z.object({
   maxItems: z.number().int().min(1).max(12).default(6),
   showPrices: z.boolean().default(true),
   pageSeconds: z.number().int().min(5).max(30).default(8),
+  showQr: z.boolean().default(true),
 })
 export type PromosConfig = z.infer<typeof promosConfigSchema>
+
+// Entrega 3 · Lo más pedido y venta sugerida (lib/display/featured.ts).
+export const featuredConfigSchema = z.object({
+  style: z.enum(MENU_STYLES).default('brand'),
+  /** Productos por vuelta (los primeros disponibles del ranking). */
+  maxItems: z.number().int().min(3).max(12).default(6),
+  includeCombos: z.boolean().default(true),
+  priceChannel: z.enum(['dine-in', 'takeaway']).default('dine-in'),
+  pageSeconds: z.number().int().min(5).max(30).default(10),
+  showQr: z.boolean().default(true),
+})
+export type FeaturedConfig = z.infer<typeof featuredConfigSchema>
 
 export const templateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('menu'), config: menuConfigSchema }),
   z.object({ kind: z.literal('promos'), config: promosConfigSchema }),
+  z.object({ kind: z.literal('featured'), config: featuredConfigSchema }),
 ])
 export type TemplateInput = z.infer<typeof templateSchema>
 
 /** Plantillas que dependen de la carta de UNA sede (las demás pueden ir a todas las sedes). */
-export const TEMPLATES_NEED_LOCATION = new Set(['menu'])
+export const TEMPLATES_NEED_LOCATION = new Set(['menu', 'featured'])
 
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
@@ -118,6 +134,7 @@ export interface BoardBrand {
 
 export interface MenuBoard {
   kind: 'menu'
+  showQr: boolean
   style: MenuStyle
   showPhotos: boolean
   showDescriptions: boolean
@@ -231,6 +248,7 @@ export function buildMenuBoard(menu: AnyDoc | null, tenant: AnyDoc, config: Menu
 
   return {
     kind: 'menu',
+    showQr: config.showQr,
     style: config.style,
     showPhotos: config.showPhotos,
     showDescriptions: config.showDescriptions,
@@ -250,7 +268,7 @@ export function boardAssets(board: MenuBoard): string[] {
 }
 
 /** Huella del contenido: cambia el ETag del manifiesto cuando cambia un precio, una foto o una pausa. */
-export function boardHash(board: MenuBoard | PromoBoard): string {
+export function boardHash(board: object): string {
   return createHash('sha1').update(JSON.stringify(board)).digest('hex').slice(0, 16)
 }
 
@@ -283,6 +301,7 @@ export interface BoardPromo {
 
 export interface PromoBoard {
   kind: 'promos'
+  showQr: boolean
   style: MenuStyle
   showPrices: boolean
   maxItems: number
@@ -351,7 +370,7 @@ export function buildPromoBoard(
       to: from && to ? to : null,
     })
   }
-  return { kind: 'promos', style: config.style, showPrices: config.showPrices, maxItems: config.maxItems, pageMs: config.pageSeconds * 1000, brand: brandOf(tenant), promos: out.slice(0, 40) }
+  return { kind: 'promos', showQr: config.showQr, style: config.style, showPrices: config.showPrices, maxItems: config.maxItems, pageMs: config.pageSeconds * 1000, brand: brandOf(tenant), promos: out.slice(0, 40) }
 }
 
 export function promoAssets(board: PromoBoard): string[] {
@@ -359,6 +378,11 @@ export function promoAssets(board: PromoBoard): string[] {
   if (board.brand.logo) out.add(board.brand.logo)
   for (const p of board.promos) if (p.image) out.add(p.image)
   return [...out]
+}
+
+export function parseFeaturedConfig(raw: unknown): FeaturedConfig {
+  const r = featuredConfigSchema.safeParse(raw ?? {})
+  return r.success ? r.data : featuredConfigSchema.parse({})
 }
 
 export function parsePromosConfig(raw: unknown): PromosConfig {

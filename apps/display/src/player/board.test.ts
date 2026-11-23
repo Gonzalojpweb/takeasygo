@@ -117,3 +117,18 @@ describe('promos por horario', () => {
     expect(promoWhen(promo())).toBeNull()
   })
 })
+
+describe('lo más pedido', () => {
+  it('solo disponibles y en horario, en el orden del ranking, hasta el máximo', async () => {
+    const { featuredVisible } = await import('./board')
+    const b = { kind: 'featured' as const, style: 'dark' as const, maxItems: 2, pageMs: 8000, brand: { name: 'A', logo: null, primary: '#E85D2A', background: null, text: null }, combos: [],
+      products: [
+        { ...prod({ id: '1', available: false }), reason: 'top' as const },
+        { ...prod({ id: '2' }), reason: 'top' as const },
+        { ...prod({ id: '3', schedules: [[{ days: [5], from: '20:00', to: '23:00' }]] }), reason: 'top' as const },
+        { ...prod({ id: '4' }), reason: 'featured' as const },
+        { ...prod({ id: '5' }), reason: 'featured' as const },
+      ] }
+    expect(featuredVisible(b, MON_13, TZ).map((p) => p.id)).toEqual(['2', '4'])
+  })
+})

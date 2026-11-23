@@ -5,6 +5,7 @@ import { useState } from 'react'
 import DisplaysManager from './DisplaysManager'
 import ScreenPiecesManager from './ScreenPiecesManager'
 import MarketingMetrics from '@/components/marketing/MarketingMetrics'
+import ScreenAttribution from './ScreenAttribution'
 
 const TABS = [
   { id: 'devices', label: 'Pantallas' },
@@ -26,7 +27,12 @@ export default function DisplaysPanel({ tenantSlug, initialCode }: { tenantSlug:
       </div>
       {tab === 'devices' && <DisplaysManager tenantSlug={tenantSlug} initialCode={initialCode} />}
       {tab === 'content' && <ScreenPiecesManager tenantSlug={tenantSlug} />}
-      {tab === 'metrics' && <MarketingMetrics endpoint={`/api/${tenantSlug}/marketing-metrics`} />}
+      {tab === 'metrics' && (
+        <div className="space-y-4">
+          <ScreenAttribution tenantSlug={tenantSlug} />
+          <MarketingMetrics endpoint={`/api/${tenantSlug}/marketing-metrics`} />
+        </div>
+      )}
     </div>
   )
 }

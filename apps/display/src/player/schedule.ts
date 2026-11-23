@@ -45,6 +45,8 @@ export interface Manifest {
   device: { name: string; orientation: 'landscape' | 'portrait' }
   /** 'plan' = el comercio no tiene el plan que incluye Pantallas: en pausa, sin borrar lo guardado. */
   paused?: string | null
+  /** Menú de la sede con el origen de ESTA pantalla (QR «Pedí desde tu celular»). */
+  orderUrl?: string | null
   items: ManifestItem[]
 }
 

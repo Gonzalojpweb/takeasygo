@@ -6,6 +6,7 @@
 // Vertical: foto arriba. Solo las vigentes AHORA (board.ts → activePromos).
 // ============================================================================
 
+import { qrBadge } from './qr'
 import { activePromos, boardColors, formatPrice, promoWhen, type BoardPromo, type Freshness, type PromoBoard } from '../board'
 
 export interface PlayPromosOptions {
@@ -15,6 +16,7 @@ export interface PlayPromosOptions {
   timeZone?: string | null
   freshness: Freshness
   objectUrl: (url: string) => Promise<string | null>
+  orderUrl?: string | null
   onShown: () => void
   onDone: (ok: boolean, reason?: string) => void
 }
@@ -36,6 +38,7 @@ export function playPromoBoard(o: PlayPromosOptions): () => void {
   let urls: string[] = []
   let logoUrl: string | null = null
   let shown = false
+  let qr: HTMLElement | null = null
 
   o.host.style.cssText = `position:absolute;inset:0;background:${colors.bg};color:${colors.text};font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;opacity:0;transition:opacity .4s`
   const release = (l: string[]) => { for (const u of l) URL.revokeObjectURL(u) }
@@ -53,9 +56,11 @@ export function playPromoBoard(o: PlayPromosOptions): () => void {
     if (cancelled) return
     const p = list[i]
     if (o.board.brand.logo && !logoUrl) logoUrl = await o.objectUrl(o.board.brand.logo).catch(() => null)
+    if (i === 0 && o.board.showQr !== false) qr = await qrBadge(o.orderUrl, colors)
     const photo = p.image ? await o.objectUrl(p.image).catch(() => null) : null
     if (cancelled) { if (photo) URL.revokeObjectURL(photo); return }
     const view = page(p, photo)
+    if (qr) view.append(qr.cloneNode(true))
     view.style.opacity = '0'
     view.style.transition = 'opacity .5s'
     o.host.append(view)

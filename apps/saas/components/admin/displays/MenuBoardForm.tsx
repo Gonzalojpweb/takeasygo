@@ -20,6 +20,7 @@ export interface MenuBoardConfig {
   priceChannel: 'dine-in' | 'takeaway'
   unavailable: 'hide' | 'mark'
   pageSeconds: number
+  showQr: boolean
 }
 
 export interface MenuBoardPiece {
@@ -40,7 +41,7 @@ const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 const inputCls = 'w-full min-h-[44px] rounded-xl border border-border bg-background px-3 text-base sm:text-sm'
 const toLocalInput = (iso: string | null) => (iso ? new Date(new Date(iso).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '')
 
-const DEFAULTS: MenuBoardConfig = { categoryIds: [], style: 'brand', showPhotos: true, showDescriptions: false, priceChannel: 'dine-in', unavailable: 'hide', pageSeconds: 8 }
+const DEFAULTS: MenuBoardConfig = { categoryIds: [], style: 'brand', showPhotos: true, showDescriptions: false, priceChannel: 'dine-in', unavailable: 'hide', pageSeconds: 8, showQr: true }
 
 export default function MenuBoardForm({ tenantSlug, locations, piece, onClose, onSaved }: {
   tenantSlug: string
@@ -200,6 +201,7 @@ export default function MenuBoardForm({ tenantSlug, locations, piece, onClose, o
       </div>
       <div className="flex flex-wrap gap-x-6">
         <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" checked={config.showPhotos} onChange={(e) => set('showPhotos', e.target.checked)} className="h-5 w-5" /> Mostrar fotos</label>
+        <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" checked={config.showQr} onChange={(e) => set('showQr', e.target.checked)} className="h-5 w-5" /> QR para pedir</label>
         <label className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" checked={config.showDescriptions} onChange={(e) => set('showDescriptions', e.target.checked)} className="h-5 w-5" /> Mostrar descripciones</label>
       </div>
 

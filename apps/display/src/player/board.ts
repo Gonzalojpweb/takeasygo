@@ -32,6 +32,8 @@ export interface BoardSection { id: string; name: string; parent: string | null;
 
 export interface MenuBoard {
   kind: 'menu'
+  /** QR «Pedí desde tu celular» (la URL viene en el manifiesto, una por pantalla). */
+  showQr?: boolean
   style: 'brand' | 'dark' | 'light'
   showPhotos: boolean
   showDescriptions: boolean
@@ -158,6 +160,7 @@ export interface BoardPromo {
 
 export interface PromoBoard {
   kind: 'promos'
+  showQr?: boolean
   style: 'brand' | 'dark' | 'light'
   showPrices: boolean
   maxItems: number
@@ -166,7 +169,27 @@ export interface PromoBoard {
   promos: BoardPromo[]
 }
 
-export type ScreenBoard = MenuBoard | PromoBoard
+// ── Lo más pedido y venta sugerida (Entrega 3) ──────────────────────────────
+
+export interface FeaturedProduct extends BoardProduct { reason: 'top' | 'featured' }
+export interface FeaturedCombo { id: string; name: string; description: string | null; price: number | null; image: string | null }
+export interface FeaturedBoard {
+  kind: 'featured'
+  showQr?: boolean
+  style: 'brand' | 'dark' | 'light'
+  maxItems: number
+  pageMs: number
+  brand: MenuBoard['brand']
+  products: FeaturedProduct[]
+  combos: FeaturedCombo[]
+}
+
+/** Productos a mostrar ahora: disponibles y en horario, en el orden del ranking, hasta maxItems. */
+export function featuredVisible(b: FeaturedBoard, nowMs: number, timeZone?: string | null): FeaturedProduct[] {
+  return b.products.filter((p) => productState(p, { unavailable: 'hide' }, nowMs, timeZone) === 'show').slice(0, b.maxItems)
+}
+
+export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard
 
 /**
  * ¿La promo vale ahora en la sede? Fechas (ventana efectiva que manda el

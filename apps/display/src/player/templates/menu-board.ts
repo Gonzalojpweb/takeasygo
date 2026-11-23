@@ -8,6 +8,7 @@
 // caché del equipo (blob:); si una no está, el producto va sin foto.
 // ============================================================================
 
+import { qrInline } from './qr'
 import { boardColors, boardPages, formatPrice, perPage, type BoardPage, type Freshness, type MenuBoard } from '../board'
 
 export interface PlayBoardOptions {
@@ -19,6 +20,8 @@ export interface PlayBoardOptions {
   /** Última actualización correcta (para el aviso «sin actualizar desde…»). */
   lastOkMs: number | null
   objectUrl: (url: string) => Promise<string | null>
+  /** Menú de la sede con el origen de esta pantalla (QR). */
+  orderUrl?: string | null
   onShown: () => void
   onDone: (ok: boolean, reason?: string) => void
 }
@@ -60,6 +63,7 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
   let logoUrl: string | null = null
   let urls: string[] = []
   let shown = false
+  let qr: HTMLElement | null = null
 
   o.host.style.cssText = `position:absolute;inset:0;background:${colors.bg};color:${colors.text};font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;opacity:0;transition:opacity .4s`
 
@@ -91,6 +95,7 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
       return u
     }
     if (o.board.brand.logo && !logoUrl) logoUrl = await o.objectUrl(o.board.brand.logo).catch(() => null)
+    if (i === 0 && o.board.showQr !== false) qr = await qrInline(o.orderUrl)
     const photos = await Promise.all(page.products.map((p) => photo(p.product.image)))
     if (cancelled) { release(pageUrls); return }
 
@@ -123,7 +128,7 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
       ? h('div', 'display:flex;gap:1vmin;flex:none', Array.from({ length: page.pages }, (_, k) =>
         h('span', `width:1.6vmin;height:1.6vmin;border-radius:50%;background:${k + 1 === page.page ? colors.accent : colors.muted};opacity:${k + 1 === page.page ? 1 : 0.35}`)))
       : null
-    return h('header', `display:flex;align-items:center;gap:3vmin;padding:3vmin 4vmin 2vmin;border-bottom:.5vmin solid ${colors.accent}`, [logo, titles, dots])
+    return h('header', `display:flex;align-items:center;gap:3vmin;padding:3vmin 4vmin 2vmin;border-bottom:.5vmin solid ${colors.accent}`, [logo, titles, dots, qr ? (qr.cloneNode(true) as HTMLElement) : null])
   }
 
   function priceTag(p: BoardPage['products'][number]['product'], big: boolean): HTMLElement {

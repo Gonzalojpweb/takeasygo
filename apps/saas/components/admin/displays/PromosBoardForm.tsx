@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-export interface PromosConfig { style: 'brand' | 'dark' | 'light'; maxItems: number; showPrices: boolean; pageSeconds: number }
+export interface PromosConfig { style: 'brand' | 'dark' | 'light'; maxItems: number; showPrices: boolean; pageSeconds: number; showQr: boolean }
 export interface PromosPiece {
   _id: string
   title: string
@@ -20,7 +20,7 @@ export interface PromosPiece {
 interface Loc { _id: string; name: string }
 
 const inputCls = 'w-full min-h-[44px] rounded-xl border border-border bg-background px-3 text-base sm:text-sm'
-const DEFAULTS: PromosConfig = { style: 'brand', maxItems: 6, showPrices: true, pageSeconds: 8 }
+const DEFAULTS: PromosConfig = { style: 'brand', maxItems: 6, showPrices: true, pageSeconds: 8, showQr: true }
 
 export default function PromosBoardForm({ tenantSlug, locations, piece, onClose, onSaved }: {
   tenantSlug: string
@@ -82,6 +82,7 @@ export default function PromosBoardForm({ tenantSlug, locations, piece, onClose,
         <label className="text-sm font-medium">Segundos por promo
           <input type="number" min={5} max={30} value={config.pageSeconds} onChange={(e) => set('pageSeconds', Math.min(30, Math.max(5, Number(e.target.value) || 8)))} className={`${inputCls} mt-1`} />
         </label>
+        <label className="flex min-h-[44px] items-center gap-2 self-end text-sm"><input type="checkbox" checked={config.showQr} onChange={(e) => set('showQr', e.target.checked)} className="h-5 w-5" /> QR para pedir</label>
         <label className="flex min-h-[44px] items-center gap-2 self-end text-sm"><input type="checkbox" checked={config.showPrices} onChange={(e) => set('showPrices', e.target.checked)} className="h-5 w-5" /> Mostrar precios</label>
       </div>
       <p className="text-xs text-muted-foreground">Primero van las promos destacadas y después el orden de Promociones.</p>

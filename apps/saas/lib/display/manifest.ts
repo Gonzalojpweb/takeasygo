@@ -22,6 +22,8 @@ import { screenUrls } from '@/lib/media/ads'
 import { SCREEN_IMAGE_DEFAULT_MS } from '@/lib/display/constants'
 import { buildMenuBoard, boardAssets, boardHash, estimateBoardMs, parseMenuConfig, buildPromoBoard, parsePromosConfig, promoAssets, type MenuBoard, type PromoBoard } from '@/lib/display/templates'
 import Promotion from '@/models/Promotion'
+import { buildFeaturedBoard, featuredAssets, sellableCombos, topItemIds, type FeaturedBoard } from '@/lib/display/featured'
+import { parseFeaturedConfig } from '@/lib/display/templates'
 import Location from '@/models/Location'
 import { effectiveScheduleWindow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
@@ -41,7 +43,7 @@ export interface ManifestItem {
   bytes: number | null
   daypart: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Solo plantillas: datos para dibujarla y archivos (fotos, logo) a guardar. */
-  template?: MenuBoard | PromoBoard
+  template?: MenuBoard | PromoBoard | FeaturedBoard
   assets?: string[]
 }
 
@@ -82,6 +84,8 @@ export interface TemplateCtx {
   menu: Record<string, any> | null
   tenant: Record<string, any> | null
   promos: Record<string, any>[]
+  ranking: string[]
+  combos: Record<string, any>[]
   timezone: string
   orientation: DisplayOrientation
 }
@@ -96,7 +100,7 @@ function maxDiscountPercent(p: Record<string, any>): number | null {
 /** Pieza automática → ítem del manifiesto (datos resueltos con la sede del equipo). */
 export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | null {
   if (!ctx.tenant) return null
-  let board: MenuBoard | PromoBoard
+  let board: MenuBoard | PromoBoard | FeaturedBoard
   let assets: string[]
   let durationMs: number
   if (p.screenTemplate?.kind === 'menu') {
@@ -107,6 +111,10 @@ export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | nu
     const b = buildPromoBoard(ctx.promos, ctx.tenant, parsePromosConfig(p.screenTemplate.config), (s, e) => effectiveScheduleWindow(s as Date, e as Date, ctx.timezone), maxDiscountPercent)
     if (!b.promos.length) return null
     board = b; assets = promoAssets(b); durationMs = Math.min(b.promos.length, b.maxItems) * b.pageMs
+  } else if (p.screenTemplate?.kind === 'featured') {
+    const b = buildFeaturedBoard(ctx.menu, ctx.tenant, parseFeaturedConfig(p.screenTemplate.config), ctx.ranking, ctx.combos)
+    if (!b.products.length && !b.combos.length) return null
+    board = b; assets = featuredAssets(b); durationMs = (b.combos.length ? 2 : 1) * b.pageMs
   } else {
     return null
   }
@@ -176,7 +184,7 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     const tenantId = new mongoose.Types.ObjectId(String(device.tenantId))
     const locationId = device.locationId ? new mongoose.Types.ObjectId(String(device.locationId)) : null
     const [menu, tenant, loc, promos] = await Promise.all([
-      kinds.has('menu') && locationId
+      (kinds.has('menu') || kinds.has('featured')) && locationId
         ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
         : null,
       Tenant.findById(String(device.tenantId)).select('name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor').lean<Record<string, any>>(),
@@ -198,7 +206,12 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
           .lean<Record<string, any>[]>()
         : [],
     ])
-    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, timezone: loc?.timezone || 'America/Argentina/Buenos_Aires', orientation: device.orientation }
+    const timezone = loc?.timezone || 'America/Argentina/Buenos_Aires'
+    const wantsFeatured = kinds.has('featured') && !!locationId
+    const [ranking, combos] = wantsFeatured
+      ? await Promise.all([topItemIds(tenantId, locationId), sellableCombos(tenantId, locationId, menu ?? null, timezone)])
+      : [[], []]
+    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, timezone, orientation: device.orientation }
   }
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))
