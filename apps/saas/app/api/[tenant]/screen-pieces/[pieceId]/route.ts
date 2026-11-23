@@ -11,6 +11,7 @@ import { logAudit } from '@/lib/audit'
 import { markSaved, cloudinaryAdsApi, adsAssetFromUrl } from '@/lib/media/ads'
 import { screenPiecesFilter, screenUsage } from '@/lib/display/quota'
 import { updatePieceSchema, mediaBelongsToTenant, pieceMediaFields, scheduleError } from '@/lib/display/pieces'
+import { templateSchema } from '@/lib/display/templates'
 import { SCREEN_MAX_ACTIVE_PIECES, SCREEN_MAX_LIBRARY_BYTES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation, type PiecesContext } from '@/lib/display/pieces-route'
 
@@ -35,10 +36,22 @@ async function load(request: NextRequest, ctx: Ctx) {
 export async function PATCH(request: NextRequest, ctx: Ctx) {
   const r = await load(request, ctx)
   if ('error' in r) return r.error
-  const parsed = updatePieceSchema.safeParse(await request.json().catch(() => null))
+  const raw = await request.json().catch(() => null)
+  const parsed = updatePieceSchema.safeParse(raw)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
   const b = parsed.data
   const { piece, c } = r
+  // Pieza automática: se edita su configuración; nunca recibe archivo, y la carta siempre es de una sede.
+  const isTemplate = !!piece.screenTemplate
+  let template: ReturnType<typeof templateSchema.parse> | null = null
+  if (raw && typeof raw === 'object' && 'template' in raw) {
+    if (!isTemplate) return NextResponse.json({ error: 'Esta pieza es un archivo subido' }, { status: 400 })
+    const t = templateSchema.safeParse((raw as Record<string, unknown>).template)
+    if (!t.success || t.data.kind !== piece.screenTemplate?.kind) return NextResponse.json({ error: t.success ? 'Tipo de pieza distinto' : t.error.issues[0]?.message ?? 'Configuración inválida' }, { status: 400 })
+    template = t.data
+  }
+  if (isTemplate && b.media) return NextResponse.json({ error: 'Una pieza automática no lleva archivo' }, { status: 400 })
+  if (isTemplate && b.locationId === null) return NextResponse.json({ error: 'La carta es de una sede: elegí cuál' }, { status: 400 })
 
   const startsAt = b.startsAt !== undefined ? b.startsAt : piece.scheduledStart?.toISOString() ?? null
   const endsAt = b.endsAt !== undefined ? b.endsAt : piece.scheduledEnd?.toISOString() ?? null
@@ -71,6 +84,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (b.daypart !== undefined) piece.set('daypart', b.daypart)
   if (b.isActive !== undefined) piece.isActive = b.isActive
   if (b.sortOrder !== undefined) piece.sortOrder = b.sortOrder
+  if (template) piece.set('screenTemplate', { kind: template.kind, config: template.config })
   await piece.save()
 
   if (b.media) {

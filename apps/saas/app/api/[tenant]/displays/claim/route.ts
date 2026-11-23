@@ -12,6 +12,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import DisplayDevice from '@/models/DisplayDevice'
+import { screensAllowed, screensLockedResponse } from '@/lib/display/plan'
 import { requireTenantRole, MANAGE_ROLES, getSessionUser } from '@/lib/apiAuth'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { rateLimit } from '@/lib/rateLimit'
@@ -32,10 +33,11 @@ const bodySchema = z.object({
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params
   await connectDB()
-  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id plan').lean<{ _id: mongoose.Types.ObjectId; plan?: string }>()
   if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
   const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
+  if (!screensAllowed(tenant.plan)) return screensLockedResponse()
   const user = await getSessionUser(request)
 
   const rl = await rateLimit(`display-claim:${user?.id ?? 'anon'}`, 10, 10 * 60_000)

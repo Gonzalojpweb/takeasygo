@@ -12,6 +12,7 @@ const K = {
   lastDailyReload: 'tgd:last-daily-reload',
   lastError: 'tgd:last-error',
   expectedMedia: 'tgd:expected-media',
+  manifestOkAt: 'tgd:manifest-ok-at',
 }
 
 function get(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
@@ -22,7 +23,7 @@ function getJson<T>(key: string): T | null { try { const r = get(key); return r 
 export const store = {
   token: () => get(K.token),
   setToken: (t: string) => set(K.token, t),
-  clearDevice: () => { del(K.token); del(K.manifest); del(K.pairing) },
+  clearDevice: () => { del(K.token); del(K.manifest); del(K.pairing); del(K.manifestOkAt) },
 
   /** Nonce al azar por vinculación (solo quien lo tiene retira el token). */
   nonce(): string {
@@ -53,6 +54,10 @@ export const store = {
   /** Cuántos archivos había guardados en la última sincronización (para detectar si el navegador los borró). */
   expectedMedia: () => Number(get(K.expectedMedia)) || 0,
   setExpectedMedia: (n: number) => set(K.expectedMedia, String(n)),
+
+  /** Última respuesta correcta del manifiesto (hora corregida, ms): define si la carta guardada sigue vigente sin internet. */
+  manifestOkAt: () => Number(get(K.manifestOkAt)) || null,
+  setManifestOkAt: (ms: number) => set(K.manifestOkAt, String(Math.round(ms))),
 
   lastError: () => getJson<{ code: string; message: string; at: string }>(K.lastError),
   setLastError: (code: string, message: string) => set(K.lastError, JSON.stringify({ code, message: message.slice(0, 200), at: new Date().toISOString() })),

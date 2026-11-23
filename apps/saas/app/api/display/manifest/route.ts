@@ -4,6 +4,7 @@
  * Solo piezas de pantalla del comercio del equipo (ver lib/display/manifest.ts).
  * ETag + If-None-Match → 304. Incluye serverTime para corregir la hora del
  * equipo y pollAfterS para el próximo pedido.
+ * Sin plan Élite: { paused: 'plan', items: [] } (pausa sin borrar).
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
@@ -12,6 +13,7 @@ import { deviceFromRequest } from '@/lib/display/auth'
 import { buildManifest } from '@/lib/display/manifest'
 import { MANIFEST_POLL_S } from '@/lib/display/constants'
 import Location from '@/models/Location'
+import { tenantScreensAllowed } from '@/lib/display/plan'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +23,23 @@ export async function GET(request: NextRequest) {
   if (!device) return NextResponse.json({ error: 'Pantalla no vinculada o revocada' }, { status: 401 })
   const rl = await rateLimit(`display-manifest:${String(device._id)}`, 120, 10 * 60_000)
   if (!rl.success) return NextResponse.json({ error: 'Demasiados pedidos' }, { status: 429 })
+
+  // Sin plan Élite: pausa (sin contenido, sin borrar nada). La pantalla sigue
+  // vinculada y muestra «en pausa»; al volver a Élite sigue sola.
+  if (!(await tenantScreensAllowed(device.tenantId))) {
+    const pausedEtag = 'W/"paused-plan"'
+    const headers = { ETag: pausedEtag, 'Cache-Control': 'private, no-cache' }
+    if (request.headers.get('if-none-match') === pausedEtag) return new NextResponse(null, { status: 304, headers })
+    return NextResponse.json({
+      version: pausedEtag,
+      serverTime: new Date().toISOString(),
+      pollAfterS: MANIFEST_POLL_S,
+      timezone: 'America/Argentina/Buenos_Aires',
+      device: { name: device.name, orientation: device.orientation },
+      paused: 'plan',
+      items: [],
+    }, { headers })
+  }
 
   const { items, etag } = await buildManifest(device)
   // Zona horaria de la sede: la franja horaria se evalúa ahí (no en la del equipo).

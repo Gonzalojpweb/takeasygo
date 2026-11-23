@@ -9,10 +9,13 @@ import Tenant from '@/models/Tenant'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { rateLimit } from '@/lib/rateLimit'
+import { screensAllowed } from '@/lib/display/plan'
 import { handleSign } from '@/lib/media/handlers'
 
 // Promos, tarjetas de la tienda del club e ícono de QrPromo (todas bajo promotions.write).
 const SURFACES = ['promo_card', 'club_card', 'qr_promo', 'screen'] as const
+// Pantallas (screen) solo con plan Élite.
+const surfacesFor = (plan?: string) => (screensAllowed(plan) ? SURFACES : SURFACES.filter((s) => s !== 'screen'))
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params
@@ -28,5 +31,5 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { success } = await rateLimit(`media-sign:${tenant._id}`, 60, 60_000)
   if (!success) return NextResponse.json({ error: 'Demasiados pedidos' }, { status: 429 })
   const body = await request.json().catch(() => null)
-  return handleSign({ kind: 'tenant', tenantId: tenant._id.toString() }, SURFACES, body)
+  return handleSign({ kind: 'tenant', tenantId: tenant._id.toString() }, surfacesFor(tenant.plan), body)
 }

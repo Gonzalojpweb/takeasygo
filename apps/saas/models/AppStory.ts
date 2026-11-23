@@ -7,6 +7,9 @@ export type AppStoryType = 'feature' | 'tutorial' | 'promotion' | 'announcement'
 // menu_story (ver lib/app-story-owner.ts → effectiveOwner/effectiveSurfaces).
 // 21/11/2026: 'screen' = pantallas del comercio (solo contenido propio; nunca story del menú).
 export type AppStorySurface = 'menu_story' | 'app_story' | 'home_banner' | 'screen'
+/** Plantillas de pantalla (lib/display/templates). Lista abierta: se suman por entrega. */
+export type ScreenTemplateKind = 'menu'
+
 export interface AppStoryOwner {
   kind: 'platform' | 'tenant'
   tenantId: mongoose.Types.ObjectId | null
@@ -42,6 +45,12 @@ export interface IAppStory {
   daypart?: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Pantallas: datos del archivo verificado (orientación, peso, variante 720p). */
   media?: { publicId?: string; width?: number; height?: number; bytes?: number; orientation?: 'landscape' | 'portrait' } | null
+  /**
+   * Pantallas (22/11/2026): pieza AUTOMÁTICA armada con los datos del comercio
+   * (carta, promos, club…). Sin archivo: el contenido se resuelve al armar el
+   * manifiesto (lib/display/templates). null = pieza subida (imagen o video).
+   */
+  screenTemplate?: { kind: ScreenTemplateKind; config: Record<string, unknown> } | null
   createdAt: Date
   updatedAt: Date
 }
@@ -133,6 +142,13 @@ const AppStorySchema = new Schema<IAppStory>(
         height: { type: Number, min: 0 },
         bytes: { type: Number, min: 0 },
         orientation: { type: String, enum: ['landscape', 'portrait'] },
+      }, { _id: false }),
+      default: null,
+    },
+    screenTemplate: {
+      type: new Schema({
+        kind: { type: String, enum: ['menu'], required: true },
+        config: { type: Schema.Types.Mixed, default: {} },
       }, { _id: false }),
       default: null,
     },

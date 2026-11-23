@@ -34,8 +34,8 @@ const UA = 'Mozilla/5.0 (Linux; Android 9; TV Box X96)'
 beforeEach(async () => {
   vi.clearAllMocks()
   vi.mocked(rateLimit).mockResolvedValue({ success: true } as any)
-  A = await Tenant.create({ slug: 'disp-a', name: 'A', isActive: true, status: 'active', plan: 'full' })
-  B = await Tenant.create({ slug: 'disp-b', name: 'B', isActive: true, status: 'active', plan: 'full' })
+  A = await Tenant.create({ slug: 'disp-a', name: 'A', isActive: true, status: 'active', plan: 'high' })
+  B = await Tenant.create({ slug: 'disp-b', name: 'B', isActive: true, status: 'active', plan: 'high' })
   locA1 = await Location.create({ tenantId: A._id, slug: 'a1', name: 'Sede A1', address: 'x', isActive: true })
   locA2 = await Location.create({ tenantId: A._id, slug: 'a2', name: 'Sede A2', address: 'x', isActive: true })
   locB = await Location.create({ tenantId: B._id, slug: 'b1', name: 'Sede B1', address: 'x', isActive: true })

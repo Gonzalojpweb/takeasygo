@@ -7,6 +7,7 @@ import Location from '@/models/Location'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { enforcePermissionForRequest } from '@/lib/rbac'
 import { guardRequestLocation, scopedLocationIds } from '@/lib/location-scope'
+import { screensAllowed, screensLockedResponse } from '@/lib/display/plan'
 
 export interface PiecesContext { tenantId: string; scopedLocations: string[] | null }
 
@@ -17,6 +18,7 @@ export async function screenPiecesContext(request: NextRequest, params: Promise<
   if (!tenant) return { error: NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 }) }
   const authError = await requireTenantRole(request, tenant._id.toString(), MANAGE_ROLES)
   if (authError) return { error: authError }
+  if (!screensAllowed(tenant.plan)) return { error: screensLockedResponse() }
   const permError = await enforcePermissionForRequest(request, { tenant, tenantId: tenant._id.toString(), permission: 'promotions.write' })
   if (permError) return { error: permError }
   return { tenantId: tenant._id.toString(), scopedLocations: await scopedLocationIds(request) }
@@ -36,14 +38,15 @@ export async function checkPieceLocation(request: NextRequest, ctx: PiecesContex
 type PieceDoc = Record<string, any>
 
 export function serializePiece(p: PieceDoc) {
-  const kind = p.videoUrl ? 'video' : 'image'
+  const kind = p.screenTemplate ? 'template' : p.videoUrl ? 'video' : 'image'
   return {
     _id: String(p._id),
     title: p.title,
     kind,
-    url: kind === 'video' ? p.videoUrl : p.imageUrl,
+    url: kind === 'template' ? null : kind === 'video' ? p.videoUrl : p.imageUrl,
+    template: p.screenTemplate ? { kind: p.screenTemplate.kind, config: p.screenTemplate.config ?? {} } : null,
     posterUrl: p.videoPosterUrl || null,
-    durationMs: kind === 'video' ? p.videoDurationMs ?? null : p.displayDurationMs ?? null,
+    durationMs: kind === 'video' ? p.videoDurationMs ?? null : kind === 'image' ? p.displayDurationMs ?? null : null,
     locationId: p.owner?.locationId ? String(p.owner.locationId) : null,
     startsAt: p.scheduledStart ?? null,
     endsAt: p.scheduledEnd ?? null,

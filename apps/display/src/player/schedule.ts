@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { isActiveAt } from '../shared/clock'
+import type { MenuBoard } from './board'
 
 export interface Daypart {
   /** 0 = domingo … 6 = sábado. Vacío o ausente = todos los días. */
@@ -20,7 +21,8 @@ export interface Daypart {
 
 export interface ManifestItem {
   id: string
-  kind: 'image' | 'video'
+  /** 'template' = pieza automática (carta): sin archivo propio, se dibuja con `template`. */
+  kind: 'image' | 'video' | 'template'
   url1080: string
   url720: string
   posterUrl: string | null
@@ -30,6 +32,9 @@ export interface ManifestItem {
   updatedAt: string
   bytes: number | null
   daypart?: Daypart | null
+  template?: MenuBoard
+  /** Fotos y logo de la plantilla que hay que guardar. */
+  assets?: string[]
 }
 
 export interface Manifest {
@@ -38,6 +43,8 @@ export interface Manifest {
   pollAfterS: number
   timezone?: string | null
   device: { name: string; orientation: 'landscape' | 'portrait' }
+  /** 'plan' = el comercio no tiene el plan que incluye Pantallas: en pausa, sin borrar lo guardado. */
+  paused?: string | null
   items: ManifestItem[]
 }
 

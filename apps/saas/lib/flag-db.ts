@@ -20,5 +20,6 @@ export async function flagDbReady(): Promise<boolean> {
   } catch {
     return false
   }
-  return mongoose.connection.readyState === 1
+  // TS estrecha readyState por el chequeo de arriba y no ve que connectDB lo cambia.
+  return (mongoose.connection.readyState as number) === 1
 }

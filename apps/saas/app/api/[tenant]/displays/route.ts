@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import DisplayDevice from '@/models/DisplayDevice'
+import { screensAllowed, screensLockedResponse } from '@/lib/display/plan'
 import { requireTenantRole, MANAGE_ROLES } from '@/lib/apiAuth'
 import { scopeLocationFilter } from '@/lib/location-scope'
 import { ONLINE_WINDOW_MS } from '@/lib/display/constants'
@@ -17,10 +18,11 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params
   await connectDB()
-  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id plan').lean<{ _id: mongoose.Types.ObjectId; plan?: string }>()
   if (!tenant) return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 })
   const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return authError
+  if (!screensAllowed(tenant.plan)) return screensLockedResponse()
   const scope = await scopeLocationFilter(request, request.nextUrl.searchParams.get('locationId'))
   if ('error' in scope) return scope.error
 

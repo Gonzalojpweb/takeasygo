@@ -43,8 +43,8 @@ const screenPiece = (tenantId: unknown, extra: Record<string, unknown> = {}) => 
 })
 
 beforeEach(async () => {
-  A = await Tenant.create({ slug: 'dc-a', name: 'A', isActive: true, status: 'active', plan: 'full' })
-  B = await Tenant.create({ slug: 'dc-b', name: 'B', isActive: true, status: 'active', plan: 'full' })
+  A = await Tenant.create({ slug: 'dc-a', name: 'A', isActive: true, status: 'active', plan: 'high' })
+  B = await Tenant.create({ slug: 'dc-b', name: 'B', isActive: true, status: 'active', plan: 'high' })
   locA1 = await Location.create({ tenantId: A._id, slug: 'a1', name: 'A1', address: 'x', isActive: true })
   locA2 = await Location.create({ tenantId: A._id, slug: 'a2', name: 'A2', address: 'x', isActive: true })
   token = generateDisplayToken()

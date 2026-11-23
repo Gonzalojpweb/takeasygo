@@ -1,22 +1,25 @@
 'use client'
 
 // ============================================================================
-// Contenido de las pantallas: imágenes y videos propios del comercio
+// Contenido de las pantallas: piezas automáticas y archivos propios
 // ============================================================================
 // Sin aprobación (contenido propio en pantallas propias). Medidas y vista
 // previa con AdsMediaUpload (superficie screen). Programación por fechas y
 // por franja horaria (días y horas; puede cruzar la medianoche).
+// 22/11/2026: piezas automáticas (carta en pantalla) en la misma lista.
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play } from 'lucide-react'
+import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play, UtensilsCrossed } from 'lucide-react'
 import { toast } from 'sonner'
 import AdsMediaUpload, { type AdsMediaValue } from '@/components/media/AdsMediaUpload'
+import MenuBoardForm, { type MenuBoardPiece } from './MenuBoardForm'
 
 interface Piece {
   _id: string
   title: string
-  kind: 'image' | 'video'
-  url: string
+  kind: 'image' | 'video' | 'template'
+  url: string | null
+  template: MenuBoardPiece['template']
   posterUrl: string | null
   durationMs: number | null
   locationId: string | null
@@ -57,6 +60,8 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  /** Carta en pantalla: null = cerrado; 'new' = nueva; si no, la pieza a editar. */
+  const [board, setBoard] = useState<Piece | 'new' | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -72,9 +77,11 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   }, [tenantSlug, load])
 
   function edit(p: Piece) {
+    if (p.kind === 'template') { setForm(null); setBoard(p); return }
+    setBoard(null)
     setForm({
       id: p._id, title: p.title,
-      media: { kind: p.kind, url: p.url, posterUrl: p.posterUrl, durationMs: p.kind === 'video' ? p.durationMs : null, width: p.media?.width, height: p.media?.height, bytes: p.media?.bytes, publicId: p.media?.publicId },
+      media: { kind: p.kind, url: p.url ?? '', posterUrl: p.posterUrl, durationMs: p.kind === 'video' ? p.durationMs : null, width: p.media?.width, height: p.media?.height, bytes: p.media?.bytes, publicId: p.media?.publicId },
       durationS: p.kind === 'image' ? Math.round((p.durationMs ?? 10000) / 1000) : 10,
       locationId: p.locationId ?? '', startsAt: toLocalInput(p.startsAt), endsAt: toLocalInput(p.endsAt),
       days: p.daypart?.days ?? [], from: p.daypart?.from ?? '', to: p.daypart?.to ?? '', isActive: p.isActive,
@@ -141,10 +148,26 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
             {usage.active} de {usage.maxActive} piezas activas · biblioteca {gb(usage.bytes)} de {gb(usage.maxBytes)}
           </p>
         )}
-        <button type="button" onClick={() => setForm(emptyForm())} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
-          <Plus size={16} aria-hidden /> Nueva pieza
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button type="button" onClick={() => { setForm(null); setBoard('new') }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-primary px-4 text-sm font-bold text-primary">
+            <UtensilsCrossed size={16} aria-hidden /> Carta en pantalla
+          </button>
+          <button type="button" onClick={() => { setBoard(null); setForm(emptyForm()) }} className="min-h-[44px] w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground">
+            <Plus size={16} aria-hidden /> Subir imagen o video
+          </button>
+        </div>
       </div>
+
+      {board && (
+        <MenuBoardForm
+          key={board === 'new' ? 'new' : board._id}
+          tenantSlug={tenantSlug}
+          locations={locations}
+          piece={board === 'new' ? null : board}
+          onClose={() => setBoard(null)}
+          onSaved={() => { setBoard(null); load() }}
+        />
+      )}
 
       {form && (
         <form onSubmit={save} className="space-y-4 rounded-2xl border border-border bg-card p-4">
@@ -200,23 +223,31 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" aria-hidden /> Cargando…</div>
       ) : pieces.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Todavía no cargaste contenido para tus pantallas.</div>
+        <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Todavía no hay contenido. Empezá por «Carta en pantalla»: se arma sola con tu catálogo.</div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {pieces.map((p) => (
             <li key={p._id} className={`overflow-hidden rounded-2xl border border-border bg-card ${p.isActive ? '' : 'opacity-60'}`}>
               <div className="relative bg-black" style={{ aspectRatio: p.media?.orientation === 'portrait' ? '9 / 16' : '16 / 9', maxHeight: 260 }}>
-                {p.kind === 'video'
-                  ? (p.posterUrl ? <img src={p.posterUrl} alt="" className="h-full w-full object-cover" /> : null)
-                  : <img src={p.url} alt="" className="h-full w-full object-cover" />}
+                {p.kind === 'template'
+                  ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-neutral-800 to-neutral-950 p-4 text-center text-white">
+                      <UtensilsCrossed size={28} aria-hidden />
+                      <span className="text-sm font-semibold">Carta automática</span>
+                      <span className="text-xs text-white/70">{p.template?.config?.categoryIds?.length ? `${p.template.config.categoryIds.length} categorías` : 'Toda la carta'} · {p.template?.config?.unavailable === 'mark' ? 'agotados marcados' : 'agotados ocultos'}</span>
+                    </div>
+                  )
+                  : p.kind === 'video'
+                    ? (p.posterUrl ? <img src={p.posterUrl} alt="" className="h-full w-full object-cover" /> : null)
+                    : <img src={p.url ?? ''} alt="" className="h-full w-full object-cover" />}
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white">
-                  {p.kind === 'video' ? <Film size={12} aria-hidden /> : <ImageIcon size={12} aria-hidden />}
-                  {p.kind === 'video' ? 'Video' : 'Imagen'} · {Math.round((p.durationMs ?? 0) / 1000)} s
+                  {p.kind === 'template' ? <UtensilsCrossed size={12} aria-hidden /> : p.kind === 'video' ? <Film size={12} aria-hidden /> : <ImageIcon size={12} aria-hidden />}
+                  {p.kind === 'template' ? 'Automática' : `${p.kind === 'video' ? 'Video' : 'Imagen'} · ${Math.round((p.durationMs ?? 0) / 1000)} s`}
                 </span>
               </div>
               <div className="p-3">
                 <p className="font-semibold break-words">{p.title}</p>
-                <p className="text-xs text-muted-foreground">{locName(p.locationId)} · {p.media?.orientation === 'portrait' ? 'Vertical' : 'Horizontal'}</p>
+                <p className="text-xs text-muted-foreground">{locName(p.locationId)} · {p.kind === 'template' ? 'Horizontal y vertical' : p.media?.orientation === 'portrait' ? 'Vertical' : 'Horizontal'}</p>
                 <p className="mt-1 text-xs text-muted-foreground break-words">{scheduleText(p)}</p>
                 <div className="mt-3 flex gap-2">
                   <button type="button" onClick={() => edit(p)} className="min-h-[40px] flex-1 inline-flex items-center justify-center gap-1 rounded-xl border border-border text-sm"><Pencil size={14} aria-hidden /> Editar</button>
@@ -225,7 +256,7 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
                 </div>
                 {confirmDelete === p._id && (
                   <div className="mt-2 rounded-xl border border-red-200 bg-red-50 p-2 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-                    <p>Se borra la pieza y su archivo. No se puede deshacer.</p>
+                    <p>{p.kind === 'template' ? 'Se borra la pieza (tu carta no cambia).' : 'Se borra la pieza y su archivo.'} No se puede deshacer.</p>
                     <div className="mt-2 flex gap-2">
                       <button type="button" onClick={() => void remove(p)} className="min-h-[40px] flex-1 rounded-lg bg-red-600 font-semibold text-white">Borrar</button>
                       <button type="button" onClick={() => setConfirmDelete(null)} className="min-h-[40px] flex-1 rounded-lg border border-border bg-background">Cancelar</button>

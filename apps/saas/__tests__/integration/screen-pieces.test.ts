@@ -39,8 +39,8 @@ beforeEach(async () => {
   vi.clearAllMocks()
   destroyed.length = 0
   Object.assign(process.env, { CLOUDINARY_ADS_CLOUD_NAME: 'tgoads', CLOUDINARY_ADS_API_KEY: '123456789012345', CLOUDINARY_ADS_API_SECRET: 'secreto-de-prueba-27-chars!', CLOUDINARY_ADS_FOLDER_ROOT: 'ads' })
-  A = await Tenant.create({ slug: 'sp-a', name: 'A', isActive: true, status: 'active', plan: 'full' })
-  B = await Tenant.create({ slug: 'sp-b', name: 'B', isActive: true, status: 'active', plan: 'full' })
+  A = await Tenant.create({ slug: 'sp-a', name: 'A', isActive: true, status: 'active', plan: 'high' })
+  B = await Tenant.create({ slug: 'sp-b', name: 'B', isActive: true, status: 'active', plan: 'high' })
   locA1 = await Location.create({ tenantId: A._id, slug: 'a1', name: 'A1', address: 'x', isActive: true, timezone: 'America/Argentina/Cordoba' })
   locA2 = await Location.create({ tenantId: A._id, slug: 'a2', name: 'A2', address: 'x', isActive: true })
   locB = await Location.create({ tenantId: B._id, slug: 'b1', name: 'B1', address: 'x', isActive: true })

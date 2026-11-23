@@ -10,6 +10,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import DisplayDevice from '@/models/DisplayDevice'
+import { screensAllowed, screensLockedResponse } from '@/lib/display/plan'
 import { requireTenantRole, MANAGE_ROLES, getSessionUser } from '@/lib/apiAuth'
 import { guardRequestLocation } from '@/lib/location-scope'
 import { logAudit } from '@/lib/audit'
@@ -21,10 +22,11 @@ type Ctx = { params: Promise<{ tenant: string; deviceId: string }> }
 async function load(request: NextRequest, ctx: Ctx) {
   const { tenant: slug, deviceId } = await ctx.params
   await connectDB()
-  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id').lean<{ _id: mongoose.Types.ObjectId }>()
+  const tenant = await Tenant.findOne({ slug, isActive: true }).select('_id plan').lean<{ _id: mongoose.Types.ObjectId; plan?: string }>()
   if (!tenant) return { error: NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 }) }
   const authError = await requireTenantRole(request, String(tenant._id), MANAGE_ROLES)
   if (authError) return { error: authError }
+  if (!screensAllowed(tenant.plan)) return { error: screensLockedResponse() }
   if (!mongoose.Types.ObjectId.isValid(deviceId)) return { error: NextResponse.json({ error: 'Pantalla no encontrada' }, { status: 404 }) }
   const device = await DisplayDevice.findOne({ _id: deviceId, tenantId: tenant._id, status: { $in: ['active', 'claimed'] } })
   if (!device) return { error: NextResponse.json({ error: 'Pantalla no encontrada' }, { status: 404 }) }

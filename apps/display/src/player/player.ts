@@ -13,6 +13,10 @@
 // · Se actualiza sola: versión nueva publicada, memoria alta (> 80 %) o
 //   recarga diaria a las 4:00 → recarga al terminar la pieza en curso.
 // · Latido cada 5 min y estadísticas cada 15 min (lotes pendientes guardados).
+// · Piezas automáticas (carta): se dibujan con los datos del manifiesto y sus
+//   fotos guardadas; la disponibilidad por horario se evalúa sola (board.ts).
+// · Plan sin Pantallas: «en pausa», sin borrar lo guardado.
+// · Cursor oculto; panel discreto con movimiento, toque o tecla (controls.ts).
 // ============================================================================
 import { ensureCached, cachedObjectUrl, removeCached, MEDIA_CACHE, MediaCacheError } from '../shared/media-cache'
 import { computeOffset, correctedNow, saveOffset } from '../shared/clock'
@@ -20,6 +24,9 @@ import { getManifest, postJson } from './api'
 import { store, StatsAccumulator, type StatsBatch } from './store'
 import { playableItems, chooseQuality, canDecode1080Smooth, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
 import { CURRENT_BUILD } from '../build'
+import { boardFreshness, boardPages } from './board'
+import { playMenuBoard } from './templates/menu-board'
+import { mountControls } from './controls'
 
 const HEARTBEAT_MS = 5 * 60_000
 const STATS_MS = 15 * 60_000
@@ -50,14 +57,10 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   // ── Escena ──────────────────────────────────────────────────────────────
   root.innerHTML = ''
   const stage = document.createElement('div')
-  stage.style.cssText = 'position:fixed;inset:0;background:#000;overflow:hidden;cursor:none'
+  stage.style.cssText = 'position:fixed;inset:0;background:#000;overflow:hidden'
   const idle = document.createElement('div')
   idle.style.cssText = 'position:absolute;inset:0;display:grid;place-items:center;color:#666;font-size:clamp(14px,2.4vmin,28px);text-align:center'
-  const fsBtn = document.createElement('button')
-  fsBtn.type = 'button'
-  fsBtn.textContent = 'Pantalla completa'
-  fsBtn.style.cssText = 'position:fixed;right:2vmin;bottom:2vmin;z-index:5;min-height:48px;padding:0 18px;border-radius:12px;border:0;background:rgba(255,255,255,.9);color:#000;font-weight:700;cursor:pointer'
-  root.append(stage, fsBtn)
+  root.append(stage)
 
   function reportError(code: string, message: string) { store.setLastError(code, message) }
   window.addEventListener('error', (e) => reportError('js_error', `${e.message}`))
@@ -65,18 +68,28 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
 
   // ── Pantalla completa y suspensión ──────────────────────────────────────
   const goFullscreen = () => { document.documentElement.requestFullscreen?.().catch(() => {}) }
-  fsBtn.addEventListener('click', goFullscreen)
-  let fsHide: ReturnType<typeof setTimeout> | null = null
-  const showFsButton = () => {
-    if (document.fullscreenElement) { fsBtn.style.display = 'none'; return }
-    fsBtn.style.display = 'block'
-    if (fsHide) clearTimeout(fsHide)
-    fsHide = setTimeout(() => { fsBtn.style.display = 'none' }, 8000)
-  }
-  window.addEventListener('pointermove', showFsButton)
-  window.addEventListener('keydown', () => { goFullscreen(); showFsButton() }, { once: true })
-  document.addEventListener('fullscreenchange', showFsButton)
-  showFsButton()
+  // Primera tecla (que no sea Esc): pantalla completa, como antes.
+  const firstKey = (e: KeyboardEvent) => { if (e.key !== 'Escape') { goFullscreen(); window.removeEventListener('keydown', firstKey) } }
+  window.addEventListener('keydown', firstKey)
+  let online = true
+  const unmountControls = mountControls({
+    root,
+    status: () => {
+      const ok = store.manifestOkAt()
+      const when = ok ? new Date(ok).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'
+      return { name: manifest?.device.name ?? 'Pantalla', line: `${online ? 'En línea' : 'Sin conexión'} · actualizada ${when} · ${quality}p · v${CURRENT_BUILD.version}` }
+    },
+    onFullscreen: goFullscreen,
+    onUnlink: async () => {
+      try {
+        const { status } = await postJson('/api/display/unlink', {})
+        return status === 200 || status === 401 ? true : `No se pudo desvincular (error ${status}). Probá de nuevo.`
+      } catch {
+        return 'Sin conexión: no se pudo desvincular. Probá con internet o desvinculála desde el panel de TakeasyGO.'
+      }
+    },
+    onUnlinked: () => { stop(); store.clearDevice(); onRevoked() },
+  })
 
   type WakeLockSentinel = { released: boolean; release: () => Promise<void> }
   let wakeLock: WakeLockSentinel | null = null
@@ -114,6 +127,17 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   window.addEventListener('pointerdown', persistOnInteraction, { once: true })
   window.addEventListener('keydown', persistOnInteraction, { once: true })
 
+  // ── Plantillas ──────────────────────────────────────────────────────────
+  const freshness = () => boardFreshness(store.manifestOkAt(), correctedNow())
+  /** Archivos a guardar de cada ítem: el video o la imagen, o las fotos y el logo de la plantilla. */
+  const filesOf = (i: ManifestItem): string[] => (i.kind === 'template' ? (i.assets ?? []) : [urlFor(i, quality)])
+  /** ¿Se puede mostrar? Archivo guardado; plantilla: datos vigentes y algo disponible ahora. */
+  const ready = (i: ManifestItem): boolean => {
+    if (i.kind !== 'template') return cached.has(urlFor(i, quality))
+    if (!i.template || freshness() === 'expired') return false
+    return boardPages(i.template, correctedNow(), manifest?.timezone, 100).length > 0
+  }
+
   // ── Caché ───────────────────────────────────────────────────────────────
   async function refreshCachedSet() {
     const before = cached.size
@@ -127,13 +151,14 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   }
 
   async function syncMedia() {
-    if (downloading || !manifest) return
+    // En pausa (plan): no se baja ni se borra nada.
+    if (downloading || !manifest || manifest.paused) return
     downloading = true
     try {
       // Se relee la caché: si el navegador borró archivos, se vuelven a bajar.
       await refreshCachedSet()
       const now = correctedNow()
-      const wanted = manifest.items.filter((i) => !i.endsAt || Date.parse(i.endsAt) > now).map((i) => urlFor(i, quality))
+      const wanted = [...new Set(manifest.items.filter((i) => !i.endsAt || Date.parse(i.endsAt) > now).flatMap(filesOf))]
       // Lo que ya no está en el manifiesto se borra del equipo.
       for (const url of [...cached]) if (!wanted.includes(url)) { await removeCached(url); cached.delete(url) }
       for (const url of wanted) {
@@ -145,6 +170,8 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
           const code = e instanceof MediaCacheError ? `download_${e.code}` : 'download_error'
           reportError(code, (e as Error).message)
           if (e instanceof MediaCacheError && e.code === 'quota') break
+          // Sin internet en el medio: se corta y se reintenta en el próximo manifiesto.
+          if (e instanceof MediaCacheError && e.code === 'network') break
         }
       }
       store.setExpectedMedia(cached.size)
@@ -168,8 +195,13 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         next = (manifest.pollAfterS || 60) * 1000
       }
       // También con 304: repone lo que el navegador haya borrado.
-      if (r.status === 200 || r.status === 304) void syncMedia()
+      if (r.status === 200 || r.status === 304) {
+        online = true
+        store.setManifestOkAt(correctedNow())
+        void syncMedia()
+      }
     } catch {
+      online = false
       next = 30_000 // sin internet: se sigue con lo guardado y se reintenta
     }
     later(pollManifest, next + Math.floor(Math.random() * 10_000))
@@ -181,7 +213,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     const list = playableItems(manifest.items, {
       nowMs: correctedNow(),
       timeZone: manifest.timezone,
-      isCached: (i) => cached.has(urlFor(i, quality)),
+      isCached: ready,
       penaltyUntil,
     })
     if (!list.length) return null
@@ -190,7 +222,10 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   }
 
   function showIdle() {
-    idle.innerHTML = `<div><div style="font-weight:700;color:#999">${escapeHtml(manifest?.device.name ?? 'Pantalla')}</div><div>Sin contenido para mostrar ahora</div></div>`
+    const msg = manifest?.paused === 'plan'
+      ? '<div style="font-weight:700;color:#bbb;margin-top:1vmin">Pantalla en pausa</div><div>El plan del comercio no incluye Pantallas. Lo guardado se conserva.</div>'
+      : '<div>Sin contenido para mostrar ahora</div>'
+    idle.innerHTML = `<div><div style="font-weight:700;color:#999">${escapeHtml(manifest?.device.name ?? 'Pantalla')}</div>${msg}</div>`
     stage.replaceChildren(idle)
   }
 
@@ -198,8 +233,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     if (stopped) return
     if (reloadReason) { await flushStats(true); location.reload(); return }
     const item = pickNext()
-    if (!item) { currentId = null; showIdle(); later(playNext, IDLE_RETRY_MS); return }
+    if (!item || manifest?.paused) { currentId = null; showIdle(); later(playNext, IDLE_RETRY_MS); return }
     currentId = item.id
+    if (item.kind === 'template') { playTemplate(item); return }
     const objUrl = await cachedObjectUrl(urlFor(item, quality))
     if (!objUrl) { cached.delete(urlFor(item, quality)); void syncMedia(); later(playNext, 0); return }
 
@@ -247,6 +283,39 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       el.src = objUrl
       stage.append(el)
     }
+  }
+
+  function playTemplate(item: ManifestItem) {
+    const host = document.createElement('div')
+    stage.append(host)
+    let shownAt = 0
+    let finished = false
+    let guard: ReturnType<typeof setTimeout> | null = null
+    const cancel = playMenuBoard({
+      host,
+      board: item.template!,
+      nowMs: correctedNow,
+      timeZone: manifest?.timezone,
+      freshness: freshness(),
+      lastOkMs: store.manifestOkAt(),
+      objectUrl: async (url) => (cached.has(url) ? cachedObjectUrl(url) : null),
+      onShown: () => {
+        shownAt = performance.now()
+        for (const old of [...stage.children]) if (old !== host) setTimeout(() => old.remove(), 450)
+      },
+      onDone: (ok, reason) => {
+        if (finished) return
+        finished = true
+        if (guard) clearTimeout(guard)
+        if (shownAt) stats.addTime(item.id, performance.now() - shownAt)
+        if (ok && shownAt) stats.addPlay(item.id)
+        if (!ok && reason !== 'cancelada') { stats.addError(item.id); reportError('playback', `${item.id}: ${reason ?? 'error'}`) }
+        setTimeout(() => host.remove(), 900)
+        void playNext()
+      },
+    })
+    // Tope: una vuelta de la carta nunca frena la pantalla más de 10 min.
+    guard = setTimeout(() => cancel(), 10 * 60_000)
   }
 
   // ── Latido y estadísticas ───────────────────────────────────────────────
@@ -314,6 +383,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
 
   function stop() {
     stopped = true
+    unmountControls()
     for (const t of timers) clearTimeout(t)
     void wakeLock?.release().catch(() => {})
   }

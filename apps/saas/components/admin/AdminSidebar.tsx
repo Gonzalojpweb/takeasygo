@@ -205,7 +205,8 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/promotions`, label: 'Promociones', icon: Tag, roles: ['admin', 'manager'] },
         { href: `${base}/marketing-metrics`, label: 'Métricas de marketing', icon: BarChart3, roles: ['admin', 'manager'] },
-        { href: `${base}/pantallas`, label: 'Pantallas', icon: MonitorSmartphone, roles: ['admin', 'manager'] },
+        // Pantallas: solo Élite (lib/display/plan.ts). 'assistant' es la feature de PLAN_ACCESS que hoy vale solo para Élite.
+        { href: `${base}/pantallas`, label: 'Pantallas', icon: MonitorSmartphone, roles: ['admin', 'manager'], feature: 'assistant' },
         { href: `${base}/combos`, label: 'Combos', icon: Layers, roles: ['admin', 'manager'] },
         { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
         { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
