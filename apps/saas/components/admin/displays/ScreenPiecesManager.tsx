@@ -22,6 +22,7 @@ interface Piece {
   kind: 'image' | 'video' | 'template'
   url: string | null
   template: MenuBoardPiece['template'] | PromosPiece['template'] | FeaturedPiece['template']
+  screenGroups?: string[]
   posterUrl: string | null
   durationMs: number | null
   locationId: string | null
@@ -59,6 +60,8 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   const [usage, setUsage] = useState<Usage | null>(null)
   const [locations, setLocations] = useState<Loc[]>([])
   const [loading, setLoading] = useState(true)
+  /** Grupos de pantallas del comercio (para mandar una pieza solo a esas pantallas). */
+  const [groups, setGroups] = useState<string[]>([])
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -78,6 +81,7 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
 
   useEffect(() => {
     load()
+    fetch(`/api/${tenantSlug}/displays`).then((r) => r.json()).then((d) => setGroups([...new Set<string>((d.devices || []).map((x: { group?: string | null }) => x.group).filter(Boolean))].sort())).catch(() => {})
     fetch(`/api/${tenantSlug}/locations?limit=100`).then((r) => r.json()).then((d) => setLocations((d.locations || []).map((l: { _id: unknown; name: string }) => ({ _id: String(l._id), name: l.name })))).catch(() => {})
   }, [tenantSlug, load])
 
@@ -125,6 +129,11 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
 
   async function toggle(p: Piece) {
     const res = await fetch(`/api/${tenantSlug}/screen-pieces/${p._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ isActive: !p.isActive }) })
+    if (!res.ok) toast.error((await res.json().catch(() => ({}))).error || 'No se pudo cambiar')
+    load()
+  }
+  async function setGroup(p: Piece, group: string) {
+    const res = await fetch(`/api/${tenantSlug}/screen-pieces/${p._id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ screenGroups: group ? [group] : [] }) })
     if (!res.ok) toast.error((await res.json().catch(() => ({}))).error || 'No se pudo cambiar')
     load()
   }
@@ -282,6 +291,14 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
                 <p className="font-semibold break-words">{p.title}</p>
                 <p className="text-xs text-muted-foreground">{locName(p.locationId)} · {p.kind === 'template' ? 'Horizontal y vertical' : p.media?.orientation === 'portrait' ? 'Vertical' : 'Horizontal'}</p>
                 <p className="mt-1 text-xs text-muted-foreground break-words">{scheduleText(p)}</p>
+                {groups.length > 0 && (
+                  <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">Pantallas
+                    <select value={p.screenGroups?.[0] ?? ''} onChange={(e) => void setGroup(p, e.target.value)} className="min-h-[36px] flex-1 rounded-lg border border-border bg-background px-2 text-xs text-foreground">
+                      <option value="">Todas</option>
+                      {groups.map((g) => <option key={g} value={g}>Grupo «{g}»</option>)}
+                    </select>
+                  </label>
+                )}
                 <div className="mt-3 flex gap-2">
                   <button type="button" onClick={() => edit(p)} className="min-h-[40px] flex-1 inline-flex items-center justify-center gap-1 rounded-xl border border-border text-sm"><Pencil size={14} aria-hidden /> Editar</button>
                   <button type="button" onClick={() => void toggle(p)} aria-label={p.isActive ? 'Pausar' : 'Activar'} className="min-h-[40px] min-w-[44px] rounded-xl border border-border">{p.isActive ? <Pause size={14} className="mx-auto" /> : <Play size={14} className="mx-auto" />}</button>

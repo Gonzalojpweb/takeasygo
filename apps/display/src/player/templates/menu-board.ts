@@ -9,6 +9,7 @@
 // ============================================================================
 
 import { qrInline } from './qr'
+import type { TapInfo } from './detail'
 import { boardColors, boardPages, formatPrice, perPage, type BoardPage, type Freshness, type MenuBoard } from '../board'
 
 export interface PlayBoardOptions {
@@ -22,6 +23,8 @@ export interface PlayBoardOptions {
   objectUrl: (url: string) => Promise<string | null>
   /** Menú de la sede con el origen de esta pantalla (QR). */
   orderUrl?: string | null
+  /** Pantalla táctil: se toca un producto. */
+  onTap?: (info: TapInfo) => void
   onShown: () => void
   onDone: (ok: boolean, reason?: string) => void
 }
@@ -144,6 +147,14 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
     return h('span', `align-self:flex-start;font-weight:800;font-size:2.4vmin;text-transform:uppercase;letter-spacing:.08em;border:.3vmin solid ${colors.muted};color:${colors.muted};padding:.2vmin 1.2vmin;border-radius:1vmin`, ['Agotado'])
   }
 
+  /** Tarjeta tocable: agranda el producto con su QR. */
+  const tappable = (node: HTMLElement, p: BoardPage['products'][number]['product'], soldOut: boolean) => {
+    if (!o.onTap) return node
+    node.style.cursor = 'pointer'
+    node.addEventListener('click', (e) => { e.stopPropagation(); o.onTap!({ name: p.name, description: p.description, price: `${p.fromPrice ? 'desde ' : ''}${formatPrice(p.price)}`, image: p.image, soldOut }) })
+    return node
+  }
+
   function body(page: BoardPage, photos: Array<string | null>, isLandscape: boolean): HTMLElement {
     const items = page.products
     if (isLandscape && o.board.showPhotos) {
@@ -152,12 +163,12 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
         const img = photos[k]
           ? photoEl(photos[k]!, `width:100%;flex:1;min-height:0;object-fit:cover;border-radius:1.6vmin;${soldOut ? 'filter:grayscale(1);opacity:.45' : ''}`)
           : h('div', `flex:1;min-height:0;border-radius:1.6vmin;background:${colors.card}`)
-        grid.append(h('div', `display:flex;flex-direction:column;gap:1vmin;min-width:0;min-height:0;background:${colors.card};border-radius:2vmin;padding:1.4vmin`, [
+        grid.append(tappable(h('div', `display:flex;flex-direction:column;gap:1vmin;min-width:0;min-height:0;background:${colors.card};border-radius:2vmin;padding:1.4vmin`, [
           img,
           h('div', `font-weight:700;font-size:2.7vmin;line-height:1.15;${clamp(2)}`, [p.name]),
           p.description ? h('div', `font-size:1.9vmin;color:${colors.muted};${clamp(1)}`, [p.description]) : null,
           soldOut ? soldBadge() : priceTag(p, false),
-        ]))
+        ]), p, soldOut))
       })
       return grid
     }
@@ -167,14 +178,14 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
         const img = photos[k]
           ? photoEl(photos[k]!, `height:100%;aspect-ratio:1;object-fit:cover;border-radius:2vmin;flex:none;${soldOut ? 'filter:grayscale(1);opacity:.45' : ''}`)
           : h('div', `height:100%;aspect-ratio:1;border-radius:2vmin;background:${colors.card};flex:none`)
-        list.append(h('div', `display:flex;gap:3vmin;align-items:center;min-height:0;background:${colors.card};border-radius:2.4vmin;padding:1.6vmin`, [
+        list.append(tappable(h('div', `display:flex;gap:3vmin;align-items:center;min-height:0;background:${colors.card};border-radius:2.4vmin;padding:1.6vmin`, [
           img,
           h('div', 'flex:1;min-width:0;max-height:100%;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:1vmin', [
             h('div', `font-weight:700;font-size:4.4vmin;line-height:1.1;${clamp(2)}`, [p.name]),
             p.description ? h('div', `font-size:2.8vmin;line-height:1.2;color:${colors.muted};${clamp(p.name.length > 24 ? 1 : 2)}`, [p.description]) : null,
             soldOut ? soldBadge() : priceTag(p, true),
           ]),
-        ]))
+        ]), p, soldOut))
       })
       return list
     }
@@ -183,13 +194,13 @@ export function playMenuBoard(o: PlayBoardOptions): () => void {
     const rows = Math.ceil(size / cols)
     const list = h('div', `flex:1;min-height:0;display:grid;grid-template-columns:repeat(${cols},1fr);grid-template-rows:repeat(${rows},1fr);grid-auto-flow:column;column-gap:6vmin;padding:2.4vmin 4vmin`)
     for (const { product: p, soldOut } of items) {
-      list.append(h('div', `display:flex;align-items:center;gap:2vmin;min-height:0;border-bottom:.2vmin solid ${colors.card};${soldOut ? 'opacity:.5' : ''}`, [
+      list.append(tappable(h('div', `display:flex;align-items:center;gap:2vmin;min-height:0;border-bottom:.2vmin solid ${colors.card};${soldOut ? 'opacity:.5' : ''}`, [
         h('div', 'flex:1;min-width:0', [
           h('div', `font-weight:700;font-size:${isLandscape ? 3.2 : 4.4}vmin;${clamp(1)}`, [p.name]),
           p.description ? h('div', `font-size:${isLandscape ? 2 : 2.8}vmin;color:${colors.muted};${clamp(1)}`, [p.description]) : null,
         ]),
         soldOut ? soldBadge() : priceTag(p, !isLandscape),
-      ]))
+      ]), p, soldOut))
     }
     return list
   }

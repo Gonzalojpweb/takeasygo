@@ -84,6 +84,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (b.daypart !== undefined) piece.set('daypart', b.daypart)
   if (b.isActive !== undefined) piece.isActive = b.isActive
   if (b.sortOrder !== undefined) piece.sortOrder = b.sortOrder
+  if (b.screenGroups !== undefined) piece.set('screenGroups', [...new Set(b.screenGroups)])
   if (template) piece.set('screenTemplate', { kind: template.kind, config: template.config })
   await piece.save()
 

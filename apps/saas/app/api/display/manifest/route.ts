@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import { rateLimit } from '@/lib/rateLimit'
 import { deviceFromRequest } from '@/lib/display/auth'
-import { buildManifest } from '@/lib/display/manifest'
+import { buildManifest, pendingCommand } from '@/lib/display/manifest'
 import { MANIFEST_POLL_S } from '@/lib/display/constants'
 import Location from '@/models/Location'
 import { tenantScreensAllowed } from '@/lib/display/plan'
@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
     timezone: loc?.timezone || 'America/Argentina/Buenos_Aires',
     device: { name: device.name, orientation: device.orientation },
     orderUrl,
+    command: pendingCommand(device),
     items,
   }, { headers })
 }

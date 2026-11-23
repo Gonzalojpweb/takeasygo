@@ -13,6 +13,7 @@ const K = {
   lastError: 'tgd:last-error',
   expectedMedia: 'tgd:expected-media',
   manifestOkAt: 'tgd:manifest-ok-at',
+  executedCommand: 'tgd:executed-command',
 }
 
 function get(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
@@ -58,6 +59,10 @@ export const store = {
   /** Última respuesta correcta del manifiesto (hora corregida, ms): define si la carta guardada sigue vigente sin internet. */
   manifestOkAt: () => Number(get(K.manifestOkAt)) || null,
   setManifestOkAt: (ms: number) => set(K.manifestOkAt, String(Math.round(ms))),
+
+  /** Última acción remota ejecutada (se confirma en el latido; nunca se repite). */
+  executedCommand: () => get(K.executedCommand),
+  setExecutedCommand: (id: string) => set(K.executedCommand, id),
 
   lastError: () => getJson<{ code: string; message: string; at: string }>(K.lastError),
   setLastError: (code: string, message: string) => set(K.lastError, JSON.stringify({ code, message: message.slice(0, 200), at: new Date().toISOString() })),

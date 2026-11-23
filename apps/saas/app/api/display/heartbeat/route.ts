@@ -23,6 +23,7 @@ const bodySchema = z.object({
     quotaBytes: z.number().min(0),
     persisted: z.boolean(),
   }).nullable().optional(),
+  commandAck: z.string().regex(/^[a-f0-9]{16}$/).nullable().optional(),
   lastError: z.object({ code: z.string().regex(/^[A-Za-z0-9_.-]{1,40}$/), message: z.string().max(500), at: z.string().datetime().optional() }).nullable().optional(),
 })
 
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
   if (b.manifestVersion !== undefined) set.manifestVersion = b.manifestVersion
   if (b.screen !== undefined) set.screen = b.screen
   if (b.cache !== undefined) set.cache = b.cache
+  if (b.commandAck) set.commandAckId = b.commandAck
   if (b.lastError !== undefined) {
     set.lastError = b.lastError ? { code: b.lastError.code, message: sanitize(b.lastError.message), at: b.lastError.at ? new Date(b.lastError.at) : new Date() } : null
   }

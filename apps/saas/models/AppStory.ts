@@ -51,6 +51,8 @@ export interface IAppStory {
    * manifiesto (lib/display/templates). null = pieza subida (imagen o video).
    */
   screenTemplate?: { kind: ScreenTemplateKind; config: Record<string, unknown> } | null
+  /** Pantallas: solo para estos grupos de pantallas (vacío o ausente = todas). */
+  screenGroups?: string[]
   createdAt: Date
   updatedAt: Date
 }
@@ -145,6 +147,7 @@ const AppStorySchema = new Schema<IAppStory>(
       }, { _id: false }),
       default: null,
     },
+    screenGroups: { type: [{ type: String, trim: true, maxlength: 30 }], default: undefined },
     screenTemplate: {
       type: new Schema({
         kind: { type: String, enum: ['menu', 'promos', 'featured'], required: true },

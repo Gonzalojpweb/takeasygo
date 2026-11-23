@@ -43,6 +43,8 @@ export const createPieceSchema = z.object({
   daypart: daypartSchema.nullable().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().int().min(0).max(10_000).optional(),
+  /** Solo para estos grupos de pantallas ([] = todas). */
+  screenGroups: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
 })
 
 export const updatePieceSchema = createPieceSchema.partial()

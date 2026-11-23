@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { qrBadge } from './qr'
+import type { TapInfo } from './detail'
 import { boardColors, featuredVisible, formatPrice, type FeaturedBoard, type Freshness } from '../board'
 
 export interface PlayFeaturedOptions {
@@ -17,6 +18,7 @@ export interface PlayFeaturedOptions {
   freshness: Freshness
   objectUrl: (url: string) => Promise<string | null>
   orderUrl?: string | null
+  onTap?: (info: TapInfo) => void
   onShown: () => void
   onDone: (ok: boolean, reason?: string) => void
 }
@@ -95,6 +97,7 @@ export function playFeaturedBoard(o: PlayFeaturedOptions): () => void {
           c.price ? h('span', `align-self:flex-start;font-weight:800;font-size:${landscape ? 3 : 3.6}vmin;background:${colors.accent};color:${colors.onAccent};padding:.2vmin 1.4vmin;border-radius:1.2vmin`, [c.price]) : null,
         ]),
       ])
+      if (o.onTap) { card.style.cursor = 'pointer'; card.addEventListener('click', (e) => { e.stopPropagation(); o.onTap!({ name: c.title, description: c.text, price: c.price, image: c.image }) }) }
       grid.append(card)
     })
     const logo = logoUrl

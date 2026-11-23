@@ -52,6 +52,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       screen: d.screen,
       cache: d.cache,
       lastError: d.lastError,
+      group: d.group ?? null,
+      pendingCommand: d.command && d.command.id !== d.commandAckId ? d.command.type : null,
     })),
   })
 }

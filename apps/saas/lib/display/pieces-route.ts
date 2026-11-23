@@ -53,6 +53,7 @@ export function serializePiece(p: PieceDoc) {
     daypart: p.daypart ?? null,
     isActive: !!p.isActive,
     sortOrder: p.sortOrder ?? 0,
+    screenGroups: Array.isArray(p.screenGroups) ? p.screenGroups : [],
     media: p.media ?? null,
     updatedAt: p.updatedAt,
   }

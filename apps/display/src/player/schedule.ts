@@ -47,6 +47,8 @@ export interface Manifest {
   paused?: string | null
   /** Menú de la sede con el origen de ESTA pantalla (QR «Pedí desde tu celular»). */
   orderUrl?: string | null
+  /** Acción remota pedida desde el panel (se ejecuta una sola vez). */
+  command?: { id: string; type: 'reload' | 'resync' | string } | null
   items: ManifestItem[]
 }
 

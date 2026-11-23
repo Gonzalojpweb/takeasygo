@@ -2,9 +2,10 @@
 
 // ============================================================================
 // Pantallas del comercio: vincular por código (o QR), estado, revocar
+// 23/11/2026: grupos, acciones remotas (recargar / volver a bajar) y alertas.
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react'
-import { Monitor, Wifi, WifiOff, Loader2, Trash2, Pencil, Check, X, Smartphone, MonitorSmartphone } from 'lucide-react'
+import { Monitor, Wifi, WifiOff, Loader2, Trash2, Pencil, Check, X, Smartphone, MonitorSmartphone, RotateCw, DownloadCloud, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
 export interface DisplayRow {
@@ -20,6 +21,20 @@ export interface DisplayRow {
   screen: { width: number; height: number } | null
   cache: { items: number; bytes: number; quotaBytes: number; persisted: boolean } | null
   lastError: { code: string; message: string; at: string } | null
+  group: string | null
+  pendingCommand: 'reload' | 'resync' | null
+}
+
+/** Sin latido hace más de una hora (y no está esperando el primer contacto). */
+export const ALERT_OFFLINE_MS = 60 * 60 * 1000
+export function deviceAlerts(d: DisplayRow, now = Date.now()): string[] {
+  const out: string[] = []
+  if (d.status === 'active' && (!d.lastSeenAt || now - Date.parse(d.lastSeenAt) > ALERT_OFFLINE_MS)) out.push('sin conexión hace más de 1 h')
+  if (d.lastError && now - Date.parse(d.lastError.at) < 24 * 3600_000) {
+    if (d.lastError.code === 'storage_evicted') out.push('el navegador borró lo guardado')
+    else if (d.lastError.code.startsWith('download_quota')) out.push('se quedó sin espacio')
+  }
+  return out
 }
 
 interface Loc { _id: string; name: string }
@@ -45,6 +60,7 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
   const [editing, setEditing] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null)
+  const [groupEdit, setGroupEdit] = useState<{ id: string; value: string } | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -84,6 +100,16 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
     if (!res.ok) toast.error((await res.json().catch(() => ({}))).error || 'No se pudo guardar')
     load()
   }
+
+  async function command(id: string, type: 'reload' | 'resync') {
+    const res = await fetch(`/api/${tenantSlug}/displays/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: type }) })
+    if (res.ok) toast.success(type === 'reload' ? 'La pantalla se recarga en el próximo minuto, al terminar la pieza en curso' : 'La pantalla borra lo guardado y lo vuelve a bajar en el próximo minuto')
+    else toast.error((await res.json().catch(() => ({}))).error || 'No se pudo enviar')
+    load()
+  }
+
+  const alerts = devices.map((d) => ({ d, list: deviceAlerts(d) })).filter((x) => x.list.length)
+  const groups = [...new Set(devices.map((d) => d.group).filter((g): g is string => !!g))].sort()
 
   async function revoke(id: string) {
     const res = await fetch(`/api/${tenantSlug}/displays/${id}`, { method: 'DELETE' })
@@ -132,6 +158,15 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
         </form>
       )}
 
+      {alerts.length > 0 && (
+        <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+          <p className="flex items-center gap-2 font-semibold"><AlertTriangle size={16} aria-hidden /> {alerts.length === 1 ? 'Una pantalla necesita atención' : `${alerts.length} pantallas necesitan atención`}</p>
+          <ul className="mt-1 list-disc pl-5">
+            {alerts.map(({ d, list }) => <li key={d._id}><b>{d.name}</b>{d.locationName ? ` (${d.locationName})` : ''}: {list.join(' · ')}</li>)}
+          </ul>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" aria-hidden /> Cargando…</div>
       ) : devices.length === 0 ? (
@@ -158,7 +193,7 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
                       <button type="button" aria-label="Renombrar" onClick={() => { setEditing(d._id); setEditName(d.name) }} className="text-muted-foreground"><Pencil size={14} /></button>
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">{d.locationName ?? 'Sin sede'} · {d.orientation === 'portrait' ? 'Vertical' : 'Horizontal'}</p>
+                  <p className="text-xs text-muted-foreground">{d.locationName ?? 'Sin sede'} · {d.orientation === 'portrait' ? 'Vertical' : 'Horizontal'}{d.group ? ` · Grupo «${d.group}»` : ''}</p>
                 </div>
                 <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${d.online ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
                   {d.online ? <Wifi size={12} aria-hidden /> : <WifiOff size={12} aria-hidden />}
@@ -176,7 +211,25 @@ export default function DisplaysManager({ tenantSlug, initialCode }: { tenantSlu
                   Último error ({fmtAgo(d.lastError.at)}): {d.lastError.code} — {d.lastError.message}
                 </p>
               )}
+              {d.pendingCommand && (
+                <p className="mt-2 text-xs text-muted-foreground">{d.pendingCommand === 'reload' ? 'Recarga pedida' : 'Volver a bajar pedido'}: se confirma con el próximo latido.</p>
+              )}
+              {groupEdit?.id === d._id ? (
+                <div className="mt-3 flex items-center gap-2">
+                  <input list={`groups-${d._id}`} value={groupEdit.value} onChange={(e) => setGroupEdit({ id: d._id, value: e.target.value })} maxLength={30} placeholder="Ej.: Salón, Vidriera, Caja" aria-label="Grupo de la pantalla" className={inputCls} />
+                  <datalist id={`groups-${d._id}`}>{groups.map((g) => <option key={g} value={g} />)}</datalist>
+                  <button type="button" aria-label="Guardar grupo" className="min-h-[44px] min-w-[44px] rounded-xl border border-border" onClick={() => { void patch(d._id, { group: groupEdit.value.trim() || null }); setGroupEdit(null) }}><Check size={16} className="mx-auto" /></button>
+                  <button type="button" aria-label="Cancelar" className="min-h-[44px] min-w-[44px] rounded-xl border border-border" onClick={() => setGroupEdit(null)}><X size={16} className="mx-auto" /></button>
+                </div>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
+                {d.status === 'active' && (
+                  <>
+                    <button type="button" onClick={() => void command(d._id, 'reload')} className="min-h-[40px] inline-flex items-center gap-1 rounded-xl border border-border px-3 text-sm"><RotateCw size={14} aria-hidden /> Recargar</button>
+                    <button type="button" onClick={() => void command(d._id, 'resync')} className="min-h-[40px] inline-flex items-center gap-1 rounded-xl border border-border px-3 text-sm"><DownloadCloud size={14} aria-hidden /> Volver a bajar</button>
+                  </>
+                )}
+                <button type="button" onClick={() => setGroupEdit({ id: d._id, value: d.group ?? '' })} className="min-h-[40px] rounded-xl border border-border px-3 text-sm">{d.group ? 'Cambiar grupo' : 'Asignar grupo'}</button>
                 <select aria-label="Orientación" value={d.orientation} onChange={(e) => void patch(d._id, { orientation: e.target.value })} className="min-h-[40px] rounded-xl border border-border bg-background px-2 text-sm">
                   <option value="landscape">Horizontal</option>
                   <option value="portrait">Vertical</option>

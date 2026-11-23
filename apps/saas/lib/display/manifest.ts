@@ -52,6 +52,15 @@ export interface DeviceLike {
   locationId: unknown
   orientation: DisplayOrientation
   name: string
+  group?: string | null
+  command?: { id: string; type: string } | null
+  commandAckId?: string | null
+}
+
+/** Acción remota que la pantalla todavía no confirmó. */
+export function pendingCommand(device: DeviceLike): { id: string; type: string } | null {
+  const c = device.command
+  return c && c.id !== device.commandAckId ? { id: c.id, type: c.type } : null
 }
 
 type PieceDoc = {
@@ -73,6 +82,8 @@ export function manifestQuery(device: DeviceLike, now = new Date()) {
       { $or: [{ scheduledEnd: null }, { scheduledEnd: { $gt: now } }] },
       { $or: [{ scheduledStart: null }, { scheduledStart: { $lte: new Date(now.getTime() + LOOKAHEAD_MS) } }] },
       { $or: [{ 'media.orientation': device.orientation }, { 'media.orientation': { $exists: false } }, { media: null }] },
+      // Grupos: piezas sin grupo van a todas; con grupo, solo a esas pantallas.
+      { $or: [{ screenGroups: { $exists: false } }, { screenGroups: { $size: 0 } }, ...(device.group ? [{ screenGroups: device.group }] : [])] },
     ],
   }
 }
@@ -165,7 +176,7 @@ export function toManifestItem(p: PieceDoc): ManifestItem | null {
 
 export function manifestEtag(items: ManifestItem[], device: DeviceLike): string {
   const h = createHash('sha1')
-    .update(JSON.stringify({ o: device.orientation, l: String(device.locationId), n: device.name, i: items.map((x) => [x.id, x.updatedAt, x.startsAt, x.endsAt, x.daypart, x.template ? boardHash(x.template) : null]) }))
+    .update(JSON.stringify({ o: device.orientation, l: String(device.locationId), n: device.name, g: device.group ?? null, c: pendingCommand(device)?.id ?? null, i: items.map((x) => [x.id, x.updatedAt, x.startsAt, x.endsAt, x.daypart, x.template ? boardHash(x.template) : null]) }))
     .digest('hex')
     .slice(0, 24)
   return `W/"${h}"`

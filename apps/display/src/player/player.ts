@@ -29,6 +29,8 @@ import { playMenuBoard } from './templates/menu-board'
 import { playPromoBoard } from './templates/promo-board'
 import { playFeaturedBoard } from './templates/featured-board'
 import { mountControls } from './controls'
+import { showDetail, type TapInfo } from './templates/detail'
+import { boardColors } from './board'
 
 const HEARTBEAT_MS = 5 * 60_000
 const STATS_MS = 15 * 60_000
@@ -194,6 +196,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         manifest = r.data as Manifest
         etag = r.etag ?? manifest.version
         store.setManifest(manifest)
+        runCommand(manifest.command)
         const serverMs = Date.parse(manifest.serverTime)
         if (Number.isFinite(serverMs)) saveOffset({ offsetMs: computeOffset(serverMs, r.sentAt, r.receivedAt), measuredAt: Date.now() })
         next = (manifest.pollAfterS || 60) * 1000
@@ -209,6 +212,23 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       next = 30_000 // sin internet: se sigue con lo guardado y se reintenta
     }
     later(pollManifest, next + Math.floor(Math.random() * 10_000))
+  }
+
+  // ── Acciones remotas (panel › Pantallas) ────────────────────────────────
+  // Una sola vez por id (queda guardado aunque recargue); el id vuelve en el
+  // latido y el panel la da por hecha.
+  function runCommand(cmd: Manifest['command']) {
+    if (!cmd || !/^[a-f0-9]{16}$/.test(cmd.id) || store.executedCommand() === cmd.id) return
+    store.setExecutedCommand(cmd.id)
+    if (cmd.type === 'resync') {
+      void (async () => {
+        try { if (typeof caches !== 'undefined') await caches.delete(MEDIA_CACHE) } catch { /* */ }
+        store.setExpectedMedia(0)
+        location.reload()
+      })()
+      return
+    }
+    if (cmd.type === 'reload') reloadReason = 'remoto'
   }
 
   // ── Reproducción ────────────────────────────────────────────────────────
@@ -303,6 +323,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       freshness: freshness(),
       orderUrl: manifest?.orderUrl ?? null,
       objectUrl: async (url: string) => (cached.has(url) ? cachedObjectUrl(url) : null),
+      onTap: (info: TapInfo) => {
+        void showDetail({ root, info, colors: boardColors(tpl), orderUrl: tpl.showQr === false ? null : manifest?.orderUrl, objectUrl: async (u) => (cached.has(u) ? cachedObjectUrl(u) : null) })
+      },
       onShown: () => {
         shownAt = performance.now()
         for (const old of [...stage.children]) if (old !== host) setTimeout(() => old.remove(), 450)
@@ -344,6 +367,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         manifestVersion: etag,
         screen: { width: Math.round(screen.width * (window.devicePixelRatio || 1)), height: Math.round(screen.height * (window.devicePixelRatio || 1)) },
         cache: { items: cached.size, bytes, quotaBytes, persisted },
+        commandAck: store.executedCommand(),
         lastError: err ? { code: err.code.replace(/[^A-Za-z0-9_.-]/g, '_').slice(0, 40), message: err.message, at: err.at } : null,
       })
       if (status === 401) { stop(); store.clearDevice(); onRevoked(); return }

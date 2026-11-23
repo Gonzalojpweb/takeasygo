@@ -17,6 +17,7 @@ import mongoose, { Schema } from 'mongoose'
 
 export type DisplayStatus = 'pending' | 'claimed' | 'active' | 'revoked'
 export type DisplayOrientation = 'landscape' | 'portrait'
+export type DisplayCommandType = 'reload' | 'resync'
 
 export interface IDisplayDevice {
   tenantId: mongoose.Types.ObjectId | null
@@ -47,6 +48,16 @@ export interface IDisplayDevice {
   screen: { width: number; height: number } | null
   cache: { items: number; bytes: number; quotaBytes: number; persisted: boolean } | null
   lastError: { code: string; message: string; at: Date } | null
+  /** 23/11/2026: grupo de pantallas (por zona o tipo) para asignar piezas a varias a la vez. */
+  group?: string | null
+  /**
+   * Acción remota pendiente que la pantalla recibe en el manifiesto:
+   * 'reload' = recargar al terminar la pieza; 'resync' = borrar lo guardado y
+   * volver a bajar. Se considera hecha cuando la pantalla devuelve el id en
+   * el latido (commandAckId).
+   */
+  command?: { id: string; type: DisplayCommandType; issuedAt: Date } | null
+  commandAckId?: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -97,6 +108,16 @@ const DisplayDeviceSchema = new Schema<IDisplayDevice>(
       }, { _id: false }),
       default: null,
     },
+    group: { type: String, default: null, trim: true, maxlength: 30 },
+    command: {
+      type: new Schema({
+        id: { type: String, required: true, match: /^[a-f0-9]{16}$/ },
+        type: { type: String, enum: ['reload', 'resync'], required: true },
+        issuedAt: { type: Date, required: true },
+      }, { _id: false }),
+      default: null,
+    },
+    commandAckId: { type: String, default: null, maxlength: 16 },
   },
   { timestamps: true }
 )
