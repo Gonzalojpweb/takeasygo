@@ -1,5 +1,6 @@
 'use client'
 
+import { channelPrice } from '@takeasygo/business/browser'
 import { annotateMenuItem, blocksOtherDiscounts, cartMenuDiscountFor, repriceLineForMode, withMenuDiscountClaims, type MenuDiscountPromoLike } from '@/lib/menu-discounts'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ArrowLeft, Plus, Minus, Trash2, Star, Clock, Percent, X, Gift, Wallet, AlertTriangle, Copy, Check, Banknote, MapPin, Loader2, CheckCircle2 } from 'lucide-react'
@@ -669,11 +670,7 @@ function CheckoutFormInner({ tenantSlug, locationId, mode }: Props) {
     const menuMode = mode === 'delivery' ? 'takeaway' : mode
     const ref = hintPricingRef.current.map[rawItem._id] ?? {}
     const item = annotateMenuItem(rawItem, ref.categoryId, ref.subcategoryId, hintPricingRef.current.promos, menuMode)
-    const unitPrice = menuMode === 'takeaway'
-      ? Number(item.takeawayPrice ?? item.price) || 0
-      : menuMode === 'business'
-        ? Number(item.businessPrice ?? item.price) || 0
-        : Number(item.price) || 0
+    const unitPrice = channelPrice(item, menuMode)
     setCart(prev => {
       const existing = prev.find(i => i.cartItemId === plainId)
       if (existing) return prev.map(i => i.cartItemId === plainId ? { ...i, quantity: i.quantity + 1 } : i)

@@ -1,4 +1,5 @@
 import { connectDB } from '@/lib/mongoose'
+import { businessChannelPrice } from '@takeasygo/business/browser'
 import Tenant from '@/models/Tenant'
 import { unavailableItemMessage } from '@/lib/orders/unavailable-item'
 import Order from '@/models/Order'
@@ -116,14 +117,14 @@ export async function POST(
             { status: 400 }
           )
         }
-        basePrice = Number(dbVariant.businessPrice ?? dbVariant.price) || 0
+        basePrice = businessChannelPrice(dbVariant)
         resolvedSelectedVariant = {
           name: dbVariant.name,
           price: dbVariant.price,
           ...(dbVariant.businessPrice != null ? { businessPrice: dbVariant.businessPrice } : {}),
         }
       } else {
-        basePrice = Number(menuItem.businessPrice ?? menuItem.price) || 0
+        basePrice = businessChannelPrice(menuItem)
       }
 
       let extraPrice = 0

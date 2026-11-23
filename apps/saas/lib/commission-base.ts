@@ -27,8 +27,11 @@ export function listUnitPrice(src: Priced | null | undefined, mode: string | nul
   if (mode === 'takeaway' || mode === 'delivery') {
     return n(src.takeawayOriginalPrice) || n(src.takeawayPrice) || n(src.originalPrice) || n(src.price)
   }
-  if (mode === 'business') return n(src.businessPrice) || n(src.originalPrice) || n(src.price)
-  return n(src.originalPrice) || n(src.price)
+  // 23/11/2026: salón sin precio propio (quedó en 0) → el de para llevar
+  // (lib: @takeasygo/business/menu-price, la misma regla con la que se cobra).
+  const salon = n(src.originalPrice) || n(src.price) || n(src.takeawayOriginalPrice) || n(src.takeawayPrice)
+  if (mode === 'business') return n(src.businessPrice) || salon
+  return salon
 }
 
 type Option = { extraPrice?: number | null; quantity?: number | null; subOptions?: Option[]; selectedSubOptions?: Option[] }

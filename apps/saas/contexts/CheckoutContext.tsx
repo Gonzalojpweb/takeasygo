@@ -1,5 +1,6 @@
 'use client'
 
+import { channelPrice } from '@takeasygo/business/browser'
 import { createContext, useContext, useCallback, useRef, useReducer, useEffect, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -892,7 +893,7 @@ export function CheckoutProvider({ tenantSlug, locationId, locationPath, mode, c
     // Descuento % de carta vigente (si la promo lo alcanza), como en el menú.
     const ref = hintPricingRef.current.map[rawItem._id] ?? {}
     const item = annotateMenuItem(rawItem, ref.categoryId, ref.subcategoryId, hintPricingRef.current.promos, 'takeaway')
-    const unitPrice = Number(item.takeawayPrice ?? item.price) || 0
+    const unitPrice = channelPrice(item, 'takeaway')
     const existing = prev.cart.find(i => i.cartItemId === plainId)
     if (existing) {
       dispatch({ type: 'SET_CART', cart: prev.cart.map(i =>

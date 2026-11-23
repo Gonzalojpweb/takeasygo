@@ -1,4 +1,5 @@
 import type { MenuCategory, Product, ProductModifier } from "@takeasygo/types"
+import { salonPrice } from "./menu-price"
 
 // ============================================================================
 // Aplanado del menú — la ÚNICA regla, compartida POS ⇄ SaaS
@@ -57,6 +58,8 @@ export interface RawMenuItem {
   name: string
   description?: string
   price: number
+  /** 23/11/2026: si el precio de salón quedó en 0, el POS usa este (menu-price). */
+  takeawayPrice?: number | null
   halfPrice?: number
   isAvailable?: boolean
   /** Fase J: motivo de la pausa (manual / stock) y porciones con stock. */
@@ -69,7 +72,7 @@ export interface RawMenuItem {
   /** Opciones agotadas de los grupos propios (ids o nombres). */
   soldOutOptionIds?: string[]
   disabledVariantNames?: string[]
-  variants?: Array<{ name: string; price?: number; customizationGroups?: RawCustomizationGroup[] }>
+  variants?: Array<{ name: string; price?: number; takeawayPrice?: number | null; customizationGroups?: RawCustomizationGroup[] }>
 }
 
 export interface RawMenuSubCategory {
@@ -223,13 +226,15 @@ function flattenItem(
   // precios no cambia (unitPrice = product.price + modificadores, en
   // centavos). Los grupos propios de cada variante cuelgan de su opción
   // (subgrupos), salvo los que ya estaban declarados arriba o desactivados.
+  // 23/11/2026: precio de salón en 0 con precio para llevar → vale ese (antes
+  // el POS vendía a $0 los platos cargados solo con «Para llevar»).
   const variants = (item.variants ?? []).filter(
-    (v) => !(item.disabledVariantNames ?? []).includes(v.name) && typeof v.price === 'number' && v.price >= 0
+    (v) => !(item.disabledVariantNames ?? []).includes(v.name) && (typeof v.price === 'number' || typeof v.takeawayPrice === 'number') && salonPrice(v) >= 0
   )
-  let price = item.price
+  let price = salonPrice(item)
   let variantModifier: ProductModifier | null = null
   if (variants.length > 0) {
-    price = Math.min(...variants.map((v) => v.price as number))
+    price = Math.min(...variants.map((v) => salonPrice(v)))
     const topNames = new Set(allGroups.map((g) => g.name))
     const groupName = topNames.has(VARIANT_GROUP_NAME) ? `${VARIANT_GROUP_NAME} del plato` : VARIANT_GROUP_NAME
     variantModifier = {
@@ -247,7 +252,7 @@ function flattenItem(
         )
         return {
           name: v.name,
-          price: (v.price as number) - price,
+          price: salonPrice(v) - price,
           subGroups: own.length > 0 ? own.map((vg) => toModifier(vg, disabledOptions, soldOut)) : undefined,
         }
       }),

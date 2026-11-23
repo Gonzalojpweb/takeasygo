@@ -7,8 +7,8 @@ import { DineInItemCard } from '@/components/menu/items/DineInItemCard'
 import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
 import { useRouter } from 'next/navigation'
 import { Moon, Sun, Award, Wallet, X, Tag, ShoppingCart, Plus, Minus, UserPlus } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { toPesos } from '@takeasygo/business/browser'
+import { cn, cloudinaryUrl } from '@/lib/utils'
+import { toPesos, salonPrice } from '@takeasygo/business/browser'
 import { isAvailableNow } from '@/lib/availability'
 import { motion, AnimatePresence } from 'framer-motion'
 import { terminos, privacidad } from '@/lib/legal-content'
@@ -515,7 +515,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
         settings={likedSettings}
         primary={branding.primaryColor}
         textColor={text}
-        getPrice={(item) => item.price ?? 0}
+        getPrice={(item) => salonPrice(item)}
         getName={(item) => tn(item, 'name', locale)}
         onSelect={(item, cat) => openDishInfo(item, cat?.customizationGroups)}
         locationId={location._id}
@@ -531,8 +531,9 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
         description={item.description ? tn(item, 'description', locale) : ''}
         imageUrl={item.imageUrl}
         tags={item.tags ?? []}
-        price={item.price}
-        variantPrices={(item.variants ?? []).map((v: any) => v.price)}
+        // 23/11/2026: salón sin precio propio (0) → el de para llevar (no $0).
+        price={salonPrice(item)}
+        variantPrices={(item.variants ?? []).map((v: any) => salonPrice(v))}
         promoPrice={menuCardDiscount(item, 'dine-in')}
         customizable={(item.variants ?? []).length > 0 || (item.customizationGroups ?? []).length > 0 || (cat.customizationGroups ?? []).length > 0}
         primary={branding.primaryColor}
@@ -580,7 +581,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
         }}
       >
         {hasHeroMedia && location.hero.mediaType === 'image' && (
-          <img src={location.hero.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={cloudinaryUrl(location.hero.url, { w: 1200 })} alt="" className="absolute inset-0 w-full h-full object-cover" />
         )}
         {hasHeroMedia && location.hero.mediaType === 'video' && (
           <video autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover">
@@ -595,7 +596,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
         <div className="relative z-10 px-4 py-16 w-full flex flex-col items-center">
           {showLogoOnHero && branding.logoUrl ? (
             <img
-              src={branding.logoUrl}
+              src={cloudinaryUrl(branding.logoUrl, { w: 400 })}
               alt={tenant.name}
               className="h-20 object-contain mx-auto mb-6"
               style={{ filter: hasHeroMedia ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' : undefined }}
@@ -862,7 +863,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
               onClick={e => e.stopPropagation()}>
               <div className="overflow-y-auto overscroll-contain">
                 {modalItem.imageUrl && (
-                  <img src={modalItem.imageUrl} alt={tn(modalItem, 'name', locale)} className="w-full aspect-square object-cover" />
+                  <img src={cloudinaryUrl(modalItem.imageUrl, { w: 800 })} alt={tn(modalItem, 'name', locale)} className="w-full aspect-square object-cover" />
                 )}
                 <div className="p-4">
                   <p className="font-bold uppercase tracking-wide" style={{ color: text }}>{tn(modalItem, 'name', locale)}</p>
@@ -872,14 +873,14 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
                   <p className="font-bold text-lg mt-2" style={{ color: branding.primaryColor }}>
                     ${(() => {
                       if (visibleVariants.length > 0) {
-                        const prices = visibleVariants.map((v) => v.price)
+                        const prices = visibleVariants.map((v) => salonPrice(v))
                         const minPrice = Math.min(...prices)
                         const maxPrice = Math.max(...prices)
                         return minPrice === maxPrice
                           ? toPesos(minPrice).toLocaleString('es-AR')
                           : `${toPesos(minPrice).toLocaleString('es-AR')} - ${toPesos(maxPrice).toLocaleString('es-AR')}`
                       }
-                      return toPesos(modalItem.price).toLocaleString('es-AR')
+                      return toPesos(salonPrice(modalItem)).toLocaleString('es-AR')
                     })()}
                   </p>
 
@@ -896,7 +897,7 @@ export default function DineInMenuView({ tenant, location, menu, bestSellers, li
                               style={{ backgroundColor: branding.primaryColor + '10' }}>
                               <span style={{ color: text }}>{v.name}</span>
                               <span className="font-semibold" style={{ color: branding.primaryColor }}>
-                                ${toPesos(v.price).toLocaleString('es-AR')}
+                                ${toPesos(salonPrice(v)).toLocaleString('es-AR')}
                               </span>
                             </div>
                             {!!v.customizationGroups?.length && (

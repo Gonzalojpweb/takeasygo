@@ -150,10 +150,22 @@ function serializeGroups(groups: CustomizationGroupForm[]): any[] {
   })
 }
 
+/**
+ * 23/11/2026: precio «Comer acá» del formulario. Vacío o 0 con precio «Para
+ * llevar» cargado → se guarda el de para llevar (antes quedaba en 0 y el menú
+ * de salón, el pedido de salón y el POS cobraban $0).
+ */
+function salonCents(price: string, takeaway: string): number {
+  const p = parseFloat(price)
+  if (Number.isFinite(p) && p > 0) return toCents(p)
+  const t = parseFloat(takeaway)
+  return Number.isFinite(t) && t > 0 ? toCents(t) : 0
+}
+
 function serializeVariants(variants: VariantForm[]): any[] {
   return (variants || []).map(v => ({
     name: v.name,
-    price: toCents(parseFloat(v.price) || 0),
+    price: salonCents(v.price, v.takeawayPrice),
     takeawayPrice: v.takeawayPrice ? toCents(parseFloat(v.takeawayPrice)) : undefined,
     businessPrice: v.businessPrice !== '' ? toCents(parseFloat(v.businessPrice)) : null,
     nameTranslations: v.nameTranslations ? { en: v.nameTranslations } : undefined,
@@ -578,7 +590,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
           locationId: selectedLocation,
           name: newItem.name,
           description: newItem.description,
-          price: toCents(parseFloat(newItem.price)),
+          price: salonCents(newItem.price, newItem.takeawayPrice),
           takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
           businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
           isBusinessAvailable: newItem.isBusinessAvailable,
@@ -626,7 +638,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
           itemId,
           name: editingItemData.name,
           description: editingItemData.description,
-          price: toCents(parseFloat(editingItemData.price)),
+          price: salonCents(editingItemData.price, editingItemData.takeawayPrice),
           takeawayPrice: editingItemData.takeawayPrice ? toCents(parseFloat(editingItemData.takeawayPrice)) : undefined,
           businessPrice: editingItemData.businessPrice !== '' ? toCents(parseFloat(editingItemData.businessPrice)) : null,
           isBusinessAvailable: editingItemData.isBusinessAvailable,
@@ -1992,7 +2004,7 @@ export default function MenuManager({ locations, menus, tenantSlug, userRole, ca
                                                               subcategoryId: subcategory._id,
                                                               name: newItem.name,
                                                               description: newItem.description,
-                                                              price: toCents(parseFloat(newItem.price)),
+                                                              price: salonCents(newItem.price, newItem.takeawayPrice),
                                                               takeawayPrice: newItem.takeawayPrice ? toCents(parseFloat(newItem.takeawayPrice)) : undefined,
                                                               businessPrice: newItem.businessPrice !== '' ? toCents(parseFloat(newItem.businessPrice)) : null,
                                                               isBusinessAvailable: newItem.isBusinessAvailable,

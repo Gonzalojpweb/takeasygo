@@ -278,3 +278,5 @@ export {
   type ValidateComboSelectionParams,
 } from "./combo"
 export { effectiveGrant, effectiveLocationRole, type MembershipForGrant, type OrgGrant, type OrgGrantRole, type GrantLocationRole } from "./org-grant"
+
+export { salonPrice, takeawayChannelPrice, businessChannelPrice, channelPrice, type ChannelPriced } from "./menu-price"

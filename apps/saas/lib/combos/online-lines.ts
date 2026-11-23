@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { channelPrice } from '@takeasygo/business/browser'
 import { calculateComboPrice, isComboAvailable, isComboOnSchedule, validateComboSelection } from '@takeasygo/business'
 import { channelMismatchMessage, comboChannels, isOfferedInMode } from '@/lib/sales-channels'
 
@@ -31,14 +32,9 @@ export interface ComboOrderContext {
   now?: Date
 }
 
+// 23/11/2026: misma regla que el pedido (salón en 0 → precio para llevar).
 function modePrice(source: any, mode: string): number {
-  const value =
-    mode === 'takeaway' || mode === 'delivery'
-      ? source.takeawayPrice ?? source.price
-      : mode === 'business'
-        ? source.businessPrice ?? source.price
-        : source.price
-  return Number(value) || 0
+  return channelPrice(source, mode)
 }
 
 export function buildOnlineComboLines(ctx: ComboOrderContext): any[] {

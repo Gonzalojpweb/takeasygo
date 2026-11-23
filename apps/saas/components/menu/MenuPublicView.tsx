@@ -1,5 +1,6 @@
 'use client'
 
+import { channelPrice } from '@takeasygo/business/browser'
 import { Fragment, useState, useEffect, useRef, useSyncExternalStore, useCallback, useMemo } from 'react'
 import { applyMenuDiscounts, cartMenuDiscountFor, dropExpiredMenuDiscounts, menuCardDiscount, menuDiscountKey } from '@/lib/menu-discounts'
 import Image from 'next/image'
@@ -204,17 +205,9 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const getItemPrice = (item: any) => {
     const hasVariants = (item.variants ?? []).length > 0
     if (hasVariants) {
-      const prices = item.variants.map((v: any) => {
-        const p = mode === 'takeaway' ? (v.takeawayPrice ?? v.price) :
-          mode === 'business' ? (v.businessPrice ?? v.price) :
-          v.price
-        return Number(p) || 0
-      })
-      return Math.min(...prices)
+      return Math.min(...item.variants.map((v: any) => channelPrice(v, mode)))
     }
-    if (mode === 'takeaway') return Number(item.takeawayPrice ?? item.price) || 0
-    if (mode === 'business') return Number(item.businessPrice ?? item.price) || 0
-    return Number(item.price) || 0
+    return channelPrice(item, mode)
   }
 
   const [isAdminCorp, setIsAdminCorp] = useState(false)
@@ -387,11 +380,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   // Helper: get discounted price for an item (returns null if no discount applies)
   const getClubDiscountedPrice = useCallback((item: any, itemCategoryId?: string, itemSubcategoryId?: string): { original: number; discounted: number } | null => {
     if (!clubDiscount || !clubEligible) return null
-    const price = mode === 'takeaway'
-      ? Number(item.takeawayPrice ?? item.price) || 0
-      : mode === 'business'
-        ? Number(item.businessPrice ?? item.price) || 0
-        : Number(item.price) || 0
+    const price = channelPrice(item, mode)
     if (price <= 0) return null
     let eligible = false
     if (clubDiscount.scope === 'all') {
@@ -746,8 +735,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   function comboUnitBasePrice(item: any, variantName?: string): number {
     const variant = (item?.variants ?? []).find((v: any) => v.name === variantName)
     const source = variant ?? item
-    const value = mode === 'takeaway' ? (source?.takeawayPrice ?? source?.price) : mode === 'business' ? (source?.businessPrice ?? source?.price) : source?.price
-    return Number(value) || 0
+    return channelPrice(source, mode)
   }
 
   function confirmComboPicker() {

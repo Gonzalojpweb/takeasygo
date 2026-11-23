@@ -1,6 +1,6 @@
 'use client'
 
-import { toPesos } from '@takeasygo/business/browser'
+import { channelPrice, toPesos } from '@takeasygo/business/browser'
 
 interface VariantInfo {
   _id?: string
@@ -33,20 +33,10 @@ export default function VariantPills({ variants, selectedVariant, mode, primaryC
 
       <div className="grid grid-cols-2 gap-2">
         {variants.map((v) => {
-          const variantPrice = mode === 'takeaway'
-            ? (Number(v.takeawayPrice ?? v.price) || 0)
-            : mode === 'business'
-              ? (Number(v.businessPrice ?? v.price) || 0)
-              : Number(v.price) || 0
+          const variantPrice = channelPrice(v, mode)
 
           const isSelected = selectedVariant?.name === v.name
-          const listPrice = v._menuDiscount
-            ? (mode === 'takeaway'
-              ? (Number(v._menuDiscount.list.takeawayPrice ?? v._menuDiscount.list.price) || 0)
-              : mode === 'business'
-                ? (Number(v._menuDiscount.list.businessPrice ?? v._menuDiscount.list.price) || 0)
-                : Number(v._menuDiscount.list.price) || 0)
-            : 0
+          const listPrice = v._menuDiscount ? channelPrice(v._menuDiscount.list, mode) : 0
           const hasDiscount = listPrice > variantPrice
 
           return (

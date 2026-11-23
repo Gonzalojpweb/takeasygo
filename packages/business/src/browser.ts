@@ -222,3 +222,5 @@ export {
 
 // POS offline V2 — etapa 4: tickets ESC/POS compartidos server ↔ POS.
 export * from "./escpos"
+
+export { salonPrice, takeawayChannelPrice, businessChannelPrice, channelPrice, type ChannelPriced } from "./menu-price"

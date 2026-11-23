@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { channelPrice } from '@takeasygo/business/browser'
 import { SAAS_ORDERS_ONLY } from '@/lib/order-visibility'
 import { isOptionSoldOut, soldOutKeysFor } from '@/lib/menu/sold-out-options'
 import { connectDB } from '@/lib/mongoose'
@@ -1413,11 +1414,9 @@ export async function POST(
                 { status: 400 }
               )
             }
-            basePrice = (body.mode === 'takeaway' || body.mode === 'delivery')
-              ? (Number(dbVariant.takeawayPrice ?? dbVariant.price) || 0)
-              : body.mode === 'business'
-                ? (Number(dbVariant.businessPrice ?? dbVariant.price) || 0)
-                : Number(dbVariant.price) || 0
+            // 23/11/2026: precio de salón en 0 con precio para llevar → vale ese
+            // (antes un plato así se cobraba $0 en salón). lib: menu-price.
+            basePrice = channelPrice(dbVariant, body.mode)
 
             resolvedSelectedVariant = {
               name: dbVariant.name,
@@ -1427,11 +1426,7 @@ export async function POST(
             }
           } else {
             // Precio base depende del modo (takeaway/delivery vs dine-in vs business)
-            basePrice = (body.mode === 'takeaway' || body.mode === 'delivery')
-              ? (Number(menuItem.takeawayPrice ?? menuItem.price) || 0)
-              : body.mode === 'business'
-                ? (Number(menuItem.businessPrice ?? menuItem.price) || 0)
-                : Number(menuItem.price) || 0
+            basePrice = channelPrice(menuItem, body.mode)
         }
           
         let extraPrice = 0

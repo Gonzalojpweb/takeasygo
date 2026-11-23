@@ -12,6 +12,7 @@
 // El ranking se cachea 30 min por sede (no se recalcula en cada manifiesto).
 // ============================================================================
 
+import { channelPrice } from '@takeasygo/business/browser'
 import mongoose from 'mongoose'
 import Order from '@/models/Order'
 import Combo from '@/models/Combo'
@@ -85,7 +86,7 @@ export function buildFeaturedBoard(menu: AnyDoc | null, tenant: AnyDoc, config: 
       for (const i of s.items ?? []) catalog.set(String(i._id), { item: i, schedules: ss ? [...base, ss] : base })
     }
   }
-  const pick = (n: AnyDoc) => (config.priceChannel === 'takeaway' ? (n.takeawayPrice ?? n.price) : n.price)
+  const pick = (n: AnyDoc) => channelPrice(n as never, config.priceChannel === 'takeaway' ? 'takeaway' : 'dine-in')
   const toProduct = (id: string, reason: 'top' | 'featured'): FeaturedProduct | null => {
     const e = catalog.get(id)
     if (!e) return null

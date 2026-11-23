@@ -1,4 +1,5 @@
 import { Types } from 'mongoose'
+import { salonPrice } from '@takeasygo/business/browser'
 import Order from '@/models/Order'
 import Menu from '@/models/Menu'
 
@@ -77,7 +78,7 @@ export async function getBestSellers(
         _id: String(match._id),
         name: String(match.name ?? ''),
         description: match.description ? String(match.description) : undefined,
-        price: Number(match.price ?? 0),
+        price: salonPrice(match as never),
         takeawayPrice: match.takeawayPrice != null ? Number(match.takeawayPrice) : undefined,
         businessPrice: match.businessPrice != null ? Number(match.businessPrice) : undefined,
         imageUrl: match.imageUrl ? String(match.imageUrl) : undefined,

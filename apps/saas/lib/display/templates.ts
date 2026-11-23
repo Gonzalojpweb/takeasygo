@@ -16,6 +16,7 @@
 // Este archivo es puro (sin Mongo): se testea con datos armados a mano.
 // ============================================================================
 
+import { channelPrice } from '@takeasygo/business/browser'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import mongoose from 'mongoose'
@@ -174,7 +175,7 @@ export function slotsOf(node: AnyDoc): Slot[] | null {
 export function priceOf(item: AnyDoc, channel: MenuConfig['priceChannel']): { price: number; fromPrice: boolean; originalPrice: number | null } {
   const disabled = new Set<string>(Array.isArray(item.disabledVariantNames) ? item.disabledVariantNames : [])
   const variants = (Array.isArray(item.variants) ? item.variants : []).filter((v: AnyDoc) => !disabled.has(v?.name))
-  const pick = (n: AnyDoc) => (channel === 'takeaway' ? (n.takeawayPrice ?? n.price) : n.price)
+  const pick = (n: AnyDoc) => channelPrice(n as never, channel === 'takeaway' ? 'takeaway' : 'dine-in')
   const pickOrig = (n: AnyDoc) => (channel === 'takeaway' ? (n.takeawayOriginalPrice ?? n.originalPrice) : n.originalPrice)
   if (variants.length) {
     type VP = { p: number; o: number }

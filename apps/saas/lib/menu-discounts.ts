@@ -30,7 +30,10 @@ import {
   DISCOUNT_TARGET_KINDS,
   MAX_DISCOUNT_PERCENT,
   applyDiscountPercent,
+  businessChannelPrice,
   menuDiscountPercentFor,
+  salonPrice,
+  takeawayChannelPrice,
   type DiscountTargetKind,
   type MenuDiscountTarget,
 } from '@takeasygo/business/browser'
@@ -216,9 +219,9 @@ export function applyMenuDiscounts<M extends { categories?: any[] }>(
 type MenuMode = 'takeaway' | 'dine-in' | 'business' | 'delivery' | string
 
 function modePrice(src: { price?: number; takeawayPrice?: number | null; businessPrice?: number | null }, mode: MenuMode): number {
-  if (mode === 'takeaway' || mode === 'delivery') return Number(src.takeawayPrice ?? src.price) || 0
-  if (mode === 'business') return Number(src.businessPrice ?? src.price) || 0
-  return Number(src.price) || 0
+  if (mode === 'takeaway' || mode === 'delivery') return takeawayChannelPrice(src)
+  if (mode === 'business') return businessChannelPrice(src)
+  return salonPrice(src)
 }
 
 /** Descuento de carta guardado en la línea del carrito. */

@@ -1,5 +1,6 @@
 'use client'
 
+import { channelPrice } from '@takeasygo/business/browser'
 import { cartMenuDiscountFor } from '@/lib/menu-discounts'
 import { useState, useMemo, useEffect } from 'react'
 import { trackDishViewed } from '@/lib/track'
@@ -249,12 +250,8 @@ export default function CustomizationSheet({
   const basePrice = useMemo(() => {
     if (isHalfMode) return 0
     return hasVariants && selectedVariant
-      ? (mode === 'takeaway' ? (Number(selectedVariant.takeawayPrice ?? selectedVariant.price) || 0) :
-         mode === 'business' ? (Number(selectedVariant.businessPrice ?? selectedVariant.price) || 0) :
-         Number(selectedVariant.price) || 0)
-      : (mode === 'takeaway' ? (Number(item.takeawayPrice ?? item.price) || 0) :
-         mode === 'business' ? (Number(item.businessPrice ?? item.price) || 0) :
-         Number(item.price) || 0)
+      ? channelPrice(selectedVariant, mode)
+      : channelPrice(item, mode)
   }, [hasVariants, selectedVariant, mode, item, isHalfMode])
 
   const unitPrice = basePrice + extraPrice

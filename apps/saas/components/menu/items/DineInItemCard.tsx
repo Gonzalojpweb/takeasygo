@@ -2,7 +2,7 @@
 
 import { Plus } from 'lucide-react'
 import { toPesos } from '@takeasygo/business/browser'
-import { cn } from '@/lib/utils'
+import { cn, cloudinaryUrl } from '@/lib/utils'
 import type { CategoryLayout } from '@/lib/menu-layout'
 import { ItemImageFallback } from './ItemImageFallback'
 
@@ -57,8 +57,10 @@ export function DineInItemCard({
   if (imageUrl) {
     media = (
       <div className={cn('relative', stacked ? (carousel ? 'w-full h-32' : 'w-full h-28') : 'flex-shrink-0 w-[88px] h-[88px]')} style={{ cursor: 'pointer' }}>
-        {/* eslint-disable-next-line @next/next/no-img-element -- el salón usa la URL original de la foto */}
-        <img src={imageUrl} alt={name} className="w-full h-full object-cover" />
+        {/* 23/11/2026: con f_auto/q_auto (como el menú online). La URL original
+            fallaba con fotos HEIC (iPhone): el navegador no las muestra. */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- el salón no usa next/image */}
+        <img src={cloudinaryUrl(imageUrl, { w: stacked ? 480 : 240 })} alt={name} loading="lazy" className="w-full h-full object-cover" />
         {plusBadge}
       </div>
     )
