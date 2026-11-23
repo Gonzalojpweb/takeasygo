@@ -62,6 +62,8 @@ const AUTO_ENTER: Record<ResolvedModule['type'], Enter> = {
   'brand-header': 'fadeUp', 'hero-product': 'scaleIn', 'product-grid': 'stagger', 'combo-highlight': 'slideLeft', 'promo-banner': 'scaleIn',
   'drinks-row': 'stagger', 'price-list': 'stagger', 'illustration-block': 'fade', 'qr-cta': 'fadeUp',
 }
+/** Cascada desde la izquierda para filas de listas; desde abajo para tarjetas. */
+const STAGGER_FROM_LEFT = new Set<ResolvedModule['type']>(['price-list', 'combo-highlight'])
 
 const loadedFonts = new Set<string>()
 /** Fuentes de la marca desde la caché del equipo (nunca desde internet). */
@@ -193,18 +195,30 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         const p = m.product!
         const pic = await photo(p.image)
         const pct = m.config.showDiscount !== false ? discountPercent(p.price, p.originalPrice) : null
-        const media = cover(pic, portrait ? `width:100%;flex:1 1 0;min-height:${u(30)}` : 'flex:0 0 56%;align-self:stretch', m.config.kenBurns !== false)
-        if (pct) { const st = stamp(pct, portrait ? 20 : 17); st.style.right = u(4); st.style.top = u(4); media.append(st) }
-        const text = h('div', `${portrait ? 'flex:none' : 'flex:1 1 0'};min-width:0;display:flex;flex-direction:column;justify-content:center;gap:${u(2)};padding:${portrait ? `${u(4)} ${u(5)} ${u(3)}` : `${u(3)} ${u(5)}`}`, [
-          m.config.badge ? badge(m.config.badge, portrait ? 2.6 : 2.2) : null,
-          h('div', `flex:none;font-weight:900;font-size:${u(portrait ? 10 : 8)};line-height:1.04;letter-spacing:-.03em;padding-bottom:${u(0.6)};font-family:${headFont};${clamp(2)}`, [p.name]),
-          p.description ? h('div', `flex:none;font-size:${u(portrait ? 3.4 : 2.8)};line-height:1.25;color:${colors.muted};${clamp(2)}`, [p.description]) : null,
-          h('div', `flex:none;display:flex;align-items:baseline;gap:${u(2.4)};flex-wrap:wrap;margin-top:${u(1)}`, [
-            priceEl(priceText(p), portrait ? 10 : 8),
-            strike(p.originalPrice, portrait ? 4 : 3.4),
-          ]),
+        // Etiqueta en el color de la marca, espaciada; precio enorme en ese color, sin caja.
+        const tag = m.config.badge ? h('div', `flex:none;font-weight:800;font-size:${u(portrait ? 3 : 2.4)};letter-spacing:.22em;text-transform:uppercase;color:${colors.accent}`, [m.config.badge]) : null
+        const title = h('div', `flex:none;font-weight:900;font-size:${u(portrait ? 10.5 : 8)};line-height:1;letter-spacing:-.02em;text-transform:uppercase;padding-bottom:${u(0.4)};font-family:${headFont};${clamp(2)}`, [p.name])
+        const desc = p.description ? h('div', `flex:none;font-size:${u(portrait ? 3.2 : 2.8)};line-height:1.25;opacity:.82;${clamp(2)}`, [p.description]) : null
+        for (const part of [tag, title, desc]) if (part) part.dataset.part = '1'
+        const big = h('div', `flex:none;font-weight:900;font-size:${u(portrait ? 12.5 : 9.5)};line-height:.9;letter-spacing:-.03em;color:${colors.accent};font-family:${headFont};white-space:nowrap`, [priceText(p)])
+        big.dataset.price = '1'
+        const priceRow = h('div', `flex:none;display:flex;align-items:flex-end;gap:${u(2)};margin-top:${u(1.4)}`, [
+          big,
+          p.originalPrice ? h('s', `font-size:${u(portrait ? 3.6 : 3)};color:${colors.muted};font-weight:700;margin-bottom:${u(1.2)}`, [formatPrice(p.originalPrice)]) : null,
         ])
-        return tappable(h('section', `display:flex;flex-direction:${portrait ? 'column' : 'row'};min-height:0`, [media, text]), p)
+        if (portrait) {
+          // A sangre: la foto ocupa el módulo y el texto va abajo, sobre un oscurecido suave solo detrás del texto.
+          const media = cover(pic, `position:absolute;inset:0`, m.config.kenBurns !== false)
+          const scrim = h('div', 'position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.55) 35%, rgba(0,0,0,0) 62%)')
+          const text = h('div', `position:absolute;left:${u(5)};right:${u(5)};bottom:${u(4)};display:flex;flex-direction:column;gap:${u(1.2)};color:#fff`, [tag, title, desc, priceRow])
+          const box = h('section', `position:relative;min-height:${Math.round(DH * 0.46)}px;overflow:hidden;background:${colors.card}`, [media, scrim, text])
+          if (pct) { const st = stamp(pct, 20); st.style.right = u(5); st.style.top = u(5); box.append(st) }
+          return tappable(box, p)
+        }
+        const media = cover(pic, 'flex:0 0 56%;align-self:stretch', m.config.kenBurns !== false)
+        if (pct) { const st = stamp(pct, 17); st.style.right = u(4); st.style.top = u(4); media.append(st) }
+        const text = h('div', `flex:1 1 0;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:${u(1.6)};padding:${u(3)} ${u(5)}`, [tag, title, desc, priceRow])
+        return tappable(h('section', 'display:flex;flex-direction:row;min-height:0', [media, text]), p)
       }
       case 'product-grid': {
         const n = m.products.length
@@ -289,13 +303,12 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         const box = h('section', `display:grid;grid-template-columns:repeat(${portrait ? 1 : Math.min(2, m.sections.length)},1fr);column-gap:${u(7)};align-items:start;padding:${u(2)} ${u(5)};min-height:0;overflow:hidden`)
         for (const s of m.sections) {
           const block = h('div', `display:flex;flex-direction:column;margin-bottom:${u(2.4)}`, [
-            h('div', `font-weight:900;font-size:${u(portrait ? 5 : 4)};text-transform:uppercase;letter-spacing:.04em;line-height:1.05;font-family:${headFont};padding-bottom:${u(1.2)};margin-bottom:${u(1.4)};border-bottom:${u(0.6)} solid ${colors.accent}`, [s.parent ? `${s.parent} · ${s.name}` : s.name]),
+            h('div', `font-weight:700;font-size:${u(portrait ? 2.6 : 2.2)};text-transform:uppercase;letter-spacing:.2em;color:${colors.muted};margin-bottom:${u(0.6)}`, [s.parent ? `${s.parent} · ${s.name}` : s.name]),
           ])
           for (const p of s.products) {
-            const row = h('div', `display:flex;align-items:baseline;gap:${u(1.2)};font-size:${u(portrait ? 3.6 : 3)};line-height:1.6`, [
-              h('span', `font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:72%`, [p.name]),
-              h('span', `flex:1;min-width:${u(3)};border-bottom:${u(0.35)} dashed ${colors.muted};opacity:.55;transform:translateY(-${u(0.8)})`),
-              h('span', `font-weight:900;white-space:nowrap;font-family:${headFont}`, [priceText(p)]),
+            const row = h('div', `display:flex;justify-content:space-between;align-items:baseline;gap:${u(2)};padding:${u(portrait ? 2.6 : 1.8)} 0;border-bottom:${u(0.2)} dashed ${colors.muted}`, [
+              h('span', `font-weight:900;font-size:${u(portrait ? 4.4 : 3.2)};font-family:${headFont};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0`, [p.name]),
+              h('span', `flex:none;font-weight:900;font-size:${u(portrait ? 4.8 : 3.4)};color:${colors.accent};font-family:${headFont};white-space:nowrap`, [priceText(p)]),
             ])
             row.dataset.item = '1'
             block.append(row)
@@ -316,11 +329,11 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
       }
       case 'qr-cta': {
         // Footer de tótem: banda sólida del color de la marca con QR grande.
-        const qr = await qrSvg(portrait ? 22 : 18)
+        const qr = await qrSvg(portrait ? 22 : 12)
         if (!qr) return null
-        return h('footer', `display:flex;align-items:center;gap:${u(4)};padding:${u(3.4)} ${u(5)};background:${colors.accent};color:${colors.onAccent}`, [
+        return h('footer', `display:flex;align-items:center;gap:${u(4)};padding:${portrait ? `${u(3.4)} ${u(5)}` : `${u(1.8)} ${u(5)}`};background:${colors.accent};color:${colors.onAccent}`, [
           h('div', `flex:1;min-width:0;display:flex;flex-direction:column;gap:${u(1.2)}`, [
-            h('div', `font-weight:900;font-size:${u(portrait ? 7.4 : 5.6)};line-height:.98;letter-spacing:-.02em;font-family:${headFont}`, [m.config.headline]),
+            h('div', `font-weight:900;font-size:${u(portrait ? 7.4 : 4.6)};line-height:.98;letter-spacing:-.02em;font-family:${headFont}`, [m.config.headline]),
             m.config.subtext ? h('div', `font-size:${u(portrait ? 3.2 : 2.6)};font-weight:600;opacity:.9`, [m.config.subtext]) : null,
           ]),
           qr,
@@ -341,11 +354,19 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
     switch (kind) {
       case 'fade': tl.from(el, { opacity: 0, duration: dur, ease }, start); break
       case 'fadeUp': tl.from(el, { opacity: 0, y: 6 * U, duration: dur, ease }, start); break
-      case 'scaleIn': tl.from(el, { opacity: 0, scale: 0.9, duration: dur, ease }, start); break
+      case 'scaleIn':
+        if (m.type === 'hero-product') {
+          tl.from(el, { opacity: 0, duration: dur * 0.6, ease }, start)
+          const parts = el.querySelectorAll<HTMLElement>('[data-part]')
+          if (parts.length) tl.from(parts, { y: 5 * U, opacity: 0, duration: dur, ease, stagger: 0.18 }, start + 0.15)
+        } else tl.from(el, { opacity: 0, scale: 0.9, duration: dur, ease }, start)
+        break
       case 'slideLeft': tl.from(el, { opacity: 0, x: 10 * U, duration: dur, ease }, start); break
       case 'slideRight': tl.from(el, { opacity: 0, x: -10 * U, duration: dur, ease }, start); break
       case 'stagger':
-        if (items.length) tl.from(items, { opacity: 0, y: 4 * U, duration: dur * 0.75, ease, stagger: a?.stagger ?? 0.08 }, start)
+        if (items.length) tl.from(items, STAGGER_FROM_LEFT.has(m.type)
+          ? { opacity: 0, x: -10 * U, duration: dur * 0.85, ease, stagger: a?.stagger ? Math.max(a.stagger, 0.12) : 0.15 }
+          : { opacity: 0, y: 4 * U, duration: dur * 0.75, ease, stagger: a?.stagger ?? 0.08 }, start)
         else tl.from(el, { opacity: 0, y: 6 * U, duration: dur, ease }, start)
         break
     }
@@ -418,7 +439,9 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         const w = centered || (hasPriceList && it.m.type !== 'price-list') ? 0 : WEIGHT[it.m.type]
         const shrinks = alone || it.m.type === 'price-list'
         el.style.flex = `${w} ${shrinks ? 1 : 0} auto`
-        el.style.minHeight = centered ? '55%' : shrinks ? '0' : ''
+        // Se respeta el alto mínimo propio del módulo (el producto estrella a sangre lo trae).
+        if (centered) el.style.minHeight = el.style.minHeight || '55%'
+        else if (shrinks && it.m.type === 'price-list') el.style.minHeight = '0'
         if (centered) { el.style.marginTop = 'auto'; el.style.marginBottom = 'auto' }
         view.append(el)
         return { el, m: it.m }
