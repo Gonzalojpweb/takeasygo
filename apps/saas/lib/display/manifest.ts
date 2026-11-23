@@ -134,6 +134,8 @@ export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | nu
   } else if (p.screenTemplate?.kind === 'composition') {
     const cfg = parseCompositionConfig(p.screenTemplate.config)
     if (!cfg) return null // config rota: se saltea esta pieza, nunca se cae el manifiesto
+    // Una composición vertical no va a una pantalla horizontal (ni al revés): el panel lo avisa.
+    if (cfg.orientation !== ctx.orientation) return null
     const promoBoard = buildPromoBoard(ctx.promos, ctx.tenant, parsePromosConfig({}), (s, e) => effectiveScheduleWindow(s as Date, e as Date, ctx.timezone), maxDiscountPercent)
     const b = buildCompositionBoard(ctx.menu, ctx.tenant, cfg, ctx.combos, promoBoard.promos, ctx.fonts)
     if (!compositionHasContent(b)) return null
@@ -194,6 +196,50 @@ export function manifestEtag(items: ManifestItem[], device: DeviceLike): string 
   return `W/"${h}"`
 }
 
+/**
+ * Datos que necesitan las plantillas (carta, marca, promos, combos, ranking,
+ * fuentes) para UNA sede. Lo usan el manifiesto y la vista previa del panel.
+ */
+export async function loadTemplateCtx(
+  where: { tenantId: unknown; locationId: unknown; orientation: DisplayOrientation },
+  kinds: Set<string>,
+  now = new Date(),
+): Promise<TemplateCtx> {
+  const tenantId = new mongoose.Types.ObjectId(String(where.tenantId))
+  const locationId = where.locationId ? new mongoose.Types.ObjectId(String(where.locationId)) : null
+  const [menu, tenant, loc, promos] = await Promise.all([
+    (kinds.has('menu') || kinds.has('featured') || kinds.has('composition')) && locationId
+      ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
+      : null,
+    Tenant.findById(String(where.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
+    locationId ? Location.findById(locationId).select('timezone').lean<{ timezone?: string }>() : null,
+    (kinds.has('promos') || kinds.has('composition'))
+      ? Promotion.find({
+        tenantId,
+        scope: { $ne: 'global' },
+        isActive: true,
+        $and: [
+          { $or: [{ locationId: null }, { locationId: { $exists: false } }, ...(locationId ? [{ locationId }] : [])] },
+          { $or: [{ scheduledEnd: null }, { scheduledEnd: { $exists: false } }, { scheduledEnd: { $gte: new Date(now.getTime() - SCHEDULE_QUERY_SLACK_MS) } }] },
+          { $or: [{ scheduledStart: null }, { scheduledStart: { $exists: false } }, { scheduledStart: { $lte: new Date(now.getTime() + LOOKAHEAD_MS) } }] },
+        ],
+      })
+        .select('type title shortDescription description imageUrl price originalPrice scheduledStart scheduledEnd activeDays activeTimeStart activeTimeEnd channels maxRedemptions redemptionsCount discountTargets isActive sortOrder isFeatured')
+        .sort({ isFeatured: -1, sortOrder: 1, createdAt: -1 })
+        .limit(60)
+        .lean<Record<string, any>[]>()
+      : [],
+  ])
+  const timezone = loc?.timezone || 'America/Argentina/Buenos_Aires'
+  const wantsCombos = (kinds.has('featured') || kinds.has('composition')) && !!locationId
+  const [ranking, combos, fonts] = await Promise.all([
+    kinds.has('featured') && locationId ? topItemIds(tenantId, locationId) : [],
+    wantsCombos ? sellableCombos(tenantId, locationId, menu ?? null, timezone) : [],
+    kinds.has('composition') && tenant ? resolveGoogleFonts(googleFamiliesToResolve(tenant)) : {},
+  ])
+  return { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, fonts, timezone, orientation: where.orientation }
+}
+
 export async function buildManifest(device: DeviceLike, now = new Date()) {
   const docs = await AppStory.find(manifestQuery(device, now))
     .select('imageUrl videoUrl videoPosterUrl videoDurationMs displayDurationMs daypart scheduledStart scheduledEnd updatedAt media sortOrder createdAt screenTemplate')
@@ -201,43 +247,8 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     .limit(50)
     .lean<PieceDoc[]>()
   // Plantillas: la carta de la sede del equipo y la marca del comercio, una sola vez.
-  let tctx: TemplateCtx | null = null
-  if (docs.some((d) => d.screenTemplate)) {
-    const kinds = new Set(docs.map((d) => d.screenTemplate?.kind).filter(Boolean))
-    const tenantId = new mongoose.Types.ObjectId(String(device.tenantId))
-    const locationId = device.locationId ? new mongoose.Types.ObjectId(String(device.locationId)) : null
-    const [menu, tenant, loc, promos] = await Promise.all([
-      (kinds.has('menu') || kinds.has('featured') || kinds.has('composition')) && locationId
-        ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
-        : null,
-      Tenant.findById(String(device.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
-      locationId ? Location.findById(locationId).select('timezone').lean<{ timezone?: string }>() : null,
-      (kinds.has('promos') || kinds.has('composition'))
-        ? Promotion.find({
-          tenantId,
-          scope: { $ne: 'global' },
-          isActive: true,
-          $and: [
-            { $or: [{ locationId: null }, { locationId: { $exists: false } }, ...(locationId ? [{ locationId }] : [])] },
-            { $or: [{ scheduledEnd: null }, { scheduledEnd: { $exists: false } }, { scheduledEnd: { $gte: new Date(now.getTime() - SCHEDULE_QUERY_SLACK_MS) } }] },
-            { $or: [{ scheduledStart: null }, { scheduledStart: { $exists: false } }, { scheduledStart: { $lte: new Date(now.getTime() + LOOKAHEAD_MS) } }] },
-          ],
-        })
-          .select('type title shortDescription description imageUrl price originalPrice scheduledStart scheduledEnd activeDays activeTimeStart activeTimeEnd channels maxRedemptions redemptionsCount discountTargets isActive sortOrder isFeatured')
-          .sort({ isFeatured: -1, sortOrder: 1, createdAt: -1 })
-          .limit(60)
-          .lean<Record<string, any>[]>()
-        : [],
-    ])
-    const timezone = loc?.timezone || 'America/Argentina/Buenos_Aires'
-    const wantsCombos = (kinds.has('featured') || kinds.has('composition')) && !!locationId
-    const [ranking, combos, fonts] = await Promise.all([
-      kinds.has('featured') && locationId ? topItemIds(tenantId, locationId) : [],
-      wantsCombos ? sellableCombos(tenantId, locationId, menu ?? null, timezone) : [],
-      kinds.has('composition') && tenant ? resolveGoogleFonts(googleFamiliesToResolve(tenant)) : {},
-    ])
-    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, fonts, timezone, orientation: device.orientation }
-  }
+  const kinds = new Set(docs.map((d) => d.screenTemplate?.kind).filter((k): k is string => !!k))
+  const tctx = kinds.size ? await loadTemplateCtx({ tenantId: device.tenantId, locationId: device.locationId, orientation: device.orientation }, kinds, now) : null
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))
     .filter((x): x is ManifestItem => x !== null)

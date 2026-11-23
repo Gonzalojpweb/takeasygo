@@ -2,11 +2,13 @@
 // TakeasyGO Pantallas — entrada
 // ============================================================================
 // /diagnostico → chequeos del equipo (Entrega A)
+// /preview     → vista previa de composiciones para el panel (iframe)
 // /            → reproductor (vinculación si no tiene token)
 // ============================================================================
 
 import { CURRENT_BUILD } from './build'
 import { mountDiagnostico } from './diagnostico/page'
+import { mountPreview } from './preview'
 import { mountPairing } from './player/pairing'
 import { mountPlayer } from './player/player'
 import { store } from './player/store'
@@ -43,7 +45,10 @@ function mountApp(root: HTMLElement) {
 }
 
 const root = document.getElementById('app')!
+const route = location.pathname.replace(/\/+$/, '')
 if (window.__tgdUnsupported) { /* el chequeo previo ya mostró el mensaje */ }
-else if (location.pathname.replace(/\/+$/, '') === '/diagnostico') mountDiagnostico(root)
+else if (route === '/diagnostico') mountDiagnostico(root)
+// Vista previa del panel (iframe): sin vincular, sin token y sin service worker.
+else if (route === '/preview') mountPreview(root)
 else mountApp(root)
-if (!window.__tgdUnsupported) void registerServiceWorker()
+if (!window.__tgdUnsupported && route !== '/preview') void registerServiceWorker()

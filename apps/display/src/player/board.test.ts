@@ -164,3 +164,19 @@ describe('reparto de módulos en páginas', () => {
     expect(packModules([1200, 100, 100], 900)).toEqual([[0], [1, 2]])
   })
 })
+
+describe('lienzo de diseño y sello de descuento', () => {
+  it('tótem 1080×1920 en una TV 1920×1080: se escala sin deformar y queda centrado', async () => {
+    const { fitCanvas } = await import('./board')
+    expect(fitCanvas(1080, 1920, 1920, 1080)).toEqual({ scale: 0.5625, x: 656, y: 0 })
+    expect(fitCanvas(1920, 1080, 1280, 720)).toEqual({ scale: 2 / 3, x: 0, y: 0 })
+    expect(fitCanvas(1080, 1920, 720, 1280)).toEqual({ scale: 2 / 3, x: 0, y: 0 })
+  })
+  it('descuento: % redondeado, solo si es de 5 % o más', async () => {
+    const { discountPercent } = await import('./board')
+    expect(discountPercent(3400000, 3600000)).toBe(6)
+    expect(discountPercent(1500000, 3000000)).toBe(50)
+    expect(discountPercent(990000, 1000000)).toBeNull()
+    expect(discountPercent(1000, null)).toBeNull()
+  })
+})

@@ -27,6 +27,7 @@ import Promotion from '@/models/Promotion'
 import DisplayDevice from '@/models/DisplayDevice'
 import { GET as catalog, POST as createTemplate } from '@/app/api/[tenant]/screen-pieces/templates/route'
 import { GET as manifest } from '@/app/api/display/manifest/route'
+import { POST as preview } from '@/app/api/[tenant]/screen-pieces/preview/route'
 import { auth } from '@/lib/auth'
 import { markSaved } from '@/lib/media/ads'
 import { generateDisplayToken, hashDisplayToken } from '@/lib/display/auth'
@@ -146,5 +147,55 @@ describe('armado (puro)', () => {
     const css = `/* cyrillic */\n@font-face { src: url(https://fonts.gstatic.com/s/inter/cyr.woff2) format('woff2'); }\n/* latin */\n@font-face { src: url(https://fonts.gstatic.com/s/inter/lat.woff2) format('woff2'); }`
     expect(fontUrlFromCss(css)).toBe('https://fonts.gstatic.com/s/inter/lat.woff2')
     expect(fontUrlFromCss('nada')).toBeNull()
+  })
+})
+
+describe('tótems: lienzo, orientación y animaciones', () => {
+  const header = { type: 'brand-header', config: {} }
+  const hero = (anim?: unknown) => ({ type: 'hero-product', config: { productId: String(ids.doble), badge: 'UN CLÁSICO DE LA CASA' }, ...(anim ? { animation: anim } : {}) })
+
+  it('el lienzo, la transición y la animación de cada módulo viajan a la pantalla', async () => {
+    const res = await post(composition([header, hero({ enter: 'slideLeft', duration: 1.2, delay: 0.4 })], { transition: 'slide' }))
+    expect(res.status).toBe(201)
+    const t = (await (await getManifest()).json()).items[0].template
+    expect(t).toMatchObject({ orientation: 'landscape', designWidth: 1920, designHeight: 1080, transition: 'slide' })
+    const h = t.modules.find((m: any) => m.type === 'hero-product')
+    expect(h.animation).toMatchObject({ enter: 'slideLeft', duration: 1.2, delay: 0.4, ease: 'power3.out' })
+    expect(h.config).toMatchObject({ badge: 'UN CLÁSICO DE LA CASA', kenBurns: true, showDiscount: true })
+  })
+
+  it('una composición vertical no va a una pantalla horizontal (y sí a una vertical)', async () => {
+    await post(composition([header, hero()], { orientation: 'portrait', designWidth: 1080, designHeight: 1920 }))
+    expect((await (await getManifest()).json()).items).toHaveLength(0)
+    await DisplayDevice.updateMany({}, { orientation: 'portrait' })
+    const t = (await (await getManifest()).json()).items[0].template
+    expect(t).toMatchObject({ orientation: 'portrait', designWidth: 1080, designHeight: 1920 })
+  })
+
+  it('orientación y tamaño tienen que coincidir; tamaño fuera de rango → 400', async () => {
+    expect((await post(composition([header, hero()], { orientation: 'portrait', designWidth: 1920, designHeight: 1080 }))).status).toBe(400)
+    expect((await post(composition([header, hero()], { designWidth: 100, designHeight: 50 }))).status).toBe(400)
+    expect((await post(composition([header, hero({ enter: 'explotar' })]))).status).toBe(400)
+  })
+
+  it('composiciones guardadas antes del lienzo siguen andando (vertical sin tamaño → 1080 × 1920)', async () => {
+    await AppStory.create({ title: 'Vieja', surfaces: ['screen'], owner: { kind: 'tenant', tenantId: A._id, locationId: loc._id }, isActive: true, screenTemplate: { kind: 'composition', config: { orientation: 'portrait', modules: [header, hero()] } } })
+    await DisplayDevice.updateMany({}, { orientation: 'portrait' })
+    // (Mongo borra el config vacío del encabezado al guardar: tiene que seguir valiendo.)
+    const t = (await (await getManifest()).json()).items[0].template
+    expect(t).toMatchObject({ designWidth: 1080, designHeight: 1920 })
+  })
+
+  it('vista previa del panel: arma la composición sin guardarla, con el QR de la sede', async () => {
+    const before = await AppStory.countDocuments({})
+    const r = await preview(new NextRequest('http://localhost/api/sc-a/screen-pieces/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ locationId: String(loc._id), template: { kind: 'composition', config: { orientation: 'portrait', designWidth: 1080, designHeight: 1920, modules: [header, hero()] } } }) }), p)
+    expect(r.status).toBe(200)
+    const d = await r.json()
+    expect(d.template).toMatchObject({ kind: 'composition', orientation: 'portrait' })
+    expect(d.template.modules.find((m: any) => m.type === 'hero-product').product.name).toBe('Doble Clásica')
+    expect(d.orderUrl).toContain('/sc-a/menu/a1?source=pantalla.vista-previa')
+    expect(await AppStory.countDocuments({})).toBe(before)
+    await Tenant.updateOne({ _id: A._id }, { plan: 'full' })
+    expect((await preview(new NextRequest('http://localhost/api/sc-a/screen-pieces/preview', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ locationId: String(loc._id), template: { kind: 'composition', config: { modules: [header] } } }) }), p)).status).toBe(403)
   })
 })

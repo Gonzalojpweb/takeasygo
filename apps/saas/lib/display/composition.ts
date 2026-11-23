@@ -14,7 +14,7 @@
 // ============================================================================
 
 import { boardImageUrl, brandOf, priceOf, slotsOf, type AnyDoc, type BoardBrand, type BoardProduct, type BoardPromo, type Slot } from '@/lib/display/templates'
-import type { CompositionConfig } from '@/lib/display/composition-schema'
+import type { CompositionConfig, ModuleAnimation } from '@/lib/display/composition-schema'
 
 export interface CompositionProduct extends BoardProduct {
   badge: string | null
@@ -35,16 +35,20 @@ export interface CompositionSection {
   products: Array<{ id: string; name: string; price: number; fromPrice: boolean; available: boolean; schedules: Slot[][] }>
 }
 
-export type ResolvedModule =
+export type ResolvedModule = (
   | { type: 'brand-header'; config: { tagline: string; showLogo: boolean } }
-  | { type: 'hero-product'; config: { badge: string }; product: CompositionProduct | null }
+  | { type: 'hero-product'; config: { badge: string; kenBurns: boolean; showDiscount: boolean }; product: CompositionProduct | null }
   | { type: 'product-grid'; config: { showDescriptions: boolean }; products: CompositionProduct[] }
-  | { type: 'combo-highlight'; config: { badge: string }; combo: CompositionCombo | null }
-  | { type: 'promo-banner'; config: { headline: string }; promo: BoardPromo | null }
+  | { type: 'combo-highlight'; config: { badge: string; kenBurns: boolean }; combo: CompositionCombo | null }
+  | { type: 'promo-banner'; config: { headline: string; kenBurns: boolean; showDiscount: boolean }; promo: BoardPromo | null }
   | { type: 'drinks-row'; products: CompositionProduct[] }
   | { type: 'price-list'; sections: CompositionSection[] }
-  | { type: 'illustration-block'; config: { text: string; imagePosition: 'left' | 'right' | 'top' | 'bottom' }; imageUrl: string | null }
+  | { type: 'illustration-block'; config: { text: string; imagePosition: 'left' | 'right' | 'top' | 'bottom'; kenBurns: boolean }; imageUrl: string | null }
   | { type: 'qr-cta'; config: { headline: string; subtext: string } }
+) & {
+  /** Animación de entrada (GSAP en la pantalla). null = la recomendada para el módulo. */
+  animation?: ModuleAnimation | null
+}
 
 export interface FontFile { family: string; url: string; role: 'heading' | 'body' }
 
@@ -58,6 +62,11 @@ export interface CompositionBrand extends BoardBrand {
 export interface CompositionBoard {
   kind: 'composition'
   showQr: boolean
+  /** Lienzo de diseño: la pantalla dibuja en este tamaño y lo escala sin deformar. */
+  orientation: 'landscape' | 'portrait'
+  designWidth: number
+  designHeight: number
+  transition: 'fade' | 'slide' | 'zoom' | 'none'
   style: 'brand' | 'dark' | 'light'
   pageMs: number
   brand: CompositionBrand
@@ -155,12 +164,13 @@ export function buildCompositionBoard(
   const catalog = catalogOf(menu)
   const modules: ResolvedModule[] = []
   for (const mod of config.modules) {
+    const before = modules.length
     switch (mod.type) {
       case 'brand-header':
         modules.push({ type: 'brand-header', config: { tagline: mod.config.tagline, showLogo: mod.config.showLogo } })
         break
       case 'hero-product':
-        modules.push({ type: 'hero-product', config: { badge: mod.config.badge }, product: resolveProduct(catalog, mod.config.productId, mod.config.priceChannel, 960, mod.config.badge) })
+        modules.push({ type: 'hero-product', config: { badge: mod.config.badge, kenBurns: mod.config.kenBurns, showDiscount: mod.config.showDiscount }, product: resolveProduct(catalog, mod.config.productId, mod.config.priceChannel, 960, mod.config.badge) })
         break
       case 'product-grid':
         modules.push({
@@ -173,7 +183,7 @@ export function buildCompositionBoard(
         const doc = combos.find((c) => String(c._id) === mod.config.comboId)
         modules.push({
           type: 'combo-highlight',
-          config: { badge: mod.config.badge },
+          config: { badge: mod.config.badge, kenBurns: mod.config.kenBurns },
           combo: doc ? {
             id: String(doc._id),
             name: String(doc.name ?? '').slice(0, 80),
@@ -186,7 +196,7 @@ export function buildCompositionBoard(
         break
       }
       case 'promo-banner':
-        modules.push({ type: 'promo-banner', config: { headline: mod.config.headline }, promo: promos.find((p) => p.id === mod.config.promotionId) ?? null })
+        modules.push({ type: 'promo-banner', config: { headline: mod.config.headline, kenBurns: mod.config.kenBurns, showDiscount: mod.config.showDiscount }, promo: promos.find((p) => p.id === mod.config.promotionId) ?? null })
         break
       case 'drinks-row':
         modules.push({ type: 'drinks-row', products: mod.config.productIds.map((id) => resolveProduct(catalog, id, mod.config.priceChannel, 320, '', false)).filter((p): p is CompositionProduct => !!p) })
@@ -220,14 +230,19 @@ export function buildCompositionBoard(
         break
       }
       case 'illustration-block':
-        modules.push({ type: 'illustration-block', config: { text: mod.config.text, imagePosition: mod.config.imagePosition }, imageUrl: boardImageUrl(mod.config.imageUrl, 960, 960) })
+        modules.push({ type: 'illustration-block', config: { text: mod.config.text, imagePosition: mod.config.imagePosition, kenBurns: mod.config.kenBurns }, imageUrl: boardImageUrl(mod.config.imageUrl, 960, 960) })
         break
       case 'qr-cta':
         modules.push({ type: 'qr-cta', config: { headline: mod.config.headline, subtext: mod.config.subtext } })
         break
     }
+    if (modules.length > before && mod.animation) modules[modules.length - 1].animation = mod.animation
   }
-  return { kind: 'composition', showQr: config.showQr, style: config.style, pageMs: config.pageSeconds * 1000, brand: compositionBrandOf(tenant, resolvedFonts), modules }
+  return {
+    kind: 'composition', showQr: config.showQr, style: config.style, pageMs: config.pageSeconds * 1000,
+    orientation: config.orientation, designWidth: config.designWidth, designHeight: config.designHeight, transition: config.transition,
+    brand: compositionBrandOf(tenant, resolvedFonts), modules,
+  }
 }
 
 /** ¿Tiene algo con contenido? (si no, la pieza no se manda). */

@@ -195,19 +195,26 @@ export interface CompositionProduct extends BoardProduct { badge: string | null 
 export interface CompositionCombo { id: string; name: string; description: string | null; price: number | null; image: string | null; includes: string[] }
 export interface CompositionRow { id: string; name: string; price: number; fromPrice: boolean; available: boolean; schedules: Slot[][] }
 export interface CompositionSection { id: string; name: string; parent: string | null; products: CompositionRow[] }
-export type ResolvedModule =
+export interface ModuleAnimation { enter: 'auto' | 'none' | 'fade' | 'fadeUp' | 'scaleIn' | 'slideLeft' | 'slideRight' | 'stagger'; duration: number; delay: number; ease: string; stagger: number }
+export type ResolvedModule = (
   | { type: 'brand-header'; config: { tagline: string; showLogo: boolean } }
-  | { type: 'hero-product'; config: { badge: string }; product: CompositionProduct | null }
+  | { type: 'hero-product'; config: { badge: string; kenBurns?: boolean; showDiscount?: boolean }; product: CompositionProduct | null }
   | { type: 'product-grid'; config: { showDescriptions: boolean }; products: CompositionProduct[] }
-  | { type: 'combo-highlight'; config: { badge: string }; combo: CompositionCombo | null }
-  | { type: 'promo-banner'; config: { headline: string }; promo: BoardPromo | null }
+  | { type: 'combo-highlight'; config: { badge: string; kenBurns?: boolean }; combo: CompositionCombo | null }
+  | { type: 'promo-banner'; config: { headline: string; kenBurns?: boolean; showDiscount?: boolean }; promo: BoardPromo | null }
   | { type: 'drinks-row'; products: CompositionProduct[] }
   | { type: 'price-list'; sections: CompositionSection[] }
-  | { type: 'illustration-block'; config: { text: string; imagePosition: 'left' | 'right' | 'top' | 'bottom' }; imageUrl: string | null }
+  | { type: 'illustration-block'; config: { text: string; imagePosition: 'left' | 'right' | 'top' | 'bottom'; kenBurns?: boolean }; imageUrl: string | null }
   | { type: 'qr-cta'; config: { headline: string; subtext: string } }
+) & { animation?: ModuleAnimation | null }
 export interface CompositionBoard {
   kind: 'composition'
   showQr?: boolean
+  /** Lienzo de diseño (composiciones viejas no lo traen: se usa el de la pantalla). */
+  orientation?: 'landscape' | 'portrait'
+  designWidth?: number
+  designHeight?: number
+  transition?: 'fade' | 'slide' | 'zoom' | 'none'
   style: 'brand' | 'dark' | 'light'
   pageMs: number
   brand: MenuBoard['brand'] & { fontHeading: string | null; fontBody: string | null; fontFiles: Array<{ family: string; url: string; role: 'heading' | 'body' }> }
@@ -309,4 +316,17 @@ export function packModules(heights: number[], budget: number): number[][] {
   })
   if (cur.length) pages.push(cur)
   return pages
+}
+
+/** Escala para meter el lienzo de diseño en la pantalla sin deformar (y el margen para centrarlo). */
+export function fitCanvas(dw: number, dh: number, sw: number, sh: number): { scale: number; x: number; y: number } {
+  const scale = Math.min(sw / dw, sh / dh)
+  return { scale, x: Math.round((sw - dw * scale) / 2), y: Math.round((sh - dh * scale) / 2) }
+}
+
+/** % de descuento a mostrar en el sello (redondeado; solo si es ≥ 5 %). */
+export function discountPercent(price: number, original: number | null): number | null {
+  if (!original || !(original > price) || !(price > 0)) return null
+  const pct = Math.round((1 - price / original) * 100)
+  return pct >= 5 ? pct : null
 }
