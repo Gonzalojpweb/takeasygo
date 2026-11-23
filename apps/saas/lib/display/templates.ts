@@ -42,18 +42,32 @@ export const menuConfigSchema = z.object({
 })
 export type MenuConfig = z.infer<typeof menuConfigSchema>
 
-export const templateSchema = z.object({
-  kind: z.literal('menu'),
-  config: menuConfigSchema,
+// Entrega 2 · Promos por horario: las promociones del comercio, sin cargarlas dos veces.
+export const promosConfigSchema = z.object({
+  style: z.enum(MENU_STYLES).default('brand'),
+  /** Cuántas promos como máximo por vuelta (las de la franja actual). */
+  maxItems: z.number().int().min(1).max(12).default(6),
+  showPrices: z.boolean().default(true),
+  pageSeconds: z.number().int().min(5).max(30).default(8),
 })
+export type PromosConfig = z.infer<typeof promosConfigSchema>
+
+export const templateSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('menu'), config: menuConfigSchema }),
+  z.object({ kind: z.literal('promos'), config: promosConfigSchema }),
+])
+export type TemplateInput = z.infer<typeof templateSchema>
+
+/** Plantillas que dependen de la carta de UNA sede (las demás pueden ir a todas las sedes). */
+export const TEMPLATES_NEED_LOCATION = new Set(['menu'])
 
 const HM = /^([01]\d|2[0-3]):[0-5]\d$/
 
 export const createTemplatePieceSchema = z.object({
   title: z.string().trim().min(1, 'Poné un nombre').max(80),
   template: templateSchema,
-  /** La carta es de una sede (cada sede tiene la suya). */
-  locationId: z.string().refine(OID, 'Elegí la sede'),
+  /** La carta es de una sede (cada sede tiene la suya); las promos pueden ir a todas (null). */
+  locationId: z.string().refine(OID, 'Elegí la sede').nullable().optional(),
   startsAt: z.string().datetime().nullable().optional(),
   endsAt: z.string().datetime().nullable().optional(),
   daypart: z.object({
@@ -236,7 +250,7 @@ export function boardAssets(board: MenuBoard): string[] {
 }
 
 /** Huella del contenido: cambia el ETag del manifiesto cuando cambia un precio, una foto o una pausa. */
-export function boardHash(board: MenuBoard): string {
+export function boardHash(board: MenuBoard | PromoBoard): string {
   return createHash('sha1').update(JSON.stringify(board)).digest('hex').slice(0, 16)
 }
 
@@ -244,6 +258,112 @@ export function boardHash(board: MenuBoard): string {
 export function estimateBoardMs(board: MenuBoard, perPage: number): number {
   const pages = board.sections.reduce((n, s) => n + Math.max(1, Math.ceil(s.products.length / perPage)), 0)
   return Math.max(1, pages) * board.pageMs
+}
+
+// ── Promos por horario ──────────────────────────────────────────────────────
+
+export interface BoardPromo {
+  id: string
+  title: string
+  text: string | null
+  image: string | null
+  /** Centavos (promo de precio fijo). */
+  price: number | null
+  originalPrice: number | null
+  /** Promo de descuento: el mayor % de sus objetivos. */
+  percent: number | null
+  /** Ventana efectiva de fechas (ISO; una fecha sin hora vale el día entero en la sede). */
+  startsAt: string | null
+  endsAt: string | null
+  /** Días 0–6 (vacío = todos) y franja «HH:MM» (from > to cruza la medianoche). */
+  days: number[]
+  from: string | null
+  to: string | null
+}
+
+export interface PromoBoard {
+  kind: 'promos'
+  style: MenuStyle
+  showPrices: boolean
+  maxItems: number
+  pageMs: number
+  brand: BoardBrand
+  promos: BoardPromo[]
+}
+
+export function brandOf(tenant: AnyDoc): BoardBrand {
+  const b = tenant?.branding ?? {}
+  return {
+    name: String(tenant?.name ?? ''),
+    logo: boardImageUrl(b.logoUrl, 320, 160, 'fit'),
+    primary: cleanColor(b.primaryColor) ?? '#E85D2A',
+    background: cleanColor(b.backgroundColor),
+    text: cleanColor(b.textColor),
+  }
+}
+
+const HM_ANY = /^([01]?\d|2[0-3]):([0-5]\d)$/
+const hm = (v: unknown): string | null => {
+  const m = typeof v === 'string' ? HM_ANY.exec(v.trim()) : null
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null
+}
+
+/**
+ * Promociones del comercio → datos de la pantalla. Las mismas que ya cargó en
+ * Promociones: sin repetir nada. Se excluyen las de TakeasyGO (solo contenido
+ * propio), las que solo valen para delivery, las agotadas (tope de canjes) y
+ * las vencidas. La pantalla evalúa días, franja y fechas sola, también sin
+ * internet; cuando una vence, se apaga sola.
+ */
+export function buildPromoBoard(
+  promos: AnyDoc[],
+  tenant: AnyDoc,
+  config: PromosConfig,
+  window: (start: unknown, end: unknown) => { start: Date | null; end: Date | null },
+  percentOf: (p: AnyDoc) => number | null,
+  now = new Date(),
+): PromoBoard {
+  const out: BoardPromo[] = []
+  for (const p of promos) {
+    if (!p || p.isActive === false) continue
+    const channels: string[] = Array.isArray(p.channels) ? p.channels : []
+    if (channels.length && channels.every((c) => c === 'delivery')) continue
+    if (p.maxRedemptions && (p.redemptionsCount ?? 0) >= p.maxRedemptions) continue
+    const w = window(p.scheduledStart, p.scheduledEnd)
+    if (w.end && w.end.getTime() <= now.getTime()) continue
+    const from = hm(p.activeTimeStart)
+    const to = hm(p.activeTimeEnd)
+    const isSale = p.type === 'sale'
+    const price = isSale && Number(p.price) > 0 ? Number(p.price) : null
+    const orig = isSale && Number(p.originalPrice) > (price ?? 0) ? Number(p.originalPrice) : null
+    out.push({
+      id: String(p._id),
+      title: String(p.title ?? '').slice(0, 80),
+      text: String(p.shortDescription || p.description || '').slice(0, 160) || null,
+      image: boardImageUrl(p.imageUrl, 960, 960),
+      price,
+      originalPrice: orig,
+      percent: p.type === 'discount' ? percentOf(p) : null,
+      startsAt: w.start ? w.start.toISOString() : null,
+      endsAt: w.end ? w.end.toISOString() : null,
+      days: (Array.isArray(p.activeDays) ? p.activeDays : []).filter((d: unknown) => Number.isInteger(d) && (d as number) >= 0 && (d as number) <= 6),
+      from: from && to ? from : null,
+      to: from && to ? to : null,
+    })
+  }
+  return { kind: 'promos', style: config.style, showPrices: config.showPrices, maxItems: config.maxItems, pageMs: config.pageSeconds * 1000, brand: brandOf(tenant), promos: out.slice(0, 40) }
+}
+
+export function promoAssets(board: PromoBoard): string[] {
+  const out = new Set<string>()
+  if (board.brand.logo) out.add(board.brand.logo)
+  for (const p of board.promos) if (p.image) out.add(p.image)
+  return [...out]
+}
+
+export function parsePromosConfig(raw: unknown): PromosConfig {
+  const r = promosConfigSchema.safeParse(raw ?? {})
+  return r.success ? r.data : promosConfigSchema.parse({})
 }
 
 /** Config guardada → config válida (lo viejo o roto vuelve a los valores por defecto). */

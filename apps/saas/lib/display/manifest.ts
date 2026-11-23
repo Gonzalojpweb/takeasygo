@@ -20,7 +20,10 @@ import Tenant from '@/models/Tenant'
 import type { DisplayOrientation } from '@/models/DisplayDevice'
 import { screenUrls } from '@/lib/media/ads'
 import { SCREEN_IMAGE_DEFAULT_MS } from '@/lib/display/constants'
-import { buildMenuBoard, boardAssets, boardHash, estimateBoardMs, parseMenuConfig, type MenuBoard } from '@/lib/display/templates'
+import { buildMenuBoard, boardAssets, boardHash, estimateBoardMs, parseMenuConfig, buildPromoBoard, parsePromosConfig, promoAssets, type MenuBoard, type PromoBoard } from '@/lib/display/templates'
+import Promotion from '@/models/Promotion'
+import Location from '@/models/Location'
+import { effectiveScheduleWindow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
 export const LOOKAHEAD_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -38,7 +41,7 @@ export interface ManifestItem {
   bytes: number | null
   daypart: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Solo plantillas: datos para dibujarla y archivos (fotos, logo) a guardar. */
-  template?: MenuBoard
+  template?: MenuBoard | PromoBoard
   assets?: string[]
 }
 
@@ -75,18 +78,45 @@ export function manifestQuery(device: DeviceLike, now = new Date()) {
 /** Fotos de la carta por página según la orientación (la pantalla usa los mismos números). */
 export const BOARD_PER_PAGE = { landscape: 8, portrait: 6 } as const
 
-/** Pieza automática → ítem del manifiesto (datos resueltos con la carta de la sede del equipo). */
-export function toTemplateItem(p: PieceDoc, ctx: { menu: Record<string, any> | null; tenant: Record<string, any> | null; orientation: DisplayOrientation }): ManifestItem | null {
-  if (p.screenTemplate?.kind !== 'menu' || !ctx.tenant) return null
-  const board = buildMenuBoard(ctx.menu, ctx.tenant, parseMenuConfig(p.screenTemplate.config))
-  if (!board.sections.length) return null
+export interface TemplateCtx {
+  menu: Record<string, any> | null
+  tenant: Record<string, any> | null
+  promos: Record<string, any>[]
+  timezone: string
+  orientation: DisplayOrientation
+}
+
+/** Mayor % de una promo de descuento (para el cartel «hasta X% off»). */
+function maxDiscountPercent(p: Record<string, any>): number | null {
+  const targets: Array<{ percent?: number }> = Array.isArray(p.discountTargets) ? p.discountTargets : []
+  const max = targets.reduce((m, t) => Math.max(m, Number(t?.percent) || 0), 0)
+  return max > 0 ? Math.round(max) : null
+}
+
+/** Pieza automática → ítem del manifiesto (datos resueltos con la sede del equipo). */
+export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | null {
+  if (!ctx.tenant) return null
+  let board: MenuBoard | PromoBoard
+  let assets: string[]
+  let durationMs: number
+  if (p.screenTemplate?.kind === 'menu') {
+    const b = buildMenuBoard(ctx.menu, ctx.tenant, parseMenuConfig(p.screenTemplate.config))
+    if (!b.sections.length) return null
+    board = b; assets = boardAssets(b); durationMs = estimateBoardMs(b, BOARD_PER_PAGE[ctx.orientation])
+  } else if (p.screenTemplate?.kind === 'promos') {
+    const b = buildPromoBoard(ctx.promos, ctx.tenant, parsePromosConfig(p.screenTemplate.config), (s, e) => effectiveScheduleWindow(s as Date, e as Date, ctx.timezone), maxDiscountPercent)
+    if (!b.promos.length) return null
+    board = b; assets = promoAssets(b); durationMs = Math.min(b.promos.length, b.maxItems) * b.pageMs
+  } else {
+    return null
+  }
   return {
     id: String(p._id),
     kind: 'template',
     url1080: '',
     url720: '',
     posterUrl: null,
-    durationMs: estimateBoardMs(board, BOARD_PER_PAGE[ctx.orientation]),
+    durationMs,
     startsAt: p.scheduledStart ? new Date(p.scheduledStart).toISOString() : null,
     endsAt: p.scheduledEnd ? new Date(p.scheduledEnd).toISOString() : null,
     updatedAt: new Date(p.updatedAt).toISOString(),
@@ -95,7 +125,7 @@ export function toTemplateItem(p: PieceDoc, ctx: { menu: Record<string, any> | n
       ? { days: p.daypart.days ?? [], from: p.daypart.from ?? null, to: p.daypart.to ?? null }
       : null,
     template: board,
-    assets: boardAssets(board),
+    assets,
   }
 }
 
@@ -140,15 +170,35 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     .limit(50)
     .lean<PieceDoc[]>()
   // Plantillas: la carta de la sede del equipo y la marca del comercio, una sola vez.
-  let tctx: { menu: Record<string, any> | null; tenant: Record<string, any> | null; orientation: DisplayOrientation } | null = null
+  let tctx: TemplateCtx | null = null
   if (docs.some((d) => d.screenTemplate)) {
-    const [menu, tenant] = await Promise.all([
-      device.locationId
-        ? Menu.findOne({ tenantId: new mongoose.Types.ObjectId(String(device.tenantId)), locationId: new mongoose.Types.ObjectId(String(device.locationId)), isActive: true }).select('categories').lean<Record<string, any>>()
+    const kinds = new Set(docs.map((d) => d.screenTemplate?.kind).filter(Boolean))
+    const tenantId = new mongoose.Types.ObjectId(String(device.tenantId))
+    const locationId = device.locationId ? new mongoose.Types.ObjectId(String(device.locationId)) : null
+    const [menu, tenant, loc, promos] = await Promise.all([
+      kinds.has('menu') && locationId
+        ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
         : null,
       Tenant.findById(String(device.tenantId)).select('name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor').lean<Record<string, any>>(),
+      locationId ? Location.findById(locationId).select('timezone').lean<{ timezone?: string }>() : null,
+      kinds.has('promos')
+        ? Promotion.find({
+          tenantId,
+          scope: { $ne: 'global' },
+          isActive: true,
+          $and: [
+            { $or: [{ locationId: null }, { locationId: { $exists: false } }, ...(locationId ? [{ locationId }] : [])] },
+            { $or: [{ scheduledEnd: null }, { scheduledEnd: { $exists: false } }, { scheduledEnd: { $gte: new Date(now.getTime() - SCHEDULE_QUERY_SLACK_MS) } }] },
+            { $or: [{ scheduledStart: null }, { scheduledStart: { $exists: false } }, { scheduledStart: { $lte: new Date(now.getTime() + LOOKAHEAD_MS) } }] },
+          ],
+        })
+          .select('type title shortDescription description imageUrl price originalPrice scheduledStart scheduledEnd activeDays activeTimeStart activeTimeEnd channels maxRedemptions redemptionsCount discountTargets isActive sortOrder isFeatured')
+          .sort({ isFeatured: -1, sortOrder: 1, createdAt: -1 })
+          .limit(60)
+          .lean<Record<string, any>[]>()
+        : [],
     ])
-    tctx = { menu: menu ?? null, tenant: tenant ?? null, orientation: device.orientation }
+    tctx = { menu: menu ?? null, tenant: tenant ?? null, promos, timezone: loc?.timezone || 'America/Argentina/Buenos_Aires', orientation: device.orientation }
   }
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))

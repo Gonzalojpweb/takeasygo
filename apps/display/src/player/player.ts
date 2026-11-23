@@ -24,8 +24,9 @@ import { getManifest, postJson } from './api'
 import { store, StatsAccumulator, type StatsBatch } from './store'
 import { playableItems, chooseQuality, canDecode1080Smooth, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
 import { CURRENT_BUILD } from '../build'
-import { boardFreshness, boardPages } from './board'
+import { activePromos, boardFreshness, boardPages } from './board'
 import { playMenuBoard } from './templates/menu-board'
+import { playPromoBoard } from './templates/promo-board'
 import { mountControls } from './controls'
 
 const HEARTBEAT_MS = 5 * 60_000
@@ -135,6 +136,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   const ready = (i: ManifestItem): boolean => {
     if (i.kind !== 'template') return cached.has(urlFor(i, quality))
     if (!i.template || freshness() === 'expired') return false
+    if (i.template.kind === 'promos') return activePromos(i.template, correctedNow(), manifest?.timezone).length > 0
     return boardPages(i.template, correctedNow(), manifest?.timezone, 100).length > 0
   }
 
@@ -291,19 +293,18 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     let shownAt = 0
     let finished = false
     let guard: ReturnType<typeof setTimeout> | null = null
-    const cancel = playMenuBoard({
+    const tpl = item.template!
+    const common = {
       host,
-      board: item.template!,
       nowMs: correctedNow,
       timeZone: manifest?.timezone,
       freshness: freshness(),
-      lastOkMs: store.manifestOkAt(),
-      objectUrl: async (url) => (cached.has(url) ? cachedObjectUrl(url) : null),
+      objectUrl: async (url: string) => (cached.has(url) ? cachedObjectUrl(url) : null),
       onShown: () => {
         shownAt = performance.now()
         for (const old of [...stage.children]) if (old !== host) setTimeout(() => old.remove(), 450)
       },
-      onDone: (ok, reason) => {
+      onDone: (ok: boolean, reason?: string) => {
         if (finished) return
         finished = true
         if (guard) clearTimeout(guard)
@@ -313,7 +314,10 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         setTimeout(() => host.remove(), 900)
         void playNext()
       },
-    })
+    }
+    const cancel = tpl.kind === 'promos'
+      ? playPromoBoard({ ...common, board: tpl })
+      : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
     // Tope: una vuelta de la carta nunca frena la pantalla más de 10 min.
     guard = setTimeout(() => cancel(), 10 * 60_000)
   }

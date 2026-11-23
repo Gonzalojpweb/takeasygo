@@ -22,6 +22,7 @@ vi.mock('@/lib/rateLimit', () => ({ rateLimit: vi.fn().mockResolvedValue({ succe
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import Menu from '@/models/Menu'
+import Promotion from '@/models/Promotion'
 import AppStory from '@/models/AppStory'
 import DisplayDevice from '@/models/DisplayDevice'
 import { GET as listPieces } from '@/app/api/[tenant]/screen-pieces/route'
@@ -210,5 +211,54 @@ describe('desvincular desde la pantalla', () => {
     expect(d.tokenHash).toBeNull()
     expect((await getManifest()).status).toBe(401)
     expect(await (await unlink(req())).json()).toMatchObject({ ok: true, alreadyUnlinked: true })
+  })
+})
+
+describe('promos por horario', () => {
+  const promosPiece = (config: Record<string, unknown> = {}, locationId: string | null = null) => ({ title: 'Promos', locationId, template: { kind: 'promos', config } })
+  const promo = (extra: Record<string, unknown>) => Promotion.create({ scope: 'tenant', tenantId: A._id, type: 'sale', title: 'P', price: 500000, isActive: true, slots: [{ name: 'x', requiredQuantity: 1 }], ...extra })
+
+  it('usa las promos del comercio con días, franja y fechas; excluye vencidas, pausadas, solo delivery, agotadas y de otra sede', async () => {
+    asUser('admin', A)
+    const now = Date.now()
+    await promo({ title: 'Almuerzo', shortDescription: 'Plato + bebida', originalPrice: 700000, activeDays: [1, 2, 3, 4, 5], activeTimeStart: '12:00', activeTimeEnd: '15:00', imageUrl: img('almuerzo') })
+    await promo({ title: 'Descuento', type: 'discount', price: 0, discountTargets: [{ kind: 'category', categoryId: ids.pizzas, percent: 20 }, { kind: 'item', itemId: ids.coca, percent: 35 }] })
+    await promo({ title: 'Vencida', scheduledEnd: new Date(now - 3 * 86_400_000) })
+    await promo({ title: 'Pausada', isActive: false })
+    await promo({ title: 'Solo delivery', channels: ['delivery'] })
+    await promo({ title: 'Agotada', maxRedemptions: 5, redemptionsCount: 5 })
+    await promo({ title: 'Otra sede', locationId: locA2._id })
+    await promo({ title: 'Mañana', scheduledStart: new Date(now + 86_400_000) })
+    const res = await createBoard(promosPiece({ maxItems: 4 }))
+    expect(res.status).toBe(201)
+    const m = await (await getManifest()).json()
+    const t = m.items[0].template
+    expect(t.kind).toBe('promos')
+    expect(t.promos.map((p: any) => p.title).sort()).toEqual(['Almuerzo', 'Descuento', 'Mañana'])
+    const alm = t.promos.find((p: any) => p.title === 'Almuerzo')
+    expect(alm).toMatchObject({ price: 500000, originalPrice: 700000, days: [1, 2, 3, 4, 5], from: '12:00', to: '15:00', text: 'Plato + bebida' })
+    expect(alm.image).toContain('c_fill,g_auto,w_960,h_960')
+    expect(m.items[0].assets).toContain(alm.image)
+    expect(t.promos.find((p: any) => p.title === 'Descuento')).toMatchObject({ percent: 35, price: null })
+    expect(t.promos.find((p: any) => p.title === 'Mañana').startsAt).toBeTruthy()
+  })
+
+  it('una promo nueva o editada cambia el ETag; sin promos no hay ítem', async () => {
+    asUser('admin', A)
+    await createBoard(promosPiece())
+    const first = await getManifest()
+    expect((await first.json()).items).toHaveLength(0)
+    const p = await promo({ title: 'Nueva' })
+    const r2 = await getManifest({ 'if-none-match': first.headers.get('etag')! })
+    expect(r2.status).toBe(200)
+    const e2 = r2.headers.get('etag')!
+    await Promotion.updateOne({ _id: p._id }, { title: 'Nueva 2' })
+    expect((await getManifest({ 'if-none-match': e2 })).status).toBe(200)
+  })
+
+  it('las promos pueden ir a todas las sedes; la carta no', async () => {
+    asUser('admin', A)
+    expect((await createBoard(promosPiece({}, null))).status).toBe(201)
+    expect((await createBoard({ ...board(), locationId: null })).status).toBe(400)
   })
 })

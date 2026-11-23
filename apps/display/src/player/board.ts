@@ -128,7 +128,7 @@ export function readableOn(hex: string): '#000' | '#fff' {
 
 export interface BoardColors { bg: string; text: string; muted: string; card: string; accent: string; onAccent: string }
 
-export function boardColors(board: MenuBoard): BoardColors {
+export function boardColors(board: Pick<MenuBoard, 'style' | 'brand'>): BoardColors {
   const accent = board.brand.primary || '#E85D2A'
   const onAccent = readableOn(accent)
   if (board.style === 'light') return { bg: '#f7f7f5', text: '#141414', muted: '#5c5c5c', card: '#ffffff', accent, onAccent }
@@ -137,4 +137,76 @@ export function boardColors(board: MenuBoard): BoardColors {
     return { bg: board.brand.background, text: board.brand.text, muted: dark ? 'rgba(255,255,255,.7)' : 'rgba(0,0,0,.6)', card: dark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.05)', accent, onAccent }
   }
   return { bg: '#101011', text: '#ffffff', muted: 'rgba(255,255,255,.66)', card: 'rgba(255,255,255,.07)', accent, onAccent }
+}
+
+// ── Promos por horario (Entrega 2) ──────────────────────────────────────────
+
+export interface BoardPromo {
+  id: string
+  title: string
+  text: string | null
+  image: string | null
+  price: number | null
+  originalPrice: number | null
+  percent: number | null
+  startsAt: string | null
+  endsAt: string | null
+  days: number[]
+  from: string | null
+  to: string | null
+}
+
+export interface PromoBoard {
+  kind: 'promos'
+  style: 'brand' | 'dark' | 'light'
+  showPrices: boolean
+  maxItems: number
+  pageMs: number
+  brand: MenuBoard['brand']
+  promos: BoardPromo[]
+}
+
+export type ScreenBoard = MenuBoard | PromoBoard
+
+/**
+ * ¿La promo vale ahora en la sede? Fechas (ventana efectiva que manda el
+ * servidor), días y franja. La madrugada de una franja nocturna cuenta para
+ * el día en que empezó (igual que el menú y el checkout). Sin internet sigue
+ * funcionando: al vencer, se apaga sola.
+ */
+export function promoActive(p: BoardPromo, nowMs: number, timeZone?: string | null): boolean {
+  const start = p.startsAt ? Date.parse(p.startsAt) : NaN
+  const end = p.endsAt ? Date.parse(p.endsAt) : NaN
+  if (Number.isFinite(start) && nowMs < start) return false
+  if (Number.isFinite(end) && nowMs > end) return false
+  return inDaypart({ days: p.days, from: p.from, to: p.to }, nowMs, timeZone)
+}
+
+/** Promos a mostrar en esta vuelta (las vigentes ahora, hasta maxItems). */
+export function activePromos(board: PromoBoard, nowMs: number, timeZone?: string | null): BoardPromo[] {
+  return board.promos.filter((p) => promoActive(p, nowMs, timeZone)).slice(0, board.maxItems)
+}
+
+const DAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+
+/** «Hoy hasta las 23:00» · «Lun a vie de 12:00 a 15:00» · null si vale siempre. */
+export function promoWhen(p: BoardPromo): string | null {
+  const days = [...new Set(p.days)].sort()
+  const order = [1, 2, 3, 4, 5, 6, 0]
+  let d = ''
+  if (days.length && days.length < 7) {
+    const idx = days.map((x) => order.indexOf(x)).sort((a, b) => a - b)
+    const consecutive = idx.length >= 3 && idx.every((v, i) => i === 0 || v === idx[i - 1] + 1)
+    d = consecutive ? `${DAY_SHORT[order[idx[0]]]} a ${DAY_SHORT[order[idx[idx.length - 1]]]}` : idx.map((i) => DAY_SHORT[order[i]]).join(', ')
+  }
+  const h = p.from && p.to ? `de ${p.from} a ${p.to}` : ''
+  const s = [d, h].filter(Boolean).join(' ')
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : null
+}
+
+export function promoBoardAssets(board: PromoBoard): string[] {
+  const out = new Set<string>()
+  if (board.brand.logo) out.add(board.brand.logo)
+  for (const p of board.promos) if (p.image) out.add(p.image)
+  return [...out]
 }

@@ -11,7 +11,7 @@ import { logAudit } from '@/lib/audit'
 import { markSaved, cloudinaryAdsApi, adsAssetFromUrl } from '@/lib/media/ads'
 import { screenPiecesFilter, screenUsage } from '@/lib/display/quota'
 import { updatePieceSchema, mediaBelongsToTenant, pieceMediaFields, scheduleError } from '@/lib/display/pieces'
-import { templateSchema } from '@/lib/display/templates'
+import { templateSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { SCREEN_MAX_ACTIVE_PIECES, SCREEN_MAX_LIBRARY_BYTES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation, type PiecesContext } from '@/lib/display/pieces-route'
 
@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     template = t.data
   }
   if (isTemplate && b.media) return NextResponse.json({ error: 'Una pieza automática no lleva archivo' }, { status: 400 })
-  if (isTemplate && b.locationId === null) return NextResponse.json({ error: 'La carta es de una sede: elegí cuál' }, { status: 400 })
+  if (isTemplate && b.locationId === null && TEMPLATES_NEED_LOCATION.has(String(piece.screenTemplate?.kind))) return NextResponse.json({ error: 'La carta es de una sede: elegí cuál' }, { status: 400 })
 
   const startsAt = b.startsAt !== undefined ? b.startsAt : piece.scheduledStart?.toISOString() ?? null
   const endsAt = b.endsAt !== undefined ? b.endsAt : piece.scheduledEnd?.toISOString() ?? null

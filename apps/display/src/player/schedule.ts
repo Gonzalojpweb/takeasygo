@@ -9,7 +9,7 @@
 // ============================================================================
 
 import { isActiveAt } from '../shared/clock'
-import type { MenuBoard } from './board'
+import type { ScreenBoard } from './board'
 
 export interface Daypart {
   /** 0 = domingo … 6 = sábado. Vacío o ausente = todos los días. */
@@ -32,7 +32,7 @@ export interface ManifestItem {
   updatedAt: string
   bytes: number | null
   daypart?: Daypart | null
-  template?: MenuBoard
+  template?: ScreenBoard
   /** Fotos y logo de la plantilla que hay que guardar. */
   assets?: string[]
 }

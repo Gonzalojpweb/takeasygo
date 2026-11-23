@@ -92,3 +92,28 @@ describe('formato y colores', () => {
     expect(boardAssets(b)).toEqual(['https://x/logo.png', 'https://x/a.jpg'])
   })
 })
+
+describe('promos por horario', () => {
+  const promo = (over: Partial<import('./board').BoardPromo> = {}) => ({ id: 'p', title: 'Promo', text: null, image: null, price: 500000, originalPrice: null, percent: null, startsAt: null, endsAt: null, days: [], from: null, to: null, ...over })
+  const pb = (promos: ReturnType<typeof promo>[], maxItems = 6) => ({ kind: 'promos' as const, style: 'dark' as const, showPrices: true, maxItems, pageMs: 8000, brand: { name: 'A', logo: null, primary: '#E85D2A', background: null, text: null }, promos })
+  it('días y franja en la zona de la sede; la madrugada cuenta para el día anterior', async () => {
+    const { promoActive } = await import('./board')
+    const noche = promo({ days: [5], from: '20:00', to: '02:00' })
+    expect(promoActive(noche, FRI_21, TZ)).toBe(true)
+    expect(promoActive(noche, SAT_01, TZ)).toBe(true)
+    expect(promoActive(noche, MON_13, TZ)).toBe(false)
+  })
+  it('se apaga sola al vencer y no aparece antes de empezar (también sin internet)', async () => {
+    const { promoActive } = await import('./board')
+    expect(promoActive(promo({ endsAt: new Date(MON_13 - 1).toISOString() }), MON_13, TZ)).toBe(false)
+    expect(promoActive(promo({ startsAt: new Date(MON_13 + 60_000).toISOString() }), MON_13, TZ)).toBe(false)
+    expect(promoActive(promo({ startsAt: new Date(MON_13 - 60_000).toISOString(), endsAt: new Date(MON_13 + 60_000).toISOString() }), MON_13, TZ)).toBe(true)
+  })
+  it('solo las vigentes, hasta el máximo; texto de cuándo vale', async () => {
+    const { activePromos, promoWhen } = await import('./board')
+    const b = pb([promo({ id: 'a' }), promo({ id: 'b', days: [5] }), promo({ id: 'c' }), promo({ id: 'd' })], 2)
+    expect(activePromos(b, MON_13, TZ).map((p) => p.id)).toEqual(['a', 'c'])
+    expect(promoWhen(promo({ days: [1, 2, 3, 4, 5], from: '12:00', to: '15:00' }))).toBe('Lun a vie de 12:00 a 15:00')
+    expect(promoWhen(promo())).toBeNull()
+  })
+})

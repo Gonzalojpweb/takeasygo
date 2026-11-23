@@ -1,7 +1,7 @@
 /**
  * GET  /api/[tenant]/screen-pieces/templates?locationId= — categorías de la carta
  *      de la sede (para elegir qué mostrar y en qué orden).
- * POST /api/[tenant]/screen-pieces/templates — nueva pieza automática (carta).
+ * POST /api/[tenant]/screen-pieces/templates — nueva pieza automática (carta o promos).
  *
  * La pieza automática entra en la misma lista que las piezas subidas (mismo
  * tope de 20 activas, sin peso: no tiene archivo). Solo plan Élite y rol de
@@ -14,7 +14,7 @@ import Menu from '@/models/Menu'
 import { logAudit } from '@/lib/audit'
 import { screenUsage } from '@/lib/display/quota'
 import { scheduleError } from '@/lib/display/pieces'
-import { createTemplatePieceSchema } from '@/lib/display/templates'
+import { createTemplatePieceSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { SCREEN_MAX_ACTIVE_PIECES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation } from '@/lib/display/pieces-route'
 
@@ -51,7 +51,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const b = parsed.data
   const sched = scheduleError(b.startsAt, b.endsAt)
   if (sched) return NextResponse.json({ error: sched }, { status: 400 })
-  const locErr = await checkPieceLocation(request, ctx, b.locationId)
+  if (TEMPLATES_NEED_LOCATION.has(b.template.kind) && !b.locationId) return NextResponse.json({ error: 'Elegí la sede: cada sede tiene su carta' }, { status: 400 })
+  const locErr = await checkPieceLocation(request, ctx, b.locationId ?? null)
   if (locErr) return locErr
 
   const active = b.isActive !== false
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     title: b.title,
     type: 'promotion',
     surfaces: ['screen'],
-    owner: { kind: 'tenant', tenantId: new mongoose.Types.ObjectId(ctx.tenantId), locationId: new mongoose.Types.ObjectId(b.locationId) },
+    owner: { kind: 'tenant', tenantId: new mongoose.Types.ObjectId(ctx.tenantId), locationId: b.locationId ? new mongoose.Types.ObjectId(b.locationId) : null },
     imageUrl: '',
     videoUrl: '',
     screenTemplate: { kind: b.template.kind, config: b.template.config },
