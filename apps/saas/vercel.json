@@ -3,7 +3,8 @@
   "ignoreCommand": "sh ../../scripts/vercel-ignore-build.sh apps/saas packages package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json scripts/vercel-ignore-build.sh",
   "git": {
     "deploymentEnabled": {
-      "dev": false
+      "dev": false,
+      "staging": true
     }
   },
   "crons": [
