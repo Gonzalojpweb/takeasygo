@@ -89,7 +89,8 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
   const portrait = o.board.orientation ? o.board.orientation === 'portrait' : screenPortrait
   const DW = o.board.designWidth || (portrait ? 1080 : 1920)
   const DH = o.board.designHeight || (portrait ? 1920 : 1080)
-  const U = Math.min(DW, DH) / 100
+  // Lectura de lejos (exterior, vidriera): todo un 18 % más grande; si no entra, se reparte en páginas.
+  const U = (Math.min(DW, DH) / 100) * (o.board.viewing === 'far' ? 1.18 : 1)
   const u = (n: number) => `${Math.round(n * U * 10) / 10}px`
   const headFont = fam(o.board.brand.fontHeading ?? o.board.brand.fontBody)
   const bodyFont = fam(o.board.brand.fontBody ?? o.board.brand.fontHeading)
@@ -200,7 +201,8 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         const title = h('div', `flex:none;font-weight:900;font-size:${u(portrait ? 10.5 : 8)};line-height:1;letter-spacing:-.02em;text-transform:uppercase;padding-bottom:${u(0.4)};font-family:${headFont};${clamp(2)}`, [p.name])
         const desc = p.description ? h('div', `flex:none;font-size:${u(portrait ? 3.2 : 2.8)};line-height:1.25;opacity:.82;${clamp(2)}`, [p.description]) : null
         for (const part of [tag, title, desc]) if (part) part.dataset.part = '1'
-        const big = h('div', `flex:none;font-weight:900;font-size:${u(portrait ? 12.5 : 9.5)};line-height:.9;letter-spacing:-.03em;color:${colors.accent};font-family:${headFont};white-space:nowrap`, [priceText(p)])
+        const big = h('div', `flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;font-weight:900;font-size:${u(portrait ? 12.5 : 9.5)};line-height:.95;letter-spacing:-.03em;color:${colors.accent};font-family:${headFont};white-space:nowrap`, [priceText(p)])
+        big.dataset.fit = '1'
         big.dataset.price = '1'
         const priceRow = h('div', `flex:none;display:flex;align-items:flex-end;gap:${u(2)};margin-top:${u(1.4)}`, [
           big,
@@ -210,8 +212,10 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
           // A sangre: la foto ocupa el módulo y el texto va abajo, sobre un oscurecido suave solo detrás del texto.
           const media = cover(pic, `position:absolute;inset:0`, m.config.kenBurns !== false)
           const scrim = h('div', 'position:absolute;inset:0;background:linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.55) 35%, rgba(0,0,0,0) 62%)')
-          const text = h('div', `position:absolute;left:${u(5)};right:${u(5)};bottom:${u(4)};display:flex;flex-direction:column;gap:${u(1.2)};color:#fff`, [tag, title, desc, priceRow])
-          const box = h('section', `position:relative;min-height:${Math.round(DH * 0.46)}px;overflow:hidden;background:${colors.card}`, [media, scrim, text])
+          if (tag) tag.style.cssText += `;align-self:flex-start;background:${colors.accent};color:${colors.onAccent};padding:${u(0.8)} ${u(1.6)};border-radius:${u(0.8)};letter-spacing:.16em`
+          const text = h('div', `position:absolute;left:${u(5)};right:${u(5)};bottom:${u(4)};display:flex;flex-direction:column;gap:${u(1.4)};color:#fff;text-shadow:0 ${u(0.3)} ${u(1.4)} rgba(0,0,0,.45)`, [tag, title, desc, priceRow])
+          const box = h('section', `position:relative;min-height:${Math.round(DH * 0.4)}px;overflow:hidden;background:${colors.card}`, [media, scrim, text])
+          box.dataset.fill = '1'
           if (pct) { const st = stamp(pct, 20); st.style.right = u(5); st.style.top = u(5); box.append(st) }
           return tappable(box, p)
         }
@@ -224,7 +228,7 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         const n = m.products.length
         const cols = portrait ? (n <= 2 ? n : 2) : Math.min(n, n === 5 || n === 6 ? 3 : 4)
         const pics = await Promise.all(m.products.map((p) => photo(p.image)))
-        const grid = h('section', `display:grid;grid-template-columns:repeat(${cols},1fr);grid-auto-rows:1fr;gap:${u(2.4)};padding:${u(3)} ${u(4)};min-height:0`)
+        const grid = h('section', `display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));grid-auto-rows:1fr;gap:${u(2.4)};padding:${u(3)} ${u(4)};min-height:0`)
         m.products.forEach((p, k) => {
           const card = tappable(h('div', `display:flex;flex-direction:column;min-width:0;min-height:0;background:${colors.card};border-radius:${u(2.4)};overflow:hidden`, [
             cover(pics[k], `width:100%;flex:1 1 0;min-height:${u(portrait ? 16 : 12)}`),
@@ -286,7 +290,7 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
       case 'drinks-row': {
         const pics = await Promise.all(m.products.map((p) => photo(p.image)))
         const cols = portrait ? Math.min(m.products.length, 4) : Math.min(m.products.length, 6)
-        const row = h('section', `display:grid;grid-template-columns:repeat(${cols},1fr);gap:${u(2.4)};padding:${u(2.4)} ${u(4)}`)
+        const row = h('section', `display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:${u(2.4)};padding:${u(2.4)} ${u(4)}`)
         m.products.forEach((p, k) => {
           const item = tappable(h('div', `display:flex;flex-direction:column;align-items:center;gap:${u(1)};min-width:0;text-align:center`, [
             cover(pics[k], `width:${u(portrait ? 16 : 13)};height:${u(portrait ? 16 : 13)};border-radius:50%`),
@@ -300,15 +304,18 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
       }
       case 'price-list': {
         // Grilla (sin columnas CSS, que pueden trabar el layout de Chrome): 1 sección por fila en vertical, 2 en horizontal.
-        const box = h('section', `display:grid;grid-template-columns:repeat(${portrait ? 1 : Math.min(2, m.sections.length)},1fr);column-gap:${u(7)};align-items:start;padding:${u(2)} ${u(5)};min-height:0;overflow:hidden`)
+        const box = h('section', `display:grid;grid-template-columns:repeat(${portrait ? 1 : Math.min(2, m.sections.length)},minmax(0,1fr));column-gap:${u(7)};align-items:start;padding:${u(2)} ${u(5)};min-height:0;overflow:hidden`)
         for (const s of m.sections) {
           const block = h('div', `display:flex;flex-direction:column;margin-bottom:${u(2.4)}`, [
             h('div', `font-weight:700;font-size:${u(portrait ? 2.6 : 2.2)};text-transform:uppercase;letter-spacing:.2em;color:${colors.muted};margin-bottom:${u(0.6)}`, [s.parent ? `${s.parent} · ${s.name}` : s.name]),
           ])
           for (const p of s.products) {
             const row = h('div', `display:flex;justify-content:space-between;align-items:baseline;gap:${u(2)};padding:${u(portrait ? 2.6 : 1.8)} 0;border-bottom:${u(0.2)} dashed ${colors.muted}`, [
-              h('span', `font-weight:900;font-size:${u(portrait ? 4.4 : 3.2)};font-family:${headFont};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0`, [p.name]),
-              h('span', `flex:none;font-weight:900;font-size:${u(portrait ? 4.8 : 3.4)};color:${colors.accent};font-family:${headFont};white-space:nowrap`, [priceText(p)]),
+              h('span', `font-weight:900;font-size:${u(portrait ? 4.4 : 3.2)};line-height:1.1;font-family:${headFont};min-width:0;${clamp(2)}`, [p.name]),
+              h('span', `flex:none;font-weight:900;font-size:${u(portrait ? 4.8 : 3.4)};color:${colors.accent};font-family:${headFont};white-space:nowrap`, [
+                p.fromPrice ? h('span', `font-size:.5em;font-weight:700;margin-right:.3em;opacity:.85`, ['desde']) : null,
+                formatPrice(p.price),
+              ]),
             ])
             row.dataset.item = '1'
             block.append(row)
@@ -398,7 +405,7 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
     // Una lista de precios larga se parte por secciones (de a 2 en horizontal):
     // así sigue en la página siguiente en lugar de saltar entera.
     // Una sección larga (más de 6 filas) se parte en tandas con el mismo título.
-    const ROWS = 6
+    const ROWS = o.board.viewing === 'far' ? 7 : 8
     const expanded: ResolvedModule[] = modules.flatMap((m) => {
       if (m.type !== 'price-list') return [m]
       const chunks = m.sections.flatMap((sec) => {
@@ -429,6 +436,11 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
     if (footer) probe.append(footer.el)
     for (const it of items) probe.append(it.el)
     canvas.append(probe)
+    // Textos que tienen que entrar en su ancho (precio gigante): se achican de a poco.
+    probe.querySelectorAll<HTMLElement>('[data-fit]').forEach((el) => {
+      let size = parseFloat(el.style.fontSize)
+      for (let i = 0; i < 14 && el.scrollWidth > el.clientWidth + 1 && size > U * 3; i++) { size *= 0.92; el.style.fontSize = `${size}px` }
+    })
     const fixedH = (header?.offsetHeight ?? 0) + (footer?.el.offsetHeight ?? 0)
     const heights = items.map((it) => it.el.offsetHeight)
     probe.remove()
@@ -443,8 +455,10 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
       const alone = pageItems.length === 1
       const body = pageItems.map((it) => {
         const el = it.el
-        const centered = alone && it.m.type !== 'price-list' && it.m.type !== 'product-grid'
-        const w = centered || (hasPriceList && it.m.type !== 'price-list') ? 0 : WEIGHT[it.m.type]
+        // Solo en su página: el producto estrella a sangre llena la página; el resto queda centrado.
+        const fills = alone && el.dataset.fill === '1'
+        const centered = alone && !fills && it.m.type !== 'price-list' && it.m.type !== 'product-grid'
+        const w = fills ? 1 : centered || (hasPriceList && it.m.type !== 'price-list') ? 0 : WEIGHT[it.m.type]
         const shrinks = alone || it.m.type === 'price-list'
         el.style.flex = `${w} ${shrinks ? 1 : 0} auto`
         // Se respeta el alto mínimo propio del módulo (el producto estrella a sangre lo trae).

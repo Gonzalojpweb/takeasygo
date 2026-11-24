@@ -215,6 +215,8 @@ export interface CompositionBoard {
   designWidth?: number
   designHeight?: number
   transition?: 'fade' | 'slide' | 'zoom' | 'none'
+  /** 'far' = exterior o vidriera: todo más grande para leer de lejos. */
+  viewing?: 'near' | 'far'
   style: 'brand' | 'dark' | 'light'
   pageMs: number
   brand: MenuBoard['brand'] & { fontHeading: string | null; fontBody: string | null; fontFiles: Array<{ family: string; url: string; role: 'heading' | 'body' }> }

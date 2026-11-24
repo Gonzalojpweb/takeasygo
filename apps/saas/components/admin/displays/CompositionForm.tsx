@@ -36,7 +36,7 @@ type Orientation = 'landscape' | 'portrait'
 type Transition = 'fade' | 'slide' | 'zoom' | 'none'
 export interface CompositionConfig {
   style: 'brand' | 'dark' | 'light'; pageSeconds: number; showQr: boolean; modules: Module[]
-  orientation?: Orientation; designWidth?: number; designHeight?: number; transition?: Transition
+  orientation?: Orientation; designWidth?: number; designHeight?: number; transition?: Transition; viewing?: 'near' | 'far'
 }
 
 const PRESETS = [
@@ -148,6 +148,7 @@ export default function CompositionForm({ tenantSlug, locations, piece, onClose,
   const [designHeight, setDesignHeight] = useState(saved?.designHeight ?? (saved?.orientation === 'portrait' ? 1920 : 1080))
   const orientation: Orientation = designHeight > designWidth ? 'portrait' : 'landscape'
   const [transition, setTransition] = useState<Transition>(saved?.transition ?? 'fade')
+  const [viewing, setViewing] = useState<'near' | 'far'>(saved?.viewing ?? 'near')
   const [devices, setDevices] = useState<Array<{ name: string; orientation: Orientation; locationId: string | null }>>([])
   const presetId = PRESETS.find((x) => x.w === designWidth && x.h === designHeight)?.id ?? 'custom'
   const [isActive, setIsActive] = useState(piece?.isActive ?? true)
@@ -170,7 +171,7 @@ export default function CompositionForm({ tenantSlug, locations, piece, onClose,
   /** Pantallas de la sede con otra orientación: no la van a mostrar. */
   const mismatched = devices.filter((d) => d.locationId === locationId && d.orientation !== orientation)
 
-  const config = { style, pageSeconds, showQr, orientation, designWidth, designHeight, transition, modules }
+  const config = { style, pageSeconds, showQr, orientation, designWidth, designHeight, transition, viewing, modules }
   const ready = !!locationId && modules.length > 0 && modules.every((m) => !missing(m))
 
   // ── Vista previa: el reproductor real en un iframe, con la proporción elegida ──
@@ -389,6 +390,12 @@ export default function CompositionForm({ tenantSlug, locations, piece, onClose,
           <label className="text-sm font-medium">Cambio de página
             <select value={transition} onChange={(e) => setTransition(e.target.value as Transition)} className={`${inputCls} mt-1`}>
               <option value="fade">Fundido</option><option value="slide">Deslizar</option><option value="zoom">Zoom suave</option><option value="none">Sin transición</option>
+            </select>
+          </label>
+          <label className="text-sm font-medium sm:col-span-2">Distancia de lectura
+            <select value={viewing} onChange={(e) => setViewing(e.target.value as 'near' | 'far')} className={`${inputCls} mt-1`}>
+              <option value="near">Cerca (salón, mostrador)</option>
+              <option value="far">Lejos (exterior, vidriera, tótem de pie): todo más grande</option>
             </select>
           </label>
         </div>

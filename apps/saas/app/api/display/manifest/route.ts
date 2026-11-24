@@ -2,7 +2,9 @@
  * GET /api/display/manifest — contenido de la pantalla (Bearer tgd_…).
  *
  * Solo piezas de pantalla del comercio del equipo (ver lib/display/manifest.ts).
- * ETag + If-None-Match → 304. Incluye serverTime para corregir la hora del
+ * ETag + If-None-Match → 304 (o, con ?no304=1, un 200 «sin cambios»: Vercel
+ * le saca el encabezado CORS a los 304 y el navegador del equipo los rechaza).
+ * Incluye serverTime para corregir la hora del
  * equipo y pollAfterS para el próximo pedido.
  * Sin plan Élite: { paused: 'plan', items: [] } (pausa sin borrar).
  */
@@ -19,6 +21,16 @@ import { orderUrlFor } from '@/lib/display/attribution'
 
 export const dynamic = 'force-dynamic'
 
+/**
+ * Sin cambios: 304 para equipos viejos; 200 chico con notModified para los
+ * nuevos (?no304=1). Un 304 llega sin Access-Control-Allow-Origin (Vercel lo
+ * quita) y el equipo lo toma como «sin internet».
+ */
+function notModified(request: NextRequest, etag: string, headers: Record<string, string>) {
+  if (request.nextUrl.searchParams.get('no304') !== '1') return new NextResponse(null, { status: 304, headers })
+  return NextResponse.json({ notModified: true, version: etag, serverTime: new Date().toISOString(), pollAfterS: MANIFEST_POLL_S }, { headers })
+}
+
 export async function GET(request: NextRequest) {
   await connectDB()
   const device = await deviceFromRequest(request)
@@ -31,7 +43,7 @@ export async function GET(request: NextRequest) {
   if (!(await tenantScreensAllowed(device.tenantId))) {
     const pausedEtag = 'W/"paused-plan"'
     const headers = { ETag: pausedEtag, 'Cache-Control': 'private, no-cache' }
-    if (request.headers.get('if-none-match') === pausedEtag) return new NextResponse(null, { status: 304, headers })
+    if (request.headers.get('if-none-match') === pausedEtag) return notModified(request, pausedEtag, headers)
     return NextResponse.json({
       version: pausedEtag,
       serverTime: new Date().toISOString(),
@@ -52,7 +64,7 @@ export async function GET(request: NextRequest) {
   // QR «Pedí desde tu celular»: menú de la sede con origen propio de ESTA pantalla.
   const orderUrl = tenantDoc?.slug && loc ? orderUrlFor(tenantDoc.slug, loc, String(device._id)) : null
   const headers = { ETag: etag, 'Cache-Control': 'private, no-cache' }
-  if (request.headers.get('if-none-match') === etag) return new NextResponse(null, { status: 304, headers })
+  if (request.headers.get('if-none-match') === etag) return notModified(request, etag, headers)
   return NextResponse.json({
     version: etag,
     serverTime: new Date().toISOString(),

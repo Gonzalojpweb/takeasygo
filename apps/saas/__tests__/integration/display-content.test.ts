@@ -226,3 +226,17 @@ describe('medidas, tope, CORS y slugs', () => {
     for (const s of ['display', 'ads', 'publicidad', 'pantalla', 'pantallas']) expect(isReservedSlug(s)).toBe(true)
   })
 })
+
+describe('sin cambios para equipos nuevos (?no304=1)', () => {
+  it('responde 200 «notModified» con el ETag (un 304 pierde el CORS en Vercel); sin el parámetro sigue el 304', async () => {
+    const first = await getManifest()
+    const etag = first.headers.get('etag')!
+    const r = await manifest(new NextRequest('http://localhost/api/display/manifest?no304=1', { headers: { authorization: `Bearer ${token}`, 'if-none-match': etag } }))
+    expect(r.status).toBe(200)
+    expect(r.headers.get('etag')).toBe(etag)
+    expect(await r.json()).toMatchObject({ notModified: true, version: etag, pollAfterS: 60 })
+    expect((await getManifest({ 'if-none-match': etag })).status).toBe(304)
+    const changed = await manifest(new NextRequest('http://localhost/api/display/manifest?no304=1', { headers: { authorization: `Bearer ${token}`, 'if-none-match': 'W/"otro"' } }))
+    expect((await changed.json()).items).toBeDefined()
+  })
+})

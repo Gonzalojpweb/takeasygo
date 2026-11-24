@@ -67,6 +67,7 @@ export interface CompositionBoard {
   designWidth: number
   designHeight: number
   transition: 'fade' | 'slide' | 'zoom' | 'none'
+  viewing: 'near' | 'far'
   style: 'brand' | 'dark' | 'light'
   pageMs: number
   brand: CompositionBrand
@@ -240,7 +241,7 @@ export function buildCompositionBoard(
   }
   return {
     kind: 'composition', showQr: config.showQr, style: config.style, pageMs: config.pageSeconds * 1000,
-    orientation: config.orientation, designWidth: config.designWidth, designHeight: config.designHeight, transition: config.transition,
+    orientation: config.orientation, designWidth: config.designWidth, designHeight: config.designHeight, transition: config.transition, viewing: config.viewing,
     brand: compositionBrandOf(tenant, resolvedFonts), modules,
   }
 }

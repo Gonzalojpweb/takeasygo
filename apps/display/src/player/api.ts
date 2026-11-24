@@ -34,8 +34,11 @@ export async function postJson<T>(path: string, body: unknown): Promise<{ status
 
 export async function getManifest(etag: string | null): Promise<{ status: number; etag: string | null; data: unknown; sentAt: number; receivedAt: number }> {
   const sentAt = Date.now()
-  const res = await call('/api/display/manifest', { headers: etag ? { 'If-None-Match': etag } : {} })
+  // ?no304=1: sin cambios llega como 200 «notModified» (un 304 pierde el
+  // encabezado CORS en Vercel y el navegador lo rechaza como si no hubiera red).
+  const res = await call('/api/display/manifest?no304=1', { headers: etag ? { 'If-None-Match': etag } : {} })
   const receivedAt = Date.now()
   const data = res.status === 200 ? await res.json() : null
+  if (data && (data as { notModified?: boolean }).notModified) return { status: 304, etag: res.headers.get('etag'), data: null, sentAt, receivedAt }
   return { status: res.status, etag: res.headers.get('etag'), data, sentAt, receivedAt }
 }

@@ -74,6 +74,8 @@ export const compositionConfigSchema = z.object({
   designHeight: z.number().int().min(480).max(3840).default(1080),
   targetDevices: z.array(z.enum(['tv', 'totem', 'tablet'])).max(3).optional(),
   transition: z.enum(PAGE_TRANSITIONS).default('fade'),
+  /** Distancia de lectura: 'far' (exterior, vidriera, tótem de pie) agranda todo el contenido. */
+  viewing: z.enum(['near', 'far']).default('near'),
   modules: z.array(moduleSchema).min(1, 'Agregá al menos un módulo').max(12),
 }).superRefine((c, ctx) => {
   const portrait = c.designHeight > c.designWidth
