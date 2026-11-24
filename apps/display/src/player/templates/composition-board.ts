@@ -23,7 +23,7 @@ import { gsap } from 'gsap'
 import QRCode from 'qrcode'
 import type { TapInfo } from './detail'
 import {
-  boardColors, compositionVisible, discountPercent, fitCanvas, formatPrice, packModules, promoWhen,
+  boardColors, compositionVisible, readableOn, discountPercent, fitCanvas, formatPrice, packModules, promoWhen,
   type BoardColors, type CompositionBoard, type CompositionProduct, type Freshness, type ModuleAnimation, type ResolvedModule,
 } from '../board'
 
@@ -208,6 +208,27 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
           big,
           p.originalPrice ? h('s', `font-size:${u(portrait ? 3.6 : 3)};color:${colors.muted};font-weight:700;margin-bottom:${u(1.2)}`, [formatPrice(p.originalPrice)]) : null,
         ])
+        if (!pic) {
+          // Sin foto (cartas sin imágenes): bloque tipográfico sólido del color de la
+          // marca, letra enorme y filetes; lleno la página si está solo.
+          const on = colors.onAccent
+          if (tag) tag.style.cssText += `;align-self:flex-start;background:${on};color:${colors.accent};padding:${u(0.8)} ${u(1.8)};border-radius:${u(0.8)};letter-spacing:.18em`
+          title.style.fontSize = u(portrait ? 13 : 10)
+          title.style.lineHeight = '1.02'
+          title.style.webkitLineClamp = 'unset'
+          title.style.display = 'block'
+          title.dataset.fith = '3'
+          big.style.color = on
+          const rule = () => h('div', `flex:none;height:${u(0.5)};background:${on};opacity:.85`)
+          const inner = h('div', `display:flex;flex-direction:column;justify-content:center;gap:${u(portrait ? 2.4 : 1.8)};padding:${portrait ? `${u(7)} ${u(6)}` : `${u(4)} ${u(6)}`};height:100%;box-sizing:border-box`, [
+            rule(), tag, title, desc, priceRow, rule(),
+          ])
+          if (desc) desc.style.opacity = '.9'
+          const box = h('section', `position:relative;min-height:${Math.round(DH * (portrait ? 0.4 : 0.42))}px;background:${colors.accent};color:${on};overflow:hidden`, [inner])
+          box.dataset.fill = '1'
+          if (pct) { const st = stamp(pct, portrait ? 20 : 16); st.style.background = on; st.style.color = colors.accent; st.style.right = u(5); st.style.top = u(5); box.append(st) }
+          return tappable(box, p)
+        }
         if (portrait) {
           // A sangre: la foto ocupa el módulo y el texto va abajo, sobre un oscurecido suave solo detrás del texto.
           const media = cover(pic, `position:absolute;inset:0`, m.config.kenBurns !== false)
@@ -338,7 +359,13 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
         // Footer de tótem: banda sólida del color de la marca con QR grande.
         const qr = await qrSvg(portrait ? 22 : 12)
         if (!qr) return null
-        return h('footer', `display:flex;align-items:center;gap:${u(4)};padding:${portrait ? `${u(3.4)} ${u(5)}` : `${u(1.8)} ${u(5)}`};background:${colors.accent};color:${colors.onAccent}`, [
+        // Con un producto estrella sin foto (bloque del color de la marca), el pie va en la tinta de la marca para no fundirse.
+        const inkFooter = modules.some((x) => x.type === 'hero-product' && x.product && !x.product.image)
+        // De la paleta, el tono más oscuro de fondo y el claro para el texto.
+        const textIsLight = readableOn(colors.text.startsWith('#') ? colors.text : '#ffffff') === '#000'
+        const fBg = inkFooter ? (textIsLight ? colors.bg : colors.text) : colors.accent
+        const fFg = inkFooter ? (textIsLight ? colors.text : colors.bg) : colors.onAccent
+        return h('footer', `display:flex;align-items:center;gap:${u(4)};padding:${portrait ? `${u(3.4)} ${u(5)}` : `${u(1.8)} ${u(5)}`};background:${fBg};color:${fFg}`, [
           h('div', `flex:1;min-width:0;display:flex;flex-direction:column;gap:${u(1.2)}`, [
             h('div', `font-weight:900;font-size:${u(portrait ? 7.4 : 4.6)};line-height:.98;letter-spacing:-.02em;font-family:${headFont}`, [m.config.headline]),
             m.config.subtext ? h('div', `font-size:${u(portrait ? 3.2 : 2.6)};font-weight:600;opacity:.9`, [m.config.subtext]) : null,
@@ -440,6 +467,13 @@ export function playCompositionBoard(o: PlayCompositionOptions): () => void {
     probe.querySelectorAll<HTMLElement>('[data-fit]').forEach((el) => {
       let size = parseFloat(el.style.fontSize)
       for (let i = 0; i < 14 && el.scrollWidth > el.clientWidth + 1 && size > U * 3; i++) { size *= 0.92; el.style.fontSize = `${size}px` }
+    })
+    // Títulos con tope de líneas: se achican hasta que entra el nombre completo.
+    probe.querySelectorAll<HTMLElement>('[data-fith]').forEach((el) => {
+      const maxLines = Number(el.dataset.fith) || 3
+      let size = parseFloat(el.style.fontSize)
+      // Achica solo si el nombre ocupa más de maxLines líneas (o una palabra no entra a lo ancho).
+      for (let i = 0; i < 16 && (el.scrollHeight > size * 1.02 * maxLines + 2 || el.scrollWidth > el.clientWidth + 1) && size > U * 4; i++) { size *= 0.93; el.style.fontSize = `${size}px` }
     })
     const fixedH = (header?.offsetHeight ?? 0) + (footer?.el.offsetHeight ?? 0)
     const heights = items.map((it) => it.el.offsetHeight)
