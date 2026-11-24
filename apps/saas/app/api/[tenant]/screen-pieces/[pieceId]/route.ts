@@ -13,7 +13,9 @@ import { screenPiecesFilter, screenUsage } from '@/lib/display/quota'
 import { updatePieceSchema, mediaBelongsToTenant, pieceMediaFields, scheduleError } from '@/lib/display/pieces'
 import { templateSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { illustrationUrls } from '@/lib/display/composition-schema'
-import { compositionMediaError } from '@/lib/display/composition-media'
+import { compositionMediaError, studioMediaError } from '@/lib/display/composition-media'
+import { studioImageUrls, studioTemplate } from '@/lib/display/studio/catalog'
+import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
 import { SCREEN_MAX_ACTIVE_PIECES, SCREEN_MAX_LIBRARY_BYTES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation, type PiecesContext } from '@/lib/display/pieces-route'
 
@@ -51,8 +53,13 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     const t = templateSchema.safeParse((raw as Record<string, unknown>).template)
     if (!t.success || t.data.kind !== piece.screenTemplate?.kind) return NextResponse.json({ error: t.success ? 'Tipo de pieza distinto' : t.error.issues[0]?.message ?? 'Configuración inválida' }, { status: 400 })
     template = t.data
-    const mediaErr = template.kind === 'composition' ? compositionMediaError(template.config, c.tenantId) : null
+    const mediaErr = template.kind === 'composition' ? compositionMediaError(template.config, c.tenantId)
+      : template.kind === 'studio' ? studioMediaError(studioImageUrls(template.config as never), c.tenantId) : null
     if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
+    if (template.kind === 'studio') {
+      const st = studioTemplate(template.config.templateId)
+      if (st?.tier === 'premium' && !(await unlockedTemplateIds(c.tenantId)).has(st.id)) return NextResponse.json({ error: 'Esta plantilla es Premium: desbloqueala para publicarla.', code: 'template_locked' }, { status: 402 })
+    }
   }
   if (isTemplate && b.media) return NextResponse.json({ error: 'Una pieza automática no lleva archivo' }, { status: 400 })
   if (isTemplate && b.locationId === null && TEMPLATES_NEED_LOCATION.has(String(piece.screenTemplate?.kind))) return NextResponse.json({ error: 'La carta es de una sede: elegí cuál' }, { status: 400 })
@@ -92,6 +99,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   if (template) piece.set('screenTemplate', { kind: template.kind, config: template.config })
   await piece.save()
   if (template?.kind === 'composition') await markSaved(illustrationUrls(template.config))
+  if (template?.kind === 'studio') await markSaved(studioImageUrls(template.config as never))
 
   if (b.media) {
     await markSaved([b.media.url])

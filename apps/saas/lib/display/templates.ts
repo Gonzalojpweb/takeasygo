@@ -21,6 +21,7 @@ import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import mongoose from 'mongoose'
 import { compositionConfigSchema } from '@/lib/display/composition-schema'
+import { studioConfigSchema } from '@/lib/display/studio/catalog'
 
 const OID = (v: string) => mongoose.Types.ObjectId.isValid(v)
 
@@ -75,6 +76,8 @@ export const templateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('featured'), config: featuredConfigSchema }),
   // Élite · composiciones con módulos (lib/display/composition.ts). Conviven con las demás.
   z.object({ kind: z.literal('composition'), config: compositionConfigSchema }),
+  // Display Studio: plantillas de diseño con campos editables (lib/display/studio).
+  z.object({ kind: z.literal('studio'), config: studioConfigSchema }),
 ])
 export type TemplateInput = z.infer<typeof templateSchema>
 

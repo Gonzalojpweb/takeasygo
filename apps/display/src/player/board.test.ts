@@ -180,3 +180,25 @@ describe('lienzo de diseño y sello de descuento', () => {
     expect(discountPercent(1000, null)).toBeNull()
   })
 })
+
+import { knownTemplate, studioSupported, type StudioBoard } from './board'
+
+describe('Display Studio en el reproductor', () => {
+  const studio = (templateId: string): StudioBoard => ({
+    kind: 'studio', templateId, tier: 'free', orientation: 'portrait', designWidth: 1080, designHeight: 1920, viewing: 'near', style: 'brand',
+    pageMs: 12000, showQr: true, values: {}, fontFiles: [],
+    brand: { name: 'Demo', logo: null, primary: '#ff7a00', background: null, text: null, fontHeading: null, fontBody: null, fontFiles: [] },
+  })
+  it('sabe dibujar las 3 plantillas de lanzamiento', () => {
+    for (const id of ['golden-bites', 'cheese-burger', 'chocolate-croissant']) expect(studioSupported(studio(id))).toBe(true)
+  })
+  it('una plantilla nueva (que este reproductor no conoce) se saltea', () => {
+    expect(studioSupported(studio('plantilla-del-futuro'))).toBe(false)
+  })
+  it('un tipo de pieza desconocido no se dibuja como carta: se saltea', () => {
+    expect(knownTemplate({ kind: 'studio' })).toBe(true)
+    expect(knownTemplate({ kind: 'menu' })).toBe(true)
+    expect(knownTemplate({ kind: 'algo-nuevo' })).toBe(false)
+    expect(knownTemplate(null)).toBe(false)
+  })
+})

@@ -23,7 +23,7 @@
 // (de 9:16 a 4:5; horizontal se rechaza) · mínimo 720×1280.
 // ============================================================================
 
-export type MediaSurface = 'story' | 'promo_card' | 'home_banner' | 'club_card' | 'qr_promo' | 'screen'
+export type MediaSurface = 'story' | 'promo_card' | 'home_banner' | 'club_card' | 'qr_promo' | 'screen' | 'studio'
 export type MediaKind = 'image' | 'video'
 
 export interface SurfaceSpec {
@@ -101,6 +101,17 @@ export const SURFACE_SPECS: Record<MediaSurface, SurfaceSpec> = {
     imageMaxBytes: 10 * 1024 * 1024,
     bothOrientations: true,
   },
+  // Display Studio: fotos de producto (idealmente PNG recortado, sin fondo) y
+  // logos que van DENTRO de una plantilla: cualquier proporción, más chicas.
+  studio: {
+    label: 'Foto de plantilla',
+    howShown: 'Dentro de una plantilla de Display Studio. Mejor un PNG sin fondo: el producto «flota» sobre el diseño.',
+    ratioLabel: 'Cualquiera (cuadrada o vertical va mejor)',
+    recommended: { w: 1600, h: 1600 },
+    min: { w: 400, h: 400 },
+    kinds: ['image'],
+    imageMaxBytes: 10 * 1024 * 1024,
+  },
   qr_promo: {
     label: 'Ícono de QrPromo',
     howShown: 'Cuadrado de 80×80 arriba del título de la promo QR.',
@@ -131,7 +142,8 @@ export function orientationOf(width: number, height: number): 'landscape' | 'por
  * mostrarla. null si la proporción es parecida (±15 %).
  */
 export function cropWarning(surface: MediaSurface, width: number, height: number): string | null {
-  if (!width || !height) return null
+  // Studio: la foto se encaja entera (no se recorta), cualquier proporción sirve.
+  if (!width || !height || surface === 'studio') return null
   const want = recommendedRatio(surface, width, height)
   const got = width / height
   if (Math.abs(got - want) / want <= 0.15) return null

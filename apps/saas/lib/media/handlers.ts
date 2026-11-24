@@ -5,7 +5,7 @@ import { signUpload, verifyUpload, cloudinaryAdsApi, type AdsApi, type MediaOwne
 import type { MediaSurface } from '@/lib/media/spec'
 
 const signSchema = z.object({
-  surface: z.enum(['story', 'promo_card', 'home_banner', 'club_card', 'qr_promo', 'screen']),
+  surface: z.enum(['story', 'promo_card', 'home_banner', 'club_card', 'qr_promo', 'screen', 'studio']),
   kind: z.enum(['image', 'video']),
 })
 const confirmSchema = signSchema.extend({ publicId: z.string().min(1).max(200) })

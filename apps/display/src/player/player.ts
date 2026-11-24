@@ -24,11 +24,12 @@ import { getManifest, postJson } from './api'
 import { store, StatsAccumulator, type StatsBatch } from './store'
 import { playableItems, chooseQuality, canDecode1080Smooth, urlFor, localParts, type Manifest, type ManifestItem } from './schedule'
 import { CURRENT_BUILD } from '../build'
-import { activePromos, boardFreshness, boardPages, compositionVisible, featuredVisible } from './board'
+import { activePromos, boardFreshness, boardPages, compositionVisible, featuredVisible, knownTemplate, studioSupported } from './board'
 import { playMenuBoard } from './templates/menu-board'
 import { playPromoBoard } from './templates/promo-board'
 import { playFeaturedBoard } from './templates/featured-board'
 import { playCompositionBoard } from './templates/composition-board'
+import { playStudioBoard } from './templates/studio-board'
 import { mountControls } from './controls'
 import { showDetail, type TapInfo } from './templates/detail'
 import { boardColors } from './board'
@@ -140,6 +141,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   const ready = (i: ManifestItem): boolean => {
     if (i.kind !== 'template') return cached.has(urlFor(i, quality))
     if (!i.template || freshness() === 'expired') return false
+    // Tipo que este reproductor no conoce (manifiesto más nuevo): se saltea, nunca se dibuja como carta.
+    if (!knownTemplate(i.template)) return false
+    if (i.template.kind === 'studio') return studioSupported(i.template)
     if (i.template.kind === 'promos') return activePromos(i.template, correctedNow(), manifest?.timezone).length > 0
     if (i.template.kind === 'composition') return compositionVisible(i.template, correctedNow(), manifest?.timezone).length > 0
     if (i.template.kind === 'featured') return featuredVisible(i.template, correctedNow(), manifest?.timezone).length > 0 || i.template.combos.length > 0
@@ -369,7 +373,9 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         ? playFeaturedBoard({ ...common, board: tpl })
         : tpl.kind === 'composition'
           ? playCompositionBoard({ ...common, board: tpl })
-          : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
+          : tpl.kind === 'studio'
+            ? playStudioBoard({ ...common, board: tpl })
+            : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
     // Tope: una vuelta de la carta nunca frena la pantalla más de 10 min.
     guard = setTimeout(() => cancel(), 10 * 60_000)
   }

@@ -14,7 +14,8 @@ const TABS = [
 ] as const
 
 export default function DisplaysPanel({ tenantSlug, initialCode }: { tenantSlug: string; initialCode?: string }) {
-  const [tab, setTab] = useState<(typeof TABS)[number]['id']>('devices')
+  // Vuelta de Mercado Pago o link a «Mis compras» de Studio: abre Contenido.
+  const [tab, setTab] = useState<(typeof TABS)[number]['id']>(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('studio') ? 'content' : 'devices'))
   return (
     <div className="space-y-4 min-w-0">
       <div role="tablist" aria-label="Pantallas" className="flex gap-1 overflow-x-auto rounded-2xl bg-muted p-1 [scrollbar-width:none]">

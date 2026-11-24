@@ -13,9 +13,9 @@ import { screensAllowed } from '@/lib/display/plan'
 import { handleSign } from '@/lib/media/handlers'
 
 // Promos, tarjetas de la tienda del club e ícono de QrPromo (todas bajo promotions.write).
-const SURFACES = ['promo_card', 'club_card', 'qr_promo', 'screen'] as const
+const SURFACES = ['promo_card', 'club_card', 'qr_promo', 'screen', 'studio'] as const
 // Pantallas (screen) solo con plan Élite.
-const surfacesFor = (plan?: string) => (screensAllowed(plan) ? SURFACES : SURFACES.filter((s) => s !== 'screen'))
+const surfacesFor = (plan?: string) => (screensAllowed(plan) ? SURFACES : SURFACES.filter((s) => s !== 'screen' && s !== 'studio'))
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
   const { tenant: slug } = await params

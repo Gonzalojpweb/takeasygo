@@ -19,7 +19,9 @@ import { screenUsage } from '@/lib/display/quota'
 import { scheduleError } from '@/lib/display/pieces'
 import { createTemplatePieceSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { illustrationUrls } from '@/lib/display/composition-schema'
-import { compositionMediaError } from '@/lib/display/composition-media'
+import { compositionMediaError, studioMediaError } from '@/lib/display/composition-media'
+import { studioImageUrls, studioTemplate } from '@/lib/display/studio/catalog'
+import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
 import { markSaved } from '@/lib/media/ads'
 import { SCREEN_MAX_ACTIVE_PIECES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation } from '@/lib/display/pieces-route'
@@ -81,8 +83,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (TEMPLATES_NEED_LOCATION.has(b.template.kind) && !b.locationId) return NextResponse.json({ error: 'Elegí la sede: cada sede tiene su carta' }, { status: 400 })
   const locErr = await checkPieceLocation(request, ctx, b.locationId ?? null)
   if (locErr) return locErr
-  const mediaErr = b.template.kind === 'composition' ? compositionMediaError(b.template.config, ctx.tenantId) : null
+  const mediaErr = b.template.kind === 'composition' ? compositionMediaError(b.template.config, ctx.tenantId)
+    : b.template.kind === 'studio' ? studioMediaError(studioImageUrls(b.template.config as never), ctx.tenantId) : null
   if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
+  if (b.template.kind === 'studio') {
+    const st = studioTemplate(b.template.config.templateId)
+    if (st?.tier === 'premium' && !(await unlockedTemplateIds(ctx.tenantId)).has(st.id)) return NextResponse.json({ error: 'Esta plantilla es Premium: desbloqueala para publicarla.', code: 'template_locked' }, { status: 402 })
+  }
 
   const active = b.isActive !== false
   if (active) {
@@ -105,6 +112,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     sortOrder: b.sortOrder ?? 0,
   })
   if (b.template.kind === 'composition') await markSaved(illustrationUrls(b.template.config))
+  if (b.template.kind === 'studio') await markSaved(studioImageUrls(b.template.config as never))
   logAudit({ tenantId: ctx.tenantId, action: 'screen_piece.created', entity: 'appStory', details: { pieceId: String(doc._id), title: doc.title, kind: `template:${b.template.kind}` }, request })
   return NextResponse.json({ piece: serializePiece(doc.toObject()) }, { status: 201 })
 }

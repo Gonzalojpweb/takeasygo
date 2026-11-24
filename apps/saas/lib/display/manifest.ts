@@ -27,6 +27,10 @@ import { parseFeaturedConfig } from '@/lib/display/templates'
 import { buildCompositionBoard, compositionAssets, compositionHasContent, googleFamiliesToResolve, type CompositionBoard } from '@/lib/display/composition'
 import { parseCompositionConfig } from '@/lib/display/composition-schema'
 import { resolveGoogleFonts } from '@/lib/display/fonts'
+import { parseStudioConfig, studioFontFamilies } from '@/lib/display/studio/catalog'
+import { buildStudioBoard, studioAssets, type StudioBoard } from '@/lib/display/studio/board'
+import { studioEnabled } from '@/lib/display/studio/flags'
+import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
 import Location from '@/models/Location'
 import { effectiveScheduleWindow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
 
@@ -46,7 +50,7 @@ export interface ManifestItem {
   bytes: number | null
   daypart: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Solo plantillas: datos para dibujarla y archivos (fotos, logo) a guardar. */
-  template?: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
+  template?: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
   assets?: string[]
 }
 
@@ -102,6 +106,8 @@ export interface TemplateCtx {
   combos: Record<string, any>[]
   /** URL del archivo de las fuentes de Google de la marca (composiciones). */
   fonts: Record<string, string | null>
+  /** Plantillas Premium de Display Studio desbloqueadas por el comercio. */
+  unlocked: Set<string>
   timezone: string
   orientation: DisplayOrientation
 }
@@ -116,7 +122,7 @@ function maxDiscountPercent(p: Record<string, any>): number | null {
 /** Pieza automática → ítem del manifiesto (datos resueltos con la sede del equipo). */
 export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | null {
   if (!ctx.tenant) return null
-  let board: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
+  let board: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
   let assets: string[]
   let durationMs: number
   if (p.screenTemplate?.kind === 'menu') {
@@ -131,6 +137,14 @@ export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | nu
     const b = buildFeaturedBoard(ctx.menu, ctx.tenant, parseFeaturedConfig(p.screenTemplate.config), ctx.ranking, ctx.combos)
     if (!b.products.length && !b.combos.length) return null
     board = b; assets = featuredAssets(b); durationMs = (b.combos.length ? 2 : 1) * b.pageMs
+  } else if (p.screenTemplate?.kind === 'studio') {
+    if (!studioEnabled()) return null
+    const cfg = parseStudioConfig(p.screenTemplate.config)
+    if (!cfg || cfg.orientation !== ctx.orientation) return null
+    // Premium sin compra aprobada (o devuelta): queda guardada y no se muestra.
+    const tier = buildStudioBoard(cfg, ctx.tenant, ctx.fonts)
+    if (tier.tier === 'premium' && !ctx.unlocked.has(tier.templateId)) return null
+    board = tier; assets = studioAssets(tier); durationMs = tier.pageMs
   } else if (p.screenTemplate?.kind === 'composition') {
     const cfg = parseCompositionConfig(p.screenTemplate.config)
     if (!cfg) return null // config rota: se saltea esta pieza, nunca se cae el manifiesto
@@ -204,6 +218,8 @@ export async function loadTemplateCtx(
   where: { tenantId: unknown; locationId: unknown; orientation: DisplayOrientation },
   kinds: Set<string>,
   now = new Date(),
+  /** Fuentes de Google elegidas en piezas de Display Studio. */
+  extraFamilies: string[] = [],
 ): Promise<TemplateCtx> {
   const tenantId = new mongoose.Types.ObjectId(String(where.tenantId))
   const locationId = where.locationId ? new mongoose.Types.ObjectId(String(where.locationId)) : null
@@ -211,7 +227,7 @@ export async function loadTemplateCtx(
     (kinds.has('menu') || kinds.has('featured') || kinds.has('composition')) && locationId
       ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
       : null,
-    Tenant.findById(String(where.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
+    Tenant.findById(String(where.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') || kinds.has('studio') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
     locationId ? Location.findById(locationId).select('timezone').lean<{ timezone?: string }>() : null,
     (kinds.has('promos') || kinds.has('composition'))
       ? Promotion.find({
@@ -232,12 +248,14 @@ export async function loadTemplateCtx(
   ])
   const timezone = loc?.timezone || 'America/Argentina/Buenos_Aires'
   const wantsCombos = (kinds.has('featured') || kinds.has('composition')) && !!locationId
-  const [ranking, combos, fonts] = await Promise.all([
+  const families = [...new Set([...((kinds.has('composition') || kinds.has('studio')) && tenant ? googleFamiliesToResolve(tenant) : []), ...extraFamilies])]
+  const [ranking, combos, fonts, unlocked] = await Promise.all([
     kinds.has('featured') && locationId ? topItemIds(tenantId, locationId) : [],
     wantsCombos ? sellableCombos(tenantId, locationId, menu ?? null, timezone) : [],
-    kinds.has('composition') && tenant ? resolveGoogleFonts(googleFamiliesToResolve(tenant)) : {},
+    families.length ? resolveGoogleFonts(families) : {},
+    kinds.has('studio') ? unlockedTemplateIds(tenantId) : new Set<string>(),
   ])
-  return { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, fonts, timezone, orientation: where.orientation }
+  return { menu: menu ?? null, tenant: tenant ?? null, promos, ranking, combos, fonts, unlocked, timezone, orientation: where.orientation }
 }
 
 export async function buildManifest(device: DeviceLike, now = new Date()) {
@@ -248,7 +266,8 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     .lean<PieceDoc[]>()
   // Plantillas: la carta de la sede del equipo y la marca del comercio, una sola vez.
   const kinds = new Set(docs.map((d) => d.screenTemplate?.kind).filter((k): k is string => !!k))
-  const tctx = kinds.size ? await loadTemplateCtx({ tenantId: device.tenantId, locationId: device.locationId, orientation: device.orientation }, kinds, now) : null
+  const studioFamilies = docs.filter((d) => d.screenTemplate?.kind === 'studio').flatMap((d) => { const c = parseStudioConfig(d.screenTemplate?.config); return c ? studioFontFamilies(c) : [] })
+  const tctx = kinds.size ? await loadTemplateCtx({ tenantId: device.tenantId, locationId: device.locationId, orientation: device.orientation }, kinds, now, studioFamilies) : null
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))
     .filter((x): x is ManifestItem => x !== null)

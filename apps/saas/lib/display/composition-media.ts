@@ -13,3 +13,15 @@ export function compositionMediaError(config: CompositionConfig, tenantId: strin
   }
   return null
 }
+
+/** Imágenes de una pieza de Display Studio: subidas a la carpeta de pantallas de este comercio. */
+export function studioMediaError(urls: string[], tenantId: string): string | null {
+  for (const url of urls) {
+    const a = adsAssetFromUrl(url)
+    const owner = { kind: 'tenant' as const, tenantId }
+    if (!a || a.kind !== 'image' || !(belongsTo(a.publicId, owner, 'studio') || belongsTo(a.publicId, owner, 'screen'))) {
+      return 'La imagen tiene que estar subida desde Pantallas. Subila de nuevo.'
+    }
+  }
+  return null
+}

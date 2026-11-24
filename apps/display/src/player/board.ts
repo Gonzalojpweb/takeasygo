@@ -256,7 +256,36 @@ export function compositionVisible(b: CompositionBoard, nowMs: number, tz?: stri
   return out.some((m) => m.type !== 'brand-header' && m.type !== 'qr-cta') ? out : []
 }
 
-export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard
+// ── Display Studio (plantillas de diseño con campos editables) ──────────────
+export interface StudioBoard {
+  kind: 'studio'
+  templateId: string
+  tier: 'free' | 'premium'
+  orientation: 'landscape' | 'portrait'
+  designWidth: number
+  designHeight: number
+  viewing: 'near' | 'far'
+  style: 'brand'
+  pageMs: number
+  showQr: boolean
+  values: Record<string, unknown>
+  brand: CompositionBoard['brand']
+  fontFiles: Array<{ family: string; url: string }>
+}
+export const STUDIO_TEMPLATE_IDS = ['golden-bites', 'cheese-burger', 'chocolate-croissant'] as const
+
+/** ¿Este reproductor sabe dibujar la plantilla? (una plantilla nueva no se muestra en un reproductor viejo). */
+export function studioSupported(b: StudioBoard): boolean {
+  return (STUDIO_TEMPLATE_IDS as readonly string[]).includes(b.templateId)
+}
+
+export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
+
+/** Tipos de plantilla que este reproductor sabe dibujar: lo desconocido se saltea, nunca se dibuja como carta. */
+export const KNOWN_TEMPLATE_KINDS = ['menu', 'promos', 'featured', 'composition', 'studio'] as const
+export function knownTemplate(t: { kind?: unknown } | null | undefined): boolean {
+  return !!t && (KNOWN_TEMPLATE_KINDS as readonly unknown[]).includes(t.kind)
+}
 
 /**
  * ¿La promo vale ahora en la sede? Fechas (ventana efectiva que manda el

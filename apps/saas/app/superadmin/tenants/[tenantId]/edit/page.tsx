@@ -3,6 +3,7 @@ import Tenant from '@/models/Tenant'
 import User from '@/models/User'
 import { notFound } from 'next/navigation'
 import EditTenantForm from '@/components/superadmin/EditTenantForm'
+import DisplayStudioGrants from '@/components/superadmin/DisplayStudioGrants'
 import MpSplitPanel from '@/components/superadmin/MpSplitPanel'
 import CommissionRulesPanel from '@/components/superadmin/CommissionRulesPanel'
 import ActivationPanel from '@/components/superadmin/ActivationPanel'
@@ -44,6 +45,7 @@ export default async function EditTenantPage({ params }: Props) {
         tenant={JSON.parse(JSON.stringify(tenant))}
         adminEmail={adminUser?.email ?? null}
       />
+      <DisplayStudioGrants tenantId={tenantId} />
     </div>
   )
 }
