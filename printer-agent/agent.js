@@ -365,6 +365,33 @@ function refreshWindowsPrinters() {
     }
 }
 
+// Nombre REAL de la impresora en Windows para una impresora USB/local.
+// El panel guarda ese nombre en el campo `ip` («Nombre de la impresora en
+// Windows»); `name` es el nombre lógico de TakeasyGO («caja», «cocina»).
+// Compatibilidad: impresoras viejas sin `ip` usan `name` como antes.
+function usbWindowsName(p) {
+    const ip = String(p.ip || '').trim();
+    // Una IP en una impresora marcada USB no es un nombre de Windows.
+    if (ip && !/^d+.d+.d+.d+$/.test(ip)) return ip;
+    return String(p.name || '').trim();
+}
+
+// Verifica que la impresora exista en Windows y devuelve su nombre exacto.
+// Si la lista local está vacía (no se pudo detectar) no bloquea: deja que
+// OpenPrinter decida.
+function resolveInstalledWindowsPrinter(windowsName) {
+    const target = String(windowsName || '').trim().toLowerCase();
+    const lookup = () => windowsPrinters.find(p => p.name.toLowerCase() === target);
+    let hit = lookup();
+    if (!hit && windowsPrinters.length > 0) {
+        refreshWindowsPrinters();
+        hit = lookup();
+    }
+    if (hit) return { ok: true, name: hit.name };
+    if (windowsPrinters.length === 0) return { ok: true, name: String(windowsName).trim() };
+    return { ok: false, available: windowsPrinters.map(p => p.name) };
+}
+
 function findPrinterByName(name) {
     if (!name) return null;
     const target = String(name).trim().toLowerCase();
@@ -377,6 +404,7 @@ function findPrinterByName(name) {
             name: found.name,
             connectionType: found.connectionType || 'tcp',
             ip: found.ip || '',
+            windowsName: usbWindowsName(found),
             port: found.port || 9100,
             paperWidth: found.paperWidth || 80,
             roles: found.roles || [],
@@ -393,6 +421,7 @@ function findPrinterByName(name) {
             name: winPrinter.name,
             connectionType: winPrinter.connectionType,
             ip: '',
+            windowsName: winPrinter.name,
             port: 0,
             paperWidth: 80,
             roles: [],
@@ -591,15 +620,24 @@ class JobManager {
 
                 let outcome;
                 if (isUSB) {
-                    console.log(`[USB] Enviando RAW a ${job.printerConfig.name}`);
-                    // USB/local: enviar SIEMPRE el nombre de Windows, NUNCA la IP
-                    outcome = await sendToPrinterUSB(job.printerConfig.name, job.buffer);
+                    // USB/local: abrir la impresora por su nombre REAL de Windows
+                    // (campo ip del panel), nunca por el nombre lógico.
+                    const logical = job.printerConfig.name;
+                    const wanted = job.printerConfig.windowsName || usbWindowsName(job.printerConfig);
+                    const installed = resolveInstalledWindowsPrinter(wanted);
+                    if (!installed.ok) {
+                        const e = new Error(`Impresora "${wanted}" no está instalada en Windows (impresora TakeasyGO "${logical}"). Instaladas: ${installed.available.join(', ')}. Corregí «Nombre de la impresora en Windows» en el panel.`);
+                        e.safeToRetry = true;
+                        throw e;
+                    }
+                    console.log(`[USB] Enviando RAW a "${logical}" → Windows "${installed.name}"`);
+                    outcome = await sendToPrinterUSB(installed.name, job.buffer);
                 } else {
                     console.log(`[TCP] Enviando a ${job.printerConfig.ip}:${job.printerConfig.port}`);
                     outcome = await sendToPrinter(job.printerConfig.ip, job.printerConfig.port, job.buffer);
                 }
 
-                console.log(`[OK] Enviado a ${job.printerConfig.name} (${outcome})`);
+                console.log(`[OK] Enviado a ${job.printerConfig.name}${isUSB ? ` (Windows "${job.printerConfig.windowsName || usbWindowsName(job.printerConfig)}")` : ''} (${outcome})`);
                 await job.onComplete(true, null, { outcome, safeToRetry: false });
             } catch (err) {
                 console.error(`[FALLO] ${job.printerConfig.name}: ${err.message}`);
