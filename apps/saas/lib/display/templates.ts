@@ -22,6 +22,7 @@ import { z } from 'zod'
 import mongoose from 'mongoose'
 import { compositionConfigSchema } from '@/lib/display/composition-schema'
 import { studioConfigSchema } from '@/lib/display/studio/catalog'
+import { sequenceConfigSchema } from '@/lib/display/studio/sequence-schema'
 
 const OID = (v: string) => mongoose.Types.ObjectId.isValid(v)
 
@@ -78,6 +79,8 @@ export const templateSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('composition'), config: compositionConfigSchema }),
   // Display Studio: plantillas de diseño con campos editables (lib/display/studio).
   z.object({ kind: z.literal('studio'), config: studioConfigSchema }),
+  // Secuencia de marca: 2 a 5 piezas de Studio encadenadas con transiciones.
+  z.object({ kind: z.literal('sequence'), config: sequenceConfigSchema }),
 ])
 export type TemplateInput = z.infer<typeof templateSchema>
 

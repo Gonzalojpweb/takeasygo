@@ -13,9 +13,10 @@ import { screenPiecesFilter, screenUsage } from '@/lib/display/quota'
 import { updatePieceSchema, mediaBelongsToTenant, pieceMediaFields, scheduleError } from '@/lib/display/pieces'
 import { templateSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { illustrationUrls } from '@/lib/display/composition-schema'
-import { compositionMediaError, studioMediaError } from '@/lib/display/composition-media'
+import { compositionMediaError, studioImagesError } from '@/lib/display/composition-media'
 import { studioImageUrls, studioTemplate } from '@/lib/display/studio/catalog'
 import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
+import { sequenceError } from '@/lib/display/studio/sequence'
 import { SCREEN_MAX_ACTIVE_PIECES, SCREEN_MAX_LIBRARY_BYTES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation, type PiecesContext } from '@/lib/display/pieces-route'
 
@@ -54,8 +55,12 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     if (!t.success || t.data.kind !== piece.screenTemplate?.kind) return NextResponse.json({ error: t.success ? 'Tipo de pieza distinto' : t.error.issues[0]?.message ?? 'Configuración inválida' }, { status: 400 })
     template = t.data
     const mediaErr = template.kind === 'composition' ? compositionMediaError(template.config, c.tenantId)
-      : template.kind === 'studio' ? studioMediaError(studioImageUrls(template.config as never), c.tenantId) : null
+      : template.kind === 'studio' ? await studioImagesError(studioImageUrls(template.config as never), c.tenantId) : null
     if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
+    if (template.kind === 'sequence') {
+      const seqErr = await sequenceError(template.config, c.tenantId)
+      if (seqErr) return NextResponse.json({ error: seqErr }, { status: 400 })
+    }
     if (template.kind === 'studio') {
       const st = studioTemplate(template.config.templateId)
       if (st?.tier === 'premium' && !(await unlockedTemplateIds(c.tenantId)).has(st.id)) return NextResponse.json({ error: 'Esta plantilla es Premium: desbloqueala para publicarla.', code: 'template_locked' }, { status: 402 })

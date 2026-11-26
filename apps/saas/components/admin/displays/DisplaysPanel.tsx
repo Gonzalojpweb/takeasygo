@@ -6,6 +6,7 @@ import DisplaysManager from './DisplaysManager'
 import ScreenPiecesManager from './ScreenPiecesManager'
 import MarketingMetrics from '@/components/marketing/MarketingMetrics'
 import ScreenAttribution from './ScreenAttribution'
+import ScreenPlayback from './ScreenPlayback'
 
 const TABS = [
   { id: 'devices', label: 'Pantallas' },
@@ -30,6 +31,7 @@ export default function DisplaysPanel({ tenantSlug, initialCode }: { tenantSlug:
       {tab === 'content' && <ScreenPiecesManager tenantSlug={tenantSlug} />}
       {tab === 'metrics' && (
         <div className="space-y-4">
+          <ScreenPlayback tenantSlug={tenantSlug} />
           <ScreenAttribution tenantSlug={tenantSlug} />
           <MarketingMetrics endpoint={`/api/${tenantSlug}/marketing-metrics`} />
         </div>

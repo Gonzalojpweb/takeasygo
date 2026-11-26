@@ -11,7 +11,7 @@ import { hasTransparency, loadImage, removeFlatBackground, uploadStudioImage } f
 
 const ACCEPT = 'image/png,image/webp,image/jpeg'
 
-export default function StudioImageField({ tenantSlug, label, hint, required, url, cutout, bgRemoval, onChange }: {
+export default function StudioImageField({ tenantSlug, label, hint, required, url, cutout, bgRemoval, menuPhotos = [], onChange }: {
   tenantSlug: string
   label: string
   hint?: string
@@ -19,6 +19,8 @@ export default function StudioImageField({ tenantSlug, label, hint, required, ur
   url: string
   cutout: boolean
   bgRemoval: 'free' | 'cloudinary' | 'both'
+  /** Fotos de los platos de la carta, para «Usar la foto de un plato». */
+  menuPhotos?: Array<{ id: string; name: string; url: string }>
   onChange: (url: string, cutout: boolean) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -110,6 +112,13 @@ export default function StudioImageField({ tenantSlug, label, hint, required, ur
           )}
         </div>
       </div>
+      {menuPhotos.length > 0 && (
+        <select value="" disabled={!!busy} onChange={(e) => { const m = menuPhotos.find((x) => x.id === e.target.value); if (m) { onChange(m.url, false); setNote(null) } }}
+          aria-label="Usar la foto de un plato" className="w-full min-h-[44px] rounded-xl border border-border bg-background px-3 text-base sm:text-sm">
+          <option value="">O usar la foto de un plato de tu carta…</option>
+          {menuPhotos.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      )}
       <input ref={inputRef} type="file" accept={ACCEPT} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void pick(f) }} />
       {note && <p className="text-xs text-amber-700 dark:text-amber-400">{note}</p>}
       {candidate && (

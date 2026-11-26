@@ -9,6 +9,10 @@
 //  · alguna pieza no es una pieza de pantalla del comercio del equipo (o de
 //    otra sede).
 // Lotes repetidos (mismo batchId del mismo equipo): se ignoran (PlacementSeen).
+// Proof of play (Proximo_Nivel §5): el lote puede traer `proofs` (inicio y fin
+// de cada vez que una pieza o un paso de secuencia estuvo en pantalla). Tienen
+// que caer dentro de la ventana (con 2 min de tolerancia), durar como mucho
+// 10 min y ser de piezas del lote; si no, se descarta el lote entero.
 // Destino: PlacementDailyStat, superficie 'screen', día de Argentina del fin
 // de la ventana, comercio y sede del EQUIPO (nunca del cliente).
 // ============================================================================
@@ -21,6 +25,7 @@ import PlacementDailyStat from '@/models/PlacementDailyStat'
 import PlacementSeen, { PLACEMENT_SEEN_TTL_MS } from '@/models/PlacementSeen'
 import { dayInArgentina } from '@/lib/placements/ingest'
 import { pepper } from '@/lib/display/auth'
+import DisplayPlayLog, { PLAY_LOG_TTL_MS } from '@/models/DisplayPlayLog'
 
 const OID = /^[a-f0-9]{24}$/i
 export const MAX_WINDOW_MS = 60 * 60 * 1000
@@ -37,6 +42,12 @@ export const statsBatchSchema = z.object({
     playMs: z.number().int().min(0).max(MAX_WINDOW_MS * 2),
     errors: z.number().int().min(0).max(10_000),
   })).max(100),
+  proofs: z.array(z.object({
+    pieceId: z.string().regex(OID),
+    step: z.number().int().min(0).max(9).nullable().default(null),
+    startedAt: z.string().datetime(),
+    endedAt: z.string().datetime(),
+  })).max(400).default([]),
 })
 export type StatsBatch = z.infer<typeof statsBatchSchema>
 
@@ -56,6 +67,14 @@ export function impossibleReason(b: StatsBatch, now = Date.now()): string | null
   }
   const ids = new Set(b.items.map((i) => i.pieceId))
   if (ids.size !== b.items.length) return 'pieza repetida en el lote'
+  for (const pr of b.proofs ?? []) {
+    const s0 = Date.parse(pr.startedAt)
+    const e0 = Date.parse(pr.endedAt)
+    if (!(e0 >= s0)) return 'reproducción con fin antes del inicio'
+    if (e0 - s0 > 10 * 60 * 1000) return 'reproducción de más de 10 min'
+    if (s0 < start - FUTURE_TOLERANCE_MS || e0 > end + FUTURE_TOLERANCE_MS) return 'reproducción fuera de la ventana'
+    if (!ids.has(pr.pieceId)) return 'reproducción de una pieza que no está en el lote'
+  }
   return null
 }
 
@@ -95,5 +114,14 @@ export async function ingestScreenStats(device: DeviceForStats, b: StatsBatch, n
     },
   }))
   if (ops.length) await PlacementDailyStat.bulkWrite(ops as never, { ordered: false })
+  const proofs = b.proofs ?? []
+  if (proofs.length) {
+    const expiresAt = new Date(now + PLAY_LOG_TTL_MS)
+    await DisplayPlayLog.insertMany(proofs.map((pr) => ({
+      deviceId: new mongoose.Types.ObjectId(String(device._id)), tenantId, locationId,
+      pieceId: new mongoose.Types.ObjectId(pr.pieceId), step: pr.step ?? null,
+      startedAt: new Date(pr.startedAt), endedAt: new Date(pr.endedAt), expiresAt,
+    })), { ordered: false })
+  }
   return { ok: true, duplicate: false, accepted: ops.length }
 }

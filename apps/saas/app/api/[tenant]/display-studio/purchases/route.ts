@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import { screenPiecesContext } from '@/lib/display/pieces-route'
 import DisplayTemplatePurchase, { formatReceipt } from '@/models/DisplayTemplatePurchase'
-import { studioTemplate } from '@/lib/display/studio/catalog'
+import { purchasable } from '@/lib/display/studio/catalog'
 import { issueReceipt } from '@/lib/display/studio/purchase'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     purchases: fresh.map((r) => ({
       _id: String(r._id),
       templateId: r.templateId,
-      templateName: studioTemplate(r.templateId)?.name ?? r.templateId,
+      templateName: purchasable(r.templateId)?.name ?? r.templateId,
       status: r.status,
       source: r.source,
       amountArs: r.amountArs / 100,

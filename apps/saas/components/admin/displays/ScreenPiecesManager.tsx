@@ -9,7 +9,7 @@
 // 22/11/2026: piezas automáticas (carta en pantalla) en la misma lista.
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react'
-import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play, UtensilsCrossed, Clock, Flame, LayoutTemplate, Sparkles, Lock } from 'lucide-react'
+import { Plus, Loader2, Film, ImageIcon, Pencil, Trash2, Pause, Play, UtensilsCrossed, Clock, Flame, LayoutTemplate, Sparkles, Lock, Clapperboard } from 'lucide-react'
 import { toast } from 'sonner'
 import AdsMediaUpload, { type AdsMediaValue } from '@/components/media/AdsMediaUpload'
 import MenuBoardForm, { type MenuBoardPiece } from './MenuBoardForm'
@@ -18,6 +18,7 @@ import FeaturedBoardForm, { type FeaturedPiece } from './FeaturedBoardForm'
 import CompositionForm, { type CompositionPiece } from './CompositionForm'
 import StudioPanel, { type StudioLibrary } from './studio/StudioPanel'
 import StudioEditor, { type StudioPiece } from './studio/StudioEditor'
+import SequenceEditor, { type SequencePiece, type StudioPieceRef } from './studio/SequenceEditor'
 import { studioTemplate } from '@/lib/display/studio/catalog'
 
 interface Piece {
@@ -25,7 +26,7 @@ interface Piece {
   title: string
   kind: 'image' | 'video' | 'template'
   url: string | null
-  template: MenuBoardPiece['template'] | PromosPiece['template'] | FeaturedPiece['template'] | CompositionPiece['template'] | StudioPiece['template']
+  template: MenuBoardPiece['template'] | PromosPiece['template'] | FeaturedPiece['template'] | CompositionPiece['template'] | StudioPiece['template'] | SequencePiece['template']
   screenGroups?: string[]
   posterUrl: string | null
   durationMs: number | null
@@ -78,7 +79,13 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   const [studioOpen, setStudioOpen] = useState(false)
   const [studioEdit, setStudioEdit] = useState<{ templateId: string; piece: Piece | null } | null>(null)
   const [library, setLibrary] = useState<StudioLibrary | null>(null)
-  const closeAll = () => { setForm(null); setBoard(null); setPromos(null); setFeatured(null); setComposition(null); setStudioOpen(false); setStudioEdit(null) }
+  /** Secuencia de marca en edición (null = cerrado; 'new' = nueva). */
+  const [sequence, setSequence] = useState<Piece | 'new' | null>(null)
+  const closeAll = () => { setForm(null); setBoard(null); setPromos(null); setFeatured(null); setComposition(null); setStudioOpen(false); setStudioEdit(null); setSequence(null) }
+  const studioPieces: StudioPieceRef[] = pieces.filter((p) => p.template?.kind === 'studio').map((p) => {
+    const c = p.template!.config as { orientation?: 'landscape' | 'portrait'; templateId?: string }
+    return { _id: p._id, title: p.title, locationId: p.locationId, orientation: c.orientation === 'landscape' ? 'landscape' : 'portrait', templateId: String(c.templateId ?? '') }
+  })
   const loadLibrary = useCallback(async () => {
     const res = await fetch(`/api/${tenantSlug}/display-studio`).catch(() => null)
     if (res?.ok) setLibrary(await res.json())
@@ -101,7 +108,7 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
   }, [tenantSlug, load])
 
   function edit(p: Piece) {
-    if (p.kind === 'template') { closeAll(); if (p.template?.kind === 'studio') { setStudioEdit({ templateId: (p.template.config as { templateId: string }).templateId, piece: p }); return } if (p.template?.kind === 'promos') setPromos(p); else if (p.template?.kind === 'featured') setFeatured(p); else if (p.template?.kind === 'composition') setComposition(p); else setBoard(p); return }
+    if (p.kind === 'template') { closeAll(); if (p.template?.kind === 'sequence') { setSequence(p); return } if (p.template?.kind === 'studio') { setStudioEdit({ templateId: (p.template.config as { templateId: string }).templateId, piece: p }); return } if (p.template?.kind === 'promos') setPromos(p); else if (p.template?.kind === 'featured') setFeatured(p); else if (p.template?.kind === 'composition') setComposition(p); else setBoard(p); return }
     closeAll()
     setForm({
       id: p._id, title: p.title,
@@ -212,7 +219,7 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
         />
       )}
       {studioOpen && library && !studioEdit && (
-        <StudioPanel tenantSlug={tenantSlug} library={library} reload={loadLibrary} onOpen={(templateId) => setStudioEdit({ templateId, piece: null })} />
+        <StudioPanel tenantSlug={tenantSlug} library={library} reload={loadLibrary} onOpen={(templateId) => setStudioEdit({ templateId, piece: null })} onSequence={() => { setStudioOpen(false); setSequence('new') }} />
       )}
       {studioEdit && library && (
         <StudioEditor
@@ -226,6 +233,17 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
           onUnlock={() => { setStudioEdit(null); setStudioOpen(true) }}
           onClose={() => setStudioEdit(null)}
           onSaved={() => { setStudioEdit(null); setStudioOpen(false); load() }}
+        />
+      )}
+      {sequence && (
+        <SequenceEditor
+          key={sequence === 'new' ? 'new-seq' : sequence._id}
+          tenantSlug={tenantSlug}
+          locations={locations}
+          studioPieces={studioPieces}
+          piece={sequence === 'new' ? null : (sequence as SequencePiece)}
+          onClose={() => setSequence(null)}
+          onSaved={() => { setSequence(null); load() }}
         />
       )}
       {composition && (
@@ -322,9 +340,9 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
                 {p.kind === 'template'
                   ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-neutral-800 to-neutral-950 p-4 text-center text-white">
-                      {p.template?.kind === 'studio' ? <Sparkles size={28} aria-hidden /> : p.template?.kind === 'composition' ? <LayoutTemplate size={28} aria-hidden /> : p.template?.kind === 'promos' ? <Clock size={28} aria-hidden /> : p.template?.kind === 'featured' ? <Flame size={28} aria-hidden /> : <UtensilsCrossed size={28} aria-hidden />}
-                      <span className="text-sm font-semibold">{p.template?.kind === 'studio' ? `Studio · ${studioTemplate((p.template.config as { templateId: string }).templateId)?.name ?? ''}` : p.template?.kind === 'composition' ? 'Composición' : p.template?.kind === 'promos' ? 'Promos por horario' : p.template?.kind === 'featured' ? 'Lo más pedido' : 'Carta automática'}</span>
-                      <span className="text-xs text-white/70">{p.template?.kind === 'studio' ? (library?.templates.find((t) => t.id === (p.template!.config as { templateId: string }).templateId)?.unlocked === false ? <span className="inline-flex items-center gap-1 font-semibold text-amber-300"><Lock size={12} aria-hidden /> Bloqueada: volvé a desbloquear</span> : `${(p.template.config as { orientation?: string }).orientation === 'portrait' ? 'Vertical' : 'Horizontal'}`) : p.template?.kind === 'composition' ? `${(p.template.config as { modules?: unknown[] }).modules?.length ?? 0} módulos` : p.template?.kind === 'featured' ? 'Ranking de la sede + combos' : p.template?.kind === 'promos'
+                      {p.template?.kind === 'sequence' ? <Clapperboard size={28} aria-hidden /> : p.template?.kind === 'studio' ? <Sparkles size={28} aria-hidden /> : p.template?.kind === 'composition' ? <LayoutTemplate size={28} aria-hidden /> : p.template?.kind === 'promos' ? <Clock size={28} aria-hidden /> : p.template?.kind === 'featured' ? <Flame size={28} aria-hidden /> : <UtensilsCrossed size={28} aria-hidden />}
+                      <span className="text-sm font-semibold">{p.template?.kind === 'sequence' ? 'Secuencia de marca' : p.template?.kind === 'studio' ? `Studio · ${studioTemplate((p.template.config as { templateId: string }).templateId)?.name ?? ''}` : p.template?.kind === 'composition' ? 'Composición' : p.template?.kind === 'promos' ? 'Promos por horario' : p.template?.kind === 'featured' ? 'Lo más pedido' : 'Carta automática'}</span>
+                      <span className="text-xs text-white/70">{p.template?.kind === 'sequence' ? `${((p.template.config as { steps?: unknown[] }).steps ?? []).length} pasos` : p.template?.kind === 'studio' ? (library?.templates.find((t) => t.id === (p.template!.config as { templateId: string }).templateId)?.unlocked === false ? <span className="inline-flex items-center gap-1 font-semibold text-amber-300"><Lock size={12} aria-hidden /> Bloqueada: volvé a desbloquear</span> : `${(p.template.config as { orientation?: string }).orientation === 'portrait' ? 'Vertical' : 'Horizontal'}`) : p.template?.kind === 'composition' ? `${(p.template.config as { modules?: unknown[] }).modules?.length ?? 0} módulos` : p.template?.kind === 'featured' ? 'Ranking de la sede + combos' : p.template?.kind === 'promos'
                         ? `Hasta ${(p.template.config as { maxItems?: number }).maxItems ?? 6} promos vigentes por vuelta`
                         : `${(p.template?.config as { categoryIds?: string[] })?.categoryIds?.length ? `${(p.template!.config as { categoryIds: string[] }).categoryIds.length} categorías` : 'Toda la carta'} · ${(p.template?.config as { unavailable?: string })?.unavailable === 'mark' ? 'agotados marcados' : 'agotados ocultos'}`}</span>
                     </div>

@@ -25,3 +25,22 @@ export function studioMediaError(urls: string[], tenantId: string): string | nul
   }
   return null
 }
+
+/**
+ * Display Studio: cada foto tiene que ser una subida del comercio (Studio o
+ * Pantallas) o la foto de un plato de SU carta. Otra URL se rechaza.
+ */
+export async function studioImagesError(urls: string[], tenantId: string): Promise<string | null> {
+  const foreign = urls.filter((u) => studioMediaError([u], tenantId))
+  if (!foreign.length) return null
+  const { default: Menu } = await import('@/models/Menu')
+  const mongoose = (await import('mongoose')).default
+  const menus = await Menu.find({ tenantId: new mongoose.Types.ObjectId(tenantId) })
+    .select('categories.items.imageUrl categories.subcategories.items.imageUrl').lean<Array<Record<string, any>>>()
+  const own = new Set<string>()
+  for (const m of menus) for (const c of m.categories ?? []) {
+    for (const i of c.items ?? []) if (i?.imageUrl) own.add(String(i.imageUrl))
+    for (const sc of c.subcategories ?? []) for (const i of sc.items ?? []) if (i?.imageUrl) own.add(String(i.imageUrl))
+  }
+  return foreign.every((u) => own.has(u)) ? null : 'La imagen tiene que estar subida desde Pantallas o ser la foto de un plato de tu carta. Subila de nuevo.'
+}

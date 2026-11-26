@@ -30,6 +30,7 @@ import { playPromoBoard } from './templates/promo-board'
 import { playFeaturedBoard } from './templates/featured-board'
 import { playCompositionBoard } from './templates/composition-board'
 import { playStudioBoard } from './templates/studio-board'
+import { playSequenceBoard } from './templates/sequence-board'
 import { mountControls } from './controls'
 import { showDetail, type TapInfo } from './templates/detail'
 import { boardColors } from './board'
@@ -144,6 +145,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     // Tipo que este reproductor no conoce (manifiesto más nuevo): se saltea, nunca se dibuja como carta.
     if (!knownTemplate(i.template)) return false
     if (i.template.kind === 'studio') return studioSupported(i.template)
+    if (i.template.kind === 'sequence') return i.template.steps.some((s) => studioSupported(s.board))
     if (i.template.kind === 'promos') return activePromos(i.template, correctedNow(), manifest?.timezone).length > 0
     if (i.template.kind === 'composition') return compositionVisible(i.template, correctedNow(), manifest?.timezone).length > 0
     if (i.template.kind === 'featured') return featuredVisible(i.template, correctedNow(), manifest?.timezone).length > 0 || i.template.combos.length > 0
@@ -286,12 +288,14 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     const el = item.kind === 'video' ? document.createElement('video') : document.createElement('img')
     el.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .4s'
     let shownAt = 0
+    let shownWall = 0
     let finished = false
     const done = (ok: boolean | 'skip', reason?: string) => {
       if (finished) return
       finished = true
       document.removeEventListener('visibilitychange', resume)
       if (shownAt) stats.addTime(item.id, performance.now() - shownAt)
+      if (shownAt && ok === true) stats.addProof(item.id, null, shownWall, correctedNow())
       if (ok === 'skip') { /* ahorro de energía o pestaña oculta: ni error ni penalización */ }
       else if (ok) { stats.addPlay(item.id); errorStreak.delete(item.id) }
       else {
@@ -307,6 +311,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     }
     const onShown = () => {
       shownAt = performance.now()
+      shownWall = correctedNow()
       el.style.opacity = '1'
       for (const old of [...stage.children]) if (old !== el) setTimeout(() => old.remove(), 450)
     }
@@ -339,6 +344,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
     const host = document.createElement('div')
     stage.append(host)
     let shownAt = 0
+    let shownWall = 0
     let finished = false
     let guard: ReturnType<typeof setTimeout> | null = null
     const tpl = item.template!
@@ -354,6 +360,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
       },
       onShown: () => {
         shownAt = performance.now()
+        shownWall = correctedNow()
         for (const old of [...stage.children]) if (old !== host) setTimeout(() => old.remove(), 450)
       },
       onDone: (ok: boolean, reason?: string) => {
@@ -361,7 +368,7 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
         finished = true
         if (guard) clearTimeout(guard)
         if (shownAt) stats.addTime(item.id, performance.now() - shownAt)
-        if (ok && shownAt) stats.addPlay(item.id)
+        if (ok && shownAt) { stats.addPlay(item.id); stats.addProof(item.id, null, shownWall, correctedNow()) }
         if (!ok && reason !== 'cancelada') { stats.addError(item.id); reportError('playback', `${item.id}: ${reason ?? 'error'}`) }
         setTimeout(() => host.remove(), 900)
         void playNext()
@@ -375,6 +382,8 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
           ? playCompositionBoard({ ...common, board: tpl })
           : tpl.kind === 'studio'
             ? playStudioBoard({ ...common, board: tpl })
+            : tpl.kind === 'sequence'
+              ? playSequenceBoard({ ...common, board: tpl, onStep: (step, startMs, endMs) => stats.addProof(item.id, step, startMs - performance.now() + correctedNow(), endMs - performance.now() + correctedNow()) })
             : playMenuBoard({ ...common, board: tpl, lastOkMs: store.manifestOkAt() })
     // Tope: una vuelta de la carta nunca frena la pantalla más de 10 min.
     guard = setTimeout(() => cancel(), 10 * 60_000)

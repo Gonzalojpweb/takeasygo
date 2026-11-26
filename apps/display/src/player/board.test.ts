@@ -189,8 +189,10 @@ describe('Display Studio en el reproductor', () => {
     pageMs: 12000, showQr: true, values: {}, fontFiles: [],
     brand: { name: 'Demo', logo: null, primary: '#ff7a00', background: null, text: null, fontHeading: null, fontBody: null, fontFiles: [] },
   })
-  it('sabe dibujar las 3 plantillas de lanzamiento', () => {
-    for (const id of ['golden-bites', 'cheese-burger', 'chocolate-croissant']) expect(studioSupported(studio(id))).toBe(true)
+  it('sabe dibujar las 8 plantillas de Studio', () => {
+    for (const id of ['golden-bites', 'cheese-burger', 'chocolate-croissant', 'sandwich-board', 'block-menu', 'carta-lista', 'menu-ejecutivo', 'eco-palabra']) {
+      expect(studioSupported(studio(id))).toBe(true)
+    }
   })
   it('una plantilla nueva (que este reproductor no conoce) se saltea', () => {
     expect(studioSupported(studio('plantilla-del-futuro'))).toBe(false)

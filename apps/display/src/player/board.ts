@@ -271,18 +271,38 @@ export interface StudioBoard {
   values: Record<string, unknown>
   brand: CompositionBoard['brand']
   fontFiles: Array<{ family: string; url: string }>
+  /** Páginas (lista larga de la carta); la pieza dura pageMs × pages. */
+  pages?: number
+  /** Preset de movimiento: suave, estándar o impacto. */
+  motion?: 'calm' | 'standard' | 'impact'
 }
-export const STUDIO_TEMPLATE_IDS = ['golden-bites', 'cheese-burger', 'chocolate-croissant'] as const
+/** Filas por página de «Carta lista» (igual que el servidor: lib/display/studio/catalog.ts CARTA_ROWS). */
+export const CARTA_ROWS = { portrait: 11, landscape: 8 } as const
+export const STUDIO_TEMPLATE_IDS = [
+  'golden-bites', 'cheese-burger', 'chocolate-croissant',
+  'sandwich-board', 'block-menu', 'carta-lista', 'menu-ejecutivo', 'eco-palabra',
+] as const
 
 /** ¿Este reproductor sabe dibujar la plantilla? (una plantilla nueva no se muestra en un reproductor viejo). */
 export function studioSupported(b: StudioBoard): boolean {
   return (STUDIO_TEMPLATE_IDS as readonly string[]).includes(b.templateId)
 }
 
-export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
+/** Secuencia de marca: 2 a 5 pasos de Studio con transición (Proximo_Nivel §3). */
+export interface SequenceBoard {
+  kind: 'sequence'
+  orientation: 'landscape' | 'portrait'
+  loops: number
+  style: 'brand'
+  showQr: boolean
+  brand: StudioBoard['brand']
+  steps: Array<{ pieceId: string; durationMs: number; transition: 'fade' | 'wipe' | 'scale' | 'slide'; board: StudioBoard }>
+}
+
+export type ScreenBoard = MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard | SequenceBoard
 
 /** Tipos de plantilla que este reproductor sabe dibujar: lo desconocido se saltea, nunca se dibuja como carta. */
-export const KNOWN_TEMPLATE_KINDS = ['menu', 'promos', 'featured', 'composition', 'studio'] as const
+export const KNOWN_TEMPLATE_KINDS = ['menu', 'promos', 'featured', 'composition', 'studio', 'sequence'] as const
 export function knownTemplate(t: { kind?: unknown } | null | undefined): boolean {
   return !!t && (KNOWN_TEMPLATE_KINDS as readonly unknown[]).includes(t.kind)
 }

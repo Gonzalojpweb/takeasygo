@@ -18,7 +18,7 @@ import { getPlatformMPClient } from '@/lib/mp-platform'
 import DisplayTemplatePurchase, { DisplayStudioState, nextReceiptNumber, formatReceipt } from '@/models/DisplayTemplatePurchase'
 import Tenant from '@/models/Tenant'
 import User from '@/models/User'
-import { studioTemplate } from '@/lib/display/studio/catalog'
+import { purchasable } from '@/lib/display/studio/catalog'
 import { logAudit } from '@/lib/audit'
 import { sendEmail, escapeHtml } from '@/lib/email'
 
@@ -63,11 +63,14 @@ export async function createTemplateCheckout(opts: {
   payerEmail?: string
   userId?: string | null
 }): Promise<CheckoutResult | { error: string; status: number }> {
-  const t = studioTemplate(opts.templateId)
-  if (!t || t.tier !== 'premium' || !t.priceUsd) return { error: 'Esa plantilla no se compra', status: 400 }
+  const t = purchasable(opts.templateId)
+  if (!t) return { error: 'Eso no se compra', status: 400 }
   const tid = new mongoose.Types.ObjectId(opts.tenantId)
   const existing = await DisplayTemplatePurchase.findOne({ tenantId: tid, templateId: t.id }).select('status').lean()
-  if (existing?.status === 'approved') return { error: 'Ya tenés esta plantilla desbloqueada', status: 409 }
+  if (existing?.status === 'approved') return { error: 'Ya lo tenés desbloqueado', status: 409 }
+  const { unlockedTemplateIds } = await import('@/models/DisplayTemplatePurchase')
+  const have = await unlockedTemplateIds(opts.tenantId)
+  if (t.templateIds.every((x) => have.has(x))) return { error: 'Ya tenés todas esas plantillas desbloqueadas', status: 409 }
   const rate = await usdArsRate()
   if (!rate) return { error: 'No pudimos obtener la cotización del dólar. Probá de nuevo en unos minutos.', status: 503 }
   const amountCents = priceArsCents(t.priceUsd, rate)
@@ -83,7 +86,7 @@ export async function createTemplateCheckout(opts: {
   const back = `${opts.appUrl}/${opts.tenantSlug}/admin/pantallas?studio=${encodeURIComponent(t.id)}`
   const pref = await new Preference(client).create({
     body: {
-      items: [{ id: `display-template-${t.id}`, title: `TakeasyGO Pantallas — plantilla «${t.name}» (USD ${t.priceUsd})`, quantity: 1, unit_price: amountCents / 100, currency_id: 'ARS' }],
+      items: [{ id: `display-template-${t.id}`, title: `TakeasyGO Pantallas — ${t.id.startsWith('col-') ? '' : 'plantilla '}«${t.name}» (USD ${t.priceUsd})`, quantity: 1, unit_price: amountCents / 100, currency_id: 'ARS' }],
       payer: opts.payerEmail ? { email: opts.payerEmail } : undefined,
       external_reference: `display-template:${purchase._id}`,
       back_urls: { success: `${back}&pago=ok`, failure: `${back}&pago=error`, pending: `${back}&pago=pendiente` },
@@ -160,7 +163,7 @@ async function notifyPurchase(purchaseId: string, appUrl?: string) {
     Tenant.findById(p.tenantId).select('name slug').lean<{ name?: string; slug?: string }>(),
     p.purchasedBy ? User.findById(p.purchasedBy).select('email').lean<{ email?: string }>() : null,
   ])
-  const t = studioTemplate(p.templateId)
+  const t = purchasable(p.templateId)
   const base = appUrl || process.env.NEXTAUTH_URL || 'https://www.takeasygo.com'
   const link = `${base}/${tenant?.slug ?? ''}/admin/pantallas?studio=compras`
   const html = `<p>Se desbloqueó la plantilla <b>${escapeHtml(t?.name ?? p.templateId)}</b> para <b>${escapeHtml(tenant?.name ?? '')}</b>.</p>

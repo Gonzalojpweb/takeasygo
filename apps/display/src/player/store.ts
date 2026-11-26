@@ -73,11 +73,17 @@ export interface StatsBatch {
   windowStart: string
   windowEnd: string
   items: Array<{ pieceId: string; plays: number; playMs: number; errors: number }>
+  /** Proof of play: inicio y fin (hora del servidor) de cada vez que una pieza o un paso estuvo en pantalla. */
+  proofs?: Array<{ pieceId: string; step: number | null; startedAt: string; endedAt: string }>
 }
+
+/** Tope de reproducciones detalladas por lote (el resto solo suma en los totales). */
+export const MAX_PROOFS = 400
 
 /** Acumula reproducciones, tiempo en pantalla y errores entre envíos. */
 export class StatsAccumulator {
   private counters = new Map<string, { plays: number; playMs: number; errors: number }>()
+  private proofs: NonNullable<StatsBatch['proofs']> = []
   private windowStart: number
 
   constructor(now = Date.now()) { this.windowStart = now }
@@ -90,16 +96,26 @@ export class StatsAccumulator {
   addTime(id: string, ms: number) { if (ms > 0) this.row(id).playMs += Math.round(ms) }
   addPlay(id: string) { this.row(id).plays++ }
   addError(id: string) { this.row(id).errors++ }
+  /** Una reproducción completa (o un paso de secuencia) con su inicio y fin. */
+  addProof(id: string, step: number | null, startMs: number, endMs: number) {
+    if (!(endMs >= startMs) || this.proofs.length >= MAX_PROOFS) return
+    this.row(id)
+    this.proofs.push({ pieceId: id, step, startedAt: new Date(startMs).toISOString(), endedAt: new Date(Math.min(endMs, startMs + 10 * 60_000)).toISOString() })
+  }
 
   /** Cierra la ventana actual en un lote (null si no hubo nada) y abre otra. */
   cut(now = Date.now()): StatsBatch | null {
     const items = [...this.counters.entries()]
       .map(([pieceId, c]) => ({ pieceId, ...c }))
       .filter((i) => i.plays || i.playMs || i.errors)
+    // Las reproducciones tienen que caer dentro de la ventana (el servidor lo valida).
+    const ws = this.windowStart
+    const proofs = this.proofs.filter((pr) => Date.parse(pr.startedAt) >= ws - 60_000 && Date.parse(pr.endedAt) <= now + 60_000)
     const batch: StatsBatch | null = items.length
-      ? { batchId: randomId(), windowStart: new Date(this.windowStart).toISOString(), windowEnd: new Date(now).toISOString(), items }
+      ? { batchId: randomId(), windowStart: new Date(this.windowStart).toISOString(), windowEnd: new Date(now).toISOString(), items, ...(proofs.length ? { proofs } : {}) }
       : null
     this.counters.clear()
+    this.proofs = []
     this.windowStart = now
     return batch
   }

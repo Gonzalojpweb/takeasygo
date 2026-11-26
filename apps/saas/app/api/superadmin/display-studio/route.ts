@@ -11,7 +11,7 @@ import { connectDB } from '@/lib/mongoose'
 import { requireSuperAdmin, getSessionUser } from '@/lib/apiAuth'
 import Tenant from '@/models/Tenant'
 import DisplayTemplatePurchase from '@/models/DisplayTemplatePurchase'
-import { studioTemplate } from '@/lib/display/studio/catalog'
+import { purchasable } from '@/lib/display/studio/catalog'
 import { logAudit } from '@/lib/audit'
 
 export const dynamic = 'force-dynamic'
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
     action: z.enum(['grant', 'revoke']),
   }).safeParse(await request.json().catch(() => ({})))
   if (!b.success) return NextResponse.json({ error: 'Pedido inválido' }, { status: 400 })
-  const t = studioTemplate(b.data.templateId)
-  if (!t || t.tier !== 'premium') return NextResponse.json({ error: 'Plantilla Premium inexistente' }, { status: 400 })
+  const t = purchasable(b.data.templateId)
+  if (!t) return NextResponse.json({ error: 'Plantilla Premium o colección inexistente' }, { status: 400 })
   await connectDB()
   const tid = new mongoose.Types.ObjectId(b.data.tenantId)
   if (!(await Tenant.exists({ _id: tid }))) return NextResponse.json({ error: 'Comercio no encontrado' }, { status: 404 })

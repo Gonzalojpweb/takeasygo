@@ -10,7 +10,7 @@ import { screenPiecesContext } from '@/lib/display/pieces-route'
 import DisplayTemplatePurchase, { formatReceipt } from '@/models/DisplayTemplatePurchase'
 import Tenant from '@/models/Tenant'
 import FiscalProfile from '@/models/FiscalProfile'
-import { studioTemplate } from '@/lib/display/studio/catalog'
+import { purchasable } from '@/lib/display/studio/catalog'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     tenantName: tenant?.name ?? '',
     legalName: fiscal?.legalName || null,
     cuit: fiscal?.cuit || null,
-    templateName: studioTemplate(r.templateId)?.name ?? r.templateId,
+    templateName: purchasable(r.templateId)?.name ?? r.templateId,
     amountUsd: r.amountUsd,
     rate: r.rate,
     amountArs: r.amountArs / 100,

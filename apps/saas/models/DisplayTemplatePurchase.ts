@@ -65,8 +65,15 @@ const DisplayTemplatePurchase =
   mongoose.model<IDisplayTemplatePurchase>('DisplayTemplatePurchase', DisplayTemplatePurchaseSchema)
 export default DisplayTemplatePurchase
 
-/** Plantillas Premium desbloqueadas por el comercio. */
+/** Plantillas Premium desbloqueadas por el comercio (las de sus colecciones incluidas). */
 export async function unlockedTemplateIds(tenantId: unknown): Promise<Set<string>> {
+  const rows = await DisplayTemplatePurchase.find({ tenantId: new mongoose.Types.ObjectId(String(tenantId)), status: 'approved' }).select('templateId').lean()
+  const { expandUnlocked } = await import('@/lib/display/studio/catalog')
+  return expandUnlocked(rows.map((r) => r.templateId))
+}
+
+/** Compras aprobadas tal cual (plantillas sueltas y colecciones). */
+export async function purchasedIds(tenantId: unknown): Promise<Set<string>> {
   const rows = await DisplayTemplatePurchase.find({ tenantId: new mongoose.Types.ObjectId(String(tenantId)), status: 'approved' }).select('templateId').lean()
   return new Set(rows.map((r) => r.templateId))
 }

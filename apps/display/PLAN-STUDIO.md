@@ -380,3 +380,17 @@ Cada plantilla tiene capturas propias en las dos orientaciones con datos fictici
 | Factura | **No por ahora: solo comprobante interno** (§5.7) |
 
 | Quitar fondo | **Híbrido:** de entrada sin costo (PNG recortado + quitar fondo en el navegador). Cloudinary HD se activa con interruptor cuando haga falta (§8) |
+
+---
+
+## 14. Próximo nivel (implementado)
+
+| Punto del informe | Qué quedó |
+|---|---|
+| §2 Vínculo con la carta | Campo `products`: «Toda la carta» (por categorías, hasta 60 platos, en páginas) o «Solo los que elijo». Por plato: foto de la carta o propia, nombre, descripción y precio a mano (lo vacío sigue a la carta). Platos fijos (`slot`) vinculables que se actualizan solos. Badges Más vendido (ranking de la sede) · Destacado · Nuevo (etiqueta «Nuevo»), precio tachado, agotados ocultos o con cartel, respaldo tipográfico sin foto. Se resuelve al armar el manifiesto. «Usar la foto de un plato» en cualquier campo de foto (se aceptan las fotos de la carta del comercio) |
+| §3 Secuencias | Pieza `sequence`: 2 a 5 piezas de Studio de la misma orientación, duración y transición por paso (fundido, barrido, zoom, deslizar), hasta 3 repeticiones. Pasos Premium bloqueados se saltean. Editor con vista previa |
+| §4 Movimiento | `motion` por pieza: suave, estándar, impacto. Librería `apps/display/src/player/templates/motion.ts` (solo transform y opacity) |
+| §5 Analítica | Proof of play por pieza y por paso (`DisplayPlayLog`, 90 días). Métricas › «Reproducción en pantallas»: veces, tiempo, pantallas, piezas activas por pantalla, últimas reproducciones |
+| §6 Colecciones | `col-hamburguesas` (USD 29), `col-cafeteria` (USD 25), `col-completa` (USD 39). Compra y desbloqueo por comercio; el SuperAdmin las puede otorgar |
+
+**Pendiente del informe:** colecciones Parrilla y Temporadas (necesitan plantillas nuevas), multipantalla sincronizada (§7.1), fuentes propias `.woff2` (§7.2) y prueba en hardware real RK3568/RK3588 (§7.3).
