@@ -12,6 +12,10 @@ using System;
 using System.Runtime.InteropServices;
 
 public class RawPrinter {
+    // Error Win32 capturado justo despues de la llamada que fallo (si se
+    // lee mas tarde desde PowerShell puede estar pisado por otras llamadas).
+    public static int LastError = 0;
+
     [DllImport("winspool.drv", CharSet = CharSet.Unicode, ExactSpelling = false, SetLastError = true)]
     public static extern bool OpenPrinter(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
 
@@ -50,17 +54,21 @@ public class RawPrinter {
         docInfo.pDatatype = "RAW";
         docInfo.pOutputFile = null;
 
+        LastError = 0;
         if (!OpenPrinter(szPrinterName, out hPrinter, IntPtr.Zero)) {
+            LastError = Marshal.GetLastWin32Error();
             return -1;
         }
 
         try {
             int jobId = StartDocPrinter(hPrinter, 1, ref docInfo);
             if (jobId == 0) {
+                LastError = Marshal.GetLastWin32Error();
                 return -2;
             }
 
             if (!StartPagePrinter(hPrinter)) {
+                LastError = Marshal.GetLastWin32Error();
                 return -3;
             }
 
@@ -68,6 +76,7 @@ public class RawPrinter {
             try {
                 Marshal.Copy(data, 0, pBytes, data.Length);
                 bSuccess = WritePrinter(hPrinter, pBytes, data.Length, out dwWritten);
+                if (!bSuccess) LastError = Marshal.GetLastWin32Error();
             } finally {
                 Marshal.FreeHGlobal(pBytes);
             }
@@ -77,10 +86,12 @@ public class RawPrinter {
             }
 
             if (!EndPagePrinter(hPrinter)) {
+                LastError = Marshal.GetLastWin32Error();
                 return -5;
             }
 
             if (!EndDocPrinter(hPrinter)) {
+                LastError = Marshal.GetLastWin32Error();
                 return -6;
             }
         } finally {
@@ -108,7 +119,7 @@ $result = [RawPrinter]::SendBytesToPrinter($PrinterName, $bytes)
 
 if ($result -lt 0) {
     $errorCode = $result
-    $win32Error = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+    $win32Error = [RawPrinter]::LastError
     Write-Error "ERROR_SPOOLER: codigo=$errorCode win32=$win32Error printer=$PrinterName"
     exit 1
 }
