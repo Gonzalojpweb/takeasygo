@@ -34,6 +34,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ tenant: string }> }) {
+  try {
+    return await createPiece(request, params)
+  } catch (e) {
+    console.error('[screen-pieces POST]', (e as Error)?.message)
+    return NextResponse.json({ error: 'No se pudo guardar la pieza. Probá de nuevo.' }, { status: 500 })
+  }
+}
+
+async function createPiece(request: NextRequest, params: Promise<{ tenant: string }>) {
   const ctx = await screenPiecesContext(request, params)
   if ('error' in ctx) return ctx.error
   const parsed = createPieceSchema.safeParse(await request.json().catch(() => null))

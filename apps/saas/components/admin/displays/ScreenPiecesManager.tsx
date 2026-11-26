@@ -141,8 +141,8 @@ export default function ScreenPiecesManager({ tenantSlug }: { tenantSlug: string
       const res = await fetch(form.id ? `/api/${tenantSlug}/screen-pieces/${form.id}` : `/api/${tenantSlug}/screen-pieces`, {
         method: form.id ? 'PATCH' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'No se pudo guardar')
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      if (!res.ok) throw new Error(data.error || `No se pudo guardar (error ${res.status}). Probá de nuevo.`)
       toast.success(form.id ? 'Pieza actualizada' : 'Pieza creada: las pantallas la bajan en el próximo minuto')
       setForm(null)
       load()
