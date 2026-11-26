@@ -39,6 +39,15 @@ async function load(request: NextRequest, ctx: Ctx) {
 }
 
 export async function PATCH(request: NextRequest, ctx: Ctx) {
+  try {
+    return await updatePiece(request, ctx)
+  } catch (e) {
+    console.error('[screen-pieces PATCH]', (e as Error)?.message)
+    return NextResponse.json({ error: 'No se pudo guardar la pieza. Probá de nuevo.' }, { status: 500 })
+  }
+}
+
+async function updatePiece(request: NextRequest, ctx: Ctx) {
   const r = await load(request, ctx)
   if ('error' in r) return r.error
   const raw = await request.json().catch(() => null)

@@ -146,3 +146,15 @@ describe('manifiesto con franja y zona horaria', () => {
     expect(m.items[0].durationMs).toBe(10_000)
   })
 })
+
+describe('videos de pantalla largos (regresión 26/11)', () => {
+  it('un video de 60 s se guarda (antes el tope de 15 s de las historias lo rompía con un 500 vacío)', async () => {
+    asUser('admin', A)
+    const v = media(A, 'b'.repeat(18), { kind: 'video', url: `https://res.cloudinary.com/tgoads/video/upload/v1/ads/t-${A._id}/screen/${'b'.repeat(18)}.mp4`, posterUrl: null, durationMs: 60_500, width: 1080, height: 1920, bytes: 8_000_000 })
+    v.publicId = `ads/t-${A._id}/screen/${'b'.repeat(18)}`
+    const res = await create('sp-a', { title: 'Video largo', media: v })
+    expect(res.status).toBe(201)
+    const doc = await AppStory.findOne({ title: 'Video largo' }).lean<any>()
+    expect(doc.videoDurationMs).toBe(60_000)
+  })
+})

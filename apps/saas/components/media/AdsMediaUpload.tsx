@@ -131,8 +131,8 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       const signRes = await fetch(`${endpointBase}/sign`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ surface, kind }),
       })
-      const signed = await signRes.json()
-      if (!signRes.ok) throw new Error(signed?.error || 'No se pudo preparar la subida')
+      const signed = await signRes.json().catch(() => null)
+      if (!signRes.ok || !signed) throw new Error(signed?.error || `No se pudo preparar la subida (error ${signRes.status}). Probá de nuevo.`)
 
       setBusy('uploading'); setProgress(0)
       const form = new FormData()
@@ -145,8 +145,8 @@ export default function AdsMediaUpload({ endpointBase, surface, kinds, value, on
       const confRes = await fetch(`${endpointBase}/confirm`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ surface, kind, publicId: signed.publicId }),
       })
-      const conf = await confRes.json()
-      if (!confRes.ok) throw new Error(conf?.error || 'El archivo no cumple los requisitos')
+      const conf = await confRes.json().catch(() => null)
+      if (!confRes.ok || !conf) throw new Error(conf?.error || `No se pudo verificar el archivo (error ${confRes.status}). Probá de nuevo.`)
       onChange({
         kind, url: conf.media.url, posterUrl: conf.media.posterUrl, durationMs: conf.media.durationMs,
         publicId: conf.media.publicId, width: conf.media.width, height: conf.media.height, bytes: conf.media.bytes,

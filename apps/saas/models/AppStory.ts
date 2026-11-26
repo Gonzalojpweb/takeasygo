@@ -83,7 +83,8 @@ const AppStorySchema = new Schema<IAppStory>(
       default: '',
     },
     videoPosterUrl: { type: String, default: '' },
-    videoDurationMs: { type: Number, default: null, min: 0, max: 15_000 },
+    // Historias: 15 s (lo topean sus rutas). Pantallas: hasta 60 s. El esquema admite el mayor de los dos.
+    videoDurationMs: { type: Number, default: null, min: 0, max: 60_000 },
     type: {
       type: String,
       enum: ['feature', 'tutorial', 'promotion', 'announcement'],
