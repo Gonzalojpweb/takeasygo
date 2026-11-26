@@ -8,7 +8,7 @@ export type AppStoryType = 'feature' | 'tutorial' | 'promotion' | 'announcement'
 // 21/11/2026: 'screen' = pantallas del comercio (solo contenido propio; nunca story del menú).
 export type AppStorySurface = 'menu_story' | 'app_story' | 'home_banner' | 'screen'
 /** Plantillas de pantalla (lib/display/templates). Lista abierta: se suman por entrega. */
-export type ScreenTemplateKind = 'menu' | 'promos' | 'featured' | 'composition' | 'studio'
+export type ScreenTemplateKind = 'menu' | 'promos' | 'featured' | 'composition' | 'studio' | 'sequence'
 
 export interface AppStoryOwner {
   kind: 'platform' | 'tenant'
@@ -150,7 +150,7 @@ const AppStorySchema = new Schema<IAppStory>(
     screenGroups: { type: [{ type: String, trim: true, maxlength: 30 }], default: undefined },
     screenTemplate: {
       type: new Schema({
-        kind: { type: String, enum: ['menu', 'promos', 'featured', 'composition', 'studio'], required: true },
+        kind: { type: String, enum: ['menu', 'promos', 'featured', 'composition', 'studio', 'sequence'], required: true },
         config: { type: Schema.Types.Mixed, default: {} },
       }, { _id: false }),
       default: null,

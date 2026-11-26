@@ -12,8 +12,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Loader2, Lock, Monitor, Smartphone, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
-import { cutoutKey, studioDefaults, studioTemplate, type StudioField, type StudioTemplate, STUDIO_FONTS } from '@/lib/display/studio/catalog'
+import { cutoutKey, productsKeys, slotProductKey, studioDefaults, studioFieldVisible, studioTemplate, type StudioField, type StudioTemplate, STUDIO_FONTS } from '@/lib/display/studio/catalog'
 import StudioImageField from './StudioImageField'
+import { MenuSourcePicker, SlotFill, type CatalogCategory, type CatalogProduct, type ProductOverrides } from './StudioMenuPicker'
 
 const DISPLAY_URL = (process.env.NEXT_PUBLIC_DISPLAY_URL || 'https://display.takeasygo.com').replace(/\/+$/, '')
 const inputCls = 'w-full min-h-[44px] rounded-xl border border-border bg-background px-3 text-base sm:text-sm'
@@ -32,6 +33,7 @@ export interface StudioConfigValue {
   designHeight: number
   viewing: 'near' | 'far'
   pageSeconds: number
+  motion?: 'calm' | 'standard' | 'impact'
   values: Record<string, unknown>
 }
 export interface StudioPiece { _id: string; title: string; locationId: string | null; isActive: boolean; template: { kind: 'studio'; config: StudioConfigValue } | null }
@@ -58,19 +60,57 @@ export default function StudioEditor({ tenantSlug, locations, templateId, piece,
   const orientation: 'landscape' | 'portrait' = designHeight > designWidth ? 'portrait' : 'landscape'
   const [viewing, setViewing] = useState<'near' | 'far'>(saved?.viewing ?? 'near')
   const [pageSeconds, setPageSeconds] = useState(saved?.pageSeconds ?? 12)
+  const [motion, setMotion] = useState<'calm' | 'standard' | 'impact'>(saved?.motion ?? 'standard')
   const [isActive, setIsActive] = useState(piece?.isActive ?? false)
   const [saving, setSaving] = useState(false)
   const [devices, setDevices] = useState<Array<{ orientation: 'landscape' | 'portrait'; locationId: string | null }>>([])
+  const [catalog, setCatalog] = useState<CatalogProduct[]>([])
+  const [categories, setCategories] = useState<CatalogCategory[]>([])
   const presetId = PRESETS.find((p) => p.w === designWidth && p.h === designHeight)?.id ?? 'totem-1080'
 
   useEffect(() => {
     fetch(`/api/${tenantSlug}/displays`).then((r) => r.json()).then((d) => setDevices((d.devices || []).map((x: { orientation: 'landscape' | 'portrait'; locationId: string | null }) => ({ orientation: x.orientation, locationId: x.locationId })))).catch(() => {})
   }, [tenantSlug])
+  useEffect(() => {
+    // La carta de la sede: platos para elegir, «Traer de mi carta» y «Usar la foto de un plato».
+    if (!locationId) { setCatalog([]); setCategories([]); return }
+    let alive = true
+    fetch(`/api/${tenantSlug}/screen-pieces/templates?locationId=${locationId}&catalog=1&studio=1`)
+      .then((r) => r.json())
+      .then((d) => { if (alive) { setCatalog(Array.isArray(d.products) ? d.products : []); setCategories(Array.isArray(d.categories) ? d.categories : []) } })
+      .catch(() => { if (alive) { setCatalog([]); setCategories([]) } })
+    return () => { alive = false }
+  }, [tenantSlug, locationId])
+  const menuPhotos = useMemo(() => catalog.filter((p) => p.imageUrl).map((p) => ({ id: p._id, name: p.name, url: p.imageUrl as string })), [catalog])
+  /** Platos fijos de la plantilla (Plato 1, Plato 2, Bebida 1…). */
+  const slots = useMemo(() => {
+    const out: Array<{ id: string; label: string }> = []
+    for (const f of t.fields) if (f.slot && !out.some((x) => x.id === f.slot)) out.push({ id: f.slot, label: f.label.split(' — ')[0].replace(/^Foto /i, '') })
+    return out
+  }, [t])
+  /** Vincular: los campos del lugar quedan vacíos y siguen a la carta (después se pueden cambiar a mano). */
+  const fillSlot = (slot: string, p: CatalogProduct | null) => setValues((v) => {
+    const next: Record<string, unknown> = { ...v, [slotProductKey(slot)]: p?._id ?? '' }
+    if (!p) return next
+    for (const f of t.fields) {
+      if (f.slot !== slot) continue
+      if (f.slotRole === 'name' || f.slotRole === 'desc') next[f.key] = ''
+      if (f.slotRole === 'price') next[f.key] = null
+      if (f.slotRole === 'image') { next[f.key] = ''; next[cutoutKey(f.key)] = false }
+    }
+    return next
+  })
+  const boundProduct = (f: StudioField) => (f.slot ? catalog.find((p) => p._id === values[slotProductKey(f.slot!)]) : undefined)
   const mismatched = devices.filter((d) => d.locationId === locationId && d.orientation !== orientation).length
 
   const set = (k: string, val: unknown) => setValues((v) => ({ ...v, [k]: val }))
-  const config: StudioConfigValue = { templateId: t.id, orientation, designWidth, designHeight, viewing, pageSeconds, values }
-  const missing = useMemo(() => t.fields.filter((f) => f.required && !String(values[f.key] ?? '').trim()).map((f) => f.label), [t, values])
+  const config: StudioConfigValue = { templateId: t.id, orientation, designWidth, designHeight, viewing, pageSeconds, motion, values }
+  const missing = useMemo(() => t.fields.filter((f) => {
+    if (!studioFieldVisible(f, values) || !f.required) return false
+    if (f.slot && values[slotProductKey(f.slot)]) return false
+    if (f.type === 'products') return values[productsKeys(f.key).mode] !== 'all' && (!Array.isArray(values[f.key]) || (values[f.key] as string[]).length === 0)
+    return !String(values[f.key] ?? '').trim()
+  }).map((f) => f.label), [t, values])
 
   // ── Vista previa real ──
   const frameRef = useRef<HTMLIFrameElement>(null)
@@ -115,21 +155,22 @@ export default function StudioEditor({ tenantSlug, locations, templateId, piece,
   }
 
   const field = (f: StudioField) => {
+    if (!studioFieldVisible(f, values)) return null
     const val = values[f.key]
     switch (f.type) {
       case 'image': return (
-        <StudioImageField key={f.key} tenantSlug={tenantSlug} label={f.label} hint={f.hint} required={f.required} url={String(val ?? '')} cutout={values[cutoutKey(f.key)] === true} bgRemoval={bgRemoval}
+        <StudioImageField key={f.key} tenantSlug={tenantSlug} label={f.label} hint={f.hint} required={f.required} url={String(val ?? '')} cutout={values[cutoutKey(f.key)] === true} bgRemoval={bgRemoval} menuPhotos={menuPhotos}
           onChange={(url, cut) => setValues((v) => ({ ...v, [f.key]: url, [cutoutKey(f.key)]: cut }))} />
       )
       case 'text': return (
         <label key={f.key} className="block text-sm font-medium">{f.label}{f.required && <span className="text-destructive"> *</span>}
-          <input value={String(val ?? '')} maxLength={f.max} onChange={(e) => set(f.key, e.target.value)} className={`${inputCls} mt-1`} />
+          <input value={String(val ?? '')} maxLength={f.max} placeholder={boundProduct(f) ? `De la carta: ${f.slotRole === 'desc' ? (boundProduct(f)?.description || '—') : boundProduct(f)?.name}` : undefined} onChange={(e) => set(f.key, e.target.value)} className={`${inputCls} mt-1`} />
           <span className="mt-0.5 block text-right text-xs text-muted-foreground">{String(val ?? '').length}/{f.max}{f.hint ? ` · ${f.hint}` : ''}</span>
         </label>
       )
       case 'price': return (
         <label key={f.key} className="block text-sm font-medium">{f.label}
-          <input type="number" min={0} step={1} inputMode="numeric" value={typeof val === 'number' ? Math.round(val / 100) : ''} placeholder="Sin precio"
+          <input type="number" min={0} step={1} inputMode="numeric" value={typeof val === 'number' ? Math.round(val / 100) : ''} placeholder={boundProduct(f)?.price ? `De la carta: ${Math.round((boundProduct(f)?.price ?? 0) / 100)}` : 'Sin precio'}
             onChange={(e) => set(f.key, e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value) * 100)))} className={`${inputCls} mt-1`} />
         </label>
       )
@@ -143,7 +184,10 @@ export default function StudioEditor({ tenantSlug, locations, templateId, piece,
         </label>
       )
       case 'toggle': return (
-        <label key={f.key} className="flex min-h-[44px] items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={val !== false} onChange={(e) => set(f.key, e.target.checked)} /> {f.label}</label>
+        <label key={f.key} className="flex min-h-[44px] items-center gap-2 text-sm">
+          <input type="checkbox" className="h-5 w-5" checked={val !== false} onChange={(e) => set(f.key, e.target.checked)} />
+          <span>{f.label}{f.hint ? <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{f.hint}</span> : null}</span>
+        </label>
       )
       case 'font': return (
         <label key={f.key} className="block text-sm font-medium">{f.label}
@@ -152,6 +196,26 @@ export default function StudioEditor({ tenantSlug, locations, templateId, piece,
           </select>
         </label>
       )
+      case 'products': {
+        const k = productsKeys(f.key)
+        return (
+          <MenuSourcePicker key={f.key} tenantSlug={tenantSlug} label={f.label} hint={f.hint} max={f.max ?? 12} allowAll={!!f.allowAll}
+            products={catalog} categories={categories} bgRemoval={bgRemoval}
+            mode={values[k.mode] === 'all' ? 'all' : 'selected'}
+            productIds={Array.isArray(val) ? (val as string[]) : []}
+            categoryIds={Array.isArray(values[k.categories]) ? (values[k.categories] as string[]) : []}
+            overrides={(values[k.overrides] && typeof values[k.overrides] === 'object' ? values[k.overrides] : {}) as ProductOverrides}
+            unavailable={values[k.unavailable] === 'mark' ? 'mark' : 'hide'}
+            onChange={(patch) => setValues((v) => ({
+              ...v,
+              ...(patch.mode ? { [k.mode]: patch.mode } : {}),
+              ...(patch.productIds ? { [f.key]: patch.productIds } : {}),
+              ...(patch.categoryIds ? { [k.categories]: patch.categoryIds } : {}),
+              ...(patch.overrides ? { [k.overrides]: patch.overrides } : {}),
+              ...(patch.unavailable ? { [k.unavailable]: patch.unavailable } : {}),
+            }))} />
+        )
+      }
     }
   }
 
@@ -194,12 +258,28 @@ export default function StudioEditor({ tenantSlug, locations, templateId, piece,
                 <option value="far">De lejos (vidriera, exterior)</option>
               </select>
             </label>
+            <label className="text-sm font-medium">Movimiento
+              <select value={motion} onChange={(e) => setMotion(e.target.value as 'standard')} className={`${inputCls} mt-1`}>
+                <option value="calm">Suave (salón tranquilo)</option>
+                <option value="standard">Estándar</option>
+                <option value="impact">Impacto (vidriera, tótem exterior)</option>
+              </select>
+            </label>
             <label className="text-sm font-medium">Segundos en pantalla
               <input type="number" min={5} max={60} value={pageSeconds} onChange={(e) => setPageSeconds(Math.min(60, Math.max(5, Number(e.target.value) || 12)))} className={`${inputCls} mt-1`} />
             </label>
           </div>
           {mismatched > 0 && (
             <p className="flex items-start gap-2 rounded-xl bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300"><AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden /> {mismatched === 1 ? 'Una pantalla' : `${mismatched} pantallas`} de esta sede {mismatched === 1 ? 'está' : 'están'} en {orientation === 'portrait' ? 'horizontal' : 'vertical'}: no la {mismatched === 1 ? 'va' : 'van'} a mostrar. Armá otra versión con la otra orientación.</p>
+          )}
+          {slots.length > 0 && catalog.length > 0 && (
+            <fieldset className="space-y-3 rounded-xl bg-muted/40 p-3">
+              <legend className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">Platos de tu carta</legend>
+              <p className="text-xs text-muted-foreground">Vinculá cada lugar a un plato: nombre, descripción, precio y foto salen de tu carta y se actualizan solos (si cambiás el precio o lo pausás, la pantalla lo muestra). Lo que escribas abajo reemplaza al de la carta.</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {slots.map((sl) => <SlotFill key={sl.id} label={sl.label} products={catalog} boundId={String(values[slotProductKey(sl.id)] ?? '')} onPick={(p) => fillSlot(sl.id, p)} onUnbind={() => fillSlot(sl.id, null)} />)}
+              </div>
+            </fieldset>
           )}
           {GROUPS.map((g) => {
             const fs = t.fields.filter((f) => f.group === g)

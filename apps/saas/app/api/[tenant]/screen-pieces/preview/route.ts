@@ -18,8 +18,9 @@ import { buildPromoBoard, parsePromosConfig } from '@/lib/display/templates'
 import { effectiveScheduleWindow } from '@/lib/promo-schedule'
 import { loadTemplateCtx } from '@/lib/display/manifest'
 import { orderUrlFor } from '@/lib/display/attribution'
-import { studioTemplate, studioPreviewValues, studioFontFamilies } from '@/lib/display/studio/catalog'
+import { STUDIO_TEMPLATES, studioTemplate, studioPreviewValues, studioFontFamilies } from '@/lib/display/studio/catalog'
 import { buildStudioBoard } from '@/lib/display/studio/board'
+import { buildSequenceBoard, loadSequenceRefs, sequenceConfigSchema, sequenceFontFamilies } from '@/lib/display/studio/sequence'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,8 +35,10 @@ const bodySchema = z.object({
       designHeight: z.number().int().min(480).max(3840),
       viewing: z.enum(['near', 'far']).default('near'),
       pageSeconds: z.number().int().min(5).max(60).default(12),
+      motion: z.enum(['calm', 'standard', 'impact']).default('standard'),
       values: z.record(z.string(), z.unknown()).default({}),
     }) }),
+    z.object({ kind: z.literal('sequence'), config: sequenceConfigSchema }),
   ]),
 })
 
@@ -54,13 +57,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (locErr) return locErr
   let board
   let timezone: string | null | undefined
-  if (template.kind === 'studio') {
+  if (template.kind === 'sequence') {
+    const c = template.config
+    const refs = await loadSequenceRefs(ctx.tenantId, [{ screenTemplate: { kind: 'sequence', config: c } }])
+    const tctx = await loadTemplateCtx({ tenantId: ctx.tenantId, locationId, orientation: c.orientation }, new Set(['studio']), new Date(), sequenceFontFamilies(refs))
+    if (!tctx.tenant) return NextResponse.json({ error: 'Comercio no encontrado' }, { status: 404 })
+    // En la vista previa se ven también los pasos Premium sin desbloquear.
+    const all = new Set(STUDIO_TEMPLATES.map((x) => x.id))
+    const r = buildSequenceBoard(c, refs, tctx.tenant, tctx.fonts, { menu: tctx.menu, topIds: tctx.ranking }, all)
+    if (!r) return NextResponse.json({ error: 'Ningún paso se puede mostrar con esta orientación' }, { status: 400 })
+    board = r.board
+    timezone = tctx.timezone
+  } else if (template.kind === 'studio') {
     const c = template.config
     const values = studioPreviewValues(studioTemplate(c.templateId)!, c.values)
     const parsedCfg = { ...c, values }
     const tctx = await loadTemplateCtx({ tenantId: ctx.tenantId, locationId, orientation: c.orientation }, new Set(['studio']), new Date(), studioFontFamilies(parsedCfg))
     if (!tctx.tenant) return NextResponse.json({ error: 'Comercio no encontrado' }, { status: 404 })
-    board = buildStudioBoard(parsedCfg, tctx.tenant, tctx.fonts)
+    board = buildStudioBoard(parsedCfg, tctx.tenant, tctx.fonts, { menu: tctx.menu, topIds: tctx.ranking })
     timezone = tctx.timezone
   } else {
     const cfg = template.config

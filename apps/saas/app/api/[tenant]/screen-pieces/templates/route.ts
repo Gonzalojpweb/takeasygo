@@ -17,11 +17,12 @@ import Promotion from '@/models/Promotion'
 import { logAudit } from '@/lib/audit'
 import { screenUsage } from '@/lib/display/quota'
 import { scheduleError } from '@/lib/display/pieces'
-import { createTemplatePieceSchema, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
+import { createTemplatePieceSchema, priceOf, TEMPLATES_NEED_LOCATION } from '@/lib/display/templates'
 import { illustrationUrls } from '@/lib/display/composition-schema'
-import { compositionMediaError, studioMediaError } from '@/lib/display/composition-media'
+import { compositionMediaError, studioImagesError } from '@/lib/display/composition-media'
 import { studioImageUrls, studioTemplate } from '@/lib/display/studio/catalog'
 import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
+import { sequenceError } from '@/lib/display/studio/sequence'
 import { markSaved } from '@/lib/media/ads'
 import { SCREEN_MAX_ACTIVE_PIECES } from '@/lib/display/constants'
 import { screenPiecesContext, serializePiece, checkPieceLocation } from '@/lib/display/pieces-route'
@@ -38,10 +39,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const locErr = await checkPieceLocation(request, ctx, locationId)
   if (locErr) return locErr
   const withCatalog = request.nextUrl.searchParams.get('catalog') === '1'
+  // Display Studio: además precio, descripción y foto de cada plato («Traer de mi carta»).
+  const forStudio = withCatalog && request.nextUrl.searchParams.get('studio') === '1'
   const tid = new mongoose.Types.ObjectId(ctx.tenantId)
   const lid = new mongoose.Types.ObjectId(locationId)
   const menu = await Menu.findOne({ tenantId: tid, locationId: lid })
-    .select(withCatalog
+    .select(forStudio ? 'categories' : withCatalog
       ? 'categories._id categories.name categories.isAvailable categories.sortOrder categories.items._id categories.items.name categories.items.imageUrl categories.items.isAvailable categories.subcategories.name categories.subcategories.items._id categories.subcategories.items.name categories.subcategories.items.imageUrl categories.subcategories.items.isAvailable'
       : 'categories._id categories.name categories.isAvailable categories.sortOrder categories.items._id categories.subcategories.items._id')
     .lean<AnyDoc>()
@@ -54,9 +57,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       products: (c.items?.length ?? 0) + (c.subcategories ?? []).reduce((n: number, s: AnyDoc) => n + (s.items?.length ?? 0), 0),
     }))
   if (!withCatalog) return NextResponse.json({ categories })
-  const products: Array<{ _id: string; name: string; category: string; hasPhoto: boolean; isAvailable: boolean }> = []
+  const products: Array<{ _id: string; name: string; category: string; hasPhoto: boolean; isAvailable: boolean; categoryId?: string; description?: string; price?: number | null; imageUrl?: string | null }> = []
   for (const c of [...(menu?.categories ?? [])].sort((a: AnyDoc, b: AnyDoc) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))) {
-    const add = (i: AnyDoc, cat: string) => products.push({ _id: String(i._id), name: String(i.name ?? ''), category: cat, hasPhoto: !!i.imageUrl, isAvailable: i.isAvailable !== false })
+    const add = (i: AnyDoc, cat: string) => products.push({
+      _id: String(i._id), name: String(i.name ?? ''), category: cat, hasPhoto: !!i.imageUrl, isAvailable: i.isAvailable !== false,
+      ...(forStudio ? { categoryId: String(c._id), description: i.description ? String(i.description).slice(0, 140) : '', price: priceOf(i, 'dine-in').price || null, imageUrl: i.imageUrl ? String(i.imageUrl) : null } : {}),
+    })
     for (const i of c.items ?? []) add(i, String(c.name ?? ''))
     for (const sub of c.subcategories ?? []) for (const i of sub.items ?? []) add(i, `${c.name} · ${sub.name}`)
   }
@@ -84,8 +90,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const locErr = await checkPieceLocation(request, ctx, b.locationId ?? null)
   if (locErr) return locErr
   const mediaErr = b.template.kind === 'composition' ? compositionMediaError(b.template.config, ctx.tenantId)
-    : b.template.kind === 'studio' ? studioMediaError(studioImageUrls(b.template.config as never), ctx.tenantId) : null
+    : b.template.kind === 'studio' ? await studioImagesError(studioImageUrls(b.template.config as never), ctx.tenantId) : null
   if (mediaErr) return NextResponse.json({ error: mediaErr }, { status: 400 })
+  if (b.template.kind === 'sequence') {
+    const seqErr = await sequenceError(b.template.config, ctx.tenantId)
+    if (seqErr) return NextResponse.json({ error: seqErr }, { status: 400 })
+  }
   if (b.template.kind === 'studio') {
     const st = studioTemplate(b.template.config.templateId)
     if (st?.tier === 'premium' && !(await unlockedTemplateIds(ctx.tenantId)).has(st.id)) return NextResponse.json({ error: 'Esta plantilla es Premium: desbloqueala para publicarla.', code: 'template_locked' }, { status: 402 })

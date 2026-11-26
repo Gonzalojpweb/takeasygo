@@ -5,7 +5,7 @@
 import { useEffect, useState } from 'react'
 import { Loader2, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
-import { STUDIO_TEMPLATES } from '@/lib/display/studio/catalog'
+import { STUDIO_COLLECTIONS, STUDIO_TEMPLATES } from '@/lib/display/studio/catalog'
 
 interface Row { templateId: string; status: 'pending' | 'approved' | 'refunded'; source: 'mercadopago' | 'manual'; receiptNumber?: number | null }
 
@@ -32,7 +32,7 @@ export default function DisplayStudioGrants({ tenantId }: { tenantId: string }) 
       <p className="text-sm text-muted-foreground">Otorgar sin cobro (pilotos, cortesías). Las Free no hacen falta. Retirar vuelve a bloquear: las piezas quedan guardadas y dejan de verse.</p>
       {!rows ? <Loader2 className="animate-spin" aria-label="Cargando" /> : (
         <ul className="divide-y divide-border rounded-xl border border-border">
-          {STUDIO_TEMPLATES.filter((t) => t.tier === 'premium').map((t) => {
+          {[...STUDIO_TEMPLATES.filter((t) => t.tier === 'premium'), ...STUDIO_COLLECTIONS].map((t) => {
             const r = rows.find((x) => x.templateId === t.id)
             const on = r?.status === 'approved'
             return (

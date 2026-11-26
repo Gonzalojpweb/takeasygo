@@ -10,11 +10,12 @@
 
 import { playCompositionBoard } from './player/templates/composition-board'
 import { playStudioBoard } from './player/templates/studio-board'
-import type { CompositionBoard, StudioBoard } from './player/board'
+import { playSequenceBoard } from './player/templates/sequence-board'
+import type { CompositionBoard, SequenceBoard, StudioBoard } from './player/board'
 
 const ALLOWED = new Set(['https://www.takeasygo.com', 'https://takeasygo.com', 'http://localhost:3000'])
 
-interface PreviewMsg { type: 'tgd-preview'; board: CompositionBoard | StudioBoard; orderUrl?: string | null; timezone?: string | null }
+interface PreviewMsg { type: 'tgd-preview'; board: CompositionBoard | StudioBoard | SequenceBoard; orderUrl?: string | null; timezone?: string | null }
 
 export function mountPreview(root: HTMLElement) {
   document.body.style.cssText = 'margin:0;background:#111;overflow:hidden'
@@ -43,13 +44,13 @@ export function mountPreview(root: HTMLElement) {
       onDone: (ok: boolean, reason?: string) => { if (reason !== 'cancelada') setTimeout(play, ok ? 300 : 1500) },
     }
     const board = current.board
-    stop = board.kind === 'studio' ? playStudioBoard({ ...common, board }) : playCompositionBoard({ ...common, board })
+    stop = board.kind === 'studio' ? playStudioBoard({ ...common, board }) : board.kind === 'sequence' ? playSequenceBoard({ ...common, board }) : playCompositionBoard({ ...common, board })
   }
 
   window.addEventListener('message', (e: MessageEvent) => {
     if (!ALLOWED.has(e.origin)) return
     const d = e.data as PreviewMsg
-    if (!d || d.type !== 'tgd-preview' || !d.board || (d.board.kind !== 'composition' && d.board.kind !== 'studio')) return
+    if (!d || d.type !== 'tgd-preview' || !d.board || (d.board.kind !== 'composition' && d.board.kind !== 'studio' && d.board.kind !== 'sequence')) return
     current = d
     play()
   })

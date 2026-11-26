@@ -66,8 +66,17 @@ const studio = (templateId: string, values: Record<string, unknown>, extra: Reco
 })
 
 describe('catálogo y valores', () => {
-  it('3 plantillas: 1 Free y 2 Premium de USD 10, en vertical y horizontal', () => {
-    expect(STUDIO_TEMPLATES.map((t) => [t.id, t.tier, t.priceUsd])).toEqual([['golden-bites', 'free', null], ['cheese-burger', 'premium', 10], ['chocolate-croissant', 'premium', 10]])
+  it('8 plantillas: 3 Free y 5 Premium de USD 10, en vertical y horizontal', () => {
+    expect(STUDIO_TEMPLATES.map((t) => [t.id, t.tier, t.priceUsd])).toEqual([
+      ['golden-bites', 'free', null],
+      ['cheese-burger', 'premium', 10],
+      ['chocolate-croissant', 'premium', 10],
+      ['sandwich-board', 'free', null],
+      ['block-menu', 'free', null],
+      ['carta-lista', 'premium', 10],
+      ['menu-ejecutivo', 'premium', 10],
+      ['eco-palabra', 'premium', 10],
+    ])
     for (const t of STUDIO_TEMPLATES) expect(t.orientations).toEqual(['portrait', 'landscape'])
   })
 
@@ -88,6 +97,24 @@ describe('catálogo y valores', () => {
     const t = studioTemplate('cheese-burger')!
     const v = studioPreviewValues(t, { word1: '', background: 'no-es-color', price: 'abc', showMini: false })
     expect(v).toMatchObject({ word1: '', background: '#ff7a00', price: null, showMini: false, image: '' })
+  })
+
+  it('carta-lista: valida productIds y descarta basura', () => {
+    const t = studioTemplate('carta-lista')!
+    const pid = 'aaaaaaaaaaaaaaaaaaaaaaaa'
+    const base = { ...studioDefaults(t), productIds: [pid] }
+    expect(parseStudioConfig({ templateId: t.id, values: base })?.values).toMatchObject({ productIds: [pid], title: 'Carta' })
+    expect(parseStudioConfig({ templateId: t.id, values: { ...base, productIds: [] } })).toBeNull()
+    expect(parseStudioConfig({ templateId: t.id, values: { ...base, productIds: ['no-es-oid'] } })).toBeNull()
+  })
+
+  it('menu-ejecutivo: desde la carta u fotos subidas (showIf)', () => {
+    const t = studioTemplate('menu-ejecutivo')!
+    const pid = 'bbbbbbbbbbbbbbbbbbbbbbbb'
+    expect(parseStudioConfig({ templateId: t.id, values: { ...studioDefaults(t), fromMenu: true, productIds: [pid] } })?.values).toMatchObject({ fromMenu: true, productIds: [pid] })
+    expect(parseStudioConfig({ templateId: t.id, values: { ...studioDefaults(t), fromMenu: true, productIds: [] } })).toBeNull()
+    expect(parseStudioConfig({ templateId: t.id, values: { ...studioDefaults(t), fromMenu: false, productIds: [], image1: own('grid1') } })?.values).toMatchObject({ fromMenu: false, image1: own('grid1') })
+    expect(parseStudioConfig({ templateId: t.id, values: { ...studioDefaults(t), fromMenu: false, productIds: [], image1: '' } })).toBeNull()
   })
 })
 
@@ -183,6 +210,13 @@ describe('publicación y manifiesto', () => {
     expect((await (await getManifest()).json()).items).toHaveLength(0)
   })
 
+  it('Premium nueva (eco-palabra) sin desbloquear → 402 al guardar', async () => {
+    const body = studio('eco-palabra', { ...studioDefaults(studioTemplate('eco-palabra')!), image: own('tacos'), imageCutout: true })
+    const r = await post(body)
+    expect(r.status).toBe(402)
+    expect((await r.json()).code).toBe('template_locked')
+  })
+
   it('el desbloqueo es por comercio: otra marca no lo hereda', async () => {
     const B = await Tenant.create({ slug: 'ds-b', name: 'Otra Marca Demo', isActive: true, status: 'active', plan: 'high' })
     await DisplayTemplatePurchase.create({ tenantId: B._id, templateId: 'cheese-burger', status: 'approved', source: 'manual' })
@@ -221,7 +255,16 @@ describe('publicación y manifiesto', () => {
   it('biblioteca y «Mis compras»', async () => {
     process.env.DISPLAY_STUDIO_USD_ARS = '1500'
     const lib = await (await library(new NextRequest('http://localhost/api/ds-a/display-studio'), p)).json()
-    expect(lib.templates.map((t: any) => [t.id, t.unlocked, t.priceArs])).toEqual([['golden-bites', true, null], ['cheese-burger', false, 15000], ['chocolate-croissant', false, 15000]])
+    expect(lib.templates.map((t: any) => [t.id, t.unlocked, t.priceArs])).toEqual([
+      ['golden-bites', true, null],
+      ['cheese-burger', false, 15000],
+      ['chocolate-croissant', false, 15000],
+      ['sandwich-board', true, null],
+      ['block-menu', true, null],
+      ['carta-lista', false, 15000],
+      ['menu-ejecutivo', false, 15000],
+      ['eco-palabra', false, 15000],
+    ])
     expect(lib.bgRemoval).toBe('free')
     const pr = await DisplayTemplatePurchase.create({ tenantId: A._id, templateId: 'chocolate-croissant', status: 'pending', source: 'mercadopago', amountArs: 1500000, amountUsd: 10, rate: 1500 })
     await applyTemplatePayment('333', { status: 'approved', external_reference: `display-template:${pr._id}`, transaction_amount: 15000, currency_id: 'ARS' })

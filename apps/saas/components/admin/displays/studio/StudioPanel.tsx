@@ -15,7 +15,8 @@ import { toast } from 'sonner'
 import type { StudioTemplate } from '@/lib/display/studio/catalog'
 
 interface LibTemplate extends StudioTemplate { unlocked: boolean; priceArs: number | null }
-export interface StudioLibrary { templates: LibTemplate[]; bgRemoval: 'free' | 'cloudinary' | 'both'; rate: number | null }
+interface LibCollection { id: string; name: string; description: string; priceUsd: number; templateIds: string[]; owned: boolean; missing: number; looseUsd: number; priceArs: number | null }
+export interface StudioLibrary { templates: LibTemplate[]; collections?: LibCollection[]; bgRemoval: 'free' | 'cloudinary' | 'both'; rate: number | null }
 interface Purchase { _id: string; templateName: string; status: 'approved' | 'refunded'; source: 'mercadopago' | 'manual'; amountArs: number; amountUsd: number; rate: number; approvedAt: string | null; receipt: string | null }
 
 const ars = (n: number) => n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
@@ -36,7 +37,7 @@ function Thumb({ id }: { id: string }) {
       <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-amber-800 shadow-xl" />
     </div>
   )
-  return (
+  if (id === 'chocolate-croissant') return (
     <div className="relative h-full w-full overflow-hidden text-center" style={{ background: '#f8ecdf', color: '#5b2a12' }}>
       <div className="mt-4 font-serif font-black" style={{ fontSize: 22 }}>Chocolate</div>
       <div className="-mt-1 italic text-[#c06a3a]" style={{ fontSize: 18, fontFamily: 'cursive' }}>Croissant</div>
@@ -44,13 +45,71 @@ function Thumb({ id }: { id: string }) {
       <div className="absolute right-3 top-16 flex h-10 w-10 rotate-[-12deg] items-center justify-center rounded-full bg-[#c06a3a] text-[7px] text-white">Recién horneado</div>
     </div>
   )
+  if (id === 'sandwich-board') return (
+    <div className="relative h-full w-full overflow-hidden" style={{ background: '#faf6ef' }}>
+      <div className="absolute left-2 top-3 rounded-full bg-[#f4c430] px-2 py-0.5 text-[8px] font-black uppercase text-[#d62828]">Menú</div>
+      <div className="absolute left-2 top-10 font-black uppercase leading-none text-[#d62828]" style={{ fontSize: 22 }}>Sandwich</div>
+      <div className="absolute right-3 top-16 h-10 w-10 rounded-full bg-amber-700" />
+      <div className="absolute left-4 top-[48%] h-9 w-9 rounded-full bg-amber-600" />
+      <div className="absolute right-6 bottom-10 h-9 w-9 rounded-full bg-amber-800" />
+      <div className="absolute right-2 top-[42%] h-6 w-6 rotate-12 rounded-sm bg-[#d62828]" />
+    </div>
+  )
+  if (id === 'block-menu') return (
+    <div className="relative h-full w-full overflow-hidden" style={{ background: '#8b1e1e' }}>
+      <div className="absolute left-2 top-3 font-black uppercase leading-none text-[#f3d9b8]" style={{ fontSize: 16 }}>Nuevo<br />menú</div>
+      <div className="absolute right-2 top-2 h-12 w-7 rounded-md bg-[#f3d9b8]" />
+      <div className="absolute left-2 top-[32%] h-14 w-[70%] rounded-lg bg-[#f3d9b8]" />
+      <div className="absolute right-2 top-[48%] h-14 w-[70%] rounded-lg bg-[#f3d9b8]" />
+      <div className="absolute bottom-3 left-2 right-2 h-8 rounded-lg bg-[#f3d9b8]" />
+    </div>
+  )
+  if (id === 'carta-lista') return (
+    <div className="relative h-full w-full overflow-hidden" style={{ background: '#f8ead9', color: '#3b2416' }}>
+      <div className="absolute right-2 top-3 font-black uppercase" style={{ fontSize: 14 }}>Carta</div>
+      <div className="absolute left-2 top-10 space-y-1.5">
+        <div className="h-3 w-14 rounded-full bg-[#c45c26]" />
+        <div className="h-1.5 w-20 rounded bg-[#3b2416]/30" />
+        <div className="h-1.5 w-16 rounded bg-[#3b2416]/20" />
+        <div className="mt-2 h-3 w-12 rounded-full bg-[#c45c26]" />
+        <div className="h-1.5 w-18 rounded bg-[#3b2416]/30" />
+      </div>
+      <div className="absolute bottom-8 right-2 top-14 w-12 rounded-lg bg-[#c45c26]" />
+      <div className="absolute bottom-10 right-3 h-10 w-10 rounded-full bg-amber-700" />
+    </div>
+  )
+  if (id === 'menu-ejecutivo') return (
+    <div className="relative h-full w-full overflow-hidden bg-neutral-900">
+      <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0.5 bg-white">
+        <div className="bg-emerald-900" /><div className="bg-amber-700" /><div className="bg-lime-800" /><div className="bg-orange-800" />
+      </div>
+      <div className="absolute left-1/2 top-1/2 w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-xl border-2 border-[#1f4d3a] bg-white p-2 text-center">
+        <div className="text-[8px] font-bold text-[#1f4d3a]">Probá nuestro</div>
+        <div className="font-serif text-[16px] italic leading-none text-[#1f4d3a]">Menú</div>
+        <div className="text-[12px] font-black text-[#d97706]">$79</div>
+      </div>
+    </div>
+  )
+  if (id === 'eco-palabra') return (
+    <div className="relative h-full w-full overflow-hidden" style={{ background: '#f7f3ea' }}>
+      <div className="absolute inset-x-0 top-6 space-y-1 text-center font-black uppercase leading-none text-[#e10600]" style={{ fontSize: 28 }}>
+        <div>Tacos</div><div>Tacos</div><div>Tacos</div>
+      </div>
+      <div className="absolute left-1/2 top-[28%] h-10 w-14 -translate-x-1/2 rounded-full bg-amber-600" />
+      <div className="absolute left-1/2 top-[48%] h-10 w-14 -translate-x-1/2 rounded-full bg-amber-700" />
+      <div className="absolute left-1/2 top-[68%] h-10 w-14 -translate-x-1/2 rounded-full bg-amber-800" />
+    </div>
+  )
+  return <div className="h-full w-full bg-muted" />
 }
 
-export default function StudioPanel({ tenantSlug, library, reload, onOpen }: {
+export default function StudioPanel({ tenantSlug, library, reload, onOpen, onSequence }: {
   tenantSlug: string
   library: StudioLibrary
   reload: () => Promise<void>
   onOpen: (templateId: string) => void
+  /** Abrir el armador de secuencias de marca. */
+  onSequence?: () => void
 }) {
   const [tab, setTab] = useState<'biblioteca' | 'compras'>('biblioteca')
   const [buying, setBuying] = useState<string | null>(null)
@@ -88,7 +147,7 @@ export default function StudioPanel({ tenantSlug, library, reload, onOpen }: {
 
   useEffect(() => { if (tab === 'compras' && !purchases) void loadPurchases() }, [tab, purchases, loadPurchases])
 
-  async function buy(t: LibTemplate) {
+  async function buy(t: { id: string }) {
     setBuying(t.id)
     try {
       const res = await fetch(`/api/${tenantSlug}/display-studio/${t.id}/checkout`, { method: 'POST' })
@@ -133,14 +192,38 @@ export default function StudioPanel({ tenantSlug, library, reload, onOpen }: {
           <h3 className="flex items-center gap-2 font-bold"><Sparkles size={18} aria-hidden /> Studio <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Élite</span></h3>
           <p className="text-sm text-muted-foreground">Diseños profesionales listos: subís tu foto, cambiás los textos y colores, y se publica en tus pantallas.</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {onSequence && <button type="button" onClick={onSequence} className="min-h-[44px] rounded-xl border border-primary px-3 text-sm font-bold text-primary">Armar secuencia</button>}
         <div className="flex rounded-xl border border-border p-1 text-sm">
           {(['biblioteca', 'compras'] as const).map((x) => (
             <button key={x} type="button" onClick={() => setTab(x)} className={`min-h-[40px] rounded-lg px-3 font-semibold ${tab === x ? 'bg-primary text-primary-foreground' : ''}`}>{x === 'biblioteca' ? 'Biblioteca' : 'Mis compras'}</button>
           ))}
         </div>
+        </div>
       </div>
 
       {tab === 'biblioteca' ? (
+        <div className="space-y-4">
+        {(library.collections ?? []).some((c) => !c.owned) && (
+          <section className="space-y-2">
+            <h4 className="text-sm font-bold">Colecciones <span className="font-normal text-muted-foreground">· varias plantillas Premium juntas, más baratas que sueltas</span></h4>
+            <ul className="grid gap-3 sm:grid-cols-3">
+              {(library.collections ?? []).filter((c) => !c.owned).map((c) => (
+                <li key={c.id} className="flex flex-col gap-2 rounded-2xl border border-primary/40 bg-primary/5 p-3">
+                  <div className="flex-1">
+                    <p className="font-bold">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.description}</p>
+                    <p className="mt-1 text-xs">{c.templateIds.map((id) => library.templates.find((t) => t.id === id)?.name ?? id).join(' · ')}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{c.looseUsd > c.priceUsd ? `Sueltas: USD ${c.looseUsd} · ahorrás USD ${c.looseUsd - c.priceUsd}` : ''}{c.priceArs ? ` · hoy ${ars(c.priceArs)}` : ''}</p>
+                  <button type="button" disabled={buying === c.id} onClick={() => buy(c)} className="min-h-[44px] inline-flex items-center justify-center gap-1 rounded-xl bg-primary px-3 text-sm font-bold text-primary-foreground">
+                    {buying === c.id ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Lock size={14} aria-hidden />} Desbloquear colección · USD {c.priceUsd}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {library.templates.map((t) => (
             <li key={t.id} className="overflow-hidden rounded-2xl border border-border">
@@ -163,11 +246,12 @@ export default function StudioPanel({ tenantSlug, library, reload, onOpen }: {
                     </button>
                   )}
                 </div>
-                {!t.unlocked && <p className="text-xs text-muted-foreground">{t.priceArs ? `Hoy ${ars(t.priceArs)} (dólar oficial). Pago único con Mercado Pago, para todas tus sedes.` : 'USD 10 o su equivalente en pesos al cambio del día. Pago único, para todas tus sedes.'}</p>}
+                {!t.unlocked && <p className="text-xs text-muted-foreground">{t.priceArs ? `Hoy ${ars(t.priceArs)} (dólar oficial). Pago único con Mercado Pago, para todas tus sedes.` : `USD ${t.priceUsd} o su equivalente en pesos al cambio del día. Pago único, para todas tus sedes.`}</p>}
               </div>
             </li>
           ))}
         </ul>
+        </div>
       ) : (
         <div className="space-y-2">
           {!purchases ? <Loader2 className="animate-spin" aria-label="Cargando" /> : purchases.length === 0 ? (

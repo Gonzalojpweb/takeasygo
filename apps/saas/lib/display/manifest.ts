@@ -30,6 +30,7 @@ import { resolveGoogleFonts } from '@/lib/display/fonts'
 import { parseStudioConfig, studioFontFamilies } from '@/lib/display/studio/catalog'
 import { buildStudioBoard, studioAssets, type StudioBoard } from '@/lib/display/studio/board'
 import { studioEnabled } from '@/lib/display/studio/flags'
+import { buildSequenceBoard, loadSequenceRefs, parseSequenceConfig, sequenceFontFamilies, type SequenceBoard } from '@/lib/display/studio/sequence'
 import { unlockedTemplateIds } from '@/models/DisplayTemplatePurchase'
 import Location from '@/models/Location'
 import { effectiveScheduleWindow, SCHEDULE_QUERY_SLACK_MS } from '@/lib/promo-schedule'
@@ -50,7 +51,7 @@ export interface ManifestItem {
   bytes: number | null
   daypart: { days?: number[]; from?: string | null; to?: string | null } | null
   /** Solo plantillas: datos para dibujarla y archivos (fotos, logo) a guardar. */
-  template?: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
+  template?: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard | SequenceBoard
   assets?: string[]
 }
 
@@ -108,6 +109,8 @@ export interface TemplateCtx {
   fonts: Record<string, string | null>
   /** Plantillas Premium de Display Studio desbloqueadas por el comercio. */
   unlocked: Set<string>
+  /** Piezas de Studio que usan las secuencias (pasos). */
+  sequenceRefs?: Map<string, Record<string, any>>
   timezone: string
   orientation: DisplayOrientation
 }
@@ -122,7 +125,7 @@ function maxDiscountPercent(p: Record<string, any>): number | null {
 /** Pieza automática → ítem del manifiesto (datos resueltos con la sede del equipo). */
 export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | null {
   if (!ctx.tenant) return null
-  let board: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard
+  let board: MenuBoard | PromoBoard | FeaturedBoard | CompositionBoard | StudioBoard | SequenceBoard
   let assets: string[]
   let durationMs: number
   if (p.screenTemplate?.kind === 'menu') {
@@ -137,14 +140,21 @@ export function toTemplateItem(p: PieceDoc, ctx: TemplateCtx): ManifestItem | nu
     const b = buildFeaturedBoard(ctx.menu, ctx.tenant, parseFeaturedConfig(p.screenTemplate.config), ctx.ranking, ctx.combos)
     if (!b.products.length && !b.combos.length) return null
     board = b; assets = featuredAssets(b); durationMs = (b.combos.length ? 2 : 1) * b.pageMs
+  } else if (p.screenTemplate?.kind === 'sequence') {
+    if (!studioEnabled()) return null
+    const cfg = parseSequenceConfig(p.screenTemplate.config)
+    if (!cfg || cfg.orientation !== ctx.orientation) return null
+    const r = buildSequenceBoard(cfg, ctx.sequenceRefs ?? new Map(), ctx.tenant, ctx.fonts, { menu: ctx.menu, topIds: ctx.ranking }, ctx.unlocked)
+    if (!r) return null
+    board = r.board; assets = r.assets; durationMs = r.durationMs
   } else if (p.screenTemplate?.kind === 'studio') {
     if (!studioEnabled()) return null
     const cfg = parseStudioConfig(p.screenTemplate.config)
     if (!cfg || cfg.orientation !== ctx.orientation) return null
     // Premium sin compra aprobada (o devuelta): queda guardada y no se muestra.
-    const tier = buildStudioBoard(cfg, ctx.tenant, ctx.fonts)
+    const tier = buildStudioBoard(cfg, ctx.tenant, ctx.fonts, { menu: ctx.menu, topIds: ctx.ranking })
     if (tier.tier === 'premium' && !ctx.unlocked.has(tier.templateId)) return null
-    board = tier; assets = studioAssets(tier); durationMs = tier.pageMs
+    board = tier; assets = studioAssets(tier); durationMs = tier.pageMs * Math.max(1, tier.pages)
   } else if (p.screenTemplate?.kind === 'composition') {
     const cfg = parseCompositionConfig(p.screenTemplate.config)
     if (!cfg) return null // config rota: se saltea esta pieza, nunca se cae el manifiesto
@@ -224,7 +234,7 @@ export async function loadTemplateCtx(
   const tenantId = new mongoose.Types.ObjectId(String(where.tenantId))
   const locationId = where.locationId ? new mongoose.Types.ObjectId(String(where.locationId)) : null
   const [menu, tenant, loc, promos] = await Promise.all([
-    (kinds.has('menu') || kinds.has('featured') || kinds.has('composition')) && locationId
+    (kinds.has('menu') || kinds.has('featured') || kinds.has('composition') || kinds.has('studio')) && locationId
       ? Menu.findOne({ tenantId, locationId, isActive: true }).select('categories').lean<Record<string, any>>()
       : null,
     Tenant.findById(String(where.tenantId)).select(`name branding.logoUrl branding.primaryColor branding.backgroundColor branding.textColor${kinds.has('composition') || kinds.has('studio') ? ' branding.fonts' : ''}`).lean<Record<string, any>>(),
@@ -250,7 +260,7 @@ export async function loadTemplateCtx(
   const wantsCombos = (kinds.has('featured') || kinds.has('composition')) && !!locationId
   const families = [...new Set([...((kinds.has('composition') || kinds.has('studio')) && tenant ? googleFamiliesToResolve(tenant) : []), ...extraFamilies])]
   const [ranking, combos, fonts, unlocked] = await Promise.all([
-    kinds.has('featured') && locationId ? topItemIds(tenantId, locationId) : [],
+    (kinds.has('featured') || kinds.has('studio')) && locationId ? topItemIds(tenantId, locationId) : [],
     wantsCombos ? sellableCombos(tenantId, locationId, menu ?? null, timezone) : [],
     families.length ? resolveGoogleFonts(families) : {},
     kinds.has('studio') ? unlockedTemplateIds(tenantId) : new Set<string>(),
@@ -266,8 +276,15 @@ export async function buildManifest(device: DeviceLike, now = new Date()) {
     .lean<PieceDoc[]>()
   // Plantillas: la carta de la sede del equipo y la marca del comercio, una sola vez.
   const kinds = new Set(docs.map((d) => d.screenTemplate?.kind).filter((k): k is string => !!k))
-  const studioFamilies = docs.filter((d) => d.screenTemplate?.kind === 'studio').flatMap((d) => { const c = parseStudioConfig(d.screenTemplate?.config); return c ? studioFontFamilies(c) : [] })
+  // Secuencias: sus pasos son piezas de Studio (carta, marca y desbloqueos como una pieza de Studio).
+  const sequenceRefs = kinds.has('sequence') ? await loadSequenceRefs(device.tenantId, docs) : new Map()
+  if (sequenceRefs.size) kinds.add('studio')
+  const studioFamilies = [
+    ...docs.filter((d) => d.screenTemplate?.kind === 'studio').flatMap((d) => { const c = parseStudioConfig(d.screenTemplate?.config); return c ? studioFontFamilies(c) : [] }),
+    ...sequenceFontFamilies(sequenceRefs),
+  ]
   const tctx = kinds.size ? await loadTemplateCtx({ tenantId: device.tenantId, locationId: device.locationId, orientation: device.orientation }, kinds, now, studioFamilies) : null
+  if (tctx) tctx.sequenceRefs = sequenceRefs
   const items = docs
     .map((d) => (d.screenTemplate ? (tctx ? toTemplateItem(d, tctx) : null) : toManifestItem(d)))
     .filter((x): x is ManifestItem => x !== null)
