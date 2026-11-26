@@ -11,6 +11,7 @@
 import { playCompositionBoard } from './player/templates/composition-board'
 import { playStudioBoard } from './player/templates/studio-board'
 import { playSequenceBoard } from './player/templates/sequence-board'
+import { networkSeal } from './player/network-seal'
 import type { CompositionBoard, SequenceBoard, StudioBoard } from './player/board'
 
 const ALLOWED = new Set(['https://www.takeasygo.com', 'https://takeasygo.com', 'http://localhost:3000'])
@@ -23,6 +24,8 @@ export function mountPreview(root: HTMLElement) {
   const host = document.createElement('div')
   host.style.cssText = 'position:fixed;inset:0'
   root.append(host)
+  // Igual que en la pantalla: el sello de la red va siempre.
+  root.append(networkSeal())
   let stop: (() => void) | null = null
   let current: PreviewMsg | null = null
 

@@ -31,6 +31,7 @@ import { playFeaturedBoard } from './templates/featured-board'
 import { playCompositionBoard } from './templates/composition-board'
 import { playStudioBoard } from './templates/studio-board'
 import { playSequenceBoard } from './templates/sequence-board'
+import { networkSeal } from './network-seal'
 import { mountControls } from './controls'
 import { showDetail, type TapInfo } from './templates/detail'
 import { boardColors } from './board'
@@ -68,6 +69,8 @@ export function mountPlayer(root: HTMLElement, onRevoked: () => void): () => voi
   const idle = document.createElement('div')
   idle.style.cssText = 'position:absolute;inset:0;display:grid;place-items:center;color:#666;font-size:clamp(14px,2.4vmin,28px);text-align:center'
   root.append(stage)
+  // Sello «somos parte de la red · TakeasyGO» encima de todo lo que se muestre (no lo tapa ninguna pieza).
+  root.append(networkSeal())
 
   function reportError(code: string, message: string) { store.setLastError(code, message) }
   window.addEventListener('error', (e) => reportError('js_error', `${e.message}`))
