@@ -42,6 +42,8 @@ export interface INetworkCampaign {
    * QrPromo); windowDays = días que se mide la compra en el receptor.
    */
   pilot: { enabled: boolean; controlPercent: number; qrPromoId: Types.ObjectId | null; windowDays: number } | null
+  /** Etapa 5: canjes confirmados (respeta maxRedemptions de forma atómica). */
+  redeemedCount: number
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -76,6 +78,7 @@ const NetworkCampaignSchema = new Schema<INetworkCampaign>({
     }, { _id: false }),
     default: null,
   },
+  redeemedCount: { type: Number, default: 0, min: 0 },
   createdBy: { type: String, required: true },
 }, { timestamps: true })
 

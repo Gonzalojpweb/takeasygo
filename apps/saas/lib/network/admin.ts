@@ -15,6 +15,7 @@ import NetworkRelation from '@/models/NetworkRelation'
 import NetworkAgreement from '@/models/NetworkAgreement'
 import NetworkCampaign from '@/models/NetworkCampaign'
 import { logAudit } from '@/lib/audit'
+import { networkLedgerTotals } from './engine'
 
 export class NetworkError extends Error {
   constructor(public status: number, public code: string, message: string) {
@@ -309,8 +310,8 @@ const campaignSchema = z.object({
 })
 
 async function checkPilotPromo(receiverTenantId: string, pilot: { enabled: boolean; qrPromoId?: string | null } | null) {
-  if (!pilot?.enabled) return
-  if (!pilot.qrPromoId) throw new NetworkError(400, 'pilot_without_promo', 'Elegí la promo del receptor que hace de beneficio en el piloto')
+  // Sin promo, el piloto usa el beneficio del motor (etapa 5) solo para el grupo beneficio.
+  if (!pilot?.enabled || !pilot.qrPromoId) return
   const { default: QrPromo } = await import('@/models/QrPromo')
   const ok = await QrPromo.exists({ _id: pilot.qrPromoId, tenantId: receiverTenantId })
   if (!ok) throw new NetworkError(400, 'pilot_promo_invalid', 'La promo elegida no es del comercio receptor')
@@ -382,6 +383,6 @@ export async function networkOverview() {
     relations,
     agreements,
     campaigns,
-    results: { redemptions: 0, commissionsGeneratedCents: 0, commissionsPendingCents: 0, commissionsCollectedCents: 0, note: 'Los canjes y comisiones se registran desde la etapa 5.' },
+    results: { ...(await networkLedgerTotals()), note: 'Comisiones de red pendientes hasta la liquidación (etapa 6).' },
   }
 }

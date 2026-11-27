@@ -253,7 +253,7 @@ export default function OrderTracker({
   const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
   const [impactRegistered, setImpactRegistered] = useState(false)
   // Red de beneficios (etapa 4): beneficio para otro comercio, entregado con este pedido.
-  const [networkBenefit, setNetworkBenefit] = useState<{ title: string; description: string; receiverName: string; url: string | null } | null>(null)
+  const [networkBenefit, setNetworkBenefit] = useState<{ kind?: 'saved' | 'claim' | 'promo'; title: string; description: string; receiverName: string; url: string | null } | null>(null)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
   const [mercadoPagoId] = useState(initialMercadoPagoId || null)
@@ -1329,9 +1329,11 @@ export default function OrderTracker({
           <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">Beneficio de la red TakeasyGO</p>
           <p className="mt-1 text-base font-bold">{networkBenefit.title}</p>
           <p className="text-sm opacity-80">en {networkBenefit.receiverName}{networkBenefit.description ? ` · ${networkBenefit.description}` : ''}</p>
+          {networkBenefit.kind === 'saved' && <p className="mt-2 text-xs opacity-70">Ya está guardado en tu cuenta TGO. Mostrá el QR en el comercio para usarlo.</p>}
+          {networkBenefit.kind === 'claim' && <p className="mt-2 text-xs opacity-70">Iniciá sesión o creá tu cuenta TGO con este mismo email para guardarlo (tenés 72 horas).</p>}
           {networkBenefit.url && (
             <a href={networkBenefit.url} className="mt-3 inline-flex min-h-10 items-center rounded-xl px-4 text-sm font-bold text-white" style={{ backgroundColor: primaryColor }}>
-              Usar beneficio
+              {networkBenefit.kind === 'saved' ? 'Ver mis beneficios' : networkBenefit.kind === 'claim' ? 'Guardar beneficio' : 'Usar beneficio'}
             </a>
           )}
         </div>

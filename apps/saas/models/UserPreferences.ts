@@ -12,6 +12,9 @@ export interface IUserPreferences extends Document {
   notificationPermission: 'granted' | 'denied' | 'default'
   /** Multi-marca: última marca en la que operó un miembro de organización. */
   lastTenantSlug?: string | null
+  /** Red de beneficios (§5): el consumidor revocó el consentimiento para recibir beneficios nuevos. */
+  networkBenefitsOptOut?: boolean
+  networkConsentUpdatedAt?: Date | null
   createdAt: Date
   updatedAt: Date
 }
@@ -29,6 +32,8 @@ const UserPreferencesSchema = new Schema<IUserPreferences>(
       default: '',
       trim: true,
     },
+    networkBenefitsOptOut: { type: Boolean, default: false },
+    networkConsentUpdatedAt: { type: Date, default: null },
     age: {
       type: Number,
       min: 10,
