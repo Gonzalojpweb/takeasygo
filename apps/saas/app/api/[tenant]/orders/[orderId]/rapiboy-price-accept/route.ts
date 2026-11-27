@@ -9,7 +9,7 @@ import Location from '@/models/Location'
 import Tenant from '@/models/Tenant'
 import { NextRequest, NextResponse } from 'next/server'
 import { cotizarOnDemand } from '@/lib/rapiboy/client'
-import { buildTripParams, createTripForOrder, rapiboyConfigFromLocation, recordCreatedTrip } from '@/lib/rapiboy/trips'
+import { buildTripParams, createTripForOrder, notifyQuoteRejected, rapiboyConfigFromLocation, recordCreatedTrip } from '@/lib/rapiboy/trips'
 import { rateLimit } from '@/lib/rateLimit'
 
 const ACCEPT_WINDOW_MS = 15 * 60 * 1000 // 15 minutos
@@ -124,6 +124,8 @@ export async function POST(
       // Rechazar: marcar quoteStatus y notificar restaurante
       order.deliveryProvider!.rapiboy!.quoteStatus = 'rejected'
       await order.save()
+      // 26/11/2026: el comentario decía «notificar restaurante» pero no se avisaba.
+      await notifyQuoteRejected(order)
 
       console.log(`[rapiboy-price-accept] Order ${orderId}: client rejected new price`)
 

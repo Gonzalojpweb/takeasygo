@@ -540,6 +540,11 @@ export interface IOrder extends Document {
       failureNotifiedAt?: Date | null
       /** % de comisión de envío de TakeasyGO aplicado en el checkout. @storedAs percent */
       platformFeePercent?: number
+      /** Rapiboy no pudo crear el viaje al pasar a «Listo»: se pasó a reparto propio (y se avisó al local). */
+      fallbackAt?: Date | null
+      fallbackReason?: string
+      /** Cuándo se avisó al local que el cliente rechazó el precio nuevo. */
+      rejectionNotifiedAt?: Date | null
     }
   }
   createdAt: Date
@@ -765,6 +770,9 @@ const DeliveryProviderSchema = new Schema({
       lastSyncAt:        { type: Date, default: null },
       failureNotifiedAt: { type: Date, default: null },
       platformFeePercent: { type: Number, default: 0 },
+      fallbackAt: { type: Date, default: null },
+      fallbackReason: { type: String, default: '' },
+      rejectionNotifiedAt: { type: Date, default: null },
     },
     default: null,
   },

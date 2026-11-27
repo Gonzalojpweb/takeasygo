@@ -342,3 +342,71 @@ export async function syncRapiboyTrip(orderId: unknown, tenantId: unknown): Prom
     return null
   }
 }
+
+// ─── Avisos al local por fallas antes del viaje (26/11/2026) ────────────────
+// Antes, si Rapiboy fallaba al pasar a «Listo», el pedido quedaba en reparto
+// propio sin que nadie se enterara, y si el cliente rechazaba el precio nuevo
+// tampoco se avisaba. Estos avisos usan el mismo canal que el de viaje fallido
+// (anuncio en el panel del comercio). Nunca tiran.
+
+async function announceToTenant(order: any, title: string, content: string): Promise<void> {
+  const { default: SystemAnnouncement } = await import('@/models/SystemAnnouncement')
+  await SystemAnnouncement.create({
+    title,
+    content,
+    type: 'alert',
+    status: 'published',
+    publishedAt: new Date(),
+    targetPlans: [],
+    targetTenantIds: [order.tenantId],
+    readBy: [],
+    acceptances: [],
+    requiresConsent: false,
+    expiresAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+  })
+}
+
+/** Datos de la cotización de Rapiboy del pedido (para conservarlos al pasar a reparto propio). */
+export function rapiboySnapshot(order: any): Record<string, unknown> | null {
+  const r = order?.deliveryProvider?.rapiboy
+  if (!r) return null
+  return typeof r.toObject === 'function' ? r.toObject() : { ...r }
+}
+
+/**
+ * Pedido que se iba a enviar por Rapiboy y pasó a reparto propio al marcarlo
+ * «Listo» (error de Rapiboy o sede sin coordenadas). Conserva la cotización,
+ * deja el motivo y avisa al local para que reparta con su flota.
+ */
+export async function notifyRapiboyFallback(order: any, reason: string): Promise<void> {
+  try {
+    const orderNumber = String(order.orderNumber || order._id)
+    await announceToTenant(
+      order,
+      `Rapiboy no tomó el envío del pedido #${orderNumber}`,
+      `No se pudo pedir el viaje a Rapiboy (${reason}). El pedido quedó para reparto propio: asignalo a un repartidor de tu flota o comunicate con el cliente.`,
+    )
+  } catch (e: any) {
+    console.warn('[rapiboy] aviso de reparto propio falló:', e?.message)
+  }
+}
+
+/** El cliente rechazó el precio nuevo del envío: aviso al local (una sola vez). */
+export async function notifyQuoteRejected(order: any): Promise<void> {
+  try {
+    const { default: Order } = await import('@/models/Order')
+    const claimed = await Order.updateOne(
+      { _id: order._id, 'deliveryProvider.rapiboy.rejectionNotifiedAt': null },
+      { $set: { 'deliveryProvider.rapiboy.rejectionNotifiedAt': new Date() } },
+    )
+    if (claimed.modifiedCount !== 1) return
+    const orderNumber = String(order.orderNumber || order._id)
+    await announceToTenant(
+      order,
+      `El cliente rechazó el nuevo costo de envío del pedido #${orderNumber}`,
+      `Rapiboy cotizó un envío más caro y el cliente no lo aceptó. El pedido sigue abierto: repartilo con tu flota o comunicate con el cliente.`,
+    )
+  } catch (e: any) {
+    console.warn('[rapiboy] aviso de rechazo falló:', e?.message)
+  }
+}
