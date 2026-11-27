@@ -29,7 +29,7 @@ interface OrderItem {
   deliveryCost?: number
   deliveryDistance?: number
   deliveryConfirmation?: { status?: string; deliveryPersonName?: string; customerCode?: { code?: string | null } | string | null }
-  deliveryProvider?: { type?: string; rapiboy?: { tripId?: string; trackingId?: string; trackingUrl?: string; driverName?: string } | null }
+  deliveryProvider?: { type?: string; rapiboy?: RapiboyPanelData | null }
   items?: any[]
   notes?: string
   statusTimestamps?: Record<string, string>
@@ -492,6 +492,9 @@ function DetallesTab({ item, waLink, tenantSlug }: { item: OrderItem; waLink: st
           </div>
         </Section>
       )}
+
+      {/* ── Rapiboy: cotización pendiente o paso a reparto propio (26/11/2026) ── */}
+      {item.orderMode === 'delivery' && <RapiboyQuoteNotice rapiboy={item.deliveryProvider?.rapiboy ?? null} type={item.deliveryProvider?.type} />}
 
       {/* ── Rapiboy Tracking ──────────────────────────────── */}
       {item.orderMode === 'delivery' && item.deliveryProvider?.type === 'rapiboy' && (
@@ -1052,4 +1055,62 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       {children}
     </div>
   )
+}
+
+interface RapiboyPanelData {
+  tripId?: string
+  trackingId?: string
+  trackingUrl?: string
+  driverName?: string
+  quoteStatus?: string
+  pendingQuoteCost?: number
+  pendingQuoteTimestamp?: string | null
+  chargedToCustomer?: number
+  checkoutCost?: number
+  fallbackAt?: string | null
+  fallbackReason?: string
+}
+
+/**
+ * Aviso de Rapiboy en el panel del pedido (26/11/2026): el cliente tiene que
+ * aceptar un precio nuevo (con el tiempo que le queda), lo rechazó o lo dejó
+ * vencer, o Rapiboy no tomó el envío y el pedido pasó a reparto propio.
+ * Antes nada de esto se veía en el panel.
+ */
+function RapiboyQuoteNotice({ rapiboy, type }: { rapiboy: RapiboyPanelData | null; type?: string }) {
+  if (!rapiboy) return null
+  const pesos = (c?: number) => `$${((c ?? 0) / 100).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
+  if (type !== 'rapiboy' && rapiboy.fallbackAt) {
+    return (
+      <div className="mx-4 my-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+        <p className="font-bold">Rapiboy no tomó este envío</p>
+        <p className="mt-0.5">{rapiboy.fallbackReason ? `Motivo: ${rapiboy.fallbackReason}.` : ''} El pedido quedó para reparto propio: asignalo a un repartidor de tu flota.</p>
+      </div>
+    )
+  }
+  if (type !== 'rapiboy') return null
+  const status = rapiboy.quoteStatus
+  if (status === 'pending_customer_accept') {
+    const startedAt = rapiboy.pendingQuoteTimestamp ? new Date(rapiboy.pendingQuoteTimestamp).getTime() : 0
+    const minutesLeft = startedAt ? Math.max(0, 15 - Math.floor((Date.now() - startedAt) / 60_000)) : null
+    const expired = minutesLeft === 0
+    return (
+      <div className={`mx-4 my-2 rounded-xl border p-3 text-xs ${expired ? 'border-red-300 bg-red-50 text-red-900' : 'border-sky-300 bg-sky-50 text-sky-900'}`}>
+        <p className="font-bold">{expired ? 'El cliente no respondió el nuevo costo de envío' : 'Esperando que el cliente acepte el nuevo costo de envío'}</p>
+        <p className="mt-0.5">
+          Rapiboy cotizó {pesos(rapiboy.pendingQuoteCost)} (el cliente pagó {pesos(rapiboy.chargedToCustomer || rapiboy.checkoutCost)}).
+          {expired ? ' Repartilo con tu flota o comunicate con el cliente.' : minutesLeft !== null ? ` Le quedan ${minutesLeft} min para responder.` : ''}
+        </p>
+      </div>
+    )
+  }
+  if (status === 'rejected' || status === 'expired') {
+    return (
+      <div className="mx-4 my-2 rounded-xl border border-red-300 bg-red-50 p-3 text-xs text-red-900">
+        <p className="font-bold">{status === 'rejected' ? 'El cliente rechazó el nuevo costo de envío' : 'El cliente no respondió el nuevo costo de envío'}</p>
+        <p className="mt-0.5">No se pidió el viaje a Rapiboy. Repartilo con tu flota o comunicate con el cliente.</p>
+      </div>
+    )
+  }
+  return null
 }

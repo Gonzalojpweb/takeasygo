@@ -17,7 +17,7 @@ import { addPointsFromOrder } from '@/lib/loyalty'
 import { syncReferralsForOrder } from '@/lib/referrals'
 import { cotizarEnvio, isRapiboyEnabled, recotizarParaReady } from '@/lib/delivery/cotizar'
 import { cancelarViaje, RAPIBOY_MOTIVO } from '@/lib/rapiboy/client'
-import { buildTripParams, createTripForOrder, rapiboyConfigFromLocation, recordCreatedTrip } from '@/lib/rapiboy/trips'
+import { buildTripParams, createTripForOrder, notifyRapiboyFallback, rapiboyConfigFromLocation, rapiboySnapshot, recordCreatedTrip } from '@/lib/rapiboy/trips'
 import { maybeNotifySyncLayerStatus } from '@/lib/order-side-effects'
 import { generateRatingToken } from '@/lib/rating-token'
 import { captureOrderStatusChanged } from '@/lib/events'
@@ -167,6 +167,8 @@ export async function PATCH(
       cashSaleToRegister = true
     }
 
+    // Motivo si Rapiboy no tomó el envío al pasar a «Listo» (se avisa al local tras guardar).
+    let rapiboyFallbackReason: string | null = null
     if (status === 'ready' && order.orderMode === 'delivery') {
       // Verificar si Rapiboy está habilitado para esta sede
       const location = await Location.findById(order.locationId)
@@ -311,8 +313,16 @@ export async function PATCH(
           }
         } catch (rapiboyErr: any) {
           console.error(`[status] Rapiboy error for order ${orderId}:`, rapiboyErr?.message, rapiboyErr?.apiMessage ?? '')
-          // Fallback: usar franja fija
-          order.deliveryProvider = { type: 'own' }
+          // Fallback: reparto propio. 26/11/2026: se conserva la cotización de
+          // Rapiboy (antes se borraba), se deja el motivo y se avisa al local
+          // (antes quedaba en reparto propio sin que nadie se enterara).
+          const fallbackReason = rapiboyErr?.apiMessage || (rapiboyErr?.isUncertain ? 'Rapiboy no respondió' : 'error al pedir el viaje')
+          const prevRapiboy = rapiboySnapshot(order)
+          order.deliveryProvider = {
+            type: 'own',
+            ...(prevRapiboy ? { rapiboy: { ...prevRapiboy, fallbackAt: new Date(), fallbackReason } } : {}),
+          } as any
+          rapiboyFallbackReason = fallbackReason
           const customerCode = String(Math.floor(100000 + Math.random() * 900000))
           order.deliveryConfirmation = {
             customerCode: { code: customerCode, expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000) },
@@ -324,7 +334,19 @@ export async function PATCH(
         // NO enviar push a repartidores propios si se usó Rapiboy
       } else {
         // ── Flujo actual: franja fija + push a repartidores ──
-        order.deliveryProvider = { type: 'own' }
+        // 26/11/2026: si el pedido se cobró con envío de Rapiboy pero no se
+        // puede pedir el viaje (sin credenciales o sin coordenadas), se
+        // conserva la cotización y se avisa al local en vez de pasar en silencio.
+        const quotedWithRapiboy = order.deliveryProvider?.type === 'rapiboy'
+        if (quotedWithRapiboy) {
+          rapiboyFallbackReason = !rapiboyEnabled
+            ? 'Rapiboy está desactivado en la sede'
+            : !rapiboyCfg ? 'la sede no tiene credenciales de Rapiboy' : 'la sede o la dirección del cliente no tienen ubicación en el mapa'
+        }
+        const prevRapiboy = rapiboyFallbackReason ? rapiboySnapshot(order) : null
+        order.deliveryProvider = (prevRapiboy
+          ? { type: 'own', rapiboy: { ...prevRapiboy, fallbackAt: new Date(), fallbackReason: rapiboyFallbackReason } }
+          : { type: 'own' }) as any
         const customerCode = String(Math.floor(100000 + Math.random() * 900000))
         order.deliveryConfirmation = {
           customerCode: {
@@ -448,6 +470,8 @@ export async function PATCH(
     }
 
     await order.save()
+    // 26/11/2026: Rapiboy no tomó el envío → aviso al local (antes era silencioso).
+    if (rapiboyFallbackReason) await notifyRapiboyFallback(order, rapiboyFallbackReason)
 
     // Inventario: una cancelación devuelve los insumos ya descontados. (La
     // confirmación la registra onOrderConfirmed.) Idempotente, nunca bloquea.
