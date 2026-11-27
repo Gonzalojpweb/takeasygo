@@ -38,6 +38,7 @@ import {
   Layers,
   FileText,
   MousePointerClick,
+  Handshake,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -109,6 +110,7 @@ export default function SuperAdminSidebar() {
       section: 'Red',
       items: [
         { href: '/superadmin/red', label: 'Red', icon: Globe },
+        { href: '/superadmin/red-beneficios', label: 'Red de beneficios', icon: Handshake },
         { href: '/superadmin/directory', label: 'Directorio', icon: BookMarked },
         { href: '/superadmin/salud', label: 'Salud de Red', icon: HeartPulse },
         { href: '/superadmin/visitas', label: 'Visitas', icon: Eye },
