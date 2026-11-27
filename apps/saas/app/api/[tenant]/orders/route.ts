@@ -2252,6 +2252,7 @@ export async function POST(
       subtotal,
       discountAmount,
       qrPromoApplied,
+      ...(qrPromoApplied && activeQrPromo?._id ? { qrPromoId: String(activeQrPromo._id) } : {}),
       clubDiscountApplied,
       total: pricing.finalTotal,
       customer: {

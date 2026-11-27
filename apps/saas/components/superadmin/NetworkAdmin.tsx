@@ -28,7 +28,9 @@ interface Campaign {
   benefit: { type: 'percent' | 'fixed'; value: number; maxDiscountCents: number | null }
   minPurchaseCents: number; validFrom: string; validTo: string | null; maxRedemptions: number | null; perConsumerLimit: number
   benefitValidityDays: number; allowedEmitterTenantIds: Id[]; status: 'draft' | 'active' | 'paused' | 'ended'
+  pilot?: { enabled: boolean; controlPercent: number; qrPromoId: Id | null; windowDays: number } | null
 }
+interface PromoRef { id: Id; tenantId: Id; slug: string; title: string; discountPercentage: number; isEnabled: boolean }
 interface Overview {
   members: Member[]; relations: Relation[]; agreements: Agreement[]; campaigns: Campaign[]
   results: { redemptions: number; commissionsGeneratedCents: number; commissionsPendingCents: number; commissionsCollectedCents: number; note: string }
@@ -52,9 +54,9 @@ async function call(url: string, method: string, body?: unknown) {
   return data
 }
 
-export default function NetworkAdmin({ initial, allTenants }: { initial: Overview; allTenants: TenantRef[] }) {
+export default function NetworkAdmin({ initial, allTenants, promos = [] }: { initial: Overview; allTenants: TenantRef[]; promos?: PromoRef[] }) {
   const [data, setData] = useState<Overview>(initial)
-  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns'>('members')
+  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns' | 'pilot'>('members')
   const [busy, setBusy] = useState(false)
   const names = useMemo(() => new Map(allTenants.map(t => [t.id, t])), [allTenants])
   const nameOf = (id: Id) => names.get(String(id))?.name ?? 'Comercio'
@@ -88,7 +90,7 @@ export default function NetworkAdmin({ initial, allTenants }: { initial: Overvie
       <p className="text-xs text-muted-foreground">{data.results.note}</p>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas']] as const).map(([k, l]) => (
+        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas'], ['pilot', 'Piloto']] as const).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={cn(btn, tab === k ? 'bg-primary text-primary-foreground' : 'border border-border')}>{l}</button>
         ))}
         {busy && <Loader2 className="animate-spin self-center" size={16} />}
@@ -97,7 +99,8 @@ export default function NetworkAdmin({ initial, allTenants }: { initial: Overvie
       {tab === 'members' && <MembersTab data={data} allTenants={allTenants} nameOf={nameOf} run={run} />}
       {tab === 'relations' && <RelationsTab data={data} members={members} nameOf={nameOf} run={run} />}
       {tab === 'agreements' && <AgreementsTab data={data} members={members} nameOf={nameOf} run={run} />}
-      {tab === 'campaigns' && <CampaignsTab data={data} members={members} nameOf={nameOf} run={run} />}
+      {tab === 'campaigns' && <CampaignsTab data={data} members={members} nameOf={nameOf} run={run} promos={promos} />}
+      {tab === 'pilot' && <PilotTab data={data} nameOf={nameOf} />}
     </div>
   )
 }
@@ -324,9 +327,10 @@ function AgreementsTab({ data, members, nameOf, run }: { data: Overview; members
 
 // ─── Campañas ───────────────────────────────────────────────────────────────
 
-function CampaignsTab({ data, members, nameOf, run }: { data: Overview; members: TenantRef[]; nameOf: (id: Id) => string; run: Run }) {
-  const empty = { id: '', receiverTenantId: '', title: '', description: '', type: 'percent' as 'percent' | 'fixed', value: '', maxDiscount: '', minPurchase: '', validFrom: '', validTo: '', maxRedemptions: '', perConsumerLimit: '1', validityDays: '30', emitters: [] as string[], status: 'draft' as Campaign['status'] }
+function CampaignsTab({ data, members, nameOf, run, promos }: { data: Overview; members: TenantRef[]; nameOf: (id: Id) => string; run: Run; promos: PromoRef[] }) {
+  const empty = { id: '', receiverTenantId: '', title: '', description: '', type: 'percent' as 'percent' | 'fixed', value: '', maxDiscount: '', minPurchase: '', validFrom: '', validTo: '', maxRedemptions: '', perConsumerLimit: '1', validityDays: '30', emitters: [] as string[], status: 'draft' as Campaign['status'], pilotEnabled: false, pilotControl: '20', pilotPromo: '', pilotWindow: '30' }
   const [f, setF] = useState(empty)
+  const receiverPromos = promos.filter(p => p.tenantId === f.receiverTenantId)
   const emittersFor = data.relations.filter(r => String(r.receiverTenantId) === f.receiverTenantId)
 
   function edit(c: Campaign) {
@@ -338,6 +342,7 @@ function CampaignsTab({ data, members, nameOf, run }: { data: Overview; members:
       validFrom: c.validFrom.slice(0, 10), validTo: c.validTo ? c.validTo.slice(0, 10) : '',
       maxRedemptions: c.maxRedemptions ? String(c.maxRedemptions) : '', perConsumerLimit: String(c.perConsumerLimit),
       validityDays: String(c.benefitValidityDays), emitters: c.allowedEmitterTenantIds.map(String), status: c.status,
+      pilotEnabled: Boolean(c.pilot?.enabled), pilotControl: String(c.pilot?.controlPercent ?? 20), pilotPromo: c.pilot?.qrPromoId ? String(c.pilot.qrPromoId) : '', pilotWindow: String(c.pilot?.windowDays ?? 30),
     })
   }
 
@@ -356,6 +361,9 @@ function CampaignsTab({ data, members, nameOf, run }: { data: Overview; members:
       benefitValidityDays: Number(f.validityDays) || 30,
       allowedEmitterTenantIds: f.emitters,
       status: f.status,
+      pilot: f.pilotEnabled
+        ? { enabled: true, controlPercent: Number(f.pilotControl) || 0, qrPromoId: f.pilotPromo || null, windowDays: Number(f.pilotWindow) || 30 }
+        : null,
     }
     run(() => f.id ? call(`/api/superadmin/network/campaigns/${f.id}`, 'PUT', body) : call('/api/superadmin/network/campaigns', 'POST', body), f.id ? 'Campaña actualizada' : 'Campaña creada').then(() => setF(empty))
   }
@@ -394,6 +402,28 @@ function CampaignsTab({ data, members, nameOf, run }: { data: Overview; members:
             })}</div>
           )}
         </div>
+        <div className="sm:col-span-3 rounded-lg border border-dashed border-border p-3">
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            <input type="checkbox" checked={f.pilotEnabled} onChange={e => setF({ ...f, pilotEnabled: e.target.checked })} />
+            Piloto con grupo de control
+          </label>
+          {f.pilotEnabled && (
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div><label className={label}>Grupo de control (%)</label><input className={field} value={f.pilotControl} onChange={e => setF({ ...f, pilotControl: e.target.value })} inputMode="numeric" /></div>
+              <div><label className={label}>Promo del receptor (beneficio)</label>
+                <select className={field} value={f.pilotPromo} onChange={e => setF({ ...f, pilotPromo: e.target.value })}>
+                  <option value="">Elegí</option>
+                  {receiverPromos.map(p => <option key={p.id} value={p.id}>{p.title || p.slug} · {p.discountPercentage}%{p.isEnabled ? '' : ' (apagada)'}</option>)}
+                </select></div>
+              <div><label className={label}>Días de medición en el receptor</label><input className={field} value={f.pilotWindow} onChange={e => setF({ ...f, pilotWindow: e.target.value })} inputMode="numeric" /></div>
+              <p className="sm:col-span-3 text-xs text-muted-foreground">
+                Cada consumidor (cuenta con email verificado) queda fijo en un grupo para esta relación. El grupo de control no recibe el beneficio:
+                así se mide si la red genera compras nuevas. Conviene una promo exclusiva del piloto, que no esté publicada en otro lado.
+                Con consumidores ya asignados, el % no se puede cambiar.
+              </p>
+            </div>
+          )}
+        </div>
         <div className="sm:col-span-3 flex justify-end gap-2">
           {f.id && <button type="button" className={cn(btn, 'border border-border')} onClick={() => setF(empty)}>Cancelar</button>}
           <button type="button" disabled={!f.receiverTenantId || f.title.trim().length < 3} onClick={submit} className={cn(btn, 'bg-primary text-primary-foreground')}>{f.id ? 'Guardar cambios' : 'Crear campaña'}</button>
@@ -420,6 +450,74 @@ function CampaignsTab({ data, members, nameOf, run }: { data: Overview; members:
             </tbody>
           </table>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Piloto ─────────────────────────────────────────────────────────────────
+
+interface GroupMetrics { persons: number; buyers: number; conversion: number; orders: number; revenueCents: number; revenuePerPersonCents: number; issued: number; redemptions: number; repeatBuyers: number }
+interface PilotMetricsView { treatment: GroupMetrics; control: GroupMetrics; liftPoints: number; incrementalRevenueCents: number; sampleNote: string; assignments: number }
+
+function PilotTab({ data, nameOf }: { data: Overview; nameOf: (id: Id) => string }) {
+  const pilots = data.campaigns.filter(c => c.pilot?.enabled)
+  const [selected, setSelected] = useState<Id>(pilots[0]?._id ?? '')
+  const [metrics, setMetrics] = useState<PilotMetricsView | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function load(id: Id) {
+    setSelected(id)
+    if (!id) { setMetrics(null); return }
+    setLoading(true)
+    try { setMetrics((await call(`/api/superadmin/network/pilot/${id}`, 'GET')).metrics) } catch (e) { toast.error((e as Error).message) } finally { setLoading(false) }
+  }
+
+  if (pilots.length === 0) return <p className="text-sm text-muted-foreground">No hay campañas con piloto. Activalo en una campaña (pestaña Campañas).</p>
+  const pct = (n: number) => `${(n * 100).toLocaleString('es-AR', { maximumFractionDigits: 1 })}%`
+  const rows: Array<[string, (g: GroupMetrics) => string]> = [
+    ['Personas', g => String(g.persons)],
+    ['Compraron en el receptor', g => String(g.buyers)],
+    ['Conversión', g => pct(g.conversion)],
+    ['Pedidos en el receptor', g => String(g.orders)],
+    ['Facturación en el receptor', g => pesos(g.revenueCents)],
+    ['Facturación por persona', g => pesos(g.revenuePerPersonCents)],
+    ['Beneficios entregados', g => String(g.issued)],
+    ['Canjes de la promo', g => String(g.redemptions)],
+    ['Volvieron a comprar', g => String(g.repeatBuyers)],
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-64">
+          <label className={label}>Campaña con piloto</label>
+          <select className={field} value={selected} onChange={e => load(e.target.value)}>
+            {pilots.map(c => <option key={c._id} value={c._id}>{c.title} · {nameOf(c.receiverTenantId)}</option>)}
+          </select>
+        </div>
+        <button type="button" className={cn(btn, 'bg-primary text-primary-foreground')} onClick={() => load(selected)}>{loading ? 'Cargando…' : 'Ver resultados'}</button>
+      </div>
+      {metrics && (
+        <>
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                <tr><th className="px-3 py-2">Medida</th><th className="px-3 py-2">Con beneficio</th><th className="px-3 py-2">Control</th></tr>
+              </thead>
+              <tbody>
+                {rows.map(([name, fn]) => (
+                  <tr key={name} className="border-t border-border"><td className="px-3 py-2">{name}</td><td className="px-3 py-2 font-semibold">{fn(metrics.treatment)}</td><td className="px-3 py-2">{fn(metrics.control)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border p-3"><div className="text-xs text-muted-foreground">Diferencia de conversión</div><div className="text-xl font-bold">{metrics.liftPoints >= 0 ? '+' : ''}{metrics.liftPoints.toLocaleString('es-AR')} pts</div></div>
+            <div className="rounded-xl border border-border p-3"><div className="text-xs text-muted-foreground">Facturación incremental estimada</div><div className="text-xl font-bold">{pesos(metrics.incrementalRevenueCents)}</div></div>
+          </div>
+          <p className="text-xs text-muted-foreground">{metrics.sampleNote} Muchos canjes no alcanzan: el piloto funciona si el grupo con beneficio compra más en el receptor que el de control.</p>
+        </>
       )}
     </div>
   )

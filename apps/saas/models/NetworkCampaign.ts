@@ -35,6 +35,13 @@ export interface INetworkCampaign {
   benefitValidityDays: number
   allowedEmitterTenantIds: Types.ObjectId[]
   status: 'draft' | 'active' | 'paused' | 'ended'
+  /**
+   * Etapa 4 — piloto con grupo de control. Lo configura el superadmin:
+   * controlPercent = % de consumidores que NO recibe el beneficio (control);
+   * qrPromoId = promo existente del receptor que hace de beneficio (se reusa
+   * QrPromo); windowDays = días que se mide la compra en el receptor.
+   */
+  pilot: { enabled: boolean; controlPercent: number; qrPromoId: Types.ObjectId | null; windowDays: number } | null
   createdBy: string
   createdAt: Date
   updatedAt: Date
@@ -60,10 +67,20 @@ const NetworkCampaignSchema = new Schema<INetworkCampaign>({
   benefitValidityDays: { type: Number, default: 30, min: 1, max: 365 },
   allowedEmitterTenantIds: { type: [Schema.Types.ObjectId], ref: 'Tenant', default: [] },
   status: { type: String, enum: ['draft', 'active', 'paused', 'ended'], default: 'draft' },
+  pilot: {
+    type: new Schema({
+      enabled: { type: Boolean, default: false },
+      controlPercent: { type: Number, default: 20, min: 0, max: 90 },
+      qrPromoId: { type: Schema.Types.ObjectId, ref: 'QrPromo', default: null },
+      windowDays: { type: Number, default: 30, min: 1, max: 180 },
+    }, { _id: false }),
+    default: null,
+  },
   createdBy: { type: String, required: true },
 }, { timestamps: true })
 
 NetworkCampaignSchema.index({ receiverTenantId: 1, status: 1 })
+NetworkCampaignSchema.index({ 'pilot.enabled': 1, status: 1 })
 
 if (process.env.NODE_ENV !== 'production') delete (mongoose.models as Record<string, unknown>).NetworkCampaign
 const NetworkCampaign = mongoose.models.NetworkCampaign || mongoose.model<INetworkCampaign>('NetworkCampaign', NetworkCampaignSchema, 'network_campaigns')

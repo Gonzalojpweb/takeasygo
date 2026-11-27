@@ -295,6 +295,8 @@ export interface IOrder extends Document {
   /** Descuento aplicado en centavos. @storedAs cents */
   discountAmount: number
   qrPromoApplied: boolean
+  /** Red de beneficios (etapa 4): QrPromo que se aplicó (atribución del canje en el piloto). */
+  qrPromoId?: string | null
   /** IDs de claims de hidden reward aplicados a esta orden */
   hiddenRewardClaims?: any[]
   promoSlug: string | null
@@ -849,6 +851,8 @@ const OrderSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    // Red de beneficios: cuál QrPromo se aplicó (antes solo quedaba el sí/no).
+    qrPromoId: { type: String, default: undefined },
     hiddenRewardClaims: {
       type: [{ type: Schema.Types.ObjectId, ref: 'HiddenRewardClaim' }],
       default: [],

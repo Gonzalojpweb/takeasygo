@@ -4,6 +4,7 @@ import { buildPrintPayload } from './buildPrintPayload'
 import { isBarraPrinter } from './barra'
 import type { IOrder } from '@/models/Order'
 import { syncOrderConsumptionSafe } from '@/lib/inventory/sales'
+import { recordOrderForPilotSafe } from '@/lib/network/pilot'
 
 // ============================================================================
 // onOrderConfirmed
@@ -47,6 +48,9 @@ export async function onOrderConfirmed(
   // Inventario: el plato confirmado descuenta sus insumos (todos los canales
   // pasan por acá). Idempotente y sin bloquear: nunca frena la impresión.
   await syncOrderConsumptionSafe(order as unknown as Parameters<typeof syncOrderConsumptionSafe>[0])
+  // Red de beneficios (etapa 4): registra el pedido en los pilotos activos
+  // (elegibilidad en el emisor, compra/canje en el receptor). Nunca tira.
+  await recordOrderForPilotSafe(order as unknown as Parameters<typeof recordOrderForPilotSafe>[0])
   try {
     // Sede con impresión automática apagada: los pedidos de la app no generan
     // jobs (se imprimen a mano con «Reimprimir»). El POS no se toca.
