@@ -50,6 +50,10 @@ const PERMANENT: Record<string, string> = {
   // Multi-marca PR 2 (06/11/2026)
   'lib/tenant-access.ts': 'helper autorizado: acceso al comercio (JWT/base según access.central) e identidad',
   'lib/superadmin-token-guard.ts': 'getToken sin auth(): el tablero del superadmin no puede cargar auth (TDZ de chunks)',
+  // Recuperación del SuperAdmin (19/11/2026, 0a734bf2): la guardia necesita
+  // claims que solo tiene el token (mfa, authProvider, issuedAt) y después
+  // revalida TODO contra la base (rol, activo, mfaEnabled, sessionsValidAfter).
+  'lib/superadmin-guard.ts': 'helper autorizado: guardia estricta del SuperAdmin (claims MFA del token + base)',
 }
 
 type Pr = 'PR2' | 'PR3' | 'PR4'
