@@ -45,6 +45,9 @@ export const FLAGS = {
    *  la pantalla clásica de siempre. La clásica sigue accesible en
    *  /admin/inventario/clasico mientras dure la transición. */
   INVENTORY_V3: 'inventory.v3',
+  /** Multi-rubro: habilita el catálogo comercial en un comercio gastronómico
+   *  (en los demás rubros viene con el rubro). Ver lib/verticals.ts. */
+  MULTIRUBRO_CATALOG: 'multirubro.catalog',
 } as const
 
 export type FlagKey = (typeof FLAGS)[keyof typeof FLAGS]

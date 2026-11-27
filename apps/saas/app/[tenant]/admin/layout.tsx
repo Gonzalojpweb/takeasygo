@@ -6,6 +6,7 @@ import PoweredByTakeasy from '@/components/PoweredByTakeasy'
 import { getAdminSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import { resolveModules } from '@/lib/verticals'
 import DesktopSidebar from '@/components/admin/DesktopSidebar'
 import AdminTopBar from '@/components/admin/AdminTopBar'
 import BrandSwitcher from '@/components/admin/BrandSwitcher'
@@ -82,7 +83,7 @@ export default async function AdminLayout({
 
   await connectDB()
   const tenantDoc = await Tenant.findOne({ slug: tenant, isActive: true })
-    .select('name plan business.enabled features.crm.enabled features.posEnabled features.posOnly branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags')
+    .select('name plan business.enabled features.crm.enabled features.posEnabled features.posOnly branding.primaryColor branding.backgroundColor branding.textColor branding.logoUrl commissionBalance commissionThreshold flags vertical moduleOverrides')
     .lean<{
       _id: mongoose.Types.ObjectId
       name?: string
@@ -93,6 +94,8 @@ export default async function AdminLayout({
       commissionBalance?: { transfer?: number }
       commissionThreshold?: number | null
       flags?: Record<string, boolean | string | number | null | undefined>
+      vertical?: string
+      moduleOverrides?: { enabled?: string[]; disabled?: string[] }
     }>()
   const plan: Plan = tenantDoc?.plan ?? 'try'
   const businessEnabled = tenantDoc?.business?.enabled ?? false
@@ -216,6 +219,8 @@ export default async function AdminLayout({
     assignedLocations: session.user.assignedLocations ?? [],
     locations: sidebarLocations,
     rbacSedeScope,
+    // Multi-rubro: módulos del rubro (un restaurante sin rubro los tiene todos).
+    modules: resolveModules(tenantDoc),
   }
 
   return (

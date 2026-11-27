@@ -1,3 +1,4 @@
+import { CATALOG_ITEM_MESSAGE, blockedCatalogFields, isCatalogItem } from '@/lib/catalog/menu-guard'
 import { connectDB } from '@/lib/mongoose'
 import { nextListPrice } from '@/lib/menu/list-price'
 import Menu from '@/models/Menu'
@@ -154,6 +155,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Item no encontrado', itemId, availableIds: ids }, { status: 404 })
     }
     const item = found.item
+
+    // Multi-rubro: un producto del catálogo se edita en Catálogo (acá solo lo operativo).
+    if (isCatalogItem(item) && blockedCatalogFields(body).length > 0) {
+      return NextResponse.json({ error: CATALOG_ITEM_MESSAGE, code: 'CATALOG_ITEM', fields: blockedCatalogFields(body) }, { status: 409 })
+    }
 
     if (name !== undefined) {
       item.name = name

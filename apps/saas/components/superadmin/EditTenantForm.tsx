@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge'
 import { PLAN_LABELS, PLAN_TAGLINES, PLAN_PRICE } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { isPremiumPlan } from '@/lib/plans'
+import { resolveModules, resolveStorefrontTemplate, getVertical } from '@/lib/verticals'
+import VerticalPicker, { type VerticalValue } from '@/components/superadmin/VerticalPicker'
 
 const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
   trial:     ['Menú + pedidos takeaway', 'Panel básico de órdenes', 'Hasta 30 pedidos → Informe ICO gratis'],
@@ -59,6 +61,12 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
       setEmailLoading(false)
     }
   }
+  // Multi-rubro: rubro, plantilla y módulos actuales (sin rubro = Gastronomía).
+  const [verticalValue, setVerticalValue] = useState<VerticalValue>(() => ({
+    vertical: getVertical(tenant.vertical).id,
+    storefrontTemplate: resolveStorefrontTemplate(tenant),
+    modules: resolveModules({ ...tenant, flags: {} }),
+  }))
   const [form, setForm] = useState({
     name: tenant.name,
     slug: tenant.slug,
@@ -109,6 +117,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           alwaysVisible: form.alwaysVisible,
           features: { reservations: form.featuresReservations, crm: { enabled: form.featuresCrmEnabled }, tgoGrowthPushEnabled: form.featuresTgoGrowthPushEnabled, cashPaymentEnabledBySuperadmin: form.featuresCashPaymentEnabledBySuperadmin, posEnabled: form.featuresPosEnabled, posOnly: form.featuresPosEnabled && form.featuresPosOnly, whatsappOrderTransfer: form.featuresWhatsappOrderTransfer, whatsappOrderMercadoPago: form.featuresWhatsappOrderMercadoPago },
           business: { enabled: form.businessEnabled },
+          verticalSelection: verticalValue,
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
           takeasygoCommissionOverride: form.takeasygoCommissionOverride === '' ? null : Number(form.takeasygoCommissionOverride),
@@ -206,6 +215,11 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                     className={cn(inputCls, "pl-12 font-mono")} />
                 </div>
               </div>
+            </div>
+
+            {/* Multi-rubro: actividad, plantilla visual y módulos */}
+            <div className="space-y-2">
+              <VerticalPicker idPrefix="et" value={verticalValue} onChange={setVerticalValue} fieldClassName={inputCls} labelClassName={labelCls} />
             </div>
 
             {/* Plan de Servicio — ancho completo */}

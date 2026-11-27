@@ -44,6 +44,7 @@ import {
   Boxes,
   Receipt,
   Layers,
+  Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -51,6 +52,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { Plan, Feature } from '@/lib/plans'
 import { canAccess, requiredPlanFor, PLAN_LABELS } from '@/lib/plans'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
+import type { ModuleKey } from '@/lib/verticals'
 import { useNewReservations } from './useNewReservations'
 import { getLocationColor } from '@/lib/location-colors'
 import { clientRoleHasPermission, MENU_PERMISSIONS } from '@/lib/rbac-client'
@@ -78,6 +80,8 @@ interface Props {
   assignedLocations?: string[]
   locations?: { _id: string; name: string; colorIndex?: number }[]
   rbacSedeScope?: boolean
+  /** Multi-rubro: módulos activos del comercio (lib/verticals). Ausente = todos (lo de siempre). */
+  modules?: string[]
 }
 
 interface NavItem {
@@ -88,6 +92,8 @@ interface NavItem {
   feature?: Feature
   requiresTakeaway?: boolean
   badge?: number
+  /** Módulo del rubro que lo habilita (lib/verticals). Sin módulo = siempre visible. */
+  module?: ModuleKey
 }
 
 interface NavGroup {
@@ -138,7 +144,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, canViewCommissions = false, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, canViewCommissions = false, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false, modules }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -151,6 +157,8 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
   // Filtra un item del menú: con flag ON usa permisos (rbac-client),
   // con flag OFF usa el array roles legacy (comportamiento sin-cambio).
   function isItemVisible(item: NavItem, effectiveRole: string): boolean {
+    // Multi-rubro: un módulo que el rubro no usa no se muestra (no es candado de plan).
+    if (item.module && modules && !modules.includes(item.module)) return false
     // Solo POS: fuera todo lo de venta online, club y marketing (business/surfaces).
     if (posOnly && !isPosOnlyAdminPath(item.href === base ? '' : item.href.replace(`${base}/`, ''))) return false
     if (canViewCommissions && item.href === `${base}/commissions`) return true
@@ -176,18 +184,19 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
       items: [
         { href: `${base}/orders`, label: 'Pedidos', icon: ShoppingBag, roles: ['admin', 'manager', 'staff', 'cashier'], feature: 'orders', requiresTakeaway: true },
         { href: `${base}/orders/history`, label: 'Historial', icon: ClipboardList, roles: ['admin', 'manager', 'cashier'], feature: 'orderHistory', requiresTakeaway: true },
-        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations', badge: liveNewReservations },
+        { href: `${base}/reservas`, label: 'Reservaciones', icon: CalendarDays, roles: ['admin', 'manager'], feature: 'reservations', badge: liveNewReservations, module: 'reservations' },
         { href: `${base}/printers`, label: 'Impresoras', icon: Printer, roles: ['admin', 'manager'], feature: 'printers', requiresTakeaway: true },
         ...(posEnabled ? [{ href: `${base}/caja-pos`, label: 'Cajas POS', icon: Banknote, roles: ['admin', 'manager'] }] : []),
         ...(posEnabled ? [{ href: `${base}/caja-pos/descuentos`, label: 'Descuentos POS', icon: BadgePercent, roles: ['admin', 'manager'] }] : []),
-        { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'operations_manager', 'kitchen_lead'], feature: 'inventory' },
-        { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery' },
+        { href: `${base}/inventario`, label: 'Inventario', icon: Boxes, roles: ['admin', 'manager', 'operations_manager', 'kitchen_lead'], feature: 'inventory', module: 'inventory' },
+        { href: `${base}/delivery`, label: 'Flota', icon: Truck, roles: ['admin', 'manager'], feature: 'delivery', module: 'delivery' },
       ],
     },
     {
       section: 'Catálogo',
       items: [
-        { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'] },
+        { href: `${base}/menu`, label: 'Menú', icon: UtensilsCrossed, roles: ['admin', 'manager'], module: 'menu' },
+        { href: `${base}/catalogo`, label: 'Catálogo', icon: Package, roles: ['admin', 'manager'], module: 'catalog' },
         { href: `${base}/precios`, label: 'Precios', icon: BadgeDollarSign, roles: ['admin', 'manager', 'cashier'] },
         { href: `${base}/paused-items`, label: 'Artículos Pausados', icon: EyeOff, roles: ['admin', 'manager', 'cashier'] },
         { href: `${base}/special-dates`, label: 'Fechas Especiales', icon: Calendar, roles: ['admin'] },
@@ -207,7 +216,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/marketing-metrics`, label: 'Métricas de marketing', icon: BarChart3, roles: ['admin', 'manager'] },
         // Pantallas: solo Élite (lib/display/plan.ts). 'assistant' es la feature de PLAN_ACCESS que hoy vale solo para Élite.
         { href: `${base}/pantallas`, label: 'Pantallas', icon: MonitorSmartphone, roles: ['admin', 'manager'], feature: 'assistant' },
-        { href: `${base}/combos`, label: 'Combos', icon: Layers, roles: ['admin', 'manager'] },
+        { href: `${base}/combos`, label: 'Combos', icon: Layers, roles: ['admin', 'manager'], module: 'menu' },
         { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
         { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/go-plus`, label: 'GO+', icon: Zap, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
@@ -225,7 +234,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/reports`, label: 'Reportes', icon: BarChart3, roles: ['admin', 'manager'], feature: 'reports', requiresTakeaway: true },
         { href: `${base}/analytics`, label: 'Analytics', icon: TrendingUp, roles: ['admin', 'manager'] },
         { href: `${base}/reviews`, label: 'Reseñas', icon: Star, roles: ['admin', 'manager'] },
-        { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true },
+        { href: `${base}/ico`, label: 'ICO', icon: Activity, roles: ['admin'], feature: 'ico', requiresTakeaway: true, module: 'menu' },
         { href: `${base}/audit`, label: 'Auditoría', icon: Shield, roles: ['admin'], feature: 'audit' },
         { href: `${base}/tia`, label: 'Inteligencia TIA', icon: BrainCircuit, roles: ['admin', 'manager'], feature: 'tia' },
         { href: `${base}/cis`, label: 'Clientes Inteligentes', icon: Users, roles: ['admin', 'manager'], feature: 'cis' },

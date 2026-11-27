@@ -163,6 +163,10 @@ export interface SaleRecordedPayload {
   unmappedReason?: "no_recipe" | "variant_unconfirmed" | null
   /** Variante confirmada como "igual a la base": descontó la receta base. */
   variantUsesBase?: boolean
+  /** Multi-rubro: variante del catálogo comercial vendida. */
+  catalogVariantId?: string | null
+  /** Multi-rubro: insumo de mercadería que descontó directo (sin receta). */
+  merchandiseSkuId?: string | null
   warnings: string[]
 }
 

@@ -132,6 +132,12 @@ export async function DELETE(
     const sedeError = await guardRequestLocation(request, menu.locationId, 'Menú no encontrado')
     if (sedeError) return sedeError
 
+    // Multi-rubro: las categorías del catálogo las mantiene Catálogo (se vacían al archivar sus productos).
+    const target = menu.categories.id(categoryId) as { catalogCategory?: boolean } | null
+    if (target?.catalogCategory) {
+      return NextResponse.json({ error: 'Esta categoría la arma el Catálogo: se quita sola al archivar sus productos.', code: 'CATALOG_CATEGORY' }, { status: 409 })
+    }
+
     menu.categories.pull({ _id: categoryId })
     await menu.save()
 

@@ -22,6 +22,8 @@ const selectedVariantSchema = z.object({
   price: z.number().min(0),
   takeawayPrice: z.number().min(0).nullish(),
   businessPrice: z.number().min(0).nullish(),
+  // Multi-rubro: variante del catálogo comercial (se valida contra la carta en el servidor).
+  variantId: z.string().max(40).nullish(),
 })
 
 const rewardItemSchema = z.object({
@@ -227,6 +229,10 @@ export const superadminCreateTenantSchema = z.object({
   // El resto de los campos opcionales del tenant se permiten pero limitados
   ownerName:  z.string().max(100).trim().optional(),
   ownerEmail: z.string().email().max(200).trim().optional().or(z.literal('')),
+  // Multi-rubro (lib/verticals.ts): se normalizan en el route handler.
+  vertical: z.string().max(40).trim().optional(),
+  storefrontTemplate: z.string().max(40).trim().optional(),
+  modules: z.array(z.string().max(40)).max(20).optional(),
 })
 
 // ── Onboarding ──────────────────────────────────────────────────────────────
@@ -241,6 +247,8 @@ export const onboardingRegisterSchema = z.object({
   selectedPlan: z.enum(['trial', 'try', 'buy', 'full']).default('trial'),
   // Origen del alta (p.ej. 'demo'). 'demo' fuerza trial del lado server.
   origen: z.string().max(40).trim().default(''),
+  // Multi-rubro: actividad comercial (lib/verticals.ts); desconocida → Gastronomía.
+  vertical: z.string().max(40).trim().optional(),
 })
 
 export const onboardingVerifySchema = z.object({

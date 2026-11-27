@@ -20,6 +20,7 @@ import ClubPointsCard, { type IdentifiedMember } from '@/components/menu/club/Cl
 import { CategoryItemsLayout } from '@/components/menu/items/CategoryItemsLayout'
 import { TakeawayItemCard } from '@/components/menu/items/TakeawayItemCard'
 import { resolveCategoryLayout, resolveSubcategoryLayout, findAnchorCategoryId, type CategoryLayout } from '@/lib/menu-layout'
+import { storefrontPresetFor, catalogCategoryDefaultsToGrid } from '@/lib/storefront/templates'
 import PointsStickyBar from '@/components/menu/PointsStickyBar'
 import { saveClubPhoneForCheckout } from '@/lib/cart-restore-client'
 import GeofenceFeedback from '@/components/feedback/GeofenceFeedback'
@@ -199,6 +200,8 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const profile = tenant.profile ?? {}
   const applyGridToTakeaway = !branding.menuLayoutApplyTo || branding.menuLayoutApplyTo === 'both' || branding.menuLayoutApplyTo === 'takeaway'
   const isGridForTakeaway = applyGridToTakeaway && branding.menuLayout === 'grid'
+  // Multi-rubro (etapa 2): plantilla comercial de la tienda (restaurantes: gastronomía, sin cambios).
+  const storefront = storefrontPresetFor(tenant)
   const router = useRouter()
   const t = UI[locale]
   const isOperational = tenant.isOperational !== false
@@ -1379,8 +1382,21 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
         logoUrl={branding.logoUrl}
         onOpen={() => openCustomizationModal(item, catGroups)}
         action={action}
+        {...catalogCardProps(item)}
       />
     )
+  }
+
+  /** Multi-rubro: marca, «desde $» e ícono de producto/servicio para ítems del catálogo comercial. */
+  function catalogCardProps(item: any): { brand?: string; fromPrice?: boolean; fallbackIcon?: 'product' | 'service' } {
+    const link = item?.catalogLink
+    if (!link?.productId) return {}
+    const prices = new Set((item.variants ?? []).map((v: any) => channelPrice(v, mode)))
+    return {
+      brand: storefront.showBrand && link.brand ? String(link.brand) : undefined,
+      fromPrice: storefront.showFromPrice && prices.size > 1,
+      fallbackIcon: link.kind === 'service' ? 'service' : 'product',
+    }
   }
 
   /** Tarjeta del Club — oculta para el admin corporativo en modo business. */
@@ -1728,7 +1744,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
 
         {/* All categories — cada una con su formato (lista, grilla o carrusel) */}
         {categories.map((category: any) => {
-          const layout = resolveCategoryLayout(category, 'takeaway', isGridForTakeaway)
+          const layout = resolveCategoryLayout(category, 'takeaway', isGridForTakeaway || catalogCategoryDefaultsToGrid(category, storefront))
           const directItems = (category.items ?? []).filter(isItemVisible)
           const subcategories = [...(category.subcategories ?? [])].sort((a: any, b: any) => a.sortOrder - b.sortOrder)
           const categoryId = String(category._id)

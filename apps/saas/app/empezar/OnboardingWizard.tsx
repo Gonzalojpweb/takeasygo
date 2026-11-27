@@ -8,6 +8,7 @@ import { sanitizePassword, passwordRules, passwordError, PASSWORD_MIN } from '@/
 import { Eye, EyeOff, Check, X } from 'lucide-react'
 import { useCelebrate } from '@/hooks/useCelebrate'
 import { JourneyProgress } from '@/components/onboarding/JourneyProgress'
+import { VERTICALS, DEFAULT_VERTICAL_ID } from '@/lib/verticals'
 
 export default function OnboardingWizard({ formToken, origen = '' }: { formToken: string; origen?: string }) {
   // Campo trampa: invisible para personas (ver lib/onboarding-guard).
@@ -43,6 +44,7 @@ export default function OnboardingWizard({ formToken, origen = '' }: { formToken
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [email, setEmail] = useState('')
+  const [vertical, setVertical] = useState(DEFAULT_VERTICAL_ID)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -90,7 +92,7 @@ export default function OnboardingWizard({ formToken, origen = '' }: { formToken
       const res = await fetch('/api/onboarding/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, slug: finalSlug, email, origen, formToken, website })
+        body: JSON.stringify({ name, slug: finalSlug, email, vertical, origen, formToken, website })
       })
       const data = await res.json()
       
@@ -182,6 +184,18 @@ export default function OnboardingWizard({ formToken, origen = '' }: { formToken
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm p-2 border"
             placeholder="Ej: McDonald's"
           />
+        </div>
+
+        <div>
+          <label htmlFor="onb-vertical" className="block text-sm font-medium text-gray-700">Actividad del negocio</label>
+          <select
+            id="onb-vertical"
+            value={vertical}
+            onChange={(e) => setVertical(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm p-2 border bg-white"
+          >
+            {VERTICALS.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
+          </select>
         </div>
 
         <div>

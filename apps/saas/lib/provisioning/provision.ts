@@ -31,6 +31,7 @@ import { isReservedSlug } from '@/lib/reserved-slugs'
 import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 import { logAudit } from '@/lib/audit'
 import { getRubroTemplate, templateCategories } from './templates'
+import { getVertical, normalizeVerticalSelection } from '@/lib/verticals'
 import { parseMenuJson, menuJsonToCategories } from './menu-json'
 
 export const INVITE_TTL_MS = 7 * 24 * 60 * 60_000
@@ -44,6 +45,10 @@ export const provisionSchema = z.object({
   slug: z.string().trim().max(60).optional().default(''),
   plan: z.enum(PLANS).default('trial'),
   rubro: z.string().trim().max(40).default('restaurante'),
+  /** Multi-rubro: actividad comercial, plantilla visual y módulos (lib/verticals). */
+  vertical: z.string().trim().max(40).optional(),
+  storefrontTemplate: z.string().trim().max(40).optional(),
+  modules: z.array(z.string().trim().max(40)).max(20).optional(),
   owner: z.object({
     name: z.string().trim().max(100).optional().default(''),
     email: z.string().trim().toLowerCase().email('Email del dueño inválido').max(200),
@@ -244,6 +249,8 @@ export async function provisionTenant(rawInput: unknown, actor: ProvisionActor, 
 
   // ── Validaciones previas (antes de crear nada) ───────────────────────────
   const template = getRubroTemplate(input.rubro)
+  const verticalSel = normalizeVerticalSelection({ vertical: input.vertical, storefrontTemplate: input.storefrontTemplate, modules: input.modules })
+  const gastronomic = getVertical(verticalSel.vertical).gastronomic
   const existingOwner = await User.findOne({ email: input.owner.email }).select('_id role isActive name').lean<{ _id: mongoose.Types.ObjectId; role: string; isActive?: boolean }>()
   if (existingOwner?.role === 'superadmin') throw new ProvisionError(400, 'owner_superadmin', 'Ese email es de un superadmin: usá el email del dueño.')
   if (existingOwner && input.organization.mode === 'none') {
@@ -257,7 +264,9 @@ export async function provisionTenant(rawInput: unknown, actor: ProvisionActor, 
     if (!menu.ok) throw new ProvisionError(400, 'invalid_menu_json', `Carta (JSON): ${menu.error}`)
     menuCategories = menuJsonToCategories(menu.menu)
   } else if (input.menu.source === 'template') {
-    menuCategories = templateCategories(template)
+    // Las plantillas de carta son de cocina: un comercio no gastronómico
+    // arranca sin categorías (sus productos van al catálogo comercial).
+    menuCategories = gastronomic ? templateCategories(template) : []
   }
 
   let cloneConfig: Record<string, unknown> = {}
@@ -309,7 +318,12 @@ export async function provisionTenant(rawInput: unknown, actor: ProvisionActor, 
       isOperational: true,
       // Nace aprobado: no pasa por la revisión de /empezar.
       onboarding: { status: 'none', step: 1 },
-      cuisineTypes: cloneSourceTenant?.cuisineTypes?.length ? cloneSourceTenant.cuisineTypes : template.cuisineTypes,
+      cuisineTypes: cloneSourceTenant?.cuisineTypes?.length ? cloneSourceTenant.cuisineTypes : (gastronomic ? template.cuisineTypes : []),
+      vertical: verticalSel.vertical,
+      storefrontTemplate: verticalSel.storefrontTemplate,
+      ...(verticalSel.moduleOverrides.enabled.length || verticalSel.moduleOverrides.disabled.length
+        ? { moduleOverrides: verticalSel.moduleOverrides }
+        : {}),
       branding: {
         primaryColor: input.branding.primaryColor ?? template.primaryColor,
         ...(input.branding.logoUrl ? { logoUrl: input.branding.logoUrl } : {}),
