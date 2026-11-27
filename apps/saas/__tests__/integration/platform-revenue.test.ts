@@ -6,6 +6,8 @@ import './setup'
 vi.mock('@/lib/mongoose', () => ({ connectDB: vi.fn().mockResolvedValue(undefined) }))
 
 import { auth } from '@/lib/auth'
+import User from '@/models/User'
+import { SUPERADMIN_DB_FIELDS, superAdminSession } from '../fixtures/superadmin-session'
 import { bucketOf, loadPlatformRevenue, parseRevenueRange, planMonthlyCents } from '@/lib/platform-revenue'
 import { getDayAndMidnightInTimezone, DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { GET } from '@/app/api/superadmin/ingresos/route'
@@ -47,7 +49,7 @@ describe('funciones puras', () => {
     expect(bucketOf('2026-11-08', 'week')).toBe('2026-11-02')
     expect(bucketOf('2026-11-09', 'week')).toBe('2026-11-09')
     expect(bucketOf('2026-11-09', 'month')).toBe('2026-11')
-    expect(planMonthlyCents('try')).toBe(3_500_000)
+    expect(planMonthlyCents('try')).toBe(4_500_000)
     expect(planMonthlyCents('anfitrion')).toBe(750_000)
     expect(planMonthlyCents('trial')).toBeNull()
   })
@@ -60,7 +62,7 @@ describe('loadPlatformRevenue', () => {
     expect(r.series[0].byMethod).toMatchObject({ mercadopago: 1_000, transfer: 2_000 })
     expect(r.totals).toMatchObject({ commission: 3_500, gmv: 150_000, orders: 3, mpAutoSplit: 1_000, mpManual: 0, manualDebt: 7_000 })
     const alfa = r.tenants.find(t => t.slug === 'alfa')!
-    expect(alfa).toMatchObject({ commission: 3_000, share: 85.7, effectiveRate: 2.3, mpAutoSplit: true, monthlyFee: 6_000_000 })
+    expect(alfa).toMatchObject({ commission: 3_000, share: 85.7, effectiveRate: 2.3, mpAutoSplit: true, monthlyFee: 8_000_000 })
     const beta = r.tenants.find(t => t.slug === 'beta')!
     expect(beta).toMatchObject({ commission: 500, manualDebt: 7_000, mpAutoSplit: false })
     expect(r.tenants[0].slug).toBe('alfa') // ordenado por comisión
@@ -78,6 +80,9 @@ describe('GET /api/superadmin/ingresos', () => {
     const req = (qs: string) => new NextRequest(`http://localhost/api/superadmin/ingresos?${qs}`)
     vi.mocked(auth).mockResolvedValueOnce({ user: { id: String(oid()), role: 'admin', tenantId: String(tA) }, expires: '' } as never)
     expect((await GET(req('from=2026-11-01&to=2026-11-30'))).status).toBe(403)
+    // Desde el 19/11/2026 el SuperAdmin necesita sesión con MFA verificado.
+    const sa = await User.create({ name: 'SA', email: `sa-${Math.random().toString(36).slice(2, 8)}@t.test`, password: '$2b$12$' + 'a'.repeat(53), phone: `+54911${Math.floor(Math.random() * 1e8)}`, tenantId: null, ...SUPERADMIN_DB_FIELDS })
+    vi.mocked(auth).mockResolvedValue(superAdminSession(String(sa._id)) as never)
     expect((await GET(req('from=2026-11-30&to=2026-11-01'))).status).toBe(400)
     const ok = await GET(req('from=2026-11-01&to=2026-11-30&group=month'))
     expect(ok.status).toBe(200)

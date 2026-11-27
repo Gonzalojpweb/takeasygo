@@ -35,9 +35,9 @@ interface PlanDef {
 }
 
 const PLANS: PlanDef[] = [
-  { key: 'try', name: 'Inicial', forWho: 'Para empezar a vender online', monthly: '35.000', yearly: '357.000', yearlyFull: '420.000', saving: '63.000' },
-  { key: 'buy', name: 'Crecimiento', forWho: 'Para ordenar y escalar la operación', monthly: '45.000', yearly: '459.000', yearlyFull: '540.000', saving: '81.000', featured: true },
-  { key: 'full', name: 'Premium', forWho: 'Para optimizar con datos', monthly: '60.000', yearly: '612.000', yearlyFull: '720.000', saving: '108.000' },
+  { key: 'try', name: 'Inicial', forWho: 'Para empezar a vender online', monthly: '45.000', yearly: '459.000', yearlyFull: '540.000', saving: '81.000' },
+  { key: 'buy', name: 'Crecimiento', forWho: 'Para ordenar y escalar la operación', monthly: '60.000', yearly: '612.000', yearlyFull: '720.000', saving: '108.000', featured: true },
+  { key: 'full', name: 'Premium', forWho: 'Para optimizar con datos', monthly: '80.000', yearly: '816.000', yearlyFull: '960.000', saving: '144.000' },
   { key: 'high', name: 'Élite', forWho: 'El servicio completo, con asistente', monthly: '100.000', yearly: null, yearlyFull: null, saving: null, dark: true },
 ]
 

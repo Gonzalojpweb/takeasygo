@@ -20,9 +20,9 @@ Los siguientes términos son el glosario estándar usado en toda la plataforma T
 | Término | Definición |
 |---------|------------|
 | **trial** | Plan gratuito con límites: 1 sede, 1 impresora, 30 pedidos para ICO. |
-| **try** | Plan inicial: $35.000 ARS/mes. Límites ampliados: 150 miembros del club, 1 sede. |
-| **buy** (Crecimiento) | Plan $45.000 ARS/mes. Habilita: reportes, usuarios, multi-sede, multi-impresoras, inventory, SOS, loyaltyExport, posIntegration, hiddenRewards (hasta 20/sede). |
-| **full** (Premium) | Plan $60.000 ARS/mes. Todo lo de buy más: analyticsAdv, icoAdvanced, store, loyaltyAnalytics, hiddenRewards ilimitados, cashPayment. |
+| **try** | Plan inicial: $45.000 ARS/mes. Límites ampliados: 150 miembros del club, 1 sede. |
+| **buy** (Crecimiento) | Plan $60.000 ARS/mes. Habilita: reportes, usuarios, multi-sede, multi-impresoras, inventory, SOS, loyaltyExport, posIntegration, hiddenRewards (hasta 20/sede). |
+| **full** (Premium) | Plan $80.000 ARS/mes. Todo lo de buy más: analyticsAdv, icoAdvanced, store, loyaltyAnalytics, hiddenRewards ilimitados, cashPayment. |
 | **anfitrion** | Plan de lanzamiento: acceso exclusivo. Solo menú y settings. Sin pedidos activos ni club. |
 | **features** | Identificadores de módulos en `PLAN_ACCESS` (ej. `menu`, `orders`, `inventory`, etc.). |
 
