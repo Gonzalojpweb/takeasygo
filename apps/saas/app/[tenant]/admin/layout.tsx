@@ -7,6 +7,7 @@ import { getAdminSession } from '@/lib/tenant-access'
 import { redirect } from 'next/navigation'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { resolveModules } from '@/lib/verticals'
+import NetworkMember from '@/models/NetworkMember'
 import DesktopSidebar from '@/components/admin/DesktopSidebar'
 import AdminTopBar from '@/components/admin/AdminTopBar'
 import BrandSwitcher from '@/components/admin/BrandSwitcher'
@@ -221,6 +222,8 @@ export default async function AdminLayout({
     rbacSedeScope,
     // Multi-rubro: módulos del rubro (un restaurante sin rubro los tiene todos).
     modules: resolveModules(tenantDoc),
+    // Red de beneficios: el comercio está activo en la red (canje de beneficios).
+    networkMember: tenantDoc?._id ? Boolean(await NetworkMember.exists({ tenantId: tenantDoc._id, status: 'active' })) : false,
   }
 
   return (

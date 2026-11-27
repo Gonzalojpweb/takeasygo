@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -56,7 +56,7 @@ async function call(url: string, method: string, body?: unknown) {
 
 export default function NetworkAdmin({ initial, allTenants, promos = [] }: { initial: Overview; allTenants: TenantRef[]; promos?: PromoRef[] }) {
   const [data, setData] = useState<Overview>(initial)
-  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns' | 'pilot'>('members')
+  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns' | 'pilot' | 'redemptions'>('members')
   const [busy, setBusy] = useState(false)
   const names = useMemo(() => new Map(allTenants.map(t => [t.id, t])), [allTenants])
   const nameOf = (id: Id) => names.get(String(id))?.name ?? 'Comercio'
@@ -90,7 +90,7 @@ export default function NetworkAdmin({ initial, allTenants, promos = [] }: { ini
       <p className="text-xs text-muted-foreground">{data.results.note}</p>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas'], ['pilot', 'Piloto']] as const).map(([k, l]) => (
+        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas'], ['pilot', 'Piloto'], ['redemptions', 'Canjes']] as const).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={cn(btn, tab === k ? 'bg-primary text-primary-foreground' : 'border border-border')}>{l}</button>
         ))}
         {busy && <Loader2 className="animate-spin self-center" size={16} />}
@@ -101,6 +101,7 @@ export default function NetworkAdmin({ initial, allTenants, promos = [] }: { ini
       {tab === 'agreements' && <AgreementsTab data={data} members={members} nameOf={nameOf} run={run} />}
       {tab === 'campaigns' && <CampaignsTab data={data} members={members} nameOf={nameOf} run={run} promos={promos} />}
       {tab === 'pilot' && <PilotTab data={data} nameOf={nameOf} />}
+      {tab === 'redemptions' && <RedemptionsTab nameOf={nameOf} />}
     </div>
   )
 }
@@ -519,6 +520,47 @@ function PilotTab({ data, nameOf }: { data: Overview; nameOf: (id: Id) => string
           <p className="text-xs text-muted-foreground">{metrics.sampleNote} Muchos canjes no alcanzan: el piloto funciona si el grupo con beneficio compra más en el receptor que el de control.</p>
         </>
       )}
+    </div>
+  )
+}
+
+// ─── Canjes (etapa 5) ───────────────────────────────────────────────────────
+
+interface RedemptionRow {
+  id: string; type: 'commission' | 'reversal'; createdAt: string; emitterTenantId: Id; receiverTenantId: Id; consumer: string
+  title: string; ref: string; purchaseTotalCents: number; discountCents: number; commissionCents: number
+  agreementVersion: number | null; commissionPercent: number; saleRef: string; reason: string; settlement: 'pending'
+}
+
+function RedemptionsTab({ nameOf }: { nameOf: (id: Id) => string }) {
+  const [rows, setRows] = useState<RedemptionRow[] | null>(null)
+  useEffect(() => {
+    call('/api/superadmin/network/redemptions', 'GET').then(d => setRows(d.redemptions)).catch(e => { toast.error((e as Error).message); setRows([]) })
+  }, [])
+  if (rows === null) return <p className="text-sm text-muted-foreground">Cargando…</p>
+  if (rows.length === 0) return <p className="text-sm text-muted-foreground">Todavía no hay canjes en la red.</p>
+  return (
+    <div className="overflow-x-auto rounded-xl border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+          <tr><th className="px-3 py-2">Fecha</th><th className="px-3 py-2">Emisor → Receptor</th><th className="px-3 py-2">Consumidor</th><th className="px-3 py-2">Beneficio</th><th className="px-3 py-2">Compra</th><th className="px-3 py-2">Descuento</th><th className="px-3 py-2">Comisión</th><th className="px-3 py-2">Acuerdo</th><th className="px-3 py-2">Liquidación</th></tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id} className={cn('border-t border-border', r.type === 'reversal' && 'text-red-700')}>
+              <td className="px-3 py-2 whitespace-nowrap">{new Date(r.createdAt).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</td>
+              <td className="px-3 py-2">{nameOf(r.emitterTenantId)} → <b>{nameOf(r.receiverTenantId)}</b></td>
+              <td className="px-3 py-2 text-xs">{r.consumer}</td>
+              <td className="px-3 py-2">{r.type === 'reversal' ? `Anulación: ${r.reason}` : r.title} <span className="font-mono text-[11px] text-muted-foreground">{r.ref}</span></td>
+              <td className="px-3 py-2">{pesos(r.purchaseTotalCents)}</td>
+              <td className="px-3 py-2">{pesos(r.discountCents)}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{pesos(r.commissionCents)} <span className="text-xs text-muted-foreground">({r.commissionPercent}%)</span></td>
+              <td className="px-3 py-2 text-xs">{r.agreementVersion ? `v${r.agreementVersion}` : 'sin acuerdo'}</td>
+              <td className="px-3 py-2 text-xs">Pendiente</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

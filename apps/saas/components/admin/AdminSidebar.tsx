@@ -82,6 +82,8 @@ interface Props {
   rbacSedeScope?: boolean
   /** Multi-rubro: módulos activos del comercio (lib/verticals). Ausente = todos (lo de siempre). */
   modules?: string[]
+  /** Red de beneficios (etapa 5): el comercio participa → «Beneficios de la red». */
+  networkMember?: boolean
 }
 
 interface NavItem {
@@ -144,7 +146,7 @@ function NavLink({
   )
 }
 
-export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, canViewCommissions = false, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false, modules }: Props) {
+export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isExpanded = false, dineInOnly = false, unreadAnnouncements = 0, commissionBadge = 0, canViewCommissions = false, pendingRedemptions = 0, newReservations = 0, businessEnabled = false, crmEnabled = false, posEnabled = false, posOnly = false, assignedLocations = [], locations = [], rbacSedeScope = false, modules, networkMember = false }: Props) {
   const pathname = usePathname()
   const base = `/${tenantSlug}/admin`
   const { activeLocationId, setActiveLocation, isAllLocations } = useAdminLocation()
@@ -218,6 +220,7 @@ export default function AdminSidebar({ tenantSlug, userRole, userName, plan, isE
         { href: `${base}/pantallas`, label: 'Pantallas', icon: MonitorSmartphone, roles: ['admin', 'manager'], feature: 'assistant' },
         { href: `${base}/combos`, label: 'Combos', icon: Layers, roles: ['admin', 'manager'], module: 'menu' },
         { href: `${base}/marketing-qr`, label: 'Marketing QR', icon: Gift, roles: ['admin', 'manager'] },
+        ...(networkMember ? [{ href: `${base}/red-beneficios`, label: 'Beneficios de la red', icon: Gift, roles: ['admin', 'manager', 'cashier'] }] : []),
         { href: `${base}/club`, label: 'Club', icon: QrCode, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/go-plus`, label: 'GO+', icon: Zap, roles: ['admin', 'manager'], feature: 'loyaltyClub' },
         { href: `${base}/wallet`, label: 'Wallet', icon: Smartphone, roles: ['admin', 'manager'], feature: 'loyaltyClub' },

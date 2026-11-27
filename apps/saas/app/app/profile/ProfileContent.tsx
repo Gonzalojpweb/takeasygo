@@ -3,7 +3,7 @@
 import { signIn, signOut, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2, Globe } from 'lucide-react'
+import { LogOut, User, Settings, ShoppingBag, Heart, ChevronRight, LogIn, Trophy, AlertCircle, MapPin, X, Loader2, Globe, Gift } from 'lucide-react'
 import { ShimmerButton } from '@/components/ui/shimmer-button'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { AnimatedShinyText } from '@/components/ui/animated-shiny-text'
@@ -383,6 +383,25 @@ export default function ProfileContent() {
                 <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>
                   {microcopy.profile.historyAndTracking}
                 </p>
+              </div>
+              <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
+            </button>
+
+            {/* Red de beneficios (etapa 5): beneficios para usar en otros comercios */}
+            <button
+              onClick={() => router.push('/app/beneficios')}
+              className="w-full p-4 flex items-center gap-4 group transition-all"
+              style={cardStyle}
+            >
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: 'var(--tgo-surface-1)', color: 'var(--tgo-text-link)' }}
+              >
+                <Gift size={20} />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-sm font-bold" style={{ color: 'var(--tgo-text-primary)' }}>Mis beneficios</p>
+                <p className="text-[10px]" style={{ color: 'var(--tgo-text-muted)' }}>Para usar en otros comercios de la red</p>
               </div>
               <ChevronRight size={16} style={{ color: 'var(--tgo-text-muted)' }} />
             </button>

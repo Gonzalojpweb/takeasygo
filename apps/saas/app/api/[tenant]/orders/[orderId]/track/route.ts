@@ -14,6 +14,7 @@ import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { runAfterResponse } from '@/lib/after-response'
 import { shouldSyncTrip, syncRapiboyTrip } from '@/lib/rapiboy/trips'
 import { networkBenefitForTracking } from '@/lib/network/pilot'
+import { engineBenefitForTracking } from '@/lib/network/engine'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -141,9 +142,16 @@ export async function POST(
       }
 
       // Red de beneficios (etapa 4): beneficio entregado con este pedido (piloto).
-      const networkBenefit = ['confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered'].includes(currentStatus)
-        ? await networkBenefitForTracking(String(order._id)).catch(() => null)
-        : null
+      // Etapa 5: primero el beneficio del motor (guardado o para reclamar); si no, la promo del piloto.
+      let networkBenefit: null | { kind: 'saved' | 'claim' | 'promo'; title: string; description: string; receiverName: string; url: string | null } = null
+      if (['confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered'].includes(currentStatus)) {
+        const engine = await engineBenefitForTracking(String(order._id)).catch(() => null)
+        if (engine) networkBenefit = { kind: engine.saved ? 'saved' : 'claim', title: engine.title, description: '', receiverName: engine.receiverName, url: engine.url }
+        else {
+          const promo = await networkBenefitForTracking(String(order._id)).catch(() => null)
+          if (promo) networkBenefit = { kind: 'promo', ...promo }
+        }
+      }
 
       return NextResponse.json({
         status: currentStatus,
