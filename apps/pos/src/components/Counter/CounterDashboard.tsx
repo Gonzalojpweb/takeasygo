@@ -1061,10 +1061,11 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
     }
   }, [selectedTableId, reserveTable, freeTable, showToast])
 
-  const handleAddProduct = useCallback((product: Product) => {
+  const handleAddProduct = useCallback((product: Product, preset?: ProductConfigDraft) => {
     const hasModifiers = product.modifiers && product.modifiers.length > 0
     if (hasModifiers) {
-      setConfiguring({ product, index: null, scene })
+      // preset: variante de un código de barras ya marcada (multi-rubro).
+      setConfiguring({ product, index: null, scene, ...(preset ? { initial: preset } : {}) })
       return
     }
     const isFirstItem = cart.length === 0
@@ -2015,6 +2016,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
       key={`${configuring.product.id}-${configuring.index ?? "new"}`}
       product={configuring.product}
       initial={configuring.initial}
+      isNew={configuring.index === null}
       showImage={showProductImages}
       onConfirm={handleConfigConfirm}
       onCancel={() => setConfiguring(null)}

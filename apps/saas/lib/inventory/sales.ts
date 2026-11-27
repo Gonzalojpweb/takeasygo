@@ -40,7 +40,8 @@ import { appendEvents, type NewLedgerEvent } from './projector'
 import { consumptionStorageFor, dishRecipeKey, loadCurrentRecipes } from './catalog'
 import InventorySKU from '@/models/InventorySKU'
 import Menu from '@/models/Menu'
-import type { SaleConsumptionLine } from '@takeasygo/types'
+import { catalogVariantForLine } from '@/lib/pos-online/catalogLines'
+import type { ProductCatalogInfo, SaleConsumptionLine } from '@takeasygo/types'
 
 interface OrderLike {
   _id: unknown
@@ -106,12 +107,12 @@ async function tenantHasMerchandise(tenantObjectId: mongoose.Types.ObjectId): Pr
  */
 async function catalogVariantsForLines(order: OrderLike, tenantObjectId: mongoose.Types.ObjectId): Promise<Map<string, string>> {
   const out = new Map<string, string>()
-  const missing: Array<{ lineId: string; menuItemId: string; variantName: string | null }> = []
+  const missing: Array<{ lineId: string; menuItemId: string; variantName: string | null; customizations: unknown[] }> = []
   for (const item of order.items ?? []) {
     if (!item._id) continue
     const direct = item.catalogVariantId ?? item.selectedVariant?.variantId ?? null
     if (direct) out.set(String(item._id), String(direct))
-    else if (item.menuItemId) missing.push({ lineId: String(item._id), menuItemId: String(item.menuItemId), variantName: item.selectedVariant?.name ?? null })
+    else if (item.menuItemId) missing.push({ lineId: String(item._id), menuItemId: String(item.menuItemId), variantName: item.selectedVariant?.name ?? null, customizations: item.customizations ?? [] })
   }
   if (missing.length === 0 || !(await tenantHasMerchandise(tenantObjectId))) return out
 
@@ -126,10 +127,24 @@ async function catalogVariantsForLines(order: OrderLike, tenantObjectId: mongoos
     const it = byItem.get(m.menuItemId)
     if (!it) continue
     const v = m.variantName ? (it.variants ?? []).find((x: any) => x.name === m.variantName && x.variantId) : null
-    const id = v?.variantId ?? it.catalogLink?.defaultVariantId ?? null
+    // POS: la variante llega como opción «Variante: <nombre>» (lib/pos-online/catalogLines).
+    const fromPos = v ? null : catalogVariantForLine({ customizations: m.customizations as never }, catalogInfoOf(it))
+    const id = v?.variantId ?? fromPos ?? it.catalogLink?.defaultVariantId ?? null
     if (id) out.set(m.lineId, String(id))
   }
   return out
+}
+
+/** Datos de catálogo de un ítem de la carta, en el formato del POS. */
+function catalogInfoOf(item: Record<string, any>): ProductCatalogInfo | null {
+  const link = item?.catalogLink
+  if (!link?.productId) return null
+  return {
+    productId: String(link.productId),
+    kind: link.kind === 'service' ? 'service' : 'product',
+    defaultVariantId: link.defaultVariantId ? String(link.defaultVariantId) : null,
+    variants: (link.variantCodes ?? []).filter((v: any) => v?.variantId).map((v: any) => ({ variantId: String(v.variantId), name: String(v.name ?? ''), code: String(v.code ?? ''), barcode: v.barcode ?? null })),
+  }
 }
 
 function confirmedAtOf(order: OrderLike): Date {

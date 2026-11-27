@@ -138,6 +138,10 @@ export interface SaasOrderItemDraft {
   notes: string | null
   /** Estación de la comanda (cocina/barra). La asigna el server (printRoles.ts). */
   printRole?: 'kitchen' | 'bar' | 'both'
+  /** Multi-rubro: producto y variante del catálogo (lib/pos-online/catalogLines). */
+  catalogProductId?: string
+  catalogVariantId?: string
+  itemKind?: 'dish' | 'product' | 'service'
   course: ItemCourse | null
   /** Descuento de la línea (Fase D, lib/pos-online/discounts). */
   posDiscount?: {

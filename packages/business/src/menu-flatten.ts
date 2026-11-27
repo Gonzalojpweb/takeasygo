@@ -72,7 +72,14 @@ export interface RawMenuItem {
   /** Opciones agotadas de los grupos propios (ids o nombres). */
   soldOutOptionIds?: string[]
   disabledVariantNames?: string[]
-  variants?: Array<{ name: string; price?: number; takeawayPrice?: number | null; customizationGroups?: RawCustomizationGroup[] }>
+  variants?: Array<{ name: string; price?: number; takeawayPrice?: number | null; customizationGroups?: RawCustomizationGroup[]; variantId?: string | null }>
+  /** Multi-rubro: ítem proyectado del catálogo comercial. */
+  catalogLink?: {
+    productId?: string
+    kind?: string | null
+    defaultVariantId?: string | null
+    variantCodes?: Array<{ variantId?: string; name?: string; code?: string; barcode?: string | null }>
+  } | null
 }
 
 export interface RawMenuSubCategory {
@@ -283,6 +290,17 @@ function flattenItem(
     product.halfPrice = item.halfPrice
   }
   if (item.imageUrl) product.imageUrl = item.imageUrl
+  const link = item.catalogLink
+  if (link?.productId) {
+    product.catalog = {
+      productId: String(link.productId),
+      kind: link.kind === 'service' ? 'service' : 'product',
+      defaultVariantId: link.defaultVariantId ? String(link.defaultVariantId) : null,
+      variants: (link.variantCodes ?? [])
+        .filter((v) => v?.variantId)
+        .map((v) => ({ variantId: String(v.variantId), name: String(v.name ?? ''), code: String(v.code ?? ''), barcode: v.barcode ? String(v.barcode) : null })),
+    }
+  }
   return product
 }
 

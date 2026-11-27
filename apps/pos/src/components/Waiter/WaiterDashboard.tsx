@@ -186,9 +186,10 @@ export function WaiterDashboard({ role }: { role?: string }) {
   }, [])
 
   // ── Carrito ──────────────────────────────────────────────────────────────
-  const handleAddProduct = useCallback((product: Product) => {
+  const handleAddProduct = useCallback((product: Product, preset?: ProductConfigDraft) => {
     if (product.modifiers && product.modifiers.length > 0) {
-      setConfiguring({ product, index: null })
+      // preset: variante de un código de barras ya marcada (multi-rubro).
+      setConfiguring({ product, index: null, ...(preset ? { initial: preset } : {}) })
       return
     }
     setCart((prev) => {
@@ -614,6 +615,7 @@ export function WaiterDashboard({ role }: { role?: string }) {
                 key={`${configuring.product.id}-${configuring.index ?? "new"}`}
                 product={configuring.product}
                 initial={configuring.initial}
+                isNew={configuring.index === null}
                 onConfirm={handleConfigConfirm}
                 onCancel={() => setConfiguring(null)}
               />

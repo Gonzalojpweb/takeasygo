@@ -174,12 +174,14 @@ describe('inventario de mercadería (sin receta)', () => {
         { _id: new mongoose.Types.ObjectId(), menuItemId: item._id, name: 'Funda', quantity: 2, catalogVariantId: negra._id, selectedVariant: { name: 'Negra · iPhone 15', variantId: negra._id } },
         // Sin id (POS / pedido viejo): se resuelve por la carta y el nombre de la variante.
         { _id: new mongoose.Types.ObjectId(), menuItemId: item._id, name: 'Funda', quantity: 1, selectedVariant: { name: 'Roja · iPhone 15' } },
+        // POS (venta vieja o sin conexión): la variante viene como opción «Variante: …».
+        { _id: new mongoose.Types.ObjectId(), menuItemId: item._id, name: 'Funda', quantity: 1, customizations: [{ groupName: 'Modificadores', selectedOptions: [{ name: 'Variante: Negra · iPhone 15' }] }] },
       ],
     }
     const r = await syncOrderConsumption(order)
-    expect(r.events).toBe(2)
+    expect(r.events).toBe(3)
     expect(r.unmappedLines).toBe(0)
-    expect(await stock(skuNegra)).toBeCloseTo(8, 6)
+    expect(await stock(skuNegra)).toBeCloseTo(7, 6)
     expect(await stock(skuRoja)).toBeCloseTo(9, 6)
 
     // Reintento idempotente: no descuenta dos veces.

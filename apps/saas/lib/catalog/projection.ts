@@ -28,6 +28,7 @@ export interface ProjectionOffer {
 export interface ProjectionVariant {
   _id: unknown
   code: string
+  barcode?: string | null
   name?: string
   options?: Array<{ name: string; value: string }>
   listPrice: number
@@ -66,6 +67,8 @@ interface SoldVariant {
   name: string
   price: number
   available: boolean
+  code: string
+  barcode: string | null
 }
 
 /** Variantes que se venden en la sede, con su precio. null = el producto no se vende ahí. */
@@ -75,7 +78,7 @@ export function variantsForLocation(product: ProjectionProduct, locationId: stri
     if (v.isActive === false) continue
     const offers = v.offers ?? []
     if (offers.length === 0) {
-      out.push({ id: String(v._id), name: variantLabel(v), price: v.listPrice, available: true })
+      out.push({ id: String(v._id), name: variantLabel(v), price: v.listPrice, available: true, code: v.code, barcode: v.barcode ?? null })
       continue
     }
     const offer = offers.find(o => String(o.locationId) === locationId)
@@ -85,6 +88,8 @@ export function variantsForLocation(product: ProjectionProduct, locationId: stri
       name: variantLabel(v),
       price: offer.price ?? v.listPrice,
       available: offer.available !== false,
+      code: v.code,
+      barcode: v.barcode ?? null,
     })
   }
   return out
@@ -144,6 +149,7 @@ function buildItem(product: ProjectionProduct, sold: SoldVariant[], previous: An
       brand: product.brand ?? '',
       model: product.model ?? '',
       specs: (product.attributes ?? []).map(a => ({ name: a.name, value: a.value })),
+      variantCodes: shown.map(v => ({ variantId: v.id, name: v.name, code: v.code, barcode: v.barcode })),
       syncedAt: now,
     },
   }

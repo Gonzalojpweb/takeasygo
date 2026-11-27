@@ -247,6 +247,20 @@ export interface Product {
   isCombo?: boolean
   comboId?: string
   comboData?: Combo
+  /**
+   * Multi-rubro: producto del catálogo comercial. El POS identifica la variante
+   * vendida (por la opción elegida en «Variante» o la única) y la busca por
+   * código o código de barras. Ausente en los platos.
+   */
+  catalog?: ProductCatalogInfo
+}
+
+export interface ProductCatalogInfo {
+  productId: string
+  kind: "product" | "service"
+  /** Variante única (producto sin selector de variante). */
+  defaultVariantId: string | null
+  variants: Array<{ variantId: string; name: string; code: string; barcode: string | null }>
 }
 
 export type ModifierGroupType = "single" | "multiple" | "fixed"

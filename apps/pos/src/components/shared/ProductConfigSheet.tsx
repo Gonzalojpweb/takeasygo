@@ -53,6 +53,8 @@ interface ProductConfigSheetProps {
   product: Product
   /** Presente ⇒ se edita una línea del carrito con esto cargado. */
   initial?: ProductConfigDraft
+  /** Línea nueva con selección inicial (p. ej. variante de un código de barras): no es una edición. */
+  isNew?: boolean
   showImage?: boolean
   onConfirm: (item: OrderItem) => void
   onCancel: () => void
@@ -70,8 +72,8 @@ function priceTag(price: number): string {
   return price > 0 ? `+ ${formatCurrency(price)}` : "Incluido"
 }
 
-export function ProductConfigSheet({ product, initial, showImage = false, onConfirm, onCancel }: ProductConfigSheetProps) {
-  const editing = Boolean(initial)
+export function ProductConfigSheet({ product, initial, isNew = false, showImage = false, onConfirm, onCancel }: ProductConfigSheetProps) {
+  const editing = Boolean(initial) && !isNew
   const [sel, setSel] = useState<Selections>(() => initial?.selections ?? initialSelections(product))
   const [notes, setNotes] = useState(initial?.notes ?? "")
   const [quantity, setQuantity] = useState(initial?.quantity ?? 1)
