@@ -1,3 +1,4 @@
+import { withCatalogLines } from '@/lib/pos-online/catalogLines'
 import { NextResponse } from 'next/server'
 import Order from '@/models/Order'
 import Table from '@/models/Table'
@@ -43,6 +44,8 @@ export const POST = posRoute('orders.write', async (ctx, { id }) => {
   const item = toSaasOrderItem(body as unknown as PosOrderItemInput)
   const products = await loadPosCatalog(ctx.tenantId, ctx.locationId)
   assertItemMatchesCatalog(body as unknown as PosOrderItemInput, products)
+  // Multi-rubro: producto y variante del catálogo comercial de la línea.
+  withCatalogLines([item], products)
 
   // 21/11/2026: promo «Descuento %» vigente → descuento de la línea. Un plato
   // cargado sin internet queda como lo cobró el equipo (sin promo).

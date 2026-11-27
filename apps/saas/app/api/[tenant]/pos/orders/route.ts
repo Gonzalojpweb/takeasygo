@@ -1,3 +1,5 @@
+import { withCatalogLines } from '@/lib/pos-online/catalogLines'
+import { tenantUsesCatalog } from '@/lib/catalog/usage'
 import { NextResponse } from 'next/server'
 import Order from '@/models/Order'
 import Table from '@/models/Table'
@@ -237,6 +239,12 @@ export const POST = posRoute('orders.write', async (ctx) => {
 
   // Cocina o barra por ítem (sin esto la comanda no llegaba a las estaciones).
   withPrintRoles(draft.items, await printRolesForLocation(ctx.tenantId, ctx.locationId))
+
+  // Multi-rubro: producto y variante del catálogo comercial por línea (stock
+  // por variante e identificación del pedido). Solo si el comercio usa catálogo.
+  if (await tenantUsesCatalog(ctx.tenantId)) {
+    withCatalogLines(draft.items, await loadPosCatalog(ctx.tenantId, ctx.locationId))
+  }
 
   let created
   try {

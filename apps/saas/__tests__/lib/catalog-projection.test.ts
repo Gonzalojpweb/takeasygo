@@ -55,10 +55,10 @@ describe('proyección del catálogo a la carta', () => {
         { _id: 'v2', code: 'B', listPrice: 2000, offers: [{ locationId: LOC_B, price: null, available: true }] },
       ],
     })
-    expect(variantsForLocation(p, LOC_A)).toEqual([{ id: 'v1', name: 'A', price: 1200, available: true }])
+    expect(variantsForLocation(p, LOC_A)).toEqual([{ id: 'v1', name: 'A', price: 1200, available: true, code: 'A', barcode: null }])
     expect(variantsForLocation(p, LOC_B)).toEqual([
-      { id: 'v1', name: 'A', price: 1000, available: false },
-      { id: 'v2', name: 'B', price: 2000, available: true },
+      { id: 'v1', name: 'A', price: 1000, available: false, code: 'A', barcode: null },
+      { id: 'v2', name: 'B', price: 2000, available: true, code: 'B', barcode: null },
     ])
     // En A queda una sola variante: sin selector, identificada por defaultVariantId.
     const a = projectCatalogToMenu([], [p], LOC_A, NOW).categories[0].items[0]
@@ -146,5 +146,46 @@ describe('validación del producto', () => {
     expect(() => parseCatalogProductInput({ ...base, variants: [{ code: 'A', listPrice: 10.5 }] }, locs)).toThrow(CatalogInputError)
     expect(() => parseCatalogProductInput({ name: 'X', variants: [] }, locs)).toThrow(CatalogInputError)
     expect(() => parseCatalogProductInput({ ...base, imageUrl: 'http://x' }, locs)).toThrow(/https/)
+  })
+})
+
+describe('POS: carta aplanada y variante de la venta', () => {
+  it('el producto del catálogo llega al POS con sus variantes, códigos y códigos de barras', async () => {
+    const { flattenMenu } = await import('@takeasygo/business')
+    const projected = projectCatalogToMenu([], [funda({ variants: [
+      { _id: 'var-negra', code: 'FUN-NEG', barcode: '7790000000011', name: 'Negra', listPrice: 1500000, offers: [] },
+      { _id: 'var-roja', code: 'FUN-ROJ', name: 'Roja', listPrice: 1600000, offers: [] },
+    ] })], LOC_A, NOW)
+    const item = projected.categories[0].items[0]
+    item._id = 'item-1'
+    const { products } = flattenMenu({ tenantId: 't1', categories: projected.categories as never })
+    const p = products[0]
+    expect(p.catalog).toEqual({
+      productId: 'prod-1', kind: 'product', defaultVariantId: null,
+      variants: [
+        { variantId: 'var-negra', name: 'Negra', code: 'FUN-NEG', barcode: '7790000000011' },
+        { variantId: 'var-roja', name: 'Roja', code: 'FUN-ROJ', barcode: null },
+      ],
+    })
+    expect(p.modifiers?.[0]?.name).toBe('Variante')
+  })
+
+  it('withCatalogLines toma la variante de la opción «Variante: …» o la única; los platos no cambian', async () => {
+    const { withCatalogLines } = await import('@/lib/pos-online/catalogLines')
+    const catalogMulti = { productId: 'p1', kind: 'product' as const, defaultVariantId: null, variants: [{ variantId: 'v1', name: 'Negra', code: 'A', barcode: null }, { variantId: 'v2', name: 'Roja', code: 'B', barcode: null }] }
+    const catalogSingle = { productId: 'p2', kind: 'service' as const, defaultVariantId: 'v9', variants: [{ variantId: 'v9', name: '', code: 'S', barcode: null }] }
+    const products = new Map<string, any>([['m1', { catalog: catalogMulti }], ['m2', { catalog: catalogSingle }], ['m3', {}]])
+    const lines: any[] = [
+      { menuItemId: 'm1', customizations: [{ selectedOptions: [{ name: 'Variante: Roja' }] }] },
+      { menuItemId: 'm2', customizations: [] },
+      { menuItemId: 'm3', customizations: [{ selectedOptions: [{ name: 'Variante: Roja' }] }] },
+      { menuItemId: 'm1', customizations: [] },
+    ]
+    expect(withCatalogLines(lines, products)).toBe(2)
+    expect(lines[0]).toMatchObject({ catalogProductId: 'p1', catalogVariantId: 'v2', itemKind: 'product' })
+    expect(lines[1]).toMatchObject({ catalogProductId: 'p2', catalogVariantId: 'v9', itemKind: 'service' })
+    expect(lines[2].catalogProductId).toBeUndefined() // plato: sin cambios
+    expect(lines[3]).toMatchObject({ catalogProductId: 'p1' })
+    expect(lines[3].catalogVariantId).toBeUndefined() // sin variante elegida: no se inventa
   })
 })

@@ -67,6 +67,8 @@ export interface IMenuItemCatalogLink {
   brand?: string
   model?: string
   specs?: Array<{ name: string; value: string }>
+  /** Variantes vendibles en la sede: id, nombre en la carta, código y código de barras (POS). */
+  variantCodes?: Array<{ variantId: string; name: string; code: string; barcode?: string | null }>
   syncedAt: Date
 }
 
@@ -448,6 +450,7 @@ const MenuItemSchema = new Schema<IMenuItem>({
       brand: { type: String, default: '' },
       model: { type: String, default: '' },
       specs: { type: [{ _id: false, name: String, value: String }], default: [] },
+      variantCodes: { type: [{ _id: false, variantId: String, name: String, code: String, barcode: { type: String, default: null } }], default: [] },
       syncedAt: { type: Date, required: true },
     },
     default: undefined,

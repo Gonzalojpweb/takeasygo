@@ -6,6 +6,8 @@ import { isCoarsePointer } from "../../utils/touch"
 import { menuThumbUrl } from "../../utils/images"
 import { largeOptionGroups } from "../../utils/option-availability"
 import { OptionAvailabilitySheet } from "./OptionAvailabilitySheet"
+import type { ProductConfigDraft } from "./ProductConfigSheet"
+import { catalogSearchText, findByCode, presetForVariant } from "../../utils/catalog-scan"
 
 // ============================================================================
 // Selector de productos (Fase B, 2026-10)
@@ -43,7 +45,8 @@ interface ProductSelectorProps {
   promoPercentOf?: (product: Product) => number | null
   selectedCategory: string | null
   onSelectCategory: (category: string | null) => void
-  onSelectProduct: (product: Product) => void
+  /** preset: selección inicial (p. ej. la variante de un código de barras). */
+  onSelectProduct: (product: Product, preset?: ProductConfigDraft) => void
   /** Carrusel de combos, entre las categorías y la grilla. */
   combos?: Product[]
   onSelectCombo?: (combo: Product) => void
@@ -105,7 +108,8 @@ export function searchProducts(products: Product[], query: string): Product[] {
   const terms = normalize(query.trim()).split(/\s+/).filter(Boolean)
   if (terms.length === 0) return products
   return products.filter((p) => {
-    const hay = normalize(`${p.name} ${p.description ?? ""} ${p.category}`)
+    // Multi-rubro: también por código interno o de barras del catálogo.
+    const hay = normalize(`${p.name} ${p.description ?? ""} ${p.category} ${catalogSearchText(p)}`)
     return terms.every((t) => hay.includes(t))
   })
 }
@@ -276,7 +280,16 @@ export function ProductSelector({
         case "ArrowUp": move(-layout.cols); return
         case "PageDown": move(layout.cols * layout.rows); return
         case "PageUp": move(-layout.cols * layout.rows); return
-        case "Enter":
+        case "Enter": {
+          // Código exacto (lector de código de barras o tipeado): agrega el
+          // producto, o abre sus opciones con la variante del código marcada.
+          const scanned = inSearch && !pauseMode ? findByCode(products, query) : null
+          if (scanned) {
+            e.preventDefault()
+            setQuery("")
+            if (scanned.product.isAvailable) onSelectProduct(scanned.product, presetForVariant(scanned.product, scanned.variantName) ?? undefined)
+            return
+          }
           if (inSearch && isCoarsePointer()) {
             e.preventDefault()
             searchRef.current?.blur()
@@ -287,6 +300,7 @@ export function ProductSelector({
             add(filtered[safeCursor])
           }
           return
+        }
         case "Escape":
           if (query) { e.preventDefault(); setQuery(""); searchRef.current?.focus() }
           return
@@ -301,7 +315,7 @@ export function ProductSelector({
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [categoryOptions, selectCategory, filtered, safeCursor, layout.cols, layout.rows, add, query, setCursor])
+  }, [categoryOptions, selectCategory, filtered, safeCursor, layout.cols, layout.rows, add, query, setCursor, products, pauseMode, onSelectProduct])
 
   const emptyText = query
     ? `Nada coincide con «${query}»`
