@@ -18,6 +18,8 @@ export interface SelectedVariant {
   price: number
   takeawayPrice?: number
   businessPrice?: number
+  /** Multi-rubro: variante del catálogo comercial (identificador estable). */
+  variantId?: string
 }
 
 /** Una unidad elegida dentro de un slot de promoción (bundle). */

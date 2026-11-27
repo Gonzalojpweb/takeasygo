@@ -456,6 +456,8 @@ export default function CustomizationSheet({
           price: selectedVariant.price,
           takeawayPrice: selectedVariant.takeawayPrice,
           businessPrice: selectedVariant.businessPrice,
+          // Multi-rubro: el servidor identifica la variante del catálogo por id.
+          ...((selectedVariant as { variantId?: string }).variantId ? { variantId: (selectedVariant as { variantId?: string }).variantId } : {}),
         }
       : undefined
 
@@ -523,6 +525,8 @@ export default function CustomizationSheet({
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overscroll-none px-4 pt-4 pb-4 space-y-6">
+          {/* Multi-rubro (etapa 2): ficha del producto del catálogo comercial */}
+          <CatalogSpecs item={item} primaryColor={primaryColor} />
           {/* Variants */}
           {hasVariants && (
             <VariantPills
@@ -593,5 +597,33 @@ export default function CustomizationSheet({
         />
       </div>
     </div>
+  )
+}
+
+/** Ficha técnica de un producto del catálogo comercial (marca, modelo, especificaciones). */
+function CatalogSpecs({ item, primaryColor }: { item: any; primaryColor: string }) {
+  const link = item?.catalogLink
+  if (!link?.productId) return null
+  const rows: Array<{ name: string; value: string }> = [
+    ...(link.brand ? [{ name: 'Marca', value: String(link.brand) }] : []),
+    ...(link.model ? [{ name: 'Modelo', value: String(link.model) }] : []),
+    ...((Array.isArray(link.specs) ? link.specs : []) as Array<{ name?: string; value?: string }>)
+      .filter(s => s?.name && s?.value)
+      .map(s => ({ name: String(s.name), value: String(s.value) })),
+  ]
+  if (rows.length === 0) return null
+  const title = link.kind === 'service' ? 'Condiciones' : 'Características'
+  return (
+    <section>
+      <h3 className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: primaryColor }}>{title}</h3>
+      <dl className="divide-y rounded-xl border text-sm" style={{ borderColor: primaryColor + '20' }}>
+        {rows.map((r, i) => (
+          <div key={`${r.name}-${i}`} className="flex gap-3 px-3 py-2" style={{ borderColor: primaryColor + '15' }}>
+            <dt className="w-28 flex-shrink-0 opacity-60">{r.name}</dt>
+            <dd className="flex-1 font-medium break-words">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   )
 }

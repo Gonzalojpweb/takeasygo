@@ -55,6 +55,15 @@ export interface ITenant extends Document {
     menuSource?: string
     clonedFromTenantId?: Types.ObjectId | null
   }
+  /**
+   * Multi-rubro (etapa 1): actividad comercial. Ausente = 'gastronomia' con
+   * todos sus módulos (comportamiento de siempre). Ver lib/verticals.ts.
+   */
+  vertical?: string
+  /** Plantilla visual elegida (gastronomia | retail | tecnologia | servicios). Ausente = la recomendada por el rubro. */
+  storefrontTemplate?: string
+  /** Módulos sumados o quitados por el superadmin respecto de los del rubro. */
+  moduleOverrides?: { enabled: string[]; disabled: string[] }
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion' | 'high'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
@@ -485,6 +494,18 @@ const TenantSchema = new Schema<ITenant>(
         rubro: { type: String },
         menuSource: { type: String },
         clonedFromTenantId: { type: Schema.Types.ObjectId, default: null },
+      },
+      default: undefined,
+    },
+    // Multi-rubro (lib/verticals.ts). Sin default: un comercio existente queda
+    // sin rubro y se resuelve como Gastronomía.
+    vertical: { type: String, default: undefined },
+    storefrontTemplate: { type: String, default: undefined },
+    moduleOverrides: {
+      type: {
+        _id: false,
+        enabled: { type: [String], default: [] },
+        disabled: { type: [String], default: [] },
       },
       default: undefined,
     },

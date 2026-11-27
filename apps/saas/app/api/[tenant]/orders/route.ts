@@ -66,6 +66,7 @@ import { loadTransferLock } from '@/lib/commission-weeks'
 import { attachReferralFromRequest } from '@/lib/referrals'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
 import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago, isSplitRequired } from '@/lib/mp-split-guard'
+import { catalogLineFields } from '@/lib/catalog/order-line'
 
 try {
   webpush.setVapidDetails(
@@ -1405,7 +1406,11 @@ export async function POST(
                 { status: 400 }
               )
             }
-            dbVariant = menuItem.variants.find(
+            // Multi-rubro: una variante del catálogo se identifica por su id
+            // (estable aunque cambie el nombre); el resto, por nombre como siempre.
+            dbVariant = (selectedVariant.variantId
+              ? menuItem.variants.find((v: any) => v.variantId && String(v.variantId) === String(selectedVariant.variantId))
+              : null) ?? menuItem.variants.find(
               (v: any) => v.name === selectedVariant.name
             )
             if (!dbVariant) {
@@ -1423,6 +1428,7 @@ export async function POST(
               price: dbVariant.price,
               ...(dbVariant.takeawayPrice != null ? { takeawayPrice: dbVariant.takeawayPrice } : {}),
               ...(dbVariant.businessPrice != null ? { businessPrice: dbVariant.businessPrice } : {}),
+              ...(dbVariant.variantId ? { variantId: String(dbVariant.variantId) } : {}),
             }
           } else {
             // Precio base depende del modo (takeaway/delivery vs dine-in vs business)
@@ -1513,6 +1519,8 @@ export async function POST(
           subtotal,
           customizations: resolvedCustomizations,
           selectedVariant: resolvedSelectedVariant,
+          // Multi-rubro: producto y variante del catálogo comercial (solo ítems proyectados).
+          ...catalogLineFields(menuItem, resolvedSelectedVariant),
           printRole: menuItem.printRole || 'kitchen',
           addedFrom: clientItem.addedFrom ?? null,
           // Descuento de carta no acumulable: el QR (y Mercado Pago) no lo vuelven a rebajar.

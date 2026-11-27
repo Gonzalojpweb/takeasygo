@@ -9,6 +9,8 @@ import { PLAN_LABELS, PLAN_PRICE, type Plan } from '@/lib/plans'
 import { slugifyOrFallback } from '@/lib/slugify'
 import { RUBRO_TEMPLATES, getRubroTemplate } from '@/lib/provisioning/templates'
 import { parseMenuJson, MENU_JSON_PROMPT } from '@/lib/provisioning/menu-json'
+import { getVertical } from '@/lib/verticals'
+import VerticalPicker, { defaultVerticalValue, type VerticalValue } from '@/components/superadmin/VerticalPicker'
 
 const PLANS: Plan[] = ['trial', 'anfitrion', 'try', 'buy', 'full', 'high'] as Plan[]
 
@@ -105,6 +107,8 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [rubro, setRubro] = useState('restaurante')
+  const [verticalValue, setVerticalValue] = useState<VerticalValue>(() => defaultVerticalValue())
+  const gastronomic = getVertical(verticalValue.vertical).gastronomic
   const [plan, setPlan] = useState<Plan>('trial' as Plan)
   const [owner, setOwner] = useState({ name: '', email: '', phone: '' })
   const [locations, setLocations] = useState([{ name: '', address: '', phone: '' }])
@@ -166,6 +170,9 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
         slug: slug.trim(),
         plan,
         rubro,
+        vertical: verticalValue.vertical,
+        storefrontTemplate: verticalValue.storefrontTemplate,
+        modules: verticalValue.modules,
         owner: { name: owner.name.trim(), email: owner.email.trim(), phone: owner.phone.trim() },
         locations: locations.map(l => ({ name: l.name.trim(), address: l.address.trim(), phone: l.phone.trim() })),
         branding: { primaryColor: color },
@@ -226,13 +233,14 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
           <input id="qt-slug" className={field} value={slug} onChange={e => setSlug(e.target.value)} placeholder={slugifyOrFallback(name || 'pizza-crash', '')} autoComplete="off" />
           <p className="mt-1 text-xs text-muted-foreground">takeasygo.com/<b>{slugPreview}</b>/menu{!slug.trim() && ' · si está usado se agrega un número'}</p>
         </div>
-        <div>
-          <label className={label} htmlFor="qt-rubro">Rubro</label>
+        <VerticalPicker idPrefix="qt" value={verticalValue} onChange={setVerticalValue} fieldClassName={field} labelClassName={label} />
+        {gastronomic && <div>
+          <label className={label} htmlFor="qt-rubro">Tipo de cocina</label>
           <select id="qt-rubro" className={field} value={rubro} onChange={e => { setRubro(e.target.value); if (!logoFile) setPrimaryColor(null) }}>
             {RUBRO_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
           </select>
           <p className="mt-1 text-xs text-muted-foreground">Arranca con: {template.categories.join(', ')} · {template.hoursText}</p>
-        </div>
+        </div>}
         <div>
           <span className={label}>Plan</span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -342,7 +350,7 @@ export default function QuickTenantForm({ tenants, organizations }: Props) {
         <Segmented<MenuSource> value={menuSource} onChange={setMenuSource} options={[
           { value: 'template', label: 'Del rubro' }, { value: 'json', label: 'JSON' }, { value: 'clone', label: 'Copiar' }, { value: 'empty', label: 'Vacía' },
         ]} />
-        {menuSource === 'template' && <p className="text-xs text-muted-foreground">Crea las categorías del rubro vacías; no se ven en el menú hasta que tengan productos.</p>}
+        {menuSource === 'template' && <p className="text-xs text-muted-foreground">{gastronomic ? 'Crea las categorías del rubro vacías; no se ven en el menú hasta que tengan productos.' : 'Este rubro no usa carta: arranca vacío y los productos se cargan en el Catálogo.'}</p>}
         {menuSource === 'empty' && <p className="text-xs text-muted-foreground">Sin categorías: el dueño arma la carta desde su panel.</p>}
         {menuSource === 'json' && (
           <div className="space-y-2">

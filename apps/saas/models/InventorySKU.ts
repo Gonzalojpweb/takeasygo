@@ -11,6 +11,9 @@ import mongoose, { Schema, Document } from 'mongoose'
 //   que lleva el estado por depósito.
 // · `kind: 'prepared'` = se produce en el local (salsa, masa): su stock entra
 //   por producción, no por compra.
+// · `kind: 'merchandise'` (multi-rubro) = mercadería de reventa: una variante
+//   del catálogo comercial (`catalogVariantId`). Cada venta descuenta su
+//   existencia directo, sin receta.
 // ============================================================================
 
 export const SKU_CATEGORIES = ['meat_poultry', 'fish_seafood', 'vegetables', 'fruits', 'dairy', 'dry_goods', 'beverages', 'packaging', 'other'] as const
@@ -23,7 +26,10 @@ export interface IInventorySKU extends Document {
   nameKey: string
   skuCode?: string | null
   category: (typeof SKU_CATEGORIES)[number]
-  kind: 'raw' | 'prepared'
+  kind: 'raw' | 'prepared' | 'merchandise'
+  /** Multi-rubro: variante del catálogo comercial que representa (solo `merchandise`). */
+  catalogVariantId?: string | null
+  catalogProductId?: string | null
   canonicalUnit: (typeof SKU_UNITS)[number]
   businessImpact: (typeof SKU_IMPACTS)[number]
   /** @storedAs cents */
@@ -49,7 +55,9 @@ const InventorySKUSchema = new Schema<IInventorySKU>({
    */
   skuCode: { type: String },
   category: { type: String, enum: SKU_CATEGORIES, required: true },
-  kind: { type: String, enum: ['raw', 'prepared'], default: 'raw' },
+  kind: { type: String, enum: ['raw', 'prepared', 'merchandise'], default: 'raw' },
+  catalogVariantId: { type: String, default: undefined },
+  catalogProductId: { type: String, default: undefined },
   canonicalUnit: { type: String, enum: SKU_UNITS, required: true },
   businessImpact: { type: String, enum: SKU_IMPACTS, default: 'medium' },
   lastUnitCostCents: { type: Number, default: 0, min: 0 },
@@ -71,6 +79,11 @@ InventorySKUSchema.index({ tenantId: 1, isActive: 1 })
 InventorySKUSchema.index(
   { tenantId: 1, skuCode: 1 },
   { unique: true, partialFilterExpression: { skuCode: { $type: 'string' } }, name: 'sku_code' },
+)
+// Multi-rubro: un insumo de mercadería por variante del catálogo.
+InventorySKUSchema.index(
+  { tenantId: 1, catalogVariantId: 1 },
+  { unique: true, partialFilterExpression: { catalogVariantId: { $type: 'string' } }, name: 'sku_catalog_variant' },
 )
 
 const InventorySKU =

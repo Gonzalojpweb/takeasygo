@@ -1,3 +1,4 @@
+import { CATALOG_ITEM_MESSAGE, isCatalogItem } from '@/lib/catalog/menu-guard'
 import { connectDB } from '@/lib/mongoose'
 import Menu from '@/models/Menu'
 import Tenant from '@/models/Tenant'
@@ -39,6 +40,13 @@ export async function DELETE(
 
     const category = menu.categories.id(categoryId)
     if (!category) return NextResponse.json({ error: 'Categoría no encontrada' }, { status: 404 })
+
+    // Multi-rubro: un producto del catálogo se archiva desde Catálogo, no se borra de la carta.
+    const target = [...(category.items || []), ...(category.subcategories || []).flatMap((s: any) => s.items || [])]
+      .find((i: any) => i._id.toString() === itemId)
+    if (isCatalogItem(target)) {
+      return NextResponse.json({ error: CATALOG_ITEM_MESSAGE, code: 'CATALOG_ITEM' }, { status: 409 })
+    }
 
     let removedFromSubcategory = false
     for (const sub of category.subcategories || []) {

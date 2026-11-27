@@ -14,6 +14,8 @@ import WelcomeLocationBar from '@/components/menu/WelcomeLocationBar'
 import ReturningCustomerBanner from '@/components/menu/ReturningCustomerBanner'
 import MenuOpenTracker from '@/components/menu/MenuOpenTracker'
 import { locationPathSegment, locationRefFilter } from '@/lib/menu/location-ref'
+import { hasModule } from '@/lib/verticals'
+import { storefrontPresetFor } from '@/lib/storefront/templates'
 
 export const revalidate = 300
 
@@ -86,9 +88,12 @@ export default async function MenuSelectorPage({ params }: Props) {
   const hours = String(location.hours || '').trim()
 
   const businessEnabled = tenant.business?.enabled === true
+  // Multi-rubro (etapa 2): textos de la portada según la plantilla comercial.
+  const storefront = storefrontPresetFor(tenant)
 
   // Show reservations button if tenant module is enabled and location hasn't explicitly disabled it
   const reservationsEnabled =
+    hasModule(tenant, 'reservations') &&
     tenant.features?.reservations === true &&
     location.reservationConfig?.enabled !== false
 
@@ -99,7 +104,7 @@ export default async function MenuSelectorPage({ params }: Props) {
     ? `Único turno a las ${timeSlots[0]}`
     : 'Elegí día y horario'
 
-  const orderSubtitle = modes.includes('delivery') ? 'Take away y delivery' : 'Pedí y retirá sin esperar'
+  const orderSubtitle = modes.includes('delivery') ? storefront.orderSubtitle.withDelivery : storefront.orderSubtitle.pickupOnly
 
   // ── Acciones, en orden de prioridad. La primera va en el color de la marca. ──
   const actions: HomeAction[] = []
@@ -108,7 +113,7 @@ export default async function MenuSelectorPage({ params }: Props) {
       key: 'takeaway',
       href: `/${tenantSlug}/menu/${locationSegment}/takeaway`,
       icon: ShoppingBag,
-      title: 'Hacé tu pedido',
+      title: storefront.orderTitle,
       subtitle: orderSubtitle,
     })
   }
@@ -126,8 +131,8 @@ export default async function MenuSelectorPage({ params }: Props) {
       key: 'dine-in',
       href: `/${tenantSlug}/menu/${locationSegment}/dine-in`,
       icon: UtensilsCrossed,
-      title: 'Menú',
-      subtitle: 'Platos, postres y bebidas',
+      title: storefront.browseTitle,
+      subtitle: storefront.browseSubtitle,
     })
   }
   if (businessEnabled) {

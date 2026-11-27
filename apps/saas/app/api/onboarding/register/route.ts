@@ -1,3 +1,4 @@
+import { normalizeVerticalSelection } from '@/lib/verticals'
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongoose'
 import User from '@/models/User'
@@ -49,7 +50,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 })
     }
 
-    const { name, slug, email, selectedPlan, origen } = parsed.data
+    const { name, slug, email, selectedPlan, origen, vertical } = parsed.data
+    const verticalSel = normalizeVerticalSelection({ vertical })
 
     // Texto libre → slug válido. Cualquier nombre (tildes, mayúsculas, símbolos,
     // no-ASCII, emoji) produce un enlace usable; nunca queda vacío.
@@ -112,6 +114,8 @@ export async function POST(req: Request) {
       name,
       slug: finalSlug,
       plan: 'trial',
+      vertical: verticalSel.vertical,
+      storefrontTemplate: verticalSel.storefrontTemplate,
       status: 'active', // Required for location endpoints
       // WhatsApp en el seguimiento: apagado hasta que lo habilite el superadmin.
       features: { ...NEW_TENANT_WHATSAPP_ORDER_LINK },

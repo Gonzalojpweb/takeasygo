@@ -1,3 +1,4 @@
+import { normalizeVerticalSelection } from '@/lib/verticals'
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
@@ -27,7 +28,7 @@ export async function PUT(
     }
 
     // 2. Extraer campos anidados que no están en el body plano
-    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, transferCommissionPercent, transferEnabled, features, ...flatBody } = body
+    const { sosMaxLimit, business, promotionLabels, loyaltyMessaging, commissionPercent, transferCommissionPercent, transferEnabled, features, verticalSelection, ...flatBody } = body
 
     // 2b. ALLOWLIST: solo campos que el form de edición envía.
     // Nunca aplicar el body completo ({...flatBody}) — un request crafted
@@ -60,6 +61,13 @@ export async function PUT(
     }
     if (transferEnabled !== undefined) {
       updateSet['transfer.enabled'] = !!transferEnabled
+    }
+    // Multi-rubro: rubro, plantilla visual y módulos (lib/verticals.ts).
+    if (verticalSelection !== undefined && verticalSelection !== null && typeof verticalSelection === 'object') {
+      const sel = normalizeVerticalSelection(verticalSelection)
+      updateSet.vertical = sel.vertical
+      updateSet.storefrontTemplate = sel.storefrontTemplate
+      updateSet.moduleOverrides = sel.moduleOverrides
     }
     if (sosMaxLimit !== undefined) {
       updateSet['loyalty.sosMaxLimit'] = Math.max(0, Math.min(5000, parseInt(sosMaxLimit) || 0))

@@ -6,6 +6,7 @@ import { superadminCreateTenantSchema } from '@/lib/schemas'
 import { NEW_TENANT_WHATSAPP_ORDER_LINK } from '@/lib/whatsapp-order-link'
 import { tenantSlugError } from '@/lib/reserved-slugs'
 import { logAudit } from '@/lib/audit'
+import { normalizeVerticalSelection } from '@/lib/verticals'
 
 export async function GET() {
   try {
@@ -48,8 +49,16 @@ export async function POST(request: NextRequest) {
 
     // Comercio nuevo: WhatsApp en el seguimiento apagado hasta que el
     // superadmin lo habilite (lib/whatsapp-order-link.ts).
-    const data = parsed.data as Record<string, unknown> & { features?: Record<string, unknown> }
-    const tenant = await Tenant.create({ ...data, features: { ...(data.features ?? {}), ...NEW_TENANT_WHATSAPP_ORDER_LINK } })
+    const { vertical, storefrontTemplate, modules, ...rest } = parsed.data
+    const data = rest as Record<string, unknown> & { features?: Record<string, unknown> }
+    const sel = normalizeVerticalSelection({ vertical, storefrontTemplate, modules })
+    const tenant = await Tenant.create({
+      ...data,
+      vertical: sel.vertical,
+      storefrontTemplate: sel.storefrontTemplate,
+      ...(sel.moduleOverrides.enabled.length || sel.moduleOverrides.disabled.length ? { moduleOverrides: sel.moduleOverrides } : {}),
+      features: { ...(data.features ?? {}), ...NEW_TENANT_WHATSAPP_ORDER_LINK },
+    })
     // El alta queda en la auditoría (antes no se registraba). Para altas nuevas usar /provision.
     await logAudit({ tenantId: String(tenant._id), action: 'tenant.created', entity: 'tenant', entityId: String(tenant._id), userRole: 'superadmin', details: { slug: tenant.slug, plan: tenant.plan, via: 'legacy' }, request })
     return NextResponse.json({ tenant }, { status: 201 })

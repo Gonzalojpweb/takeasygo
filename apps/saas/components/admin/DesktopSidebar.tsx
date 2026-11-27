@@ -20,6 +20,7 @@ interface DesktopSidebarProps {
   assignedLocations?: string[]
   locations?: { _id: string; name: string }[]
   rbacSedeScope?: boolean
+  modules?: string[]
 }
 
 export default function DesktopSidebar(props: DesktopSidebarProps) {

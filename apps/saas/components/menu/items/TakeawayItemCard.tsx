@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import Image from 'next/image'
-import { Leaf, UtensilsCrossed } from 'lucide-react'
+import { Leaf, Package, Sparkles, UtensilsCrossed } from 'lucide-react'
 import { toPesos } from '@takeasygo/business/browser'
 import { cn, cloudinaryUrl, cloudinaryBlurUrl } from '@/lib/utils'
 import type { CategoryLayout } from '@/lib/menu-layout'
@@ -29,6 +29,12 @@ interface Props {
   onOpen: () => void
   /** Control de la derecha: carrito, like o «Catálogo» (ya armado para el layout). */
   action: ReactNode
+  /** Multi-rubro (etapa 2): marca arriba del nombre (tiendas). */
+  brand?: string
+  /** Multi-rubro: el precio es el menor de varias variantes → «Desde $». */
+  fromPrice?: boolean
+  /** Multi-rubro: ícono sin foto. Ausente = plato (lo de siempre). */
+  fallbackIcon?: 'dish' | 'product' | 'service'
 }
 
 const ars = (cents: number) => `$${toPesos(cents).toLocaleString('es-AR')}`
@@ -36,8 +42,11 @@ const ars = (cents: number) => `$${toPesos(cents).toLocaleString('es-AR')}`
 /** Tarjeta de producto del menú takeaway / delivery / business, en lista, grilla o carrusel. */
 export function TakeawayItemCard({
   layout, name, description, imageUrl, isVeg, tags, likesCount, price, clubPrice, promoPrice,
-  primary, borderStyle, logoUrl, onOpen, action,
+  primary, borderStyle, logoUrl, onOpen, action, brand, fromPrice = false, fallbackIcon = 'dish',
 }: Props) {
+  const KindIcon = fallbackIcon === 'product' ? Package : fallbackIcon === 'service' ? Sparkles : UtensilsCrossed
+  const fromLabel = fromPrice ? <span className="text-[11px] opacity-60">Desde</span> : null
+  const brandLine = brand ? <p className="text-[10px] font-bold uppercase tracking-wider opacity-60 leading-none mb-1">{brand}</p> : null
   // El descuento de carta ya viene en `price`; el del Club se calcula sobre él.
   const percentTag = promoPrice ? (
     <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">-{promoPrice.percent}%</span>
@@ -57,7 +66,10 @@ export function TakeawayItemCard({
       {percentTag}
     </>
   ) : (
-    <span className="font-bold text-sm" style={{ color: primary }}>{ars(price)}</span>
+    <>
+      {fromLabel}
+      <span className="font-bold text-sm" style={{ color: primary }}>{ars(price)}</span>
+    </>
   )
 
   if (layout === 'list') {
@@ -71,10 +83,11 @@ export function TakeawayItemCard({
           <Image src={cloudinaryUrl(imageUrl, { w: 200 })} alt={name} width={64} height={64} className="w-16 h-16 object-cover rounded-xl flex-shrink-0 food-photo" placeholder="blur" blurDataURL={cloudinaryBlurUrl(imageUrl)} />
         ) : (
           <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: primary + '10' }}>
-            {isVeg ? <Leaf size={14} style={{ color: '#22c55e' }} /> : <UtensilsCrossed size={13} style={{ color: primary + '60' }} />}
+            {isVeg ? <Leaf size={14} style={{ color: '#22c55e' }} /> : <KindIcon size={13} style={{ color: primary + '60' }} />}
           </div>
         )}
         <div className="flex-1 min-w-0">
+          {brandLine}
           <p className="font-semibold text-base">{name}</p>
           {description && <p className="text-sm opacity-70 line-clamp-2 mt-0.5">{description}</p>}
           <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -111,10 +124,11 @@ export function TakeawayItemCard({
       )}
       <LikeBadge count={likesCount} variant="overlay" />
       <div className={cn('p-3', carousel && 'flex flex-1 flex-col')}>
+        {brandLine}
         <div className="flex items-center gap-1.5 mb-1">
           {isVeg
             ? <Leaf size={11} className="flex-shrink-0" style={{ color: '#22c55e' }} />
-            : <UtensilsCrossed size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
+            : <KindIcon size={11} className="flex-shrink-0" style={{ color: primary + '60' }} />}
           <p className={cn('font-semibold leading-tight', carousel ? 'text-sm line-clamp-2' : 'text-base')}>{name}</p>
         </div>
         {description && (

@@ -39,6 +39,7 @@ import { canAccess, type Plan } from '@/lib/plans'
 import { appendEvents, type NewLedgerEvent } from './projector'
 import { consumptionStorageFor, dishRecipeKey, loadCurrentRecipes } from './catalog'
 import InventorySKU from '@/models/InventorySKU'
+import Menu from '@/models/Menu'
 import type { SaleConsumptionLine } from '@takeasygo/types'
 
 interface OrderLike {
@@ -58,8 +59,10 @@ interface OrderLike {
     itemType?: string
     name: string
     quantity: number
-    selectedVariant?: { name?: string } | null
+    selectedVariant?: { name?: string; variantId?: string | null } | null
     customizations?: unknown[]
+    /** Multi-rubro: variante del catálogo comercial (mercadería). */
+    catalogVariantId?: string | null
   }>
 }
 
@@ -78,6 +81,55 @@ async function tenantHasInventory(tenantId: string): Promise<boolean> {
   const plan = (t?.plan ?? 'try') as Plan
   planCache.set(tenantId, { plan, at: Date.now() })
   return canAccess(plan, 'inventory')
+}
+
+// ─── Multi-rubro: mercadería del catálogo comercial ─────────────────────────
+// Una línea de un producto del catálogo descuenta 1 unidad por unidad vendida
+// del insumo `merchandise` de su variante, sin receta (informe 21/11/2026,
+// §2.3). Los platos siguen con sus recetas y la regla D-26 sin cambios.
+
+const merchCache = new Map<string, { has: boolean; at: number }>()
+
+async function tenantHasMerchandise(tenantObjectId: mongoose.Types.ObjectId): Promise<boolean> {
+  const key = String(tenantObjectId)
+  const cached = merchCache.get(key)
+  if (cached && Date.now() - cached.at < 60_000) return cached.has
+  const has = Boolean(await InventorySKU.exists({ tenantId: tenantObjectId, catalogVariantId: { $type: 'string' } }))
+  merchCache.set(key, { has, at: Date.now() })
+  return has
+}
+
+/**
+ * Variante del catálogo de cada línea. La línea la trae si se vendió por el
+ * checkout; si no (POS, pedidos viejos), se busca en la carta de la sede por
+ * ítem proyectado y nombre de variante.
+ */
+async function catalogVariantsForLines(order: OrderLike, tenantObjectId: mongoose.Types.ObjectId): Promise<Map<string, string>> {
+  const out = new Map<string, string>()
+  const missing: Array<{ lineId: string; menuItemId: string; variantName: string | null }> = []
+  for (const item of order.items ?? []) {
+    if (!item._id) continue
+    const direct = item.catalogVariantId ?? item.selectedVariant?.variantId ?? null
+    if (direct) out.set(String(item._id), String(direct))
+    else if (item.menuItemId) missing.push({ lineId: String(item._id), menuItemId: String(item.menuItemId), variantName: item.selectedVariant?.name ?? null })
+  }
+  if (missing.length === 0 || !(await tenantHasMerchandise(tenantObjectId))) return out
+
+  const menu = await Menu.findOne({ tenantId: tenantObjectId, locationId: order.locationId }).select('categories').lean<{ categories?: Array<Record<string, any>> }>()
+  if (!menu) return out
+  const byItem = new Map<string, Record<string, any>>()
+  for (const c of menu.categories ?? []) {
+    for (const it of c.items ?? []) if (it?.catalogLink?.productId) byItem.set(String(it._id), it)
+    for (const sc of c.subcategories ?? []) for (const it of sc.items ?? []) if (it?.catalogLink?.productId) byItem.set(String(it._id), it)
+  }
+  for (const m of missing) {
+    const it = byItem.get(m.menuItemId)
+    if (!it) continue
+    const v = m.variantName ? (it.variants ?? []).find((x: any) => x.name === m.variantName && x.variantId) : null
+    const id = v?.variantId ?? it.catalogLink?.defaultVariantId ?? null
+    if (id) out.set(m.lineId, String(id))
+  }
+  return out
 }
 
 function confirmedAtOf(order: OrderLike): Date {
@@ -113,6 +165,8 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
     })
   }
 
+  const catalogVariantByLine = await catalogVariantsForLines(order, tenantObjectId)
+
   const recordedEvents = await InventoryLedger.find({ tenantId: tenantObjectId, correlationId: orderId, eventType: 'SaleRecorded' })
     .select('payload')
     .lean()
@@ -130,10 +184,17 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
   }
   const recipeByKey = await loadCurrentRecipes(tenantObjectId, { recipeKeys: [...keys] })
   const recipes = [...recipeByKey.values()]
+  // Mercadería: insumo activo de cada variante vendida (una consulta).
+  const neededVariants = [...new Set(needsRecipes.map((c) => catalogVariantByLine.get(c.lineId)).filter((v): v is string => Boolean(v)))]
+  const merchDocs = neededVariants.length
+    ? await InventorySKU.find({ tenantId: tenantObjectId, catalogVariantId: { $in: neededVariants }, kind: 'merchandise', isActive: true }).select('_id catalogVariantId').lean<Array<{ _id: unknown; catalogVariantId: string }>>()
+    : []
+  const merchByVariant = new Map(merchDocs.map((m) => [m.catalogVariantId, String(m._id)]))
   const rules = needsRecipes.length ? await InventoryModifierRule.find({ tenantId: tenantObjectId, isActive: true }).lean() : []
   const skuIds = new Set<string>()
   for (const r of recipes) for (const i of r.items) skuIds.add(String(i.skuId))
   for (const r of rules) for (const i of r.items) skuIds.add(String(i.skuId))
+  for (const id of merchByVariant.values()) skuIds.add(id)
   const skuDocs = skuIds.size
     ? await InventorySKU.find({ tenantId: tenantObjectId, _id: { $in: [...skuIds] }, isActive: true }).select('name canonicalUnit').lean()
     : []
@@ -175,6 +236,34 @@ export async function syncOrderConsumption(order: OrderLike): Promise<SyncResult
       return { ...base, payload: { ...common, recipeId: null, recipeVersion: null, consumption: c.consumption, unmapped: false, warnings: [] } }
     }
     const line = desired.find((d) => d.lineId === c.lineId)!
+    const catalogVariantId = catalogVariantByLine.get(c.lineId) ?? null
+    const merchandiseSkuId = catalogVariantId ? merchByVariant.get(catalogVariantId) ?? null : null
+    if (merchandiseSkuId) {
+      // Mercadería: 1 unidad del insumo de la variante por unidad vendida.
+      const exploded = explodeSaleLine({
+        portions: c.portions,
+        recipe: { id: `merchandise:${merchandiseSkuId}`, version: 0, items: [{ skuId: merchandiseSkuId, quantity: 1, unit: 'unit' }] },
+        modifiers: line.modifiers,
+        rules: ruleList,
+        skus,
+        storageLocationId: String(storage._id),
+      })
+      if (exploded.unmapped) unmappedLines++
+      return {
+        ...base,
+        payload: {
+          ...common,
+          recipeId: null,
+          recipeVersion: null,
+          consumption: exploded.consumption,
+          unmapped: exploded.unmapped,
+          unmappedReason: exploded.unmapped ? 'no_recipe' : null,
+          catalogVariantId,
+          merchandiseSkuId,
+          warnings: exploded.warnings,
+        },
+      }
+    }
     // D-26: variante con receta propia, o confirmada "igual a la base"; una
     // variante sin ninguna de las dos NO descuenta (nunca se asume la base).
     const asResolvable = (r: (typeof recipes)[number] | undefined) =>

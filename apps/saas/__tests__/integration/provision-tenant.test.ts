@@ -254,3 +254,24 @@ describe('invitación y pendientes', () => {
     expect(new mongoose.Types.ObjectId(r.tenant.id)).toBeTruthy()
   })
 })
+
+describe('alta rápida — multi-rubro', () => {
+  it('sin rubro elegido queda Gastronomía con la plantilla gastronómica (como siempre)', async () => {
+    const r = await provisionTenant(base(), actor, deps)
+    const t = await Tenant.findById(r.tenant.id).lean() as any
+    expect(t.vertical).toBe('gastronomia')
+    expect(t.storefrontTemplate).toBe('gastronomia')
+    expect(t.moduleOverrides).toBeUndefined()
+  })
+
+  it('tienda de tecnología: guarda rubro, plantilla y módulos; arranca sin categorías de cocina', async () => {
+    const r = await provisionTenant(base({ name: 'Tecno Shop', vertical: 'tecnologia', storefrontTemplate: 'retail', modules: ['catalog', 'inventory', 'takeaway'] }), actor, deps)
+    const t = await Tenant.findById(r.tenant.id).lean() as any
+    expect(t.vertical).toBe('tecnologia')
+    expect(t.storefrontTemplate).toBe('retail')
+    expect(t.moduleOverrides).toEqual({ enabled: [], disabled: ['delivery'] })
+    expect(t.cuisineTypes).toEqual([])
+    const menu = await Menu.findOne({ tenantId: t._id }).lean() as any
+    expect(menu?.categories ?? []).toHaveLength(0)
+  })
+})

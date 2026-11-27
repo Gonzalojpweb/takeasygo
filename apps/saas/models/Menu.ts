@@ -49,6 +49,25 @@ export interface IMenuItemVariant {
    *  Cuando el usuario selecciona esta variante, estos grupos se activan
    *  además de los grupos heredados de categoría/item. */
   customizationGroups?: ICustomizationGroup[]
+  /**
+   * Multi-rubro: identificador estable de la variante del catálogo comercial
+   * (CatalogProduct.variants._id). Solo en ítems proyectados del catálogo.
+   */
+  variantId?: string | null
+}
+
+/** Ítem proyectado desde el catálogo comercial (lib/catalog/projection). */
+export interface IMenuItemCatalogLink {
+  productId: string
+  /** Variante única del producto (cuando no se muestran variantes para elegir). */
+  defaultVariantId?: string | null
+  /** product | service */
+  kind?: string | null
+  /** Ficha del producto para la tienda (etapa 2): marca, modelo y especificaciones. */
+  brand?: string
+  model?: string
+  specs?: Array<{ name: string; value: string }>
+  syncedAt: Date
 }
 
 export interface IAvailabilitySlot {
@@ -151,6 +170,8 @@ export interface IMenuItem {
   ivaRate?: number | null
   /** Vínculo con la carta central del grupo (F3). */
   master?: IMenuItemMasterLink | null
+  /** Multi-rubro: ítem que viene del catálogo comercial (se edita en el catálogo, no en la carta). */
+  catalogLink?: IMenuItemCatalogLink | null
 }
 
 export interface IMenuSubCategory {
@@ -205,6 +226,8 @@ export interface IMenuCategory {
   clubCardAfter?: boolean
   /** Categoría de la carta central del grupo a la que corresponde (F3). */
   masterCategoryKey?: string | null
+  /** Multi-rubro: categoría creada por la proyección del catálogo comercial. */
+  catalogCategory?: boolean
 }
 
 export interface IMenu extends Document {
@@ -243,6 +266,8 @@ const MenuItemVariantSchema = new Schema<IMenuItemVariant>({
   /** @storedAs cents */
   takeawayOriginalPrice: { type: Number, min: 0 },
   customizationGroups: { type: [CustomizationGroupSchema], default: [] },
+  // Multi-rubro: variante del catálogo comercial (null = variante propia de la carta).
+  variantId: { type: String, default: undefined },
 }, { _id: true })
 
 // Se agregan los campos después de que ambos schemas existen (resuelve la referencia circular opción ↔ grupo)
@@ -413,6 +438,20 @@ const MenuItemSchema = new Schema<IMenuItem>({
     },
     default: null,
   },
+  // Multi-rubro: ítem proyectado desde el catálogo comercial (null = de la carta).
+  catalogLink: {
+    type: {
+      _id: false,
+      productId: { type: String, required: true },
+      defaultVariantId: { type: String, default: null },
+      kind: { type: String, default: 'product' },
+      brand: { type: String, default: '' },
+      model: { type: String, default: '' },
+      specs: { type: [{ _id: false, name: String, value: String }], default: [] },
+      syncedAt: { type: Date, required: true },
+    },
+    default: undefined,
+  },
 })
 
 const MenuSubCategorySchema = new Schema<IMenuSubCategory>({
@@ -514,6 +553,8 @@ const MenuCategorySchema = new Schema<IMenuCategory>({
   clubCardAfter: { type: Boolean, default: false },
   // F3: categoría de la carta central del grupo a la que corresponde.
   masterCategoryKey: { type: String, default: null },
+  // Multi-rubro: categoría que crea y mantiene la proyección del catálogo.
+  catalogCategory: { type: Boolean, default: undefined },
 })
 
 const MenuSchema = new Schema<IMenu>(

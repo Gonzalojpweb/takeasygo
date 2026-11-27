@@ -28,10 +28,18 @@ export interface ISelectedVariant {
   takeawayPrice?: number
   /** Precio business de esta variante en centavos. @storedAs cents */
   businessPrice?: number
+  /** Multi-rubro: identificador estable de la variante del catálogo comercial. */
+  variantId?: string | null
 }
 
 export interface IOrderItem {
   menuItemId?: mongoose.Types.ObjectId
+  /** Multi-rubro: producto del catálogo comercial (null = plato de la carta). */
+  catalogProductId?: string | null
+  /** Multi-rubro: variante del catálogo vendida (también para productos sin selector). */
+  catalogVariantId?: string | null
+  /** Multi-rubro: qué se vendió. Ausente = plato (todo lo anterior). */
+  itemKind?: 'dish' | 'product' | 'service'
   promotionId?: string
   storeItemId?: mongoose.Types.ObjectId
   comboId?: string
@@ -553,6 +561,7 @@ const SelectedVariantSchema = new Schema<ISelectedVariant>({
   takeawayPrice: { type: Number },
   /** @storedAs cents */
   businessPrice: { type: Number },
+  variantId: { type: String, default: undefined },
 }, { _id: false })
 
 // Schemas circulares para subGroups (misma técnica que Menu.ts)
@@ -575,6 +584,10 @@ const OrderItemSchema = new Schema<IOrderItem>({
     type: Schema.Types.ObjectId,
     default: null,
   },
+  // Multi-rubro (catálogo comercial). Ausentes en los platos.
+  catalogProductId: { type: String, default: undefined },
+  catalogVariantId: { type: String, default: undefined },
+  itemKind: { type: String, enum: ['dish', 'product', 'service'], default: undefined },
   promotionId: {
     type: String,
     default: null,
