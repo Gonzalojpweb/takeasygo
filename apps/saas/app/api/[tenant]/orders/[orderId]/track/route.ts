@@ -13,6 +13,7 @@ import { findMpAccountById, getActiveMpAccount } from '@/lib/mercadopago'
 import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { runAfterResponse } from '@/lib/after-response'
 import { shouldSyncTrip, syncRapiboyTrip } from '@/lib/rapiboy/trips'
+import { networkBenefitForTracking } from '@/lib/network/pilot'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
 const mpStatusCache = new Map<string, { status: string; timestamp: number }>()
@@ -139,6 +140,11 @@ export async function POST(
         }))
       }
 
+      // Red de beneficios (etapa 4): beneficio entregado con este pedido (piloto).
+      const networkBenefit = ['confirmed', 'preparing', 'ready', 'en_ruta', 'arrived', 'delivered'].includes(currentStatus)
+        ? await networkBenefitForTracking(String(order._id)).catch(() => null)
+        : null
+
       return NextResponse.json({
         status: currentStatus,
         orderNumber: order.orderNumber,
@@ -187,6 +193,7 @@ export async function POST(
           transferConfirmed: order.payment.transferConfirmed,
         },
         hiddenRewardSummary,
+        networkBenefit,
       }, {
         headers: { 'Cache-Control': 'no-store' },
       })

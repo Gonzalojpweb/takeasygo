@@ -252,6 +252,8 @@ export default function OrderTracker({
   const [surchargeAmount, setSurchargeAmount] = useState(initialSurchargeAmount || 0)
   const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
   const [impactRegistered, setImpactRegistered] = useState(false)
+  // Red de beneficios (etapa 4): beneficio para otro comercio, entregado con este pedido.
+  const [networkBenefit, setNetworkBenefit] = useState<{ title: string; description: string; receiverName: string; url: string | null } | null>(null)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
   const [mercadoPagoId] = useState(initialMercadoPagoId || null)
@@ -443,6 +445,7 @@ export default function OrderTracker({
         setTransferConfirmed(data.payment.transferConfirmed || false)
       }
       if (data.impactRegistered) setImpactRegistered(true)
+      setNetworkBenefit(data.networkBenefit ?? null)
       // Hidden rewards: disparar Redeemed una sola vez cuando status pasa a confirmed+
       if (!redeemedFiredRef.current && data.hiddenRewardSummary?.length > 0 && data.status !== 'awaiting_payment') {
         redeemedFiredRef.current = true
@@ -1320,6 +1323,20 @@ export default function OrderTracker({
         />
       )}
       
+      {/* Red de beneficios: beneficio para usar en otro comercio de la red */}
+      {networkBenefit && status !== 'cancelled' && (
+        <div className="mb-8 rounded-2xl border p-4" style={{ borderColor: primaryColor + '40', backgroundColor: primaryColor + '0d' }}>
+          <p className="text-[11px] font-bold uppercase tracking-wider opacity-70">Beneficio de la red TakeasyGO</p>
+          <p className="mt-1 text-base font-bold">{networkBenefit.title}</p>
+          <p className="text-sm opacity-80">en {networkBenefit.receiverName}{networkBenefit.description ? ` · ${networkBenefit.description}` : ''}</p>
+          {networkBenefit.url && (
+            <a href={networkBenefit.url} className="mt-3 inline-flex min-h-10 items-center rounded-xl px-4 text-sm font-bold text-white" style={{ backgroundColor: primaryColor }}>
+              Usar beneficio
+            </a>
+          )}
+        </div>
+      )}
+
       {/* Estrategia B: Share-to-Earn (UGC) */}
       {loyaltyDiscountAmount > 0 && status !== 'cancelled' && (
         <div className="mb-8">

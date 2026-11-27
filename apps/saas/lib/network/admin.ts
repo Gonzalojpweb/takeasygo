@@ -297,9 +297,24 @@ const campaignSchema = z.object({
   benefitValidityDays: z.number().int().min(1).max(365).optional().default(30),
   allowedEmitterTenantIds: z.array(objectId).max(200).optional().default([]),
   status: z.enum(['draft', 'active', 'paused', 'ended']).optional().default('draft'),
+  // Etapa 4: piloto con grupo de control (lo configura el superadmin).
+  pilot: z.object({
+    enabled: z.boolean(),
+    controlPercent: z.number().min(0).max(90),
+    qrPromoId: objectId.nullable().optional().default(null),
+    windowDays: z.number().int().min(1).max(180).optional().default(30),
+  }).nullable().optional().default(null),
 }).superRefine((c, ctx) => {
   if (c.validTo && c.validTo <= c.validFrom) ctx.addIssue({ code: 'custom', message: 'La fecha de fin tiene que ser posterior al inicio' })
 })
+
+async function checkPilotPromo(receiverTenantId: string, pilot: { enabled: boolean; qrPromoId?: string | null } | null) {
+  if (!pilot?.enabled) return
+  if (!pilot.qrPromoId) throw new NetworkError(400, 'pilot_without_promo', 'Elegí la promo del receptor que hace de beneficio en el piloto')
+  const { default: QrPromo } = await import('@/models/QrPromo')
+  const ok = await QrPromo.exists({ _id: pilot.qrPromoId, tenantId: receiverTenantId })
+  if (!ok) throw new NetworkError(400, 'pilot_promo_invalid', 'La promo elegida no es del comercio receptor')
+}
 
 async function checkCampaignEmitters(receiverTenantId: string, emitterIds: string[]) {
   if (emitterIds.length === 0) return
@@ -316,6 +331,7 @@ export async function createCampaign(raw: unknown, actor: NetworkActor) {
   if (!member) throw new NetworkError(409, 'not_member', 'El comercio no está en la red')
   if (!member.canReceive) throw new NetworkError(409, 'cannot_receive', 'El comercio no tiene habilitado recibir beneficios')
   await checkCampaignEmitters(input.receiverTenantId, input.allowedEmitterTenantIds)
+  await checkPilotPromo(input.receiverTenantId, input.pilot)
   const campaign = await NetworkCampaign.create({ ...input, createdBy: actor.name })
   await audit(actor, 'campaign_created', String(campaign._id), { receiverTenantId: input.receiverTenantId, title: input.title, status: input.status })
   return campaign
@@ -328,6 +344,16 @@ export async function updateCampaign(campaignId: string, raw: unknown, actor: Ne
   // El receptor de una campaña no cambia (los beneficios ya emitidos lo usan).
   const input = parse(campaignSchema, { ...(raw as object), receiverTenantId: String(existing.receiverTenantId) })
   await checkCampaignEmitters(String(existing.receiverTenantId), input.allowedEmitterTenantIds)
+  await checkPilotPromo(String(existing.receiverTenantId), input.pilot)
+  // El % de control no cambia con el piloto en marcha: las asignaciones ya
+  // hechas quedan como estaban (persistentes) y mezclar % sesga la medición.
+  const prevPilot = (existing.toObject() as { pilot?: { enabled?: boolean; controlPercent?: number } | null }).pilot
+  if (prevPilot?.enabled && input.pilot?.enabled && prevPilot.controlPercent !== input.pilot.controlPercent) {
+    const { default: NetworkPilotAssignment } = await import('@/models/NetworkPilotAssignment')
+    if (await NetworkPilotAssignment.exists({ campaignId })) {
+      throw new NetworkError(409, 'pilot_running', 'El piloto ya tiene consumidores asignados: el % de control no se puede cambiar')
+    }
+  }
   existing.set({ ...input, receiverTenantId: existing.receiverTenantId })
   await existing.save()
   await audit(actor, 'campaign_updated', campaignId, { status: input.status, title: input.title })

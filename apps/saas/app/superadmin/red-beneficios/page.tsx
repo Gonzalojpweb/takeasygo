@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import QrPromo from '@/models/QrPromo'
 import { networkOverview } from '@/lib/network/admin'
 import NetworkAdmin from '@/components/superadmin/NetworkAdmin'
 
@@ -12,6 +13,11 @@ export default async function RedBeneficiosPage() {
     networkOverview(),
     Tenant.find({ status: { $in: ['active', 'paused'] } }).select('name slug vertical').sort({ name: 1 }).lean<Array<{ _id: unknown; name: string; slug: string; vertical?: string }>>(),
   ])
+  // Promos de los comercios de la red (el piloto reusa un QrPromo del receptor).
+  const memberTenantIds = (overview.members as Array<{ tenantId: unknown }>).map(m => m.tenantId)
+  const promos = memberTenantIds.length
+    ? await QrPromo.find({ tenantId: { $in: memberTenantIds }, scope: 'tenant' }).select('tenantId slug title discountPercentage isEnabled').lean<Array<{ _id: unknown; tenantId: unknown; slug: string; title: string; discountPercentage: number; isEnabled: boolean }>>()
+    : []
 
   return (
     <div className="space-y-6">
@@ -25,6 +31,7 @@ export default async function RedBeneficiosPage() {
       <NetworkAdmin
         initial={JSON.parse(JSON.stringify(overview))}
         allTenants={tenants.map(t => ({ id: String(t._id), name: t.name, slug: t.slug, vertical: t.vertical ?? 'gastronomia' }))}
+        promos={promos.map(p => ({ id: String(p._id), tenantId: String(p.tenantId), slug: p.slug, title: p.title, discountPercentage: p.discountPercentage, isEnabled: p.isEnabled }))}
       />
     </div>
   )
