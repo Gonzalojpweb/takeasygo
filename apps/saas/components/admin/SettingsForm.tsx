@@ -3464,6 +3464,7 @@ function LocationCommercialSettings({ locationId, tenantSlug, initial, tenantSur
   const [kriptonOff, setKriptonOff] = useState(initial?.kriptonEnabled === false)
   const [clubDiscountOff, setClubDiscountOff] = useState(initial?.clubDiscountEnabled === false)
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
   const methods: SurchargeKey[] = kriptonAvailable ? ['mercadopago', 'kripton', 'transfer'] : ['mercadopago', 'transfer']
   const hasOverride = Object.values(fees).some(v => v.trim() !== '') || kriptonOff || clubDiscountOff
@@ -3500,6 +3501,9 @@ function LocationCommercialSettings({ locationId, tenantSlug, initial, tenantSur
         const data = await res.json().catch(() => ({}))
         throw new Error(data.error || 'Error')
       }
+      // Refresca los datos de la página: si no, al volver a esta sección se
+      // veían los valores de antes de guardar (28/11/2026).
+      router.refresh()
       toast.success('Recargos y descuentos de la sede guardados')
     } catch (e) {
       toast.error(e instanceof Error && e.message ? e.message : 'Error al guardar los recargos de la sede')
