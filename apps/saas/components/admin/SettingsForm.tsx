@@ -54,6 +54,8 @@ interface Props {
   role?: string
   /** % de comisión de transferencia que paga el cliente en delivery (comercio o default de plataforma). */
   effectiveTransferCommissionPercent?: number
+  /** % de TakeasyGO en Mercado Pago que realmente se cobra (propio o global). */
+  effectiveMpCommissionPercent?: number
 }
 
 /** Texto de ayuda siempre visible bajo un campo, en lenguaje simple. */
@@ -61,7 +63,7 @@ function FieldHelp({ children }: { children: string }) {
   return <p className="text-[10px] leading-snug text-muted-foreground/60 mt-1.5">{children}</p>
 }
 
-export default function SettingsForm({ tenant, locations, tenantSlug, plan, role, effectiveTransferCommissionPercent }: Props) {
+export default function SettingsForm({ tenant, locations, tenantSlug, plan, role, effectiveTransferCommissionPercent, effectiveMpCommissionPercent }: Props) {
   const router = useRouter()
   const canManageSensitiveSettings = role === 'admin' || role === 'superadmin'
   const [loading, setLoading] = useState(false)
@@ -2200,7 +2202,7 @@ export default function SettingsForm({ tenant, locations, tenantSlug, plan, role
                 <PaymentSurchargeSettings
                   tenantSlug={tenantSlug}
                   initialSurcharges={tenant.paymentSurcharges}
-                  takeasygoFeePercent={tenant.mpOAuth?.commissionPercent ?? 1}
+                  takeasygoFeePercent={effectiveMpCommissionPercent ?? tenant.mpOAuth?.commissionPercent ?? 1}
                   transferPlatformFeePercent={effectiveTransferCommissionPercent ?? tenant.transfer?.commissionPercent ?? 0}
                 />
               </div>

@@ -35,7 +35,6 @@ export async function PUT(
     // podría pisar mpAccounts/mercadopago/mpOAuth y robar los cobros.
     const ALLOWED_FLAT_FIELDS = new Set([
       'name', 'slug', 'plan', 'isActive', 'isOperational', 'alwaysVisible',
-      'takeasygoCommissionOverride',
     ])
     const updateSet: Record<string, any> = {}
     for (const key of Object.keys(flatBody)) {
@@ -93,6 +92,11 @@ export async function PUT(
       if (loyaltyMessaging.successTitle !== undefined) updateSet['loyaltyMessaging.successTitle'] = loyaltyMessaging.successTitle
       if (loyaltyMessaging.successMessage !== undefined) updateSet['loyaltyMessaging.successMessage'] = loyaltyMessaging.successMessage
       if (loyaltyMessaging.welcomePointsMsg !== undefined) updateSet['loyaltyMessaging.welcomePointsMsg'] = loyaltyMessaging.welcomePointsMsg
+    }
+    // Comisión propia del comercio: null = usa el global; si no, 0–100.
+    const badPercent = (v: unknown) => v !== null && (!Number.isFinite(Number(v)) || Number(v) < 0 || Number(v) > 100)
+    if ((commissionPercent !== undefined && badPercent(commissionPercent)) || (transferCommissionPercent !== undefined && badPercent(transferCommissionPercent))) {
+      return NextResponse.json({ error: 'La comisión tiene que ser un número entre 0 y 100 (o vacía para usar el global)' }, { status: 400 })
     }
     if (commissionPercent !== undefined) {
       updateSet['mpOAuth.commissionPercent'] = commissionPercent === null ? null : Number(commissionPercent)

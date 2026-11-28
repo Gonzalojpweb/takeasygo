@@ -28,6 +28,44 @@
 //     decisión del dueño: el envío suma en todos los medios; lib/pricing).
 // ============================================================================
 
+// ── Mercado Pago / Kripton: % propio del comercio o global ─────────────────
+// 28/11/2026: el % que carga el superadmin en el comercio (mpOAuth.
+// commissionPercent) MANDA; vacío (null) = el global de la plataforma
+// (platformFees.takeasygoCommissionPercent). Antes los comercios con cuentas
+// MP en formato nuevo (mpAccounts) cobraban SIEMPRE el global y el % propio se
+// ignoraba. Una sola función para el split (marketplace_fee), el precio que ve
+// el cliente y la pantalla del superadmin.
+
+export type CommissionSource = 'tenant' | 'global'
+
+/** % propio del comercio para MP/Kripton, o null si no tiene (usa el global). */
+export function ownMpCommissionPercent(tenant: { mpOAuth?: { commissionPercent?: number | null } | null } | null | undefined): number | null {
+  const raw = tenant?.mpOAuth?.commissionPercent
+  if (raw === null || raw === undefined) return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : null
+}
+
+/** % que se cobra en MP/Kripton y de dónde sale. */
+export function resolveMpCommission(
+  tenant: { mpOAuth?: { commissionPercent?: number | null } | null } | null | undefined,
+  platform: { platformFees?: { takeasygoCommissionPercent?: number | null } | null } | null | undefined,
+): { percent: number; source: CommissionSource } {
+  const own = ownMpCommissionPercent(tenant)
+  if (own !== null) return { percent: own, source: 'tenant' }
+  return { percent: platform?.platformFees?.takeasygoCommissionPercent ?? 1, source: 'global' }
+}
+
+/** % de transferencia y de dónde sale (propio solo si es > 0; ver transferPercent). */
+export function resolveTransferCommission(
+  tenant: { transfer?: { commissionPercent?: number | null } | null } | null | undefined,
+  platform: { platformFees?: { takeasygoTransferCommissionPercent?: number | null } | null } | null | undefined,
+): { percent: number; source: CommissionSource } {
+  const own = tenant?.transfer?.commissionPercent ?? 0
+  if (own > 0) return { percent: own, source: 'tenant' }
+  return { percent: platform?.platformFees?.takeasygoTransferCommissionPercent ?? 0, source: 'global' }
+}
+
 export const MANUAL_COMMISSION_METHODS = ['cash', 'transfer'] as const
 export type ManualCommissionMethod = (typeof MANUAL_COMMISSION_METHODS)[number]
 

@@ -26,9 +26,79 @@ const PLAN_FEATURES_SHORT: Record<Plan, string[]> = {
 interface Props {
   tenant: any
   adminEmail: string | null
+  /** % globales de la plataforma (PlatformConfig.platformFees), para mostrar qué se cobra sin % propio. */
+  globalFees?: { mp: number; transfer: number }
 }
 
-export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }: Props) {
+const fmtPercent = (n: number) => `${n.toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`
+
+/**
+ * Un % de comisión con la explicación de qué se cobra HOY: el propio del
+ * comercio o el global. Se actualiza mientras se escribe.
+ */
+function CommissionField({ title, hint, value, onChange, globalPercent, zeroIsGlobal }: {
+  title: string
+  hint: string
+  value: string | number
+  onChange: (v: string) => void
+  globalPercent: number
+  /** Transferencia: 0 cuenta como «sin % propio» (usa el global). */
+  zeroIsGlobal: boolean
+}) {
+  const raw = String(value ?? '').trim()
+  const n = raw === '' ? null : Number(raw.replace(',', '.'))
+  const invalid = n !== null && (!Number.isFinite(n) || n < 0 || n > 100)
+  const own = n !== null && !invalid && !(zeroIsGlobal && n === 0)
+  const effective = own ? (n as number) : globalPercent
+  return (
+    <div className="rounded-2xl border-2 border-border/40 bg-muted/30 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-semibold text-foreground">{title}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{hint}</p>
+      </div>
+      <div className="flex items-center gap-3">
+        <div className="relative w-28">
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step={0.1}
+            inputMode="decimal"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={`${String(globalPercent).replace('.', ',')} (global)`}
+            aria-label={`Comisión ${title} (%)`}
+            className={cn(
+              'w-full bg-background border-2 rounded-xl pl-3 pr-7 py-2 text-sm font-mono outline-none transition-all',
+              invalid ? 'border-red-500/60' : 'border-border/60 focus:border-primary/40'
+            )}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+        </div>
+        {raw !== '' && (
+          <button type="button" onClick={() => onChange('')} className="text-[11px] font-medium text-primary hover:underline">
+            Usar el global
+          </button>
+        )}
+      </div>
+      {invalid ? (
+        <p className="text-[11px] font-medium text-red-500">Tiene que ser un número entre 0 y 100.</p>
+      ) : (
+        <div className={cn(
+          'rounded-xl px-3 py-2 text-[12px] leading-snug',
+          own ? 'bg-primary/10 text-foreground' : 'bg-background/60 text-muted-foreground'
+        )}>
+          Se cobra <strong className="text-foreground">{fmtPercent(effective)}</strong>{' '}
+          {own
+            ? <>· <strong className="text-primary">propio de este comercio</strong>: no cambia si se modifica el global.</>
+            : <>· <strong>global</strong> de la plataforma{zeroIsGlobal ? ' (vacío o 0 = global)' : ''}: si se cambia el global, este comercio cambia con él.</>}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail, globalFees = { mp: 1, transfer: 0 } }: Props) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -91,7 +161,6 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
     promotionLabelAnnouncement: tenant.promotionLabels?.announcement ?? 'AVISO',
     promotionLabelLoyalty: tenant.promotionLabels?.loyalty ?? 'CLUB',
     commissionPercent: tenant.mpOAuth?.commissionPercent ?? '',
-    takeasygoCommissionOverride: tenant.takeasygoCommissionOverride ?? '',
     transferCommissionPercent: tenant.transfer?.commissionPercent ?? '',
     transferEnabled: tenant.transfer?.enabled ?? false,
     // Mensajes del modal de Club
@@ -120,7 +189,6 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
           verticalSelection: verticalValue,
           sosMaxLimit: form.sosMaxLimit,
           commissionPercent: form.commissionPercent === '' ? null : Number(form.commissionPercent),
-          takeasygoCommissionOverride: form.takeasygoCommissionOverride === '' ? null : Number(form.takeasygoCommissionOverride),
           transferCommissionPercent: form.transferCommissionPercent === '' ? null : Number(form.transferCommissionPercent),
           transferEnabled: form.transferEnabled,
           promotionLabels: {
@@ -296,51 +364,44 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
               })()}
             </div>
 
-            {/* Comisión por tenant */}
-            <div className="pt-6 border-t border-border/40">
-              <div className="flex items-center gap-3 mb-4">
-                <CreditCard size={16} className="text-primary" />
+            {/* ── Comisiones de TakeasyGO (28/11/2026) ─────────────────
+                Propio del comercio si se carga; vacío = global de la plataforma. */}
+            <div className="pt-6 border-t border-border/40 space-y-4">
+              <div className="flex items-start gap-3">
+                <CreditCard size={16} className="text-primary mt-0.5" />
                 <div>
-                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Comisión por split</span>
-                  <p className="text-xs text-muted-foreground mt-0.5">Porcentaje de comisión que cobra la plataforma. Vacío = usar el valor global de PlatformConfig.</p>
+                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Comisión de TakeasyGO para este comercio</span>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+                    Cada medio de pago usa el <strong className="text-foreground">porcentaje de este comercio</strong> si lo cargás.
+                    Si lo dejás <strong className="text-foreground">vacío</strong>, usa el <strong className="text-foreground">global</strong> de la plataforma
+                    (Superadmin → Configuración) y sigue los cambios que hagas ahí.
+                  </p>
                 </div>
               </div>
-              <div className="max-w-[200px]">
-                <label className="text-[10px] font-bold text-muted-foreground/60 block mb-1">Comisión %</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={form.commissionPercent}
-                  onChange={e => setForm(p => ({ ...p, commissionPercent: e.target.value }))}
-                  placeholder="Global"
-                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
-                />
-              </div>
-            </div>
 
-            {/* ── TakeasyGO commission override ───────────────────── */}
-            <div className="flex items-center justify-between p-5 bg-muted/30 border-2 border-border/40 rounded-[2rem]">
-              <div className="flex items-center gap-3">
-                <Percent size={16} className="text-muted-foreground/50" />
-                <div>
-                  <span className="text-[10px] uppercase font-black tracking-[0.2em] text-muted-foreground/50">Comisión TakeasyGO</span>
-                  <p className="text-xs text-muted-foreground mt-0.5">Override de la comisión global. Vacío = usar valor global.</p>
-                </div>
-              </div>
-              <div className="max-w-[140px]">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.1}
-                  value={form.takeasygoCommissionOverride}
-                  onChange={e => setForm(p => ({ ...p, takeasygoCommissionOverride: e.target.value }))}
-                  placeholder="Global"
-                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-primary/40 transition-all"
+              <div className="grid gap-3 md:grid-cols-2">
+                <CommissionField
+                  title="Mercado Pago y Kripton"
+                  hint="Se descuenta sola en cada pago (split)."
+                  value={form.commissionPercent}
+                  onChange={v => setForm(p => ({ ...p, commissionPercent: v }))}
+                  globalPercent={globalFees.mp}
+                  zeroIsGlobal={false}
+                />
+                <CommissionField
+                  title="Transferencia"
+                  hint="Se liquida por semana. En qué pedidos se cobra (delivery, retiro…) se elige en «Comisiones por efectivo y transferencia»."
+                  value={form.transferCommissionPercent}
+                  onChange={v => setForm(p => ({ ...p, transferCommissionPercent: v }))}
+                  globalPercent={globalFees.transfer}
+                  zeroIsGlobal
                 />
               </div>
+
+              <ul className="text-[11px] text-muted-foreground space-y-1 list-disc pl-5">
+                <li>Efectivo: el porcentaje y en qué pedidos se cobra se configuran en «Comisiones por efectivo y transferencia».</li>
+                <li>El cambio vale para los pagos nuevos; los ya cobrados no cambian.</li>
+              </ul>
             </div>
 
             {/* ── Transferencia bancaria ────────────────────────────── */}
@@ -361,20 +422,7 @@ export default function EditTenantForm({ tenant, adminEmail: initialAdminEmail }
                   form.transferEnabled ? 'translate-x-6' : 'translate-x-0.5'
                 )} />
               </button>
-              <div className="flex flex-col gap-2 w-full max-w-[200px]">
-                <label className="text-[10px] font-bold text-muted-foreground/60">Comisión transferencia %</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.transferCommissionPercent}
-                  onChange={e => setForm(p => ({ ...p, transferCommissionPercent: e.target.value }))}
-                  placeholder="Global"
-                  className="w-full bg-muted/40 border-2 border-border/60 rounded-xl px-3 py-2 text-sm font-mono text-center focus:outline-none focus:border-primary/40 transition-all"
-                />
-                <p className="text-[10px] text-muted-foreground/60">Vacío = usar valor global de PlatformConfig</p>
-              </div>
+              <p className="text-[11px] text-muted-foreground">El porcentaje de transferencia está en «Comisión de TakeasyGO para este comercio».</p>
             </div>
 
             {/* Estado del tenant + Features */}

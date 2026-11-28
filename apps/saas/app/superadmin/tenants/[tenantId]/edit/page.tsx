@@ -8,6 +8,7 @@ import MpSplitPanel from '@/components/superadmin/MpSplitPanel'
 import CommissionRulesPanel from '@/components/superadmin/CommissionRulesPanel'
 import ActivationPanel from '@/components/superadmin/ActivationPanel'
 import Location from '@/models/Location'
+import PlatformConfig from '@/models/PlatformConfig'
 import { getActivationStatus } from '@/lib/provisioning/activation'
 
 interface Props {
@@ -22,10 +23,16 @@ export default async function EditTenantPage({ params }: Props) {
   if (!tenant) notFound()
 
   const adminUser = await User.findOne({ tenantId, role: 'admin' }).select('email name').lean() as any
-  const [activation, locations] = await Promise.all([
+  const [activation, locations, platformConfig] = await Promise.all([
     getActivationStatus(tenantId),
     Location.find({ tenantId }).select('name').sort({ createdAt: 1 }).lean<{ _id: unknown; name: string }[]>(),
+    PlatformConfig.findById('platform').select('platformFees').lean<{ platformFees?: { takeasygoCommissionPercent?: number; takeasygoTransferCommissionPercent?: number } }>(),
   ])
+  // Mismos defaults que el cobro (lib/commission-rules → resolveMpCommission / resolveTransferCommission).
+  const globalFees = {
+    mp: platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1,
+    transfer: platformConfig?.platformFees?.takeasygoTransferCommissionPercent ?? 0,
+  }
   const provisioning = (tenant as { provisioning?: { by?: string; at?: Date; rubro?: string; menuSource?: string } }).provisioning
 
   return (
@@ -44,6 +51,7 @@ export default async function EditTenantPage({ params }: Props) {
       <EditTenantForm
         tenant={JSON.parse(JSON.stringify(tenant))}
         adminEmail={adminUser?.email ?? null}
+        globalFees={globalFees}
       />
       <DisplayStudioGrants tenantId={tenantId} />
     </div>
