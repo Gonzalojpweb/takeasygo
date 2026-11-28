@@ -3,6 +3,7 @@ import { decrypt } from '@/lib/crypto'
 import { connectDB } from '@/lib/mongoose'
 import { isFlagEnabled, FLAGS } from '@/lib/feature-flags'
 import Tenant from '@/models/Tenant'
+import { ownMpCommissionPercent } from '@/lib/commission-rules'
 
 /**
  * Resolved MP account for a tenant — either from mpAccounts[] (new) or
@@ -44,7 +45,8 @@ export function getActiveMpAccount(tenant: any): ResolvedMpAccount | null {
         oauthAccessToken: active.oauthAccessToken ?? null,
         oauthIsConnected: !!active.oauthIsConnected,
         oauthExpiresAt: active.oauthExpiresAt ?? null,
-        commissionPercent: null, // global for now
+        // % propio del comercio (superadmin); null = global. Ver resolveMpCommission.
+        commissionPercent: ownMpCommissionPercent(tenant),
         label: active.label,
       }
     }
@@ -62,7 +64,7 @@ export function getActiveMpAccount(tenant: any): ResolvedMpAccount | null {
       oauthAccessToken: tenant.mpOAuth?.accessToken ?? null,
       oauthIsConnected: !!tenant.mpOAuth?.isConnected,
       oauthExpiresAt: tenant.mpOAuth?.expiresAt ?? null,
-      commissionPercent: tenant.mpOAuth?.commissionPercent ?? null,
+      commissionPercent: ownMpCommissionPercent(tenant),
       label: 'Cuenta Principal',
     }
   }
@@ -131,7 +133,7 @@ export function getMpAccountForLocation(
       oauthAccessToken: match.oauthAccessToken ?? null,
       oauthIsConnected: !!match.oauthIsConnected,
       oauthExpiresAt: match.oauthExpiresAt ?? null,
-      commissionPercent: null,
+      commissionPercent: ownMpCommissionPercent(tenant),
       label: match.label,
     }
   }
@@ -161,7 +163,7 @@ export function findMpAccountById(
     oauthAccessToken: match.oauthAccessToken ?? null,
     oauthIsConnected: !!match.oauthIsConnected,
     oauthExpiresAt: match.oauthExpiresAt ?? null,
-    commissionPercent: null,
+    commissionPercent: ownMpCommissionPercent(tenant),
     label: match.label,
   }
 }

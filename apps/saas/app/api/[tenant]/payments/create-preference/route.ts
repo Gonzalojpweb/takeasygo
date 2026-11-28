@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { rateLimit } from '@/lib/rateLimit'
 import { createPaymentPreferenceSchema } from '@/lib/schemas'
 import { calculateFinalTotal } from '@/lib/pricing'
+import { resolveMpCommission } from '@/lib/commission-rules'
 import { revertRewardRedemptions } from '@/lib/loyalty'
 import { toPesos } from '@takeasygo/business'
 import { getMpAccountForLocation, isOAuthValid } from '@/lib/mercadopago'
@@ -68,9 +69,9 @@ if (!success) {
     }
 
     // Calcular marketplace_fee consistente con orders/route.ts
-    const platformFeePercent = (oauthValid && account.commissionPercent != null)
-      ? account.commissionPercent
-      : (platformConfig?.platformFees?.takeasygoCommissionPercent ?? 1)
+    // % propio del comercio (superadmin) o global: misma regla que el precio
+    // que vio el cliente (lib/pricing → resolveMpCommission).
+    const platformFeePercent = resolveMpCommission(tenant, platformConfig).percent
     const pricingTenant = withLocationCommercialSettings(tenant.toObject ? tenant.toObject() : tenant, locationSettings)
     const pricing = calculateFinalTotal(
       order.payment.baseTotal || order.total, 'mercadopago', pricingTenant, platformConfig || {}, platformFeePercent,

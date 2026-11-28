@@ -2,6 +2,7 @@ import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
 import Location from '@/models/Location'
 import PlatformConfig from '@/models/PlatformConfig'
+import { resolveMpCommission, resolveTransferCommission } from '@/lib/commission-rules'
 import { headers } from 'next/headers'
 import { notFound, redirect } from 'next/navigation'
 import { getAdminSession } from '@/lib/tenant-access'
@@ -44,11 +45,11 @@ export default async function SettingsPage() {
   // % de comisión de transferencia que REALMENTE se le cobra al cliente en
   // delivery: el del comercio si tiene uno, si no el default de la plataforma
   // (lib/pricing.ts). La vista previa de recargos tiene que mostrar este.
-  const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean<{ platformFees?: { takeasygoTransferCommissionPercent?: number } }>()
-  const tenantTransfer = (tenant as unknown as { transfer?: { commissionPercent?: number | null } }).transfer
-  const effectiveTransferCommissionPercent = (tenantTransfer?.commissionPercent ?? 0) > 0
-    ? tenantTransfer!.commissionPercent!
-    : (platformConfig?.platformFees?.takeasygoTransferCommissionPercent ?? 0)
+  const platformConfig = await PlatformConfig.findById('platform').select('platformFees').lean<{ platformFees?: { takeasygoCommissionPercent?: number; takeasygoTransferCommissionPercent?: number } }>()
+  const commissionTenant = tenant as unknown as { transfer?: { commissionPercent?: number | null }; mpOAuth?: { commissionPercent?: number | null } }
+  const effectiveTransferCommissionPercent = resolveTransferCommission(commissionTenant, platformConfig).percent
+  // Mercado Pago: mismo criterio que el cobro (propio del comercio o global).
+  const effectiveMpCommissionPercent = resolveMpCommission(commissionTenant, platformConfig).percent
 
   return (
     <div>
@@ -60,6 +61,7 @@ export default async function SettingsPage() {
         plan={plan}
         role={role}
         effectiveTransferCommissionPercent={effectiveTransferCommissionPercent}
+        effectiveMpCommissionPercent={effectiveMpCommissionPercent}
       />
     </div>
   )

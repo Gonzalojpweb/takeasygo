@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { calculateFinalTotal, getTotalFeesForMethod } from '@/lib/pricing'
+import { resolveMpCommission, resolveTransferCommission } from '@/lib/commission-rules'
+import { getActiveMpAccount } from '@/lib/mercadopago'
 
 const platformConfig = {
   platformFees: { takeasygoCommissionPercent: 1, takeasygoTransferCommissionPercent: 0 },
@@ -130,3 +132,34 @@ describe('calculateFinalTotal - mercadopago (sin cambios)', () => {
   })
 })
 
+
+// 28/11/2026: el % propio del comercio manda en MP aunque use cuentas en
+// formato nuevo (antes se cobraba siempre el global).
+describe('comisión de Mercado Pago: propia del comercio o global', () => {
+  const pc = { platformFees: { takeasygoCommissionPercent: 1.5, takeasygoTransferCommissionPercent: 1.5 } }
+
+  it('con % propio cobra ese %, aunque el flag viejo mpOAuth.isConnected esté en false', () => {
+    const t = { mpOAuth: { isConnected: false, commissionPercent: 2 } }
+    expect(resolveMpCommission(t, pc)).toEqual({ percent: 2, source: 'tenant' })
+    const fee = calculateFinalTotal(100000, 'mercadopago', t, pc, undefined, 'takeaway').platformFeeAmount
+    expect(fee).toBe(calculateFinalTotal(100000, 'mercadopago', {}, pc, 2, 'takeaway').platformFeeAmount)
+    expect(fee).toBeGreaterThan(calculateFinalTotal(100000, 'mercadopago', {}, pc, undefined, 'takeaway').platformFeeAmount)
+  })
+
+  it('vacío usa el global; 0 propio es 0 % (no global)', () => {
+    expect(resolveMpCommission({ mpOAuth: { commissionPercent: null } }, pc)).toEqual({ percent: 1.5, source: 'global' })
+    expect(resolveMpCommission({}, pc)).toEqual({ percent: 1.5, source: 'global' })
+    expect(resolveMpCommission({ mpOAuth: { commissionPercent: 0 } }, pc)).toEqual({ percent: 0, source: 'tenant' })
+  })
+
+  it('la cuenta MP resuelta lleva el % propio (split = precio que vio el cliente)', () => {
+    const tenant = { mpOAuth: { commissionPercent: 2 }, mpAccounts: [{ _id: 'a1', isActive: true, accessToken: 'x', publicKey: 'y', oauthIsConnected: true, label: 'Principal' }] }
+    expect(getActiveMpAccount(tenant)?.commissionPercent).toBe(2)
+    expect(getActiveMpAccount({ ...tenant, mpOAuth: {} })?.commissionPercent).toBeNull()
+  })
+
+  it('transferencia: propio si es > 0; vacío o 0 = global', () => {
+    expect(resolveTransferCommission({ transfer: { commissionPercent: 2 } }, pc)).toEqual({ percent: 2, source: 'tenant' })
+    expect(resolveTransferCommission({ transfer: { commissionPercent: 0 } }, pc)).toEqual({ percent: 1.5, source: 'global' })
+  })
+})

@@ -1,4 +1,4 @@
-import { resolveManualCommission, type ManualCommissionMethod, type TenantCommissionInput } from '@/lib/commission-rules'
+import { resolveManualCommission, resolveMpCommission, type ManualCommissionMethod, type TenantCommissionInput } from '@/lib/commission-rules'
 
 export interface PricingResult {
   baseTotal: number
@@ -71,9 +71,10 @@ function getPlatformFeePercent(
     return resolveManualCommission(paymentMethod, orderMode, tenant, platformConfig).percent
   }
 
-  return (tenant.mpOAuth?.isConnected && tenant.mpOAuth?.commissionPercent != null)
-    ? tenant.mpOAuth.commissionPercent!
-    : (platformConfig.platformFees?.takeasygoCommissionPercent ?? 1)
+  // MP / Kripton: % propio del comercio si el superadmin lo cargó; si no, el
+  // global. (Antes exigía mpOAuth.isConnected, el flag VIEJO: los comercios con
+  // cuentas en formato nuevo cobraban siempre el global.)
+  return resolveMpCommission(tenant, platformConfig).percent
 }
 
 export function getTotalFeesForMethod(
