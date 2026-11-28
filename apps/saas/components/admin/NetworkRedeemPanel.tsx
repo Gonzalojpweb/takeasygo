@@ -14,8 +14,13 @@ interface Preview { title: string; purchaseTotalCents: number; discountCents: nu
 interface Redemption {
   id: string; type: 'commission' | 'reversal'; createdAt: string; title: string; ref: string
   purchaseTotalCents: number; discountCents: number; discountedTotalCents: number; commissionCents: number; commissionPercent: number
-  saleRef: string; reversed: boolean; reason: string; settlement: 'pending'
+  saleRef: string; reversed: boolean; reason: string; settlement: 'pending' | 'settled' | 'paid'
 }
+interface Account {
+  debtCents: number; accruedCents: number
+  settlements: Array<{ id: string; periodStart: string; periodEnd: string; status: string; entries: number; commissionCents: number; dueCents: number; paidCents: number }>
+}
+const SETTLEMENT_LABEL: Record<string, string> = { issued: 'Emitida', partially_paid: 'Pago parcial', paid: 'Pagada', void: 'Anulada' }
 
 const field = 'w-full min-h-11 rounded-lg border border-border bg-background px-3 text-base text-foreground outline-none focus:border-primary'
 const pesos = (c: number) => `$${(c / 100).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`
@@ -29,6 +34,7 @@ export default function NetworkRedeemPanel({ tenantSlug, canManage, canReverse }
   const [done, setDone] = useState<Preview | null>(null)
   const [busy, setBusy] = useState(false)
   const [list, setList] = useState<Redemption[]>([])
+  const [account, setAccount] = useState<Account | null>(null)
   const requestId = useRef<string>('')
   const codeRef = useRef<HTMLInputElement>(null)
 
@@ -37,6 +43,8 @@ export default function NetworkRedeemPanel({ tenantSlug, canManage, canReverse }
     const res = await fetch(`/api/${tenantSlug}/network/redemptions`, { cache: 'no-store' })
     const data = await res.json().catch(() => ({}))
     if (res.ok) setList(data.redemptions)
+    const acc = await fetch(`/api/${tenantSlug}/network/settlements`, { cache: 'no-store' })
+    if (acc.ok) setAccount(await acc.json())
   }, [tenantSlug, canManage])
 
   useEffect(() => { void loadList(); codeRef.current?.focus() }, [loadList])
@@ -118,6 +126,38 @@ export default function NetworkRedeemPanel({ tenantSlug, canManage, canReverse }
         )}
       </div>
 
+      {canManage && account && (
+        <div>
+          <h2 className="mb-2 text-lg font-bold">Cuenta corriente de comisiones de red</h2>
+          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-border p-3"><div className="text-xs text-muted-foreground">A pagar (liquidaciones emitidas)</div><div className="text-xl font-bold">{pesos(account.debtCents)}</div></div>
+            <div className="rounded-xl border border-border p-3"><div className="text-xs text-muted-foreground">Devengado esta semana (se liquida el lunes)</div><div className="text-xl font-bold">{pesos(account.accruedCents)}</div></div>
+          </div>
+          {account.settlements.length > 0 && (
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                  <tr><th className="px-3 py-2">Semana</th><th className="px-3 py-2">Canjes</th><th className="px-3 py-2">Comisión</th><th className="px-3 py-2">A transferir</th><th className="px-3 py-2">Pagado</th><th className="px-3 py-2">Estado</th></tr>
+                </thead>
+                <tbody>
+                  {account.settlements.map(s => (
+                    <tr key={s.id} className="border-t border-border">
+                      <td className="px-3 py-2 whitespace-nowrap">{new Date(s.periodStart).toLocaleDateString('es-AR')}</td>
+                      <td className="px-3 py-2">{s.entries}</td>
+                      <td className="px-3 py-2">{pesos(s.commissionCents)}</td>
+                      <td className="px-3 py-2">{pesos(s.dueCents)}</td>
+                      <td className="px-3 py-2">{pesos(s.paidCents)}</td>
+                      <td className="px-3 py-2 text-xs">{SETTLEMENT_LABEL[s.status] ?? s.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-muted-foreground">Si la deuda supera el límite de tu acuerdo, tu comercio deja de recibir beneficios nuevos de la red hasta regularizar. Tu POS y tus ventas no se afectan.</p>
+        </div>
+      )}
+
       {canManage && (
         <div>
           <h2 className="mb-2 text-lg font-bold">Canjes en tu comercio</h2>
@@ -136,7 +176,7 @@ export default function NetworkRedeemPanel({ tenantSlug, canManage, canReverse }
                       <td className="px-3 py-2">{pesos(r.discountCents)}</td>
                       <td className="px-3 py-2 whitespace-nowrap">{pesos(r.commissionCents)} <span className="text-xs text-muted-foreground">({r.commissionPercent}%)</span></td>
                       <td className="px-3 py-2">{r.saleRef || '—'}</td>
-                      <td className="px-3 py-2 text-xs">{r.reversed ? 'Anulado' : 'Pendiente'}</td>
+                      <td className="px-3 py-2 text-xs">{r.reversed ? 'Anulado' : r.settlement === 'paid' ? 'Pagada' : r.settlement === 'settled' ? 'Liquidada' : 'Pendiente'}</td>
                       <td className="px-3 py-2 text-right">{canReverse && r.type === 'commission' && !r.reversed && (
                         <button type="button" onClick={() => reverse(r)} className="rounded-md border border-border px-2 py-1 text-xs">Anular</button>
                       )}</td>

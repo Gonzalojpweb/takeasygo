@@ -56,7 +56,7 @@ async function call(url: string, method: string, body?: unknown) {
 
 export default function NetworkAdmin({ initial, allTenants, promos = [] }: { initial: Overview; allTenants: TenantRef[]; promos?: PromoRef[] }) {
   const [data, setData] = useState<Overview>(initial)
-  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns' | 'pilot' | 'redemptions'>('members')
+  const [tab, setTab] = useState<'members' | 'relations' | 'agreements' | 'campaigns' | 'pilot' | 'redemptions' | 'settlements'>('members')
   const [busy, setBusy] = useState(false)
   const names = useMemo(() => new Map(allTenants.map(t => [t.id, t])), [allTenants])
   const nameOf = (id: Id) => names.get(String(id))?.name ?? 'Comercio'
@@ -90,7 +90,7 @@ export default function NetworkAdmin({ initial, allTenants, promos = [] }: { ini
       <p className="text-xs text-muted-foreground">{data.results.note}</p>
 
       <div className="flex flex-wrap gap-2 border-b border-border pb-2">
-        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas'], ['pilot', 'Piloto'], ['redemptions', 'Canjes']] as const).map(([k, l]) => (
+        {([['members', 'Comercios'], ['relations', 'Relaciones'], ['agreements', 'Acuerdos'], ['campaigns', 'Campañas'], ['pilot', 'Piloto'], ['redemptions', 'Canjes'], ['settlements', 'Liquidaciones']] as const).map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} className={cn(btn, tab === k ? 'bg-primary text-primary-foreground' : 'border border-border')}>{l}</button>
         ))}
         {busy && <Loader2 className="animate-spin self-center" size={16} />}
@@ -102,6 +102,7 @@ export default function NetworkAdmin({ initial, allTenants, promos = [] }: { ini
       {tab === 'campaigns' && <CampaignsTab data={data} members={members} nameOf={nameOf} run={run} promos={promos} />}
       {tab === 'pilot' && <PilotTab data={data} nameOf={nameOf} />}
       {tab === 'redemptions' && <RedemptionsTab nameOf={nameOf} />}
+      {tab === 'settlements' && <SettlementsTab nameOf={nameOf} />}
     </div>
   )
 }
@@ -529,7 +530,7 @@ function PilotTab({ data, nameOf }: { data: Overview; nameOf: (id: Id) => string
 interface RedemptionRow {
   id: string; type: 'commission' | 'reversal'; createdAt: string; emitterTenantId: Id; receiverTenantId: Id; consumer: string
   title: string; ref: string; purchaseTotalCents: number; discountCents: number; commissionCents: number
-  agreementVersion: number | null; commissionPercent: number; saleRef: string; reason: string; settlement: 'pending'
+  agreementVersion: number | null; commissionPercent: number; saleRef: string; reason: string; settlement: 'pending' | 'settled' | 'paid'
 }
 
 function RedemptionsTab({ nameOf }: { nameOf: (id: Id) => string }) {
@@ -556,11 +557,112 @@ function RedemptionsTab({ nameOf }: { nameOf: (id: Id) => string }) {
               <td className="px-3 py-2">{pesos(r.discountCents)}</td>
               <td className="px-3 py-2 whitespace-nowrap">{pesos(r.commissionCents)} <span className="text-xs text-muted-foreground">({r.commissionPercent}%)</span></td>
               <td className="px-3 py-2 text-xs">{r.agreementVersion ? `v${r.agreementVersion}` : 'sin acuerdo'}</td>
-              <td className="px-3 py-2 text-xs">Pendiente</td>
+              <td className="px-3 py-2 text-xs">{r.settlement === 'paid' ? 'Pagada' : r.settlement === 'settled' ? 'Liquidada' : 'Pendiente'}</td>
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+// ─── Liquidaciones (etapa 6) ────────────────────────────────────────────────
+
+interface SettlementRow {
+  id: string; receiverTenantId: Id; periodStart: string; periodEnd: string; status: 'issued' | 'partially_paid' | 'paid' | 'void'
+  entries: number; commissionCents: number; autoCollectedCents: number; dueCents: number; paidCents: number
+  payments: Array<{ at: string; amountCents: number; method: string; reference: string; recordedBy: string }>
+}
+const SETTLEMENT_LABEL: Record<string, string> = { issued: 'Emitida', partially_paid: 'Pago parcial', paid: 'Pagada', void: 'Anulada' }
+
+function SettlementsTab({ nameOf }: { nameOf: (id: Id) => string }) {
+  const [data, setData] = useState<{ settlements: SettlementRow[]; debts: Record<string, number> } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [paying, setPaying] = useState<{ id: string; amount: string; method: 'transfer' | 'cash' | 'other'; reference: string } | null>(null)
+
+  async function load() {
+    try { setData(await call('/api/superadmin/network/settlements', 'GET')) } catch (e) { toast.error((e as Error).message) }
+  }
+  useEffect(() => { void load() }, [])
+
+  async function generate() {
+    setBusy(true)
+    try {
+      const r = await call('/api/superadmin/network/settlements/generate', 'POST', {})
+      toast.success(r.settlements ? `Se emitieron ${r.settlements} liquidaciones (${r.entries} movimientos)` : 'No había comisiones nuevas para liquidar')
+      await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
+  async function pay() {
+    if (!paying) return
+    const cents = toCents(paying.amount)
+    if (!Number.isFinite(cents) || cents <= 0) { toast.error('Ingresá el importe recibido'); return }
+    setBusy(true)
+    try {
+      await call(`/api/superadmin/network/settlements/${paying.id}/payments`, 'POST', { amountCents: cents, method: paying.method, reference: paying.reference })
+      toast.success('Pago registrado')
+      setPaying(null)
+      await load()
+    } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+
+  if (!data) return <p className="text-sm text-muted-foreground">Cargando…</p>
+  const debtors = Object.entries(data.debts).filter(([, d]) => d > 0)
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" disabled={busy} onClick={generate} className={cn(btn, 'bg-primary text-primary-foreground')}>Generar liquidaciones de la semana pasada</button>
+        <p className="text-xs text-muted-foreground">Semanas de lunes a lunes. Un canje entra en una sola liquidación; lo atrasado entra en la próxima.</p>
+      </div>
+      {debtors.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <p className="font-semibold">Deuda vencida</p>
+          {debtors.map(([id, d]) => <p key={id}>{nameOf(id)}: {pesos(d)}</p>)}
+          <p className="mt-1 text-xs">Si supera el umbral del acuerdo, el comercio deja de recibir beneficios nuevos (no se afecta su POS ni sus ventas). Al registrar el pago, se reactiva solo.</p>
+        </div>
+      )}
+      {data.settlements.length === 0 ? <p className="text-sm text-muted-foreground">Todavía no hay liquidaciones.</p> : (
+        <div className="overflow-x-auto rounded-xl border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+              <tr><th className="px-3 py-2">Comercio</th><th className="px-3 py-2">Semana</th><th className="px-3 py-2">Canjes</th><th className="px-3 py-2">Comisión</th><th className="px-3 py-2">A transferir</th><th className="px-3 py-2">Pagado</th><th className="px-3 py-2">Estado</th><th className="px-3 py-2" /></tr>
+            </thead>
+            <tbody>
+              {data.settlements.map(s => (
+                <tr key={s.id} className="border-t border-border align-top">
+                  <td className="px-3 py-2 font-semibold">{nameOf(s.receiverTenantId)}</td>
+                  <td className="px-3 py-2 text-xs whitespace-nowrap">{day(s.periodStart)} → {day(new Date(new Date(s.periodEnd).getTime() - 1).toISOString())}</td>
+                  <td className="px-3 py-2">{s.entries}</td>
+                  <td className="px-3 py-2">{pesos(s.commissionCents)}</td>
+                  <td className="px-3 py-2">{pesos(s.dueCents)}</td>
+                  <td className="px-3 py-2">{pesos(s.paidCents)}{s.payments.length > 0 && <span className="block text-[11px] text-muted-foreground">{s.payments.map(p => `${day(p.at)} ${pesos(p.amountCents)}${p.reference ? ` (${p.reference})` : ''}`).join(' · ')}</span>}</td>
+                  <td className="px-3 py-2 text-xs">{SETTLEMENT_LABEL[s.status] ?? s.status}</td>
+                  <td className="px-3 py-2 text-right">
+                    {(s.status === 'issued' || s.status === 'partially_paid') && (
+                      paying?.id === s.id ? (
+                        <div className="flex flex-col items-end gap-1">
+                          <input className={cn(field, 'w-32')} placeholder="Importe ($)" value={paying.amount} onChange={e => setPaying({ ...paying, amount: e.target.value })} inputMode="decimal" />
+                          <select className={cn(field, 'w-32')} value={paying.method} onChange={e => setPaying({ ...paying, method: e.target.value as 'transfer' | 'cash' | 'other' })}>
+                            <option value="transfer">Transferencia</option><option value="cash">Efectivo</option><option value="other">Otro</option>
+                          </select>
+                          <input className={cn(field, 'w-32')} placeholder="Referencia" value={paying.reference} onChange={e => setPaying({ ...paying, reference: e.target.value })} />
+                          <div className="flex gap-1">
+                            <button type="button" disabled={busy} onClick={pay} className={cn(btn, 'bg-emerald-600 text-white')}>Guardar</button>
+                            <button type="button" onClick={() => setPaying(null)} className={cn(btn, 'border border-border')}>Cancelar</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button type="button" onClick={() => setPaying({ id: s.id, amount: String((s.dueCents - s.paidCents) / 100).replace('.', ','), method: 'transfer', reference: '' })} className={cn(btn, 'border border-border')}>Registrar pago</button>
+                      )
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }

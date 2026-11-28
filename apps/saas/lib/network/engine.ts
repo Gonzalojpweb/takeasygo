@@ -400,13 +400,15 @@ export async function receiverRedemptions(tenantId: string, limit = 200) {
   const benefits = await NetworkBenefit.find({ _id: { $in: entries.map(e => e.benefitId) } }).select('title ref').lean<any[]>()
   const benefitOf = new Map(benefits.map(b => [String(b._id), b]))
   const reversed = new Set(entries.filter(e => e.type === 'reversal').map(e => String(e.reversesId)))
+  const { settlementStatusOf } = await import('./settlements')
+  const settlement = await settlementStatusOf(entries.map(e => e._id))
   return entries.map(e => ({
     id: String(e._id), type: e.type, createdAt: e.createdAt,
     title: benefitOf.get(String(e.benefitId))?.title ?? '', ref: benefitOf.get(String(e.benefitId))?.ref ?? '',
     purchaseTotalCents: e.purchaseTotalCents, discountCents: e.discountCents, discountedTotalCents: e.discountedTotalCents,
     commissionCents: e.commissionCents, commissionPercent: e.commissionPercent, saleRef: e.saleRef,
     reversed: e.type === 'commission' && reversed.has(String(e._id)), reason: e.reason,
-    settlement: 'pending' as const,
+    settlement: settlement.get(String(e._id)) ?? 'pending',
   }))
 }
 
@@ -416,7 +418,9 @@ export async function networkLedgerTotals() {
   const by = Object.fromEntries(rows.map(r => [r._id, r]))
   const redemptions = (by.commission?.count ?? 0) - (by.reversal?.count ?? 0)
   const commission = (by.commission?.commission ?? 0) + (by.reversal?.commission ?? 0)
-  return { redemptions, commissionsGeneratedCents: commission, commissionsPendingCents: commission, commissionsCollectedCents: 0 }
+  const { collectedTotal } = await import('./settlements')
+  const collected = await collectedTotal()
+  return { redemptions, commissionsGeneratedCents: commission, commissionsPendingCents: Math.max(0, commission - collected), commissionsCollectedCents: collected }
 }
 
 /** Registro completo de canjes para el superadmin (emisor, receptor, consumidor, importes). */
@@ -427,6 +431,8 @@ export async function superadminRedemptions(limit = 300) {
   const userOf = new Map(users.map(u => [String(u._id), u]))
   const benefits = await NetworkBenefit.find({ _id: { $in: entries.map(e => e.benefitId) } }).select('title ref').lean<any[]>()
   const benefitOf = new Map(benefits.map(b => [String(b._id), b]))
+  const { settlementStatusOf } = await import('./settlements')
+  const settlement = await settlementStatusOf(entries.map(e => e._id))
   return entries.map(e => ({
     id: String(e._id), type: e.type, createdAt: e.createdAt,
     emitterTenantId: String(e.emitterTenantId), receiverTenantId: String(e.receiverTenantId),
@@ -434,7 +440,7 @@ export async function superadminRedemptions(limit = 300) {
     title: benefitOf.get(String(e.benefitId))?.title ?? '', ref: benefitOf.get(String(e.benefitId))?.ref ?? '',
     purchaseTotalCents: e.purchaseTotalCents, discountCents: e.discountCents, commissionCents: e.commissionCents,
     agreementVersion: e.agreementVersion, commissionPercent: e.commissionPercent, saleRef: e.saleRef, reason: e.reason,
-    settlement: 'pending' as const,
+    settlement: settlement.get(String(e._id)) ?? 'pending',
   }))
 }
 

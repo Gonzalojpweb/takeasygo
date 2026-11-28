@@ -383,6 +383,6 @@ export async function networkOverview() {
     relations,
     agreements,
     campaigns,
-    results: { ...(await networkLedgerTotals()), note: 'Comisiones de red pendientes hasta la liquidación (etapa 6).' },
+    results: { ...(await networkLedgerTotals()), note: 'Pendiente = comisiones de red generadas que todavía no se cobraron (liquidación semanal).' },
   }
 }
