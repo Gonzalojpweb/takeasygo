@@ -930,3 +930,34 @@ export function expectedDiscountCents(lineTotals: number[], discount: Pick<Disco
   if (discount.kind === "amount") return Math.min(total, discount.value)
   return lineTotals.reduce((s, line) => s + Math.min(line, Math.round((line * discount.value) / 100)), 0)
 }
+
+// ── Beneficio de la red de comercios (multi-rubro, etapa 6) ─────────────────
+// Solo con internet: el QR es dinámico y de uso único, lo valida el servidor.
+
+export interface NetworkBenefitPreview {
+  title: string
+  purchaseTotalCents: number
+  discountCents: number
+  discountedTotalCents: number
+  commissionCents: number
+}
+
+/** Valida el código del cliente contra la cuenta (no canjea). */
+export async function previewNetworkBenefit(tenantId: string, orderId: string, code: string): Promise<NetworkBenefitPreview> {
+  const res = await posApi<{ preview: NetworkBenefitPreview }>(tenantId, `/orders/${encodeURIComponent(orderId)}/network-benefit`, {
+    method: "POST",
+    body: { code, dryRun: true },
+  })
+  return res.preview
+}
+
+/** Canjea (uso único) y aplica el descuento a la cuenta. */
+export async function applyNetworkBenefit(tenantId: string, orderId: string, code: string): Promise<Order> {
+  return runMutation(async () => {
+    const res = await posApi<{ order: WireOrder }>(tenantId, `/orders/${encodeURIComponent(orderId)}/network-benefit`, {
+      method: "POST",
+      body: { code },
+    })
+    return saveOrder(res.order)
+  })
+}

@@ -340,7 +340,9 @@ export async function redeemBenefit(input: RedeemInput, now = new Date()): Promi
   try {
     entry = await NetworkLedgerEntry.create({
       type: 'commission',
-      idempotencyKey: `redeem:${benefit._id}`,
+      // La transición atómica ya impide el doble canje; la hora distingue un
+      // canje nuevo de un beneficio devuelto por una falla técnica.
+      idempotencyKey: `redeem:${benefit._id}:${now.getTime()}`,
       benefitId: benefit._id, campaignId: benefit.campaignId, relationId: benefit.relationId,
       emitterTenantId: benefit.emitterTenantId, receiverTenantId: benefit.receiverTenantId, consumerUserId: benefit.consumerUserId,
       agreementId: agreement?._id ?? null, agreementVersion: agreement?.version ?? null,
@@ -368,7 +370,7 @@ export async function redeemBenefit(input: RedeemInput, now = new Date()): Promi
 }
 
 /** Revierte un canje (cancelación o devolución): movimiento negativo, sin reusar el beneficio. */
-export async function reverseRedemption(input: { tenantId: string; ledgerId: string; reason: unknown; actorName: string }) {
+export async function reverseRedemption(input: { tenantId: string; ledgerId: string; reason: unknown; actorName: string; restoreBenefit?: boolean }) {
   if (!mongoose.isValidObjectId(input.ledgerId)) throw new BenefitError(400, 'invalid_id', 'Canje inválido')
   const reason = typeof input.reason === 'string' ? input.reason.trim().slice(0, 300) : ''
   if (reason.length < 3) throw new BenefitError(400, 'reason_required', 'Indicá el motivo de la anulación')
@@ -385,7 +387,14 @@ export async function reverseRedemption(input: { tenantId: string; ledgerId: str
       discountedTotalCents: -original.discountedTotalCents, commissionCents: -original.commissionCents,
       saleRef: original.saleRef, reversesId: original._id, reason, createdBy: input.actorName,
     })
-    await NetworkBenefit.updateOne({ _id: original.benefitId, status: 'redeemed' }, { $set: { status: 'reversed' } })
+    // Falla técnica al aplicar el descuento (POS): el cliente recupera su
+    // beneficio. Devolución o cancelación de una compra real: queda anulado.
+    await NetworkBenefit.updateOne(
+      { _id: original.benefitId, status: 'redeemed' },
+      input.restoreBenefit
+        ? { $set: { status: 'issued', redeemedAt: null, redemptionRequestId: null, redemptionLedgerId: null } }
+        : { $set: { status: 'reversed' } },
+    )
     await NetworkCampaign.updateOne({ _id: original.campaignId, redeemedCount: { $gt: 0 } }, { $inc: { redeemedCount: -1 } })
     return reversal
   } catch (err) {
