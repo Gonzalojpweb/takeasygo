@@ -76,9 +76,9 @@ export default async function MenuPage() {
         title="¿Qué son los platos recomendados?"
         description="Marcá tus mejores ítems como destacados para que aparezcan primero en el menú y alimenten el sistema de upselling automático."
       />
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-white text-2xl font-bold">Menú</h1>
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <h1 className="text-foreground text-2xl font-bold">Menú</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <ClubDiscountModal
             tenantSlug={tenantSlug || ''}
             categories={categories}
