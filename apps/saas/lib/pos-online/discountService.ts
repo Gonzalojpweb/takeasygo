@@ -523,3 +523,40 @@ export async function removeTableDiscounts(ctx: PosContext, tableId: string): Pr
   for (const round of rounds) out.push(await removeOrderDiscount(ctx, round, null, groupId))
   return out
 }
+
+// ── Beneficio de la red (multi-rubro, etapa 6) ──────────────────────────────
+/**
+ * Aplica a la cuenta el descuento de un beneficio de la red YA canjeado
+ * (lib/network/engine redeemBenefit). Mismo camino que un descuento normal
+ * (cálculo, guardado, evento del reporte, auditoría), con motivo «Acuerdo
+ * comercial» y la referencia del beneficio en la nota. La autorización la da
+ * el beneficio validado en el servidor, no el tope del cajero.
+ * No se acumula con otro descuento de la cuenta.
+ */
+export async function applyNetworkBenefitDiscount(
+  ctx: PosContext,
+  order: OrderDoc,
+  amountCents: number,
+  benefitRef: string
+): Promise<{ order: OrderDoc; discountedCents: number }> {
+  assertDiscountable(order)
+  if ((order.items as DiscountedItem[]).some((i) => i.posDiscount)) {
+    throw PosError.conflict('La cuenta ya tiene un descuento: quitalo para aplicar el beneficio de la red')
+  }
+  await assertNotInvoiced(ctx, [order])
+  if (!Number.isInteger(amountCents) || amountCents <= 0) throw PosError.validation('Importe del beneficio inválido')
+  const input: DiscountInput = { kind: 'amount', value: amountCents, reason: 'agreement', note: `Beneficio de la red ${benefitRef}`.slice(0, 140), finalCents: null }
+  const at = new Date()
+  const { items, discountedCents } = applyDiscount(order.items as DiscountedItem[], input, { lineId: null, by: ctx.user.id, approvedBy: null, at })
+  const rounds = order.posTableId ? await openTableRounds(ctx, order.posTableId) : []
+  const account = rounds.some((r) => r.posId === order.posId)
+    ? accountAmounts(rounds, new Map([[String(order.posId), items]]))
+    : accountAmounts([order], new Map([[String(order.posId), items]]))
+  const policy = await loadDiscountPolicy(ctx.tenantId)
+  const auth: DiscountAuthorization = { approval: { approvedBy: ctx.user.id, approverName: null, viaPin: false }, mode: 'self', policyVersion: policy.version }
+  const saved = await saveDiscountedItems(ctx, order, items)
+  const meta: EventMeta = { groupId: randomUUID(), scope: 'order', lineId: null, account, auth, byName: await operatorName(ctx, null) }
+  await recordEvent(ctx, 'apply', order, saved, input, meta)
+  await auditApply(ctx, order, saved, input, meta, discountedCents)
+  return { order: saved, discountedCents }
+}

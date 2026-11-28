@@ -47,9 +47,10 @@ import { VoidTableDialog } from "../shared/VoidTableDialog"
 import { ReprintComandaDialog, type ComandaStation } from "../shared/ReprintComandaDialog"
 import { ConfirmDialog } from "../shared/ConfirmDialog"
 import { DiscountDialog } from "../shared/DiscountDialog"
+import { NetworkBenefitDialog } from "../shared/NetworkBenefitDialog"
 import { useDiscountPolicy, evaluateForCurrentUser } from "../../services/discount-policy"
 import { formatCurrency, timeAgo } from "../../utils/format"
-import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, discountOrderLines, expectedDiscountCents, DISCOUNT_REASONS, reprintComanda } from "../../services/order"
+import { fireCourse, recordPayments, takeOfflineInvoiceReason, settleToDelivered, setOrderCustomerPhone, voidSentItem, type ItemVoidReason, discountOrderLine, removeOrderLineDiscount, discountTable, removeTableDiscounts, type DiscountRequest, discountOrder, discountOrderLines, expectedDiscountCents, DISCOUNT_REASONS, reprintComanda, applyNetworkBenefit } from "../../services/order"
 import { printPrecuenta, voidTable } from "../../services/table"
 import type { TableVoidReason } from "@takeasygo/business/browser"
 import { sendWaiterOrderToKitchen } from "../../services/waiter-order"
@@ -60,7 +61,7 @@ import { db } from "../../db/dexie"
 import { connectSocket } from "../../services/socket-client"
 import {
   UtensilsCrossed, Store, Calendar, Smartphone, Bike, PackageCheck,
-  Plus, Users, Receipt, Unlock, Printer, Split, Percent, Flame, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink, Ban,
+  Plus, Users, Receipt, Unlock, Printer, Split, Percent, Gift, Flame, ArrowLeftRight, CalendarClock, DoorOpen, UserCheck, UserX, Unlink, Ban,
 } from "lucide-react"
 import { confirmTransferPayment, notifyStatusToSyncLayer } from "../../services/sync-api"
 import { transformExternalOrder, cancelExternalOrder, updateExternalOrderStatus, advanceExternalOrder } from "../../services/external-orders"
@@ -245,6 +246,7 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   const [moveBusy, setMoveBusy] = useState(false)
   // Fase D: descuento a la cuenta de la mesa o a un plato.
   const [discountTarget, setDiscountTarget] = useState<{ scope: "table" } | { scope: "line"; order: Order; item: OrderItem } | null>(null)
+  const [benefitOpen, setBenefitOpen] = useState(false)
   const [discountBusy, setDiscountBusy] = useState(false)
   // Fase E: descuento del Mostrador. Se elige ANTES de cobrar (la orden nace
   // al cobrar) y se aplica en el server justo después de crearla.
@@ -594,6 +596,15 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
   /** Lo que se cobra: rondas sin cobrar de la mesa + el carrito actual. */
   /** Rondas ya enviadas a cocina y sin cobrar. */
   const sentTotal = useMemo(() => unpaidTableOrders.reduce((sum, o) => sum + o.total, 0), [unpaidTableOrders])
+  /**
+   * Beneficio de la red (etapa 6): se aplica sobre UNA ronda sin cobrar ni
+   * descontar (la de mayor importe). Sin ronda elegible no se ofrece.
+   */
+  const benefitOrder = useMemo(() => {
+    const eligible = unpaidTableOrders.filter((o) => o.total > 0 && !o.items.some((i) => i.discount))
+    if (eligible.length === 0 || unpaidTableOrders.some((o) => o.items.some((i) => i.discount))) return null
+    return eligible.reduce((best, o) => (o.total > best.total ? o : best), eligible[0])
+  }, [unpaidTableOrders])
   const chargeTotal = useMemo(
     () => cartNetTotal + sentTotal,
     [cartNetTotal, sentTotal]
@@ -1616,6 +1627,8 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
                   // (sólida); acá no se repite.
                   { id: "split", label: "Dividir cuenta", hint: "Por platos o comensal", icon: Split, tone: "orange" as const, onClick: () => { setCheckoutStartSplit(true); setScene("cobro") } },
                   { id: "discount", label: "Descuento", hint: "A toda la cuenta", icon: Percent, tone: "green" as const, onClick: () => setDiscountTarget({ scope: "table" }) },
+                  // Multi-rubro etapa 6: QR de beneficio de la red de comercios.
+                  ...(benefitOrder ? [{ id: "network-benefit", label: "Beneficio de la red", hint: "QR del cliente", icon: Gift, tone: "green" as const, onClick: () => setBenefitOpen(true) }] : []),
                 ]
               : [],
           },
@@ -2489,6 +2502,18 @@ export function CounterDashboard({ role }: { role?: string } = {}) {
           />
         )
       })()}
+      {benefitOpen && tenantId && benefitOrder && selectedTable && (
+        <NetworkBenefitDialog
+          tenantId={tenantId}
+          orderId={benefitOrder.id}
+          target={unpaidTableOrders.length > 1 ? `Mesa ${selectedTable.number}, ronda de ${formatCurrency(benefitOrder.total)}` : `Mesa ${selectedTable.number}, toda la cuenta`}
+          busy={discountBusy}
+          onConfirm={(code) => {
+            void runDiscount(async () => { await applyNetworkBenefit(tenantId, benefitOrder.id, code); setBenefitOpen(false) }, "Beneficio de la red aplicado")
+          }}
+          onCancel={() => setBenefitOpen(false)}
+        />
+      )}
       {joinTargetId && selectedTable && (
         <ConfirmDialog
           title="Unir mesas"
