@@ -11,6 +11,7 @@ import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { toast } from 'sonner'
 import { useAdminLocation } from '@/contexts/AdminLocationContext'
 import { getLocationColor } from '@/lib/location-colors'
+import OfflineAutoPauseCard from './orders/OfflineAutoPauseCard'
 
 interface Props {
   orders: any[]
@@ -204,6 +205,21 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
     const interval = setInterval(doRefresh, hasActive ? 10_000 : 30_000)
     return () => clearInterval(interval)
   }, [orders, doRefresh])
+
+  // Señal de conexión del local (pausa automática sin conexión, lib/connectivity):
+  // con el panel de pedidos abierto, cada minuto, aunque la pestaña quede atrás.
+  useEffect(() => {
+    const beat = () => {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return
+      void fetch(`/api/${tenantSlug}/connectivity/heartbeat`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(activeLocation !== 'all' ? { locationId: activeLocation } : {}),
+      }).catch(() => undefined)
+    }
+    beat()
+    const t = setInterval(beat, 60_000)
+    return () => clearInterval(t)
+  }, [tenantSlug, activeLocation])
 
   // Refresh inmediato cuando el tab vuelve a ser visible
   useEffect(() => {
@@ -417,6 +433,9 @@ export default function OrdersManager({ orders, locationMap, tenantSlug, trialOr
           )}
         </div>
       )}
+
+      {/* Pausa automática sin conexión (28/11/2026) */}
+      {activeLocation !== 'all' && <OfflineAutoPauseCard key={activeLocation} tenantSlug={tenantSlug} locationId={activeLocation} />}
 
       {/* Delay Announcement Card */}
       {activeLocation === 'all' ? (

@@ -298,6 +298,21 @@ function tick(): void {
     })
 }
 
+// ── Señal de conexión (28/11/2026) ─────────────────────────────────────────
+// Para la pausa automática de la tienda online cuando el local se queda sin
+// internet (SaaS lib/connectivity). Una petición liviana por minuto, también
+// con la pantalla en segundo plano: el POS abierto en el local cuenta como
+// «local conectado» aunque la tablet esté apagando la pantalla.
+export const HEARTBEAT_INTERVAL_MS = 60_000
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+function sendHeartbeat(): void {
+  const tenantId = currentTenantId
+  if (!tenantId || !enabled) return
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return
+  void posApi(tenantId, "/heartbeat", { method: "POST" }).catch(() => undefined)
+}
+
 function startTimer(): void {
   if (timer !== null) return
   timer = setInterval(tick, POLL_INTERVAL_MS)
@@ -344,10 +359,16 @@ export function startPosPolling(
 
   startTimer()
   tick()
+  sendHeartbeat()
+  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
 }
 
 export function stopPosPolling(): void {
   stopTimer()
+  if (heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
   if (onVisibility && typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", onVisibility)
   }

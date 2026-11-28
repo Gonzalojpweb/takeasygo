@@ -336,6 +336,18 @@ describe('POST /orders — efectivo (checkout)', () => {
     expect(order!.kitchenPrintDeferred).toBe(false)
   })
 
+  it('pausa automática sin conexión: sin señal del local no se toma el pedido; con señal, sí', async () => {
+    await Location.updateOne({ _id: location._id }, { $set: { 'connectivity.autoPause': true, 'connectivity.minutes': 3, 'connectivity.lastSeenAt': new Date(Date.now() - 10 * 60_000) } })
+    const blocked = await createOrderPOST(createReq(makeBody()), createParams)
+    expect(blocked.status).toBe(409)
+    expect((await blocked.json()).code).toBe('LOCATION_OFFLINE')
+    expect(await Order.countDocuments({ tenantId: tenant._id })).toBe(0)
+
+    await Location.updateOne({ _id: location._id }, { $set: { 'connectivity.lastSeenAt': new Date() } })
+    const ok = await createOrderPOST(createReq(makeBody()), createParams)
+    expect(ok.ok).toBe(true)
+  })
+
   it('con BARRA: el pedido sale SOLO en la barra (ticket forzado) y cocina queda diferido', async () => {
     const res = await createOrderPOST(createReq(makeBody()), createParams)
     expect(res.ok).toBe(true)

@@ -67,6 +67,7 @@ import { attachReferralFromRequest } from '@/lib/referrals'
 import { getMpAccountForLocation } from '@/lib/mercadopago'
 import { MP_PAUSED_CUSTOMER_MESSAGE, canChargeWithMercadoPago, isSplitRequired } from '@/lib/mp-split-guard'
 import { catalogLineFields } from '@/lib/catalog/order-line'
+import { connectivityState, LOCATION_OFFLINE_MESSAGE } from '@/lib/connectivity'
 
 try {
   webpush.setVapidDetails(
@@ -719,6 +720,12 @@ export async function POST(
         { error: 'Este local no está aceptando pedidos en este momento.', code: 'ORDERS_CLOSED' },
         { status: 409 }
       )
+    }
+    // Pausa automática sin conexión (28/11/2026): nadie del local dio señal
+    // (POS / panel) en la ventana configurada → no se toman pedidos inmediatos
+    // que nadie vería. Los programados para más tarde siguen entrando.
+    if (body.orderTiming !== 'scheduled' && connectivityState(location as any).paused) {
+      return NextResponse.json({ error: LOCATION_OFFLINE_MESSAGE, code: 'LOCATION_OFFLINE' }, { status: 409 })
     }
     if ((tenant as any).features?.posLocationGate === true) {
       const lastSeen = (location as any).pos?.lastSeenAt

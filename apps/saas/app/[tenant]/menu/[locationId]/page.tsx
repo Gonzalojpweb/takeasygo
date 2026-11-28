@@ -1,5 +1,6 @@
 import { connectDB } from '@/lib/mongoose'
 import Tenant from '@/models/Tenant'
+import { connectivityState } from '@/lib/connectivity'
 import Location from '@/models/Location'
 import { isTenantPubliclyOperational } from '@/lib/tenant-gates'
 import { notFound } from 'next/navigation'
@@ -76,7 +77,9 @@ export default async function MenuSelectorPage({ params }: Props) {
   const profile = tenant.profile || {}
   const hero = location.hero || { mediaType: 'none', url: '' }
   const hasHero = hero.mediaType !== 'none' && !!hero.url
-  const isOpen = location.settings?.acceptsOrders !== false
+  // Pausa automática sin conexión (lib/connectivity): se ve como cerrado.
+  const offlinePaused = connectivityState(locationDoc).paused
+  const isOpen = location.settings?.acceptsOrders !== false && !offlinePaused
 
   const instagramHandle = String(profile.social?.instagram || '').trim().replace(/^@/, '')
   const address = String(location.address || '').trim()
@@ -156,7 +159,7 @@ export default async function MenuSelectorPage({ params }: Props) {
   }
 
   const radius = branding.borderRadius === 'sharp' ? '6px' : '14px'
-  const statusLabel = tenant.isOperational === false ? 'Catálogo disponible' : (isOpen ? 'Abierto ahora' : 'Cerrado')
+  const statusLabel = tenant.isOperational === false ? 'Catálogo disponible' : (isOpen ? 'Abierto ahora' : offlinePaused ? 'No recibe pedidos ahora' : 'Cerrado')
   const statusKind = tenant.isOperational === false ? 'catalog' : (isOpen ? 'open' : 'closed')
 
   return (

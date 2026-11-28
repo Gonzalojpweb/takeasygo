@@ -14,6 +14,7 @@ import { captureCheckoutCompletedFromOrder } from '@/lib/events-server'
 import { runAfterResponse } from '@/lib/after-response'
 import { shouldSyncTrip, syncRapiboyTrip } from '@/lib/rapiboy/trips'
 import { networkBenefitForTracking } from '@/lib/network/pilot'
+import { storeNoticeForOrder } from '@/lib/connectivity'
 import { engineBenefitForTracking } from '@/lib/network/engine'
 
 // Cache simple: evita múltiples verificaciones a MP en poco tiempo
@@ -86,7 +87,7 @@ export async function POST(
     const hasMpConfigured = !!(tenant.mpAccounts?.length) || (tenant.mercadopago?.isConfigured && !!tenant.mercadopago?.accessToken)
 
     const order = await Order.findOne({ _id: orderId, tenantId: tenant._id })
-      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress deliveryProvider trackingToken trackingTokenUsedAt hiddenRewardClaims')
+      .select('status statusTimestamps orderNumber total items customer.name notes payment.status payment.method payment.mercadopagoId payment.baseTotal payment.surchargePercent payment.surchargeAmount payment.transferConfirmed tenantId locationId createdAt unattendedAlertAt orderTiming scheduledPickupAt scheduledStatus deliveryConfirmation deliveryAddress deliveryProvider trackingToken trackingTokenUsedAt hiddenRewardClaims')
       .lean() as any
     if (!order) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -122,6 +123,8 @@ export async function POST(
     }
 
     let currentStatus = order.status
+    // Pedido sin atender / local sin conexión (28/11/2026).
+    const storeNotice = await storeNoticeForOrder(order).catch(() => null)
 
     // Si es transferencia, no verificar MP — el flujo es manual
     if (order.payment?.method === 'transfer') {
@@ -202,6 +205,7 @@ export async function POST(
         },
         hiddenRewardSummary,
         networkBenefit,
+        storeNotice,
       }, {
         headers: { 'Cache-Control': 'no-store' },
       })
@@ -272,6 +276,7 @@ export async function POST(
     }
 
     return NextResponse.json({
+      storeNotice:         currentStatus === order.status ? storeNotice : null,
       status:              currentStatus,
       orderNumber:         order.orderNumber,
       confirmedAt:         order.statusTimestamps?.confirmedAt ?? null,
