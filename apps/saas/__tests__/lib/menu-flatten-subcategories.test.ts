@@ -70,11 +70,11 @@ describe('flattenMenu — subcategorías', () => {
             _id: 'c',
             name: 'Pizzas',
             items: [
-              { _id: 'a', name: 'A', price: 100, halfPrice: 50 },
-              { _id: 'b', name: 'B', price: 100, halfPrice: 50 },
+              { _id: 'a', name: 'A', price: 100, halfPrice: 50, variants: [{ name: 'Grande', price: 100 }] },
+              { _id: 'b', name: 'B', price: 100, halfPrice: 50, variants: [{ name: 'Grande', price: 100 }] },
             ],
             subcategories: [
-              { _id: 's', name: 'Esp', items: [{ _id: 'x', name: 'X', price: 100, halfPrice: 60 }] },
+              { _id: 's', name: 'Esp', items: [{ _id: 'x', name: 'X', price: 100, halfPrice: 60, variants: [{ name: 'Grande', price: 100 }] }] },
             ],
           },
         ],
@@ -84,7 +84,7 @@ describe('flattenMenu — subcategorías', () => {
     const flavors = a.modifiers!.find((m) => m.name === '__half_first')!.options.map((o) => o.name)
     expect(flavors).toEqual(['A', 'B'])
     // X está solo en su subcategoría: no recibe mitad y mitad.
-    expect(products.find((p) => p.id === 'x')!.modifiers).toBeUndefined()
+    expect(products.find((p) => p.id === 'x')!.modifiers?.some((m) => m.name === '__half_first')).toBeFalsy()
   })
 })
 

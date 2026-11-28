@@ -39,11 +39,28 @@ export function validateOrderItems(items: OrderItem[]): {
 }
 
 // ── Half-and-half (mitad y mitad) ──────────────────────────────────────────
+//
+// Cada comercio elige cómo cobra una pizza mitad y mitad (Tenant.halfAndHalf):
+//   · 'max'      → el precio de la Grande más cara (default: lo de siempre)
+//   · 'average'  → el promedio de las dos Grandes
+//   · 'half_sum' → la suma de los «precio de media» de cada sabor (si un
+//                  sabor no tiene precio de media, vale la mitad de su Grande)
+// La misma función la usan la carta online, el servidor y el POS: todos
+// cobran lo mismo. Montos en centavos.
+
+export type HalfAndHalfPricing = 'max' | 'average' | 'half_sum'
+export const HALF_AND_HALF_PRICINGS: readonly HalfAndHalfPricing[] = ['max', 'average', 'half_sum']
+
+export function normalizeHalfPricing(value: unknown): HalfAndHalfPricing {
+  return value === 'average' || value === 'half_sum' ? value : 'max'
+}
 
 interface HalfHalfItem {
   name: string
   variants?: { name: string; price: number }[]
   price: number
+  /** Precio de media pizza cargado por el comercio (centavos, opcional). */
+  halfPrice?: number | null
 }
 
 /**
@@ -59,13 +76,29 @@ function getGrandePrice(item: HalfHalfItem): number {
 }
 
 /**
- * Calcula el precio extra de una pizza mitad y mitad.
- * Fórmula: MAX(precio_grande_A, precio_grande_B)
- *
+ * Lo que aporta UN sabor según la regla: con 'max' su Grande completa; con
+ * 'average' la mitad de su Grande; con 'half_sum' su precio de media (o la
+ * mitad de la Grande si no tiene).
+ */
+export function halfShare(grandePrice: number, halfPrice: number | null | undefined, rule: HalfAndHalfPricing): number {
+  if (rule === 'max') return grandePrice
+  if (rule === 'half_sum' && typeof halfPrice === 'number' && halfPrice > 0) return Math.round(halfPrice)
+  return Math.round(grandePrice / 2)
+}
+
+/** Total de la pizza a partir de lo que aporta cada sabor. */
+export function halfHalfTotal(shareA: number, shareB: number, rule: HalfAndHalfPricing): number {
+  return rule === 'max' ? Math.max(shareA, shareB) : shareA + shareB
+}
+
+/**
+ * Precio de una pizza mitad y mitad según la regla del comercio.
  * @throws si algún item no tiene variante "Grande" válida
  */
-export function calculateHalfHalfPrice(itemA: HalfHalfItem, itemB: HalfHalfItem): number {
-  return Math.max(getGrandePrice(itemA), getGrandePrice(itemB))
+export function calculateHalfHalfPrice(itemA: HalfHalfItem, itemB: HalfHalfItem, rule: HalfAndHalfPricing = 'max'): number {
+  const a = halfShare(getGrandePrice(itemA), itemA.halfPrice, rule)
+  const b = halfShare(getGrandePrice(itemB), itemB.halfPrice, rule)
+  return halfHalfTotal(a, b, rule)
 }
 
 /**
@@ -77,6 +110,7 @@ export function calculateHalfHalfPrice(itemA: HalfHalfItem, itemB: HalfHalfItem)
 export function resolveHalfPriceCustomizations(
   clientCustomizations: any[],
   allMenuItems: any[],
+  rule: HalfAndHalfPricing = 'max',
 ): { resolved: any[]; extraPrice: number; isHalfPrice: true } | null {
   const firstGroup = clientCustomizations.find((g: any) => g.groupName === 'Primera mitad')
   const secondGroup = clientCustomizations.find((g: any) => g.groupName === 'Segunda mitad')
@@ -108,20 +142,15 @@ export function resolveHalfPriceCustomizations(
     throw new Error(`"${secondFlavor}" no está disponible para mitad y mitad`)
   }
 
-  const extraPrice = calculateHalfHalfPrice(firstItem, secondItem)
+  const shareA = halfShare(getGrandePrice(firstItem), firstItem.halfPrice, rule)
+  const shareB = halfShare(getGrandePrice(secondItem), secondItem.halfPrice, rule)
 
   return {
     resolved: [
-      {
-        groupName: 'Primera mitad',
-        selectedOptions: [{ name: firstFlavor, extraPrice: getGrandePrice(firstItem) }],
-      },
-      {
-        groupName: 'Segunda mitad',
-        selectedOptions: [{ name: secondFlavor, extraPrice: getGrandePrice(secondItem) }],
-      },
+      { groupName: 'Primera mitad', selectedOptions: [{ name: firstFlavor, extraPrice: shareA }] },
+      { groupName: 'Segunda mitad', selectedOptions: [{ name: secondFlavor, extraPrice: shareB }] },
     ],
-    extraPrice,
+    extraPrice: halfHalfTotal(shareA, shareB, rule),
     isHalfPrice: true,
   }
 }

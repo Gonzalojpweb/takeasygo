@@ -1,6 +1,7 @@
 import Menu from '@/models/Menu'
 import Combo from '@/models/Combo'
-import { calculateComboPrice, flattenMenuSnapshot, isComboAvailable, isComboOnSchedule, validateComboSelection, type RawMenu } from '@takeasygo/business'
+import { calculateComboPrice, flattenMenuSnapshot, halfHalfTotal, isComboAvailable, isComboOnSchedule, validateComboSelection, type RawMenu } from '@takeasygo/business'
+import { tenantHalfPricing } from '@/lib/menu/half-pricing'
 import Location from '@/models/Location'
 import { DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import type { Product, ProductModifier } from '@takeasygo/types'
@@ -22,8 +23,9 @@ import type { PosOrderItemInput } from './orderMapper'
 // Espeja el cálculo de ProductConfigurationPanel del POS:
 //  · normal → unitPrice = product.price; modificadores etiquetados
 //             `${grupo}: ${opción}` con el extraPrice del catálogo
-//  · mitad  → unitPrice = halfPrice(1er sabor) + halfPrice(2do sabor), con
-//             etiquetas `Primera mitad: …` / `Segunda mitad: …`
+//  · mitad  → unitPrice = total según la regla del comercio (la más cara,
+//             promedio o suma de medias: product.halfPricing), con etiquetas
+//             `Primera mitad: …` / `Segunda mitad: …` en $0
 // ============================================================================
 
 const HALF_FIRST_PREFIX = 'Primera mitad: '
@@ -41,7 +43,7 @@ export async function loadPosCatalog(
   const menus = (await Menu.find({ tenantId, locationId, isActive: true })
     .lean()
     .exec()) as unknown as RawMenu[]
-  const flat = flattenMenuSnapshot(menus)
+  const flat = flattenMenuSnapshot(menus, { halfPricing: await tenantHalfPricing(tenantId) })
   return new Map(flat.products.map((p) => [p.id, p]))
 }
 
@@ -104,17 +106,19 @@ function assertHalfHalf(item: PosOrderItemInput, product: Product): void {
     )
   }
 
-  const expectedUnit = optionFirst.price + optionSecond.price
+  const expectedUnit = halfHalfTotal(optionFirst.price, optionSecond.price, product.halfPricing ?? 'half_sum')
   if (item.unitPrice !== expectedUnit) {
     throw PosError.conflict(
       `Precio de mitad y mitad de "${product.name}" fuera del catálogo vigente`,
       `unitPrice=${item.unitPrice} catalogPrice=${expectedUnit}`
     )
   }
-  if (firsts[0].price !== optionFirst.price || seconds[0].price !== optionSecond.price) {
+  // Las mitades son etiquetas: el total ya va en unitPrice (el server suma
+  // unitPrice + modificadores; con precio en las mitades se cobraba dos veces).
+  if (firsts[0].price !== 0 || seconds[0].price !== 0) {
     throw PosError.conflict(
       `Modificador de mitad y mitad de "${product.name}" fuera del catálogo vigente`,
-      `got=${firsts[0].price}+${seconds[0].price} catalog=${optionFirst.price}+${optionSecond.price}`
+      `got=${firsts[0].price}+${seconds[0].price} (deben ir en $0)`
     )
   }
 }

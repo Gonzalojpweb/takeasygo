@@ -6,6 +6,7 @@ import Order from '@/models/Order'
 import Menu from '@/models/Menu'
 import { NextRequest, NextResponse } from 'next/server'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import { halfPricingOf } from '@/lib/menu/half-pricing'
 import { upsertConsumerFromOrder } from '@/lib/consumer'
 import { requireCorpAccess } from '@/lib/corpAuth'
 
@@ -135,7 +136,7 @@ export async function POST(
         const allMenuItems = [...menuItemMap.values()]
         let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
         try {
-          halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems)
+          halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems, halfPricingOf(tenant as { halfAndHalf?: { pricing?: string } }))
         } catch (err: any) {
           return NextResponse.json({ error: err.message }, { status: 400 })
         }

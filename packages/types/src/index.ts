@@ -217,6 +217,13 @@ export interface Product {
   description: string
   price: number
   halfPrice?: number
+  /**
+   * Mitad y mitad: precio de la Grande (salón) y precio de media cargado por el
+   * comercio. Lo arma menu-flatten para los sabores elegibles.
+   */
+  halfFlavor?: { grande: number; halfPrice: number | null }
+  /** Regla de cobro de la mitad y mitad del comercio (max | average | half_sum). */
+  halfPricing?: 'max' | 'average' | 'half_sum'
   /** Nombre de la categoría de PRIMER nivel (también para ítems de subcategoría). */
   category: string
   /** id de la categoría de PRIMER nivel (21/11/2026: promos de descuento por categoría). */

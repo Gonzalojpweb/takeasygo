@@ -58,14 +58,17 @@ const RAW_MENU: RawMenu = {
           ],
           disabledOptionIds: ['Ketchup'],
         },
-        { _id: PRODUCT_PIZZA1, name: 'Muzzarella', price: 1000, halfPrice: 800 },
-        { _id: PRODUCT_PIZZA2, name: 'Fugazzeta', price: 1100, halfPrice: 900 },
+        // Mitad y mitad: sabores con variante «Grande» (+ precio de media).
+        { _id: PRODUCT_PIZZA1, name: 'Muzzarella', price: 1000, halfPrice: 800, variants: [{ name: 'Grande', price: 1000 }] },
+        { _id: PRODUCT_PIZZA2, name: 'Fugazzeta', price: 1100, halfPrice: 900, variants: [{ name: 'Grande', price: 1100 }] },
       ],
     },
   ],
 }
 
-const PRODUCTS = new Map(flattenMenuSnapshot([RAW_MENU]).products.map((p) => [p.id, p]))
+// Regla «suma de medias» (800 + 900); las otras reglas se prueban abajo.
+const PRODUCTS = new Map(flattenMenuSnapshot([RAW_MENU], { halfPricing: 'half_sum' }).products.map((p) => [p.id, p]))
+const productsWith = (halfPricing: 'max' | 'average') => new Map(flattenMenuSnapshot([RAW_MENU], { halfPricing }).products.map((p) => [p.id, p]))
 
 function item(overrides: Partial<PosOrderItemInput> = {}): PosOrderItemInput {
   return {
@@ -183,9 +186,10 @@ describe('assertItemMatchesCatalog — mitad y mitad', () => {
       quantity: 1,
       unitPrice: 1700,
       total: 1700,
+      // Las mitades son etiquetas en $0: el total va en unitPrice.
       modifiers: [
-        { name: 'Primera mitad: Muzzarella', price: 800 },
-        { name: 'Segunda mitad: Fugazzeta', price: 900 },
+        { name: 'Primera mitad: Muzzarella', price: 0 },
+        { name: 'Segunda mitad: Fugazzeta', price: 0 },
       ],
       ...overrides,
     }
@@ -193,6 +197,15 @@ describe('assertItemMatchesCatalog — mitad y mitad', () => {
 
   it('acepta h1+h2 según los halfPrice vigentes (800+900)', () => {
     expect(() => assertItemMatchesCatalog(halfItem(), PRODUCTS)).not.toThrow()
+  })
+
+  it('regla del comercio «la más cara»: cobra la Grande más cara (1100)', () => {
+    expect(() => assertItemMatchesCatalog(halfItem({ unitPrice: 1100, total: 1100 }), productsWith('max'))).not.toThrow()
+    expectConflict(() => assertItemMatchesCatalog(halfItem(), productsWith('max')))
+  })
+
+  it('regla del comercio «promedio»: mitad de cada Grande (500 + 550)', () => {
+    expect(() => assertItemMatchesCatalog(halfItem({ unitPrice: 1050, total: 1050 }), productsWith('average'))).not.toThrow()
   })
 
   it('rechaza un unitPrice de mitad y mitad que no cierra', () => {
@@ -208,7 +221,7 @@ describe('assertItemMatchesCatalog — mitad y mitad', () => {
         halfItem({
           modifiers: [
             { name: 'Primera mitad: Muzzarella', price: 1 },
-            { name: 'Segunda mitad: Fugazzeta', price: 900 },
+            { name: 'Segunda mitad: Fugazzeta', price: 0 },
           ],
         }),
         PRODUCTS

@@ -171,7 +171,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
   const [customizingItem, setCustomizingItem] = useState<any | null>(null)
   const [halfPriceContext, setHalfPriceContext] = useState<{
     isHalfAndHalf: boolean
-    halfPriceItems: Array<{ _id: string; name: string; grandePrice: number }>
+    halfPriceItems: Array<{ _id: string; name: string; grandePrice: number; halfPrice?: number | null }>
   } | null>(null)
   const [upsellSuggestions, setUpsellSuggestions] = useState<any[]>([])
   const [upsellSource, setUpsellSource] = useState<UpsellSource>('static')
@@ -1203,7 +1203,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
       .filter((i: any) => i.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0))
       .map((i: any) => {
         const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
-        return { _id: i._id, name: i.name, grandePrice: grande.price as number }
+        return { _id: i._id, name: i.name, grandePrice: grande.price as number, halfPrice: typeof i.halfPrice === 'number' ? i.halfPrice : null }
       })
 
     if (hpItems.length < 2) return null
@@ -1908,6 +1908,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
           optionImageRegistry={menu.optionImageRegistry}
           isHalfAndHalf={halfPriceContext?.isHalfAndHalf ?? false}
           halfPriceItems={halfPriceContext?.halfPriceItems ?? []}
+          halfPricing={tenant.halfAndHalf?.pricing}
         />
       )}
 
@@ -2108,7 +2109,7 @@ export default function MenuPublicView({ tenant, location, menu, mode, groupSess
                         .filter((i: any) => i.variants?.some((v: any) => v.name.toLowerCase() === 'grande' && v.price > 0))
                         .map((i: any) => {
                           const grande = i.variants.find((v: any) => v.name.toLowerCase() === 'grande')
-                          return { _id: i._id, name: i.name, grandePrice: grande.price as number }
+                          return { _id: i._id, name: i.name, grandePrice: grande.price as number, halfPrice: typeof i.halfPrice === 'number' ? i.halfPrice : null }
                         })
                       const isHalfSlot = !promo._isCombo && slotHpItems.length >= 2
                       const halfCtx = isHalfSlot

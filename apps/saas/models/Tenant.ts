@@ -64,6 +64,12 @@ export interface ITenant extends Document {
   storefrontTemplate?: string
   /** Módulos sumados o quitados por el superadmin respecto de los del rubro. */
   moduleOverrides?: { enabled: string[]; disabled: string[] }
+  /**
+   * Cómo cobra el comercio una pizza mitad y mitad (carta online y POS):
+   * 'max' = la Grande más cara (default) · 'average' = promedio de las dos
+   * Grandes · 'half_sum' = suma de los precios de media de cada sabor.
+   */
+  halfAndHalf?: { pricing: 'max' | 'average' | 'half_sum' }
   plan: 'trial' | 'try' | 'buy' | 'full' | 'anfitrion' | 'high'
   status: 'active' | 'paused' | 'deleted'
   isActive: boolean  // Computed: status === 'active' || status === 'paused'
@@ -506,6 +512,14 @@ const TenantSchema = new Schema<ITenant>(
         _id: false,
         enabled: { type: [String], default: [] },
         disabled: { type: [String], default: [] },
+      },
+      default: undefined,
+    },
+    // Mitad y mitad: regla de cobro (sin dato = 'max', lo de siempre).
+    halfAndHalf: {
+      type: {
+        _id: false,
+        pricing: { type: String, enum: ['max', 'average', 'half_sum'], default: 'max' },
       },
       default: undefined,
     },

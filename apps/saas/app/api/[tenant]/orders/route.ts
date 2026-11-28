@@ -25,6 +25,7 @@ import crypto from 'crypto'
 import { canAccess, LOYALTY_MEMBER_LIMIT } from '@/lib/plans'
 import type { Plan } from '@/lib/plans'
 import { resolveHalfPriceCustomizations } from '@takeasygo/business'
+import { halfPricingOf } from '@/lib/menu/half-pricing'
 import Combo from '@/models/Combo'
 import { DEFAULT_TIMEZONE as COMBO_DEFAULT_TIMEZONE } from '@/lib/restaurant-time'
 import { buildOnlineComboLines, ComboOrderError } from '@/lib/combos/online-lines'
@@ -463,6 +464,9 @@ export async function POST(
         { status: 404 }
       )
     }
+
+    // Regla de cobro de la mitad y mitad del comercio (la más cara, promedio o suma de medias).
+    const halfPricing = halfPricingOf(tenant as { halfAndHalf?: { pricing?: string } })
 
     const platformCfg = await PlatformConfig.findById('platform').lean() as any
     if (platformCfg?.maintenanceMode) {
@@ -1182,7 +1186,7 @@ export async function POST(
             if (ctx.slotMode === 'full' && Array.isArray(unit.customizations) && unit.customizations.length > 0) {
               let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
               try {
-                halfResult = resolveHalfPriceCustomizations(unit.customizations, ctx.slotItemsList)
+                halfResult = resolveHalfPriceCustomizations(unit.customizations, ctx.slotItemsList, halfPricing)
               } catch (err: any) {
                 return NextResponse.json({ error: err.message }, { status: 400 })
               }
@@ -1293,7 +1297,7 @@ export async function POST(
           const slotItems = slotCtx?.slotItemsList ?? (slot?.resolvedItems ?? [])
           let halfResult: ReturnType<typeof resolveHalfPriceCustomizations> = null
           try {
-            halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems)
+            halfResult = resolveHalfPriceCustomizations(clientItem.customizations, slotItems, halfPricing)
           } catch (err: any) {
             return NextResponse.json({ error: err.message }, { status: 400 })
           }
@@ -1449,7 +1453,7 @@ export async function POST(
           try {
             // Check for half-price "mitad y mitad" customizations first
             const allMenuItems = [...menuItemMap.values()]
-            const halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems)
+            const halfResult = resolveHalfPriceCustomizations(clientItem.customizations, allMenuItems, halfPricing)
             if (halfResult) {
               resolvedCustomizations.push(...halfResult.resolved)
               extraPrice += halfResult.extraPrice

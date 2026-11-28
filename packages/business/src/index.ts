@@ -1,4 +1,4 @@
-export { calculateOrderTotal, calculateItemTotal, validateOrderItems, calculateHalfHalfPrice, resolveHalfPriceCustomizations } from "./order"
+export { calculateOrderTotal, calculateItemTotal, validateOrderItems, calculateHalfHalfPrice, resolveHalfPriceCustomizations, halfShare, halfHalfTotal, normalizeHalfPricing, HALF_AND_HALF_PRICINGS, type HalfAndHalfPricing } from "./order"
 export {
   type Plan,
   type Feature,
