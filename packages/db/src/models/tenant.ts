@@ -12,6 +12,8 @@ export interface TenantDocument extends Document {
     currency: string
   }
   isActive: boolean
+  /** Mitad y mitad: regla de cobro del comercio (la escribe el SaaS; acá solo se lee). */
+  halfAndHalf?: { pricing?: "max" | "average" | "half_sum" }
   createdAt: Date
   updatedAt: Date
 }
@@ -37,6 +39,14 @@ export const TenantSchema = new Schema<TenantDocument>(
       currency: { type: String, default: "ARS" },
     },
     isActive: { type: Boolean, default: true },
+    // Mitad y mitad (lo configura el comercio en el SaaS). Sin dato = 'max'.
+    halfAndHalf: {
+      type: {
+        _id: false,
+        pricing: { type: String, enum: ["max", "average", "half_sum"], default: "max" },
+      },
+      default: undefined,
+    },
     // Informe de caja X5 (2026-10-29): se quitaron afipCertificate,
     // afipCertificateKey y mercadopagoAccessToken — eran secretos en texto
     // plano que nadie usa. El certificado de ARCA vive cifrado (AES-256-GCM,
