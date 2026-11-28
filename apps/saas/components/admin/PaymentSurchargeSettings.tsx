@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, Save, Percent, Info } from 'lucide-react'
 import { useNumberInputFocus } from '@/hooks/useNumberInputFocus'
@@ -23,6 +24,7 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
   const [krFee, setKrFee] = useState(sc.kripton?.feePercent ?? 0)
   const [trFee, setTrFee] = useState(sc.transfer?.feePercent ?? 0)
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
   const mpFocus = useNumberInputFocus()
   const krFocus = useNumberInputFocus()
@@ -44,6 +46,17 @@ export default function PaymentSurchargeSettings({ tenantSlug, initialSurcharges
         const err = await res.json()
         throw new Error(err.error || 'Error al guardar')
       }
+      // 28/11/2026: refresca los datos de la página. Sin esto, al cambiar de
+      // pestaña y volver, el formulario se rearmaba con los valores viejos y
+      // parecía que no se había guardado.
+      const data = await res.json().catch(() => null)
+      const saved = data?.paymentSurcharges
+      if (saved) {
+        setMpFee(saved.mercadopago?.feePercent ?? mpFee)
+        setKrFee(saved.kripton?.feePercent ?? krFee)
+        setTrFee(saved.transfer?.feePercent ?? trFee)
+      }
+      router.refresh()
       toast.success('Recargos guardados correctamente')
     } catch (err: any) {
       toast.error(err.message || 'Error al guardar')
