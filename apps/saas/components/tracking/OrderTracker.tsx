@@ -253,6 +253,7 @@ export default function OrderTracker({
   const [transferConfirmed, setTransferConfirmed] = useState(initialTransferConfirmed || false)
   const [impactRegistered, setImpactRegistered] = useState(false)
   // Red de beneficios (etapa 4): beneficio para otro comercio, entregado con este pedido.
+  const [storeNotice, setStoreNotice] = useState<{ kind: 'waiting' | 'store_offline'; minutes: number } | null>(null)
   const [networkBenefit, setNetworkBenefit] = useState<{ kind?: 'saved' | 'claim' | 'promo'; title: string; description: string; receiverName: string; url: string | null } | null>(null)
   const [transferData, setTransferData] = useState(initialTransferData || null)
   const [whatsAppPhone] = useState(initialWhatsAppPhone || null)
@@ -446,6 +447,7 @@ export default function OrderTracker({
       }
       if (data.impactRegistered) setImpactRegistered(true)
       setNetworkBenefit(data.networkBenefit ?? null)
+      setStoreNotice(data.storeNotice ?? null)
       // Hidden rewards: disparar Redeemed una sola vez cuando status pasa a confirmed+
       if (!redeemedFiredRef.current && data.hiddenRewardSummary?.length > 0 && data.status !== 'awaiting_payment') {
         redeemedFiredRef.current = true
@@ -825,6 +827,23 @@ export default function OrderTracker({
           </p>
         )}
       </div>
+
+      {/* Pedido sin atender / local sin conexión (28/11/2026) */}
+      {storeNotice && (
+        <div className={`mb-6 rounded-2xl border p-4 text-sm ${storeNotice.kind === 'store_offline' ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-zinc-200 bg-zinc-50 text-zinc-800'}`}>
+          {storeNotice.kind === 'store_offline' ? (
+            <>
+              <p className="font-bold">El local está con problemas de conexión</p>
+              <p className="mt-1">Tu pedido está registrado y ya le avisamos al local. Si tenés apuro, comunicate con ellos.</p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold">El local todavía no tomó tu pedido</p>
+              <p className="mt-1">Lleva {storeNotice.minutes} minutos esperando. Puede ser un momento de mucha demanda; si tenés apuro, comunicate con el local.</p>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Progress bar */}
       {!isCancelled && (

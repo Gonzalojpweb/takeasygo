@@ -168,6 +168,18 @@ export interface ILocation extends Document {
   status: 'active' | 'paused'
   pausedAt: Date | null
   pausedReason: string | null
+  /**
+   * Pausa automática sin conexión (28/11/2026): el POS y el panel de pedidos
+   * avisan que están conectados. Con `autoPause` activo, si nadie avisó en
+   * `minutes`, la tienda online no toma pedidos inmediatos; se reactiva sola
+   * al volver la señal. Se calcula al leer (sin cron).
+   */
+  connectivity?: {
+    autoPause?: boolean
+    minutes?: number
+    lastSeenAt?: Date | null
+    lastSeenSource?: 'pos' | 'panel' | null
+  }
   /** Estado del POS en esta sede (E gate: gateway por dispositivo POS activo) */
   pos?: {
     /** Última vez que un dispositivo POS de la sede reportó heartbeat */
@@ -449,6 +461,12 @@ settings: {
     pausedReason: { type: String, default: null },
     pos: {
       lastSeenAt: { type: Date, default: null },
+    },
+    connectivity: {
+      autoPause: { type: Boolean, default: false },
+      minutes: { type: Number, default: 3, min: 2, max: 30 },
+      lastSeenAt: { type: Date, default: null },
+      lastSeenSource: { type: String, enum: ['pos', 'panel', null], default: null },
     },
     printerAgent: {
       type: {

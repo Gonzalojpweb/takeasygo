@@ -297,6 +297,8 @@ export interface IOrder extends Document {
   qrPromoApplied: boolean
   /** Red de beneficios (etapa 4): QrPromo que se aplicó (atribución del canje en el piloto). */
   qrPromoId?: string | null
+  /** Pausa sin conexión (28/11/2026): cuándo se avisó al dueño que el pedido seguía sin atender. */
+  unattendedAlertAt?: Date | null
   /** IDs de claims de hidden reward aplicados a esta orden */
   hiddenRewardClaims?: any[]
   promoSlug: string | null
@@ -861,6 +863,7 @@ const OrderSchema = new Schema(
     },
     // Red de beneficios: cuál QrPromo se aplicó (antes solo quedaba el sí/no).
     qrPromoId: { type: String, default: undefined },
+    unattendedAlertAt: { type: Date, default: null },
     hiddenRewardClaims: {
       type: [{ type: Schema.Types.ObjectId, ref: 'HiddenRewardClaim' }],
       default: [],
