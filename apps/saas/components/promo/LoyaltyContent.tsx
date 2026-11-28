@@ -1,5 +1,6 @@
 'use client'
 
+import { readableTextOn } from './color'
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2 } from 'lucide-react'
@@ -128,12 +129,12 @@ export function LoyaltyContent({ promo, loyaltyMsg, tenantSlug, onClose, accentC
   }
 
   return (
-    <div className="flex flex-col py-4">
+    <div className="flex flex-col pt-5">
       <motion.h2
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.5 }}
-        className="text-xl font-bold tracking-tight mb-1 text-center"
+        className="text-base font-bold tracking-tight mb-0.5"
         style={{ fontFamily: 'var(--tgo-type-section)', color: 'var(--tgo-text-primary, #1A1A1A)' }}
       >
         Completá tus datos
@@ -143,7 +144,7 @@ export function LoyaltyContent({ promo, loyaltyMsg, tenantSlug, onClose, accentC
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
-        className="text-sm text-center mb-8"
+        className="text-sm mb-4"
         style={{ color: 'var(--tgo-text-secondary, #6B6560)', fontFamily: 'var(--tgo-type-body-sm)' }}
       >
         {loyaltyMsg?.modalSubtitle || 'Solo un paso más para empezar a sumar'}
@@ -238,11 +239,10 @@ export function LoyaltyContent({ promo, loyaltyMsg, tenantSlug, onClose, accentC
         <button
           type="submit"
           disabled={!isValid || registering}
-          className="w-full h-14 rounded-2xl flex items-center justify-center gap-2 font-bold text-sm uppercase tracking-widest transition-all duration-150 disabled:opacity-40 mt-2"
+          className="w-full h-[52px] rounded-2xl flex items-center justify-center gap-2 font-bold text-[15px] transition-all duration-150 disabled:opacity-40 mt-1"
           style={{
             backgroundColor: accentColor,
-            color: '#FFFFFF',
-            boxShadow: isValid ? `0 12px 24px -4px ${accentColor}66` : 'none',
+            color: readableTextOn(accentColor),
           }}
         >
           {registering ? (promo.loadingText || 'Procesando...') : 'Unirme al Club'}

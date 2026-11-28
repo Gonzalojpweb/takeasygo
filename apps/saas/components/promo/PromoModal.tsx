@@ -2,24 +2,31 @@
 
 import { type ReactNode } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+// ─── Hoja de la promo (bottom sheet nativo) ──────────────────────────────────
+// Estructura fija: barra de arrastre · cabecera del comercio · contenido con
+// scroll · pie fijo con las acciones. Un solo margen lateral (20 px) para
+// todo, así nada queda descuadrado ni con posiciones sueltas.
 
 interface PromoModalProps {
   open: boolean
   onClose: () => void
   children: ReactNode
+  /** Acciones fijas al pie (botón principal, secundario, legales). */
+  footer?: ReactNode
   className?: string
   tenantName?: string
   tenantLogo?: string
   accentColor?: string
 }
 
-export function PromoModal({ open, onClose, children, className, tenantName, tenantLogo, accentColor = '#F74211' }: PromoModalProps) {
+export function PromoModal({ open, onClose, children, footer, className, tenantName, tenantLogo, accentColor = '#F74211' }: PromoModalProps) {
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[2000] flex items-end sm:items-center justify-center">
-          {/* Backdrop - clicks here close the modal */}
+        <div className="fixed inset-0 z-[2000] flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={tenantName ? `Promoción de ${tenantName}` : 'Promoción'}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -27,94 +34,72 @@ export function PromoModal({ open, onClose, children, className, tenantName, ten
             transition={{ duration: 0.2 }}
             onClick={onClose}
             className="absolute inset-0"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.48)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
-            }}
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
           />
 
-          {/* Sheet - clicks here do NOT close the modal */}
           <motion.div
-            initial={{ y: '100%', opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 380 }}
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 360 }}
             onClick={(e) => e.stopPropagation()}
-            className={cn(
-              'relative w-full sm:max-w-lg flex flex-col',
-              className
-            )}
+            className={cn('relative flex w-full flex-col overflow-hidden rounded-t-[24px] sm:max-w-md sm:rounded-[24px]', className)}
             style={{
-              maxHeight: '92vh',
-              borderTopLeftRadius: 'var(--tgo-radius-2xl, 24px)',
-              borderTopRightRadius: 'var(--tgo-radius-2xl, 24px)',
+              maxHeight: '92dvh',
               backgroundColor: 'var(--tgo-surface-0, #FFFFFF)',
-              boxShadow: 'var(--tgo-elevation-dialog, 0 12px 40px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04))',
-              paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))',
+              boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.12)',
             }}
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div
-                className="w-10 h-1 rounded-full"
-                style={{ backgroundColor: 'var(--tgo-surface-3, #EDEAE6)' }}
-              />
+            {/* Barra de arrastre */}
+            <div className="flex justify-center pt-2.5">
+              <div className="h-1 w-10 rounded-full" style={{ backgroundColor: 'var(--tgo-surface-3, #E5E2DE)' }} />
             </div>
 
-            {/* Tenant header */}
-            {(tenantName || tenantLogo) && (
-              <div className="flex items-center justify-between px-6 py-3">
-                <div className="flex items-center gap-2.5">
-                  {tenantLogo ? (
-                    <div
-                      className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${accentColor}10` }}
-                    >
-                      <img
-                        src={tenantLogo}
-                        alt={tenantName}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : tenantName ? (
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
-                    >
-                      {tenantName.charAt(0).toUpperCase()}
-                    </div>
-                  ) : null}
-                  {tenantName && (
-                    <span
-                      className="text-sm font-semibold truncate"
-                      style={{ color: 'var(--tgo-text-primary, #1A1A1A)', fontFamily: 'var(--tgo-type-body-sm)' }}
-                    >
-                      {tenantName}
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  onClick={onClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-full transition-colors"
-                  style={{ color: 'var(--tgo-text-muted, #A09A95)' }}
-                  aria-label="Cerrar"
-                >
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                </button>
+            {/* Cabecera del comercio */}
+            <div className="flex items-center justify-between gap-3 px-5 pb-3 pt-2">
+              <div className="flex min-w-0 items-center gap-2.5">
+                {tenantLogo ? (
+                  <img src={tenantLogo} alt="" className="h-8 w-8 flex-shrink-0 rounded-full object-cover" style={{ backgroundColor: `${accentColor}14` }} />
+                ) : tenantName ? (
+                  <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ backgroundColor: `${accentColor}1f`, color: accentColor }}>
+                    {tenantName.charAt(0).toUpperCase()}
+                  </div>
+                ) : null}
+                {tenantName && (
+                  <span className="truncate text-sm font-semibold" style={{ color: 'var(--tgo-text-primary, #1A1A1A)' }}>
+                    {tenantName}
+                  </span>
+                )}
               </div>
-            )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full transition-colors active:scale-95"
+                style={{ backgroundColor: 'var(--tgo-surface-2, #F3F1EE)', color: 'var(--tgo-text-secondary, #6B6560)' }}
+                aria-label="Cerrar"
+              >
+                <X size={18} strokeWidth={2.25} />
+              </button>
+            </div>
 
-            {/* Content */}
-            <div
-              className="flex-1 overflow-y-auto px-8 pt-6 pb-4"
-              style={{ minHeight: 0 }}
-            >
+            {/* Contenido con scroll */}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-2" data-lenis-prevent>
               {children}
             </div>
+
+            {/* Pie fijo */}
+            {footer && (
+              <div
+                className="px-5 pt-3"
+                style={{
+                  paddingBottom: 'calc(16px + env(safe-area-inset-bottom, 0px))',
+                  borderTop: '1px solid var(--tgo-border, #EFECE8)',
+                  backgroundColor: 'var(--tgo-surface-0, #FFFFFF)',
+                }}
+              >
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
