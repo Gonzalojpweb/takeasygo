@@ -171,11 +171,13 @@ export default function HalfAndHalfSettings({ tenantSlug, initialPricing, flavor
       <button
         type="button"
         onClick={openPanel}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-white text-sm font-medium transition-colors"
+        // Mismo estilo que «Fechas Especiales»: visible en modo claro y oscuro
+        // (antes era texto blanco sobre blanco y en modo claro no se veía).
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#f74211]/10 hover:bg-[#f74211]/20 border border-[#f74211]/30 text-[#f74211] text-sm font-medium transition-colors"
       >
         <PieChart size={16} />
         Mitad y mitad
-        <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] font-semibold">
+        <span className="rounded-full bg-[#f74211]/15 px-2 py-0.5 text-[11px] font-semibold">
           {usableGroups.length ? RULE_LABEL[savedPricing] : 'Sin configurar'}
         </span>
       </button>
