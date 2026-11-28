@@ -1,5 +1,5 @@
 import { Router } from "express"
-import { MenuModel } from "@takeasygo/db"
+import { MenuModel, TenantModel } from "@takeasygo/db"
 import { flattenMenuSnapshot, type RawMenu } from "@takeasygo/business"
 import mongoose from "mongoose"
 
@@ -29,9 +29,16 @@ export function menuRouter(): Router {
       if (auth.locationId) {
         menuQuery.locationId = auth.locationId
       }
-      const menus = await MenuModel.find(menuQuery).lean()
+      const [menus, tenant] = await Promise.all([
+        MenuModel.find(menuQuery).lean(),
+        TenantModel.findById(tenantId).select("halfAndHalf").lean(),
+      ])
 
-      const flat = flattenMenuSnapshot((menus ?? []) as unknown as RawMenu[])
+      // Mitad y mitad con la regla de cobro del comercio (la más cara, promedio
+      // o suma de medias): el POS sin conexión cobra igual que con conexión.
+      const flat = flattenMenuSnapshot((menus ?? []) as unknown as RawMenu[], {
+        halfPricing: tenant?.halfAndHalf?.pricing ?? null,
+      })
 
       res.json({
         version: 1,
