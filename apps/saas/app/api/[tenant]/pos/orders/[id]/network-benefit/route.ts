@@ -38,7 +38,7 @@ export const POST = posRoute('orders.pay', async (ctx, { id }) => {
   const purchaseTotalCents = Math.round(Number(order.total) || 0)
   if (purchaseTotalCents <= 0) throw PosError.validation('La cuenta no tiene importe')
   const actorName = await operatorName(ctx, 'Caja')
-  const saleRef = String(order.orderNumber || order.posId || '')
+  const saleRef = String((order as { orderNumber?: unknown }).orderNumber || order.posId || '')
 
   if (body.dryRun === true) {
     const preview = await redeemBenefit({ tenantId: ctx.tenantId, code: body.code, purchaseTotalCents, dryRun: true, actorName }).catch(toPosError)
