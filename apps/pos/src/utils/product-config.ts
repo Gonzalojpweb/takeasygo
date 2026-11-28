@@ -1,4 +1,5 @@
 import type { OrderItem, Product, ProductModifier } from "@takeasygo/types"
+import { halfHalfTotal } from "@takeasygo/business/browser"
 
 // ============================================================================
 // Personalizar un plato — lógica pura (obs. UX 30/10/2026)
@@ -187,11 +188,22 @@ function halfPrice(product: Product, name: unknown, group: string): number {
   return (product.modifiers ?? []).find((g) => g.name === group)?.options.find((o) => o.name === name)?.price ?? 0
 }
 
+/**
+ * Total de una mitad y mitad según la regla del comercio (product.halfPricing):
+ * la más cara, el promedio o la suma de medias. Cada opción ya trae lo que
+ * aporta su sabor (lo arma el server); sin regla (carta vieja) se suma.
+ */
+function halfTotal(product: Product, first: unknown, second: unknown): number {
+  const a = halfPrice(product, first, HALF_FIRST)
+  const b = halfPrice(product, second, HALF_SECOND)
+  return halfHalfTotal(a, b, product.halfPricing ?? "half_sum")
+}
+
 /** Precio de UNA unidad con lo elegido (0 en mitad y mitad incompleta). */
 export function unitTotal(product: Product, sel: Selections): number {
   if (isHalfMode(product, sel)) {
     if (!sel[HALF_FIRST] || !sel[HALF_SECOND]) return 0
-    return halfPrice(product, sel[HALF_FIRST], HALF_FIRST) + halfPrice(product, sel[HALF_SECOND], HALF_SECOND)
+    return halfTotal(product, sel[HALF_FIRST], sel[HALF_SECOND])
   }
   let total = product.price
   for (const g of visibleGroups(product, sel)) {
@@ -206,17 +218,18 @@ export function buildOrderItem(product: Product, sel: Selections, notes: string,
   if (isHalfMode(product, sel)) {
     const first = String(sel[HALF_FIRST])
     const second = String(sel[HALF_SECOND])
-    const p1 = halfPrice(product, first, HALF_FIRST)
-    const p2 = halfPrice(product, second, HALF_SECOND)
+    const unit = halfTotal(product, first, second)
+    // El total va en unitPrice; las mitades viajan como etiquetas en $0 (el
+    // server suma unitPrice + modificadores: antes se cobraba dos veces).
     return {
       productId: product.id,
       name: `${product.name} Mitad y mitad`,
       quantity,
-      unitPrice: p1 + p2,
-      total: (p1 + p2) * quantity,
+      unitPrice: unit,
+      total: unit * quantity,
       modifiers: [
-        { name: `Primera mitad: ${first}`, price: p1 },
-        { name: `Segunda mitad: ${second}`, price: p2 },
+        { name: `Primera mitad: ${first}`, price: 0 },
+        { name: `Segunda mitad: ${second}`, price: 0 },
       ],
       notes: note,
     }

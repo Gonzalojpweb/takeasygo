@@ -1,3 +1,4 @@
+import { tenantHalfPricing } from '@/lib/menu/half-pricing'
 import { createHash } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import Menu from '@/models/Menu'
@@ -32,7 +33,8 @@ export const GET = posRoute('catalog.read', async (ctx) => {
     .lean()
     .exec()) as unknown as Array<RawMenu & { updatedAt?: Date | string }>
 
-  const flat = flattenMenuSnapshot(menus)
+  // Mitad y mitad: con la regla de cobro del comercio (la más cara, promedio o suma de medias).
+  const flat = flattenMenuSnapshot(menus, { halfPricing: await tenantHalfPricing(ctx.tenantId) })
 
   const combos = await Combo.find({
     tenantId: ctx.tenantId,

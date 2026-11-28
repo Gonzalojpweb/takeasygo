@@ -4,7 +4,7 @@ import { channelPrice } from '@takeasygo/business/browser'
 import { cartMenuDiscountFor } from '@/lib/menu-discounts'
 import { useState, useMemo, useEffect } from 'react'
 import { trackDishViewed } from '@/lib/track'
-import { calculateHalfHalfPrice } from '@takeasygo/business/browser'
+import { calculateHalfHalfPrice, halfShare, normalizeHalfPricing, type HalfAndHalfPricing } from '@takeasygo/business/browser'
 import type { CartItem, SelectedCustomization, SelectedCustomizationOption, SelectedVariant } from '@/types/cart'
 
 import SheetHeader from './SheetHeader'
@@ -58,7 +58,9 @@ interface Props {
   unitLabel?: string
   optionImageRegistry?: Record<string, string>
   isHalfAndHalf?: boolean
-  halfPriceItems?: Array<{ _id: string; name: string; grandePrice: number }>
+  halfPriceItems?: Array<{ _id: string; name: string; grandePrice: number; halfPrice?: number | null }>
+  /** Regla de cobro de la mitad y mitad del comercio (default: la más cara). */
+  halfPricing?: HalfAndHalfPricing | string | null
 }
 
 function computeActiveGroups(
@@ -118,7 +120,12 @@ export default function CustomizationSheet({
   optionImageRegistry,
   isHalfAndHalf = false,
   halfPriceItems = [],
+  halfPricing: halfPricingProp,
 }: Props) {
+  const halfPricing = normalizeHalfPricing(halfPricingProp)
+  /** Lo que aporta cada sabor según la regla (la más cara, promedio o suma de medias). */
+  const shareOf = (hp: { grandePrice: number; halfPrice?: number | null } | undefined) => hp ? halfShare(hp.grandePrice, hp.halfPrice ?? null, halfPricing) : 0
+  const asHalfItem = (hp: { name: string; grandePrice: number; halfPrice?: number | null }) => ({ name: hp.name, variants: [{ name: 'Grande', price: hp.grandePrice }], price: hp.grandePrice, halfPrice: hp.halfPrice ?? null })
   const disabledVariantNames: string[] = item.disabledVariantNames ?? []
   const disabledGroupIds: string[] = item.disabledGroupIds ?? []
   const disabledOptionIds: string[] = item.disabledOptionIds ?? []
@@ -141,7 +148,7 @@ export default function CustomizationSheet({
   const isHalfMode = halfAvailable && halfTypeSelection === 'Mitad y mitad'
 
   const halfFirstItems: CustomizationOption[] = halfAvailable
-    ? halfPriceItems.map(hp => ({ name: hp.name, extraPrice: hp.grandePrice, _id: hp._id }))
+    ? halfPriceItems.map(hp => ({ name: hp.name, extraPrice: shareOf(hp), _id: hp._id }))
     : []
 
   const firstHalfSelection = selections['__half_first']?.[0] ?? null
@@ -228,12 +235,9 @@ export default function CustomizationSheet({
         const firstFull = halfPriceItems.find(hp => hp.name === firstHalfSelection)
         const secondFull = halfPriceItems.find(hp => hp.name === secondHalfName)
         if (firstFull && secondFull) {
-          return calculateHalfHalfPrice(
-            { name: firstFull.name, variants: [{ name: 'Grande', price: firstFull.grandePrice }], price: firstFull.grandePrice },
-            { name: secondFull.name, variants: [{ name: 'Grande', price: secondFull.grandePrice }], price: secondFull.grandePrice }
-          )
+          return calculateHalfHalfPrice(asHalfItem(firstFull), asHalfItem(secondFull), halfPricing)
         }
-        return Math.max(firstHalf.extraPrice, secondHalf.extraPrice)
+        return halfPricing === 'max' ? Math.max(firstHalf.extraPrice, secondHalf.extraPrice) : firstHalf.extraPrice + secondHalf.extraPrice
       }
       return 0
     }
@@ -406,20 +410,17 @@ export default function CustomizationSheet({
       customizations = [
         {
           groupName: 'Primera mitad',
-          selectedOptions: [{ name: firstHalfSelection, extraPrice: firstHalfItem?.grandePrice ?? 0 }],
+          selectedOptions: [{ name: firstHalfSelection, extraPrice: shareOf(firstHalfItem) }],
         },
         {
           groupName: 'Segunda mitad',
-          selectedOptions: [{ name: secondHalfName, extraPrice: secondHalfItem?.grandePrice ?? 0 }],
+          selectedOptions: [{ name: secondHalfName, extraPrice: shareOf(secondHalfItem) }],
         },
       ]
       customizationSummary = `Mitad ${firstHalfSelection} / Mitad ${secondHalfName}`
       finalBasePrice = 0
       finalExtraPrice = (firstHalfItem && secondHalfItem)
-        ? calculateHalfHalfPrice(
-            { name: firstHalfItem.name, variants: [{ name: 'Grande', price: firstHalfItem.grandePrice }], price: firstHalfItem.grandePrice },
-            { name: secondHalfItem.name, variants: [{ name: 'Grande', price: secondHalfItem.grandePrice }], price: secondHalfItem.grandePrice }
-          )
+        ? calculateHalfHalfPrice(asHalfItem(firstHalfItem), asHalfItem(secondHalfItem), halfPricing)
         : 0
     } else {
       customizations = activeGroups

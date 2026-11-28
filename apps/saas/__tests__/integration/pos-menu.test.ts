@@ -191,7 +191,8 @@ describe('GET /pos/menu — snapshot', () => {
     expect(fug.modifiers.map((m: { name: string }) => m.name)).toEqual(['Queso'])
   })
 
-  it('mitad y mitad: con 2 o más halfPrice inyecta los tres grupos sintéticos', async () => {
+  it('mitad y mitad: con 2 o más pizzas con Grande inyecta los tres grupos sintéticos (regla del comercio)', async () => {
+    await Tenant.updateOne({ _id: tenantId }, { $set: { 'halfAndHalf.pricing': 'half_sum' } })
     await Menu.create({
       tenantId,
       locationId,
@@ -199,8 +200,8 @@ describe('GET /pos/menu — snapshot', () => {
         {
           name: 'Pizzas',
           items: [
-            { name: 'Muzzarella', price: 8000, halfPrice: 5000 },
-            { name: 'Fugazzeta', price: 9000, halfPrice: 5500 },
+            { name: 'Muzzarella', price: 8000, halfPrice: 5000, variants: [{ name: 'Grande', price: 8000 }] },
+            { name: 'Fugazzeta', price: 9000, halfPrice: 5500, variants: [{ name: 'Grande', price: 9000 }] },
             { name: 'Calzone', price: 7000 },
           ],
         },
@@ -212,22 +213,24 @@ describe('GET /pos/menu — snapshot', () => {
     const cal = body.products.find((p: { name: string }) => p.name === 'Calzone')
 
     expect(muz.halfPrice).toBe(5000)
+    expect(muz.halfPricing).toBe('half_sum')
     expect(muz.modifiers.map((m: { name: string }) => m.name)).toEqual([
       '__half_type',
       '__half_first',
       '__half_second',
+      'Variante',
     ])
     expect(muz.modifiers[1].options).toEqual([
       { name: 'Muzzarella', price: 5000 },
       { name: 'Fugazzeta', price: 5500 },
     ])
 
-    // Sin halfPrice no recibe nada sintético.
+    // Sin Grande no recibe nada sintético.
     expect(cal.halfPrice).toBeUndefined()
     expect(cal.modifiers).toBeUndefined()
   })
 
-  it('con un solo halfPrice en la categoría no inyecta mitad y mitad', async () => {
+  it('con una sola pizza con Grande en la categoría no inyecta mitad y mitad', async () => {
     await Menu.create({
       tenantId,
       locationId,
@@ -235,7 +238,7 @@ describe('GET /pos/menu — snapshot', () => {
         {
           name: 'Pizzas',
           items: [
-            { name: 'Muzzarella', price: 8000, halfPrice: 5000 },
+            { name: 'Muzzarella', price: 8000, halfPrice: 5000, variants: [{ name: 'Grande', price: 8000 }] },
             { name: 'Calzone', price: 7000 },
           ],
         },
@@ -244,7 +247,7 @@ describe('GET /pos/menu — snapshot', () => {
 
     const { body } = await get(AUTH())
     const muz = body.products.find((p: { name: string }) => p.name === 'Muzzarella')
-    expect(muz.modifiers).toBeUndefined()
+    expect(muz.modifiers.some((m: { name: string }) => m.name === '__half_first')).toBe(false)
   })
 
   it('ignora menús inactivos y solo sirve la sede declarada', async () => {

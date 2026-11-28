@@ -1,5 +1,6 @@
 import type { MenuCategory, Product, ProductModifier } from "@takeasygo/types"
 import { salonPrice } from "./menu-price"
+import { halfShare, normalizeHalfPricing, type HalfAndHalfPricing } from "./order"
 
 // ============================================================================
 // Aplanado del menú — la ÚNICA regla, compartida POS ⇄ SaaS
@@ -289,6 +290,12 @@ function flattenItem(
   if (item.halfPrice !== undefined && item.halfPrice !== null) {
     product.halfPrice = item.halfPrice
   }
+  // Mitad y mitad: sabor elegible si tiene variante «Grande» con precio (misma
+  // regla que la carta online).
+  const grande = variants.find((v) => v.name.toLowerCase() === 'grande')
+  if (grande && salonPrice(grande) > 0) {
+    product.halfFlavor = { grande: salonPrice(grande), halfPrice: typeof item.halfPrice === 'number' && item.halfPrice > 0 ? item.halfPrice : null }
+  }
   if (item.imageUrl) product.imageUrl = item.imageUrl
   const link = item.catalogLink
   if (link?.productId) {
@@ -304,7 +311,12 @@ function flattenItem(
   return product
 }
 
-export function flattenMenu(doc: RawMenu): FlatMenuResult {
+export interface FlattenOptions {
+  /** Regla de cobro de la mitad y mitad del comercio (default 'max'). */
+  halfPricing?: HalfAndHalfPricing | string | null
+}
+
+export function flattenMenu(doc: RawMenu, opts: FlattenOptions = {}): FlatMenuResult {
   const products: Product[] = []
   const categories: MenuCategory[] = []
   const tenantId = oid(doc.tenantId)
@@ -346,7 +358,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
     }
   }
 
-  injectHalfPriceModifiers(products)
+  injectHalfPriceModifiers(products, normalizeHalfPricing(opts.halfPricing))
 
   return { products, categories }
 }
@@ -361,7 +373,7 @@ export function flattenMenu(doc: RawMenu): FlatMenuResult {
  * catálogo: los arma el server para que todos los dispositivos calculen el
  * mismo precio de "mitad y mitad".
  */
-export function injectHalfPriceModifiers(products: Product[]): void {
+export function injectHalfPriceModifiers(products: Product[], rule: HalfAndHalfPricing = 'max'): void {
   // Los sabores se combinan dentro de la misma (sub)categoría: una pizza de
   // la subcategoría "Especiales" no se mezcla con las "Clásicas".
   const byCategory = new Map<string, Product[]>()
@@ -373,15 +385,19 @@ export function injectHalfPriceModifiers(products: Product[]): void {
   }
 
   for (const [, catProducts] of byCategory) {
-    const halfPriceItems = catProducts.filter((p) => p.halfPrice != null && p.halfPrice > 0)
+    // Sabores con Grande (misma regla que la carta online). Cada opción vale
+    // lo que aporta el sabor según la regla del comercio (lib order: halfShare);
+    // el POS suma o toma el máximo según product.halfPricing.
+    const halfPriceItems = catProducts.filter((p) => p.halfFlavor)
     if (halfPriceItems.length < 2) continue
 
     const flavorOptions = halfPriceItems.map((p) => ({
       name: p.name,
-      price: p.halfPrice as number,
+      price: halfShare(p.halfFlavor!.grande, p.halfFlavor!.halfPrice, rule),
     }))
 
     for (const product of halfPriceItems) {
+      product.halfPricing = rule
       const existingMods = product.modifiers ?? []
       const tipoGroup: ProductModifier = {
         name: '__half_type',
@@ -425,12 +441,12 @@ export function injectHalfPriceModifiers(products: Product[]): void {
  *
  * El `version`/`tenantId`/`signature` del `MenuSnapshot` los arma el caller.
  */
-export function flattenMenuSnapshot(menus: readonly RawMenu[]): FlatMenuResult {
+export function flattenMenuSnapshot(menus: readonly RawMenu[], opts: FlattenOptions = {}): FlatMenuResult {
   const products: Product[] = []
   const categories: MenuCategory[] = []
 
   for (const menu of menus) {
-    const flat = flattenMenu(menu)
+    const flat = flattenMenu(menu, opts)
     products.push(...flat.products)
     categories.push(...flat.categories)
   }

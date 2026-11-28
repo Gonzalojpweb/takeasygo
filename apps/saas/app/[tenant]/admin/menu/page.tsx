@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import MenuManager from '@/components/admin/MenuManager'
 import ClubDiscountModal from '@/components/admin/ClubDiscountModal'
+import HalfAndHalfSettings, { type HalfFlavorRow, type HalfPricing } from '@/components/admin/HalfAndHalfSettings'
 import ContextualLesson from '@/components/admin/education/ContextualLesson'
 import { ExternalLink, Calendar, Star } from 'lucide-react'
 import type { Types } from 'mongoose'
@@ -22,7 +23,7 @@ export default async function MenuPage() {
   await connectDB()
 
   const tenant = await Tenant.findOne({ slug: tenantSlug, isActive: true })
-    .lean<{ _id: Types.ObjectId; plan?: Plan }>()
+    .lean<{ _id: Types.ObjectId; plan?: Plan; halfAndHalf?: { pricing?: HalfPricing } }>()
   if (!tenant) notFound()
 
   const tenantId = tenant._id
@@ -46,6 +47,22 @@ export default async function MenuPage() {
   }
   const categories = Array.from(categoriesMap.values())
 
+  // Mitad y mitad: pizzas con variante «Grande» de cada sede (misma regla que la carta y el POS).
+  const locationNames = new Map(locations.map(l => [l._id.toString(), l.name]))
+  const halfFlavors: HalfFlavorRow[] = []
+  for (const menu of menus as any[]) {
+    const locationId = String(menu.locationId)
+    const items = (menu.categories ?? []).flatMap((c: any) => [...(c.items ?? []), ...(c.subcategories ?? []).flatMap((sc: any) => sc.items ?? [])])
+    for (const it of items) {
+      const grande = (it.variants ?? []).find((v: any) => String(v.name).toLowerCase() === 'grande' && v.price > 0)
+      if (!grande) continue
+      halfFlavors.push({
+        locationId, locationName: locationNames.get(locationId) ?? '', itemId: String(it._id), name: it.name,
+        grandePrice: grande.price, halfPrice: typeof it.halfPrice === 'number' && it.halfPrice > 0 ? it.halfPrice : null,
+      })
+    }
+  }
+
   return (
     <div>
       <ContextualLesson
@@ -59,6 +76,11 @@ export default async function MenuPage() {
           <ClubDiscountModal
             tenantSlug={tenantSlug || ''}
             categories={categories}
+          />
+          <HalfAndHalfSettings
+            tenantSlug={tenantSlug || ''}
+            initialPricing={tenant.halfAndHalf?.pricing ?? 'max'}
+            flavors={halfFlavors}
           />
           <a
             href={`/${tenantSlug}/admin/special-dates`}

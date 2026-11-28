@@ -1,4 +1,4 @@
-export { calculateOrderTotal, calculateItemTotal, calculateHalfHalfPrice, validateOrderItems } from "./order"
+export { calculateOrderTotal, calculateItemTotal, calculateHalfHalfPrice, validateOrderItems, halfShare, halfHalfTotal, normalizeHalfPricing, HALF_AND_HALF_PRICINGS, type HalfAndHalfPricing } from "./order"
 export { canPerformAction, PERMISSIONS } from "./authorization"
 export { toPesos, toCents, formatCents } from "./money"
 export {

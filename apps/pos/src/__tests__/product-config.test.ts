@@ -116,10 +116,20 @@ describe("hoja de personalización — línea del pedido (contrato con el server
     expect(pendingGroup(visibleGroups(pizza, sel), sel)).toBeNull()
     const item = buildOrderItem(pizza, sel, "", 1)
     expect(item).toMatchObject({ name: "Muzza Mitad y mitad", unitPrice: 13700, total: 13700 })
+    // Las mitades viajan como etiquetas en $0: el total va en unitPrice.
     expect(item.modifiers).toEqual([
-      { name: "Primera mitad: Muzza", price: 6500 },
-      { name: "Segunda mitad: Napo", price: 7200 },
+      { name: "Primera mitad: Muzza", price: 0 },
+      { name: "Segunda mitad: Napo", price: 0 },
     ])
+  })
+
+  it("mitad y mitad según la regla del comercio: la más cara o el promedio", () => {
+    const sel: Selections = { [HALF_TYPE]: HALF_MODE, [HALF_FIRST]: "Muzza", [HALF_SECOND]: "Napo" }
+    // Con 'max' cada opción trae la Grande completa del sabor.
+    const maxPizza: Product = { ...pizza, halfPricing: "max", modifiers: pizza.modifiers!.map((g) => g.name === HALF_FIRST || g.name === HALF_SECOND ? { ...g, options: [{ name: "Muzza", price: 13000 }, { name: "Napo", price: 14400 }] } : g) }
+    expect(buildOrderItem(maxPizza, sel, "", 2)).toMatchObject({ unitPrice: 14400, total: 28800 })
+    // Con 'average' cada opción trae media Grande: se suman.
+    expect(buildOrderItem({ ...pizza, halfPricing: "average" }, sel, "", 1)).toMatchObject({ unitPrice: 13700 })
   })
 
   it("un sabor: precio normal y sin modificadores sintéticos", () => {
