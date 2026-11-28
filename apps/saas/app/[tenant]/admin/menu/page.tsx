@@ -52,14 +52,20 @@ export default async function MenuPage() {
   const halfFlavors: HalfFlavorRow[] = []
   for (const menu of menus as any[]) {
     const locationId = String(menu.locationId)
-    const items = (menu.categories ?? []).flatMap((c: any) => [...(c.items ?? []), ...(c.subcategories ?? []).flatMap((sc: any) => sc.items ?? [])])
-    for (const it of items) {
-      const grande = (it.variants ?? []).find((v: any) => String(v.name).toLowerCase() === 'grande' && v.price > 0)
-      if (!grande) continue
-      halfFlavors.push({
-        locationId, locationName: locationNames.get(locationId) ?? '', itemId: String(it._id), name: it.name,
-        grandePrice: grande.price, halfPrice: typeof it.halfPrice === 'number' && it.halfPrice > 0 ? it.halfPrice : null,
-      })
+    // Los sabores se combinan dentro de la misma (sub)categoría (igual que la carta y el POS).
+    const groups = (menu.categories ?? []).flatMap((c: any) => [
+      { category: c.name, items: c.items ?? [] },
+      ...(c.subcategories ?? []).map((sc: any) => ({ category: `${c.name} · ${sc.name}`, items: sc.items ?? [] })),
+    ])
+    for (const g of groups) {
+      for (const it of g.items) {
+        const grande = (it.variants ?? []).find((v: any) => String(v.name).toLowerCase() === 'grande' && v.price > 0)
+        if (!grande) continue
+        halfFlavors.push({
+          locationId, locationName: locationNames.get(locationId) ?? '', category: g.category, itemId: String(it._id), name: it.name,
+          grandePrice: grande.price, halfPrice: typeof it.halfPrice === 'number' && it.halfPrice > 0 ? it.halfPrice : null,
+        })
+      }
     }
   }
 
